@@ -46,7 +46,7 @@ bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和�
 
 ## HyperFrames（HTML + GSAP）
 
-要求 Node ≥ 22 和 FFmpeg。**版本固定在 0.8.202**（2026-10-26 从 0.8.82 升上来，查了什么、变了什么见下面"升级核对"；`bin/vh` 默认使用。想试新版，就设 `HYPERFRAMES_VERSION=<版本>`，照"升级核对"那几项跑一遍，再把默认版本改上去：`bin/vh`、`styles/_swatch/package.json` 和 `tools/modules.json` 三处一起改，CI 会对）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。
+要求 Node ≥ 22 和 FFmpeg。**版本固定在 0.8.202**（2026-10-26 从 0.8.82 升上来，查了什么、变了什么见下面"升级核对"；`bin/vh` 默认使用。想试新版，就设 `HYPERFRAMES_VERSION=<版本>`，照"升级核对"那几项跑一遍，再把默认版本改上去：`bin/vh`、`styles/_swatch/package.json` 和 `tools/modules.json` 三处一起改，CI 会对）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。在 Linux 上第一次渲染之前，先看下面的"Linux：渲染前要先备好的三样"。
 
 > ⚠️ HyperFrames 0.8.x 的 `init` 和 `skills update` 会把 skills 装进**全局**的 `~/.claude/skills` 和 `~/.agents/skills`。0.8.82 的 `--skip-skills` 参数不生效；0.8.202 的代码认它，帮助里却仍写着"暂时忽略"，所以照旧用环境变量 `HYPERFRAMES_SKIP_SKILLS=1` 跳过。`bin/vh hf-init` 已经设置了这个变量，并且只把工程文件拷进项目，不拷它生成的 CLAUDE.md 和 AGENTS.md，避免和本仓库的路由冲突。自己手动运行 npx 时，也要带上这个变量：
 
@@ -71,46 +71,6 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 - **时有时无**：shell 在渲染起来之前就退了的话，父进程链里已经没有它，能渲完；同一条命令里还在 `sleep` 或 `tail` 日志，就会被取消。所以跑通过一次，不说明可以不加。
 - **别把长渲染交给 agent 自己的后台任务**：agent 的后台命令往往有时长上限（2026-10 的 Claude Code 默认 30 分钟），到点连同渲染一起被停。照上面那行把渲染脱离出去，命令立刻返回，再看日志等它结束。
 - **代价**：加了变量，父进程退出，渲染也不会停，要停得自己杀，按输出路径匹配：`pkill -f "[h]yperframes render.*out/draft.mp4"`（`[h]` 让执行 pkill 的 shell 不匹配到自己）。变量只写在后台那一行，不 export，前台渲染照旧跟着父进程停。`caffeinate -i` 防止 Mac 睡眠，只有 macOS 有，Linux 上去掉。
-
-### 出 4K
-
-照常按 1080p 写合成。`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲（`devicePixelRatio` = 2）：页面仍按 1920×1080 排版，每个排版像素画成 2×2 个物理像素。这不是把 1080 的画面放大。DOM 和 SVG 自己会变清楚；代码自己画像素的地方，要自己处理这个 2 倍，处理错了不是发糊，而是大小和位置错（介绍片第一版 4K 的标签大了一倍，就是这样）。
-
-`--resolution 4k` 会按合成的画幅自动选预设（竖屏合成用 `portrait-4k`）；显式写 `landscape-4k`、`portrait-4k`、`square-4k` 时要和画幅一致，4:5 没有 4K 预设。4K 只是渲染参数：建项目、`bin/vh hf-init` 的画幅写 landscape、portrait、square、4:5 或 3:4（`*-4k` 预设会搭出原生 3840 宽的合成，按 1080p 定的字号下限就失效了，`hf-init` 会拒绝）。4:5 和 3:4 只出 1080p。
-
-| 自己就对，不用改代码 | 要写代码 |
-|---|---|
-| DOM 文字、CSS 的线和边框、SVG | 2D `<canvas>`：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，之后坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一）。每帧开头重置变换也要带上 dpr：`ctx.setTransform(dpr, 0, 0, dpr, 0, 0)`；写成 `setTransform(1, 0, 0, 1, 0, 0)` 或 `resetTransform()` 会清掉这个 2 倍，1080p 下看不出来，4K 下又挤回左上角（清屏、按设备像素整幅贴一张离屏层时可以先用单位矩阵，画完再设回 dpr） |
-| `ctx.scale` 之后画的 canvas 内容，包括 `lineWidth`、`measureText` | 拿 `canvas.width`、`image.width`、`getImageData` 去算布局的地方：这些是物理像素，要除以 dpr |
-| 4K 的 `<video>` 源（HyperFrames 按源分辨率取帧） | Three.js：`renderer.setPixelRatio(dpr)`，后期链 `composer.setPixelRatio(dpr)` |
-| | 先画好、再 `drawImage` 进 2D canvas 的 WebGL 离屏层：它的 canvas 和 `viewport` 也乘 dpr，`drawImage` 的目标尺寸照旧按合成尺寸写；按 1080 开的话，这一层在 4K 下被放大发糊。着色器里的位置按 CSS 像素算（由 `uv` 和这块矩形的 CSS 尺寸换算），不用 `gl_FragCoord`，图案就不随 dpr 变 |
-| | 着色器里的 `gl_PointSize` 按设备像素算，要乘 dpr，上限的 `min()` 也要乘 |
-| | 1 px 的 WebGL 线永远是 1 个设备像素，4K 下变细；要粗细一致，用 `Line2` 或面片 |
-| | `shadowBlur`、`ctx.filter` 的 blur、`UnrealBloomPass` 的核按设备像素算，4K 下光晕变紧；用 `gl_FragCoord` 算的图案频率加倍 |
-| | 1080 尺寸的贴图、截图、视频代理在 4K 下会被放大发糊：这类素材按 2 倍准备 |
-| | 按设备像素加的颗粒会让文件变大约 4 倍 |
-
-每次出 4K 都这样查：
-
-1. 先渲一个 4K draft（`--quality draft` 就够），和人认可过的 1080p 成片比：`bin/vh check out/draft-4k.mp4 --against out/final.mp4`。两边缩到 480 宽逐帧比（颗粒、抗锯齿这类正常的分辨率差异会被平均掉），连续半秒画面不一样就失败，并在视频旁边的 `check/` 里出"1080 | 4K 缩小 | 差值"的对照图。判失败看的是差异持续多久，不是掉得多低：布局错（大一倍、挪了位置、少了东西）只要元素在画面上就一直低于 18 dB；光晕、闪光会掉得很低但很快回来（介绍片修好的 4K 里最低到 10 dB，最长连续 9 帧），所以要连续半秒（30 fps 下 15 帧）才算失败，介于 18–24 dB 的给 WARN。阈值只在介绍片和合成测试片上标定过（2026-10-04），余量不大：报 WARN 或 FAIL 都先看对照图再下结论。
-2. 再从 4K 成片里裁一两帧原尺寸，看字和细线锐不锐。这一步只查"发糊"，查不出大小和位置错。
-3. `hyperframes snapshot` 永远按 dpr 1 渲，`--zoom-scale 2` 也是页面建好以后才放大，不能当 4K 预览。
-
-成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
-
-**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而多 worker 截屏默认先把每一帧存成 JPEG，最后再编码（0.8.82 实测；0.8.202 的代码只在 Linux 的 1 倍 BeginFrame 截帧时默认改成流式，4K 照旧落盘）；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝，截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
-
-- 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了十来分钟；
-- `--workers 1`：单个 worker 本来就是流式的，只是慢；
-- 把 `--output` 指到空间够的盘上。
-
-```bash
-HF_CAPTURE_PARALLEL_STREAM=true NODE_OPTIONS=--max-old-space-size=8192 npx hyperframes render --resolution 4k --quality delivery --fps 30 --workers 4 --output out/final-4k.mp4
-```
-
-`NODE_OPTIONS` 把 Node 的堆开到 8 GB，这是 HyperFrames 自己的建议：它按每个 worker 约 640 MB、另留 1 GB 来估，这台 M3 Max 默认约 4 GB 的堆够 4 个；自动选出的 worker 比这多时，日志里会打出 `capture workers may exceed this process's V8 heap`，显式写了 `--workers` 就不提醒。那次渲染带着它，没试过去掉。放到后台跑时，照上文在这一行加 `HYPERFRAMES_RENDER_DETACHED=1`。
-
-码率和耗时随画面差很多：这支 canvas 片子的 4K 约 26 Mbps，渲 1 s 片长约 1.4 s；上面的介绍片（3D）约 125 Mbps，要 5–8 s。所以上面"超过约 135 s 的 4K 要先重编码"是按介绍片的码率算的，自己的片子先量再定。
 
 ### 最小写法（0.8.202）
 
@@ -138,28 +98,7 @@ HF_CAPTURE_PARALLEL_STREAM=true NODE_OPTIONS=--max-old-space-size=8192 npx hyper
   ```
 
 - **写一段，查一段**：`npx hyperframes lint` 到 0 error 再往下；`snapshot --at <秒> --describe false` 看几个关键时刻的单帧；`render --quality draft --fps 30 --output out/draft.mp4` 出草稿，字体和接缝以渲出来的 mp4 为准；最后 `--quality delivery` 出成片。完整写法见上面那一块命令。
-
-### 画面文字检查（canvas 片子）
-
-`npx hyperframes check` 只量 DOM 文字，脚本画进 `<canvas>` 的字在它眼里只是像素。canvas 片子用 `bin/vh textcheck <项目>` 查：哪条字被后画的东西盖住、和画面对比不够、出了画面或被边缘裁掉、被 DOM 字幕压住。合成的内联脚本里按页面合约（`engines/CONTRACT.md`）加一行就能用：
-
-```js
-window.film = {
-  frame: (t) => drawFrame(t),   // 必填：画出第 t 秒，连同它自己管的 DOM（比如字幕），和渲染出的那一帧一样；可以返回 Promise
-  duration: 24.8,               // 片长（秒）
-  texts: TEXTS,                 // 可选：reads 登记表，格式同 readcheck 的 texts.json：[{text, start, end, read?}]
-};
-```
-
-原来的写法 `window.__vh = { draw, texts }` 仍然认，`draw` 就是 `frame`。
-
-- **画字的函数不用改。** 检查在合成的脚本运行之前挂上 canvas 的 `fillText` / `strokeText`，记下每条字画在哪、用什么字体，能单独去掉一条字重画这一帧。所以字要用 2D canvas 的 `fillText` / `strokeText` 画：做成图片的、画进 WebGL 的、画在离屏 canvas 里再贴上来的字，它看不到，登记了会报"没画成 canvas 字"。字底下的"画面"是页面上所有 canvas、video、img 按层叠顺序合成的结果，字画在透明的一层上也按它后面那层量；CSS 背景、SVG 这类 DOM 不算在内。逐字出现的动画字、拆成几次画的一行字、中间的"·"和箭头画成图形的，都按字母对得上。
-- **登记表**：命令行给了 `--texts <文件>` 就用它，否则用页面的 `texts`（`window.film.texts` 或 `window.__vh.texts`），再没有就读 `out/texts.json`（`bin/vh readcheck --export` 存的那份）。每条在它的时间窗里取 3 个时刻（开始后 0.4 s 到结束前 0.3 s），所以 start 要是字完整显示的那一刻，这也是 readcheck 的约定；登记早了会报"有的时刻没画全"。没有登记表也能跑，只做下面那遍扫描。
-- **没登记的字**每秒扫一遍全片，每行字在它最完整的那一刻量一次，有问题只警告：观众该读的，就登记进去。
-- `draw(t)` 要是 t 的纯函数（硬规则 1）：同一个 t 会画好几遍，两遍画面不一样会报出来，那一刻的数字不可信。
-- **界面压在场景上**：页面给了 `ui(t)`（常驻界面的字和线在哪）、`frame(t, { layer: "scene" })` 能只画场景时（`engines/CONTRACT.md`；canvas-film 引擎自带），每秒把场景单独画一遍，看它在界面的框里画了什么：和那一块的底色（每 32 px 一格取中位色，格间渐变）差 60 级以上（r + g + b）的像素算场景的东西，纸面、渐变、暗角和颗粒都不算。超过框的 0.2%（至少 30 个像素），或者在很长的框里有 150 个像素以上，或者有一块从框的这边穿到那边（一条线竖着穿过细细的进度条），就报，同一段只报一次、附裁图，只警告（`ui(t)` 抛错和画帧函数抛错一样算页面出错）：占得少是一条线、一个边穿过了进度条或字幕（挪开一个），占得多（15% 以上）是界面压在一张很花的画面上（该有底板或压暗的一条）。界面挪了位置（比如进度条挪进安全框）以后，最容易出这种事。
-- **浏览器**：`CHROME_PATH`，否则用这个项目 `render` 时用的 chrome-headless-shell（`HYPERFRAMES_BROWSER_PATH`，或项目里装的 HyperFrames 固定的那个版本；还没下载就先 `npx hyperframes browser ensure`），再否则用 `~/.cache/puppeteer` 里最新的 chrome-headless-shell，最后是系统的 Chrome 或 Chromium，不用装 npm 包。用的不是 `render` 那个时会提示一行：版本不同，字的排布可能和成片有细微差别。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、`window.__vh.ready`（可选）和字体加载完。
-- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮、场景画到界面底下只警告；没法检查（没有 `window.film.frame` 也没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支七八分钟、一百来条登记文字的片子，在 M3 Max 上十几秒跑完。
+- **用到再读的两节**：字画进 `<canvas>` 的（`fillText`），`npx hyperframes check` 量不到，用 `bin/vh textcheck` 查，见下面的"画面文字检查（canvas 片子）"；要出 4K，见"出 4K"。
 
 ### 注意事项和已知问题（0.8.82 实测，0.8.202 复核）
 
@@ -211,7 +150,77 @@ window.film = {
   - **世界里的节点标签按屏幕像素定字号**，不要按画面宽度的比例缩放，否则长标签的中文会掉到 20 多 px。介绍片的 `pin()` 每帧把节点投影到屏幕，用 `2·d·tan(fov/2) / 1080` 算出这个深度上 1 px 对应的世界长度（d 是节点沿视线方向的深度，fov 是竖直视场角），据此缩放面向镜头的标签平面，字号就固定了（英文 54–56 px，中文 ≥ 46 px）。另外两件事：标签框夹在安全框里；节点出画、或者标签被推离节点太远时就淡出，否则镜头离开后，标签会在画面边上堆成一摞。
   - **变拍只改一个 `bar(k)`。** 画面、事件表、字幕、HUD 都从同一个 `bar(k, beat)` 取时间，不手写秒数。介绍片把第 11 小节改成 6/4 时，画面这边只在 `bar()` 里给第 12 小节以后统一加 2 拍，HUD 改用按真实拍号换算的 `barBeat()`；作曲那边在 `score.json` 写 `"meters": {"11": 6}`（`bin/vh music` 现在也支持这个字段，beat map 会多出 `bars`）。其他秒数一个都不用手改。
 
-### 升级核对（0.8.82 → 0.8.202，2026-10-26）
+## Linux：渲染前要先备好的三样
+
+2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测，x86_64 没测。
+
+- **arm64 上的浏览器**：HyperFrames 固定的那一版没有 linux-arm64 的 chrome-headless-shell，它就自己用 apt 装系统的 Chromium。Ubuntu 的 `chromium-browser` 只是一个要 snapd 的空壳，Docker 和没有 snapd 的服务器上跑不起来：渲染报 `Target closed`，`browser ensure` 却说已经就绪。办法：先 `apt purge chromium-browser`，再 `npx @puppeteer/browsers install chrome-headless-shell --path ~/.cache/puppeteer` 下一份 linux-arm64 的（那次是 159 版，比固定的 152 新，字的排布可能有细微差别），然后把 `HYPERFRAMES_BROWSER_PATH` 指向里面的 `chrome-headless-shell`。`bin/vh` 的页面工具也会在 `~/.cache/puppeteer` 里找到它。
+- **Chrome 要的系统库**：报 `Target closed` 时，直接运行那个浏览器文件（`--version`），它会说缺哪个 `.so`。那台机器装过 ffmpeg 以后，只缺 `libnss3` 和 `libnspr4`。上面那条命令的 `--install-deps`（要 root）说能顺带装好这些库，没试过。
+- **中文字体**：裸系统没有，中文会画成方框，lint 和渲染都不报。装 `fonts-noto-cjk`。`bin/vh doctor` 在 Linux 上会说有没有中文字体；`bin/vh new` 建 HyperFrames 项目时，`fc-list` 查不到中文字体也会提醒（没装 fontconfig 时它不说）；`bin/vh fonts check <项目>` 逐字查。
+
+## 出 4K
+
+照常按 1080p 写合成。`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲（`devicePixelRatio` = 2）：页面仍按 1920×1080 排版，每个排版像素画成 2×2 个物理像素。这不是把 1080 的画面放大。DOM 和 SVG 自己会变清楚；代码自己画像素的地方，要自己处理这个 2 倍，处理错了不是发糊，而是大小和位置错（介绍片第一版 4K 的标签大了一倍，就是这样）。
+
+`--resolution 4k` 会按合成的画幅自动选预设（竖屏合成用 `portrait-4k`）；显式写 `landscape-4k`、`portrait-4k`、`square-4k` 时要和画幅一致，4:5 没有 4K 预设。4K 只是渲染参数：建项目、`bin/vh hf-init` 的画幅写 landscape、portrait、square、4:5 或 3:4（`*-4k` 预设会搭出原生 3840 宽的合成，按 1080p 定的字号下限就失效了，`hf-init` 会拒绝）。4:5 和 3:4 只出 1080p。
+
+| 自己就对，不用改代码 | 要写代码 |
+|---|---|
+| DOM 文字、CSS 的线和边框、SVG | 2D `<canvas>`：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，之后坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一）。每帧开头重置变换也要带上 dpr：`ctx.setTransform(dpr, 0, 0, dpr, 0, 0)`；写成 `setTransform(1, 0, 0, 1, 0, 0)` 或 `resetTransform()` 会清掉这个 2 倍，1080p 下看不出来，4K 下又挤回左上角（清屏、按设备像素整幅贴一张离屏层时可以先用单位矩阵，画完再设回 dpr） |
+| `ctx.scale` 之后画的 canvas 内容，包括 `lineWidth`、`measureText` | 拿 `canvas.width`、`image.width`、`getImageData` 去算布局的地方：这些是物理像素，要除以 dpr |
+| 4K 的 `<video>` 源（HyperFrames 按源分辨率取帧） | Three.js：`renderer.setPixelRatio(dpr)`，后期链 `composer.setPixelRatio(dpr)` |
+| | 先画好、再 `drawImage` 进 2D canvas 的 WebGL 离屏层：它的 canvas 和 `viewport` 也乘 dpr，`drawImage` 的目标尺寸照旧按合成尺寸写；按 1080 开的话，这一层在 4K 下被放大发糊。着色器里的位置按 CSS 像素算（由 `uv` 和这块矩形的 CSS 尺寸换算），不用 `gl_FragCoord`，图案就不随 dpr 变 |
+| | 着色器里的 `gl_PointSize` 按设备像素算，要乘 dpr，上限的 `min()` 也要乘 |
+| | 1 px 的 WebGL 线永远是 1 个设备像素，4K 下变细；要粗细一致，用 `Line2` 或面片 |
+| | `shadowBlur`、`ctx.filter` 的 blur、`UnrealBloomPass` 的核按设备像素算，4K 下光晕变紧；用 `gl_FragCoord` 算的图案频率加倍 |
+| | 1080 尺寸的贴图、截图、视频代理在 4K 下会被放大发糊：这类素材按 2 倍准备 |
+| | 按设备像素加的颗粒会让文件变大约 4 倍 |
+
+每次出 4K 都这样查：
+
+1. 先渲一个 4K draft（`--quality draft` 就够），和人认可过的 1080p 成片比：`bin/vh check out/draft-4k.mp4 --against out/final.mp4`。两边缩到 480 宽逐帧比（颗粒、抗锯齿这类正常的分辨率差异会被平均掉），连续半秒画面不一样就失败，并在视频旁边的 `check/` 里出"1080 | 4K 缩小 | 差值"的对照图。判失败看的是差异持续多久，不是掉得多低：布局错（大一倍、挪了位置、少了东西）只要元素在画面上就一直低于 18 dB；光晕、闪光会掉得很低但很快回来（介绍片修好的 4K 里最低到 10 dB，最长连续 9 帧），所以要连续半秒（30 fps 下 15 帧）才算失败，介于 18–24 dB 的给 WARN。阈值只在介绍片和合成测试片上标定过（2026-10-04），余量不大：报 WARN 或 FAIL 都先看对照图再下结论。
+2. 再从 4K 成片里裁一两帧原尺寸，看字和细线锐不锐。这一步只查"发糊"，查不出大小和位置错。
+3. `hyperframes snapshot` 永远按 dpr 1 渲，`--zoom-scale 2` 也是页面建好以后才放大，不能当 4K 预览。
+
+成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
+
+**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而多 worker 截屏默认先把每一帧存成 JPEG，最后再编码（0.8.82 实测；0.8.202 的代码只在 Linux 的 1 倍 BeginFrame 截帧时默认改成流式，4K 照旧落盘）；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝，截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
+
+- 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了十来分钟；
+- `--workers 1`：单个 worker 本来就是流式的，只是慢；
+- 把 `--output` 指到空间够的盘上。
+
+```bash
+HF_CAPTURE_PARALLEL_STREAM=true NODE_OPTIONS=--max-old-space-size=8192 npx hyperframes render --resolution 4k --quality delivery --fps 30 --workers 4 --output out/final-4k.mp4
+```
+
+`NODE_OPTIONS` 把 Node 的堆开到 8 GB，这是 HyperFrames 自己的建议：它按每个 worker 约 640 MB、另留 1 GB 来估，这台 M3 Max 默认约 4 GB 的堆够 4 个；自动选出的 worker 比这多时，日志里会打出 `capture workers may exceed this process's V8 heap`，显式写了 `--workers` 就不提醒。那次渲染带着它，没试过去掉。放到后台跑时，照上文在这一行加 `HYPERFRAMES_RENDER_DETACHED=1`。
+
+码率和耗时随画面差很多：这支 canvas 片子的 4K 约 26 Mbps，渲 1 s 片长约 1.4 s；上面的介绍片（3D）约 125 Mbps，要 5–8 s。所以上面"超过约 135 s 的 4K 要先重编码"是按介绍片的码率算的，自己的片子先量再定。
+
+## 画面文字检查（canvas 片子）
+
+`npx hyperframes check` 只量 DOM 文字，脚本画进 `<canvas>` 的字在它眼里只是像素。canvas 片子用 `bin/vh textcheck <项目>` 查：哪条字被后画的东西盖住、和画面对比不够、出了画面或被边缘裁掉、被 DOM 字幕压住。合成的内联脚本里按页面合约（`engines/CONTRACT.md`）加一行就能用：
+
+```js
+window.film = {
+  frame: (t) => drawFrame(t),   // 必填：画出第 t 秒，连同它自己管的 DOM（比如字幕），和渲染出的那一帧一样；可以返回 Promise
+  duration: 24.8,               // 片长（秒）
+  texts: TEXTS,                 // 可选：reads 登记表，格式同 readcheck 的 texts.json：[{text, start, end, read?}]
+};
+```
+
+原来的写法 `window.__vh = { draw, texts }` 仍然认，`draw` 就是 `frame`。
+
+- **画字的函数不用改。** 检查在合成的脚本运行之前挂上 canvas 的 `fillText` / `strokeText`，记下每条字画在哪、用什么字体，能单独去掉一条字重画这一帧。所以字要用 2D canvas 的 `fillText` / `strokeText` 画：做成图片的、画进 WebGL 的、画在离屏 canvas 里再贴上来的字，它看不到，登记了会报"没画成 canvas 字"。字底下的"画面"是页面上所有 canvas、video、img 按层叠顺序合成的结果，字画在透明的一层上也按它后面那层量；CSS 背景、SVG 这类 DOM 不算在内。逐字出现的动画字、拆成几次画的一行字、中间的"·"和箭头画成图形的，都按字母对得上。
+- **登记表**：命令行给了 `--texts <文件>` 就用它，否则用页面的 `texts`（`window.film.texts` 或 `window.__vh.texts`），再没有就读 `out/texts.json`（`bin/vh readcheck --export` 存的那份）。每条在它的时间窗里取 3 个时刻（开始后 0.4 s 到结束前 0.3 s），所以 start 要是字完整显示的那一刻，这也是 readcheck 的约定；登记早了会报"有的时刻没画全"。没有登记表也能跑，只做下面那遍扫描。
+- **没登记的字**每秒扫一遍全片，每行字在它最完整的那一刻量一次，有问题只警告：观众该读的，就登记进去。
+- `draw(t)` 要是 t 的纯函数（硬规则 1）：同一个 t 会画好几遍，两遍画面不一样会报出来，那一刻的数字不可信。
+- **界面压在场景上**：页面给了 `ui(t)`（常驻界面的字和线在哪）、`frame(t, { layer: "scene" })` 能只画场景时（`engines/CONTRACT.md`；canvas-film 引擎自带），每秒把场景单独画一遍，看它在界面的框里画了什么：和那一块的底色（每 32 px 一格取中位色，格间渐变）差 60 级以上（r + g + b）的像素算场景的东西，纸面、渐变、暗角和颗粒都不算。超过框的 0.2%（至少 30 个像素），或者在很长的框里有 150 个像素以上，或者有一块从框的这边穿到那边（一条线竖着穿过细细的进度条），就报，同一段只报一次、附裁图，只警告（`ui(t)` 抛错和画帧函数抛错一样算页面出错）：占得少是一条线、一个边穿过了进度条或字幕（挪开一个），占得多（15% 以上）是界面压在一张很花的画面上（该有底板或压暗的一条）。界面挪了位置（比如进度条挪进安全框）以后，最容易出这种事。
+- **浏览器**：`CHROME_PATH`，否则用这个项目 `render` 时用的 chrome-headless-shell（`HYPERFRAMES_BROWSER_PATH`，或项目里装的 HyperFrames 固定的那个版本；还没下载就先 `npx hyperframes browser ensure`），再否则用 `~/.cache/puppeteer` 里最新的 chrome-headless-shell，最后是系统的 Chrome 或 Chromium，不用装 npm 包。用的不是 `render` 那个时会提示一行：版本不同，字的排布可能和成片有细微差别。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、`window.__vh.ready`（可选）和字体加载完。
+- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮、场景画到界面底下只警告；没法检查（没有 `window.film.frame` 也没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支七八分钟、一百来条登记文字的片子，在 M3 Max 上十几秒跑完。
+
+## 升级核对（0.8.82 → 0.8.202，2026-10-26）
 
 结论：升。中间隔了 1,278 个提交（GitHub compare v0.8.82...v0.8.202），但渲染用的 Chrome 没换（152.0.7977.30），两版画面的差别只在抗锯齿和缩放取样上；页面合约的 shim、`bin/vh fonts check`、`bin/vh readcheck` 的结果和 0.8.82 一样。下次升级照这张表再跑一遍。
 

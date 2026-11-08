@@ -2,6 +2,8 @@
 
 usage (bin/vh check runs it last): python3 tools/checkrec.py <video> --dir <the checks' JSON pieces> --exit <status>
                                    [--allow s] [--against f] [--print] [--remedies]
+       python3 tools/checkrec.py --detect-lines < ffmpeg's black/freeze/silence lines
+                                   one line a span, as the record words them (bin/vh check prints these)
 The record is saved in the video's project, out/check/<name>.check.json: <name> is the video's file name without its
 extension, after the folders between out/ and it ("out/review/sketch.mp4" → review-sketch); a video outside a project gets
 no record. --print writes it to stdout too. It never changes what bin/vh check decided: --exit is its status.
@@ -377,4 +379,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--detect-lines"]:   # bin/vh check's lines for a person: ffmpeg's on stdin, one line a span
+        for f in detect_findings(sys.stdin.read()):
+            print(f["message"])
+        sys.exit(0)
     sys.exit(main())

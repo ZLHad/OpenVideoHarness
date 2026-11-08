@@ -108,6 +108,10 @@
    {
     "say": "the size, rate or length the BRIEF names: render it again to the spec",
     "run": "bin/vh render"
+   },
+   {
+    "say": "or the BRIEF's Output line still has a {…}: fill in the length and rate you mean (the defaults)",
+    "doc": "playbook/01-pipeline.md#规格一开始就定下有默认值"
    }
   ],
   "check.gate": [

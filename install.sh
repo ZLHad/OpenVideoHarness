@@ -67,6 +67,9 @@ say "installing the style swatch renderer (HyperFrames, for bin/vh style)"
 [ "$SKILL" = none ] || { say "registering the skills"; bin/vh install-skill "$SKILL"; }
 [ "$OBSCURA" = 0 ] || { say "installing Obscura (bin/vh web)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
 say "final check"; bin/vh doctor || true
+arm=""   # Linux arm64: HyperFrames has no Chrome of its own there (engines/README.md, its notes), so a missing browser is said again below
+if [ "$(uname -s)" = Linux ]; then case "$(uname -m)" in aarch64|arm64)
+  bin/vh doctor --json 2>/dev/null | python3 -c 'import json, sys; sys.exit(0 if any(c["name"] == "browser" and c["state"] == "ok" for c in json.load(sys.stdin)["checks"]) else 1)' 2>/dev/null || arm=1 ;; esac; fi
 cat <<MSG
 
 ✓ OpenVideoHarness is ready at $DIR
@@ -77,3 +80,5 @@ cat <<MSG
   Note:  the first render downloads Chrome (about 200 MB) and the first sound commands download Python packages (about 700 MB)
          into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG
+[ "$REFS" = 1 ] || echo "  Refs:  not fetched (--no-refs). Where a doc points into references/repos/<dir>/, bash references/fetch.sh <dir> fetches that one"
+[ -z "$arm" ] || echo "  ! Linux arm64: no browser yet, and HyperFrames has none of its own here; set one up before the first render (engines/README.md, \"Linux：渲染前要先备好的三样\")"

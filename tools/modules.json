@@ -80,7 +80,7 @@
       "commands": ["frames", "render", "patch", "determinism", "cues", "fonts", "textcheck", "readcheck", "storyboard", "rhythm", "thumbs", "doctor", "web"],
       "required": false,
       "check": {"finder": "chrome"},
-      "install": {"macos": "install Google Chrome, or set CHROME_PATH", "linux": "sudo apt install chromium, or npx playwright install chromium, or set CHROME_PATH"}
+      "install": {"macos": "install Google Chrome, or set CHROME_PATH", "linux": "sudo apt install chromium (Debian; Ubuntu's is a snap that needs snapd), or npx @puppeteer/browsers install chrome-headless-shell --path ~/.cache/puppeteer (arm64 too), or set CHROME_PATH"}
     },
     {
       "name": "chrome-headless-shell",
@@ -94,7 +94,7 @@
       "required": false,
       "check": {"finder": "hf-chrome"},
       "first_run": "Chrome 0.2 GB",
-      "install": {"macos": "the first HyperFrames render downloads it (about 200 MB), or now: cd styles/_swatch && npx hyperframes browser ensure", "linux": "the first HyperFrames render downloads it (about 200 MB), or now: cd styles/_swatch && npx hyperframes browser ensure"}
+      "install": {"macos": "the first HyperFrames render downloads it (about 200 MB), or now: cd styles/_swatch && npx hyperframes browser ensure", "linux": "the first HyperFrames render downloads it (about 200 MB), or now: cd styles/_swatch && npx hyperframes browser ensure; not on arm64, where it has none (engines/README.md, Linux：渲染前要先备好的三样)"}
     },
     {
       "name": "hyperframes",

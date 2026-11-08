@@ -643,6 +643,10 @@ b = open(brief).read().replace("- Type doc: {type doc}", f"- Type doc: `video-ty
 open(brief, "w").write(b.rstrip("\n") + f"\n<!-- from {name} -->\n")
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
+  # the rate the engine renders at unless told otherwise (playbook/01-pipeline.md, 规格): 24 for the hand-drawn engine, 30 for
+  # the others; a cut keeps its footage's rate, so its line keeps {fps}. The length is the concept's, so {N} stays
+  x=30; case "$engine:$type" in :handdrawn|:mv) x=24 ;; :edit) x="" ;; esac
+  [ -z "$x" ] || sedi "s/^\(- Output: [^,]*,\) {fps} fps,/\1 $x fps,/" "$dir/BRIEF.md"
   case "$type" in short|promo|data|meme|edit) x=HyperFrames ;; math|paper) x="Manim CE" ;; handdrawn|mv) x="ClaudeAnimationBase (p5.brush)" ;; *) x="" ;; esac
   [ -n "$engine" ] || [ -z "$x" ] || sedi "s/^- Engine: {[^}]*}/- Engine: $x/" "$dir/BRIEF.md"   # the type's own, until the concept says otherwise
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
@@ -972,7 +976,11 @@ PY
     echo "   gsap     : $gv vendored locally (node_modules/gsap), no CDN at render time"
   fi
   case $font in
-    local) echo "   font     : Helvetica Neue (macOS), Liberation Sans or DejaVu Sans (Linux) through local(), no Google Fonts at render time" ;;
+    local) echo "   font     : Helvetica Neue (macOS), Liberation Sans or DejaVu Sans (Linux) through local(), no Google Fonts at render time"
+      # Chinese on screen needs a Chinese font, which macOS has and a bare Linux lacks: its text then draws as boxes, unsaid
+      if [ "$(uname -s)" = Linux ] && command -v fc-list >/dev/null 2>&1 && [ -z "$(fc-list :lang=zh family 2>/dev/null | head -1)" ]; then
+        echo "$c_wa no Chinese font on this machine: Chinese text would draw as boxes (Debian/Ubuntu: sudo apt install fonts-noto-cjk; bin/vh fonts check <project> says it per character)"
+      fi ;;
     own) echo "$c_wa the project's own index.html was kept as it is: its fonts${h:+ and its height (set the viewport, the CSS height and data-height to $h)} are yours to check" ;;
     "") echo "$c_wa the scaffold's font was not rewritten: give each font in index.html a local() @font-face before rendering, or the render fetches it from Google Fonts" ;;
   esac
@@ -1086,7 +1094,10 @@ cmd_check() {
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   [ -z "$J" ] || printf '%s\n' "$hits" > "$J/detect.txt"
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
-  else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
+  else   # one line a span, as the record words it (tools/checkrec.py); ffmpeg's own lines if that cannot be read
+    local spans; spans=$(printf '%s\n' "$hits" | python3 "$ROOT/tools/checkrec.py" --detect-lines 2>/dev/null) && [ -n "$spans" ] || spans=$hits
+    printf '%s\n' "$spans" | sed "s/^/$c_wa /"
+  fi
   # isolated frames: one frame unlike both neighbours while they agree (another scene flashed in, garbled text): a capture
   # glitch too short for freezedetect, and a snapshot of that time is clean (playbook/02-verification.md, 静默失败)
   local iso rc=0 py=() ia=("$v" --motion)   # --motion: cuts that flash, still stretches, the film's motion (warnings, from the same decode)

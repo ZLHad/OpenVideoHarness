@@ -105,7 +105,8 @@ def references_note(have, want, fetched, said):
     """doctor's line for references/repos when some are not fetched: the whole set's size worked out from the ones that
     are (fetched: their bytes), else what install.sh says (said), else none."""
     size = f"about {mb_text(fetched * want / have)}, at the size of the {have} here" if have and fetched else f"about {said}" if said else None
-    return f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}{': ' + size if size else ''}; agents read them for the case studies)"
+    return (f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}{': ' + size if size else ''}; agents read them for the case studies;"
+            " the one a doc points to, references/repos/<dir>/…: bash references/fetch.sh <dir>)")
 
 
 def this_platform():
@@ -371,13 +372,34 @@ def probe(m, offline, recs):
     return {"state": "ok", "note": ", ".join(said)}
 
 
+def snap_stub(path):
+    """Ubuntu's chromium-browser with no chromium snap behind it: a script that only says to install the snap, which cannot run
+    where there is no snapd (Docker, many servers). HyperFrames installs it on Linux arm64 (engines/README.md, Linux)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return False
+    return head.startswith(b"#!") and b"snap" in head and not os.path.exists("/snap/bin/chromium")
+
+
 def repo_checks(webgl, found_by):
     """A browser for the page tools, WebGL, the reference repos, LOCAL.md and AGENTS.md: [{name, state, note}]."""
     out = []
-    if found_by.get("hf-chrome") or found_by.get("chrome"):
+    if found_by.get("chrome") and not found_by.get("hf-chrome") and snap_stub(found_by["chrome"]):
+        out.append({"name": "browser", "state": "missing", "note": f"{found_by['chrome']} is Ubuntu's stub for the Chromium snap, which does not run "
+                    "without snapd: apt purge chromium-browser, then a chrome-headless-shell (engines/README.md, Linux：渲染前要先备好的三样)"})
+    elif found_by.get("hf-chrome") or found_by.get("chrome"):
         out.append({"name": "browser", "state": "ok", "note": "the page tools draw with " + ("chrome-headless-shell" if found_by.get("hf-chrome") else "Chrome")})
     else:
         out.append({"name": "browser", "state": "missing", "note": "neither Chrome nor chrome-headless-shell: frames, render, textcheck and the other page tools need one (set CHROME_PATH, or see chrome above)"})
+    if sys.platform.startswith("linux"):   # macOS has PingFang; a bare Linux has no Chinese font, and Chinese text then draws as boxes
+        try:
+            fams = [f for f in subprocess.run(["fc-list", ":lang=zh", "family"], capture_output=True, text=True, timeout=20).stdout.splitlines() if f.strip()]
+            out.append({"name": "fonts", "state": "ok", "note": f"Chinese: {len(fams)} font famil{'y' if len(fams) == 1 else 'ies'}, such as {fams[0].split(',')[0]}"} if fams else
+                       {"name": "fonts", "state": "missing", "note": "no Chinese font: Chinese text in a film draws as boxes → sudo apt install fonts-noto-cjk (bin/vh fonts check <project> says it per character)"})
+        except (OSError, subprocess.SubprocessError):
+            out.append({"name": "fonts", "state": "unchecked", "note": "no fc-list (fontconfig) to ask: bin/vh fonts check <project> says whether each character has a font"})
     kind, _, renderer = (webgl or "skipped|").partition("|")
     if kind in ("GPU", "software"):
         out.append({"name": "webgl", "state": "ok", "note": f"{kind}: {renderer}"})

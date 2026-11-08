@@ -1873,7 +1873,7 @@ import json, sys
 from pathlib import Path
 p = Path(sys.argv[1])
 b = (p / "BRIEF.md").read_text(encoding="utf-8")
-for old, new in (("- Output: 1920x1080, {fps} fps, exactly {N}s ({frames} frames)", "- Output: 1920x1080, 30 fps, exactly 60s (1800 frames)"),
+for old, new in (("- Output: 1920x1080, 30 fps, exactly {N}s ({frames} frames)", "- Output: 1920x1080, 30 fps, exactly 60s (1800 frames)"),   # bin/vh new fills the rate
                  ("- Platform / audience: {where it plays, who watches, sound-on or muted}", "- Platform / audience: 横屏，泛科普，有声"),
                  ("- Effort: standard ", "- Effort: quick "), ("- Budget: default ", "- Budget: 不限 "),
                  ("- Director: default ", "- Director: hook=own, rest=delegate "), ("- Assets: default ", "- Assets: record "),
@@ -6914,7 +6914,7 @@ open(f, "w", encoding="utf-8").write(s)
 d = p + "/DECISIONS.md"; s = open(d, encoding="utf-8").read(); open(d, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A", 1))
 PY
   a=$(ns "$p" 'n["who"] == "agent"' '"STORYBOARD.md (" in n["do"]' '"bin/vh storyboard" in c and "bin/vh rhythm" in c and "2 --init" in c' '"playbook/01-pipeline.md#animatic" in r and "#长片" not in r')
-  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("{fps} fps, exactly {N}s ({frames} frames)", "30 fps, exactly 600s (18000 frames)", 1))' "$p"
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("30 fps, exactly {N}s ({frames} frames)", "30 fps, exactly 600s (18000 frames)", 1))' "$p"
   a="$a$(ns "$p" '"playbook/01-pipeline.md#长片" in r and "playbook/09-narrative.md#5." in r')"
   python3 - "$p" <<'PY'
 import sys
@@ -7663,6 +7663,8 @@ sys.exit(0 if ok else 1)' "$b"
   else bad "bin/vh artifacts spec and usage errors ($rc, $rc2, $rc3): $(printf '%s' "$c $d" | tail -c 300)"; fi
   # list on a new project, read-only: every file there the same bytes after it, and no line in the activity log
   p=$(vh new math art --dir "$t" 2>&1 | sed -n 's/.*created //p' | head -1); p="$t/$(basename "$p")"
+  # its rate as a BRIEF from before bin/vh new filled it (a cut's, type 09, still keeps it): the blank tools rely on, said here and required once gate ① is reached
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Output: 1920x1080, 30 fps,", "- Output: 1920x1080, {fps} fps,", 1))' "$p"
   q=$(cat <<'PY'
 import hashlib, os, sys
 for d, _, fs in sorted(os.walk(sys.argv[1])):
