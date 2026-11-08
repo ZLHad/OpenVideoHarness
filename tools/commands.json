@@ -67,10 +67,10 @@
         "CLAUDE.md, AGENTS.md",
         "the project's copy of its engine, against engines/ (doctor <project>)"
       ],
-      "writes": [],
+      "writes": ["LOCAL.md (--fill-local: its machine lines that still hold the template; LOCAL.example.md copied first when there is none)"],
       "usage": [
         {
-          "synopsis": "doctor [--json] [--probe [--only a,b] [--offline DIR]]",
+          "synopsis": "doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]]",
           "text": [
             "what this machine can use, from tools/modules.json (tools/doctor.py): each outside module's program and version (under the",
             "minimum, not the pin, or older than its max_age_days: outdated), the parts it needs, packages in uv's cache, a model in",
@@ -78,7 +78,8 @@
             "probe), the reference repos, LOCAL.md and AGENTS.md. --json: the same as JSON (bin/vh doctor -h has the fields);",
             "--probe: also call each service with a key, and each public one that takes none, once, at an endpoint that costs",
             "nothing (--only a,b: these modules alone; --offline DIR: answered from responses recorded the way",
-            "tools/assets/fetch.py records them). Exit 0: it is a report"
+            "tools/assets/fetch.py records them); --fill-local: also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎)",
+            "where they still hold the template, never a line a person wrote (the installer runs it). Exit 0: it is a report"
           ]
         },
         {

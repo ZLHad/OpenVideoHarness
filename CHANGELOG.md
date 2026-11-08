@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**After install, LOCAL.md says what this machine has**
+- Why: the installer copied LOCAL.example.md to LOCAL.md and left every line a `{…}` placeholder. CLAUDE.md sends a new agent to read LOCAL.md first, so it read a template that said nothing, and `bin/vh doctor` asked for 15 placeholder lines to be filled in, though most are preferences whose `{…}` means the default (two first-run walkthroughs, 11-07 and 11-08).
+- Now: `bin/vh doctor --fill-local` writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from its check, only where a line still holds the template, never one a person wrote, and copies LOCAL.example.md first when there is no LOCAL.md. The installer's final check runs it. doctor's LOCAL.md line names the machine lines still to fill and counts the other `{…}` lines as defaults; CLAUDE.md's 本机环境 says the same.
+
 **`bin/vh qa` says when it ran without the project's beat map or stems, and gives the run with them**
 - Why: a walkthrough of a narrated film (11-08) ran `bin/vh qa` on the muxed film with nothing else and got "✗ 38 problem(s)" on a film that passes: without the beat map and the stems, the score's rests, its own dips and its ending count as dropouts, pumping and silence. The quick card wrote `bin/vh qa` with no arguments. A test project (a lofi bed, a mix with stems, a muxed film) shows the same: 17 problems on the film or on the mix alone, none with the beat map and the stems.
 - Now: a failing run that went without the beat map, the event list or the stems, in a project that has them, ends with a line naming what it lacked and the same command with them. A muxed film finds its mix by its `.mux.json`; the stems folder `bin/vh mix … stems=` wrote names its mix, its music (whose beat map lies beside it) and its events; with no stems folder, a lone `*.beats.json` beside the mix. The quick card's sound step writes `mix … stems=` and `qa <混音> <节拍表> --stems`.

@@ -1,8 +1,11 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
-usage: bin/vh doctor [--json] [--probe [--only a,b] [--offline DIR]]
+usage: bin/vh doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]]
   (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl)
   --json        the same as JSON (below), the lines a person reads not printed
+  --fill-local  also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from this check, where they still hold
+                the template's {…}; with no LOCAL.md, LOCAL.example.md is copied first. A line a person wrote stays;
+                the other lines' {…} are their defaults (the installer runs this)
   --probe       also call each service that has a key set, once, at an endpoint that costs nothing (Gemini's model
                 list, MiniMax's system voices, ElevenLabs' user, Model Studio's model list): is the key taken, is the
                 interface there; and each public one that takes no key (scout's: fxtwitter, Bilibili's view, the hot
@@ -420,17 +423,94 @@ def repo_checks(webgl, found_by):
         out.append({"name": "references", "state": "missing", "note": references_note(have, want, bytes_of(ROOT / "references" / "repos") if have else 0, install_says())})
     local = ROOT / "LOCAL.md"
     if not local.exists():
-        out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"})
+        out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → bin/vh doctor --fill-local (copies LOCAL.example.md, writes this machine's lines)"})
     else:
-        ph = sum(1 for line in local.read_text(encoding="utf-8").splitlines() if re.search(r"\{[^}]*\}", line))
-        out.append({"name": "local_md", "state": "incomplete" if ph else "ok",
-                    "note": f"{ph} template line(s) with {{…}} placeholders → fill them in (this output goes on the 已装工具 line)" if ph else "filled in"})
+        lines = local.read_text(encoding="utf-8").splitlines()
+        todo = [k for k in MACHINE if any(re.match(rf"- {k}：.*\{{", line) for line in lines)]
+        rest = sum(1 for line in lines if re.search(r"\{[^}]*\}", line)) - len(todo)
+        out.append({"name": "local_md", "state": "incomplete" if todo else "ok",
+                    "note": (f"{', '.join(todo)} still the template → bin/vh doctor --fill-local writes them" if todo else "this machine's lines filled in")
+                    + (f"; {rest} other line(s) still {{…}}, which leaves them at their defaults" if rest > 0 else "")})
     try:
         same = (ROOT / "AGENTS.md").read_text(encoding="utf-8").split("\n", 3)[3].rstrip("\n") == (ROOT / "CLAUDE.md").read_text(encoding="utf-8").rstrip("\n")
     except (OSError, IndexError):
         same = False
     out.append({"name": "agents_md", "state": "ok" if same else "incomplete", "note": "in sync with CLAUDE.md" if same else "out of sync with CLAUDE.md → bin/vh sync-agents"})
     return out
+
+
+MACHINE = ("硬件", "已装工具", "已装引擎")   # LOCAL.md's lines doctor can write; a {…} left on any other line is its default
+
+
+def hardware():
+    """This machine's chip, GPU and memory, as far as the system says."""
+    chip = mem = gpu = ""
+    if sys.platform == "darwin":   # an Apple chip names its GPU too
+        rc, out = run(["sysctl", "-n", "machdep.cpu.brand_string"])
+        chip = out.strip() if rc == 0 else ""
+        rc, out = run(["sysctl", "-n", "hw.memsize"])
+        mem = out.strip() if rc == 0 else ""
+    else:
+        try:
+            mm = re.search(r"^(?:model name|Hardware|Model)\s*:\s*(.+)$", Path("/proc/cpuinfo").read_text(errors="replace"), re.M)
+            chip = mm.group(1).strip() if mm else ""
+            mm = re.search(r"^MemTotal:\s*(\d+)\s*kB", Path("/proc/meminfo").read_text(errors="replace"), re.M)
+            mem = str(int(mm.group(1)) * 1024) if mm else ""
+        except OSError:
+            pass
+        if shutil.which("nvidia-smi"):
+            rc, out = run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"])
+            gpu = " + ".join(x.strip() for x in out.splitlines() if x.strip()) if rc == 0 else ""
+    return " · ".join([chip or platform.machine()] + ([f"GPU {gpu}"] if gpu else []) + ([f"{round(int(mem) / 2 ** 30)} GB 内存"] if mem.isdigit() else []))
+
+
+def machine_lines(mods):
+    """LOCAL.md's machine lines from this check: {label: text}."""
+    by = {m["name"]: m for m in mods}
+
+    def found(n):   # found on this machine, whatever its version
+        m = by.get(n) or {}
+        return m if m.get("state") in ("ok", "outdated", "incomplete") else None
+
+    tools = [f"{label} {m['version'] or shown(m['found'] or '')}".strip() for n, label in (
+        ("node", "Node"), ("ffmpeg", "ffmpeg"), ("python3", "Python"), ("uv", "uv"), ("git", "git"), ("chrome", "Chrome"),
+        ("latex", "LaTeX"), ("blender", "Blender")) for m in [found(n)] if m]
+    hf = found("hyperframes")
+    engines = ["ClaudeAnimationBase" + (" ✓" if found("puppeteer-core") else "（依赖没装：bin/vh setup）"),
+               "HyperFrames" + (f" {hf['version']}（styles/_swatch；每个项目各装一份）" if hf and hf.get("version") else "（每个项目各装一份，bin/vh new 时装）")]
+    engines += [f"{label} {m['version'] or '✓'}" for n, label in (("blender", "Blender"), ("manimgx", "ManimGX")) for m in [found(n)] if m]
+    return {"硬件": hardware(), "已装工具": " · ".join(tools), "已装引擎": " · ".join(engines)}
+
+
+def fill_local(mods):
+    """LOCAL.md's machine lines (MACHINE) from this check, where they still hold the template's {…}; LOCAL.example.md is
+    copied first when there is no LOCAL.md. Any other line, and a machine line a person wrote, stays as it is.
+    → the line to print."""
+    local, example = ROOT / "LOCAL.md", ROOT / "LOCAL.example.md"
+    new = not local.exists()
+    try:
+        text = (example if new else local).read_text(encoding="utf-8")
+    except OSError as e:
+        return f"LOCAL.md: not written ({e})"
+    facts, done, kept, out = machine_lines(mods), [], [], []
+    stamp = f"（bin/vh doctor --fill-local，{datetime.date.today().isoformat()}）"
+    for line in text.splitlines(keepends=True):
+        mm = re.match(r"^(- (%s)：)(.*?)(\r?\n)?$" % "|".join(MACHINE), line)
+        if mm and "{" in mm.group(3) and facts.get(mm.group(2)):
+            line = mm.group(1) + facts[mm.group(2)] + stamp + (mm.group(4) or "")
+            done.append(mm.group(2))
+        elif mm:
+            kept.append(mm.group(2))
+        out.append(line)
+    if new or done:
+        tmp = local.with_name(f".{local.name}.{os.getpid()}")
+        tmp.write_text("".join(out), encoding="utf-8")
+        os.replace(tmp, local)
+    said = ("LOCAL.md made from LOCAL.example.md" if new else "LOCAL.md") + ": "
+    said += f"wrote {', '.join(done)} from this check" if done else "nothing to write"
+    if kept:
+        said += f"; {', '.join(kept)} already filled in, left as is"
+    return said + "; 渲染速度 is yours to write after a first render, and the lines still {…} are the defaults"
 
 
 def problems(t, commands=None):
@@ -529,7 +609,7 @@ def print_module(m, r):
 
 
 def main(argv):
-    a = {"json": False, "probe": False, "offline": None, "only": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
+    a = {"json": False, "probe": False, "fill-local": False, "offline": None, "only": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
     i = 0
     while i < len(argv):
         x = argv[i]
@@ -544,7 +624,7 @@ def main(argv):
                 print(f"tools/modules.json: {len(t['modules'])} modules")
             return 1 if bad else 0
         k, eq, v = x[2:].partition("=")
-        if x in ("--json", "--probe"):
+        if x in ("--json", "--probe", "--fill-local"):
             a[x[2:]] = True
         elif k in ("offline", "only", "chrome", "hf-chrome", "hf-pin", "webgl") and x.startswith("--"):
             if not eq:
@@ -553,7 +633,7 @@ def main(argv):
                 i += 1; v = argv[i]
             a[k] = v
         else:
-            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--probe [--only a,b] [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
+            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
             return 2
         i += 1
     if (a["offline"] or a["only"] is not None) and not a["probe"]:
@@ -579,6 +659,8 @@ def main(argv):
         pr = probe(m, a["offline"], recs) if a["probe"] and (only is None or m["name"] in only) else None
         mods[i] = {"name": m["name"], "kind": m["kind"], "status": m.get("status", "used"), "required": m["required"], **r,
                    "install": (m.get("install") or {}).get("macos" if sys.platform == "darwin" else "linux"), "probe": pr}
+    if a["fill-local"]:   # before the checks, so the LOCAL.md line says what is there now
+        print(fill_local(mods), file=sys.stderr if a["json"] else sys.stdout)
     checks = repo_checks(a["webgl"], found_by)
     first = [m.get("first_run") for m, r in zip(t["modules"], mods) if m.get("first_run") and r["state"] == "missing"]
     counts = {}

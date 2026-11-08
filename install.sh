@@ -12,7 +12,8 @@
 #      ~/.agents/skills (--skill claude|codex: only one)
 #   4b. with --obscura, bin/vh web install: the pinned Obscura release (a headless browser, about 70 MB from its GitHub releases)
 #      into ~/.local/share/ovh/obscura, linked from ~/.local/bin; bin/vh web checks facts against web pages with it
-#   5. run bin/vh doctor as a final check
+#   5. run bin/vh doctor --fill-local as a final check: it also writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎)
+#      where they still hold the template, never a line you wrote
 # It never runs sudo and leaves your PATH and shell profile alone. Not done here: the first use of the tools downloads more, into caches under
 # your home directory, without asking:
 #   - the first hyperframes render: HyperFrames' own chrome-headless-shell (about 200 MB, ~/.cache/hyperframes)
@@ -66,7 +67,7 @@ say "installing the style swatch renderer (HyperFrames, for bin/vh style)"
 [ -f LOCAL.md ] || cp LOCAL.example.md LOCAL.md
 [ "$SKILL" = none ] || { say "registering the skills"; bin/vh install-skill "$SKILL"; }
 [ "$OBSCURA" = 0 ] || { say "installing Obscura (bin/vh web)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
-say "final check"; bin/vh doctor || true
+say "final check (and this machine's lines in LOCAL.md)"; bin/vh doctor --fill-local || true
 arm=""   # Linux arm64: HyperFrames has no Chrome of its own there (engines/README.md, its notes), so a missing browser is said again below
 if [ "$(uname -s)" = Linux ]; then case "$(uname -m)" in aarch64|arm64)
   bin/vh doctor --json 2>/dev/null | python3 -c 'import json, sys; sys.exit(0 if any(c["name"] == "browser" and c["state"] == "ok" for c in json.load(sys.stdin)["checks"]) else 1)' 2>/dev/null || arm=1 ;; esac; fi
