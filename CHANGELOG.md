@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**HyperFrames' opt-outs go on every `npx hyperframes` command, not once per terminal**
+- Why: engines/README.md said to export `HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1` once per terminal, and the quick card to export them before the render. Each of an agent's commands is a new shell, so an export does not carry over: the walkthrough's first `npx hyperframes lint` ran without them and printed HyperFrames' telemetry notice (11-08).
+- Now: both say to put them in the same command as `npx`, and why. `bin/vh`'s own HyperFrames calls already set them, and `bin/vh status` writes them into the render commands it gives.
+
 **`bin/vh artifacts list` and `bin/vh storyboard` no longer read like problems where there are none**
 - Why: the same walkthrough:
   - after delivery, `artifacts list` still said "NOTES.md · 3 {…} left" (the template's example rows), while `bin/vh status` says nothing is left;
