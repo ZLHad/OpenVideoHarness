@@ -112,13 +112,17 @@ hf_chrome() { # hf_chrome [dir]: the chrome-headless-shell `hyperframes render` 
   shell_folder "$HOME/.cache/hyperframes/chrome/chrome-headless-shell" "$pin"
 }
 hf_pin() { # hf_pin <dir>: the Chrome version pinned by the HyperFrames in the nearest node_modules at or above dir, read from its dist
-  # (managedChromeVersion: CHROME_VERSION, on macOS 12 MACOS_12_CHROME_VERSION); fails when there is none or it cannot be read
-  local d k=CHROME_VERSION
+  # (managedChromeVersion: CHROME_VERSION, on macOS 12 MACOS_12_CHROME_VERSION): up to 0.8.84 in renderSetupWorker.js, read first; since
+  # then in a chunk whose name each build changes (0.8.202: chunk-4UMPIPCQ.js), so every dist/*.js after it, in about 35 ms. Fails when
+  # there is none or no file says it (tools/status.py's hf_pin reads it the same way)
+  local d k=CHROME_VERSION dist
   [ -n "${1:-}" ] && d=$(cd "$1" 2>/dev/null && pwd) || return 1
   old_mac && k=MACOS_12_CHROME_VERSION
   while [ ! -d "$d/node_modules/hyperframes" ]; do [ "$d" = / ] && return 1; d=$(dirname "$d"); done
-  awk -F'"' -v k="var $k = " '$1 == k && $2 ~ /^[0-9][0-9.]*$/ { print $2; f = 1; exit } END { exit !f }' \
-    "$d/node_modules/hyperframes/dist/renderSetupWorker.js" 2>/dev/null
+  dist=$d/node_modules/hyperframes/dist
+  set -- "$dist"/*.js
+  [ -f "$dist/renderSetupWorker.js" ] && set -- "$dist/renderSetupWorker.js" "$@"
+  awk -F'"' -v k="var $k = " '$1 == k && $2 ~ /^[0-9][0-9.]*$/ { print $2; f = 1; exit } END { exit !f }' "$@" 2>/dev/null
 }
 old_mac() { [ "$(uname)" = Darwin ] && [ "$(uname -r | cut -d. -f1)" -lt 22 ]; }   # macOS 12 or older: HyperFrames stops Chrome at 150
 shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome-headless-shell version, else (no version given) the newest;

@@ -431,20 +431,52 @@ def render_cmd(project, proj, final):
     return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}"
 
 
+def old_mac():
+    """macOS 12 or older, where HyperFrames pins an older Chrome and takes none above 150 (bin/vh's old_mac)."""
+    return sys.platform == "darwin" and platform.release().split(".")[0].isdigit() and int(platform.release().split(".")[0]) < 22
+
+
+def hf_pin(project):
+    """The Chrome version the HyperFrames installed for the project pins, read as bin/vh's hf_pin reads it: in the nearest
+    node_modules/hyperframes at or above the project, the line `var CHROME_VERSION = "…"` (MACOS_12_CHROME_VERSION on macOS 12)
+    in its dist, renderSetupWorker.js first (up to 0.8.84), then every dist/*.js (0.8.202 keeps it in a chunk); None when none says it."""
+    line = re.compile(r'^var %s = "([0-9][0-9.]*)"' % ("MACOS_12_CHROME_VERSION" if old_mac() else "CHROME_VERSION"), re.M)
+    here = Path(os.path.abspath(project))
+    for d in (here, *here.parents):
+        if (d / "node_modules" / "hyperframes").is_dir():
+            dist = d / "node_modules" / "hyperframes" / "dist"
+            for f in (dist / "renderSetupWorker.js", *sorted(dist.glob("*.js"))):
+                try:
+                    m = line.search(f.read_text(encoding="utf-8", errors="replace"))
+                except OSError:
+                    continue
+                if m:
+                    return m.group(1)
+            return None
+    return None
+
+
 def hf_chrome_note(project, proj):
     """HyperFrames' first snapshot or render downloads its own Chrome (chrome-headless-shell, about 200 MB, into
-    ~/.cache/hyperframes, which it finds from the home folder) and shows nothing while it does: the words that say so, or "" once a
-    version's folder there holds the browser (as bin/vh's hf_chrome takes it: an interrupted download leaves an empty one), with
-    a browser of one's own (HYPERFRAMES_BROWSER_PATH, PRODUCER_HEADLESS_SHELL_PATH), on Linux arm64 (it has none to download there:
-    bin/vh doctor and install.sh say what to do), and for the other engines."""
+    ~/.cache/hyperframes, which it finds from the home folder) and shows nothing while it does: the words that say so, or "" once
+    the folder there of the version the project's HyperFrames pins holds the browser (as bin/vh's hf_chrome takes it: any version's
+    when the pin cannot be read, on macOS 12 none above 150; an interrupted download leaves an empty folder), with a browser of
+    one's own (HYPERFRAMES_BROWSER_PATH, PRODUCER_HEADLESS_SHELL_PATH), on Linux arm64 (it has none to download there: bin/vh
+    doctor and install.sh say what to do), and for the other engines."""
     if engine_here(project, proj) != "hf" or (sys.platform.startswith("linux") and platform.machine().lower() in ("aarch64", "arm64")):
         return ""
     if any(os.access(p, os.X_OK) for p in (os.environ.get("HYPERFRAMES_BROWSER_PATH"), os.environ.get("PRODUCER_HEADLESS_SHELL_PATH")) if p):
         return ""
     cache = Path.home() / ".cache" / "hyperframes" / "chrome" / "chrome-headless-shell"   # <platform>-<version>/…, the browser at most 3 down
+    pin, cap = hf_pin(project), 150 if old_mac() else 0
+
+    def wanted(folder):   # bin/vh's shell_folder: the pinned version, else any (on macOS 12 none above 150)
+        v = folder.name.split("-", 1)[-1]
+        major = v.split(".")[0]
+        return v == pin if pin else not (cap and major.isdigit() and int(major) > cap)
     try:
         if any(f.name in ("chrome-headless-shell", "chrome-headless-shell.exe") and f.is_file()
-               for v in cache.iterdir() for f in (*v.glob("*"), *v.glob("*/*"), *v.glob("*/*/*"))):
+               for v in cache.iterdir() if wanted(v) for f in (*v.glob("*"), *v.glob("*/*"), *v.glob("*/*/*"))):
             return ""
     except OSError:
         pass

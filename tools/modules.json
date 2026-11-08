@@ -89,7 +89,7 @@
       "version": {"pin": "152.0.7977.30 (macOS 12: 150.0.7871.124), the one HyperFrames 0.8.202 pins (unchanged since 0.8.82)"},
       "license": "BSD-3-Clause (Chromium)",
       "needs": {},
-      "adapter": ["bin/vh (hf_chrome, hf_pin, hf_shell)", "engines/README.md (HyperFrames)"],
+      "adapter": ["bin/vh (hf_chrome, hf_pin, hf_shell)", "tools/status.py (hf_pin, hf_chrome_note)", "engines/README.md (HyperFrames)"],
       "commands": ["frames", "render", "patch", "determinism", "cues", "fonts", "textcheck", "readcheck", "storyboard", "rhythm", "thumbs", "style"],
       "required": false,
       "check": {"finder": "hf-chrome"},
