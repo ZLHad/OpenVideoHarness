@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**The local voice's first run prints what a run needs, not its libraries' chatter**
+- Why: the first `bin/vh tts` with the default qwen voice printed a progress bar redrawn through `\r`, a long transformers warning ("You are using a model of type `qwen3_tts` to instantiate a model of type …"), mlx-audio's own load lines and, while downloading, the Hugging Face Hub's note about unauthenticated requests: harmless, and noise in an agent's captured output (a walkthrough of a narrated film, 11-08). Every later run still printed the warning and the load lines.
+- Now: before the libraries load, tts sets their verbosity to errors (`TRANSFORMERS_VERBOSITY`, `HF_HUB_VERBOSITY`) and, when no terminal is watching, turns the Hub's progress bars off (`HF_HUB_DISABLE_PROGRESS_BARS`); a value set outside wins. mlx-audio's load lines are kept back and shown only if loading fails. The loading line says when the model is not downloaded yet (about 2 GB, once, for the default one).
+
 **After install, LOCAL.md says what this machine has**
 - Why: the installer copied LOCAL.example.md to LOCAL.md and left every line a `{…}` placeholder. CLAUDE.md sends a new agent to read LOCAL.md first, so it read a template that said nothing, and `bin/vh doctor` asked for 15 placeholder lines to be filled in, though most are preferences whose `{…}` means the default (two first-run walkthroughs, 11-07 and 11-08).
 - Now: `bin/vh doctor --fill-local` writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from its check, only where a line still holds the template, never one a person wrote, and copies LOCAL.example.md first when there is no LOCAL.md. The installer's final check runs it. doctor's LOCAL.md line names the machine lines still to fill and counts the other `{…}` lines as defaults; CLAUDE.md's 本机环境 says the same.

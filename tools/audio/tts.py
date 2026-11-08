@@ -258,14 +258,34 @@ def no_key(provider):
         free = "the local default (qwen) needs no key but only runs on Apple Silicon; here --provider edge needs none (free, online)"
     sys.exit(f"set {KEY_OF[provider]} for {provider}; {free}")
 
+def hf_cached(model_id):   # the model's snapshot is in the Hugging Face cache (HF_HUB_CACHE, else HF_HOME/hub)
+    hub = os.environ.get("HF_HUB_CACHE") or os.path.join(os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface"), "hub")
+    return os.path.isdir(os.path.join(hub, "models--" + model_id.replace("/", "--"), "snapshots"))
+
 _QWEN = {}
 def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
+    # Set before the libraries are imported, which is when they read them; one set outside wins (TRANSFORMERS_VERBOSITY=info).
+    # Their warnings (a model-type note from transformers, the Hub's notes) say nothing this fixed model needs, and a
+    # progress bar redrawn with \r is noise in output nobody watches live (an agent's).
+    os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+    os.environ.setdefault("HF_HUB_VERBOSITY", "error")
+    if not sys.stderr.isatty():
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    import contextlib, io
     import numpy as np
     from mlx_audio.tts.utils import load_model  # provided by `uv run --with mlx-audio`
-    model_id = os.environ.get("QWEN_TTS_MODEL", "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit")
+    default = "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit"
+    model_id = os.environ.get("QWEN_TTS_MODEL", default)
     if model_id not in _QWEN:
-        print(f"  loading {model_id} (first run downloads it) …", flush=True)
-        _QWEN[model_id] = load_model(model_id)
+        print(f"  loading {model_id}" + ("" if hf_cached(model_id) else " (not downloaded yet: " + ("about 2 GB " if model_id == default else "")
+                                         + "into the Hugging Face cache, once)") + " …", flush=True)
+        said = io.StringIO()   # mlx-audio prints what it loads; shown only when loading fails
+        try:
+            with contextlib.redirect_stdout(said):
+                _QWEN[model_id] = load_model(model_id)
+        except BaseException:
+            sys.stdout.write(said.getvalue())
+            raise
     model = _QWEN[model_id]
     zh = lang.startswith("zh")
     kw = dict(text=text, speaker=voice or ("Serena" if zh else "Aiden"), language="Chinese" if zh else "English")
