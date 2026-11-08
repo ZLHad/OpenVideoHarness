@@ -9982,8 +9982,13 @@ usage="usage: tools/ci.sh [--smoke | --shard i/n | --committed [--smoke | --shar
 case "${1:-all}" in
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     shift
-    w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
-    (cd "$w" && tools/ci.sh "$@"); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
+    ci_tmp=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX") || exit 2
+    # removed however the run ends: a Ctrl-C (INT) or a stopped task (TERM to the group) used to leave the
+    # checkout behind, still registered as a git worktree (about 110 MB)
+    trap '[ ! -e "$ci_tmp/head" ] || git worktree remove --force "$ci_tmp/head"; rmdir "$ci_tmp"' EXIT
+    trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
+    git worktree add -q --detach "$ci_tmp/head" HEAD || exit 2
+    (cd "$ci_tmp/head" && tools/ci.sh "$@"); exit $? ;;
   --shard)   # i/n, 1 <= i <= n
     case "$#:${2:-}" in 2:[1-9]*/[1-9]*) ;; *) echo "$usage" >&2; exit 2 ;; esac
     i=${2%/*} n=${2#*/}

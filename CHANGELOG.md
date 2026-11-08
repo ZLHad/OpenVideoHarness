@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`tools/ci.sh --committed` cleans up its checkout when it is stopped**
+- Why: it removed its clean checkout of HEAD (about 110 MB in `$TMPDIR/vh-ci.*/head`, registered as a git worktree) only after the checks finished. A Ctrl-C, or stopping it as a background task, sends the whole process group a signal and ended it before that, so the checkout stayed behind, still listed by `git worktree list` (11-08).
+- Now: the checkout and its folder go however the run ends; INT, TERM and HUP exit with 130, 143 and 129 after cleaning up. Stopping a run both ways left the checkout registered before, and leaves nothing now. A check that was running still leaves its own small temporary folder.
+
 **`bin/vh` finds the Chrome version HyperFrames 0.8.202 pins, so the page tools draw with the film's Chrome**
 - Why: `hf_pin` read the pinned version (`CHROME_VERSION`) from `dist/renderSetupWorker.js`, where it sat up to 0.8.84. 0.8.202, the version the repo pins, keeps it in a chunk whose name each build changes (`chunk-4UMPIPCQ.js`), so it was never found, and `hf_chrome` took the newest Chrome in `~/.cache/hyperframes`, whatever its version. With a newer Chrome cached beside the pinned one, `doctor` named the newer one and the page tools (`frames`, `textcheck` and the rest) drew with it; with only a newer one, `doctor`, `status` and `textcheck` said nothing, while the first render downloads the pinned one first.
 - Now: `hf_pin` reads `renderSetupWorker.js` first, then every `dist/*.js` (about 35 ms). `status`'s note before the first HyperFrames render reads the pin the same way and asks for that version; when the pin cannot be read, any version still counts, as before. The upgrade check in engines/README.md has a row for it: after an upgrade, `bin/vh doctor`'s chrome-headless-shell line says "the version HyperFrames pins".
