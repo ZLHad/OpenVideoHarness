@@ -42,7 +42,8 @@
     "why": {"$ref": "#/$defs/text"},
     "cost": {"$ref": "#/$defs/text"},
     "reply": {"$ref": "#/$defs/text"},
-    "options": {"type": ["array", "null"], "items": {"anyOf": [{"$ref": "#/$defs/option"}, {"$ref": "#/$defs/text"}]}}
+    "options": {"type": ["array", "null"], "items": {"anyOf": [{"$ref": "#/$defs/option"}, {"$ref": "#/$defs/text"}]}},
+    "columns": {"type": ["array", "null"], "items": {"$ref": "#/$defs/text"}}
    }
   },
   "option": {

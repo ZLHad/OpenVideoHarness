@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Gate ①'s page shows each concept card's picture, hook and ending a line each, under its own heading**
+- Why: a standard-effort walkthrough (11-08) put each card's picture, hook and ending into the option's `pro`, as `bin/vh gate <project> 1 --init`'s skeleton asks, and the page showed them as one dense paragraph under "好处" (benefit), which they are not.
+- Now: a decision may name its two columns (`columns`; without it, "好处 / 代价"). Gate ①'s skeleton names them "这张卡讲什么 / 风险或代价" and asks for the three a line each (a line break in an option's text was already kept). playbook/01's 审阅页 lists the field, and the gate schema has it.
+
 **The local voice's first run prints what a run needs, not its libraries' chatter**
 - Why: the first `bin/vh tts` with the default qwen voice printed a progress bar redrawn through `\r`, a long transformers warning ("You are using a model of type `qwen3_tts` to instantiate a model of type …"), mlx-audio's own load lines and, while downloading, the Hugging Face Hub's note about unauthenticated requests: harmless, and noise in an agent's captured output (a walkthrough of a narrated film, 11-08). Every later run still printed the warning and the load lines.
 - Now: before the libraries load, tts sets their verbosity to errors (`TRANSFORMERS_VERBOSITY`, `HF_HUB_VERBOSITY`) and, when no terminal is watching, turns the Hub's progress bars off (`HF_HUB_DISABLE_PROGRESS_BARS`); a value set outside wins. mlx-audio's load lines are kept back and shown only if loading fails. The loading line says when the model is not downloaded yet (about 2 GB, once, for the default one).
