@@ -470,10 +470,10 @@ def hf_chrome_note(project, proj):
     cache = Path.home() / ".cache" / "hyperframes" / "chrome" / "chrome-headless-shell"   # <platform>-<version>/…, the browser at most 3 down
     pin, cap = hf_pin(project), 150 if old_mac() else 0
 
-    def wanted(folder):   # bin/vh's shell_folder: the pinned version, else any (on macOS 12 none above 150)
+    def wanted(folder):   # bin/vh's shell_folder: the pinned version (any when there is none), on macOS 12 none above 150
         v = folder.name.split("-", 1)[-1]
-        major = v.split(".")[0]
-        return v == pin if pin else not (cap and major.isdigit() and int(major) > cap)
+        major = int(re.match(r"\d*", v).group() or 0)   # its leading digits, as awk's s[1] + 0
+        return (not pin or v == pin) and not (cap and major > cap)
     try:
         if any(f.name in ("chrome-headless-shell", "chrome-headless-shell.exe") and f.is_file()
                for v in cache.iterdir() if wanted(v) for f in (*v.glob("*"), *v.glob("*/*"), *v.glob("*/*/*"))):
