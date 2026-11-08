@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v0.4.1 — 2026-11-09
+
+A patch release: what four first-run walkthroughs turned up since v0.4.0. They were a silent short, a narrated one, one on Ubuntu arm64 and, for the first time, a standard film through all three gates. Nothing changes how a film is made: a first install says more, prints less noise and points to the right files.
+
+### What's new
+
+- **Install:** LOCAL.md gets this machine's lines when you install (`bin/vh doctor --fill-local`); an install without the reference repos says how to fetch the one a doc names; Linux has a section on what to set up before the first film; the READMEs' sizes are measured.
+- **Starting a film:** `bin/vh new` fills the frame rate in; a HyperFrames film reads about 7,400 characters less before it starts; `status` warns of HyperFrames' first Chrome download and leaves nothing to fill after delivery; HyperFrames' opt-outs go on every `npx hyperframes` command.
+- **Checking:** `check` describes its black, frozen and silent stretches in words and names the Output line's blanks; `readcheck` says what to give it when handed a film; `qa` names the beat map and stems a failing run went without, and the starter scores map their notes; `bin/vh` finds the Chrome HyperFrames 0.8.202 pins.
+- **Review pages:** gate ①'s concept cards show their picture, hook and ending a line each, under their own heading, on the page and on the review desk.
+- **Quieter:** the local voice's first run prints less; `artifacts list` and `storyboard` no longer read like problems where there are none.
+- **Elsewhere:** `bin/vh web` keeps its evidence through the installed Chrome, off the login keychain; `tools/ci.sh --committed` cleans up when it is stopped; the READMEs are rewritten.
+
+### Every change
+
 **HyperFrames' opt-outs go on every `npx hyperframes` command, not once per terminal**
 - Why: engines/README.md said to export `HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1` once per terminal, and the quick card to export them before the render. Each of an agent's commands is a new shell, so an export does not carry over: the walkthrough's first `npx hyperframes lint` ran without them and printed HyperFrames' telemetry notice (11-08).
 - Now: both say to put them in the same command as `npx`, and why. `bin/vh`'s own HyperFrames calls already set them, and `bin/vh status` writes them into the render commands it gives.
