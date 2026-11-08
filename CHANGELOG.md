@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh` finds the Chrome version HyperFrames 0.8.202 pins, so the page tools draw with the film's Chrome**
+- Why: `hf_pin` read the pinned version (`CHROME_VERSION`) from `dist/renderSetupWorker.js`, where it sat up to 0.8.84. 0.8.202, the version the repo pins, keeps it in a chunk whose name each build changes (`chunk-4UMPIPCQ.js`), so it was never found, and `hf_chrome` took the newest Chrome in `~/.cache/hyperframes`, whatever its version. With a newer Chrome cached beside the pinned one, `doctor` named the newer one and the page tools (`frames`, `textcheck` and the rest) drew with it; with only a newer one, `doctor`, `status` and `textcheck` said nothing, while the first render downloads the pinned one first.
+- Now: `hf_pin` reads `renderSetupWorker.js` first, then every `dist/*.js` (about 35 ms). `status`'s note before the first HyperFrames render reads the pin the same way and asks for that version; when the pin cannot be read, any version still counts, as before. The upgrade check in engines/README.md has a row for it: after an upgrade, `bin/vh doctor`'s chrome-headless-shell line says "the version HyperFrames pins".
+
 **The READMEs' sizes say what they count**
 - Why: "about 650 MB on disk" and "197 MB on disk" read as two answers to one question (a clean-install walkthrough, 11-07): one was the whole install, the other the repo alone, and neither said what the first render and the sound tools add.
 - Now: about 650 MB with the reference repos and about 380 MB without; the repo itself about 200 MB; then Chrome about 200 MB, Python packages up to about 1.5 GB and the default voice's model about 2 GB on first use (measured from a fresh home folder, 11-08).

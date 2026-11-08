@@ -233,6 +233,7 @@ window.film = {
 | 乱序单帧、页面合约 | `bin/vh determinism`：宿主经 shim 调 0.8.202 的运行时，换顺序、换浏览器画 | 02 最差 84.4 dB，00 最差 104.9 dB；单帧和整片里的同一帧比，数字和 0.8.82 一模一样（28.7–60 dB，HyperFrames 换 Google 字体的老差别，见 `CONTRACT.md`） |
 | 风格样片 | 31 个 JS 样片加 demo，两版各渲一遍无损 PNG（`render.sh --png`，CPU 路径）；三个最敏感的（halftone-comic、fui-hud、synthwave-outrun）在 0.8.202 上再跑 `determinism.sh` | 32 个、每个 150 帧，两版逐字节相同，提交在库里的样片不用重渲；三个的 1 个和 3 个 worker 也逐字节相同 |
 | 已知的坑 | 上一节逐条复核，能复现的都在两个版本上各跑一遍 | 修好三条（两个 Chrome、lint 矛盾、snapshot 默认发 Gemini），一条变了（PNG 序列画根元素的底色），其余照旧 |
+| `bin/vh` 读到的 Chrome 版本 | `styles/_swatch` 里 `npm ci`、`npx hyperframes browser ensure`，再跑 `bin/vh doctor`：chrome-headless-shell 那一行要写着 "the version HyperFrames pins"，即 `hf_pin` 读到了 dist 里固定的版本 | 当时没查。0.8.202 把这个常量从 `renderSetupWorker.js` 挪进了名字随构建变的 chunk，`hf_pin` 读不到，就拿缓存里最新的那个；2026-11-08 改成先读它、再逐个文件找 |
 
 变了、跟着改了的：
 - 脚手架的字体改成 `:root` 里的 `--font-display: sans-serif`，渲染时它被换成 Inter 去 Google Fonts 取（实测日志 `Fetched 11 font face(s) for "Inter" from Google Fonts`）。`bin/vh hf-init` 现在改写这个变量，旧脚手架的 `font-family: Inter…` 那行也照旧改。
