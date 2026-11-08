@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh qa` says when it ran without the project's beat map or stems, and gives the run with them**
+- Why: a walkthrough of a narrated film (11-08) ran `bin/vh qa` on the muxed film with nothing else and got "✗ 38 problem(s)" on a film that passes: without the beat map and the stems, the score's rests, its own dips and its ending count as dropouts, pumping and silence. The quick card wrote `bin/vh qa` with no arguments. A test project (a lofi bed, a mix with stems, a muxed film) shows the same: 17 problems on the film or on the mix alone, none with the beat map and the stems.
+- Now: a failing run that went without the beat map, the event list or the stems, in a project that has them, ends with a line naming what it lacked and the same command with them. A muxed film finds its mix by its `.mux.json`; the stems folder `bin/vh mix … stems=` wrote names its mix, its music (whose beat map lies beside it) and its events; with no stems folder, a lone `*.beats.json` beside the mix. The quick card's sound step writes `mix … stems=` and `qa <混音> <节拍表> --stems`.
+
 **`tools/ci.sh --committed` cleans up its checkout when it is stopped**
 - Why: it removed its clean checkout of HEAD (about 110 MB in `$TMPDIR/vh-ci.*/head`, registered as a git worktree) only after the checks finished. A Ctrl-C, or stopping it as a background task, sends the whole process group a signal and ended it before that, so the checkout stayed behind, still listed by `git worktree list` (11-08).
 - Now: the checkout and its folder go however the run ends; INT, TERM and HUP exit with 130, 143 and 129 after cleaning up. Stopping a run both ways left the checkout registered before, and leaves nothing now. A check that was running still leaves its own small temporary folder.
