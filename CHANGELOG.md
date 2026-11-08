@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**`bin/vh artifacts list` and `bin/vh storyboard` no longer read like problems where there are none**
+- Why: the same walkthrough:
+  - after delivery, `artifacts list` still said "NOTES.md · 3 {…} left" (the template's example rows), while `bin/vh status` says nothing is left;
+  - a film rendered with `npx hyperframes render`, as the docs say, was listed "not checked: no .render.json or .mux.json beside it", which reads as if `bin/vh check` never ran; it means that nothing records what the film was made from;
+  - `storyboard` printed "(? unsure, ! over 5 s: S07? S08?)", which reads as two shots over 5 s; S07 was 4 s, and its "?" marks it unsure.
+- Now: after delivery the listing leaves the {…} counts out (its JSON keeps them); a file whose freshness cannot be told says "whether it is up to date is not known: …"; the storyboard line gives the shots first and the marks' meaning after them: "· S07? S08? (? unsure, ! over 5 s)".
+
 **Gate ①'s page shows each concept card's picture, hook and ending a line each, under its own heading**
 - Why: a standard-effort walkthrough (11-08) put each card's picture, hook and ending into the option's `pro`, as `bin/vh gate <project> 1 --init`'s skeleton asks, and the page showed them as one dense paragraph under "好处" (benefit), which they are not.
 - Now: a decision may name its two columns (`columns`; without it, "好处 / 代价"). Gate ①'s skeleton names them "这张卡讲什么 / 风险或代价" and asks for the three a line each (a line break in an option's text was already kept). playbook/01's 审阅页 lists the field, and the gate schema has it.
