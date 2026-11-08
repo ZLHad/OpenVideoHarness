@@ -258,9 +258,16 @@ def no_key(provider):
         free = "the local default (qwen) needs no key but only runs on Apple Silicon; here --provider edge needs none (free, online)"
     sys.exit(f"set {KEY_OF[provider]} for {provider}; {free}")
 
-def hf_cached(model_id):   # the model's snapshot is in the Hugging Face cache (HF_HUB_CACHE, else HF_HOME/hub)
-    hub = os.environ.get("HF_HUB_CACHE") or os.path.join(os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface"), "hub")
-    return os.path.isdir(os.path.join(hub, "models--" + model_id.replace("/", "--"), "snapshots"))
+def hf_cached(model_id):
+    """The model is on this machine: a local folder, or a snapshot in the Hugging Face cache, found where the Hub itself
+    looks (HF_HUB_CACHE, HUGGINGFACE_HUB_CACHE, HF_HOME, XDG_CACHE_HOME). Unsure: True, so nothing promises a download."""
+    if os.path.isdir(os.path.expanduser(model_id)):
+        return True
+    try:
+        from huggingface_hub import constants   # mlx-audio brings it
+    except ImportError:
+        return True
+    return os.path.isdir(os.path.join(constants.HF_HUB_CACHE, "models--" + model_id.replace("/", "--"), "snapshots"))
 
 _QWEN = {}
 def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):

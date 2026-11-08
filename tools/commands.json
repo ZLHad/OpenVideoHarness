@@ -368,8 +368,9 @@
           "synopsis": "artifacts list <project> [--stage S] [--strict] [--json]",
           "text": [
             "what this project holds, kind by kind: the paths, the version each says, the schema's result, whether it is out of date",
-            "and why (not checked where nothing can tell), the {…} left, and what is required by now and missing; a report: exit 0,",
-            "or with --strict exit 1 when anything is missing by now, has a schema problem or is out of date (not checked is none of them)"
+            "and why (not known where nothing can tell), the {…} left (until the film is delivered), and what is required by now and",
+            "missing; a report: exit 0, or with --strict exit 1 when anything is missing by now, has a schema problem or is out of date",
+            "(not known is none of them)"
           ]
         },
         {

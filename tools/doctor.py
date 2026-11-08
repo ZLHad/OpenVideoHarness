@@ -32,7 +32,7 @@ Exit 0: it is a report (2 on a usage error or an unreadable table).
 minimum, not the pin, or older than max_age_days) · incomplete (found, a part it needs is not) · no_key · unsupported
 (not on this platform) · per_project · unchecked. A probe: ok · failed · skipped.
 """
-import datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, time
+import contextlib, datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, time
 import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
@@ -426,7 +426,8 @@ def repo_checks(webgl, found_by):
         out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → bin/vh doctor --fill-local (copies LOCAL.example.md, writes this machine's lines)"})
     else:
         lines = local.read_text(encoding="utf-8").splitlines()
-        todo = [k for k in MACHINE if any(re.match(rf"- {k}：.*\{{", line) for line in lines)]
+        left = {m.group(2) for m in map(TEMPLATE_LINE.match, lines) if m}
+        todo = [k for k in MACHINE if k in left]
         rest = sum(1 for line in lines if re.search(r"\{[^}]*\}", line)) - len(todo)
         out.append({"name": "local_md", "state": "incomplete" if todo else "ok",
                     "note": (f"{', '.join(todo)} still the template → bin/vh doctor --fill-local writes them" if todo else "this machine's lines filled in")
@@ -440,6 +441,7 @@ def repo_checks(webgl, found_by):
 
 
 MACHINE = ("硬件", "已装工具", "已装引擎")   # LOCAL.md's lines doctor can write; a {…} left on any other line is its default
+TEMPLATE_LINE = re.compile(r"^(- (%s)：)\s*(\{.*?)(\r?\n)?$" % "|".join(MACHINE))   # a machine line whose value is still the template's {…}
 
 
 def hardware():
@@ -488,24 +490,32 @@ def fill_local(mods):
     → the line to print."""
     local, example = ROOT / "LOCAL.md", ROOT / "LOCAL.example.md"
     new = not local.exists()
-    try:
-        text = (example if new else local).read_text(encoding="utf-8")
+    try:   # newline="": a file's own line endings (CRLF) stay as they are
+        with open(example if new else local, encoding="utf-8", newline="") as fh:
+            text = fh.read()
     except OSError as e:
         return f"LOCAL.md: not written ({e})"
     facts, done, kept, out = machine_lines(mods), [], [], []
     stamp = f"（bin/vh doctor --fill-local，{datetime.date.today().isoformat()}）"
     for line in text.splitlines(keepends=True):
-        mm = re.match(r"^(- (%s)：)(.*?)(\r?\n)?$" % "|".join(MACHINE), line)
-        if mm and "{" in mm.group(3) and facts.get(mm.group(2)):
+        mm, label = TEMPLATE_LINE.match(line), re.match(r"^- (%s)：" % "|".join(MACHINE), line)
+        if mm and facts.get(mm.group(2)):
             line = mm.group(1) + facts[mm.group(2)] + stamp + (mm.group(4) or "")
             done.append(mm.group(2))
-        elif mm:
-            kept.append(mm.group(2))
+        elif label:   # a person's own words, braces and all ("M3 Max {16 core}")
+            kept.append(label.group(1))
         out.append(line)
     if new or done:
-        tmp = local.with_name(f".{local.name}.{os.getpid()}")
-        tmp.write_text("".join(out), encoding="utf-8")
-        os.replace(tmp, local)
+        dest = local.resolve() if local.is_symlink() else local   # a linked LOCAL.md: write the file it points to
+        tmp = dest.with_name(f".{dest.name}.{os.getpid()}")
+        try:
+            with open(tmp, "w", encoding="utf-8", newline="") as fh:
+                fh.write("".join(out))
+            os.replace(tmp, dest)
+        except OSError as e:
+            with contextlib.suppress(OSError):
+                tmp.unlink()
+            return f"LOCAL.md: not written ({e})"
     said = ("LOCAL.md made from LOCAL.example.md" if new else "LOCAL.md") + ": "
     said += f"wrote {', '.join(done)} from this check" if done else "nothing to write"
     if kept:

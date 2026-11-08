@@ -352,8 +352,11 @@ class Page:
             dec["options"] = opts
             for k in ("id", "question", "recommend", "why", "cost", "reply"):
                 dec[k] = scalar(dec.get(k), f"decisions[{i - 1}].{k}").strip()
-            dec["columns"] = [scalar(c, f"decisions[{i - 1}].columns[{k}]").strip()   # the pro and con columns' titles
-                              for k, c in enumerate(as_list(dec.get("columns"), f"decisions[{i - 1}].columns")[:2])]
+            cols = as_list(dec.get("columns"), f"decisions[{i - 1}].columns")   # the pro and con columns' titles
+            if cols and len(cols) != 2:
+                self.warn(f"decision {i} ({dec['id'] or '?'}): `columns` takes two titles, the pro column's and the con column's; "
+                          f"it has {len(cols)}" + (", the first two are used" if len(cols) > 2 else ", the other column keeps its default"))
+            dec["columns"] = [scalar(c, f"decisions[{i - 1}].columns[{k}]").strip() for k, c in enumerate(cols[:2])]
             if not dec["question"]:
                 self.err(f"decision {i}: no `question`")
             if not dec["recommend"]:

@@ -269,7 +269,7 @@ function vRound() {
       ${d.recommend ? `<div class="small muted">${esc(t("recommend", { r: d.recommend }))}${d.why ? COLON() + esc(d.why) : ""}</div>` : ""}
       <div class="opts">${(d.options || []).map((o) => `<label class="opt ${pick === o.id ? "on" : ""}"><input type="radio" name="dec-${esc(d.id)}" value="${esc(o.id)}" ${pick === o.id ? "checked" : ""} data-dec="${esc(d.id)}">
         <div><div class="l">${esc(o.id)}${o.label ? " · " + esc(o.label) : ""} ${o.id === d.recommend ? `<span class="chip acc">${esc(t("rec_chip"))}</span>` : ""}</div>
-        ${o.pro || o.con ? `<div class="pc"><div class="p"><b>${esc(t("pro"))}</b>${esc(o.pro || "")}</div><div class="c"><b>${esc(t("con"))}</b>${esc(o.con || "")}</div></div>` : ""}</div></label>`).join("")}</div>
+        ${o.pro || o.con ? `<div class="pc"><div class="p"><b>${esc((Array.isArray(d.columns) && d.columns[0]) || t("pro"))}</b>${esc(o.pro || "")}</div><div class="c"><b>${esc((Array.isArray(d.columns) && d.columns[1]) || t("con"))}</b>${esc(o.con || "")}</div></div>` : ""}</div></label>`).join("")}</div>
       ${(g.assets || []).filter((a) => a && a.for === d.id && !isVideo(a.path)).map((a) => media(a)).join("")}
       ${fbCtl("dec:" + d.id, t("l_dec", { x: d.question || d.id }), { labels: [t("dec_ok"), t("dec_more"), t("fb_ask")], def: t("dec_def") })}</div>`;
   }).join("");

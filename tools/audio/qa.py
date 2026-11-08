@@ -209,12 +209,13 @@ def stem(stems, name):  # a stem of `bin/vh mix … stems=DIR`, or None
     p = os.path.join(stems, f"{name}.wav") if stems else None
     return p if p and os.path.exists(p) else None
 
-def with_context(path, beats, events, stems):
-    """A run that failed without the beat map, the event list or the stems: the same run with the project's, when it has
-    them; else None. A muxed film names its mix in <film>.mux.json. The stems folder bin/vh mix wrote, beside the mix or
-    in a folder next to it, names its mix ("mix") and the music and events it read ("inputs"), all from that folder; the
-    music's beat map is beside the music (music.wav → music.beats.json). With no stems folder, a beat map alone beside
-    the mix. Without them the score's rests, its own dips and its ending count as dropouts, pumping and silence."""
+def with_context(path, beats, events, stems, mode="all", project=None):
+    """A suggestion, after a run that failed without the beat map, the event list or the stems: the same run with the
+    project's, when it has them; else None. A muxed film names its mix in <film>.mux.json. The stems folder bin/vh mix
+    wrote (in the mix's folder or one inside it, or in the project's audio/ or one inside it) names its mix ("mix") and
+    the music and events it read ("inputs"), all from that folder; the music's beat map is beside the music (music.wav →
+    music.beats.json). With no stems folder, a beat map alone beside the mix. Without them the score's rests, its own
+    dips and its ending count as dropouts, pumping and silence."""
     import shlex
 
     def rel(p):   # as typed from here; a path two folders up or more stays absolute
@@ -236,8 +237,19 @@ def with_context(path, beats, events, stems):
         names = sorted(os.listdir(home))
     except OSError:
         return None
+
+    def with_inside(d):   # a folder and the folders directly in it
+        try:
+            return [d] + sorted(os.path.join(d, n) for n in os.listdir(d) if os.path.isdir(os.path.join(d, n)))
+        except OSError:
+            return []
+    seen, dirs = set(), []
+    for d in with_inside(home) + (with_inside(os.path.join(str(project), "audio")) if project else []):
+        if os.path.realpath(d) not in seen:   # each folder once, by the name it was first reached under
+            seen.add(os.path.realpath(d))
+            dirs.append(d)
     b = e = s = None
-    for d in [home] + [os.path.join(home, n) for n in names if os.path.isdir(os.path.join(home, n))]:
+    for d in dirs:
         try:
             meta = json.load(open(os.path.join(d, "meta.json"), encoding="utf-8"))
         except (OSError, ValueError):
@@ -256,7 +268,8 @@ def with_context(path, beats, events, stems):
     if not missing:
         return None
     b, e, s = beats or b, events or e, stems or s
-    cmd = " ".join(["bin/vh qa", rel(path)] + ([rel(b)] if b else ["-"] if e else []) + ([rel(e)] if e else []) + (["--stems", rel(s)] if s else []))
+    cmd = " ".join(["bin/vh qa"] + ([mode] if mode in ("scan", "cues") else []) + [rel(path)] + ([rel(b)] if b else ["-"] if e else [])
+                   + ([rel(e)] if e else []) + (["--stems", rel(s)] if s else []))
     return (f"→ run without {' and '.join(missing)}: the score's rests, its own dips and its ending count as problems here. "
             f"With {'them' if len(missing) > 1 else 'it'}: {cmd}"
             + ("" if s else " (a mix made with stems=DIR also lets qa tell the music's own dips: --stems DIR)"))
@@ -1173,9 +1186,9 @@ def main():
                + (" · STALE? this may be an earlier mix (see the top)" if old else "")
                + (f" · full report {opt('--out')}" if "--out" in a else ""))
     hint = with_context(mix_path, pos[1] if len(pos) > 1 and pos[1] != "-" else None,
-                        (pos[2] if len(pos) > 2 else None) or opt("--events"), stems) if fails else None
-    if hint: print(hint)
-    print(verdict + (" · the line above: the same run with the project's own files" if hint else ""))
+                        (pos[2] if len(pos) > 2 else None) or opt("--events"), stems, mode, home) if fails else None
+    if hint: print(hint)   # above the verdict, which stays the last line
+    print(verdict)
     import activity   # tools/activity.py: the verdict in the project's log, when bin/vh ran us
     activity.note(f"{os.path.basename(mix_path)}: {verdict}", [opt("--out")] if "--out" in a else [])
     sys.exit(1 if fails else 0)

@@ -9983,8 +9983,8 @@ case "${1:-all}" in
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     shift
     ci_tmp=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX") || exit 2
-    # removed however the run ends: a Ctrl-C (INT) or a stopped task (TERM to the group) used to leave the
-    # checkout behind, still registered as a git worktree (about 110 MB)
+    # removed when the run ends, and when a Ctrl-C (INT), a stopped task (TERM to the group) or HUP ends it: those used
+    # to leave the checkout behind, still registered as a git worktree (about 110 MB). A SIGKILL still does (git worktree prune)
     trap '[ ! -e "$ci_tmp/head" ] || git worktree remove --force "$ci_tmp/head"; rmdir "$ci_tmp"' EXIT
     trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
     git worktree add -q --detach "$ci_tmp/head" HEAD || exit 2
