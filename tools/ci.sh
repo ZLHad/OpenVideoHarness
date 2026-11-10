@@ -39,6 +39,9 @@ no_webgl() { # no_webgl <what>: the Three.js layer got no WebGL2, even with --so
   else skip "$1" "no WebGL here even with --soft-gl"; fi
 }
 files() { git ls-files "$@" | grep -v -E '^references/|(^|/)node_modules/|\.min\.js$'; }
+stops_line() { # stops_line <project> <value>: the BRIEF's Stops line set to it ("1, 2, 3": a film that stops at its storyboard too)
+  python3 -c 'import re, sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(re.sub(r"(?m)^- Stops: \S+", "- Stops: " + sys.argv[2], s, count=1))' "$1" "$2"
+}
 
 static_checks() {
   local f n out
@@ -366,7 +369,7 @@ bad = [r["type"] for r in rows if not 0 < r["start"] < r["standard"]]
 step = next(line for line in open("CLAUDE.md", encoding="utf-8") if line.startswith("2. **读流程和自查**"))
 bad += [w for w in ('规格', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'bin/vh know --show') if w not in step]
 head = readpath.upto("playbook/01-pipeline.md", "### 导演模式")
-bad += [f"playbook/01 before 导演模式 lacks {w}" for w in ("## 总表", "## 努力程度", "## 项目目录约定", "## reads", "## 三道人工关卡", "### 规格") if w not in head]
+bad += [f"playbook/01 before 导演模式 lacks {w}" for w in ("## 总表", "## 努力程度", "## 项目目录约定", "## reads", "## 人工关卡", "### 规格") if w not in head]
 print("; ".join(bad) or f"start is under standard for all {len(rows)} types, and CLAUDE.md's step 2 names the sections it counts")
 sys.exit(1 if bad else 0)
 PY
@@ -1759,7 +1762,128 @@ PY
   python3 -c "import sys, re; f = sys.argv[1]; s = open(f, encoding='utf-8').read(); open(f, 'w', encoding='utf-8').write(re.sub(r'(?m)^- Effort: standard', '- Effort: quick', s))" "$p/BRIEF.md" && cp "$ROOT/templates/REVIEW.md" "$p/"
   a=$(python3 tools/gatecheck.py "$p"); rc=$?
   [ $rc = 0 ] && printf '%s' "$a" | grep -q "Effort quick" && ok "gate record: a quick project is not checked" || bad "gate record on quick (exit $rc): $a"
+  stop_plan_checks "$t"
   rm -rf "$t"
+}
+
+# where a film stops (tools/gatecheck.py's plan_of; CLAUDE.md, 停在哪): the plan from the BRIEF's Stops line and the film's own
+# facts; a short film goes from gate ① to gate ③, whose page carries the storyboard; a long one keeps gate ② whatever the line
+# says, until the user's own words take it away; a BRIEF with no Stops line is held to what it was held to before
+stop_plan_checks() {
+  local t=$1 p q a b c d e rc rc2 rc3
+  a=$(python3 - <<'PY'
+import sys
+sys.path.insert(0, "tools")
+import gatecheck as G
+bad = []
+for line, want in (("default", None), ("", None), ("{x}", None), ("1, 3", {"1", "3"}), ("①②③", {"1", "2", "3"}), ("1, E3, 3", {"1", "3", "E3"}), ("每步都看", {"1", "2", "3"}), ("all, E1", {"1", "2", "3", "E1"}), ("13", None)):
+    if G.named_stops(line) != want:
+        bad.append(f"named_stops({line!r}) = {G.named_stops(line)}")
+for line, want in (("1920x1080, 30 fps, exactly 103.0s (3090 frames)", 103), ("{W}x{H}, {fps} fps, exactly {N}s ({frames} frames)", None), ("1080x1920, 30 fps, {60–90}s", 90),
+                   ("1920x1080, 30 fps, 12 min", 720), ("1920x1080, 30 fps, 约 45 秒", 45)):
+    if G.film_seconds(line) != want:
+        bad.append(f"film_seconds({line!r}) = {G.film_seconds(line)}")
+for path, want in (("out/final.mp4", True), ("out/final/film-4k.mp4", True), ("media/film.mp4", True), ("media/videos/s/1080p30/S.mp4", True), ("media/videos/s/480p15/S.mp4", False),
+                   ("out/draft.mp4", False), ("out/animatic.mp4", False), ("out/final.failed.mp4", False), ("out/review/sketch/final.mp4", False)):
+    if G.is_final(path) != want and path != "out/review/sketch/final.mp4":   # (a name is all it reads: a sketch called final is one)
+        bad.append(f"is_final({path!r}) = {G.is_final(path)}")
+print("; ".join(bad))
+PY
+)
+  [ -z "$a" ] && ok "stop plan: a Stops line's stops (numbers, ①②③, checkpoints, 每步都看; default and {…} name none), an Output line's length (seconds, a range's longer end, minutes), and which film is the final" \
+    || bad "stop plan, the small readers: $a"
+  rec() { python3 - "$@" <<'PY'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+def sub(name, old, new):
+    f = p / name; s = f.read_text(encoding="utf-8")
+    if old not in s: sys.exit(f"{name} has no {old!r}")
+    f.write_text(s.replace(old, new, 1), encoding="utf-8")
+def line(key, value):
+    f = p / "BRIEF.md"; s = f.read_text(encoding="utf-8"); f.write_text(re.sub(rf"(?m)^- {key}: .*$", f"- {key}: {value}", s, count=1), encoding="utf-8")
+for w in sys.argv[2:]:
+    if w.startswith("len="): sub("BRIEF.md", "exactly {N}s ({frames} frames)", f"exactly {w[4:]}s ({int(w[4:]) * 30} frames)")
+    elif w == "g1":
+        sub("REVIEW.md", '- 原话："……"', '- 原话："选 A"'); sub("REVIEW.md", "- 定了：{…}　改了：{…}", "- 定了：立意卡 A　改了：无")
+        sub("DECISIONS.md", "{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A")
+    elif w == "g2": sub("REVIEW.md", "## 关卡 ② 分镜\n", '## 关卡 ② 分镜\n- 原话："通过"\n- 定了：照分镜做\n')
+    elif w == "g3": sub("REVIEW.md", "## 关卡 ③ 初版\n", '## 关卡 ③ 初版\n- 原话："可以发"\n- 定了：放行\n')
+    elif w == "waive2": sub("REVIEW.md", "## 关卡 ② 分镜\n", "## 关卡 ② 分镜\n- 用户授权跳过（2026-11-10）。原话：“分镜不用给我看，直接做初版”\n- 范围：跳过关卡 ②\n")
+    elif w == "nostops": f = p / "BRIEF.md"; f.write_text(re.sub(r"(?m)^- Stops:.*\n", "", f.read_text(encoding="utf-8"), count=1), encoding="utf-8")
+    elif "=" in w: line(*w.split("=", 1))
+PY
+  }
+  fill3() { python3 - "$1" <<'PY'
+import json, sys
+f = sys.argv[1] + "/out/review/gate-3.json"
+def fill(x):
+    if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
+    if isinstance(x, list): return [fill(v) for v in x]
+    return "填好了" if isinstance(x, str) and x.startswith("{") else x
+d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None); d["least_sure"] = []; d["decisions"][0]["recommend"] = "OK"
+json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  }
+  plan() { vh status "$1" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(" ".join(s["id"] + ":" + s["state"] for s in d["stations"]), "|", ",".join(d["stops"]["gates"]), "|", ",".join(d["stops"]["kept"]))'; }
+  # the plan by the film's own facts: its length, its engine, its budget; what the Stops and Director lines add
+  OVH_PROJECTS="$t" vh new math sp >/dev/null 2>&1; p=$(ls -d "$t"/*-sp); rec "$p" len=45
+  a=$(plan "$p"); rec "$p" "Budget=¥200"; b=$(plan "$p"); rec "$p" "Budget=default" "Engine=canvas-film + Three.js"; c=$(plan "$p")
+  rec "$p" "Engine=Manim CE" "Stops=1, 2, E3, 3"; d=$(plan "$p"); rec "$p" "Stops=default" "Director=storyboard=own, rest=delegate"; e=$(plan "$p")
+  if [ "$a" = "1:in_progress 3:not_started deliver:not_started | 1,3 | " ] && [ "$b" = "1:in_progress 2:not_started 3:not_started deliver:not_started | 1,2,3 | " ] && [ "$c" = "$b" ] \
+    && [ "$d" = "1:in_progress 2:not_started E3:not_started 3:not_started deliver:not_started | 1,2,3 | " ] && [ "$e" = "$b" ]
+  then ok "stop plan: a 45 s film with nothing paid stops at gates ① and ③; a budget with money in it, a 3D engine, a Stops line that names it or storyboard=own add gate ②; a checkpoint on the Stops line is a stop"
+  else bad "stop plan by the film's facts: $a || $b || $c || $d || $e"; fi
+  # gate ①'s message says where the film stops; the user's own words settling the concept need no page: the record alone passes
+  OVH_PROJECTS="$t" vh new math sm >/dev/null 2>&1; q=$(ls -d "$t"/*-sm); rec "$q" len=45; mkdir -p "$q/out/review"
+  printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}]}' > "$q/out/review/gate-1.json"
+  a=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1); rec "$q" "Budget=\$5"; b=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1)
+  rec "$q" "Budget=default" "Review language=en"; c=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1)
+  rm -rf "$q/out/review"; rec "$q" g1; python3 tools/gatecheck.py "$q" >/dev/null 2>&1; rc=$?; d=$(plan "$q")
+  if [ "$a" = "这支片子我打算停两次：这一次（立意）和初版；分镜随初版那一页给你，不单独停。想多看一步或少看一步，回我一句就行。" ] \
+    && [ "$b" = "这支片子我打算停三次：这一次（立意）、分镜、初版；分镜单独停，因为有付费调用。想多看一步或少看一步，回我一句就行。" ] \
+    && case "$c" in "I plan to stop twice on this film: now (the concept) and at the first draft;"*"Tell me in a sentence if you want to see more, or less.") true ;; *) false ;; esac \
+    && [ "$rc" = 0 ] && [ "$d" = "1:done 3:in_progress deliver:not_started | 1,3 | " ]
+  then ok "stop plan: gate ①'s message ends with where this film stops and that a sentence changes it (twice; three times and why; in the review language); the concept on record with no page (the user's own brief) passes gate ①"
+  else bad "stop plan in gate ①'s message (gatecheck $rc): $a || $b || $c || $d"; fi
+  if ! command -v ffmpeg >/dev/null; then skip "stop plan: a short film to its delivery, a long one held at its storyboard" "no ffmpeg"; return; fi
+  mk() { ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x303030:s=1920x1080:r=30:d=$2" -pix_fmt yuv420p "$1"; }
+  # a short film: gate ③'s skeleton includes the storyboard, and its page is refused until bin/vh storyboard has written it;
+  # then the person's answer and a final that passes are the delivery
+  rm -rf "$p"; OVH_PROJECTS="$t" vh new math sp >/dev/null 2>&1; p=$(ls -d "$t"/*-sp); rec "$p" len=4 g1; mkdir -p "$p/out"; mk "$p/out/draft.mp4" 4
+  a=$(vh gate "$p" 3 --init 2>&1); fill3 "$p"; b=$(vh gate "$p" 3 --page 2>&1); rc=$?
+  printf '%s\n' '{"shots": [{"id": "S01", "segment": "开头", "start": 0, "end": 2, "reads": "a"}, {"id": "S02", "segment": "开头", "start": 2, "end": 4, "reads": "b"}]}' > "$p/shots.json"
+  vh storyboard "$p" >/dev/null 2>&1; c=$(vh gate "$p" 3 --page 2>&1); rc2=$?; d=$(plan "$p")
+  rec "$p" g3; mk "$p/out/final.mp4" 4; vh check "$p/out/final.mp4" >/dev/null 2>&1; rc3=$?; e=$(plan "$p")
+  if case "$a" in *"no storyboard stop, so this page includes the storyboard"*) true ;; *) false ;; esac && grep -q '"include": "out/check/storyboard/review.json"' "$p/out/review/gate-3.json" \
+    && [ "$rc" = 2 ] && case "$b" in *"include out/check/storyboard/review.json"*"bin/vh storyboard writes"*) true ;; *) false ;; esac \
+    && [ "$rc2" = 0 ] && grep -q 'S02' "$p/out/review/gate-3.html" && [ "$d" = "1:done 3:waiting_person deliver:not_started | 1,3 | " ] && [ "$rc3" = 0 ] && [ "$e" = "1:done 3:done deliver:done | 1,3 | " ]
+  then ok "stop plan, a short film: gate ③'s skeleton includes the storyboard and its page is not sent without it; with it the shots are on the page; the person's answer and a final that passes bin/vh check are the delivery, with no gate ②"
+  else bad "stop plan, a short film to its delivery ($rc/$rc2/$rc3): $a || $b || $c || $d || $e"; fi
+  # a long film whose Stops line leaves gate ② out: it stays in the plan; gate ③'s page is not sent and the final fails its check
+  # (a draft does not) until gate ② is decided, or waived in the user's own words
+  OVH_PROJECTS="$t" vh new math sl >/dev/null 2>&1; q=$(ls -d "$t"/*-sl); rec "$q" len=100 g1 "Stops=1, 3"; mkdir -p "$q/out"; mk "$q/out/draft.mp4" 100; cp "$q/out/draft.mp4" "$q/out/final.mp4"
+  a=$(plan "$q"); vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"
+  b=$(vh gate "$q" 3 --page 2>&1); rc=$?; [ ! -e "$q/out/review/gate-3.html" ] || rc="$rc, and a page"
+  c=$(vh check "$q/out/draft.mp4" 2>&1); d=$(vh check "$q/out/final.mp4" 2>&1); rc2=$?
+  rec "$q" waive2; vh gate "$q" 3 --page >/dev/null 2>&1; rc3=$?; e=$(vh check "$q/out/final.mp4" 2>&1 | grep -c "no record of gate"); e="$e $(plan "$q")"
+  if [ "$a" = "1:done 2:in_progress 3:not_started deliver:not_started | 1,2,3 | 2" ] && [ "$rc" = 2 ] && case "$b" in *"Gate ② storyboard is in this film's plan (100 s long (over 90 s))"*"is not sent"*"only the user's own words take a stop away"*) true ;; *) false ;; esac \
+    && case "$c" in *"no record of gate"*) false ;; *) true ;; esac \
+    && [ "$rc2" = 1 ] && case "$d" in *"✗"*"no record of gate ②"*"100 s long (over 90 s)"*'"- 定了：…"'*"用户授权跳过"*) true ;; *) false ;; esac \
+    && [ "$rc3" = 0 ] && [ "$e" = "0 1:done 2:skipped 3:waiting_person deliver:not_started | 1,2,3 | 2" ]
+  then ok "stop plan, a long film: a Stops line that leaves gate ② out does not take it out; gate ③'s page is not sent and the final fails bin/vh check (a draft does not) until the user's own waiver is under gate ②"
+  else bad "stop plan, a long film whose Stops line leaves gate ② out ($rc/$rc2/$rc3): $a || $b || $(printf '%s' "$d" | grep -A3 'gate record') || $e"; fi
+  rm -rf "$q"; OVH_PROJECTS="$t" vh new math sl >/dev/null 2>&1; q=$(ls -d "$t"/*-sl); rec "$q" len=100 g1 g2; mkdir -p "$q/out"; mk "$q/out/final.mp4" 100
+  vh check "$q/out/final.mp4" >/dev/null 2>&1; rc=$?; vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"; vh gate "$q" 3 --page >/dev/null 2>&1; rc2=$?
+  a=$(plan "$q"); grep -q '"include"' "$q/out/review/gate-3.json" && b=include || b=plain
+  # a BRIEF with no Stops line (a project from before the templates had one): the three gates, and only gate ① is asked for
+  OVH_PROJECTS="$t" vh new math so >/dev/null 2>&1; p=$(ls -d "$t"/*-so); rec "$p" len=100 g1 nostops; mkdir -p "$p/out"; cp "$q/out/final.mp4" "$p/out/final.mp4"
+  c=$(plan "$p"); vh check "$p/out/final.mp4" >/dev/null 2>&1; rc3=$?; vh gate "$p" 3 --init >/dev/null 2>&1; fill3 "$p"; vh gate "$p" 3 --page >/dev/null 2>&1; d=$?
+  e=$(vh status "$p" | sed -n 2p)
+  if [ "$rc:$rc2" = 0:0 ] && [ "$a" = "1:done 2:done 3:waiting_person deliver:not_started | 1,2,3 | " ] && [ "$b" = plain ] \
+    && [ "$c" = "1:done 2:in_progress 3:not_started deliver:not_started | 1,2,3 | " ] && [ "$rc3:$d" = 0:0 ] && [ "$e" = "stops: ① ② ③ (the BRIEF has no Stops line: the three gates)" ]
+  then ok "stop plan: a long film with gate ② decided passes its check and sends gate ③'s page (no storyboard include); a BRIEF with no Stops line keeps the three gates and is held to gate ① alone, as before"
+  else bad "stop plan, three stops on record and a BRIEF with no Stops line ($rc/$rc2, $rc3/$d): $a | $b || $c || $e"; fi
 }
 
 hf_standin() { # hf_standin <folder>: an npx that scaffolds as hyperframes init does and an npm with nothing to do, for a check of
@@ -2687,10 +2811,10 @@ PY
   a=$(vh gate "$g" 1 --page 2>"$t/g1.err"); rc=$?
   vh gate "$g" 1 --page --wait >/dev/null 2>"$t/g2.err"; rc2=$?
   b=$(OVH_LOCAL_MD="$t/LOCAL-chat.md" vh gate "$g" 1 2>&1)
-  if [ $rc = 0 ] && [ $rc2 = 2 ] && case "$a" in *"要你定 1 件事"*"页面："*"/out/review/gate-1.html") true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && case "$a" in *"要你定 1 件事"*"页面："*"/out/review/gate-1.html"$'\n'"这支片子我打算停三次：这一次（立意）、分镜、初版。想多看一步或少看一步，回我一句就行。") true ;; *) false ;; esac \
     && [ "$(cat "$g/out/review/.current")" = 1 ] && [ ! -e "$g/out/review/.desk.json" ] && grep -q 'waits for the review desk' "$t/g2.err" \
     && case "$b" in *"reviewed on the chat (LOCAL.md)"*) true ;; *) false ;; esac && [ ! -e "$g/out/review/.desk.json" ]
-  then ok "gate: --page and LOCAL.md's 审阅方式 print the chat message, make the page this round and start no desk; --wait without the desk is refused"
+  then ok "gate: --page and LOCAL.md's 审阅方式 print the chat message (gate ①'s ends with where the film stops: a BRIEF with no Stops line, the three gates), make the page this round and start no desk; --wait without the desk is refused"
   else bad "gate on the page (rc $rc/$rc2): $a | $(cat "$t/g1.err" "$t/g2.err") | $b"; fi
   # a page that breaks a rule: written, but no message and no desk; a standard project with LOCAL.md's placeholder: the page
   sed 's/"recommend": "L1", //' "$g/out/review/gate-1.json" > "$g/out/review/gate-1b.json"
@@ -5235,11 +5359,13 @@ for k in sys.argv[4:]:   # extra checks: a python expression over d
         print(f"not: {k}")
 PY
   st() { python3 "$t/st.py" "$VH_BASH|$ROOT/bin/vh" "$@"; }
-  a=$(st "$p" "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" 'd["version"] == 1 and d["project"]["effort"] == "standard" and d["project"]["type"] == "01-math-science-explainer"' \
-    'd["review"]["current"] is None and d["renders"] == [] and d["check"] is None and d["open"] == {"review_items": [], "facts_to_verify": []}')
+  a=$(st "$p" "1:in_progress 3:not_started deliver:not_started | agent" 'd["version"] == 1 and d["project"]["effort"] == "standard" and d["project"]["type"] == "01-math-science-explainer"' \
+    'd["review"]["current"] is None and d["renders"] == [] and d["check"] is None and d["open"] == {"review_items": [], "facts_to_verify": []}' \
+    'd["stops"]["gates"] == ["1", "3"] and d["stops"]["line"] == "default" and d["stops"]["costly"] == [] and d["stops"]["kept"] == []')
   b=$(vh status "$p"); rc=$?
-  [ "$a" = "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" ] && [ $rc = 0 ] && [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" -le 9 ] \
-    && ok "status: a new standard project works towards gate ①, the rest not started (--json version 1; a short human view)" || bad "status of a new project (rc $rc): $a | $b"
+  [ "$a" = "1:in_progress 3:not_started deliver:not_started | agent" ] && [ $rc = 0 ] && [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" -le 9 ] && case "$b" in *$'\n'"stops: ① ③ (a short film"*) true ;; *) false ;; esac \
+    && ok "status: a new standard project works towards gate ①, the rest not started; its plan is gates ① and ③ (stops:, and --json stops), the storyboard on gate ③'s page (--json version 1; a short human view)" || bad "status of a new project (rc $rc): $a | $b"
+  stops_line "$p" "1, 2, 3"   # the checks below follow a film that stops at its storyboard too
   # a page out (the page channel): waiting for the person; a desk submission: waiting for the agent, until handed over and recorded
   mkdir -p "$p/out/review" && cp tools/desk/fixtures/zh/out/review/gate-1.json "$p/out/review/" && : > "$p/SCRIPT.md" && vh gate "$p" 1 --page >/dev/null 2>&1
   a=$(st "$p" "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" 'd["stations"][0]["page"] == "out/review/gate-1.html" and d["review"]["current"] == "1"')
@@ -5356,7 +5482,7 @@ PY
   else bad "status of gate ② by page and by date: $a | $b | $c"; fi
   # no REVIEW.md (a project from before the templates had one): no record, not "in progress"; machine-written records of
   # the wrong shape (a check record, a render's and a delivery's sidecar, a submission, activity lines) break nothing
-  OVH_PROJECTS="$t" vh new math nr >/dev/null 2>&1; q=$(ls -d "$t"/*-nr); rm "$q/REVIEW.md"
+  OVH_PROJECTS="$t" vh new math nr >/dev/null 2>&1; q=$(ls -d "$t"/*-nr); rm "$q/REVIEW.md"; stops_line "$q" "1, 2, 3"
   a=$(st "$q" "1:no_record 2:no_record 3:no_record deliver:no_record | unknown")
   mkdir -p "$q/out/check" "$q/out/review/feedback" "$q/.ovh" && : > "$q/out/x.mp4"
   printf '%s\n' '{"version": 1, "video": 5, "t": "x", "findings": "x", "counts": [1], "verdict": 3}' > "$q/out/check/bad.check.json"
@@ -6882,7 +7008,7 @@ PY
 )
   [ -z "$a" ] && ok "status: every section the next step sends an agent to is there for bin/vh know --show" || bad "status, sections to read that are not there: $a"
   # a new standard project: BRIEF's placeholders counted, the gate ① commands; the skeleton's own count; the page out is the person's
-  OVH_PROJECTS="$t" vh new math ns >/dev/null 2>&1; p=$(ls -d "$t"/*-ns)
+  OVH_PROJECTS="$t" vh new math ns >/dev/null 2>&1; p=$(ls -d "$t"/*-ns); stops_line "$p" "1, 2, 3"
   a=$(ns "$p" 'n["who"] == "agent"' 'n["unfilled"]["BRIEF.md"] > 10' '"BRIEF.md (" in n["do"] and "{…} left" in n["do"]' '"--init" in c and c.endswith(" 1")' \
     '"video-types/01-math-science-explainer.md" in r and "playbook/01-pipeline.md#审阅页" in r and "playbook/12-ideation.md#7." in r and "各引擎的取帧命令" in r')
   b=$(vh status "$p"); c=$(printf '%s\n' "$b" | grep -c '^next: agent — ')
@@ -6926,7 +7052,7 @@ PY
   b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" not in c and "uv init" in c and "manim -ql -s" in c and "manim -ql scene.py" in c' '"各引擎的取帧命令" in r and "engines/README.md#Manim CE" in r')
   : > "$p/pyproject.toml"; b="$b$(ns "$p" '"uv init" not in c and "manim -ql -s" in c')"
   # the first picture sends an agent to the rest of playbook/02, audio QA when there is sound; a stop with no decision on record to
-  # how a stop goes on record, not the whole of 三道人工关卡; a stylesheet in STYLE.md is no blank, a {…} in its text is; a section's
+  # how a stop goes on record, not the whole of 人工关卡; a stylesheet in STYLE.md is no blank, a {…} in its text is; a section's
   # entry has a #, the others are read whole, and the human line says so
   b="$b$(ns "$p" '"确定性" in r and "静默失败" in r and "色彩标签" in r and "事实核查" in r and "已知的坑" in r' '"音频 QA" not in r')"
   : > "$p/audio/script.txt"; b="$b$(ns "$p" '"音频 QA" in r')"; rm -f "$p/audio/script.txt"
@@ -7032,7 +7158,7 @@ PY
   # what the Director line keeps for the person (x=own), on both efforts: its stop joins, it is said first and the section to read
   # is named until it is on record (its stop done, or its row in DECISIONS.md decided)
   dirline() { python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: " + sys.argv[2], 1))' "$1" "$2"; }
-  OVH_PROJECTS="$t" vh new math ns2 >/dev/null 2>&1; d=$(ls -d "$t"/*-ns2); dirline "$d" "voice=own, hook=own, packaging=own, rest=delegate"
+  OVH_PROJECTS="$t" vh new math ns2 >/dev/null 2>&1; d=$(ls -d "$t"/*-ns2); dirline "$d" "voice=own, hook=own, packaging=own, rest=delegate"; stops_line "$d" "1, 2, 3"
   a=$(st "$d" "1:in_progress E1:not_started 2:not_started 3:not_started deliver:not_started | agent")
   b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice (at 检查点 E1 脚本), hook (at 关卡 ① 立意和大纲), packaging (at 关卡 ③ 初版)")' '"2–3 concept cards" in n["do"]' 'r.startswith("playbook/01-pipeline.md#导演模式")')
   python3 - "$d" <<'PY'
@@ -7436,11 +7562,11 @@ PY
   # --show: one section by its heading, the start of it or a part of it, with the ### under a ##; a file's sections; what
   # is not there, or is more than one, is said on stderr with exit 1
   a=$(vh know --show "playbook/01-pipeline.md#审阅页" 2>/dev/null); rc=$?
-  b=$(vh know --show "playbook/01-pipeline.md#三道人工关卡" 2>/dev/null); rc2=$?
+  b=$(vh know --show "playbook/01-pipeline.md#人工关卡" 2>/dev/null); rc2=$?
   c=$(vh know --show "playbook/03-motion-design.md#4." --json 2>/dev/null); q=$(vh know --show playbook/01-pipeline.md --json 2>/dev/null)
   case "$(vh know --show "playbook/09-narrative.md#5." 2>/dev/null)" in "## 5. 长片的节奏"*"### 5.3"*) ;; *) rc=9 ;; esac
   if [ "$rc:$rc2" = 0:0 ] && case "$a" in "### 审阅页"*"out/review/gate-<n>.json"*) true ;; *) false ;; esac && case "$a" in *"### 审阅台"*) false ;; *) true ;; esac \
-    && case "$b" in "## 三道人工关卡"*"### 规格"*"### 审阅页"*"### 授权的无人值守模式"*) true ;; *) false ;; esac && case "$b" in *"## 长片"*) false ;; *) true ;; esac \
+    && case "$b" in "## 人工关卡"*"### 规格"*"### 审阅页"*"### 授权的无人值守模式"*) true ;; *) false ;; esac && case "$b" in *"## 长片"*) false ;; *) true ;; esac \
     && python3 - "$c" "$q" <<'PY'
 import json, sys
 c, q = (json.loads(x) for x in sys.argv[1:3])

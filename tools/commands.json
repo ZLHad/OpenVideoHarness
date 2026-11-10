@@ -191,7 +191,7 @@
     },
     {
       "name": "status",
-      "summary": "Where a project stands: each stop (gates ①②③, the checkpoints in use, delivery) done, skipped or waiting, who is waited on, the latest renders and check, open review items.",
+      "summary": "Where a project stands: where this film stops and why (stops:), each stop (the gates of its plan, the checkpoints in use, delivery) done, skipped or waiting, who is waited on, the latest renders and check, open review items.",
       "when": "picking a project up again, or before telling the person what comes next",
       "stages": ["any"],
       "reads": [
@@ -1100,8 +1100,8 @@
     },
     {
       "name": "gate",
-      "summary": "A stop in one command: check the gate JSON, build the review page, open the review desk where the stop is reviewed there, print the chat message; --wait waits for the submission.",
-      "when": "at gates ①②③ and at any checkpoint the director mode adds",
+      "summary": "A stop in one command: check the gate JSON, build the review page, open the review desk where the stop is reviewed there, print the chat message (gate ①'s says where this film stops); --wait waits for the submission. Gate ③'s page is not sent while gate ②, when the film's plan has it, is not on record.",
+      "when": "at the gates of the film's plan (bin/vh status, stops:) and at any checkpoint the director mode adds",
       "stages": ["1", "3", "8"],
       "reads": [
         "<project>/out/review/gate-<n>.json",
@@ -2244,7 +2244,7 @@
     },
     {
       "name": "check",
-      "summary": "Check a rendered video: the probe, the BRIEF's spec, gate ① on record, black, freeze and silence, isolated frames, motion, subtitles, colour tags, loudness and the publishing copy; --against a 1080p cut.",
+      "summary": "Check a rendered video: the probe, the BRIEF's spec, gate ① on record (and gate ②, for the final of a film whose plan has it), black, freeze and silence, isolated frames, motion, subtitles, colour tags, loudness and the publishing copy; --against a 1080p cut.",
       "when": "on every draft, and once before release (CLAUDE.md's floors)",
       "stages": ["8", "7", "9"],
       "reads": [

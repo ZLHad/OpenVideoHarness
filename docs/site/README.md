@@ -2,7 +2,7 @@
 
 `index.html` is the project's homepage, in English and Chinese, online at <https://zlhad.top/OpenVideoHarness/docs/site/>. It covers:
 
-- getting started, and what happens at the three stops;
+- getting started, and what happens at the stops;
 - why the project exists and what it adds, with a live f(t) demo;
 - how it works, and the capability map: the tools for thinking, gathering, making, checking and delivering;
 - the intro film and the four other showcase films;

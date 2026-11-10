@@ -728,9 +728,11 @@ PY
   echo "              a person starting here: open Claude Code or Codex in the repo root and say what the video is about;"
   case "$eff" in
     quick) echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide." ;;
-    studio) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (concept and outline, storyboard, first draft)"
+    studio) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review: at the concept and the first draft, and at the storyboard too"
+            echo "              when the film is long, a heavy 3D render or paid (the BRIEF's Stops line; bin/vh status says the plan),"
             echo "              in the review desk (bin/vh desk): tick, comment and submit in the page, and it carries on." ;;
-    *) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (concept and outline, storyboard, first draft)." ;;
+    *) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review: at the concept and the first draft, and at the storyboard too"
+       echo "              when the film is long, a heavy 3D render or paid (the BRIEF's Stops line; bin/vh status says the plan)." ;;
   esac
   if [ -n "$json" ]; then   # next: bin/vh status's next_step, so the two never tell different stories
     python3 - "$ROOT" "$dir" "$type" "$doc" "$eff" "${lang:-zh}" "$watch" "${outres:-1080p}" "$wh" "$engine" "$todo" >&3 <<'PY'
@@ -1076,10 +1078,11 @@ cmd_check() {
       *) echo "$c_wa spec check failed (error above)"; ck_note skipped.txt $'spec\tthe spec check failed' ;;
     esac
   fi
-  # gate ① on record: a standard or studio film is checked for release only once the person has decided its concept
+  # gate ① on record: a standard or studio film is checked for release only once the person has decided its concept; and
+  # the final of a film whose plan has gate ② (a long, 3D-heavy or paid one: tools/gatecheck.py's plan_of), once that is on record
   local gp gr grc=0; gp=$(project_of "$v")
   if [ -n "$gp" ]; then
-    gr=$(python3 "$ROOT/tools/gatecheck.py" "$gp" --for check ${J:+--json "$J/gate.json"} 2>&1) || grc=$?
+    gr=$(python3 "$ROOT/tools/gatecheck.py" "$gp" --for check --film "$v" ${J:+--spec "$J/spec.json" --json "$J/gate.json"} 2>&1) || grc=$?
     case "$grc:$gr" in
       0:*"no gates"*|0:*"not checked"*) ;;
       0:*) echo "$c_ok $gr" ;;

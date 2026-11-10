@@ -4,7 +4,7 @@
  "title": "bin/vh status <project> --json",
  "description": "Where a project stands (tools/status.py; tools/desk/README.md, 给客户端的数据, says what each field means). assets, cast and research are objects or {\"error\"}.",
  "type": "object",
- "required": ["version", "project", "paused", "waiting_on", "next", "stations", "review", "open", "renders", "deliveries", "versions", "check", "assets", "cast", "research", "activity", "media", "next_step"],
+ "required": ["version", "project", "paused", "waiting_on", "next", "stops", "stations", "review", "open", "renders", "deliveries", "versions", "check", "assets", "cast", "research", "activity", "media", "next_step"],
  "properties": {
   "version": {"enum": [1]},
   "project": {
@@ -26,6 +26,18 @@
   "paused": {"type": "boolean"},
   "waiting_on": {"enum": ["person", "agent", "nobody", "unknown"]},
   "next": {"type": "string"},
+  "stops": {
+   "type": "object",
+   "required": ["gates", "checkpoints", "line", "costly", "kept", "note"],
+   "properties": {
+    "gates": {"type": "array", "items": {"type": "string"}},
+    "checkpoints": {"type": "array", "items": {"type": "string"}},
+    "line": {"type": ["string", "null"]},
+    "costly": {"type": "array", "items": {"type": "string"}},
+    "kept": {"type": "array", "items": {"type": "string"}},
+    "note": {"type": "string"}
+   }
+  },
   "stations": {
    "type": "array",
    "items": {

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="716" viewBox="0 0 720 716" role="img"><title>OpenVideoHarness at a glance</title><desc>A one-sentence request goes through type and effort selection, three human gates, sound-first code rendering and a self-review loop to a finished film; on the right, what the repository provides: knowledge, tools and engines, and records that feed lessons back.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="716" viewBox="0 0 720 716" role="img"><title>OpenVideoHarness at a glance</title><desc>A one-sentence request goes through type and effort selection, the human gates (the concept and the first draft; the storyboard too for a long, 3D-heavy or paid film), sound-first code rendering and a self-review loop to a finished film; on the right, what the repository provides: knowledge, tools and engines, and records that feed lessons back.</desc>
 <style>
 .t{font:500 14px system-ui,-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
 .s{font:400 12px system-ui,-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
@@ -23,7 +23,7 @@ rect{stroke-width:0.8}
 <line class="ar" x1="225.0" y1="152" x2="225.0" y2="182" marker-end="url(#a)"/>
 <g class="co"><rect x="60" y="184" width="330" height="52" rx="5"/><text class="t" x="225.0" y="206" text-anchor="middle">Gate ①: concept and outline</text><text class="s" x="225.0" y="224" text-anchor="middle">2–3 concept cards to choose from</text></g>
 <line class="ar" x1="225.0" y1="236" x2="225.0" y2="266" marker-end="url(#a)"/>
-<g class="co"><rect x="60" y="268" width="330" height="52" rx="5"/><text class="t" x="225.0" y="290" text-anchor="middle">Gate ②: storyboard</text><text class="s" x="225.0" y="308" text-anchor="middle">one keyframe per shot, judged by eye</text></g>
+<g class="co"><rect x="60" y="268" width="330" height="52" rx="5"/><text class="t" x="225.0" y="290" text-anchor="middle">Gate ②: storyboard</text><text class="s" x="225.0" y="308" text-anchor="middle">a stop for long, 3D-heavy or paid films</text></g>
 <line class="ar" x1="225.0" y1="320" x2="225.0" y2="350" marker-end="url(#a)"/>
 <g class="pu"><rect x="60" y="352" width="330" height="52" rx="5"/><text class="t" x="225.0" y="374" text-anchor="middle">Sound first, then picture</text><text class="s" x="225.0" y="392" text-anchor="middle">every frame a pure function of t</text></g>
 <line class="ar" x1="225.0" y1="404" x2="225.0" y2="434" marker-end="url(#a)"/>

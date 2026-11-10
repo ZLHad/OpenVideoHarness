@@ -4,7 +4,7 @@
 
 ### Making one good film is easy. Making a good one every time is the hard part.
 
-A video workbench for Claude Code and Codex. You say what you want in one sentence. The agent finds the idea, writes the film as code, checks its own work, and stops three times for your call.
+A video workbench for Claude Code and Codex. You say what you want in one sentence. The agent finds the idea, writes the film as code, checks its own work, and stops for your call at the concept and the first draft; when the film is long, heavy to render or costs money, it shows you the storyboard first too.
 
 **English** · [中文](README.zh-CN.md) · [Website](https://zlhad.top/OpenVideoHarness/docs/site/) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -46,7 +46,7 @@ It grew out of real films. Each time one went wrong, the lesson became a doc or 
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="A sea of films collapsing under the words What's missing?"><br><sub>Said at the first stop: "glass, cosmos, a starry sky… dizzying".</sub></td>
-<td valign="top"><b>You direct. It does the work.</b><br>Three stops: the concept, the storyboard, the first draft. Want to decide the hook, the voice or the cover too? Name them. Want none of it? Say "just make it".</td>
+<td valign="top"><b>You direct. It does the work.</b><br>It stops for you at the concept and the first draft; when the film is long, heavy to render or costs money, at the storyboard too. Want to decide the hook, the voice or the cover as well? Name them. Want none of it? Say "just make it".</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="A flash crossing a detector, with a timer counting microseconds"><br><sub>Time is the only input. This flash is counted in microseconds.</sub></td>
@@ -153,7 +153,7 @@ The films live in the [`media` release](https://github.com/ZLHad/OpenVideoHarnes
 
 The film is code. The agent writes a page (or a Manim scene, or a Blender script) in which every frame is a function of its time t; a browser (or Manim, or Blender) draws each frame, and FFmpeg joins them with the soundtrack.
 
-<p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="A one-line request goes through type routing, three human sign-offs, sound-first code rendering and self-review to a finished film; beside it, what the repo provides"></p>
+<p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="A one-line request goes through type routing, the human sign-offs, sound-first code rendering and self-review to a finished film; beside it, what the repo provides"></p>
 
 Four layers, and an agent reads only what the film at hand needs:
 
@@ -168,7 +168,7 @@ A film then goes like this:
 
 1. **Route.** The routing table picks the type and its workflow; your request sets the effort level and what you want to decide yourself.
 2. **Gate ①: direction and outline.** Two or three concept cards, each with a frame and a hook. Picking one settles the idea, the look and the hook together, before any code is written.
-3. **Gate ②: storyboard.** Every shot lists what the viewer must take in, in order and for how long, with one keyframe per shot.
+3. **Storyboard.** Every shot lists what the viewer must take in, in order and for how long, with one keyframe per shot. When the film runs past about 90 seconds, is a heavy 3D render or calls a paid service, the agent stops here for you (gate ②); a short film's storyboard comes to you with the first draft.
 4. **Sound first.** Voiceover or music comes first; every word and beat is timed, and the picture hangs on those times.
 5. **Code, then check.** After each scene the agent tiles frames into a contact sheet and fixes it against the checklist, and measures the sound. A reviewer with a fresh context then scores the whole draft.
 6. **Gate ③: first draft.** You see the draft, its contact sheet, the scores and what the agent likes least. If you can't say what's wrong, it makes two or three versions of one passage for you to pick from.
@@ -325,12 +325,12 @@ A film doesn't have to be one page. `edit.json` lays it out as a row of entries,
 
 ## Effort, and who decides
 
-The level sets how often it stops for you and how many review rounds it runs, not how good the film is: all three deliver a full-quality film. Say "quick", "just make it, I won't look" or "studio quality" in the request, or pass `--effort` when you create a project.
+The level sets how closely the agent checks its own work and how many review rounds it runs, not how good the film is: all three deliver a full-quality film. How often it stops for you goes by the film, not the level: it stops where the next step is expensive (a long render, money), says at its first stop where it plans to stop on this film, and one sentence from you adds or takes away a stop. Say "quick", "just make it, I won't look" or "studio quality" in the request, or pass `--effort` when you create a project.
 
 | | `quick` | `standard` (default) | `studio` |
 |---|---|---|---|
 | For | one line in, a finished film out | real videos where you want to decide at the gates | launches and flagship pieces, polished over rounds |
-| Stops for you | none | three | three, with a 10–20 s sketch for each concept and a full-length animatic |
+| Stops for you | none | the concept and the first draft; the storyboard too for a long, 3D-heavy or paid film | as standard, with a 10–20 s sketch for each concept, and a full-length animatic when it stops at the storyboard |
 | Fresh-context review | none | one round, up to the three most important problems fixed | three to ten rounds; the five craft scores at 7 or above |
 | A 30-second film takes about | 10–30 min | 1–2 h | 3 h or more |
 
@@ -392,7 +392,7 @@ Most of the workflow docs are in Chinese; the READMEs, the wiki and the research
 | [Code2Video](https://github.com/showlab/Code2Video) | A research pipeline for teaching videos in Manim | Takes "code as video" to many kinds of video, run by general-purpose coding agents |
 | The official [HyperFrames](https://github.com/heygen-com/hyperframes) and [Remotion](https://github.com/remotion-dev/skills) skills | How to use one engine | Sits above the engines: choosing one, the process, the look, the checks |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | A full agent video production system | Lighter: mostly markdown, templates and one CLI that any coding agent can read and change |
-| [Guizang's product-video skill](https://github.com/op7418/guizang-product-video-skill) | Release films for software products | More types, three human sign-offs, a style library, sound in Chinese and English; its music and SFX approach inspired ours, the code is separate |
+| [Guizang's product-video skill](https://github.com/op7418/guizang-product-video-skill) | Release films for software products | More types, human sign-offs, a style library, sound in Chinese and English; its music and SFX approach inspired ours, the code is separate |
 
 ## Contributing
 

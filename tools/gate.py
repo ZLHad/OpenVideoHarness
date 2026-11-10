@@ -1,5 +1,7 @@
 """bin/vh gate: one stop, one command. Check the gate data, build the review page, make it this round, open the review
 desk when this stop is reviewed there, print the chat message; with --wait, wait for the person's submission.
+At gate ① the message also says where this film stops (tools/gatecheck.py's plan_of), so one sentence from the person adds
+or takes away a stop. Gate ③'s page is not sent while gate ②, when the film's plan has it, has nothing on record.
 
 usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeout s] [--port N] [--json]
        bin/vh gate <project> <n> --init [--json]
@@ -22,7 +24,8 @@ The page and the desk read the same out/review/gate-<n>.json: it is the one file
 a snapshot of the project's text (bin/vh history); a failure to save it never stops the page.
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
---wait without the desk, --init over a file · 3 --wait timed out.
+--wait without the desk, --init over a file, gate ③'s page while gate ② is in the film's plan and not on record (a BRIEF with a
+Stops line: REVIEW.md lacks its "定了：…", or the user's own words waiving it) · 3 --wait timed out.
 """
 import argparse, contextlib, json, os, re, subprocess, sys, time
 from pathlib import Path
@@ -32,6 +35,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
 import activity, jsonerr, review   # noqa: E402,E401
+import gatecheck   # noqa: E402
 from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
@@ -51,8 +55,9 @@ CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/0
     "E5": ("锁画面：bin/vh qa 的结果和请听的几处", "the picture lock: bin/vh qa's result and the places to listen to")}
 
 
-def skeleton(gate, lang):
-    """A gate JSON to fill in, for this stop. Each {填：…} says what goes there; bin/vh gate takes it once none is left."""
+def skeleton(gate, lang, plan=None):
+    """A gate JSON to fill in, for this stop. Each {填：…} says what goes there; bin/vh gate takes it once none is left.
+    plan: the film's stops (gatecheck.plan_of); with no gate ② in it, gate ③'s page carries the storyboard."""
     zh = lang != "en"
 
     def f(a, b):
@@ -97,6 +102,8 @@ def skeleton(gate, lang):
                        {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
         d["least_sure"] = [{"id": f("镜头号", "shot id"), "note": f(f"自己最不满意的第 {i} 处，和可选的修法", f"what you like least, number {i}, and how it could be fixed")} for i in (1, 2, 3)]
         d["appendix"] = [{"title": "reviewer 的分数" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
+        if plan and not plan["quick"] and "2" not in plan["gates"]:   # no storyboard stop: the storyboard is shown here, each shot passed unless the person says otherwise
+            d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it, from the draft's own frames
     else:
         what = CHECKPOINT_WHAT.get(stop, ("这一站要人看的东西", "what this stop puts in front of the person"))[0 if zh else 1]
         d["decisions"] = [{"id": "pick", "question": f(f"要人定什么（{what}）", f"what the person decides ({what})"),
@@ -117,7 +124,7 @@ def init_page(project, gate_arg, shown, as_json=False):
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "x", encoding="utf-8") as out:   # "x": never over a page someone wrote
-            out.write(json.dumps(skeleton(g, lang), ensure_ascii=False, indent=2) + "\n")
+            out.write(json.dumps(skeleton(g, lang, gatecheck.plan_of(project)), ensure_ascii=False, indent=2) + "\n")
     except FileExistsError:
         return jsonerr.fail("exists", f"gate: {path} is already there, and --init does not overwrite: edit it, then bin/vh gate {shown} {g}")
     except OSError as e:
@@ -126,6 +133,10 @@ def init_page(project, gate_arg, shown, as_json=False):
     print(f"✓ {path}: a skeleton for {review.gate_title(g, lang)}", file=say)
     if effort_of(project)[0] == "quick":
         print("  a quick project has no gates: this page is for a stop the person asked for", file=say)
+    elif stop_of(g) == "2" and "2" not in gatecheck.plan_of(project)["gates"]:
+        print("  gate ② is not in this film's plan (bin/vh status says why): a page for it makes it a stop, which adding always may", file=say)
+    elif stop_of(g) == "3" and "2" not in gatecheck.plan_of(project)["gates"]:
+        print("  this film has no storyboard stop, so this page includes the storyboard: bin/vh storyboard writes out/check/storyboard/review.json", file=say)
     print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file", file=say)
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}', file=say)
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
@@ -203,12 +214,25 @@ def main(argv):
     if a.wait and channel != "desk":
         return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
                             "the chat. Leave --wait out, or use --desk if they want the desk")
+    asked = stop_of(re.sub(r"\.json$", "", re.sub(r"^gate-", "", (a.gate or review.current_page(project) or "").strip())))
+    if asked == "3":   # gate ② before it, when this film's plan has it (a BRIEF with a Stops line)
+        lacking = gatecheck.not_on_record(project, asked)
+        if lacking:
+            names = " and ".join(review.gate_title(g, "en") for g in lacking)
+            plan = gatecheck.plan_of(project)
+            why = f" ({'; '.join(c['say'] for c in plan['costly'])})" if "2" in lacking and plan["costly"] else ""
+            return jsonerr.fail("refused", f"gate: {names} is in this film's plan{why} and REVIEW.md has no decision for it: the page for {review.gate_title(asked, 'en')} is not sent. "
+                                f"Put that stop to the person first (bin/vh gate {a.project} {lacking[0]}), then their words and \"- 定了：…\" under its section; "
+                                "only the user's own words take a stop away (\"- 用户授权跳过（YYYY-MM-DD）。原话：“…”\", templates/REVIEW.md)",
+                                f"bin/vh status {a.project} shows the plan and each stop's record")
     with contextlib.redirect_stdout(sys.stderr if a.json else sys.stdout):
         rc, page, page_path = review.publish(project, a.gate, a.project)
     if rc:   # bin/vh review said what is wrong; nothing goes to the person
         jsonerr.mark("refused" if rc == 1 else "invalid", f"bin/vh gate {a.project} --init writes a skeleton; bin/vh know --show \"playbook/01-pipeline.md#审阅页\" has the fields" if rc != 1 else None)
         return rc
     lines = [page.chat(page_path)]
+    if stop_of(page.gate) == "1" and effort_of(project)[0] != "quick":   # the first stop says where the film stops
+        lines.append(gatecheck.plan_words(gatecheck.plan_of(project), page.lang, lambda g: review.gate_title(g, page.lang)))
     url = None
     if channel == "desk":
         url, started = start_desk(project, a.port)

@@ -118,6 +118,10 @@
    {
     "say": "gate ① not on record: stop and put the concept cards to the person",
     "run": "bin/vh gate"
+   },
+   {
+    "say": "gate ② not on record, in a film whose plan has it (long, a heavy 3D render, paid): put the storyboard to the person, or record their own words waiving it",
+    "doc": "playbook/01-pipeline.md#人工关卡停在哪"
    }
   ],
   "check.packaging": [
