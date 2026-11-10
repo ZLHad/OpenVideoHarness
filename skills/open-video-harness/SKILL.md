@@ -26,12 +26,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 ## 2. Follow the harness, not this file
 
-Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) and follow it exactly:
+Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) and follow it:
 
 - route the request to one of the 11 `video-types/` docs (09, editing the user's own footage, and 11, a recap of the user's own photos, are experimental);
 - create the project with `<harness>/bin/vh new <type> <slug>`;
-- stop for the user where CLAUDE.md says ("停在哪" and "导演模式"): a `standard` or `studio` film stops at the **concept** and the **first draft**, and at the **storyboard** too when the next step is expensive (a film longer than about 90 s, a heavy 3D render, paid calls); a short film's storyboard is shown on the draft's page. `quick` renders straight through. Say at the first stop where this film will stop; only the user's own words take a stop away. Anything the user said they want to decide themselves (hook, main character, theme music, title and cover …) adds a stop before anything downstream needs it, or rides on the next gate if it can wait. Each stop is by default one local review page from `bin/vh review`, at most three decisions; send the user only the lines it prints, then wait;
-- follow the hard rules: every frame is a pure function of t; when there is sound, audio sets the timing; storyboard before code; self-review every scene; fact discipline;
+- stop for the user where CLAUDE.md says ("停在哪" and "导演模式"): a `standard` or `studio` film stops at the **concept** and the **first draft**, and at the **storyboard** too when the next step is expensive (a film longer than about 90 s, a heavy 3D render, paid calls); a short film's storyboard is shown on the draft's page. `quick` renders straight through. Say at the first stop where this film will stop; only the user's own words take a stop away. Anything the user said they want to decide themselves (hook, main character, theme music, title and cover …) adds a stop before anything downstream needs it, or rides on the next gate if it can wait. Each stop is one command, `bin/vh gate <project> <n>`: by default a local review page with at most three decisions; send the user the lines it prints, then wait;
+- follow the hard rules: every frame is a pure function of t; picture, sound and text share one timing source (the narration's word times, the score's beats, or an event table); plan the shots and their reads before code; look at the real frames of what you made or changed; facts are copied from the source, never made up; no API key in a file;
 - keep work inside `<harness>/projects/`; when the user names another directory, create the project there with `<harness>/bin/vh new <type> <slug> --dir <that directory>` (or set `OVH_PROJECTS`).
 
 Audio tools:
