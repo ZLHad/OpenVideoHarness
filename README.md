@@ -70,7 +70,7 @@ It grew out of real films. Each time one went wrong, the lesson became a doc or 
 </tr>
 </table>
 
-**And not one AI look.** Left alone, AI video drifts toward one face: dark background, glow, glass cards. Here are 32 styles, all rendering the same sentence:
+**And not one AI look.** Left alone, AI video drifts toward one face: dark background, glow, glass cards. Here are 32 of its 33 styles, all rendering the same sentence:
 
 <a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="All the styles moving at once, each rendering the same sentence: every frame is code"></a>
 
@@ -143,7 +143,7 @@ Press play and turn the sound on (players start muted). Each has a folder in [`s
 </tr>
 <tr>
 <td valign="top"><video src="https://github.com/user-attachments/assets/3ecb0f0c-5602-496b-aebc-4848a918a74c" controls width="100%"></video></td>
-<td valign="top"><b><a href="styles/">The style reel</a></b><br><sub>32 styles · about 1.5 s each</sub><br>The same content rendered in every style of the library, each with its own music.</td>
+<td valign="top"><b><a href="styles/">The style reel</a></b><br><sub>32 of the 33 styles · about 1.5 s each</sub><br>The same content rendered in every style of the library, each with its own music.</td>
 </tr>
 </table>
 
@@ -279,7 +279,7 @@ For realistic people or physics, generated video with code on top ([playbook/05]
 
 ### Styles
 
-Left alone, AI video drifts toward one look: dark background, glow, glass cards. [`styles/`](styles/README.md) holds 32 styles distilled from well-known work, among them Saul Bass title sequences, the Swiss grid, 3Blue1Brown, New York Times graphics, the halftone of *Spider-Verse*, Wes Anderson's symmetry, ink wash, Dunhuang murals, shadow puppetry and guochao. Each describes its colours, type, composition, motion, transitions and sound, and each was rendered as a 5-second sample of the same content:
+Left alone, AI video drifts toward one look: dark background, glow, glass cards. [`styles/`](styles/README.md) holds 33 styles distilled from well-known work, among them Saul Bass title sequences, the Swiss grid, 3Blue1Brown, New York Times graphics, the halftone of *Spider-Verse*, Wes Anderson's symmetry, ink wash, Dunhuang murals, shadow puppetry and guochao. Each describes its colours, type, composition, motion, transitions and sound, and each was rendered as a 5-second sample of the same content:
 
 <a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The style samples, all with the same content"></a>
 
