@@ -1,0 +1,36 @@
+{
+  "bpm": 150, "key": "D", "mode": "dorian", "seed": 52,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "hall", "rt60": 3.0},
+  "sections": [
+    {"name": "arrive", "bars": 1, "chords": ["i"]},
+    {"name": "title", "bars": 1, "chords": ["i"]},
+    {"name": "frames", "bars": 1, "chords": ["IV"]},
+    {"name": "road", "bars": 1, "chords": ["Vsus4"]},
+    {"name": "morning", "bars": 1, "chords": ["Imaj7"]}
+  ],
+  "parts": [
+    {"id": "road", "inst": "drone", "figure": "sustain", "hold": "section", "pitch": "D2", "octave": 2, "gain_db": -9, "send": 0.2,
+     "params": {"attack": 0.5, "release": 1.4},
+     "by_section": {"morning": {"gain_db": -12}}},
+    {"id": "air", "inst": "strings", "figure": "sustain", "octave": 4, "voicing": "spread", "gain_db": -8, "pan": -0.1, "send": 0.5,
+     "params": {"attack": 0.6, "release": 1.0},
+     "by_section": {"arrive": {"vel": 0.5}, "title": {"vel": 0.6}, "frames": {"vel": 0.8}, "road": {"cresc": [-6, 0], "params": {"attack": 0.3}}, "morning": {"vel": 1.0, "params": {"attack": 0.35}}}},
+    {"id": "harp", "inst": "harp", "index": "section", "gain_db": 2, "pan": 0.25, "send": 0.4,
+     "by_section": {
+       "arrive": {"pattern": [[0.25, 1, "D3", 0.7], [0.5, 1, "A3", 0.6], [0.75, 1, "D4", 0.62], [1.0, 1, "E4", 0.6], [1.25, 0.75, "A4", 0.66], [1.5, 0.5, "D5", 0.7]]},
+       "title": {"pattern": [[0, 2, "F4", 0.5], [1.75, 1, "A4", 0.5], [2.4, 0.6, "C5", 0.46]]},
+       "frames": {"pattern": [[0, 1, "G3", 0.7], [0.3, 0.7, "D4", 0.6], [0.6, 0.6, "B4", 0.64], [2, 1, ["G2", "D3", "G3", "B3", "D4"], 0.85]]},
+       "road": {"pattern": [[0, 0.34, "A3", 0.5], [0.333, 0.34, "D4", 0.54], [0.667, 0.34, "E4", 0.58], [1.0, 0.34, "A4", 0.64], [1.333, 0.34, "D5", 0.7], [1.667, 0.34, "E5", 0.78]]},
+       "morning": {"pattern": [[0, 0.3, "D4", 0.6], [0.14, 0.3, "E4", 0.6], [0.28, 0.3, "F#4", 0.64], [0.42, 0.3, "A4", 0.68], [0.56, 0.3, "B4", 0.72], [0.70, 0.3, "D5", 0.76], [0.84, 0.3, "F#5", 0.82],
+                               [1.0, 2, ["D3", "A3", "D4", "F#4", "A4"], 0.9]]}
+     }},
+    {"id": "glass", "inst": "celesta", "index": "section", "sections": ["frames", "road", "morning"], "gain_db": -2, "pan": -0.2, "send": 0.5,
+     "by_section": {
+       "frames": {"pattern": [[1.0, 0.4, "G5", 0.5], [1.15, 0.4, "A5", 0.52], [1.3, 0.4, "B5", 0.55], [1.45, 0.4, "D6", 0.58], [1.6, 0.4, "E6", 0.6], [1.75, 0.4, "G6", 0.64], [2, 1, ["B5", "D6"], 0.7]]},
+       "road": {"pattern": [[0, 0.3, "E5", 0.4], [1.0, 0.3, "A5", 0.46]]},
+       "morning": {"pattern": [[1.0, 1, ["F#6", "A6"], 0.75], [1.5, 0.5, "D6", 0.5], [2.0, 1, "A5", 0.5]]}
+     }},
+    {"id": "wind", "inst": "wind", "gain_db": 1}
+  ]
+}

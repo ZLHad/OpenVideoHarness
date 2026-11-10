@@ -52,7 +52,7 @@ The Douyin and Bilibili entries in the "In practice" section have an empty `href
 
 ## Counts, and what checks them
 
-A count on the page is wrapped as `<span data-n="styles">32</span>`. `tools/readme.py` (run by `tools/ci.sh`) holds every one to the repo; `python3 tools/readme.py` prints the current counts, and `check` names the line of one that is wrong. It also checks:
+A count on the page is wrapped as `<span data-n="styles">33</span>`. `tools/readme.py` (run by `tools/ci.sh`) holds every one to the repo; `python3 tools/readme.py` prints the current counts, and `check` names the line of one that is wrong. It also checks:
 
 - that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back);
 - that `STYLES` lists exactly the repo's styles, each with its thumbnail in `img/styles/` and its sample, and its Chinese name as in its `STYLE.md` title;
