@@ -42,3 +42,12 @@ Audio tools:
 - `bin/vh mix` and `bin/vh mux` — mixing and muxing.
 
 Run `bin/vh doctor` if anything looks missing.
+
+## 3. Use what the host can show
+
+The harness prints paths and chat lines because every agent can read those. When the host you run in can do more, use it; what a stop is and what goes on record stay the same.
+
+- **Show the page and the film beside the chat.** If the host can display a local file next to the conversation (a side panel, a preview pane, a file card), open the stop's review page (`out/review/gate-<n>.html`), the contact sheet and the draft or final film there when you stop or deliver. Give the path as well.
+- **Ask with the host's question tool.** If the host has a tool that asks the user a question with options (Claude Code's `AskUserQuestion`, for one), put the stop's decisions there: one question a decision, at most three, the options and the recommended one taken from the gate JSON, the recommended one first. What the user picks and any note they type are their words: copy them into `REVIEW.md` verbatim, as you would a chat reply.
+- **Carry on in the same turn.** When the answer comes back, record it and go on to the next step at once. Do not end the turn to say that you will.
+- **No such tools** (a plain terminal, another agent): send the lines `bin/vh gate` prints and wait for the reply, as CLAUDE.md says.
