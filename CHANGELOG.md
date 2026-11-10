@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v0.5.0 — 2026-11-10
+
+A minor release: the process is trimmed for the current models, and the style library gets its 33rd preset. The largest change is where a film stops for its person. A `standard` or `studio` film now stops at the concept and at the first draft, and at the storyboard only when the next step is costly: a film longer than about 90 s, a heavy 3D render, or a paid service. Only the user's own words take a stop away, as before, and a project made before this release keeps its three gates. Not yet tried on a real film: the stop rules were checked on made-up projects in `tools/ci.sh` and by one independent review.
+
+### What's new
+
+- **Stops:** where a film stops goes by what the next step costs, not by the effort level. The BRIEF's new `Stops:` line says it, `bin/vh status` prints the plan and why, and `bin/vh gate` and `bin/vh check` hold a costly film to its storyboard stop until the person's words and a decision are on record.
+- **Saying how often to look:** three phrases come first: "直接出" (just make it), "看方向和初版" (the direction and the draft), "每步都看" (every step). The director mode's `Director:` line is unchanged and is now the advanced form.
+- **At a stop:** what goes in front of the person is said by its purpose, not by a count. Two things stay: at most three decisions a stop, and concept cards that really differ, each with a frame.
+- **Before the delivery:** what the person said is checked line by line against the film, in NOTES.md's new 交付核对 section.
+- **The skill:** it shows the page and the film where the host can, asks with the host's question tool, and answers "what can you make?" with a menu of thirteen kinds of request.
+- **Entry docs:** CLAUDE.md and the entry docs were audited against the current models: stale facts fixed, hard rule 6 given its scope, a paragraph on which floors a command checks, and a new section on pace (finish the stage before stopping, a line before a long job, a delivery note for someone who has not seen the work).
+- **Styles:** walk-in-world (走进去的世界): the subject built as a place, and one unbroken move through it. 33 presets.
+
+### Every change
+
 **Where a film stops goes by what the next step costs, not by the effort level**
 - Why: a `standard` film stopped at three gates whatever its length, so a 20-second short went through three review pages. The storyboard gate earns its stop on a long film (a 33-minute 4K film paid about two hours for a late change); on a short one the draft itself takes minutes, and looking at the draft costs about what looking at key frames does.
 - Now: the effort level sets only how much the agent checks and reviews its own work. A `standard` or `studio` film stops at the concept (gate ①) and the first draft (gate ③). The storyboard (gate ②) is a stop of its own when the film is longer than about 90 s, a heavy 3D render, or calls a paid service; otherwise it is written as before and shown on gate ③'s page, each shot passed unless the person says otherwise. When the user's own words already settle the concept (a full brief, a script, a storyboard), gate ① is one message and no wait, and their words still go on record. The first stop says where this film will stop, and one sentence from the user adds or takes away a stop. `quick` still does not stop.

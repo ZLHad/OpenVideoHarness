@@ -7,12 +7,12 @@ authors:
 repository-code: "https://github.com/ZLHad/OpenVideoHarness"
 url: "https://github.com/ZLHad/OpenVideoHarness"
 license: MIT
-version: "0.4.0"
-date-released: "2026-11-07"
+version: "0.5.0"
+date-released: "2026-11-10"
 abstract: >-
   A video-as-code harness that turns coding agents such as Claude Code and Codex into a multi-genre video studio:
-  every frame is a pure function of time, the agent reviews its own rendered frames, and people approve the outline,
-  the storyboard and the first draft. It ships 9 video types (one experimental), 31 style presets with rendered swatches, and code-composed
+  every frame is a pure function of time, the agent reviews its own rendered frames, and people approve the concept
+  and the first draft, and the storyboard of a costly film. It ships 11 video types (two experimental), 33 style presets with rendered swatches, and code-composed
   music, voice, captions, mixing and audio QA.
 keywords:
   - video-as-code
