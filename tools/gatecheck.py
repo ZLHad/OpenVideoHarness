@@ -354,7 +354,8 @@ def costly(project, seconds=None):
     if HEAVY_3D.search(engine):
         why.append({"code": "3d", "say": f"a 3D render (Engine: {engine[:40]})"})
     try:   # money: the film's own Budget line, or spend on record (tools/assets/budget.py); what cannot be read is no reason
-        sys.path.insert(0, str(ROOT / "tools" / "assets"))
+        if str(ROOT / "tools" / "assets") not in sys.path:
+            sys.path.insert(0, str(ROOT / "tools" / "assets"))
         import budget
         b = budget.parse(brief_line(project, "Budget"))
         if b and (b["unlimited"] or any(v > 0 for v in b["amounts"].values())):
