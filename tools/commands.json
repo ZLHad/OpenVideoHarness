@@ -2244,7 +2244,7 @@
     },
     {
       "name": "check",
-      "summary": "Check a rendered video: the probe, the BRIEF's spec, gate ① on record (and gate ②, for the final of a film whose plan has it), black, freeze and silence, isolated frames, motion, subtitles, colour tags, loudness and the publishing copy; --against a 1080p cut.",
+      "summary": "Check a rendered video: the probe, the BRIEF's spec, gate ① on record (and gate ②, for a film whose plan has it: any whole film, not an animatic or a part), black, freeze and silence, isolated frames, motion, subtitles, colour tags, loudness and the publishing copy; --against a 1080p cut.",
       "when": "on every draft, and once before release (CLAUDE.md's floors)",
       "stages": ["8", "7", "9"],
       "reads": [

@@ -25,7 +25,7 @@ a snapshot of the project's text (bin/vh history); a failure to save it never st
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
 --wait without the desk, --init over a file, gate ③'s page while gate ② is in the film's plan and not on record (a BRIEF with a
-Stops line: REVIEW.md lacks its "定了：…", or the user's own words waiving it) · 3 --wait timed out.
+Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out.
 """
 import argparse, contextlib, json, os, re, subprocess, sys, time
 from pathlib import Path
@@ -222,8 +222,8 @@ def main(argv):
             names = " and ".join(review.gate_title(g, "en") for g in lacking)
             plan = gatecheck.plan_of(project)
             why = f" ({'; '.join(c['say'] for c in plan['costly'])})" if "2" in lacking and plan["costly"] else ""
-            return jsonerr.fail("refused", f"gate: {names} is in this film's plan{why} and REVIEW.md has no decision for it: the page for {review.gate_title(asked, 'en')} is not sent. "
-                                f"Put that stop to the person first (bin/vh gate {a.project} {lacking[0]}), then their words and \"- 定了：…\" under its section; "
+            return jsonerr.fail("refused", f"gate: {names} is in this film's plan{why} and REVIEW.md has no record of it (the person's words and a decision): the page for {review.gate_title(asked, 'en')} is not sent. "
+                                f"Put that stop to the person first (bin/vh gate {a.project} {lacking[0]}), then their words (\"- 原话：“…”\") and \"- 定了：…\" under its section; "
                                 "only the user's own words take a stop away (\"- 用户授权跳过（YYYY-MM-DD）。原话：“…”\", templates/REVIEW.md)",
                                 f"bin/vh status {a.project} shows the plan and each stop's record")
     with contextlib.redirect_stdout(sys.stderr if a.json else sys.stdout):

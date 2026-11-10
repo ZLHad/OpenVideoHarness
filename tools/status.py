@@ -23,7 +23,8 @@ plan and why (--json: stops). Each has a state:
                   refused, exit 1, for it sent nothing), it is this round (out/review/.current), and nothing has come back for it yet
   waiting_agent   the person submitted on the desk and no agent has it yet, or an agent has it and REVIEW.md has no
                   decision for it yet; or the project moved on past its page with no decision on record; gate ①
-                  decided, but its record lacks the person's words or DECISIONS.md's concept (render and check refuse)
+                  decided, but its record lacks the person's words or DECISIONS.md's concept (render and check refuse);
+                  gate ② of a film whose plan has it (a BRIEF with a Stops line) decided without the person's words
   in_progress     the first stop with nothing yet after the last one that has something, when all before it are done or
                   skipped: what the agent works towards
   not_started     later stops; a stop passed over without a record stays not_started
@@ -201,6 +202,10 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
             st["record"]["concept_on_record"] = concept = dec.is_file() and G.concept_decided(G.read(dec))
             if decided and effort != "quick":   # what gatecheck would still ask for
                 missing = ([] if said else ["the person's words (原话) in REVIEW.md"]) + ([] if concept else ["the concept row in DECISIONS.md"])
+        elif key == "2" and plan["line"] is not None and "2" in plan["gates"] and effort != "quick":
+            decided, said = G.stop_record(review_text, "2") if not page_secs else (decided, said)   # as bin/vh gate and check read it
+            if decided and not said:
+                missing = ["the person's words (原话) in REVIEW.md"]
         # the desk's submissions for this stop's latest page, after it was written
         mine = [(f, j) for f, j in subs if pid and j.get("round") == pid and f.stat().st_mtime >= latest.stat().st_mtime]
         pend = [f for f, _ in mine if f.name not in consumed]
@@ -215,7 +220,8 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
             st["state"] = "skipped"
             st["note"] = f"waived in the user's words ({waived})" if waived else "Effort quick: no gates"
         elif decided and missing:   # gatecheck's verdict: not on record yet
-            st["state"], st["note"] = "waiting_agent", f"decided, but without {' and '.join(missing)}: bin/vh render and check refuse the whole film"
+            st["state"], st["note"] = "waiting_agent", f"decided, but without {' and '.join(missing)}: " + \
+                ("bin/vh render and check refuse the whole film" if key == "1" else "bin/vh gate does not send gate ③'s page, and bin/vh check fails the film")
         elif decided:
             st["state"] = "done"
             if not said:

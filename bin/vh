@@ -1079,7 +1079,8 @@ cmd_check() {
     esac
   fi
   # gate ① on record: a standard or studio film is checked for release only once the person has decided its concept; and
-  # the final of a film whose plan has gate ② (a long, 3D-heavy or paid one: tools/gatecheck.py's plan_of), once that is on record
+  # a film that comes after the storyboard (a draft too; not an animatic, a sample or a part), when its plan has gate ② (a long,
+  # 3D-heavy or paid film: tools/gatecheck.py's plan_of), once that is on record
   local gp gr grc=0; gp=$(project_of "$v")
   if [ -n "$gp" ]; then
     gr=$(python3 "$ROOT/tools/gatecheck.py" "$gp" --for check --film "$v" ${J:+--spec "$J/spec.json" --json "$J/gate.json"} 2>&1) || grc=$?

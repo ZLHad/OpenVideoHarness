@@ -1770,27 +1770,37 @@ PY
 # facts; a short film goes from gate ① to gate ③, whose page carries the storyboard; a long one keeps gate ② whatever the line
 # says, until the user's own words take it away; a BRIEF with no Stops line is held to what it was held to before
 stop_plan_checks() {
-  local t=$1 p q a b c d e rc rc2 rc3
+  local t=$1 p q a b c d e i k rc rc2 rc3
   a=$(python3 - <<'PY'
 import sys
 sys.path.insert(0, "tools")
 import gatecheck as G
 bad = []
-for line, want in (("default", None), ("", None), ("{x}", None), ("1, 3", {"1", "3"}), ("①②③", {"1", "2", "3"}), ("1, E3, 3", {"1", "3", "E3"}), ("每步都看", {"1", "2", "3"}), ("all, E1", {"1", "2", "3", "E1"}), ("13", None)):
+for line, want in (("default", None), ("", None), ("{x}", None), ("1, 3", {"1", "3"}), ("①②③", {"1", "2", "3"}), ("1, E3, 3", {"1", "3", "E3"}), ("每步都看", {"1", "2", "3"}), ("all, E1", {"1", "2", "3", "E1"}), ("13", None),
+                   ("1-3", {"1", "2", "3"}), ("①–③, E3", {"1", "2", "3", "E3"}), ("1, E9, 3", {"1", "3"}), ("1, 2, E3, 3", {"1", "2", "3", "E3"})):
     if G.named_stops(line) != want:
         bad.append(f"named_stops({line!r}) = {G.named_stops(line)}")
 for line, want in (("1920x1080, 30 fps, exactly 103.0s (3090 frames)", 103), ("{W}x{H}, {fps} fps, exactly {N}s ({frames} frames)", None), ("1080x1920, 30 fps, {60–90}s", 90),
-                   ("1920x1080, 30 fps, 12 min", 720), ("1920x1080, 30 fps, 约 45 秒", 45)):
+                   ("1920x1080, 30 fps, 12 min", 720), ("1920x1080, 30 fps, 约 45 秒", 45), ("1:30", 90), ("3 minutes", 180), ("5 mins", 300), ("120 seconds", 120), ("100 sec", 100),
+                   ("两分钟", 120), ("十五分钟", 900), ("1分30秒", 90), ("2m30s", 150), ("1 min 40 s", 100), ("1 小时 5 分钟", 3900), ("30 fps, 1:02:03", 3723), ("2–3 min", 180),
+                   ("1080x1920, 9:16, 30 fps, exactly 20s", 20), ("h264, 30 fps", None), ("out.mp4 s", None), ("1920x1080, 24 fps, exactly 8s (192 frames)", 8)):
     if G.film_seconds(line) != want:
         bad.append(f"film_seconds({line!r}) = {G.film_seconds(line)}")
 for path, want in (("out/final.mp4", True), ("out/final/film-4k.mp4", True), ("media/film.mp4", True), ("media/videos/s/1080p30/S.mp4", True), ("media/videos/s/480p15/S.mp4", False),
-                   ("out/draft.mp4", False), ("out/animatic.mp4", False), ("out/final.failed.mp4", False), ("out/review/sketch/final.mp4", False)):
-    if G.is_final(path) != want and path != "out/review/sketch/final.mp4":   # (a name is all it reads: a sketch called final is one)
+                   ("out/draft.mp4", False), ("out/animatic.mp4", False), ("out/final.failed.mp4", False)):
+    if G.is_final(path) != want:
         bad.append(f"is_final({path!r}) = {G.is_final(path)}")
+# which films come after the storyboard: any whole film, whatever it is called; not an animatic, a sample, a failed patch's film, a draft scene of Manim's, a part
+for path, args, want in (("out/final.mp4", (), True), ("out/film.mp4", (), True), ("out/video_4k.mp4", (), True), ("renders/x.mp4", (), True), ("out/draft.mp4", (), True),
+                         ("media/videos/s/1080p30/S.mp4", (), True), ("out/draft.mp4", (100, 120), True), ("out/animatic.mp4", (), False), ("out/animatic-v2.mp4", (), False),
+                         ("out/review/sketch/a.mp4", (), False), ("out/check/x.mp4", (), False), ("out/proxy/final.mp4", (), False), ("out/final.failed.mp4", (), False),
+                         ("media/videos/s/480p15/S.mp4", (), False), ("out/lookdev.mp4", (15, 120), False), ("../elsewhere/final.mp4", (), False)):
+    if G.asks_gate2(path, *args) != want:
+        bad.append(f"asks_gate2({path!r}, {args}) = {G.asks_gate2(path, *args)}")
 print("; ".join(bad))
 PY
 )
-  [ -z "$a" ] && ok "stop plan: a Stops line's stops (numbers, ①②③, checkpoints, 每步都看; default and {…} name none), an Output line's length (seconds, a range's longer end, minutes), and which film is the final" \
+  [ -z "$a" ] && ok "stop plan: a Stops line's stops (numbers, ①②③, a range, E0–E5, 每步都看; default and {…} name none), an Output line's length however it is written (s, sec, min, minutes, 1:30, 2m30s added up, 两分钟; a 9:16 frame is none), which film is the final, and which films come after the storyboard" \
     || bad "stop plan, the small readers: $a"
   rec() { python3 - "$@" <<'PY'
 import re, sys
@@ -1808,6 +1818,10 @@ for w in sys.argv[2:]:
         sub("REVIEW.md", '- 原话："……"', '- 原话："选 A"'); sub("REVIEW.md", "- 定了：{…}　改了：{…}", "- 定了：立意卡 A　改了：无")
         sub("DECISIONS.md", "{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A")
     elif w == "g2": sub("REVIEW.md", "## 关卡 ② 分镜\n", '## 关卡 ② 分镜\n- 原话："通过"\n- 定了：照分镜做\n')
+    elif w == "g2-decided-only": sub("REVIEW.md", "## 关卡 ② 分镜\n", "## 关卡 ② 分镜\n- 定了：照分镜做\n")
+    elif w == "g2-words": sub("REVIEW.md", "## 关卡 ② 分镜\n- 定了：照分镜做\n", '## 关卡 ② 分镜\n- 原话："可以，照这个做"\n- 定了：照分镜做\n')
+    elif w == "waive1": sub("REVIEW.md", "## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 用户授权跳过（2026-11-10）。原话：“立意你定”\n")
+    elif w == "waive1-scope": sub("REVIEW.md", "## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 用户授权跳过（2026-11-10）。原话：“立意你定”\n- 范围：只跳过关卡 ①\n")
     elif w == "g3": sub("REVIEW.md", "## 关卡 ③ 初版\n", '## 关卡 ③ 初版\n- 原话："可以发"\n- 定了：放行\n')
     elif w == "waive2": sub("REVIEW.md", "## 关卡 ② 分镜\n", "## 关卡 ② 分镜\n- 用户授权跳过（2026-11-10）。原话：“分镜不用给我看，直接做初版”\n- 范围：跳过关卡 ②\n")
     elif w == "nostops": f = p / "BRIEF.md"; f.write_text(re.sub(r"(?m)^- Stops:.*\n", "", f.read_text(encoding="utf-8"), count=1), encoding="utf-8")
@@ -1834,6 +1848,17 @@ PY
     && [ "$d" = "1:in_progress 2:not_started E3:not_started 3:not_started deliver:not_started | 1,2,3 | " ] && [ "$e" = "$b" ]
   then ok "stop plan: a 45 s film with nothing paid stops at gates ① and ③; a budget with money in it, a 3D engine, a Stops line that names it or storyboard=own add gate ②; a checkpoint on the Stops line is a stop"
   else bad "stop plan by the film's facts: $a || $b || $c || $d || $e"; fi
+  # the same facts written another way: a length in minutes, a budget with no currency, a lower-case key; and what is no fact:
+  # type 10 named in a comment or in another line, a budget of nothing
+  rec "$p" "Director=default" "Output=1920x1080, 30 fps, 3 minutes"; a=$(plan "$p")
+  rec "$p" "Output=1920x1080, 30 fps, exactly 45s (1350 frames)" "Budget=200"; b=$(plan "$p")
+  rec "$p" "Budget=0"; printf '%s\n' '' '<!-- a longer cut would follow video-types/10-long-explainer.md -->' '- Refs: the pacing table of `video-types/10-long-explainer.md`' >> "$p/BRIEF.md"; c=$(plan "$p")
+  rec "$p" "Output=1920x1080, 30 fps, exactly 120s (3600 frames)" "Stops=1, 3"; python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Stops: 1, 3", "- stops: 1, 3", 1))' "$p"; d=$(plan "$p")
+  e=$(vh status "$p" | sed -n 2p)
+  if [ "$a" = "1:in_progress 2:not_started 3:not_started deliver:not_started | 1,2,3 | " ] && [ "$b" = "$a" ] && [ "$c" = "1:in_progress 3:not_started deliver:not_started | 1,3 | " ] \
+    && [ "$d" = "1:in_progress 2:not_started 3:not_started deliver:not_started | 1,2,3 | 2" ] && case "$e" in "stops: ① ② ③ (gate ②: 120 s long (over 90 s); the Stops line leaves gate ② out"*) true ;; *) false ;; esac
+  then ok "stop plan: \"3 minutes\" is a length and a budget with no currency is a budget; type 10 named in a comment or another line is not the film's type and a budget of 0 is none; \"- stops:\" in lower case is the Stops line (not a project from before it)"
+  else bad "stop plan, the facts written another way: $a || $b || $c || $d || $e"; fi
   # gate ①'s message says where the film stops; the user's own words settling the concept need no page: the record alone passes
   OVH_PROJECTS="$t" vh new math sm >/dev/null 2>&1; q=$(ls -d "$t"/*-sm); rec "$q" len=45; mkdir -p "$q/out/review"
   printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}]}' > "$q/out/review/gate-1.json"
@@ -1867,12 +1892,33 @@ PY
   b=$(vh gate "$q" 3 --page 2>&1); rc=$?; [ ! -e "$q/out/review/gate-3.html" ] || rc="$rc, and a page"
   c=$(vh check "$q/out/draft.mp4" 2>&1); d=$(vh check "$q/out/final.mp4" 2>&1); rc2=$?
   rec "$q" waive2; vh gate "$q" 3 --page >/dev/null 2>&1; rc3=$?; e=$(vh check "$q/out/final.mp4" 2>&1 | grep -c "no record of gate"); e="$e $(plan "$q")"
+  cp "$q/out/draft.mp4" "$q/out/animatic.mp4"; mkdir -p "$q/out/review/sketch"; cp "$q/out/draft.mp4" "$q/out/review/sketch/look.mp4"; mk "$q/out/part.mp4" 12
+  k=""; for i in animatic.mp4 review/sketch/look.mp4 part.mp4; do vh check "$q/out/$i" 2>&1 | grep -q "no record of gate" && k="$k $i"; done
   if [ "$a" = "1:done 2:in_progress 3:not_started deliver:not_started | 1,2,3 | 2" ] && [ "$rc" = 2 ] && case "$b" in *"Gate ② storyboard is in this film's plan (100 s long (over 90 s))"*"is not sent"*"only the user's own words take a stop away"*) true ;; *) false ;; esac \
-    && case "$c" in *"no record of gate"*) false ;; *) true ;; esac \
-    && [ "$rc2" = 1 ] && case "$d" in *"✗"*"no record of gate ②"*"100 s long (over 90 s)"*'"- 定了：…"'*"用户授权跳过"*) true ;; *) false ;; esac \
+    && case "$c" in *"✗"*"no record of gate ②"*) true ;; *) false ;; esac && [ -z "$k" ] \
+    && [ "$rc2" = 1 ] && case "$d" in *"✗"*"no record of gate ②"*"100 s long (over 90 s)"*"the person's words"*'"- 定了：…"'*"用户授权跳过"*) true ;; *) false ;; esac \
     && [ "$rc3" = 0 ] && [ "$e" = "0 1:done 2:skipped 3:waiting_person deliver:not_started | 1,2,3 | 2" ]
-  then ok "stop plan, a long film: a Stops line that leaves gate ② out does not take it out; gate ③'s page is not sent and the final fails bin/vh check (a draft does not) until the user's own waiver is under gate ②"
-  else bad "stop plan, a long film whose Stops line leaves gate ② out ($rc/$rc2/$rc3): $a || $b || $(printf '%s' "$d" | grep -A3 'gate record') || $e"; fi
+  then ok "stop plan, a long film: a Stops line that leaves gate ② out does not take it out; gate ③'s page is not sent and bin/vh check fails the film, a draft too (not an animatic, a sample under out/review/ or a 12 s part), until the user's own waiver is under gate ②"
+  else bad "stop plan, a long film whose Stops line leaves gate ② out ($rc/$rc2/$rc3; held without cause:$k): $a || $b || $(printf '%s' "$d" | grep -A3 'gate record') || $e"; fi
+  # a waiver of gate ① is gate ①'s: gate ② is asked all the same, by bin/vh check as by bin/vh gate (with a scope line and without)
+  k=""
+  for i in waive1 waive1-scope; do
+    rm -rf "$q"; OVH_PROJECTS="$t" vh new math sl >/dev/null 2>&1; q=$(ls -d "$t"/*-sl); rec "$q" len=100 "$i" "Stops=1, 3"; mkdir -p "$q/out"; mk "$q/out/final.mp4" 100
+    a=$(vh check "$q/out/final.mp4" 2>&1); rc=$?; vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"; vh gate "$q" 3 --page >/dev/null 2>&1; rc2=$?; b=$(plan "$q")
+    case "$rc:$rc2:$a" in 1:2:*"no record of gate ②"*) ;; *) k="$k | $i: check $rc, gate $rc2" ;; esac
+    [ "$b" = "1:skipped 2:in_progress 3:not_started deliver:not_started | 1,2,3 | 2" ] || k="$k | $i: $b"
+  done
+  [ -z "$k" ] && ok "stop plan: a waiver of gate ① alone does not pass gate ②: bin/vh check fails the film and bin/vh gate refuses gate ③'s page, with a scope line and without, and status has gate ② still to do" \
+    || bad "stop plan, a waiver of gate ① and gate ②:$k"
+  # gate ② on record is the person's words and a decision, as gate ①'s: a decision alone is a line an agent can write
+  rm -rf "$q"; OVH_PROJECTS="$t" vh new math sl >/dev/null 2>&1; q=$(ls -d "$t"/*-sl); rec "$q" len=100 g1 g2-decided-only; mkdir -p "$q/out"; mk "$q/out/final.mp4" 100
+  a=$(vh check "$q/out/final.mp4" 2>&1); rc=$?; vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"; vh gate "$q" 3 --page >/dev/null 2>&1; rc2=$?; b=$(plan "$q")
+  c=$(vh status "$q" | grep "关卡 ②")
+  rec "$q" g2-words; vh check "$q/out/final.mp4" >/dev/null 2>&1; rc3=$?; vh gate "$q" 3 --page >/dev/null 2>&1; d=$?
+  if [ "$rc:$rc2" = 1:2 ] && case "$a" in *"no record of gate ②"*"the person's words"*) true ;; *) false ;; esac && case "$a" in *'the decision: "- 定了：…"'*"gate ②"*) false ;; *) true ;; esac \
+    && [ "$b" = "1:done 2:waiting_agent 3:not_started deliver:not_started | 1,2,3 | " ] && case "$c" in *"decided, but without the person's words"*"gate ③'s page"*) true ;; *) false ;; esac && [ "$rc3:$d" = 0:0 ]
+  then ok "stop plan: gate ② decided without the person's words is no record: bin/vh check fails the film naming the words (not the decision), bin/vh gate refuses gate ③'s page, status waits for the agent; with the words, both pass"
+  else bad "stop plan, gate ② decided without the person's words ($rc/$rc2, then $rc3/$d): $(printf '%s' "$a" | grep -A3 'gate record') || $b || $c"; fi
   rm -rf "$q"; OVH_PROJECTS="$t" vh new math sl >/dev/null 2>&1; q=$(ls -d "$t"/*-sl); rec "$q" len=100 g1 g2; mkdir -p "$q/out"; mk "$q/out/final.mp4" 100
   vh check "$q/out/final.mp4" >/dev/null 2>&1; rc=$?; vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"; vh gate "$q" 3 --page >/dev/null 2>&1; rc2=$?
   a=$(plan "$q"); grep -q '"include"' "$q/out/review/gate-3.json" && b=include || b=plain
