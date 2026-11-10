@@ -43,7 +43,29 @@ Audio tools:
 
 Run `bin/vh doctor` if anything looks missing.
 
-## 3. Use what the host can show
+## 3. When the user asks what this can do
+
+Answer with a short menu in the user's language, not the routing table: the kinds of film, and a sentence that starts each. A request can be one line; the type's defaults fill in the rest.
+
+| Film | A way to ask |
+|---|---|
+| Knowledge short, vertical or landscape | "做一支 60 秒的竖屏科普，讲飞机的窗户为什么是圆的" · "A 60-second vertical explainer on why plane windows are round" |
+| Math, physics or algorithm explainer | "用 3b1b 的风格讲清楚傅里叶变换，两分钟" · "Explain the Fourier transform in two minutes, 3Blue1Brown style" |
+| Product or launch film | "给这个 App 做一支 30 秒的发布片，官网是 …" · "A 30-second launch film for this app; the site is …" |
+| Paper explainer | "把这篇论文讲成三分钟的视频：<PDF>" · "Turn this paper into a three-minute video: <PDF>" |
+| Data story | "用这份 CSV 做一支数据故事" · "A data story from this CSV" |
+| Lyric video or music video | "给这首歌做一支 MV：<音频>" · "A music video for this song: <audio>" |
+| Hand-drawn short | "做一支水彩手绘的小短片，讲 …" · "A hand-drawn watercolour short about …" |
+| Meme or fast cut | "做个 15 秒的快剪，科技推特那种风格" · "A 15-second fast cut, tech-Twitter style" |
+| Long explainer, 10 minutes or more | "做一支 15 分钟的长片，把 … 讲透" · "A 15-minute film that explains … in full" |
+| 3D scene or shader short | "把 … 做成一个能走进去的 3D 世界，一镜到底，60 秒" · "Build … as a 3D world, one unbroken move, 60 seconds" |
+| Recap from the user's photos (experimental) | "用这个文件夹里的照片做一支旅行回顾" · "A trip recap from the photos in this folder" |
+| Cutting the user's own footage (experimental) | "把这段口播剪掉口水词，加字幕，出竖屏" · "Cut the filler out of this talking head, add captions, export vertical" |
+| How a reference video was made | "拆一下这支视频是怎么做的：<链接或文件>" · "Break down how this video was made: <link or file>" |
+
+Then say that they choose how often to look, in one of three phrases: "直接出" (just make it: no stops), "看方向和初版" (the direction and the first draft), "每步都看" (every step). With nothing said, the agent stops at the concept and the first draft, and at the storyboard too when the film is long, heavy to render or paid.
+
+## 4. Use what the host can show
 
 The harness prints paths and chat lines because every agent can read those. When the host you run in can do more, use it; what a stop is and what goes on record stay the same.
 
