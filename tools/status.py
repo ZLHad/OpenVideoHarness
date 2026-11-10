@@ -76,6 +76,7 @@ NOT_BLANK = re.compile(r"""\s*(?:(?:none)?\s*$|["']|[\w-]+\s*:)""", re.I)   # th
 # what the next step sends an agent to read, each for bin/vh know --show (tools/ci.sh checks each is there)
 R_PAGE, R_DESK, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES = (f"playbook/01-pipeline.md#{x}" for x in ("审阅页", "审阅台", "导演模式", "animatic", "长片", "look-dev", "子代理分工"))
 R_RECORD = "templates/REVIEW.md"   # how a stop goes on record
+R_SAID = "playbook/01-pipeline.md#交付前"   # before the delivery: what the person said, line by line against the film
 R_IDEAS, R_CARDS = "playbook/12-ideation.md#3.", "playbook/12-ideation.md#7."
 R_FRAMES, R_PHONE, R_SILENT, R_BUDGET = (f"playbook/02-verification.md#{x}" for x in ("各引擎的取帧命令", "手机测试", "静默失败", "预算"))
 R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS, R_PITFALLS = (f"playbook/02-verification.md#{x}" for x in ("确定性", "色彩标签", "音频 QA", "事实核查", "已知的坑"))
@@ -85,7 +86,7 @@ R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "eng
 R_4K = "engines/README.md#出 4K"   # read only for a film delivered in 4K (the BRIEF's Resolution)
 TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas"}
 OWN_STOP = G.OWN_STOP   # what a Director line can keep for the person (x=own), and its stop (tools/gatecheck.py)
-READS = (R_PAGE, R_DESK, R_RECORD, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
+READS = (R_PAGE, R_DESK, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
          R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K)
 
 
@@ -644,7 +645,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + (f"this is Manim's draft: render it at high quality ({manim_quality(proj, True).split(' --')[0]})" if manim else "render the final at delivery quality")
                    + ", put the sound on when it has any (bin/vh mix, qa, mux), and check it",
                    [render_cmd(project, proj, True), f"bin/vh check {p}" if manim else f"bin/vh check {p}/out/final.mp4"], [R_SOUND])
-    return out("agent", busy + "the final passes bin/vh check: bin/vh deliver makes the copy to upload", [f"bin/vh deliver {p}/{film}"], [])
+    return out("agent", busy + "the final passes bin/vh check: go through what the person said, line by line against the film (NOTES.md, 交付核对), then bin/vh deliver makes the copy to upload",
+               [f"bin/vh deliver {p}/{film}"], [R_SAID])
 
 
 def main(argv):
