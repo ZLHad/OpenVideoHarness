@@ -4,8 +4,8 @@
 
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
-- Director: default  <!-- 谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
-- Stops: default  <!-- 这支片子在哪几处停下来给人看（CLAUDE.md "停在哪"）：default = 按片子算，停 1 立意和 3 初版，分镜随初版那一页给；片长超过 90 s、3D 渲染重、要调付费接口的片子再加 2 分镜。人说了就照写：`1, 3`、`1, 2, 3`，检查点也写在这（`1, E3, 3`）。加停随时可以；片子本身贵（长、3D、付费）时，这一行不写 2 也照样停，少停只认用户本人的原话（REVIEW.md）。工具读这一行：bin/vh status 的 stops: 说现在的计划 -->
+- Director: default  <!-- 进阶写法，多数片子留 default。谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
+- Stops: default  <!-- 这支片子在哪几处停下来给人看（CLAUDE.md "停在哪"）：default = 按片子算，停 1 立意和 3 初版，分镜随初版那一页给；片长超过 90 s、3D 渲染重、要调付费接口的片子再加 2 分镜。人说了就照写："看方向和初版"是 `1, 3`，"每步都看"是 `1, 2, 3`，检查点也写在这（`1, E3, 3`）；"直接出"不写在这一行，按 CLAUDE.md 走 quick 或无人值守。加停随时可以；片子本身贵（长、3D、付费）时，这一行不写 2 也照样停，少停只认用户本人的原话（REVIEW.md）。工具读这一行：bin/vh status 的 stops: 说现在的计划 -->
 - Budget: default  <!-- 付费接口这支片子最多花多少：$5、¥30、不限；0 是不花钱。default 用 LOCAL.md 的"默认预算"，都没写就不调付费接口（tools/assets/budget.py） -->
 - Assets: default  <!-- strict | record：strict 下 NC、ND、BY-SA 和许可不明的素材 bin/vh assets check 判失败；record 都能用，记清并列出风险。default 用 LOCAL.md 的"素材许可"，再没有就是 strict -->
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)  <!-- 合成尺寸（代码按它写，4K 也照写 1080p 的尺寸）、帧率、时长；时长没定时写范围 {60–90}s。bin/vh check 拿成片对这一行和 Resolution 一行，对不上就失败（playbook/01 "规格"） -->

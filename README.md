@@ -325,7 +325,7 @@ A film doesn't have to be one page. `edit.json` lays it out as a row of entries,
 
 ## Effort, and who decides
 
-The level sets how closely the agent checks its own work and how many review rounds it runs, not how good the film is: all three deliver a full-quality film. How often it stops for you goes by the film, not the level: it stops where the next step is expensive (a long render, money), says at its first stop where it plans to stop on this film, and one sentence from you adds or takes away a stop. Say "quick", "just make it, I won't look" or "studio quality" in the request, or pass `--effort` when you create a project.
+The level sets how closely the agent checks its own work and how many review rounds it runs, not how good the film is: all three deliver a full-quality film. How often it stops for you goes by the film, not the level: it stops where the next step is expensive (a long render, money), and says at its first stop where it plans to stop on this film. To set it yourself, three phrases are enough: **just make it** (no stops), **show me the direction and the draft**, or **show me every step**. Say "quick", "just make it, I won't look" or "studio quality" in the request, or pass `--effort` when you create a project.
 
 | | `quick` | `standard` (default) | `studio` |
 |---|---|---|---|
@@ -336,7 +336,7 @@ The level sets how closely the agent checks its own work and how many review rou
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, type no smaller than the floor for the target screen, licences on record, and no paid call without a budget.
 
-Apart from the level, you can name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`) that builds a local review page opening with the decisions it needs from you, the frames, animatic and music playable in the browser. At `studio` the stop is the review desk (`bin/vh desk`): you mark each item ok, change or question, add a line and submit, and the agent, waiting in the background, carries on with your words copied into `REVIEW.md`. Both come in English or Chinese, following your first request.
+For finer control, name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`) that builds a local review page opening with the decisions it needs from you, the frames, animatic and music playable in the browser. At `studio` the stop is the review desk (`bin/vh desk`): you mark each item ok, change or question, add a line and submit, and the agent, waiting in the background, carries on with your words copied into `REVIEW.md`. Both come in English or Chinese, following your first request.
 
 ## Requirements, cost and limits
 
