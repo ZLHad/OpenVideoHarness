@@ -72,14 +72,15 @@ def skeleton(gate, lang, plan=None):
     stop = stop_of(gate)
     if stop == "1":
         d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题", "which concept card? In this film's own words"),
-                           "options": [card("A"), card("B"), card("C")], "recommend": f("A、B 或 C", "A, B or C"),
+                           # two cards to start from: as many as really differ, each with its frame (add a C, or keep to two)
+                           "options": [card("A"), card("B")], "recommend": f("A 或 B", "A or B"),
                            "columns": ["这张卡讲什么", "风险或代价"] if zh else ["what the card is", "its risk or cost"],
                            "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high"}]
         d["assets"] = [{"path": f(f"立意卡 {k} 那一帧画面的路径", f"the path of card {k}'s frame"),
-                        "caption": f("这一帧在说什么", "what this frame says"), "for": "concept"} for k in "ABC"]
+                        "caption": f("这一帧在说什么", "what this frame says"), "for": "concept"} for k in "AB"]
         d["delegated"] = [f("替人定了的事，一项一条：规格（画幅、分辨率、帧率、时长、在哪看）、引擎、费用",
                             "what you decided for the person, one an item: the spec (frame, resolution, rate, length, where it is watched), the engine, the cost")]
-        d["appendix"] = [{"title": "大纲" if zh else "Outline", "text": f("按推荐立意写的 3–7 段，竖线表：段落、时间、看完知道什么", "3–7 segments for the recommended concept, a pipe table: segment, time, what the viewer knows after it")},
+        d["appendix"] = [{"title": "大纲" if zh else "Outline", "text": f("按推荐立意写的大纲，这支片子有几段写几段，竖线表：段落、时间、看完知道什么", "the outline for the recommended concept, as many segments as this film has, a pipe table: segment, time, what the viewer knows after it")},
                          {"title": "BRIEF", "path": "BRIEF.md"}]
     elif stop == "2":
         d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it: segments, key frames, least-sure shots, animatic
@@ -100,7 +101,7 @@ def skeleton(gate, lang, plan=None):
                            "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high"}]
         d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
                        {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
-        d["least_sure"] = [{"id": f("镜头号", "shot id"), "note": f(f"自己最不满意的第 {i} 处，和可选的修法", f"what you like least, number {i}, and how it could be fixed")} for i in (1, 2, 3)]
+        d["least_sure"] = [{"id": f("镜头号", "shot id"), "note": f("自己最不满意的一处，和可选的修法；有几处写几处", "a place you like least, and how it could be fixed; as many entries as there are such places")}]
         d["appendix"] = [{"title": "reviewer 的分数" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
         if plan and not plan["quick"] and "2" not in plan["gates"]:   # no storyboard stop: the storyboard is shown here, each shot passed unless the person says otherwise
             d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it, from the draft's own frames

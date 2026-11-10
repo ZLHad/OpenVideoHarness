@@ -602,7 +602,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         say, cmds = page()
         own_only = quick and mine and "concept" not in own   # quick's concept is the agent's: a page only for what the person kept
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"NOTES.md's material first, your own concept (a quick film's), then options for {mine} with a frame each" if own_only
-                                                         else "NOTES.md's material first, then 2–3 concept cards with a frame each and the outline (the user's own words already settle the concept: no cards, "
+                                                         else "NOTES.md's material first, then concept cards that really differ, a frame each, and the outline (the user's own words already settle the concept: no cards, "
                                                          "their words and 定了 under 关卡 ① in REVIEW.md, one message that says what you will make and where it stops, and carry on); "
                                                          "bin/vh gate's message tells the person where this film stops", say) if x),
                    cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
@@ -624,7 +624,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         if quick:   # no reviewer here: only what the person kept
             return out("agent", busy + f"put {mine or 'what they asked to see'} to the person beside {film}; {say}", cmds, [R_PAGE])
         board = "; the storyboard goes on this page too, each shot passed unless the person says otherwise (bin/vh storyboard draws a frame a shot, and the page includes it)" if two_stop else ""
-        return out("agent", busy + f"a fresh reviewer scores {film}, fix the worst of it (at most 3 places), write down the 2–3 places you like least{board}; {say}",
+        return out("agent", busy + f"a fresh reviewer scores {film}, fix the worst of it (at most 3 places), write down what you like least{board}; {say}",
                    ([f"bin/vh storyboard {p}"] if two_stop else []) + cmds, [R_SCORES, R_LAYERS, R_PAGE])
     if s["kind"] != "deliver":
         say, cmds = page()

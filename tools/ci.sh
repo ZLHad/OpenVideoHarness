@@ -2718,7 +2718,7 @@ import json, sys
 sys.path.insert(0, "tools")
 import review
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 3 else 1)
+sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2 and len(d["assets"]) == 2 else 1)
 PY
   then ok "gate: no JSON points to --init and the section of the playbook; --init writes a skeleton with version 1, and does not overwrite"
   else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
@@ -2747,7 +2747,7 @@ PY
   for i in 2 3 E0 E3 2b final; do b=$(vh gate "$g" "$i" --init 2>&1) || a="$a | $i: $b"; python3 -c 'import json, sys; sys.path.insert(0, "tools"); import review; d = json.load(open(sys.argv[1], encoding="utf-8")); sys.exit(0 if d["version"] == 1 and review.placeholders(d) else 1)' "$g/out/review/gate-$i.json" || a="$a | gate-$i.json"; done
   c=$(vh gate "$g" 1 --init --desk 2>&1); rc=$?; b=$(vh gate "$g" --init 2>&1); rc2=$?
   if [ -z "$a" ] && [ "$rc:$rc2" = 2:2 ] && case "$b" in *"--init needs the stop"*) true ;; *) false ;; esac && grep -q '"include": "out/check/storyboard/review.json"' "$g/out/review/gate-2.json" && grep -q 'least_sure' "$g/out/review/gate-3.json"
-  then ok "gate --init: a skeleton for each stop (gate ② includes the storyboard's data, gate ③ asks for the three places least sure of); --init with a channel or no stop is a usage error"
+  then ok "gate --init: a skeleton for each stop (gate ② includes the storyboard's data, gate ③ asks for what the agent likes least); --init with a channel or no stop is a usage error"
   else bad "gate --init on the other stops:$a ($rc/$rc2): $b | $c"; fi
   OVH_PROJECTS="$t" vh new math gq --effort quick --lang en >/dev/null 2>&1; g=$(ls -d "$t"/*-gq)
   a=$(vh gate "$g" 1 2>&1 >/dev/null); rc=$?; b=$(vh gate "$g" E3 --init 2>&1); rc2=$?
@@ -2787,7 +2787,6 @@ PY
   if [ "$rc" = 2 ] && [ "$c" = 0 ] && case "$a" in *"placeholder(s) still to fill in"*"least_sure"*) true ;; *) false ;; esac; then ok "gate: a placeholder in a file the JSON includes is refused too, and that page is no page"
   else bad "gate with a placeholder in an include ($rc, $c pages): $a"; fi
   OVH_PROJECTS="$t" vh new math g2 >/dev/null 2>&1; g=$(ls -d "$t"/*-g2); vh gate "$g" 1 --init >/dev/null 2>&1
-  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d["decisions"][0]["options"].pop(); json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-1.json"
   fillall "$g/out/review/gate-1.json" A; a=$(vh gate "$g" 1 --page 2>&1)
   vh gate "$g" 2 --init >/dev/null 2>&1; b=$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1], encoding="utf-8")); print(" | ".join(x["path"] for x in d["assets"]))' "$g/out/review/gate-2.json")
   case "$a|$b" in *"回 A / B"*"|out/check/rhythm.png | {填：前 5 s 连帧"*"--strip 0:5"*"{填：每一帧都在的东西"*) ok "gate --init: two cards reply A / B, as review builds it; gate ②'s skeleton has the first 5 s as a strip and what is on screen in every frame" ;;
@@ -7160,7 +7159,7 @@ PY
   dirline() { python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: " + sys.argv[2], 1))' "$1" "$2"; }
   OVH_PROJECTS="$t" vh new math ns2 >/dev/null 2>&1; d=$(ls -d "$t"/*-ns2); dirline "$d" "voice=own, hook=own, packaging=own, rest=delegate"; stops_line "$d" "1, 2, 3"
   a=$(st "$d" "1:in_progress E1:not_started 2:not_started 3:not_started deliver:not_started | agent")
-  b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice (at 检查点 E1 脚本), hook (at 关卡 ① 立意和大纲), packaging (at 关卡 ③ 初版)")' '"2–3 concept cards" in n["do"]' 'r.startswith("playbook/01-pipeline.md#导演模式")')
+  b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice (at 检查点 E1 脚本), hook (at 关卡 ① 立意和大纲), packaging (at 关卡 ③ 初版)")' '"concept cards that really differ" in n["do"]' 'r.startswith("playbook/01-pipeline.md#导演模式")')
   python3 - "$d" <<'PY'
 import sys
 p = sys.argv[1]
