@@ -17,7 +17,8 @@ a stage of tools/commands.json, by its id (0–9, env, any) or a part of its nam
          tell, or when telling would mean reading more than 1 GiB (the tool that owns it reads it all: bin/vh assets check,
          bin/vh mux). Once the film is delivered, the listing leaves the {…} counts out (the JSON keeps them).
          By now: new always; gate-1, gate-2, gate-3 once that stop is decided, or its page is out, or a later stop is
-         (a stop skipped by Effort quick or the user's own words requires nothing); narration once there is a script, a
+         (a stop skipped by Effort quick or the user's own words requires nothing, and neither does gate ② of a film whose plan
+         has none: bin/vh status, stops:); narration once there is a script, a
          voiceover or a timeline that is not the template's example; delivery once there is a final film or a delivery record.
          A stop already decided in REVIEW.md or with a page in out/review/gate-<n>*.html needs no gate JSON (projects from before
          bin/vh gate wrote one). Of the BRIEF's blanks only the ones tools rely on count (Output's size and fps, Resolution), once gate ① is reached
@@ -609,8 +610,8 @@ def milestones(project, found, state=None):
     out = {"new": True}
     reached = {n: state.get(n) in ("done", "waiting_person", "waiting_agent") for n in "123"}
     later = False
-    for n in "321":   # a later stop reached: this one should have been too, unless it was skipped
-        out[f"gate-{n}"] = reached[n] or (later and state.get(n) not in ("skipped", "no_record"))
+    for n in "321":   # a later stop reached: this one should have been too, unless it was skipped or is no stop of this film (gate ② of a short one)
+        out[f"gate-{n}"] = reached[n] or (later and n in state and state[n] not in ("skipped", "no_record"))   # (not in state: not a stop of this film's plan)
         later = later or reached[n]
     out["narration"] = narration_there(project, found)
     out["delivery"] = bool(found.get("deliver-record") or the_film(project))

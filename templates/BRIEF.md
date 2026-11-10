@@ -1,10 +1,11 @@
 # BRIEF
 
-<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。工具会读 Spec 里这几行：Effort、Director、Budget、Assets、Output、Watch on、Pace、Resolution、Review language；其中 bin/vh artifacts list <项目> 只把 Output 的画面尺寸和帧率、Resolution 算作必填（bin/vh check 拿成片和 Output 比，按 Resolution 认交付哪几种），其余的花括号写给人和 agent 看。 -->
+<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。工具会读 Spec 里这几行：Effort、Director、Stops、Budget、Assets、Output、Watch on、Pace、Resolution、Review language；其中 bin/vh artifacts list <项目> 只把 Output 的画面尺寸和帧率、Resolution 算作必填（bin/vh check 拿成片和 Output 比，按 Resolution 认交付哪几种），其余的花括号写给人和 agent 看。 -->
 
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
-- Director: default  <!-- 谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
+- Director: default  <!-- 进阶写法，多数片子留 default。谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
+- Stops: default  <!-- 这支片子在哪几处停下来给人看（CLAUDE.md "停在哪"）：default = 按片子算，停 1 立意和 3 初版，分镜随初版那一页给；片长超过 90 s、3D 渲染重、要调付费接口的片子再加 2 分镜。人说了就照写："看方向和初版"是 `1, 3`，"每步都看"是 `1, 2, 3`，检查点也写在这（`1, E3, 3`）；"直接出"不写在这一行，按 CLAUDE.md 走 quick 或无人值守。加停随时可以；片子本身贵（长、3D、付费）时，这一行不写 2 也照样停，少停只认用户本人的原话（REVIEW.md）。工具读这一行：bin/vh status 的 stops: 说现在的计划 -->
 - Budget: default  <!-- 付费接口这支片子最多花多少：$5、¥30、不限；0 是不花钱。default 用 LOCAL.md 的"默认预算"，都没写就不调付费接口（tools/assets/budget.py） -->
 - Assets: default  <!-- strict | record：strict 下 NC、ND、BY-SA 和许可不明的素材 bin/vh assets check 判失败；record 都能用，记清并列出风险。default 用 LOCAL.md 的"素材许可"，再没有就是 strict -->
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)  <!-- 合成尺寸（代码按它写，4K 也照写 1080p 的尺寸）、帧率、时长；时长没定时写范围 {60–90}s。bin/vh check 拿成片对这一行和 Resolution 一行，对不上就失败（playbook/01 "规格"） -->
@@ -18,7 +19,7 @@
 - Deliverables: {final.mp4 (+ 9:16 / 3:4 cuts?), cover image?, SRT?}
 
 ## Content
-- Concept (one line): {how this film tells it: a device that makes the form tell the content (e.g. "the 3 seconds after Enter, slowed to 2 minutes, a clock always on screen"), a point of view, a way of ordering the material, or telling it directly. Chosen at gate ① from 2–3 concept cards (playbook/12-ideation.md); everything below follows from it}
+- Concept (one line): {how this film tells it: a device that makes the form tell the content (e.g. "the 3 seconds after Enter, slowed to 2 minutes, a clock always on screen"), a point of view, a way of ordering the material, or telling it directly. Chosen at gate ① from the concept cards (playbook/12-ideation.md); everything below follows from it}
 - Specifics: {the 3–5 items from NOTES.md 素材清单 the film is built on: numbers, verbatim quotes, artifacts, each with its source}
 - Spine (one line): {the story in one sentence: X wants/asks ___, but ___, so ___}
 - Recurring motif: {one object/visual that evolves and pays off}
@@ -26,7 +27,7 @@
 - Source material: {paper path / product URL / data.csv / song path / script}
 
 ## Outline
-<!-- 关卡 ① 的 3–7 段大纲（playbook/09-narrative.md 第 3 节）。段名按内容或阶段起，看名字就知道这段讲什么，例如"按下发送 / 信道编码与调制 / 基站接住"；起承转合、幕这类结构标签最多写进"标签"列，可以不写。
+<!-- 关卡 ① 的大纲，段数跟片子走（playbook/09-narrative.md 第 3 节）。段名按内容或阶段起，看名字就知道这段讲什么，例如"按下发送 / 信道编码与调制 / 基站接住"；起承转合、幕这类结构标签最多写进"标签"列，可以不写。
      审阅台按这张表画时间条（列名的约定见 tools/desk/README.md）；时间写"0–10 s"，有配乐时也可以加"小节"列。 -->
 | # | 段落 | 标签 | 时间 | 观众看完知道 / 感到 | 关键画面 |
 |---|---|---|---|---|---|
@@ -49,7 +50,7 @@
 Every frame is a pure function of t (CLAUDE.md hard rule 1).
 
 ## Process
-<!-- 流程见 CLAUDE.md 和 playbook/01-pipeline.md，这里不重抄；只记本片和默认流程不一样的地方，例如跳过的关卡（用户原话在 REVIEW.md）、多加的检查点。 -->
+<!-- 流程见 CLAUDE.md 和 playbook/01-pipeline.md，这里不重抄；只记本片和默认流程不一样的地方，例如跳过的关卡（用户原话在 REVIEW.md）。在哪几处停写在上面 Spec 的 Stops 一行。 -->
 {none}
 
 ## Acceptance

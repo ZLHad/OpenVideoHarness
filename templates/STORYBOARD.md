@@ -1,6 +1,6 @@
 # STORYBOARD
 
-<!-- 写代码前完成，standard/studio 给用户确认（关卡 ②）；quick 用简表。格式综合自 ClaudeAnimationBase 与 PDoom 的 STORYBOARD。
+<!-- 写代码前完成。standard/studio 给用户看：片子的计划里有关卡 ② 时在那里确认，没有时随关卡 ③ 那一页给（playbook/01"人工关卡"）；quick 用简表。格式综合自 ClaudeAnimationBase 与 PDoom 的 STORYBOARD。
      reads = 观众必须依次看懂的信息，每条标起止时间；每条都要有被找到、被看懂、被消化的时间，重要的两条不重叠。
      reads 放不下就加长镜头或删掉一条 read，不要硬挤。 -->
 
