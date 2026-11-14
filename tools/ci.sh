@@ -623,7 +623,7 @@ PY
   # that copies them again; a cache folder that cannot be written is named with the variable that moves it
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if python3 - "$t" "$VH_BASH" <<'PY'
-import json, os, subprocess, sys
+import json, os, re, subprocess, sys
 t, sh = sys.argv[1], sys.argv[2]
 home = os.path.join(t, "home"); os.makedirs(home)
 env = dict(os.environ, HOME=home)
@@ -650,7 +650,7 @@ install("all"); os.remove(os.path.join(home, ".agents/skills/open-video-harness-
 if c["state"] != "outdated" or "~/.agents/skills has no open-video-harness-web" not in c["note"] or "bin/vh install-skill codex " not in c["note"]:
     bad.append(f"a skill the folder has not got: {c}")
 p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's is left alone
-text = open(p, encoding="utf-8").read().replace(os.getcwd(), os.path.join(t, "elsewhere"))
+text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "elsewhere"), open(p, encoding="utf-8").read())
 open(p, "w", encoding="utf-8").write(text + "\ntheirs\n"); install("codex"); c = check("skills")
 if c["state"] != "ok" or "left alone: 1 copy pointing at" not in c["note"]:
     bad.append(f"another clone's copy: {c}")

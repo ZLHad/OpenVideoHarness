@@ -461,6 +461,7 @@ def cache_homes(has_chrome=False):
     if not uv and shutil.which("uv"):
         rc, said = run(["uv", "cache", "dir"])
         uv = said.strip().splitlines()[-1] if rc == 0 and said.strip() else ""
+        uv = uv if os.path.isabs(uv) else ""   # a uv that answers something else (a stand-in, an old one): its default below
     xdg = env("XDG_CACHE_HOME") or str(home("~/.cache"))
     return [
         ("uv", uv or str(home("~/.cache/uv")), "the Python packages of beats, music, qa, tts and the other uv tools", "UV_CACHE_DIR=<folder>"),
