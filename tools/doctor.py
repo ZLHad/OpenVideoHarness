@@ -23,6 +23,9 @@ never the value. A module whose needed modules (needs.programs) are not usable h
 that no redirect carries on (a 30x is not followed), over https only (a base address set in the environment may be
 http for this machine alone), and no answer's text is passed on: a failure is its HTTP status and the provider's error
 code, with any run of six or more of the key's characters taken out. A key is never printed, recorded or written.
+The machine and repo lines end with two about the host an agent runs in: skills, the copies bin/vh install-skill
+wrote against skills/ now (a copy is not updated when the repo is); caches, whether the folders a first run downloads
+into (uv's, npm's, Hugging Face's, HyperFrames', bin/vh's own) can be written, tried with a file made and removed.
 Exit 0: it is a report (2 on a usage error or an unreadable table).
 
 --json, "version": 1 (these fields stay; new ones may be added): {"version", "tool", "platform", "modules": [{"name",
@@ -32,7 +35,7 @@ Exit 0: it is a report (2 on a usage error or an unreadable table).
 minimum, not the pin, or older than max_age_days) · incomplete (found, a part it needs is not) · no_key · unsupported
 (not on this platform) · per_project · unchecked. A probe: ok · failed · skipped.
 """
-import contextlib, datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, time
+import contextlib, datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, tempfile, time
 import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
@@ -386,8 +389,107 @@ def snap_stub(path):
     return head.startswith(b"#!") and b"snap" in head and not os.path.exists("/snap/bin/chromium")
 
 
+SKILL_HOMES = (("~/.claude/skills", "claude"), ("~/.agents/skills", "codex"))   # where bin/vh install-skill writes, and its word for each
+HARNESS_LINE = "Harness path (set by install.sh):"   # the one line install-skill rewrites: the clone a copy points at
+
+
+def skills_check():
+    """The pointer skills bin/vh install-skill wrote, against skills/*/SKILL.md as they are now. install-skill copies them,
+    so a copy stays as it was while the repo's moves on, and an agent that starts from the copy reads the old one (seen
+    2026-11: a copy six weeks old still said "8 video types" and "three review gates"). A copy that points at another
+    clone is that clone's; one of this clone's that differs, or a skill the folder has not got yet, is outdated."""
+    repo = {q.parent.name: q.read_text(encoding="utf-8") for q in sorted((ROOT / "skills").glob("*/SKILL.md"))}
+    body = lambda text: [line for line in text.splitlines() if not line.startswith(HARNESS_LINE)]
+    same, old, others = 0, {}, []
+    for folder, target in SKILL_HOMES:
+        ours, absent = False, []
+        for name, text in repo.items():
+            f = home(folder) / name / "SKILL.md"
+            try:
+                got = f.read_text(encoding="utf-8")
+            except (OSError, ValueError):
+                absent.append(name)
+                continue
+            at = next((line[len(HARNESS_LINE):].strip() for line in got.splitlines() if line.startswith(HARNESS_LINE)), "")
+            try:
+                here = bool(at) and home(at).resolve() == ROOT
+            except OSError:
+                here = False
+            if not here:
+                others.append(at or "no clone")
+                continue
+            ours = True
+            if body(got) == body(text):
+                same += 1
+            else:
+                old.setdefault(target, []).append(f"{shown(f)} differs from skills/{name}/SKILL.md")
+        if ours and absent:   # a skill added since this folder was installed
+            old.setdefault(target, []).append(f"{folder} has no {', '.join(absent)}")
+    left = (f"; left alone: {len(others)} cop{'y' if len(others) == 1 else 'ies'} pointing at {', '.join(sorted(set(others)))}") if others else ""
+    if old:
+        how = "bin/vh install-skill" + (f" {next(iter(old))}" if len(old) == 1 else "")
+        return {"name": "skills", "state": "outdated", "note": "; ".join(x for v in old.values() for x in v)
+                + f" → {how} (it copies them again; an agent reads its skill when a session starts){left}"}
+    if same:
+        return {"name": "skills", "state": "ok", "note": f"{same} installed cop{'y' if same == 1 else 'ies'} as skills/ has them now{left}"}
+    return {"name": "skills", "state": "unchecked", "note": "none installed for this clone (optional): bin/vh install-skill lets an agent in any folder find this harness" + left}
+
+
+def can_write(folder):
+    """Whether a file can be made in folder, or, while it is not there yet, in the nearest folder above it that is (where it
+    would be made). Tried with a file made and removed, which is what a download does; the permission bits are not asked."""
+    q = Path(folder)
+    while not q.is_dir():
+        if q.parent == q:
+            return False
+        q = q.parent
+    try:
+        fd, name = tempfile.mkstemp(prefix=".vh-doctor-", dir=str(q))
+    except OSError:
+        return False
+    os.close(fd)
+    with contextlib.suppress(OSError):
+        os.unlink(name)
+    return True
+
+
+def cache_homes(has_chrome=False):
+    """The folders outside the project that a first run writes into: [(whose, folder, what writes there, what moves it)].
+    has_chrome: the chrome-headless-shell HyperFrames renders with is already there, so only its fonts are still to come."""
+    env = os.environ.get
+    uv = env("UV_CACHE_DIR")
+    if not uv and shutil.which("uv"):
+        rc, said = run(["uv", "cache", "dir"])
+        uv = said.strip().splitlines()[-1] if rc == 0 and said.strip() else ""
+        uv = uv if os.path.isabs(uv) else ""   # a uv that answers something else (a stand-in, an old one): its default below
+    xdg = env("XDG_CACHE_HOME") or str(home("~/.cache"))
+    return [
+        ("uv", uv or str(home("~/.cache/uv")), "the Python packages of beats, music, qa, tts and the other uv tools", "UV_CACHE_DIR=<folder>"),
+        ("npm", env("npm_config_cache") or env("NPM_CONFIG_CACHE") or str(home("~/.npm")), "bin/vh new's npm install and every npx hyperframes", "NPM_CONFIG_CACHE=<folder>"),
+        ("Hugging Face", env("HF_HOME") or str(home("~/.cache/huggingface")), "the local voice's model, about 2 GB", "HF_HOME=<folder>"),
+        ("HyperFrames", env("HYPERFRAMES_FONT_CACHE_DIR") or str(home("~/.cache/hyperframes/fonts")), "the fonts a film asks for; its Chrome is already there",
+         "HYPERFRAMES_FONT_CACHE_DIR=<folder>") if has_chrome else
+        ("HyperFrames", str(home("~/.cache/hyperframes")), "its Chrome on a first snapshot or render, about 200 MB, and its fonts",
+         "no setting moves it: let the sandbox write it, or fetch the Chrome once outside the sandbox (npx hyperframes browser ensure) "
+         "and give the fonts HYPERFRAMES_FONT_CACHE_DIR=<folder>"),
+        ("bin/vh", os.path.join(xdg, "ovh"), "the font index of fonts and textcheck, HyperFrames' registry list", "XDG_CACHE_HOME=<folder>"),
+    ]
+
+
+def caches_check(has_chrome=False):
+    """Whether those folders can be written. In a host that lets an agent write only its workspace (a sandbox), a warm cache
+    passes every other line of this report, and the first render on a new machine then fails on a download it cannot store."""
+    shut = [(who, folder, what, how) for who, folder, what, how in cache_homes(has_chrome) if not can_write(folder)]
+    if not shut:
+        return {"name": "caches", "state": "ok", "note": "uv, npm, Hugging Face, HyperFrames and bin/vh can write theirs (the folders outside a project that a first run downloads into)"}
+    return {"name": "caches", "state": "incomplete", "note": "cannot be written here (a sandbox that keeps writes to the workspace?): "
+            + "; ".join(f"{who}: {shown(folder)} ({what}) → {how}" for who, folder, what, how in shut)
+            + ". Point <folder> inside what this session may write, in the same command or the host's environment; what is already in a cache is still read"}
+
+
 def repo_checks(webgl, found_by):
-    """A browser for the page tools, WebGL, the reference repos, LOCAL.md and AGENTS.md: [{name, state, note}]."""
+    """A browser for the page tools, WebGL, the reference repos, LOCAL.md, AGENTS.md, the installed skills and the caches:
+    [{name, state, note}]."""
     out = []
     if found_by.get("chrome") and not found_by.get("hf-chrome") and snap_stub(found_by["chrome"]):
         out.append({"name": "browser", "state": "missing", "note": f"{found_by['chrome']} is Ubuntu's stub for the Chromium snap, which does not run "
@@ -437,6 +539,8 @@ def repo_checks(webgl, found_by):
     except (OSError, IndexError):
         same = False
     out.append({"name": "agents_md", "state": "ok" if same else "incomplete", "note": "in sync with CLAUDE.md" if same else "out of sync with CLAUDE.md → bin/vh sync-agents"})
+    out.append(skills_check())
+    out.append(caches_check(bool(found_by.get("hf-chrome"))))
     return out
 
 

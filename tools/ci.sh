@@ -616,6 +616,61 @@ PY
   then ok "doctor from tools/modules.json: an old node, an ffmpeg without libx264, an aged yt-dlp and keys set or not are said, no six of a key's characters ever; --probe: a key taken, MiniMax's refusal, a 401 echoing a masked key (status and code only), no key skipped, a redirect not followed, an http base elsewhere not called; the platform's alternative; needs.programs; no python3 still reports and exits 0; usage errors 2 before any probe; bin/vh doctor --json here lists every module"
   else bad "bin/vh doctor and tools/modules.json"; fi
   rm -rf "$t"
+  # doctor's two lines about the host: skills (bin/vh install-skill copies the pointer skills, so a copy stays as it was
+  # when skills/ moves on: a copy six weeks old once still said "three review gates") and caches (in a sandbox that keeps
+  # writes to the workspace, a first render fails on a download it cannot store). A made-up home: nothing installed is
+  # no problem, a fresh install is ok, an edited copy and a skill the folder has not got are outdated with the command
+  # that copies them again; a cache folder that cannot be written is named with the variable that moves it
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 - "$t" "$VH_BASH" <<'PY'
+import json, os, re, subprocess, sys
+t, sh = sys.argv[1], sys.argv[2]
+home = os.path.join(t, "home"); os.makedirs(home)
+env = dict(os.environ, HOME=home)
+for k in ("UV_CACHE_DIR", "NPM_CONFIG_CACHE", "npm_config_cache", "HF_HOME", "XDG_CACHE_HOME", "HYPERFRAMES_FONT_CACHE_DIR"):
+    env.pop(k, None)
+def check(name, **more):
+    r = subprocess.run([sys.executable, "tools/doctor.py", "--json"], capture_output=True, text=True, encoding="utf-8", env=dict(env, **more))
+    return next(c for c in json.loads(r.stdout)["checks"] if c["name"] == name)
+def install(which):
+    subprocess.run([sh, "bin/vh", "install-skill", which], capture_output=True, text=True, env=env, check=True)
+bad = []
+c = check("skills")
+if c["state"] != "unchecked" or "install-skill" not in c["note"]:
+    bad.append(f"nothing installed: {c}")
+install("claude"); c = check("skills")
+if c["state"] != "ok" or "2 installed copies" not in c["note"]:
+    bad.append(f"a fresh install: {c}")
+with open(os.path.join(home, ".claude/skills/open-video-harness/SKILL.md"), "a", encoding="utf-8") as f:
+    f.write("\nan older line\n")
+c = check("skills")
+if c["state"] != "outdated" or "open-video-harness/SKILL.md differs" not in c["note"] or "bin/vh install-skill claude " not in c["note"]:
+    bad.append(f"an edited copy: {c}")
+install("all"); os.remove(os.path.join(home, ".agents/skills/open-video-harness-web/SKILL.md")); c = check("skills")
+if c["state"] != "outdated" or "~/.agents/skills has no open-video-harness-web" not in c["note"] or "bin/vh install-skill codex " not in c["note"]:
+    bad.append(f"a skill the folder has not got: {c}")
+p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's is left alone
+text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "elsewhere"), open(p, encoding="utf-8").read())
+open(p, "w", encoding="utf-8").write(text + "\ntheirs\n"); install("codex"); c = check("skills")
+if c["state"] != "ok" or "left alone: 1 copy pointing at" not in c["note"]:
+    bad.append(f"another clone's copy: {c}")
+c = check("caches")
+if c["state"] != "ok":
+    bad.append(f"caches in a home that can be written: {c}")
+if os.geteuid() != 0:   # root writes into a read-only folder all the same
+    shut = os.path.join(t, "shut"); os.makedirs(shut); os.chmod(shut, 0o555)
+    c = check("caches", UV_CACHE_DIR=os.path.join(shut, "uv"), HF_HOME=shut)
+    os.chmod(shut, 0o755)
+    if c["state"] != "incomplete" or "UV_CACHE_DIR=<folder>" not in c["note"] or "HF_HOME=<folder>" not in c["note"] or "NPM_CONFIG_CACHE" in c["note"]:
+        bad.append(f"two caches that cannot be written: {c}")
+    if any(n.startswith(".vh-doctor-") for d, _, names in os.walk(t) for n in names):
+        bad.append("the write test left a file behind")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "doctor's skills and caches lines: nothing installed is no problem, a fresh install is ok, an edited copy and a missing skill are outdated with the command that copies them again, another clone's copy is left alone; a cache folder that cannot be written is named with the variable that moves it"
+  else bad "doctor's skills and caches lines"; fi
+  rm -rf "$t"
   # ManimGX, an optional backend for Manim scenes (tools/modules.json; CI does not install it): doctor lists it, and with
   # no manimgx on the PATH says it is missing and how to install it (a uv tool, Python 3.13, the pinned version); a
   # manimgx that says another version is told apart from the pin, the pinned one is ok while uv and ffmpeg (what it

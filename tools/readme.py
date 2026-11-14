@@ -4,11 +4,12 @@ files they link, the two languages side by side (stdlib only).
 usage: python3 tools/readme.py          the counts, from the repo: what to write when one of these pages says one
        python3 tools/readme.py check    the pages in PAGES against the repo (tools/ci.sh)
 
-check reads README.md, README.zh-CN.md, docs/assets/overview.en.svg / overview.zh.svg, install.sh and the homepage
-(docs/site/index.html):
+check reads README.md, README.zh-CN.md, docs/assets/overview.en.svg / overview.zh.svg, install.sh, CITATION.cff and the
+homepage (docs/site/index.html):
   - counts: every phrase like "32 styles" / "32 种风格" (COUNT_PHRASES) states the repo's number, and each page states
     the counts PAGES lists for it, so a reworded sentence cannot leave its number unchecked; install.sh's HyperFrames
-    version is the pin in tools/modules.json;
+    version is the pin in tools/modules.json; CITATION.cff's version and date-released are CHANGELOG.md's newest
+    release;
   - links: every relative link and image in the READMEs is a file or folder in the repo, and a #anchor on a markdown
     page is one of that page's headings (GitHub's anchors);
   - the two READMEs: as many sections (##) each, and the same relative links and images once the language is taken out
@@ -132,7 +133,7 @@ N = r"(\d+|[a-z]+|[零一二两三四五六七八九十]+)"
 COUNT_PHRASES = {   # "Run these two commands" is not a count of bin/vh's: commands and components need their word
     "commands": [rf"\ball {N} commands\b", rf"\b{N} `?bin/vh`? commands\b", rf"bin/vh: {N} commands\b",
                  rf"全部 {N} 条命令", rf"{N} 条 ?`?bin/vh`? ?命令", rf"bin/vh：{N} 条命令"],
-    "styles": [rf"\b{N} styles\b", rf"\b{N}-style\b", rf"{N} 种风格"],
+    "styles": [rf"\b{N} styles\b", rf"\b{N}-style\b", rf"\b{N} style presets\b", rf"{N} 种风格"],
     "recipes": [rf"\b{N} shot recipes\b", rf"{N} 张镜头配方"],
     "sequences": [rf"\b{N} whole-film skeletons\b", rf"{N} 条全片骨架"],
     "grammar": [rf"\b{N} shot-grammar cards\b", rf"{N} 张镜头语法卡"],
@@ -158,6 +159,7 @@ PAGES = {   # page: the counts it must state somewhere (each is also checked whe
     "docs/assets/overview.en.svg": ["types", "playbook", "styles", "recipes", "components", "cases", "refs", "commands"],
     "docs/assets/overview.zh.svg": ["types", "playbook", "styles", "recipes", "components", "cases", "refs", "commands"],
     "install.sh": [],   # counts the reference repos as it runs; a number written into it is checked all the same
+    "CITATION.cff": ["types", "styles"],   # its abstract (citation_problems checks its version and date)
     "docs/site/index.html": ["types", "styles", "commands", "engines", "recipes", "sequences", "grammar", "components",
                              "showcase", "cases", "playbook", "templates", "refs", "modules", "sfx", "checklist", "scores"],
 }
@@ -220,6 +222,20 @@ def pin_problems():
 
 
 # ── links ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+def citation_problems():
+    """CITATION.cff's version and date-released are CHANGELOG.md's newest release (v0.4.1 went out with 0.4.0 still here)."""
+    m = re.search(r"^## v(\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.M)
+    if not m:
+        return ["CHANGELOG.md: no release heading (## vX.Y.Z — YYYY-MM-DD) to hold CITATION.cff to"]
+    try:
+        cff = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+    except OSError:
+        return []   # count_problems says it is not there
+    got = {k: (re.search(rf'^{k}:\s*"?([^"\n]+?)"?\s*$', cff, re.M) or [None, None])[1] for k in ("version", "date-released")}
+    want = {"version": m.group(1), "date-released": m.group(2)}
+    return [f"CITATION.cff: {k} is {got[k] or 'not given'}, but CHANGELOG.md's newest release is v{m.group(1)} — {m.group(2)}" for k in want if got[k] != want[k]]
+
 
 def strip_inline(s):
     s = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", s)        # links and images: their text
@@ -366,7 +382,7 @@ def site_problems(have):
 def check():
     have = counts()
     bad = [f"tools/readme.py: the repo has no {WHAT[k]}" for k, v in have.items() if not v]
-    bad += count_problems(have) + pin_problems() + site_problems(have)
+    bad += count_problems(have) + pin_problems() + citation_problems() + site_problems(have)
     for page in READMES:
         bad += link_problems(page)
     bad += pair_problems()
@@ -384,8 +400,8 @@ def main(argv):
             print("\n".join(bad))
             return 1
         have = counts()
-        print(f"the READMEs, the overview diagrams, install.sh and the homepage: {len(have)} counts as the repo has them "
-              f"({have['commands']} commands, {have['styles']} styles, {have['recipes']} recipes …) and the HyperFrames pin; "
+        print(f"the READMEs, the overview diagrams, install.sh, CITATION.cff and the homepage: {len(have)} counts as the repo has them "
+              f"({have['commands']} commands, {have['styles']} styles, {have['recipes']} recipes …), the HyperFrames pin and the citation's version; "
               f"their links in the repo; the READMEs side by side; the homepage's styles, both languages, no outside loads")
         return 0
     print(__doc__.split("\n\n")[1], file=sys.stderr)

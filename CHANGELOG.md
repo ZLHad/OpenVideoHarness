@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**`bin/vh doctor` says when an installed skill is behind the repo, and when the download folders cannot be written**
+- Why: an agent in another host, one that reads `~/.agents/skills`, was asked whether the harness would work there. Two things came out of checking its answer. The skill it had started from was a copy written on 2026-09-30: `bin/vh install-skill` copies the pointer skills, nothing updates a copy, and that one still said "8 video types" and "three review gates"; the copy for Claude Code was from 2026-10-29. And in a host that lets an agent write only its workspace, the first render of a new machine fails on a download it cannot store, while `doctor` on a machine with warm caches passes.
+- `skills`, a new line under "machine and repo": each copy in `~/.claude/skills` and `~/.agents/skills` that points at this clone, against `skills/*/SKILL.md` now (the path line apart). A copy that differs, or a skill the folder has not got yet, is `outdated`, with the command that copies them again (`bin/vh install-skill`, `claude` or `codex` when only one folder is behind). A copy that points at another clone is left alone and counted; nothing installed is no problem.
+- `caches`, the line after it: whether uv's, npm's, Hugging Face's, HyperFrames' and `bin/vh`'s own cache folders can be written, tried with a file made and removed. One that cannot is named with what writes there and the variable that moves it (`UV_CACHE_DIR`, `NPM_CONFIG_CACHE`, `HF_HOME`, `XDG_CACHE_HOME`, `HYPERFRAMES_FONT_CACHE_DIR`). HyperFrames' Chrome has no such variable (HyperFrames 0.8.202 puts it under the home folder's `.cache/hyperframes`): the line says to let the sandbox write that folder, or to fetch the Chrome once outside it; when the Chrome is already there, only the fonts are named.
+- The skill says to run `bin/vh doctor` before the first film in such a host.
+- Checked: under macOS's `sandbox-exec` with writes to `~/.cache` and `~/.npm` refused, the line named all five folders; with four of them pointed elsewhere, only HyperFrames' was left. `tools/ci.sh` has the four states of `skills` in a made-up home and a cache folder made read-only. Not checked: a Linux sandbox, and any agent host's own.
+
+**`CITATION.cff` is held to the repo: its version, its date and the counts in its abstract**
+- Why: v0.4.1 was released with `CITATION.cff` still at 0.4.0, its abstract saying 9 video types and 31 styles; nothing read the file.
+- `python3 tools/readme.py check` (CI runs it) now reads it too: its `version` and `date-released` are CHANGELOG.md's newest release heading, and its abstract's "N video types" and "N style presets" are the repo's counts. A release PR that leaves it behind fails.
+
+**The type docs' last fixed counts at gate ①**
+- `video-types/02` said "2–3 concept cards" and `video-types/10` "an outline of 3–7 segments", which v0.5.0 had already turned into purposes everywhere else (cards that really differ, usually two or three; as many segments as the film has). Both lines now say the same. The numbered workflows themselves are not rewritten.
+
 ## v0.5.0 — 2026-11-10
 
 A minor release: the process is trimmed for the current models, and the style library gets its 33rd preset. The largest change is where a film stops for its person. A `standard` or `studio` film now stops at the concept and at the first draft, and at the storyboard only when the next step is costly: a film longer than about 90 s, a heavy 3D render, or a paid service. Only the user's own words take a stop away, as before, and a project made before this release keeps its three gates. Not yet tried on a real film: the stop rules were checked on made-up projects in `tools/ci.sh` and by one independent review.

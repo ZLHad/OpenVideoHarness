@@ -41,7 +41,7 @@ Audio tools:
 - `bin/vh sfx` — sound effects;
 - `bin/vh mix` and `bin/vh mux` — mixing and muxing.
 
-Run `bin/vh doctor` if anything looks missing.
+Run `bin/vh doctor` if anything looks missing, and before the first film in a host that only lets you write the workspace (a sandbox): its `caches` line names the download folders it cannot write and what to set, and its `skills` line says when this file is older than the harness's copy.
 
 ## 3. When the user asks what this can do
 
