@@ -61,7 +61,7 @@ one chunk instead of mlx-whisper (another local ASR; the tests): it gets the WAV
 {"segments": [{"start", "end", "text"}]}. Exit: 0 · 1 a chunk failed, no speech to read, a download or a frame failed
 (what is done is kept) · 2 usage.
 """
-import hashlib, html, json, os, platform, re, shlex, shutil, subprocess, sys, time, urllib.parse
+import hashlib, html, json, os, platform, re, shlex, shutil, subprocess, sys, time, unicodedata, urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -195,12 +195,21 @@ def parse_subs(text):
 
 
 def joiner(a, b):
-    return "" if a and b and CJK.search(a[-1]) and CJK.search(b[0]) else " "
+    """What goes between two cues joined into one said line: nothing between Chinese (or Japanese, Korean) text where
+    a punctuation mark already parts them (……开始。为什么……), a space where none does (unpunctuated automatic or AI
+    subtitles: 第1个问题 今天我们来聊一聊), so each cue's edge stays readable; a space between any other words. No
+    word or mark is added or changed."""
+    if not (a and b):
+        return ""
+    if CJK.search(a[-1]) and CJK.search(b[0]):
+        punct = unicodedata.category(a[-1]).startswith("P") or unicodedata.category(b[0]).startswith("P")
+        return "" if punct else " "
+    return " "
 
 
 def paragraphs(cues):
     """Cues joined into said lines: a new line after a pause of 2 s or more, at a sentence's end once a line holds 12 s,
-    and at 30 s whatever comes. The words are as the cues have them."""
+    and at 30 s whatever comes. The words are as the cues have them; what goes between two is joiner's."""
     paras, cur = [], None
     for c in cues:
         if cur and (c["start"] - cur["end"] >= 2.0 or c["start"] - cur["start"] >= 30

@@ -4939,10 +4939,13 @@ if T("\n".join([cue(1, 1, 3, "A"), cue(2, 3, 5, "A", "B"), cue(3, 5, 7, "B", "C"
 if T("\n".join([cue(1, 1, 2, "Yes."), cue(2, 2, 3, "Yes.")])) != ["Yes.", "Yes."]: bad.append("a line said twice")
 if T("\n".join([cue(1, 1, 2, "the arrow --> points right", "and on"), cue(2, 3, 4, "next")])) != ["the arrow --> points right", "and on", "next"]: bad.append("--> in the words")
 if [digest.stamp(x, frac=True) for x in (750.95, 750.04, 3600.96)] != ["12:31", "12:30", "1:00:01"]: bad.append("stamps")
+c = lambda i, s: {"start": i * 2.0, "end": i * 2 + 1.9, "text": s}
+j = digest.paragraphs([c(0, "第1个问题"), c(1, "今天我们来聊一聊"), c(2, "好。"), c(3, "下一句"), c(4, "「引号」")])[0]["text"]
+if j != "第1个问题 今天我们来聊一聊 好。下一句「引号」": bad.append(f"unpunctuated Chinese cues joined: {j}")
 d = Path(tempfile.mkdtemp()); r = digest.silences(d / "nothing.wav", d, "k")
 if r[0] != [] or not r[1] or (d / "silences.json").exists(): bad.append(f"a failed silence search cached: {r}")
 print("; ".join(bad)); sys.exit(1 if bad else 0)' 2>&1)
-    then ok "ref digest's subtitles: two-line rolling cues in SRT read once each, a line said twice kept twice, a --> among the words kept; a stamp rounded to the tenth (750.95 is 12:31); a failed search for pauses said, not cached"
+    then ok "ref digest's subtitles: two-line rolling cues in SRT read once each, a line said twice kept twice, a --> among the words kept; unpunctuated Chinese cues joined with a space at each edge, punctuated ones as they are; a stamp rounded to the tenth (750.95 is 12:31); a failed search for pauses said, not cached"
     else bad "ref digest's subtitle parsing, stamps or pauses: $a"; fi
   else bad "ref digest's chunk bounds: $(python3 -c 'import sys; sys.path.insert(0, "tools/scout"); import digest; print(digest.bounds(1500, 600, [(590.0, 592.0), (600.5, 601.0), (1195.0, 1199.0)]), digest.bounds(630, 600))' 2>&1)"; fi
   rm -rf "$t"
