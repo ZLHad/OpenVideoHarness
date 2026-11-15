@@ -22,7 +22,7 @@ import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
 ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history",
-       "history-save", "history-diff", "history-restore", "gate", "new", "proxy", "thumbs")
+       "history-save", "history-diff", "history-restore", "gate", "new", "proxy", "thumbs", "words")
 
 
 class VH:
@@ -112,7 +112,8 @@ def outputs(vh, p, z, e, has_film):
             ("commands", ["commands"]), ("commands", ["commands", "--stage", "8"]), ("desk-data", ["desk", "data", z]), ("desk-data", ["desk", "data", p]),
             ("edit-list", ["edit", "list", e]), ("edit-build", ["edit", "build", e]), ("assets-list", ["assets", "list", p]), ("artifacts-list", ["artifacts", "list", p]),
             ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"]), ("history", ["history", "list", p]),
-            ("history-save", ["history", "save", p]), ("history-diff", ["history", "diff", p]), ("history-restore", ["history", "restore", p, "NOTES.md", "--at", "s1"]), ("gate", ["gate", z, "1", "--page"]), ("new", ["new", "math", "ci-contract-too"])]
+            ("history-save", ["history", "save", p]), ("history-diff", ["history", "diff", p]), ("history-restore", ["history", "restore", p, "NOTES.md", "--at", "s1"]), ("gate", ["gate", z, "1", "--page"]), ("new", ["new", "math", "ci-contract-too"]),
+            ("words", ["words", z]), ("words", ["words", f"{z}/SCRIPT.md", "--all"])]
     if has_film:
         runs.insert(0, ("check", ["check", f"{p}/out/final.mp4"]))   # first: status and the others have its record
         runs.append(("peaks", ["peaks", f"{p}/out/final.mp4", "--bins", "8"]))
@@ -161,6 +162,7 @@ def failures(t, p):
         ("timeline nope --resolved", 2, "no_project", False), (f"timeline {plain} --resolved", 2, "no_project", False), (f"timeline {p} xx! --resolved", 2, "usage", False),
         ("history", 2, "usage", False), ("history save", 2, "usage", True), ("history save nope", 2, "no_project", True), (f"history restore {p}", 2, "usage", True), (f"history restore {p} BRIEF.md --at s99", 1, "not_found", True),
         ("peaks", 2, "usage", False), ("peaks nope", 2, "no_project", True), (f"peaks {t}/projects/e", 2, "not_found", True), (f"peaks {p} --bins 0", 2, "usage", True),
+        ("words", 2, "usage", False), (f"words {plain}", 1, "not_found", True), (f"words {t}/nofile.md", 1, "not_found", True), (f"words {p}/BRIEF.md --col 旁白", 1, "invalid", True),
     ]
 
 

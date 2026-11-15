@@ -33,6 +33,7 @@ know_checks 6
 artifacts_checks 12
 assets_checks 108
 concept_checks 16
+words_checks 1
 hf_checks 2
 scout_checks 13
 web_checks 51
