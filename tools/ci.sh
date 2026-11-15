@@ -4700,9 +4700,11 @@ PY
 
 digest_checks() {   # bin/vh ref digest and look (tools/scout/digest.py) on a made-up 150 s video: its subtitles read into a
   # timed transcript in chunks, each cached; the lines an agent added kept across runs; frames of picked spans; a stand-in
-  # transcriber (OVH_DIGEST_ASR) failing one chunk, the next run redoing only that one; a missing Whisper model refused,
-  # never fetched; a URL's automatic captions through a stand-in yt-dlp (OVH_YTDLP), a translation refused, a span fetched
-  # alone and cut at its second. No network, no model
+  # transcriber (OVH_DIGEST_ASR) failing one chunk, the next run redoing only that one, a run killed mid-chunk going on;
+  # a missing Whisper model refused, never fetched; --lang choosing a track beside or inside a file; frames at a video's
+  # end; a URL's automatic captions through a stand-in yt-dlp (OVH_YTDLP) that refuses a call allowing cookies, a
+  # translation refused, a span fetched alone and cut at its second, --video not invalidating a transcription; a
+  # Bilibili part of its own. No network, no model
   local t p F=tools/scout/fixtures/responses a b c d e rc rc2 rc3 rc4 rc5 tr
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if ! command -v ffmpeg >/dev/null 2>&1; then skip "ref digest and look" "no ffmpeg"; rm -rf "$t"; return; fi
@@ -4730,7 +4732,8 @@ import sys
 f = sys.argv[1]; s = open(f, encoding="utf-8").read()
 s = s.replace("## 2 · 01:00–02:00\n\n", "## 2 · 01:00–02:00\n\n- [01:20] **画面** 彩条测试图，右下角一个计时器\n  右上角的字跟着动\n- [00:50](x) **屏幕字** 「TEST」\n- [01:05] **口播** 一行冒充工具的口播，下一次运行就不在了\n", 1)
 s = s.replace("\n\n## 3 · ", "\n本段要点：散射让天空变蓝（没有标签的一行）\n\n## 3 · ", 1)
-s = s.replace("\n\n## 1 · ", "\n\n一句话：这支讲天空为什么是蓝的\n\n## 1 · ", 1)
+s = s.replace("\n\n## 1 · ", "\n\n一句话：这支讲天空为什么是蓝的\n- 注意：我自己记的一条\n# 我的笔记标题\n\n## 1 · ", 1)
+s = s.replace("\n\n## 2 · ", "\n## 我的小结：开场\n\n## 2 · ", 1)
 open(f, "w", encoding="utf-8").write(s)
 PY
   b=$(vh ref digest "$p" talk --chunk 60 2>&1); rc2=$?
@@ -4747,9 +4750,12 @@ ok = [r["id"] for r in refs["assets"]] == ["talk"] and plan["chunks"] == [[0.0, 
 ok = ok and len(said["cues"]) == 30 and said["cues"][0] == {"start": 0.5, "end": 3.7, "text": "我们先从一个问题开始。"}
 ok = ok and sorted(x.name for x in (d / "chunks").iterdir()) == ["001.json", "002.json", "003.json"]
 heads = re.findall(r"(?m)^## .*$", tr)
-ok = ok and heads == ["## 1 · 00:00–01:00", "## 2 · 01:00–02:00", "## 3 · 02:00–02:30"]
+ok = ok and heads == ["## 1 · 00:00–01:00", "## 我的小结：开场", "## 2 · 01:00–02:00", "## 3 · 02:00–02:30"]   # a heading of one's own kept
 ok = ok and "- [00:00](../../../talk.mp4#t=0) **口播** 我们先从一个问题开始。为什么天空是蓝的？光在大气里会散射。" in tr   # CJK joined with no space
-ok = ok and "冒充" not in tr and tr.count("**画面** 彩条") == 1 and "  右上角的字跟着动" in tr
+ok = ok and tr.count("冒充") == 1 and tr.count("**画面** 彩条") == 1 and "  右上角的字跟着动" in tr   # a said line by hand kept
+for mine in ("一句话：这支讲", "- 注意：我自己记的一条", "# 我的笔记标题"):   # head lines, the tool's prefixes or not
+    ok = ok and tr.count(mine) == 1 and tr.index(mine) < tr.index("## 1 ·")
+ok = ok and bool(plan["written"]) and bool(plan["head"]) and "- 注意：我自己记的一条" not in plan["head"]
 ok = ok and tr.count("本段要点：散射") == 1 and tr.index("[01:45]") < tr.index("本段要点：散射") < tr.index("## 3 ·")   # after the line it followed
 ok = ok and tr.count("一句话：这支讲") == 1 and tr.index("一句话：这支讲") < tr.index("## 1 ·")   # the head keeps it
 sec2 = tr.split("## 2 ·")[1].split("## 3 ·")[0]; sec1 = tr.split("## 2 ·")[0]
@@ -4766,10 +4772,16 @@ ok = ok and len(list((d / "look/00140-00150").glob("t*.jpg"))) == 20
 ok = ok and [x["dir"] for x in plan["looks"]] == ["look/00070-00090", "look/00140-00150"]
 sys.exit(0 if ok else 1)
 PY
-  then case "$a|$b|$d" in *"✓ talk · video"*"3 chunks (3 made, 0 from the cache)"*"文件旁边的字幕（talk.srt）"*"|"*"3 chunks (0 made, 3 from the cache)"*"4 of yours kept"*"|"*"no transcript for nosuch"*"past the video's end (02:30)"*"transcript: research/digest/talk/transcript.md"*)
-      ok "ref digest and look: subtitles beside a file read into three 60 s chunks, the said lines timed and linked; the agent's own lines (with an indented line) kept and sorted by time across runs, a forged tool line dropped; an untagged line kept after the line it followed, a line added to the head kept; frames of two spans named by source second, a sheet, a 看帧 line; look without a transcript or past the end refused" ;;
+  then case "$a|$b|$d" in *"✓ talk · video"*"3 chunks (3 made, 0 from the cache)"*"文件旁边的字幕（talk.srt）"*"|"*"3 chunks (0 made, 3 from the cache)"*"6 of yours kept"*"1 line tagged 口播 or 看帧 the tool did not write"*"|"*"no transcript for nosuch"*"past the video's end (02:30)"*"transcript: research/digest/talk/transcript.md"*)
+      ok "ref digest and look: subtitles beside a file read into three 60 s chunks, the said lines timed and linked; the agent's own lines (with an indented line) kept and sorted by time across runs, a said line added by hand kept and said; an untagged line kept after the line it followed, a heading of its own kept, head lines kept even with the tool's prefixes; frames of two spans named by source second, a sheet, a 看帧 line; look without a transcript or past the end refused" ;;
     *) bad "ref digest and look, their lines: $(printf '%s' "$a$b$d" | tail -c 700)" ;; esac
   else bad "ref digest and look (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+  # the subtitles changed: every chunk made again from them, the agent's lines kept
+  python3 -c 'import sys; f = sys.argv[1]; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("我们先从一个问题开始。", "我们先从这个问题开始。", 1))' "$p/talk.srt"
+  a=$(vh ref digest "$p" talk --chunk 60 2>&1); rc=$?
+  if [ "$rc" = 0 ] && grep -qF '我们先从这个问题开始。为什么' "$tr" && grep -q '彩条测试图' "$tr" && case "$a" in *"(3 made, 0 from the cache)"*) true ;; *) false ;; esac
+  then ok "ref digest: subtitles changed on disk make every chunk again (the cache is under their sha256), the agent's lines kept"
+  else bad "ref digest after the subtitles changed (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
   # 2 · a stand-in transcriber: chunk 2 fails once; the next run redoes it alone; --redo 1 redoes chunk 1; repeated lines said
   cat > "$t/asr.py" <<'PY'
 import json, os, sys
@@ -4777,6 +4789,8 @@ from pathlib import Path
 wav = Path(sys.argv[1]); log = Path(os.environ["FAKE_ASR_LOG"])
 with log.open("a") as f:
     f.write(wav.name + "\n")
+if wav.name == "002.wav" and os.environ.get("FAKE_KILL"):   # the run killed while it transcribes chunk 2
+    os.kill(os.getppid(), 9)
 if wav.name == "002.wav" and not log.with_suffix(".failed").exists():
     log.with_suffix(".failed").write_text("x"); print("the model ran out of memory", file=sys.stderr); sys.exit(3)
 print(json.dumps({"segments": [{"start": 1.0, "end": 4.0, "text": f"chunk {wav.stem} begins."}] + [{"start": 20.0 + k, "end": 20.9 + k, "text": "Thank you."} for k in range(3)]}))
@@ -4785,12 +4799,17 @@ PY
   b=$(grep -c . "$t/asr.log"; grep -F -- "**said** (not read" "$tr"; ls "$p/research/digest/talk/chunks"); rc2=$?
   c=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr 2>&1); rc3=$?
   d=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --redo 1 2>&1); rc4=$?
+  OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" FAKE_KILL=1 vh ref digest "$p" talk --chunk 60 --from asr --lang en >/dev/null 2>&1; rc5=$?   # a new key: every chunk to make
+  d=$d$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --lang en 2>&1); rc4=$rc4:$?:$rc5
   e=$(tr '\n' ' ' < "$t/asr.log")
-  case "$rc:$rc3:$rc4|$a|$b|$c|$d|$e" in "1:0:0|"*"✗ chunk 2: the transcription failed: the model ran out of memory"*"chunks 2 failed"*"|3"*"**said** (not read: the transcription failed"*"002.err"*"|"*"(1 made, 2 from the cache)"*"repeated three or more times"*"1: 1, 2: 1, 3: 1"*"|"*"(1 made, 2 from the cache)"*"|001.wav 002.wav 003.wav 002.wav 001.wav ")
-      if grep -q '彩条测试图' "$tr" && grep -qF -- '**said** chunk 002 begins.' "$tr" && [ ! -e "$p/research/digest/talk/chunks/002.err" ] && [ ! -e "$p/research/digest/talk/chunks/001.wav" ]
-      then ok "ref digest --from asr: chunk 2 failed and said so (exit 1, the others kept), the next run redid chunk 2 alone, --redo 1 chunk 1 alone; repeated lines counted and said; --labels en kept for later runs; the agent's lines kept"
+  case "$rc:$rc3:$rc4|$a|$b|$c|$d|$e" in "1:0:0:0:137|"*"✗ chunk 2: the transcription failed: the model ran out of memory"*"chunks 2 failed"*"|3"*"**said** (not read: the transcription failed"*"002.err"*"|"*"(1 made, 2 from the cache)"*"repeated three or more times"*"1: 1, 2: 1, 3: 1"*"|"*"(1 made, 2 from the cache)"*"(2 made, 1 from the cache)"*"|001.wav 002.wav 003.wav 002.wav 001.wav 001.wav 002.wav 002.wav 003.wav ")
+      if grep -q '彩条测试图' "$tr" && grep -qF -- '**said** chunk 002 begins.' "$tr" && [ ! -e "$p/research/digest/talk/chunks/002.err" ] && [ ! -e "$p/research/digest/talk/chunks/001.wav" ] && [ ! -e "$p/research/digest/talk/chunks/002.wav" ]
+      then ok "ref digest --from asr: chunk 2 failed and said so (exit 1, the others kept), the next run redid chunk 2 alone, --redo 1 chunk 1 alone; a run killed while it transcribed chunk 2 went on from there (chunk 1 kept from the killed run, 2 and 3 made, no WAV left); repeated lines counted and said; --labels en kept for later runs; the agent's lines kept"
       else bad "ref digest --from asr: the transcript after the runs: $(tail -c 600 "$tr")"; fi ;;
-    *) bad "ref digest --from asr (exits $rc:$rc3:$rc4, want 1:0:0): $(printf '%s' "$a$b$c$d|$e" | tail -c 900)" ;; esac
+    *) bad "ref digest --from asr (exits $rc:$rc3:$rc4, want 1:0:0:0:137): $(printf '%s' "$a$b$c$d|$e" | tail -c 900)" ;; esac
+  a=$(vh ref digest "$p" talk --subs "$p/talk.srt" --from asr 2>&1); rc=$?
+  case "$rc|$a" in "2|"*"--subs and --from asr ask for opposite things"*) ok "ref digest: --subs with --from asr is a usage error, not one of them quietly winning" ;;
+    *) bad "ref digest --subs with --from asr (exit $rc, want 2): $a" ;; esac
   # 3 · no subtitles and no model: refused before anything runs, nothing fetched; --from subs never transcribes; a subtitle
   # track inside the file is read
   ffmpeg -v error -f lavfi -i "testsrc2=s=160x90:r=5:d=20" -f lavfi -i "sine=f=330:d=20" -c:v libx264 -preset ultrafast -c:a aac -shortest "$p/bare.mp4"
@@ -4804,6 +4823,20 @@ PY
       then ok "ref digest: no subtitles and no Whisper model refused with what is missing (nothing downloaded); --from subs never transcribes; a subtitle track inside the file read"
       else bad "ref digest: a model folder was made, or the track inside was not read"; fi ;;
     *) bad "ref digest without subtitles (exits $rc:$rc2:$rc3, want 1:1:0): $(printf '%s' "$a|$b|$c" | tail -c 700)" ;; esac
+  cp "$p/bare.mp4" "$p/lang.mp4"; printf '1\n00:00:01,000 --> 00:00:02,000\nplain track\n' > "$p/lang.srt"; printf '1\n00:00:01,000 --> 00:00:02,000\n中文那一轨\n' > "$p/lang.zh-Hans.srt"
+  printf '1\n00:00:01,000 --> 00:00:02,000\nthe English track\n' > "$t/en.srt"; printf '1\n00:00:01,000 --> 00:00:02,000\n嵌在里面的中文轨\n' > "$t/zh.srt"
+  ffmpeg -v error -i "$p/bare.mp4" -i "$t/en.srt" -i "$t/zh.srt" -map 0 -map 1 -map 2 -c copy -c:s mov_text -metadata:s:s:0 language=eng -metadata:s:s:1 language=chi "$p/two.mp4"
+  ffmpeg -v error -f lavfi -i "testsrc2=s=160x90:r=2:d=20" -f lavfi -i "sine=f=330:d=23" -c:v libx264 -preset ultrafast -c:a aac "$p/slides.mp4"   # 2 fps, the sound 3 s longer
+  printf '1\n00:00:01,000 --> 00:00:03,000\nslide one\n\n2\n00:00:21,000 --> 00:00:22,500\nthe end\n' > "$p/slides.srt"
+  a=$(vh ref digest "$p" lang.mp4 --lang zh 2>&1; vh ref digest "$p" lang 2>&1); rc=$?
+  b=$(vh ref digest "$p" two.mp4 --lang zh 2>&1; grep -c '嵌在里面的中文轨' "$p/research/digest/two/transcript.md"); rc2=$?
+  vh ref digest "$p" slides.mp4 >/dev/null 2>&1
+  c=$(vh ref look "$p" slides 18-23 --every 0.2 2>&1; vh ref look "$p" slides 19.9-20.5 2>&1); rc3=$?
+  d=$(vh ref look "$p" slides 22.1-23 2>&1); rc4=$?
+  e=$(cd "$p/research/digest/slides/look" && echo 00018-00023/t*.jpg 00019-00021/t*.jpg; [ -e 00022-00023 ] && echo "an empty folder left")
+  case "$rc:$rc2:$rc3:$rc4|$a|$b|$c|$d|$e" in "0:0:0:1|"*"文件旁边的字幕（lang.zh-Hans.srt）"*"文件旁边的字幕（lang.srt）"*"|"*"文件自带的字幕轨（chi）"*"1|"*"8 frames every 0.2 s"*"1 frame every"*"|"*"no picture in this span: the video's last frame is at 00:19.5"*"|00018-00023/t00018.10.jpg"*"00018-00023/t00019.50.jpg 00019-00021/t00019.50.jpg")
+      ok "ref digest --lang: the zh subtitles beside a file over its plain .srt (zh-Hans counts), the plain one without --lang; the track inside tagged chi over the first; ref look at a video's end: frames no later than the last one (2 fps, a longer sound), a span just after it takes that frame at its time, one well after it has no picture (exit 1, no empty folder)" ;;
+    *) bad "ref digest --lang and look at the end (exits $rc:$rc2:$rc3:$rc4, want 0:0:0:1): $(printf '%s' "$a|$b|$c|$d|$e" | tail -c 900)" ;; esac
   # 4 · a URL (a YouTube video recorded from fixtures) through a stand-in yt-dlp: the automatic captions in the spoken
   # language, the rolling lines read once; a translation refused; a span downloaded alone, its frame the original's
   cp "$t/rolling.vtt" "$t/track.vtt"
@@ -4811,6 +4844,9 @@ PY
 import json, os, re, shutil, subprocess, sys
 a = sys.argv[1:]; t = os.environ["FAKE_DIR"]
 out = a[a.index("-o") + 1] if "-o" in a else None
+open(f"{t}/ytdlp.log", "a").write(" ".join(a) + "\n")
+if "--no-cookies" not in a or "--no-cookies-from-browser" not in a or a[-2] != "--":
+    sys.exit("ERROR: called without --no-cookies --no-cookies-from-browser, or the URL not after --")
 if "-J" in a:
     print(json.dumps({"id": "AAAAAAAAAA1", "title": "The Doppler effect, slowed down", "duration": 150, "language": "en", "subtitles": {"danmaku": [{"ext": "xml"}]},
                       "automatic_captions": {"en-orig": [{"ext": "vtt"}], "en": [{"ext": "vtt"}], "zh-Hans": [{"ext": "vtt"}]}}))
@@ -4821,6 +4857,10 @@ elif "--download-sections" in a:
     x, y = re.fullmatch(r"\*([\d.]+)-([\d.]+)", a[a.index("--download-sections") + 1]).groups()
     open(f"{t}/sections.log", "a").write(f"{x}-{y}\n")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", x, "-to", y, "-i", f"{t}/talk.mp4", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-an", out.replace("%(ext)s", "mp4")], check=True)
+elif "-f" in a and "/audio." in out:
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", f"{t}/talk.mp4", "-vn", "-c:a", "copy", out.replace("%(ext)s", "m4a")], check=True)
+elif "-f" in a and "/video." in out:
+    shutil.copy(f"{t}/talk.mp4", out.replace("%(ext)s", "mp4"))
 else:
     sys.exit("the stand-in yt-dlp got: " + " ".join(a))
 PY
@@ -4853,8 +4893,24 @@ PY
         b=$(set -- "$p"/research/digest/yt-AAAAAAAAAA1/look/00075-00080/t*.jpg; echo $#); c=$(tr '\n' ' ' < "$t/sections.log")
         if [ "$rc|$b|$c" = "0|1|75.000-80.000 75.500-80.000 " ]; then ok "ref look: the same folder from another start fetched its span again, not the one cached; --every over the span gave one frame inside it"
         else bad "ref look from another start (exit $rc, $b frames, sections $c): $a"; fi
+        # transcribed: the audio alone; then --video (the video fetched, the sound's transcription kept); then without again
+        : > "$t/asr.log"; a=""
+        for v in "" --video ""; do
+          a=$a$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 --from asr $v 2>&1) || a="$a (exit $?)"
+        done
+        b=$(grep -c . "$t/asr.log"); c=$(cd "$p/research/digest/yt-AAAAAAAAAA1/media" && echo *)
+        case "$b|$c|$a" in "3|audio.m4a video.mp4|"*"(3 made, 0 from the cache)"*"(0 made, 3 from the cache)"*"(0 made, 3 from the cache)"*)
+            ok "ref digest --from asr on a URL: the audio alone fetched and transcribed; a run with --video fetched the video and transcribed nothing again, nor did the run after it (the cache names the source, not the file carrying it); every yt-dlp call with --no-cookies --no-cookies-from-browser and the URL after --" ;;
+          *) bad "ref digest --video and the cache ($b transcriptions, want 3; media: $c): $(printf '%s' "$a" | tail -c 700)" ;; esac
       else bad "ref digest on a URL: the cues, the links or the span's frame (PSNR ${e:-none}): $(tail -c 500 "$p/research/digest/yt-AAAAAAAAAA1/transcript.md")"; fi ;;
     *) bad "ref digest on a URL (exits $rc:$rc2:$rc3:$rc4, want 0:1:0:0; sections $d): $(printf '%s' "$a|$b|$c" | tail -c 900)" ;; esac
+  # a Bilibili part past the first: a transcript of its own under the one reference, its links keeping the part
+  vh ref add "$p" https://www.bilibili.com/video/BV1Ab4y1C7De --offline "$F" >/dev/null 2>&1
+  a=$(vh ref digest "$p" "https://www.bilibili.com/video/BV1Ab4y1C7De?p=2" --subs "$p/talk.srt" 2>&1; vh ref digest "$p" bili-BV1Ab4y1C7De-p2 --subs "$p/talk.srt" 2>&1); rc=$?
+  b=$(python3 -c 'import json, sys; print(sum(1 for r in json.load(open(sys.argv[1]))["assets"] if r["id"].startswith("bili-")))' "$p/research/refs.json")
+  if [ "$rc|$b" = "0|1" ] && grep -qF '](https://www.bilibili.com/video/BV1Ab4y1C7De?p=2&t=0) **口播**' "$p/research/digest/bili-BV1Ab4y1C7De-p2/transcript.md" && [ ! -e "$p/research/digest/bili-BV1Ab4y1C7De" ]
+  then ok "ref digest on a Bilibili part (?p=2): its own transcript (bili-BV…-p2) under the one reference, its links keeping p=2; the transcript's id finds it again"
+  else bad "ref digest on a Bilibili part (exit $rc, $b bili records): $(printf '%s' "$a" | tail -c 600)"; fi
   # 5 · the pieces: a Whisper chunk's end moves to the longest pause within 30 s of its mark
   if python3 -c '
 import sys; sys.path.insert(0, "tools/scout"); import digest
@@ -4874,6 +4930,20 @@ ok = ok and "danmaku" in digest.pick_track({"subtitles": {"danmaku": []}}, None)
 sys.exit(0 if ok else 1)'
     then ok "ref digest's track choice: en-US takes en, a translation is marked, Bilibili's AI subtitles count as machine-made, automatic captions only in the spoken language"
     else bad "ref digest's track choice (tools/scout/digest.py pick_track)"; fi
+    if a=$(python3 -c '
+import sys, tempfile; from pathlib import Path; sys.path.insert(0, "tools/scout"); import digest
+T = lambda s: [c["text"] for c in digest.parse_subs(s)]
+cue = lambda i, a, b, *lines: f"{i}\n00:00:0{a},000 --> 00:00:0{b},000\n" + "\n".join(lines) + "\n"
+bad = []
+if T("\n".join([cue(1, 1, 3, "A"), cue(2, 3, 5, "A", "B"), cue(3, 5, 7, "B", "C")])) != ["A", "B", "C"]: bad.append("two-line rolling SRT")
+if T("\n".join([cue(1, 1, 2, "Yes."), cue(2, 2, 3, "Yes.")])) != ["Yes.", "Yes."]: bad.append("a line said twice")
+if T("\n".join([cue(1, 1, 2, "the arrow --> points right", "and on"), cue(2, 3, 4, "next")])) != ["the arrow --> points right", "and on", "next"]: bad.append("--> in the words")
+if [digest.stamp(x, frac=True) for x in (750.95, 750.04, 3600.96)] != ["12:31", "12:30", "1:00:01"]: bad.append("stamps")
+d = Path(tempfile.mkdtemp()); r = digest.silences(d / "nothing.wav", d, "k")
+if r[0] != [] or not r[1] or (d / "silences.json").exists(): bad.append(f"a failed silence search cached: {r}")
+print("; ".join(bad)); sys.exit(1 if bad else 0)' 2>&1)
+    then ok "ref digest's subtitles: two-line rolling cues in SRT read once each, a line said twice kept twice, a --> among the words kept; a stamp rounded to the tenth (750.95 is 12:31); a failed search for pauses said, not cached"
+    else bad "ref digest's subtitle parsing, stamps or pauses: $a"; fi
   else bad "ref digest's chunk bounds: $(python3 -c 'import sys; sys.path.insert(0, "tools/scout"); import digest; print(digest.bounds(1500, 600, [(590.0, 592.0), (600.5, 601.0), (1195.0, 1199.0)]), digest.bounds(630, 600))' 2>&1)"; fi
   rm -rf "$t"
 }

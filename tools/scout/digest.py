@@ -9,29 +9,34 @@ usage: bin/vh ref digest <project> <id|url|file> [--subs FILE] [--from auto|subs
   digest  a reference's speech as research/digest/<id>/transcript.md, one Markdown file for a person and an agent: a
           section for each chunk of the video (at most --chunk seconds, default 600), and in it the speech as said
           lines, each with its time as a link back to that second (YouTube ?t=, Bilibili ?t=, a file #t=). A URL or a
-          file not on record yet is recorded first, as bin/vh ref add records it. Where the speech comes from, first
-          found: --subs FILE (SRT, WebVTT, Bilibili's subtitle JSON); a file's subtitles beside it (<name>.srt, .vtt,
-          <name>.<lang>.srt) or inside it (a text subtitle stream); a URL's own subtitles through yt-dlp (the uploader's
+          file not on record yet is recorded first, as bin/vh ref add records it. A Bilibili part past the first (?p=2)
+          is a transcript of its own, <id>-p2, under the one reference; its links keep the part. Where the speech comes
+          from, first found: --subs FILE (SRT, WebVTT, Bilibili's subtitle JSON); a file's subtitles beside it
+          (<name>.<lang>.srt first with --lang, then <name>.srt, .vtt) or inside it (a text subtitle stream, the one
+          tagged with --lang's language when there is one); a URL's own subtitles through yt-dlp (the uploader's
           first, then Bilibili's AI subtitles or the platform's automatic captions, but only in the language spoken: an
           automatic translation is not what was said, and a translated track the uploader made is marked as one; a
           track matches --lang exactly, else by its main language, en for en-US); then a local Whisper on the audio
           (mlx-whisper, Apple Silicon, the model bin/vh tts --align local uses: WHISPER_MODEL, default
           mlx-community/whisper-large-v3-turbo). --from subs never transcribes; --from asr transcribes even when there
-          are subtitles. The model is never downloaded unasked: when it is not in the Hugging Face cache the run stops and
-          says so, and --fetch-model lets it fetch (about 1.6 GB, once). A URL that is transcribed has its audio alone
+          are subtitles (and so does not go with --subs). The model is never downloaded unasked: when it is not in the Hugging Face cache the run stops and
+          says so, and --fetch-model lets it fetch (about 1.6 GB, once). Where ffmpeg cannot find the pauses, that run's
+          chunks end on their marks and nothing of it is cached. A URL that is transcribed has its audio alone
           downloaded (research/digest/<id>/media/); --video also downloads the video (at most --height, default 720),
           so ref look reads it instead of fetching each span.
-          Each chunk is cached in chunks/NNN.json under what made it (the subtitles' sha256, or the model, language and
-          audio's sha256): a run again redoes only the chunks that are missing, failed (chunks/NNN.err) or made from
+          Each chunk is cached in chunks/NNN.json under what made it (the subtitles' sha256, or the model, the language
+          and the speech: a file's sha256, a URL's platform and id, so a run with or without --video, which changes the
+          file that carries the sound, transcribes nothing again): a run again redoes only the chunks that are missing, failed (chunks/NNN.err) or made from
           something else, so a run cut short goes on where it stopped and a chunk that failed is the only one redone.
-          --redo N,N…|all redoes those. A Whisper chunk ends in the quietest pause within 30 s of its mark, not
+          --redo N,N…|all redoes those. A Whisper chunk ends in the longest pause within 30 s of its mark, not
           mid-word. Whisper's habit of repeating a line over silence or music is counted and said, not removed.
-          transcript.md is written again on every run from the chunks and keeps what you wrote in it. The tool's own
-          lines are its head (title, 来源, 口播来自, 注意, 许可, 怎么写), the section headings and the lines tagged 口播
-          and 看帧 (said and frames under --labels en); those are written anew. A line "- [mm:ss](link) **tag** text"
-          with another tag is yours and is sorted into its place by time, with the lines under it; any other line you
-          add goes with the line before it (after a tool line, at that line's time); lines you add to the head stay at
-          its end. Tags to use: 画面 (what is in the picture), 屏幕字 (text on the screen, as written), 动作 (what moves,
+          transcript.md is written again on every run from the chunks and keeps everything you wrote in it. The tool
+          knows its own lines exactly: plan.json keeps the head lines and an id of each 口播 and 看帧 line (said and
+          frames under --labels en) it wrote the last two times; those, and its section headings ("## 1 · 00:00–10:00"),
+          are written anew. Every other line is yours: a line "- [mm:ss](link) **tag** text" is sorted into its place by
+          time with the lines under it, even one tagged 口播 you edited or added (it stays beside the tool's own, and the
+          run says so); any other line, a heading of your own too, goes with the line before it; lines you add to the
+          head stay at its end. Tags to use: 画面 (what is in the picture), 屏幕字 (text on the screen, as written), 动作 (what moves,
           what someone does), 注 (a note); picture, on screen, action, note under --labels en.
           Also: said.json (every cue as read: start, end, text), plan.json (the source, the chunks, the looks).
   look    frames of the spans you picked from the transcript (12:30-13:10, 750-790, 1:02:03-1:02:20; several with
@@ -40,20 +45,23 @@ usage: bin/vh ref digest <project> <id|url|file> [--subs FILE] [--from auto|subs
           <a>-<b>/ (t00751.50.jpg: the second it shows) with a contact sheet labelled by source time (sheet.jpg; pillow
           through uv, else an unlabelled ffmpeg tile). The frames come from the file, from media/video.* when --video
           fetched it, else from that span alone downloaded through yt-dlp (--download-sections, cut at the exact
-          second). The transcript gets a 看帧 line at the span's start linking the sheet; what you see goes under it
-          in your own lines. Needs ref digest first: read the whole transcript, then pick what to look at.
+          second). A frame is taken no later than the video stream's last one (a longer sound, a slide video at 2 fps);
+          one that still gives no picture is left out and said. The transcript gets a 看帧 line at the span's start
+          linking the sheet; what you see goes under it in your own lines. Needs ref digest first: read the whole transcript, then pick what to look at.
 bin/vh clean leaves research/ alone: media/ and a span's clip.* in look/ can be deleted by hand once read (a run again
 fetches them); the transcript, the chunks and the frames are what the work is. A reference is studied, not shown:
 reading it does not clear its picture or its sound for the film. A quote goes into NOTES.md's 素材清单 word for word
 with its time and source, as the sound has it (subtitles can be the script); a frame or a clip on screen is material: clear it
 and register it with bin/vh assets add. Platforms that need a login (Bilibili's AI subtitles, Douyin, WeChat Channels)
 are not read through the browser's cookies: download the video or its subtitles yourself and give the file or --subs.
-OVH_YTDLP: a command line instead of the yt-dlp on PATH ("uvx yt-dlp"). OVH_DIGEST_ASR: a command line that transcribes
+yt-dlp runs with the user's own config (a proxy in it keeps working) but always with --no-cookies and
+--no-cookies-from-browser, which win over a config's cookies. OVH_YTDLP: a command line instead of the yt-dlp on PATH
+("uvx yt-dlp"). OVH_DIGEST_ASR: a command line that transcribes
 one chunk instead of mlx-whisper (another local ASR; the tests): it gets the WAV and the language and prints
 {"segments": [{"start", "end", "text"}]}. Exit: 0 · 1 a chunk failed, no speech to read, a download or a frame failed
 (what is done is kept) · 2 usage.
 """
-import html, json, os, platform, re, shlex, shutil, subprocess, sys, time, urllib.parse
+import hashlib, html, json, os, platform, re, shlex, shutil, subprocess, sys, time, urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -108,12 +116,15 @@ def secs(s):
 
 
 def stamp(t, long=False, frac=False):
-    """Seconds as mm:ss (h:mm:ss when the video is an hour or longer); frac keeps a tenth."""
+    """Seconds as mm:ss (h:mm:ss when the video is an hour or longer), the second it is in; frac: rounded to the tenth
+    (750.95 is 12:31, not 12:30.0)."""
     t = max(0.0, t)
+    if frac:
+        t = round(t * 10) / 10
     whole = int(t)
     h, m, s = whole // 3600, whole // 60 % 60, whole % 60
-    tail = f".{int(round((t - whole) * 10)) % 10}" if frac and abs(t - round(t)) > 0.04 else ""
-    return (f"{h}:{m:02d}:{s:02d}" if long or h else f"{m:02d}:{s:02d}") + tail
+    tenth = int(round((t - whole) * 10)) if frac else 0
+    return (f"{h}:{m:02d}:{s:02d}" if long or h else f"{m:02d}:{s:02d}") + (f".{tenth}" if tenth else "")
 
 
 def spans(arg):
@@ -132,10 +143,23 @@ def spans(arg):
 
 # ---- subtitles ----
 
+TIMING = re.compile(r"^\s*((?:\d+:)?\d{1,2}:\d{2}(?:[.,]\d+)?)\s*-->\s*((?:\d+:)?\d{1,2}:\d{2}(?:[.,]\d+)?)(?:\s.*)?$")
+
+
+def clean(raw):
+    """A subtitle line without its tags, styling and entities; the words as they are."""
+    line = re.sub(r"<[^>]*>", "", raw)
+    line = re.sub(r"\{\\[^}]*\}", "", line)
+    return html.unescape(line).replace("\u200b", "").strip()
+
+
 def parse_subs(text):
-    """SRT, WebVTT (YouTube's rolling automatic captions too) or Bilibili's subtitle JSON → [{start, end, text}]. Tags,
-    styling and entities are taken out; in a rolling caption, a line repeated from the cue before is kept once (elsewhere
-    a line said twice stays twice). The words are not touched."""
+    """SRT, WebVTT or Bilibili's subtitle JSON → [{start, end, text}]. A cue's time line is a time, -->, a time (a "-->"
+    among the words is words); a cue ends at an empty line (a line of spaces, as YouTube writes them, is inside it).
+    Rolling captions, where a cue's first line repeats the last line of the cue before it (YouTube's automatic captions,
+    two-line scrolling subtitles in SRT or any format), keep each line once: that first line is dropped when the cue
+    has a line after it, lasts under 0.1 s, or is in YouTube's own format. A single line said again in the next cue
+    stays twice. Tags, styling and entities are taken out; the words are not touched."""
     text = text.lstrip("\ufeff")
     if text.lstrip().startswith("{"):
         try:
@@ -144,28 +168,29 @@ def parse_subs(text):
             raise Usage("a subtitle file that starts with { is not JSON")
         return [{"start": float(c["from"]), "end": float(c["to"]), "text": str(c["content"]).strip()}
                 for c in d.get("body", []) if str(c.get("content", "")).strip()]
-    rolling = "<c>" in text or bool(re.search(r"-->.*align:start position:0%", text))   # YouTube's automatic captions
-    cues, last, cur = [], None, None
+    youtube = "<c>" in text or bool(re.search(r"-->.*align:start position:0%", text))
+    blocks, cur = [], None
     for raw in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        if "-->" in raw:
-            a, _, b = raw.partition("-->")
+        m = TIMING.match(raw)
+        if m:
             try:
-                cur = (secs(a.strip()), secs(b.strip().split()[0]))
-            except (Usage, IndexError):
+                cur = (secs(m.group(1)), secs(m.group(2)), [])
+                blocks.append(cur)
+            except Usage:
                 cur = None
             continue
-        if raw == "":   # a cue ends at an empty line; a line of spaces (YouTube's rolling captions) is inside it
+        if raw == "":
             cur = None
-            continue
-        if cur is None:   # a header, a cue's number or name, a NOTE
-            continue
-        line = re.sub(r"<[^>]*>", "", raw)
-        line = re.sub(r"\{\\[^}]*\}", "", line)
-        line = html.unescape(line).replace("\u200b", "").strip()
-        if not line or (rolling and line == last):
-            continue
-        cues.append({"start": round(cur[0], 3), "end": round(cur[1], 3), "text": line})
-        last = line
+        elif cur is not None:   # not a header, a cue's number or name, a NOTE
+            cur[2].append(raw)
+    cues, prev = [], []
+    for start, end, raws in blocks:
+        lines = [x for x in map(clean, raws) if x]
+        said = lines
+        if lines and prev and lines[0] == prev[-1] and (len(lines) > 1 or youtube or end - start < 0.1):
+            said = lines[1:]
+        cues += [{"start": round(start, 3), "end": round(end, 3), "text": x} for x in said]
+        prev = lines or prev
     return cues
 
 
@@ -216,8 +241,13 @@ def run(argv, what, timeout=None):
     return r
 
 
+NO_COOKIES = ["--no-cookies", "--no-cookies-from-browser"]
+
+
 def ytdlp():
-    return shlex.split(os.environ.get("OVH_YTDLP") or "yt-dlp")
+    """yt-dlp as the user has it (OVH_YTDLP, else PATH), with their config (a proxy keeps working) but never a cookie:
+    the two flags win over a config's --cookies-from-browser or --cookies."""
+    return shlex.split(os.environ.get("OVH_YTDLP") or "yt-dlp") + NO_COOKIES
 
 
 LOGIN = ("Platforms that need a login (Bilibili's AI subtitles, Douyin, WeChat Channels) are not read through the "
@@ -225,8 +255,8 @@ LOGIN = ("Platforms that need a login (Bilibili's AI subtitles, Douyin, WeChat C
 
 
 def probe(path):
-    """(duration, has video, has audio, [text subtitle stream index]) of a media file."""
-    r = run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=index,codec_type,codec_name", "-of", "json", str(path)],
+    """(duration, has video, has audio, [(text subtitle stream index, its language tag)]) of a media file."""
+    r = run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=index,codec_type,codec_name:stream_tags=language", "-of", "json", str(path)],
             f"ffprobe {path}")
     d = json.loads(r.stdout or "{}")
     st = d.get("streams") or []
@@ -234,7 +264,7 @@ def probe(path):
         dur = float((d.get("format") or {}).get("duration"))
     except (TypeError, ValueError):
         raise Fail(f"{path}: not a video or audio file ffprobe can read")
-    text_subs = [s["index"] for s in st if s.get("codec_type") == "subtitle"
+    text_subs = [(s["index"], ((s.get("tags") or {}).get("language") or "").lower()) for s in st if s.get("codec_type") == "subtitle"
                  and s.get("codec_name") in ("subrip", "ass", "ssa", "mov_text", "webvtt", "text")]
     return dur, any(s.get("codec_type") == "video" for s in st), any(s.get("codec_type") == "audio" for s in st), text_subs
 
@@ -284,11 +314,22 @@ def ensure_ref(project, target, a):
     return after[-1]
 
 
-def source_of(project, rec):
-    """{kind: file|url, file, url, platform, id, title} for a record."""
+def page_of(url):
+    """A Bilibili video's part (?p=N), 1 when it names none."""
+    try:
+        return max(1, int((urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).get("p") or ["1"])[0]))
+    except ValueError:
+        return 1
+
+
+def source_of(project, rec, page=1):
+    """{kind: file|url, file, url, platform, id, page, title} for a record; a Bilibili part past the first has its URL."""
     src = rec.get("source") or {}
     if src.get("url"):
-        return {"kind": "url", "url": src["url"], "platform": src.get("provider"), "id": src.get("provider_id"),
+        url = src["url"]
+        if src.get("provider") == "bilibili" and src.get("provider_id") and page > 1:
+            url = f"https://www.bilibili.com/video/{src['provider_id']}?p={page}"
+        return {"kind": "url", "url": url, "platform": src.get("provider"), "id": src.get("provider_id"), "page": page,
                 "title": src.get("title"), "ref": rec["id"]}
     p = Path(rec["path"])
     f = p if p.is_absolute() else Path(project) / p
@@ -303,7 +344,8 @@ def link(src, t, folder):
         if plat == "youtube" and src.get("id"):
             return f"https://www.youtube.com/watch?v={src['id']}&t={s}s"
         if plat == "bilibili" and src.get("id"):
-            return f"https://www.bilibili.com/video/{src['id']}?t={s}"
+            p = src.get("page") or 1
+            return f"https://www.bilibili.com/video/{src['id']}?{f'p={p}&' if p > 1 else ''}t={s}"
         return u
     rel = os.path.relpath(src["file"], folder)
     return urllib.parse.quote(Path(rel).as_posix()) + f"#t={s}"
@@ -314,9 +356,9 @@ def link(src, t, folder):
 def info_of(src, folder):
     """yt-dlp's -J for a URL, the parts digest reads, cached in info.json."""
     f = folder / "info.json"
-    if f.is_file():
-        return json.loads(f.read_text(encoding="utf-8"))
-    r = run(ytdlp() + ["-J", "--no-playlist", "--no-warnings", src["url"]], f"yt-dlp on {src['url']}", timeout=300)
+    if read_json(f) is not None:
+        return read_json(f)
+    r = run(ytdlp() + ["-J", "--no-playlist", "--no-warnings", "--", src["url"]], f"yt-dlp on {src['url']}", timeout=300)
     try:
         d = json.loads(r.stdout)
     except ValueError:
@@ -324,7 +366,7 @@ def info_of(src, folder):
     keep = {"title": d.get("title"), "duration": d.get("duration"), "language": d.get("language"), "uploader": d.get("uploader"),
             "subtitles": {k: [x.get("ext") for x in v] for k, v in (d.get("subtitles") or {}).items()},
             "automatic_captions": sorted((d.get("automatic_captions") or {}).keys())}
-    f.write_text(json.dumps(keep, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_json(f, keep)
     return keep
 
 
@@ -397,7 +439,7 @@ def fetch_track(src, folder, kind, key):
         old.unlink()
     flag = "--write-auto-subs" if kind == "automatic" else "--write-subs"
     run(ytdlp() + ["--skip-download", "--no-playlist", "--no-warnings", flag, "--sub-langs", key, "--sub-format", "vtt/srt/best",
-                   "-o", str(d / "track.%(ext)s"), src["url"]], f"yt-dlp subtitles {key} of {src['url']}", timeout=300)
+                   "-o", str(d / "track.%(ext)s"), "--", src["url"]], f"yt-dlp subtitles {key} of {src['url']}", timeout=300)
     got = [p for p in d.glob(f"track.{glob_escape(key)}.*") if p.suffix.lower() in (".vtt", ".srt", ".json")] or \
           [p for p in d.glob("track.*") if p.suffix.lower() in (".vtt", ".srt", ".json")]
     if not got:
@@ -406,12 +448,33 @@ def fetch_track(src, folder, kind, key):
 
 
 def sidecar_subs(f, lang):
-    """Subtitles beside a file: <name>.srt / .vtt, <name>.<lang>.srt …"""
+    """Subtitles beside a file: with --lang, <name>.<lang>.srt (or .vtt; zh-Hans counts for zh) first; then <name>.srt,
+    <name>.vtt, then any <name>.<tag>.srt."""
     f = Path(f)
-    cands = [f.with_suffix(e) for e in (".srt", ".vtt")]
-    for e in ("srt", "vtt"):
-        cands += sorted(f.parent.glob(f"{glob_escape(f.stem)}.*.{e}"), key=lambda p: (lang and f".{lang}" not in p.name, p.name))
-    return next((p for p in cands if p.is_file()), None)
+    tagged = sorted(p for e in ("srt", "vtt") for p in f.parent.glob(f"{glob_escape(f.stem)}.*.{e}") if p.is_file())
+    tag = lambda p: p.name[len(f.stem) + 1:].rsplit(".", 1)[0]
+    if lang:
+        hit = [p for p in tagged if tag(p).lower() == lang.lower()] + [p for p in tagged if base(tag(p)) == base(lang)]
+        if hit:
+            return hit[0]
+    return next((p for p in [f.with_suffix(".srt"), f.with_suffix(".vtt")] + tagged if p.is_file()), None)
+
+
+LANG3 = {"zh": ("zh", "chi", "zho"), "en": ("en", "eng"), "ja": ("ja", "jpn"), "ko": ("ko", "kor"), "fr": ("fr", "fre", "fra"),
+         "de": ("de", "ger", "deu"), "es": ("es", "spa"), "ru": ("ru", "rus"), "pt": ("pt", "por"), "it": ("it", "ita")}
+
+
+def pick_stream(text_subs, lang):
+    """(index, note) of the subtitle stream inside a file to read: with --lang, the one its language tag names (eng for
+    en); else the first."""
+    if lang:
+        names = LANG3.get(base(lang), (base(lang),))
+        hit = next((i for i, tag in text_subs if base(tag) in names or tag in names), None)
+        if hit is not None:
+            return hit, None
+        return text_subs[0][0], {"en": f"no subtitle track inside the file is tagged {lang}: the first one read ({text_subs[0][1] or 'untagged'})",
+                                 "zh": f"文件里没有标着 {lang} 的字幕轨：读的是第一条（{text_subs[0][1] or '没标语言'}）"}
+    return text_subs[0][0], None
 
 
 def glob_escape(s):
@@ -441,9 +504,8 @@ def fetch_media(src, folder, video, height):
     if done:
         return done[0]
     fmt = f"bv*[height<={height}]+ba/b[height<={height}]/b" if video else "ba/b"
-    argv = ytdlp() + ["-f", fmt, "--no-playlist", "--no-warnings", "--continue", "-o", str(d / f"{stem}.%(ext)s"), src["url"]]
-    if video:
-        argv[-1:-1] = ["--merge-output-format", "mp4"]
+    argv = ytdlp() + ["-f", fmt, "--no-playlist", "--no-warnings", "--continue", "-o", str(d / f"{stem}.%(ext)s")]
+    argv += (["--merge-output-format", "mp4"] if video else []) + ["--", src["url"]]
     say(f"  downloading the {stem} of {src['url']} (yt-dlp) …")
     run(argv, f"yt-dlp {stem} of {src['url']}", timeout=6 * 3600)
     done = finished(d, stem)
@@ -503,14 +565,23 @@ def asr_chunk(wav, lang, fetch_model, timeout):
 
 
 def silences(media, folder, key):
-    """The pauses of a media file's sound, [(start, end)], cached in plan.json's way (silences.json under its key)."""
+    """(the pauses of a media file's sound [(start, end)], None) cached in silences.json under key, or ([], why) when
+    ffmpeg could not tell them: nothing is cached then, the chunks end on their marks this time, and a run again tries
+    once more."""
     f = folder / "silences.json"
-    if f.is_file():
-        d = json.loads(f.read_text(encoding="utf-8"))
-        if d.get("key") == key:
-            return [tuple(x) for x in d["silences"]]
-    r = subprocess.run(["ffmpeg", "-v", "info", "-nostats", "-i", str(media), "-vn", "-af", "silencedetect=noise=-35dB:d=0.3", "-f", "null", "-"],
-                       capture_output=True, text=True)
+    d = read_json(f)
+    if d and d.get("key") == key:
+        return [tuple(x) for x in d["silences"]], None
+    try:
+        r = subprocess.run(["ffmpeg", "-v", "info", "-nostats", "-i", str(media), "-vn", "-af", "silencedetect=noise=-35dB:d=0.3",
+                            "-f", "null", "-"], capture_output=True, text=True, timeout=3600, errors="replace")
+    except FileNotFoundError:
+        return [], "no ffmpeg on PATH"
+    except subprocess.TimeoutExpired:
+        return [], "ffmpeg took over an hour to find the pauses"
+    if r.returncode != 0:
+        last = next((x for x in reversed(r.stderr.strip().splitlines()) if x.strip()), f"exit {r.returncode}")
+        return [], f"ffmpeg could not read the sound: {last.strip()[:200]}"
     res, start = [], None
     for line in r.stderr.splitlines():
         m = re.search(r"silence_start: (-?[\d.]+)", line)
@@ -520,8 +591,8 @@ def silences(media, folder, key):
         if m and start is not None:
             res.append((start, float(m.group(1))))
             start = None
-    f.write_text(json.dumps({"key": key, "silences": res}) + "\n", encoding="utf-8")
-    return res
+    write_json(f, {"key": key, "silences": res})
+    return res, None
 
 
 def bounds(duration, chunk, pauses=None):
@@ -544,34 +615,43 @@ def bounds(duration, chunk, pauses=None):
 
 HEAD_TOOL = ("# ", "<!--", "- 来源：", "- 口播来自：", "- 注意：", "- 许可：", "- 怎么写：",
              "- Source: ", "- Speech from: ", "- Mind: ", "- Licence: ", "- How to add: ")
-SECTION = re.compile(r"^## \d+ · ((?:\d+:)?\d+:\d{2})")
+TOOL_SECTION = re.compile(r"## \d+ · ((?:\d+:)?\d+:\d{2})–(?:\d+:)?\d+:\d{2}")
 
 
-def kept_entries(path):
-    """What you wrote in transcript.md: ([(time, [lines])], [head lines]). In the sections, an entry "- [mm:ss](link)
-    **tag** …" whose tag is not the tool's starts one at its time; any other line that is not the tool's (a section
-    heading, a said or frames line, a blank line) goes with the entry before it, or after the tool line before it at
-    that line's time, so nothing written there is lost. Above the first section, the lines the tool does not write."""
+def line_id(line):
+    return hashlib.sha1(line.encode("utf-8")).hexdigest()[:12]
+
+
+def kept_entries(path, prev):
+    """What you wrote in transcript.md: ([(time, [lines])], [head lines], tool-tagged lines the tool did not write).
+    prev: the tool's own lines the last two times it wrote the file ({"head": [lines], "written": [ids]}, plan.json),
+    or None for a transcript with no such record (then the head's tool lines go by their prefix). The body starts at
+    the first section heading the tool writes ("## 1 · 00:00–10:00"). There, a line "- [mm:ss](link) **tag** …" starts
+    an entry at its time when the tool did not write it, whatever its tag (one you edited or added with 口播 is kept
+    too, and counted); any other line that is not the tool's goes with the entry before it, or after the tool line
+    before it at that line's time. A blank line is spacing. Above the body, every line the tool did not write is kept."""
     if not path.is_file():
-        return [], []
-    res, head, cur, anchor, body = [], [], None, 0.0, False
+        return [], [], 0
+    head_tool = set(prev["head"]) if prev and prev.get("head") is not None else None
+    written = set(prev["written"]) if prev and prev.get("written") is not None else None
+    res, head, cur, anchor, body, hand = [], [], None, 0.0, False, 0
     for line in path.read_text(encoding="utf-8").splitlines():
-        sec = SECTION.match(line)
-        if sec or line.startswith("## "):
-            body, cur = True, None
-            anchor = secs(sec.group(1)) if sec else anchor
+        sec = TOOL_SECTION.fullmatch(line)
+        if sec:
+            body, cur, anchor = True, None, secs(sec.group(1))
             continue
         if not body:
-            if line.strip() and not line.startswith(HEAD_TOOL):
+            if line.strip() and (line not in head_tool if head_tool is not None else not line.startswith(HEAD_TOOL)):
                 head.append(line)
             continue
         if not line.strip():
             continue
         m = ENTRY.match(line)
-        if m and m.group(2).strip() in TOOL_TAGS:
+        if m and m.group(2).strip() in TOOL_TAGS and (written is None or line_id(line) in written):
             anchor, cur = secs(m.group(1)), None
             continue
         if m:
+            hand += m.group(2).strip() in TOOL_TAGS
             cur = (secs(m.group(1)), [line])
             res.append(cur)
             continue
@@ -579,14 +659,17 @@ def kept_entries(path):
             cur = (anchor, [])
             res.append(cur)
         cur[1].append(line)
-    return res, head
+    return res, head, hand
 
 
-def write_transcript(folder, plan, chunks, labels):
+def write_transcript(folder, plan, chunks, labels, prev):
+    """transcript.md from the chunks, the looks and what you wrote (kept_entries, prev from the plan before this run).
+    → (path, entries of yours kept, tool-tagged lines kept as yours, {"head", "written", "written_before"}: what to keep
+    in plan.json so the next run tells the tool's lines from yours)."""
     L = LABELS[labels]
     src, long = plan["source"], plan["duration"] >= 3600
     path = folder / "transcript.md"
-    yours, head_yours = kept_entries(path)
+    yours, head_yours, hand = kept_entries(path, prev)
     rows = []   # (time, order, [lines])
     for i, (a, b) in enumerate(plan["chunks"]):
         c = chunks.get(i)
@@ -630,6 +713,7 @@ def write_transcript(folder, plan, chunks, labels):
                  "material: `bin/vh assets add` first.",
                  f"- {L['how']}: read the whole transcript, pick spans with `bin/vh ref look <project> {plan['ref']} 12:30-13:10`; after "
                  "the frames, add `- [mm:ss](link) **picture** …` under that time (tags: picture, on screen, action, note)."]
+    tool_head = [x for x in head if x.strip()]
     if head_yours:
         head += [""] + head_yours
     body = []
@@ -639,41 +723,71 @@ def write_transcript(folder, plan, chunks, labels):
         for t, _, lines in rows:
             if a <= t < b or (last and t >= b) or (i == 0 and t < a):
                 body += lines
-    tmp = path.with_suffix(".md.tmp")
-    tmp.write_text("\n".join(head + body) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
-    return path, len(yours) + bool(head_yours)
+    write_text(path, "\n".join(head + body) + "\n")
+    written = [line_id(x) for _, order, lines in rows if order < 2 for x in lines]
+    return path, len(yours) + bool(head_yours), hand, {"head": tool_head, "head_before": (prev or {}).get("last_head") or [],
+                                                       "written": written, "written_before": (prev or {}).get("last_written") or []}
+
+
+def prev_of(plan):
+    """What the last two runs wrote as the tool (kept_entries' prev), or None for a plan with no record of it."""
+    if not plan or plan.get("written") is None:
+        return None
+    return {"head": list(plan.get("head") or []) + list(plan.get("head_before") or []),
+            "written": list(plan.get("written") or []) + list(plan.get("written_before") or []),
+            "last_head": plan.get("head") or [], "last_written": plan.get("written") or []}
 
 
 # ---- digest ----
 
-def write_json(f, d):
-    tmp = f.with_suffix(f.suffix + ".tmp")
-    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+def write_text(f, text):
+    """A file written whole or not at all (a run cut short leaves the old one)."""
+    tmp = f.with_name(f".{f.name}.tmp")
+    tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, f)
 
 
+def write_json(f, d):
+    write_text(f, json.dumps(d, ensure_ascii=False, indent=1) + "\n")
+
+
+def read_json(f):
+    """A JSON file of ours, or None when it is not there or not whole (written by a version before writes were atomic)."""
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
 def load_plan(folder):
-    f = folder / "plan.json"
-    return json.loads(f.read_text(encoding="utf-8")) if f.is_file() else None
+    return read_json(folder / "plan.json")
 
 
 def cmd_digest(a, project):
     if a.chunk < 60:
         raise Usage("--chunk is at least 60 seconds")
-    rec = ensure_ref(project, a.target.strip(), a)
+    if a.subs and a.from_ == "asr":
+        raise Usage("--subs and --from asr ask for opposite things: --from asr transcribes even when there are subtitles; give one")
+    target = a.target.strip()
+    page, earlier = 1, load_plan(Path(project) / FOLDER / target) if re.fullmatch(r"[\w.-]+", target) else None
+    if earlier and earlier.get("ref"):   # a transcript's own id (bili-BV…-p2): its reference and part
+        target, page = earlier["ref"], (earlier.get("source") or {}).get("page") or 1
+    elif target.startswith(("http://", "https://")) and re.search(r"bilibili\.com/video/", target):
+        page = page_of(target)
+    rec = ensure_ref(project, target, a)
     if rec.get("kind") not in ("video", None) and (rec.get("ref") or {}).get("type") != "video":
         raise Usage(f"{rec['id']} is a {(rec.get('ref') or {}).get('type') or rec.get('kind')}, not a video")
-    src = source_of(project, rec)
+    src = source_of(project, rec, page)
     if src["kind"] == "url" and "…" in src["url"]:
         raise Fail(f"{rec['id']}: the URL on record is shortened ({src['url']}: ref add keeps a page's query out of the record); "
                    "download the video and give the file")
-    folder = Path(project) / FOLDER / rec["id"]
+    did = rec["id"] + (f"-p{page}" if page > 1 else "")   # one transcript a part; one reference a video
+    folder = Path(project) / FOLDER / did
     (folder / "chunks").mkdir(parents=True, exist_ok=True)
     old = load_plan(folder) or {}
     labels = a.labels or old.get("labels") or "zh"
     warnings = []
-    say(f"{rec['id']} · {src.get('title') or src.get('url') or src.get('file')}")
+    say(f"{did} · {src.get('title') or src.get('url') or src.get('file')}" + (f" · part {page}" if page > 1 else ""))
 
     # where the speech comes from
     subs, speech_note, media, duration = None, None, None, None
@@ -694,8 +808,12 @@ def cmd_digest(a, project):
                 subs = side
                 speech_note = f"the subtitles beside the file ({side.name})" if labels == "en" else f"文件旁边的字幕（{side.name}）"
             elif text_subs:
-                subs = embedded_subs(src["file"], folder, text_subs[0])
-                speech_note = "the file's own subtitle track" if labels == "en" else "文件自带的字幕轨"
+                idx, note = pick_stream(text_subs, a.lang)
+                subs = embedded_subs(src["file"], folder, idx)
+                tag = dict(text_subs)[idx]
+                speech_note = (f"the file's own subtitle track ({tag or 'untagged'})" if labels == "en" else f"文件自带的字幕轨（{tag or '没标语言'}）")
+                if note:
+                    warnings.append(note[labels])
         else:
             try:
                 info = info_of(src, folder)
@@ -730,17 +848,26 @@ def cmd_digest(a, project):
         if why:
             raise Fail(f"no subtitles, and no transcription here: {why}")
         if src["kind"] == "url":
+            # the sound is the source's, whichever file carries it: the audio when there is one (a run with --video
+            # keeps transcribing it), else the video; the cache key names the source, not the container
+            have = finished(folder / "media", "audio") or finished(folder / "media", "video")
             try:
-                media = fetch_media(src, folder, a.video, a.height)
+                media = have[0] if have else fetch_media(src, folder, a.video, a.height)
             except Fail as e:
                 raise Fail(f"{e}. {LOGIN}")
             duration = probe(media)[0]
+            speech = "url:" + (f"{src['platform']}:{src['id']}" if src.get("id") else src["url"]) + (f":p{page}" if page > 1 else "")
         elif not has_a:
             raise Fail(f"{src['file']} has no sound to transcribe")
+        else:
+            speech = sha(media)
         model = "cmd:" + os.environ["OVH_DIGEST_ASR"] if os.environ.get("OVH_DIGEST_ASR") else os.environ.get("WHISPER_MODEL", DEFAULT_MODEL)
-        msha = sha(media)
-        key = f"asr:{model}:{a.lang or 'auto'}:{msha}"
-        plan_chunks = bounds(duration, a.chunk, silences(media, folder, msha))
+        key = f"asr:{model}:{a.lang or 'auto'}:{speech}"
+        pauses, why = silences(media, folder, speech)
+        if why:
+            warnings.append((f"the pauses were not found ({why}): this run's chunks end on their marks, maybe mid-word" if labels == "en"
+                             else f"没找到停顿（{why}）：这一次的段界落在整点上，可能切在词中间"))
+        plan_chunks = bounds(duration, a.chunk, pauses)
         speech_note = (f"a local transcription ({model.rsplit('/', 1)[-1]}; check a quote against the sound)" if labels == "en"
                        else f"本机转写（{model.rsplit('/', 1)[-1]}；引用前听原片核对）")
     if src["kind"] == "url" and a.video:
@@ -755,7 +882,7 @@ def cmd_digest(a, project):
     for i, (s, e) in enumerate(plan_chunks):
         f, ferr = folder / "chunks" / f"{i + 1:03d}.json", folder / "chunks" / f"{i + 1:03d}.err"
         if i not in redo and f.is_file():
-            c = json.loads(f.read_text(encoding="utf-8"))
+            c = read_json(f) or {}
             if c.get("from") == key and c.get("start") == s and c.get("end") == e:
                 chunks[i] = c
                 ferr.unlink(missing_ok=True)
@@ -780,7 +907,7 @@ def cmd_digest(a, project):
             chunks[i] = c
             made += 1
         except Fail as x:
-            ferr.write_text(str(x) + "\n", encoding="utf-8")
+            write_text(ferr, str(x) + "\n")
             f.unlink(missing_ok=True)
             chunks[i] = {"error": str(x)}
             failed.append(i + 1)
@@ -794,14 +921,15 @@ def cmd_digest(a, project):
                         + ", ".join(f"{i}: {n}" for i, n in rep)
                         + (" — Whisper does this over silence or music: listen before quoting" if labels == "en" else "，Whisper 在静音或音乐上常这样，引用前听原片"))
 
-    plan = {"v": 1, "ref": rec["id"], "source": src, "duration": round(duration, 3), "chunk": a.chunk, "chunks": plan_chunks,
+    plan = {"v": 1, "ref": rec["id"], "id": did, "source": src, "duration": round(duration, 3), "chunk": a.chunk, "chunks": plan_chunks,
             "from": key, "speech_note": speech_note, "lang": a.lang, "labels": labels, "warnings": warnings,
             "media": ledger.rel(project, media) if media is not None and src["kind"] == "url" else None, "height": a.height,
             "looks": [lk for lk in old.get("looks", []) if lk["b"] <= duration + 1], "at": ledger.iso()}
-    write_json(folder / "plan.json", plan)
     allc = [x for i in sorted(chunks) for x in chunks[i].get("lines", [])]
     write_json(folder / "said.json", {"v": 1, "ref": rec["id"], "from": key, "cues": allc})
-    path, kept = write_transcript(folder, plan, chunks, labels)
+    path, kept, hand, wrote = write_transcript(folder, plan, chunks, labels, prev_of(old))
+    plan.update(wrote)
+    write_json(folder / "plan.json", plan)
     n_said = sum(len(paragraphs(c.get("lines", []))) for c in chunks.values())
     say(f"✓ {ledger.rel(project, path)} · {len(plan_chunks)} chunk{'s' if len(plan_chunks) != 1 else ''} "
         f"({made} made, {len(plan_chunks) - made - len(failed)} from the cache{f', {len(failed)} failed' if failed else ''}) · "
@@ -809,10 +937,13 @@ def cmd_digest(a, project):
     say(f"  speech: {speech_note}")
     for w in warnings:
         say(f"  ! {w}")
+    if hand:
+        say(f"  ! {hand} line{'s' if hand != 1 else ''} tagged {LABELS[labels]['said']} or {LABELS[labels]['frames']} the tool did not write "
+            "(edited or added by hand): kept as written, beside the tool's own; a note reads clearer tagged 注")
     if failed:
         say(f"  chunks {', '.join(map(str, failed))} failed (chunks/NNN.err): run the same command again, only those are redone")
     else:
-        say(f"  next: read it all, then bin/vh ref look {Path(project).name} {rec['id']} <a-b>[,<a-b>…] where the picture matters")
+        say(f"  next: read it all, then bin/vh ref look {Path(project).name} {did} <a-b>[,<a-b>…] where the picture matters")
     if a.json:
         print(json.dumps({"version": 1, "project": str(project), "transcript": str(path), "plan": plan, "failed": failed, "made": made},
                          ensure_ascii=False, indent=1))
@@ -831,13 +962,31 @@ def section(src, folder, a_, b_, dest):
         old.unlink()
     h = (load_plan(folder) or {}).get("height") or 720
     run(ytdlp() + ["-f", f"bv*[height<={h}]/b[height<={h}]/b", "--no-playlist", "--no-warnings", "--download-sections", f"*{a_:.3f}-{b_:.3f}",
-                   "--force-keyframes-at-cuts", "-o", str(dest / "clip.%(ext)s"), src["url"]],
+                   "--force-keyframes-at-cuts", "-o", str(dest / "clip.%(ext)s"), "--", src["url"]],
         f"yt-dlp {stamp(a_)}–{stamp(b_)} of {src['url']}", timeout=1800)
     got = finished(dest, "clip")
     if not got:
         raise Fail(f"yt-dlp wrote no clip for {stamp(a_)}–{stamp(b_)}")
-    mark.write_text(span + "\n")
+    write_text(mark, span + "\n")
     return got[0]
+
+
+def last_frame(video):
+    """When the video stream's last frame starts, in the file's own seconds (its latest packet time), or None. The
+    container can run longer (a longer sound), and at a low frame rate (slides, a screen recording) the last frame
+    starts well before the end: a seek past it gives no picture."""
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration:format=duration",
+                            "-of", "json", str(video)], capture_output=True, text=True, timeout=60)
+        d = json.loads(r.stdout or "{}")
+        st = (d.get("streams") or [{}])[0]
+        dur = float(st.get("duration") or (d.get("format") or {}).get("duration") or 0)
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-read_intervals", f"{max(0.0, dur - 30):.3f}%",
+                            "-show_entries", "packet=pts_time", "-of", "csv=p=0", str(video)], capture_output=True, text=True, timeout=120)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    times = [float(x) for x in re.findall(r"^\s*(-?[\d.]+)", r.stdout, re.M)]
+    return max(times) if times else None
 
 
 def sheet(dest, cols, names):
@@ -889,21 +1038,40 @@ def cmd_look(a, project):
             src_video, base = video, 0.0
             if src_video is None:
                 src_video, base = section(src, folder, a_, b_, dest), a_
+            lf = last_frame(src_video)
             last = max(a_, min(b_, plan["duration"]) - 0.05)   # a seek past the last frame gives none
-            times = sorted({round(min(a_ + (k + 0.5) * every, last), 2) for k in range(n)})
-            names, caps = [], {}
+            if lf is not None:
+                lf = int((lf + base) * 100) / 100   # in source seconds, down to the hundredth: a seek to it lands on it
+                if a_ > lf + 2:
+                    raise Fail(f"no picture in this span: the video's last frame is at {stamp(lf, frac=True)}")
+                last = min(last, lf)
+            if last < a_:   # the span is after the last frame, which is what the screen holds then: that frame, at its time
+                times = [last]
+            else:
+                times = sorted({round(min(a_ + (k + 0.5) * every, last), 2) for k in range(n)})
+            names, caps, missed = [], {}, []
             for t in times:
                 nm = f"t{t:08.2f}.jpg"
-                run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, t - base):.3f}", "-i", str(src_video), "-frames:v", "1",
-                     "-vf", "scale='min(1280,iw)':-2", "-q:v", "3", str(dest / nm)], f"ffmpeg frame at {stamp(t, frac=True)}")
+                try:
+                    run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, t - base):.3f}", "-i", str(src_video), "-frames:v", "1",
+                         "-vf", "scale='min(1280,iw)':-2", "-q:v", "3", str(dest / nm)], f"ffmpeg frame at {stamp(t, frac=True)}")
+                except Fail:
+                    pass
                 if not (dest / nm).is_file():
-                    raise Fail(f"no frame at {stamp(t, frac=True)}")
+                    missed.append(stamp(t, frac=True))
+                    continue
                 names.append(nm)
                 caps[nm] = stamp(t, plan["duration"] >= 3600, frac=True)
-            (dest / "captions.json").write_text(json.dumps(caps, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+            if not names:
+                raise Fail(f"no frame in this span (tried {', '.join(missed[:4])}{' …' if len(missed) > 4 else ''})")
+            if missed:
+                say(f"  ! no frame at {', '.join(missed)}: left out")
+            write_json(dest / "captions.json", caps)
             sh, labelled = sheet(dest, a.cols, names)
         except Fail as e:
             failed.append(name)
+            if not any(dest.iterdir()):
+                dest.rmdir()
             say(f"✗ {stamp(a_)}–{stamp(b_)}: {e}")
             if src["kind"] == "url" and video is None:
                 say(f"  {LOGIN}")
@@ -912,15 +1080,16 @@ def cmd_look(a, project):
               "labelled": labelled, "from": "file" if src["kind"] == "file" else ("media" if video is not None else "section"), "at": ledger.iso()}
         plan["looks"] = [x for x in plan.get("looks", []) if x.get("dir") != lk["dir"]] + [lk]
         done.append(lk)
-        say(f"✓ {stamp(a_)}–{stamp(b_)} · {len(names)} frames every {every:g} s · {ledger.rel(project, sh)}"
+        say(f"✓ {stamp(a_)}–{stamp(b_)} · {len(names)} frame{'s' if len(names) != 1 else ''} every {every:g} s · {ledger.rel(project, sh)}"
             + ("" if labelled else " (no time labels: no uv for pillow; the frame names are the seconds)"))
     plan["looks"].sort(key=lambda x: x["a"])
-    write_json(folder / "plan.json", plan)
     chunks = {}
     for i in range(len(plan["chunks"])):
         f, ferr = folder / "chunks" / f"{i + 1:03d}.json", folder / "chunks" / f"{i + 1:03d}.err"
-        chunks[i] = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {"error": ferr.read_text(encoding="utf-8").strip() if ferr.is_file() else ""}
-    path, _ = write_transcript(folder, plan, chunks, plan.get("labels") or "zh")
+        chunks[i] = read_json(f) or {"error": ferr.read_text(encoding="utf-8").strip() if ferr.is_file() else ""}
+    path, _, _, wrote = write_transcript(folder, plan, chunks, plan.get("labels") or "zh", prev_of(plan))
+    plan.update(wrote)
+    write_json(folder / "plan.json", plan)
     if done:
         say(f"  {ledger.rel(project, path)}: a {LABELS[plan.get('labels') or 'zh']['frames']} line at each span; read the sheet (and a frame "
             "at full size), then write what you see under it: 画面 / 屏幕字 / 动作 / 注")
