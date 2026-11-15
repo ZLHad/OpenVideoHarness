@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "tool": "bin/vh check",
+ "video": "out/draft.mp4",
+ "project": "demo",
+ "t": 1794700000.0,
+ "at": "2026-11-15T10:00:00+0800",
+ "verdict": "warn",
+ "exit": 0,
+ "counts": {
+  "warn": 2
+ },
+ "findings": [
+  {
+   "kind": "textcheck",
+   "severity": "warn",
+   "message": "S06 的字幕压在曲线的波峰上",
+   "t": 28.5,
+   "t1": 31.0
+  },
+  {
+   "kind": "loudness",
+   "severity": "warn",
+   "message": "结尾的峰值离 -1 dBTP 只差 0.2 dB",
+   "t": 31.0,
+   "t1": null
+  }
+ ]
+}

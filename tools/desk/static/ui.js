@@ -1,24 +1,27 @@
 "use strict";
 /* OpenVideoHarness review UI: the one script of a gate view, shared by the static review page (bin/vh review inlines this
-   file, so it runs from disk with no server) and the console (bin/vh desk serves it, and console.js mounts each gate view
+   file, so it runs from disk with no server) and the console (bin/vh desk serves it, and studio.js mounts each gate view
    with hooks that send the picks through the desk's submission channel). It reads only the page's own markup (tools/review.py
    writes it) and keeps no state of its own beyond the light/dark choice. No framework, no network. */
 (function () {
   const $ = (s, el) => (el || document).querySelector(s), $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const clock = (x) => { if (x == null || isNaN(x)) return "–"; x = Math.max(0, x); const m = Math.floor(x / 60), s = x - m * 60; return `${m}:${s.toFixed(1).padStart(4, "0")}`; };
-  try {   // the light/dark choice, before the page paints (the static page's head script has done it already, with ?theme=)
-    const th = localStorage.getItem("ovh-theme") || localStorage.getItem("desk:theme") || localStorage.getItem("ovh-review-theme");
-    if ((th === "dark" || th === "light") && !document.documentElement.hasAttribute("data-theme")) document.documentElement.setAttribute("data-theme", th);
-  } catch (e) { /* no storage: the default */ }
-  const typing = (el) => el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && el.type !== "radio" || el.isContentEditable);
-
-  /* ---------- light / dark: one key for the static pages and the console ---------- */
-  function theme() {
-    const r = document.documentElement, cur = r.getAttribute("data-theme") || "dark", n = cur === "dark" ? "light" : "dark";
-    r.setAttribute("data-theme", n);
-    try { localStorage.setItem("ovh-theme", n); } catch (e) { /* a private window: not kept */ }
-    return n;
+  /* ---------- the theme: three, one default (docs/proposals/02-studio-client.md, 5); changing the default is this one value ---------- */
+  const THEMES = ["darkfield", "prism", "bridge"], DEFAULT_THEME = "darkfield";
+  function theme(t) {
+    t = THEMES.includes(t) ? t : DEFAULT_THEME;
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem("ovh-theme", t); } catch (e) { /* a private window: not kept */ }
+    document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
+    document.querySelectorAll("select[data-theme-select]").forEach((s) => { s.value = t; });
+    return t;
   }
+  {   // before the page paints (the static page's head script has done it already, from ?theme= too)
+    let t = document.documentElement.getAttribute("data-theme");
+    if (!THEMES.includes(t)) { try { t = localStorage.getItem("ovh-theme"); } catch (e) { t = null; } }
+    document.documentElement.setAttribute("data-theme", THEMES.includes(t) ? t : DEFAULT_THEME);
+  }
+  const typing = (el) => el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && el.type !== "radio" || el.isContentEditable);
 
   /* ---------- the player: a video on its mat, the ruler as its progress bar ---------- */
   function Player(el) {
@@ -192,13 +195,17 @@
       }
     };
     document.addEventListener("keydown", keys);
-    const ctl = { root, players, main, choices, reply, destroy() { document.removeEventListener("keydown", keys); players.forEach((p) => p.video.pause()); if (keyOwner === ctl) keyOwner = null; } };
+    const own = () => { keyOwner = ctl; };   // the view last touched answers the keys (the console mounts two: a module's page and its right column)
+    root.addEventListener("focusin", own); root.addEventListener("pointerdown", own);
+    const ctl = { root, players, main, choices, reply, own, destroy() { document.removeEventListener("keydown", keys); players.forEach((p) => p.video.pause()); if (keyOwner === ctl) keyOwner = null; } };
     keyOwner = ctl;
     return ctl;
   }
 
-  window.OVH = { mount, Player, theme, clock };
-  document.addEventListener("click", (e) => { if (e.target.closest("#theme,[data-theme-toggle]")) theme(); });
+  window.OVH = { mount, Player, theme, clock, THEMES, DEFAULT_THEME };
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-theme-set]"); if (b) theme(b.dataset.themeSet); });
+  document.addEventListener("change", (e) => { if (e.target.matches("select[data-theme-select]")) theme(e.target.value); });
+  document.addEventListener("DOMContentLoaded", () => theme(document.documentElement.getAttribute("data-theme")));
   const auto = document.querySelector(".gate[data-static]");
   if (auto) mount(auto);
 })();

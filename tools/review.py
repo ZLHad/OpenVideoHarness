@@ -61,7 +61,7 @@ T = {
                gone="文件不在了：{p}", gone_n="这一页发出以后，有 {n} 处对不上了（文件移走或改了名）",
                others="其他审阅页", src="由 bin/vh review 从 {src} 生成", warn="这一页有 {n} 处没按规矩写，修好以前不会发给人：",
                spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", unlimited="不限", over="超了：{cur}",
-               theme="深色 / 浅色", play="播放 / 暂停（空格）", mute="静音", full="全屏", keys="空格播放 · ← → 跳镜头 · 1 2 3 选选项",
+               theme="主题", themes=("暗场", "棱镜", "舰桥"), play="播放 / 暂停（空格）", mute="静音", full="全屏", keys="空格播放 · ← → 跳镜头 · 1 2 3 选选项",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
@@ -83,7 +83,7 @@ T = {
                others="Other review pages", src="Built by bin/vh review from {src}",
                warn="This page breaks {n} rule(s), and goes to nobody until they are fixed:",
                spend="Spent {spent} of {budget}", no_budget="no budget", unlimited="no cap", over="over: {cur}",
-               theme="Dark / light", play="Play / pause (space)", mute="Mute", full="Full screen",
+               theme="Theme", themes=("Darkfield", "Prism", "Bridge"), play="Play / pause (space)", mute="Mute", full="Full screen",
                keys="Space plays · ← → jump shots · 1 2 3 pick an option",
                page="Page", chat_head="{title} · {n} thing(s) for you to decide",
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
@@ -145,15 +145,14 @@ def static_file(name):
         return ""
 
 
-HEAD_JS = """(function(){var r=document.documentElement,t=null;try{t=new URLSearchParams(location.search).get('theme')}catch(e){}
-if(t!=='dark'&&t!=='light'){try{t=localStorage.getItem('ovh-theme')||localStorage.getItem('ovh-review-theme')}catch(e){}}
-if(t==='dark'||t==='light')r.setAttribute('data-theme',t)})();"""
+HEAD_JS = """(function(){var r=document.documentElement,k=['darkfield','prism','bridge'],t=null;try{t=new URLSearchParams(location.search).get('theme')}catch(e){}
+if(k.indexOf(t)<0){try{t=localStorage.getItem('ovh-theme')}catch(e){}}
+if(k.indexOf(t)>=0)r.setAttribute('data-theme',t)})();"""
 
 ICON = {"play": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>',
         "big": '<svg viewBox="0 0 54 54" aria-hidden="true"><path d="M20 15v24l19-12z"/><path d="M2 12V2h10M42 2h10v10M52 42v10H42M12 52H2V42"/></svg>',
         "mute": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
-        "full": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>',
-        "theme": '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>'}
+        "full": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>'}
 
 
 def txt(x):
@@ -933,7 +932,9 @@ class Page:
                 f'<style>{static_file("ui.css")}</style><script>{HEAD_JS}</script></head><body>'
                 f'<header class="top"><div class="wrap"><span class="mark">OVH</span><nav class="crumbs">'
                 f'<span class="cr"><b>{esc(film)}</b></span><span class="cr hide-s"><span class="sep">/</span><span>{esc(title)}</span></span></nav>'
-                f'<div class="top-tools"><button type="button" class="p-btn" id="theme" title="{t["theme"]}" aria-label="{t["theme"]}">{ICON["theme"]}</button></div></div></header>'
+                f'<div class="top-tools"><div class="themes" role="group" aria-label="{t["theme"]}">'
+                + "".join(f'<button type="button" data-theme-set="{k}" aria-pressed="false">{n}</button>' for k, n in zip(("darkfield", "prism", "bridge"), t["themes"]))
+                + '</div></div></div></header>'
                 f'<main class="wrap">{body}</main>'
                 f'<script>{static_file("ui.js")}</script></body></html>\n')
 

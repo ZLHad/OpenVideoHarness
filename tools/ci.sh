@@ -2995,19 +2995,26 @@ sys.exit(1 if bad else 0)
 PY
   then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget"
   else bad "gate view on the fixtures"; fi
-  # the theme: every colour a variable, and the text colours at WCAG AA (4.5:1) on the ground in both themes
+  # the themes (docs/proposals/02-studio-client.md, 5): three blocks of one set of variables, the default on :root (one value
+  # in ui.js names it); every colour of ui.css and studio.css a variable; the type, the lamps and the readouts at WCAG AA
+  # (4.5:1) on the ground in each, and the type on a picture's grey at 4.5:1 on it
   if a=$(python3 - <<'PY'
 import re
 css = open("tools/desk/static/ui.css", encoding="utf-8").read()
+studio = open("tools/desk/static/studio.css", encoding="utf-8").read()
+js = open("tools/desk/static/ui.js", encoding="utf-8").read()
 def block(sel):
     m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
-    return dict(re.findall(r"--([\w-]+):([^;}]+)", m.group(1))) if m else {}
-dark = block(":root"); light = dict(dark, **block(":root[data-theme=light]"))
+    return dict((k, v.strip()) for k, v in re.findall(r"--([\w-]+):([^;}]+)", m.group(1))) if m else {}
+base = block(":root,:root[data-theme=darkfield]")
+themes = {"darkfield": base, "prism": dict(base, **block(":root[data-theme=prism]")), "bridge": dict(base, **block(":root[data-theme=bridge]"))}
 def rgb(v, t, bg=None):
     v = v.strip()
     m = re.fullmatch(r"var\(--([\w-]+)\)", v)
     if m: return rgb(t[m.group(1)], t, bg)
-    if v.startswith("#"): return [int(v[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    if v.startswith("#"):
+        h = v[1:] if len(v) > 4 else "".join(c * 2 for c in v[1:])
+        return [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
     m = re.fullmatch(r"rgba\((\d+),(\d+),(\d+),([\d.]+)\)", v.replace(" ", ""))
     c, a = [int(x) / 255 for x in m.groups()[:3]], float(m.group(4))
     return [x * a + y * (1 - a) for x, y in zip(c, bg)]
@@ -3015,17 +3022,23 @@ def lum(c):
     c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 low = []
-for name, t in (("dark", dark), ("light", light)):
-    bg = rgb(t["bg"], t)
-    for k in ("text", "text-2", "text-3", "accent", "flag", "ok"):
-        a, b = sorted((lum(rgb(t[k], t, bg)), lum(bg)))
+for name, t in themes.items():
+    if not t or "bg" not in t:
+        low.append(f"no {name} block"); continue
+    for k, ground in [(k, "bg") for k in ("ink", "ink-2", "ink-3", "you", "agent", "live", "wait", "ok")] + [("on-pic", "pic")]:
+        g = rgb(t[ground], t, rgb(t["bg"], t))
+        a, b = sorted((lum(rgb(t[k], t, g)), lum(g)))
         r = (b + 0.05) / (a + 0.05)
         if r < 4.5: low.append(f"{name} --{k} {r:.2f}:1")
-rules = re.sub(r":root(\[data-theme=light\])?\{.*?\}", "", css, flags=re.S)
-stray = re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", re.sub(r"/\*.*?\*/", "", rules, flags=re.S))
-print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables"] if stray else [])))
+if 'DEFAULT_THEME = "darkfield"' not in js or 'THEMES = ["darkfield", "prism", "bridge"]' not in js:
+    low.append("ui.js: THEMES and DEFAULT_THEME")
+stray = []
+for f, text in (("ui.css", css), ("studio.css", studio)):
+    rules = re.sub(r"/\*.*?\*/", "", re.sub(r":root(,:root)?(\[data-theme=\w+\])?\{.*?\}", "", text, flags=re.S), flags=re.S)
+    stray += [f"{f} {x}" for x in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", rules)]
+print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.join(stray[:4])}"] if stray else [])))
 PY
-) && [ -z "$a" ]; then ok "theme: every colour of ui.css is a variable on :root, and the text, the lamp, the flag and ok are at 4.5:1 or more on the ground, dark and light"
+) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css and studio.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
   else bad "theme contrast or stray colours: $a"; fi
   # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
   mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
@@ -3057,8 +3070,10 @@ s, _, page = req("GET", "/")
 page = page.decode()
 token = page.split('name="desk-token" content="')[1].split('"')[0]
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
-for f in ("ui.css", "ui.js", "console.css", "console.js"):
+want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
+for f in ("ui.css", "ui.js", "studio.css", "studio.js"):
     want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
+want(req("GET", "/static/console.js")[0] == 404, "/static/ serves only its four files")
 s, _, d = req("GET", "/api/projects"); d = json.loads(d)
 real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
 rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
@@ -3069,9 +3084,16 @@ want(dm.get("state") == "waiting_person" and (dm.get("ask") or {}).get("question
 want((dm.get("picture") or {}).get("from") == "gate" and dm["picture"]["href"].startswith(f"/f/{K}/"), f"demo's picture: {dm.get('picture')}")
 s, _, d = req("GET", f"/api/p/{K}/data"); d = json.loads(d)
 want(s == 200 and d["key"] == K and d["current"] == "3" and [x["state"] for x in d["status"]["stations"]][:3] == ["done", "done", "waiting_person"], "demo's data and stops")
+sd = d.get("studio") or {}
+tl = sd.get("timeline") or {}
+want(len(tl.get("shots") or []) == 6 and len(tl.get("narration") or []) == 6 and len(tl.get("beats") or []) > 40 and tl.get("bpm") == 90
+     and [(f["severity"], f["t"]) for f in sd.get("findings") or []] == [("warn", 28.5), ("warn", 31.0)] and (sd.get("check") or {}).get("verdict") == "warn"
+     and sd.get("thumbs") is None and sd.get("peaks") is None, f"demo's cut data: {sorted(tl)} {sd.get('findings')}")
 s, _, g = req("GET", f"/api/p/{K}/gate/3"); g = json.loads(g)
 want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g["html"] and [x["id"] for x in g["decisions"]] == ["draft", "voice"]
      and f'src="/f/{K}/out/check/sheet.svg"' in g["html"] and not g["errors"], f"gate 3's view: {g.get('errors')}")
+want(g.get("cards", "").count('class="g-dec') == 2 and "g-act" not in g.get("cards", "") and [(m["kind"], m["t"]) for m in g.get("marks") or []] == [("least", 15.5), ("least", 27.0), ("listen", 9.2), ("listen", 30.5)]
+     and g.get("summary", "").startswith("初版"), f"gate 3's right column: {g.get('marks')}")
 s, _, g1 = req("GET", f"/api/p/{K}/gate/1?lang=en"); g1 = json.loads(g1)
 want(s == 200 and not g1["current"] and "Recommended" in g1["html"], "gate 1, an earlier page, in English")
 s, _, st = req("GET", f"/api/p/{K}/status")
@@ -3094,7 +3116,7 @@ if bad:
     print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "console: bin/vh desk with no project serves every project under the roots (keys, the waiting one with its question and picture), a project's data and stops, its gate views (this round live, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
+  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys, the waiting one with its question and picture), a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
   else bad "console"; fi
   a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
   kill $pid 2>/dev/null; wait $pid 2>/dev/null

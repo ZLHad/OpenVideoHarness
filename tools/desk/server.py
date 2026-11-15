@@ -8,9 +8,10 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
 
   GET  /                          the page (static/index.html, with this run's token and the project it opens on)
   GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
-                                  console.css and console.js (the rest of the console)
+                                  studio.css and studio.js (the console's shell and modules)
   GET  /api/projects              every project: bin/vh projects' rows, each with its key, a picture, and what it waits for
-  GET  /api/p/<key>/data          one project, read fresh: reader.read_project, plus bin/vh status (status) and its key
+  GET  /api/p/<key>/data          one project, read fresh: reader.read_project, plus bin/vh status (status), its key and
+                                  what the cut module lays out (studio: the resolved timeline, thumbnails, peaks, findings)
   GET  /api/p/<key>/gate/<id>     a gate page as the gate view's markup (tools/review.py: the static page's markup)
   GET  /api/p/<key>/stage         the project's film, or newest draft, as the same player markup, with its ruler
   GET  /api/p/<key>/status        is an agent waiting for this project's feedback (bin/vh desk wait)?
@@ -36,7 +37,7 @@ import reader          # noqa: E402
 import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
 
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
-          "console.css": "text/css; charset=utf-8", "console.js": "text/javascript; charset=utf-8"}
+          "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 CSP = ("default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; "
@@ -154,6 +155,44 @@ def ask_of(row, gid, gate):
     s = gate.get("summary") if isinstance(gate.get("summary"), str) else ""
     return {"gate": gid, "title": review.gate_title(gid, "zh"), "title_en": review.gate_title(gid, "en"),
             "question": (q or s or "").strip()[:160], "decisions": len(decs)}
+
+
+def _load(p):
+    try:
+        return json.loads(Path(p).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def studio_extras(project, data):
+    """What the cut module lays out, from what bin/vh has already made (nothing is run here): the resolved timeline (bin/vh
+    timeline --resolved: shots, chapters, narration, captions, beats), the film's thumbnails and waveform peaks when bin/vh
+    thumbs and peaks have made them, and the findings of its latest bin/vh check, each with its time. A part that is not there
+    is None, and the page names the command that makes it."""
+    st = data.get("status") or {}
+    media = st.get("media") or {}
+    out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None}
+    try:
+        import resolved
+        out["timeline"] = resolved.document(Path(project), data.get("lang"))
+    except (Exception, SystemExit) as e:   # one part's trouble is said, the rest is shown
+        data["warnings"].append(f"bin/vh timeline --resolved: {type(e).__name__}: {e}")
+    if media.get("thumbs"):
+        t = _load(Path(project) / media["thumbs"])
+        if isinstance(t, dict):
+            out["thumbs"] = {k: t.get(k) for k in ("duration", "tile", "shot", "sheets", "tiles", "shots")}
+    if media.get("peaks"):
+        pk = _load(Path(project) / media["peaks"])
+        if isinstance(pk, dict) and isinstance(pk.get("peaks"), list):
+            out["peaks"] = {"duration": pk.get("duration"), "peaks": pk["peaks"]}
+    chk = st.get("check")
+    if isinstance(chk, dict) and chk.get("record"):
+        rec = _load(Path(project) / chk["record"])
+        if isinstance(rec, dict):
+            out["check"] = {k: chk.get(k) for k in ("verdict", "video", "at", "stale", "counts")}
+            out["findings"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in rec.get("findings") or []
+                               if isinstance(f, dict) and f.get("severity") in ("fail", "warn")][:200]
+    return out
 
 
 class Desk(http.server.ThreadingHTTPServer):
@@ -342,6 +381,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
         data["key"], data["home"] = key, key == self.server.own_key
         data["current"] = data["rounds"][-1]["id"] if data["rounds"] else None
+        data["studio"] = studio_extras(project, data)
         return self._json(data)
 
     def _gate(self, project, key, gid, lang=None):
@@ -355,8 +395,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (AttributeError, KeyError, TypeError) as e:
             return self._error(500, f"gate-{gid}.json: {type(e).__name__}: {e}")
         cur = pages[-1].stem[5:] if pages else None
+        cards = "".join(page.decision(i + 1, d) for i, d in enumerate(page.d["decisions"]))   # the right column's 要你定, compact
         self._json({"version": 1, "gate": page.gate, "current": page.gate == cur, "this_round": cur, "title": page.title(),
                     "lang": page.lang, "takeall": page.take_all(), "html": body, "errors": page.errors, "warnings": page.warnings,
+                    "summary": page.d["summary"], "cards": cards, "marks": page.marks(), "not_reviewed": page.d["not_reviewed"],
                     "decisions": [{"id": d["id"], "question": d["question"], "recommend": d["recommend"],
                                    "options": [o["id"] for o in d["options"]]} for d in page.d["decisions"]]})
 

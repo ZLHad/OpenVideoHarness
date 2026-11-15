@@ -6,43 +6,40 @@
 <meta name="desk-token" content="{{TOKEN}}">
 <meta name="desk-home" content="{{HOME}}">
 <title>片场 · OpenVideoHarness</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230c0a09'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%23e9b47c'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111111'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%235ec9dc'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/ui.css">
-<link rel="stylesheet" href="/static/console.css">
+<link rel="stylesheet" href="/static/studio.css">
 <script src="/static/ui.js"></script>
 </head>
 <body>
-<a class="skip" href="#view" id="skip">跳到内容</a>
-<header class="top">
-  <div class="wrap">
-    <a class="mark" href="#/" id="mark" title="片场">OVH</a>
+<a class="skip" href="#stage" id="skip">跳到内容</a>
+<div class="app" id="app">
+  <header class="bar">
+    <a class="mark" href="#/" id="mark">ovh</a>
     <nav class="crumbs" id="crumbs" aria-label="位置"></nav>
-    <div class="top-tools">
-      <button type="button" class="btn btn-quiet search-btn" id="searchBtn"><span id="searchLabel">搜项目</span> <span class="kbd">/</span></button>
-      <span class="live" id="live" hidden><i></i><span id="liveTxt"></span></span>
-      <button type="button" class="btn btn-quiet" id="openDrawer" hidden><span class="pen" aria-hidden="true">✎</span><span id="myLabel">我的点评</span> <span class="n" id="cnt">0</span></button>
+    <ol class="flow" id="flow" aria-label="这支片子的几站"></ol>
+    <div class="tools">
+      <button type="button" class="btn btn-quiet" id="searchBtn"><span id="searchLabel">搜片子</span> <span class="kbd">/</span></button>
+      <div class="themes" role="group" id="themes" aria-label="主题">
+        <button type="button" data-theme-set="darkfield" aria-pressed="false">暗场</button><button type="button" data-theme-set="prism" aria-pressed="false">棱镜</button><button type="button" data-theme-set="bridge" aria-pressed="false">舰桥</button>
+      </div>
       <button type="button" class="btn btn-quiet" id="lang">EN</button>
-      <button type="button" class="p-btn" id="theme" title="深色 / 浅色" aria-label="深色 / 浅色"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
     </div>
-  </div>
-  <div class="search" id="search" hidden>
-    <div class="wrap"><input id="q" type="search" autocomplete="off" spellcheck="false"><ol class="results" id="results" role="listbox"></ol></div>
-  </div>
-</header>
-<main id="view" class="wrap" tabindex="-1"><p class="loading">…</p></main>
-<aside class="drawer" id="drawer" aria-hidden="true" aria-labelledby="drawerTitle">
-  <header><h2 id="drawerTitle">提交</h2><button type="button" class="p-btn" id="closeDrawer" aria-label="关闭">×</button></header>
-  <div class="drawer-body" id="drawerBody"></div>
-  <footer>
-    <label class="meta" id="generalLabel" for="general">整体意见（可选）</label>
-    <textarea id="general" rows="3"></textarea>
-    <div class="drawer-act"><button type="button" class="btn btn-primary" id="submit">提交</button><button type="button" class="btn" id="cancel">再看看</button></div>
-    <p class="meta" id="submitHint"></p>
-    <details class="fold"><summary id="previewLabel">会提交的内容</summary><pre class="out" id="preview"></pre></details>
-  </footer>
-</aside>
-<div class="scrim" id="scrim" hidden></div>
+  </header>
+  <nav class="rail" id="rail" aria-label="模块"></nav>
+  <main class="stage-area" id="stage" tabindex="-1"><p class="loading">…</p></main>
+  <aside class="col" id="col" aria-label="这一轮">
+    <div class="col-head" id="colHead"></div>
+    <div class="col-body" id="colBody"></div>
+    <div class="col-round" id="colRound" hidden></div>
+    <div class="composer" id="composer" hidden></div>
+    <div class="confirm" id="confirm" hidden></div>
+  </aside>
+</div>
+<div class="search" id="search" hidden role="dialog" aria-label="搜片子">
+  <input id="q" type="search" autocomplete="off" spellcheck="false"><ol class="results" id="results" role="listbox"></ol>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/static/console.js"></script>
+<script src="/static/studio.js"></script>
 </body>
 </html>
