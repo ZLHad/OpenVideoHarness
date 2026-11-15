@@ -87,7 +87,11 @@
       if (!tip) return;
       const sh = shots().filter((s) => s.t <= t + 1e-3).pop(), sg = segs().find((s) => t >= s.t && t < s.t1);
       const label = sh ? `${sh.id}${sh.label ? " · " + sh.label : ""}` : sg ? sg.label : "";
-      tip.innerHTML = (sh && sh.frame ? `<img src="${sh.frame}" alt="">` : "") + `<span>${clock(t)}</span>` + (label ? ` <span>${label.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]))}</span>` : "");
+      const parts = [];   // nodes, never markup: a frame's address and a label are the project's words
+      if (sh && sh.frame) { const im = document.createElement("img"); im.alt = ""; im.src = sh.frame; parts.push(im); }
+      const at = document.createElement("span"); at.textContent = clock(t); parts.push(at);
+      if (label) { const l = document.createElement("span"); l.textContent = label; parts.push(document.createTextNode(" "), l); }
+      tip.replaceChildren(...parts);
       tip.style.left = Math.min(Math.max(pct(t), 8), 92) + "%";
     }
     v.addEventListener("loadedmetadata", () => { laid = 0; layout(); if (span0 != null && !v.currentTime) seek(span0); });
@@ -119,7 +123,9 @@
   function gallery(g) {
     const img = $(".gal-main img", g), a = $(".gal-main", g), cap = $(".gal-cap", g);
     $$(".gal-strip button", g).forEach((b) => b.addEventListener("click", () => {
-      img.src = b.dataset.src; a.href = b.dataset.src; if (cap) cap.innerHTML = b.dataset.cap || "";
+      img.src = b.dataset.src; a.href = b.dataset.src;
+      const c = $(".gal-cap-src", b);   // the caption as the page wrote it (review.py escapes it): copied as nodes
+      if (cap) cap.replaceChildren(...(c ? Array.from(c.cloneNode(true).childNodes) : []));
       $$(".gal-strip button", g).forEach((x) => x.setAttribute("aria-current", x === b ? "true" : "false"));
     }));
   }

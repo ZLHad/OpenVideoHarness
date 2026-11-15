@@ -453,9 +453,11 @@ class Page:
                 self.err(f"{what}: {p!r} is neither a project path nor an http(s) URL; refused")
             return None
         f = Path(p) if os.path.isabs(p) else self.project / p
-        if not os.path.exists(f) and p not in self.bad_paths:
-            self.bad_paths.add(p)
-            self.err(f"{what}: {p} does not exist")
+        if not os.path.exists(f):   # said once as an error; no link to it (a page asks for nothing that is not there)
+            if p not in self.bad_paths:
+                self.bad_paths.add(p)
+                self.err(f"{what}: {p} does not exist")
+            return None
         if self.link:
             return html.escape(self.link(os.path.relpath(f, self.project).replace(os.sep, "/")), quote=True)
         rel = os.path.relpath(f, self.out).replace(os.sep, "/")
@@ -610,9 +612,20 @@ class Page:
                 f'<button type="button" class="p-btn p-mute" title="{esc(t["mute"])}" aria-label="{esc(t["mute"])}">{ICON["mute"]}</button>'
                 f'<button type="button" class="p-btn p-full" title="{esc(t["full"])}" aria-label="{esc(t["full"])}">{ICON["full"]}</button></div>{cap}</div>')
 
+    def gone(self, path):
+        """A local file the page names that is not there (any more): True. An http(s) URL or a refused scheme: False."""
+        p = txt(path).strip()
+        if not p or re.match(r"(?i)https?://", p) or (re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", p) and not re.match(r"[A-Za-z]:[\\/]", p)):
+            return False
+        return not os.path.exists(Path(p) if os.path.isabs(p) else self.project / p)
+
     def figure(self, a, what="asset", thumb=False):
-        """One asset: a picture on its mat, a sound to play, or a link."""
+        """One asset: a picture on its mat, a sound to play, or a link; a file that is not there says so in its place."""
         kind, base = self.kind(a["path"])
+        if self.gone(a["path"]):
+            self.url(a["path"], what)   # said as an error
+            cap = f'<figcaption class="cap">{self.text(a["caption"])}</figcaption>' if a.get("caption") else ""
+            return f'<figure><div class="well blank"><span>{esc(self.t["gone"].format(p=a["path"]))}</span></div>{cap}</figure>'
         if kind == "video":
             return self.player(a, film=False)
         u = self.url(a["path"], what)
@@ -647,9 +660,10 @@ class Page:
                 f'<p class="cap gal-cap">{self.text(a0["caption"])}{tag(a0)}</p>')
         if len(items) == 1:
             return f'<div class="gallery">{main}</div>'
-        strip = "".join(f'<button type="button" data-src="{u}" data-cap="{esc(self.text(a["caption"]) + tag(a))}" aria-current="{"true" if i == 0 else "false"}" '
+        strip = "".join(f'<button type="button" data-src="{u}" aria-current="{"true" if i == 0 else "false"}" '
                         f'title="{self.alt(a["caption"], a["path"])}"><img src="{u}" alt="" loading="lazy">'
-                        + (f'<span class="tag">→ {dec_n[a["for"]]}</span>' if a["for"] in dec_n else "") + "</button>"
+                        + (f'<span class="tag">→ {dec_n[a["for"]]}</span>' if a["for"] in dec_n else "")
+                        + f'<span class="gal-cap-src" hidden>{self.text(a["caption"])}{tag(a)}</span></button>'   # the caption it swaps in, as markup
                         for i, (a, u) in enumerate(items))
         return f'<div class="gallery">{main}<div class="gal-strip">{strip}</div></div>'
 

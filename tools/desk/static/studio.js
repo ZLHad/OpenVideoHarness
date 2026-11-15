@@ -12,7 +12,7 @@ const STR = {
   zh: {
     brand: "片场", noServer: "读不到数据：请用 bin/vh desk 打开这一页。", loading: "…", gate: "关卡",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "账本",
-    f_done: "过了", f_wait: "等你", f_agent: "agent 在做", f_todo: "还没到", f_skip: "跳过", f_off: "这支片子这一站不停", f_norec: "没有审阅记录",
+    f_done: "过了", f_wait: "等你", f_agent: "轮到 agent", f_todo: "还没到", f_skip: "跳过", f_off: "这支片子这一站不停", f_norec: "没有审阅记录",
     pick_film: "先在空间里选一支片子", search: "搜片子", search_ph: "片名、文件夹或类型，回车打开", no_match: "没有对上的片子", lang: "EN", lang_tip: "Switch to English", themes: "主题",
     th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥", skip: "跳到内容", rail: "模块", flow: "这支片子的几站",
     ask_kick: "从一句话开始", ask_h: "你想做一支什么样的片子？", ask_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次",
@@ -20,15 +20,15 @@ const STR = {
     ask_prefix: "用 OpenVideoHarness 做一支片子：", ask_empty: "先写一句",
     films: "片子", home_meta: "{n} 支 · {w} 支等你", home_meta0: "{n} 支", g_wait: "等你看的", g_rest: "其余", roots: "从这些文件夹里找的：{r}",
     no_projects: "这里还没有片子。bin/vh new 建一个，或者 bin/vh desk --root <文件夹> 告诉我去哪找。",
-    st_waiting_person: "等你看", st_waiting_agent: "agent 在做", st_in_progress: "进行中", st_delivered: "已交付", st_paused: "暂停",
+    st_waiting_person: "等你看", st_waiting_agent: "轮到 agent", st_in_progress: "进行中", st_delivered: "已交付", st_paused: "暂停",
     st_no_record: "没有审阅记录", st_not_started: "还没开始", st_skipped: "跳过", st_done: "过了",
     ask_n: "要你定 {n} 件：{q}", ask_0: "看一眼：{q}", just_now: "刚才", ago_m: "{n} 分钟前", ago_h: "{n} 小时前", ago_d: "{n} 天前",
-    col_space: "空间", col_space_note: "选一支片子：点评和决定都记在那支片子里。", waiting_list: "等你看的", agent_list: "agent 在做的", none_waiting: "没有片子在等你。",
+    col_space: "空间", col_space_note: "选一支片子：点评和决定都记在那支片子里。", waiting_list: "等你看的", agent_list: "正在跑的", none_waiting: "没有片子在等你。",
     col_round: "这一轮", col_notes: "随手点评", live_on: "agent 在等", live_off: "agent 没在等",
     live_on_tip: "提交后 agent 会自动接着做，不用回对话", live_off_tip: "提交后回到对话里说一声“看审阅台”",
     c_decide: "要你定", c_rec: "没动的按推荐", c_least: "它最没把握的", c_listen: "请你听", c_mine: "我的点评", c_next: "下一步", c_running: "正在跑", c_spend: "花费",
     c_spent: "已花 {s}", c_of: "预算 {l}", c_none_mine: "还没有。选中一处（一秒、一段、一个镜头），在下面写一句。", who_agent: "agent", who_person: "你", who_nobody: "交付了",
-    round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体", round_quiet: "{g} · {s}：现在没有要你定的事。",
+    round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体", round_quiet: "{g} · {s}：现在没有要你定的事。", static_page: "静态页", recent: "最近定下的", agent_decided_k: "agent 定的 · {x}", ns_from: "bin/vh status 说",
     at: "对着", whole: "整个{m}", whole_film: "整片", to_whole: "换成整个模块", say_agent: "说给 agent", say_agent_tip: "这一版控制台不连 agent：写成点评，提交这一轮时交给它",
     as_note: "记成点评", c_ph: "对「{x}」说一句", note_add: "记下", note_keys: "⌘↩ 记下", noted: "记下了：{x}", del: "删",
     d_title: "提交这一轮", d_decisions: "决定", d_items: "点评", by_rec: "（按推荐）", d_none: "没有逐条点评；没标的都算通过。",
@@ -37,7 +37,7 @@ const STR = {
     sent_live: "已提交，agent 已经在接着做", sent: "已提交：{f}",
     hint_live: "已写进 {f}，原话也抄进了 REVIEW.md。agent 在等这份反馈，已经自动接着做了，不用再回对话。",
     hint_idle: "已写进 {f}，原话也抄进了 REVIEW.md。agent 这会儿没在等：回到对话里说一声“看审阅台”。",
-    offline: "没有连上本地服务：回复已复制，粘贴到对话里即可", offline2: "没有连上本地服务：请复制下面的内容", refused: "没有提交成功：{e}",
+    offline: "没有连上本地服务：回复已复制，粘贴到对话里即可", offline2: "没有连上本地服务：请复制下面的内容", refused: "没有提交成功：{e}", moved: "没有提交：这个地址现在指的已经不是你打开的那支片子了。重新载入页面，再交一次（草稿还在）。",
     reply_head: "《{p}》{r} 的回复", rest: "其余没标的都算通过。", round_name: "关卡 {r}", notes_round: "随手点评", overall: "整体",
     submitted: "这一轮已经提交过（{at}）。再提交会另存一份，REVIEW.md 里也会多一节。", new_round: "agent 发来了新的一页：{g}",
     past: "这是之前的一页（{g}），看看就好。", to_round: "回到这一轮 →", page_of: "看{g}那一页 →", st_ok: "可以", st_change: "要改", st_ask: "疑问",
@@ -51,7 +51,7 @@ const STR = {
     no_shots: "还没有镜头表。shots.json 写好后（或 bin/vh storyboard），镜头就排在这里。", no_narr: "还没有旁白的时间。bin/vh tts 出了配音，旁白稿和词的时间就到这里。",
     no_checks: "还没跑检查：bin/vh check <片子>。", check_stale: "片子在这次检查之后改过：再跑一次 bin/vh check", verdict: "结论",
     n_notes: "{n} 条点评", unsure: "没把握", n_checks: "{n} 处检查", reads: "要看懂", ver_n: "第 {n} 版", proxy: "代理",
-    no_film: "还没有成片：bin/vh render 之后在这里播。现在是分镜的关键帧。", no_film0: "还没有成片，也没有分镜的关键帧。",
+    no_film_frames: "还没有成片：bin/vh render 之后在这里播。现在是分镜的关键帧。", no_film_sheet: "还没有成片：bin/vh render 之后在这里播。现在是联系表。", no_film0: "还没有成片，也没有分镜的关键帧和联系表。", film_gone_frames: "文件不在了：{p}（移走或改了名）。现在是分镜的关键帧。", film_gone_sheet: "文件不在了：{p}（移走或改了名）。现在是联系表。", film_gone0: "文件不在了：{p}（移走或改了名），也没有分镜的关键帧和联系表。",
     safe: "安全框", compare: "和{v}对比", ver_now: "{v} · 现在", lay_review: "审片", lay_fine: "精修", lay_sound: "听声音", layout: "布局",
     tl_hint: "点一下选这一秒，拖一段选区间，点镜头或章节选中它 · I/O 入点出点 · 空格播放 · ←→ 逐镜 · N 下一处",
     next_place: "下一处要看的", snap: "吸附", zoom_in: "放大", zoom_out: "缩小", play: "播放 / 暂停（空格）", prev_shot: "上一个镜头（←）", next_shot: "下一个镜头（→）",
@@ -63,7 +63,7 @@ const STR = {
     // the other modules (the desk's views, moved in)
     sub_outline: "大纲", sub_script: "字幕 / 旁白", sub_facts: "事实", sub_check: "检查", sub_versions: "版本", sub_decisions: "决定", sub_history: "历史", sub_docs: "文档",
     concept: "立意", spine: "故事线", motif: "贯穿全片的", end: "看完以后", spec: "规格", outline_tip: "点色块跳到那一段",
-    seg_n: "第 {i} 段", know: "看完知道 / 感到", visual: "关键画面", seg_caps: "这一段的 {n} 条", bars: "第 {b} 小节",
+    seg_n: "第 {i} 段", know: "看完知道 / 感到", visual: "关键画面", seg_caps: "这一段的 {n} 条", to_script: "去逐条看 →", bars: "第 {b} 小节",
     no_outline: "大纲还没有写成表格（BRIEF 的 Outline 一节，列名见 tools/desk/README.md），下面是 BRIEF 原文。", no_brief: "还没有 BRIEF.md。",
     script_sub: "{n} 条，按大纲分段。读速按这一条占的时间粗算：中文 {g} 字/秒以内绿、{y} 以内黄；英文 {eg} / {ey} 字符/秒。",
     f_all: "全部", f_mine: "我标过的", f_terms: "带术语的", f_facts: "带出处编号的", f_fast: "可能读不完的",
@@ -96,7 +96,7 @@ const STR = {
   en: {
     brand: "Studio", noServer: "Can't read the data: open this page with bin/vh desk.", loading: "…", gate: "Gate",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Material", m_ledger: "Ledger",
-    f_done: "passed", f_wait: "waiting for you", f_agent: "agent at work", f_todo: "not yet", f_skip: "skipped", f_off: "not a stop in this film", f_norec: "no review record",
+    f_done: "passed", f_wait: "waiting for you", f_agent: "the agent's turn", f_todo: "not yet", f_skip: "skipped", f_off: "not a stop in this film", f_norec: "no review record",
     pick_film: "Pick a film in the space first", search: "Find a film", search_ph: "Title, folder or type; Enter opens it", no_match: "No film matches", lang: "中", lang_tip: "切换到中文", themes: "Theme",
     th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge", skip: "Skip to content", rail: "Modules", flow: "This film's stops",
     ask_kick: "Start from a sentence", ask_h: "What film do you want to make?", ask_ph: "e.g. a one-minute explainer on why the tide comes in twice a day",
@@ -104,15 +104,15 @@ const STR = {
     ask_copied: "Copied: paste it into your agent's chat", ask_prefix: "Make a film with OpenVideoHarness: ", ask_empty: "Write a sentence first",
     films: "Films", home_meta: "{n} · {w} waiting for you", home_meta0: "{n}", g_wait: "Waiting for you", g_rest: "The rest", roots: "Found under: {r}",
     no_projects: "No films here yet. Make one with bin/vh new, or tell me where to look: bin/vh desk --root <folder>.",
-    st_waiting_person: "waiting for you", st_waiting_agent: "the agent is on it", st_in_progress: "in progress", st_delivered: "delivered",
+    st_waiting_person: "waiting for you", st_waiting_agent: "the agent's turn", st_in_progress: "in progress", st_delivered: "delivered",
     st_paused: "paused", st_no_record: "no review record", st_not_started: "not started", st_skipped: "skipped", st_done: "passed",
     ask_n: "{n} to decide: {q}", ask_0: "To look at: {q}", just_now: "just now", ago_m: "{n} min ago", ago_h: "{n} h ago", ago_d: "{n} days ago",
-    col_space: "Space", col_space_note: "Pick a film: notes and decisions go into that film.", waiting_list: "Waiting for you", agent_list: "The agent is on", none_waiting: "No film is waiting for you.",
+    col_space: "Space", col_space_note: "Pick a film: notes and decisions go into that film.", waiting_list: "Waiting for you", agent_list: "Running now", none_waiting: "No film is waiting for you.",
     col_round: "This round", col_notes: "Notes", live_on: "the agent is waiting", live_off: "the agent isn't waiting",
     live_on_tip: "Submit and the agent carries on by itself; no need to go back to the chat", live_off_tip: "After submitting, tell the agent in the chat: “check the desk”",
     c_decide: "To decide", c_rec: "untouched = recommended", c_least: "Least sure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Running", c_spend: "Spent",
     c_spent: "{s} spent", c_of: "of {l}", c_none_mine: "None yet. Select a place (a second, a span, a shot) and write a line below.", who_agent: "agent", who_person: "you", who_nobody: "delivered",
-    round_sum: "{n} notes · {d} decisions", submit_round: "Submit this round", c_whole_note: "Overall", round_quiet: "{g} · {s}: nothing waits for you to decide now.",
+    round_sum: "{n} notes · {d} decisions", submit_round: "Submit this round", c_whole_note: "Overall", round_quiet: "{g} · {s}: nothing waits for you to decide now.", static_page: "Static page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}", ns_from: "bin/vh status says",
     at: "On", whole: "the whole {m}", whole_film: "the whole film", to_whole: "the whole module", say_agent: "Tell the agent", say_agent_tip: "This console doesn't talk to the agent yet: write a note, and it goes with this round",
     as_note: "Note it", c_ph: "A line on “{x}”", note_add: "Add", note_keys: "⌘↩ adds", noted: "Noted: {x}", del: "Delete",
     d_title: "Submit this round", d_decisions: "Decisions", d_items: "Notes", by_rec: " (recommended)", d_none: "No item notes; anything not marked passes.",
@@ -121,7 +121,7 @@ const STR = {
     sent_live: "Submitted; the agent is on it", sent: "Submitted: {f}",
     hint_live: "Saved to {f}; your words are in REVIEW.md too. The agent was waiting for this and has carried on; no need to go back to the chat.",
     hint_idle: "Saved to {f}; your words are in REVIEW.md too. The agent isn't waiting right now: tell it in the chat, “check the desk”.",
-    offline: "Couldn't reach the local server: the reply is copied, paste it into the chat", offline2: "Couldn't reach the local server: copy the text below", refused: "Not submitted: {e}",
+    offline: "Couldn't reach the local server: the reply is copied, paste it into the chat", offline2: "Couldn't reach the local server: copy the text below", refused: "Not submitted: {e}", moved: "Not submitted: this address no longer names the film you opened. Reload the page and submit again (your draft is kept).",
     reply_head: "Reply to {r} of “{p}”", rest: "Everything not marked passes.", round_name: "gate {r}", notes_round: "notes", overall: "Overall",
     submitted: "Already submitted this round ({at}). Submitting again saves another copy and adds another section to REVIEW.md.", new_round: "The agent sent a new page: {g}",
     past: "An earlier page ({g}), to look at only.", to_round: "Back to this round →", page_of: "See the page of {g} →", st_ok: "ok", st_change: "change", st_ask: "question",
@@ -134,7 +134,7 @@ const STR = {
     no_shots: "No shot table yet. Once shots.json is written (or bin/vh storyboard), the shots line up here.", no_narr: "No narration timing yet. Once bin/vh tts has voiced it, the lines and their times come here.",
     no_checks: "No check yet: bin/vh check <film>.", check_stale: "The film changed after this check: run bin/vh check again", verdict: "Verdict",
     n_notes: "{n} notes", unsure: "unsure", n_checks: "{n} checks", reads: "Reads", ver_n: "v{n}", proxy: "proxy",
-    no_film: "No film yet: it plays here after bin/vh render. These are the storyboard's key frames.", no_film0: "No film yet, and no storyboard key frames.",
+    no_film_frames: "No film yet: it plays here after bin/vh render. These are the storyboard's key frames.", no_film_sheet: "No film yet: it plays here after bin/vh render. This is the contact sheet.", no_film0: "No film yet, and no storyboard key frames or contact sheet.", film_gone_frames: "Not there any more: {p} (moved or renamed). These are the storyboard's key frames.", film_gone_sheet: "Not there any more: {p} (moved or renamed). This is the contact sheet.", film_gone0: "Not there any more: {p} (moved or renamed), and no storyboard key frames or contact sheet.",
     safe: "Safe area", compare: "Compare with {v}", ver_now: "{v} · now", lay_review: "Review", lay_fine: "Fine cut", lay_sound: "Listen", layout: "Layout",
     tl_hint: "Click a second, drag a span, click a shot or chapter to select it · I/O in and out · Space plays · ←→ shot by shot · N next place",
     next_place: "Next place", snap: "Snap", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
@@ -145,7 +145,7 @@ const STR = {
     sev_fail: "failed", sev_warn: "warning", no_thumbs: "bin/vh thumbs <project> makes thumbnails: then dragging shows every second",
     sub_outline: "Outline", sub_script: "Captions / narration", sub_facts: "Facts", sub_check: "Check", sub_versions: "Versions", sub_decisions: "Decisions", sub_history: "History", sub_docs: "Documents",
     concept: "Concept", spine: "Spine", motif: "Recurring motif", end: "At the end", spec: "Spec", outline_tip: "click a block to jump to it",
-    seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} lines in this part", bars: "bars {b}",
+    seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} lines in this part", to_script: "go through them →", bars: "bars {b}",
     no_outline: "The outline isn't a table yet (BRIEF's Outline section; columns in tools/desk/README.md). Here is the BRIEF as written.", no_brief: "No BRIEF.md yet.",
     script_sub: "{n} lines by outline part. Reading speed, roughly, from each line's span: Chinese up to {g} chars/s green, {y} yellow; English {eg} / {ey}.",
     f_all: "All", f_mine: "Marked by me", f_terms: "With a term", f_facts: "With a source #", f_fast: "Maybe too fast",
@@ -328,21 +328,23 @@ function ago(sec) {
   if (d < 86400 * 14) return t("ago_d", { n: Math.round(d / 86400) });
   return new Date(sec * 1000).toISOString().slice(0, 10);
 }
-function lampOf(state) { return state === "waiting_person" ? "wait" : state === "waiting_agent" || state === "in_progress" ? "agent" : state === "delivered" || state === "done" ? "done" : ""; }
+function lampOf(r) {   // violet only for what is running now (bin/vh status's activity), not for every film the agent could pick up
+  return r.state === "waiting_person" ? "wait" : (r.running || []).length ? "agent" : r.state === "delivered" ? "done" : "";
+}
 function stateWords(r) {
   const s = r.station ? (L.stn[r.station.id] || r.station.name || "") : "";
   const g = r.station && /^\d$/.test(r.station.id) ? "①②③④⑤"[+r.station.id - 1] + " " : r.station && /^E\d$/.test(r.station.id) ? r.station.id + " " : "";
   const st = t("st_" + (r.state || "not_started"));
   return r.state === "waiting_person" || r.state === "waiting_agent" || r.state === "in_progress" ? `${g}${s} · ${st}` : st;
 }
-function picture(r, cls) {
-  const p = r.picture;
-  if (p && p.kind === "image") return `<span class="well ${cls || ""}"><img src="${esc(p.href)}" alt="" loading="lazy"></span>`;
-  if (p && p.kind === "video") return `<span class="well ${cls || ""}"><video muted playsinline preload="none" data-mid data-src="${esc(p.href)}"></video></span>`;
-  return `<span class="well ${cls || ""}"><span class="ph">${esc(String(r.title || r.name || "·").trim().slice(0, 1))}</span></span>`;
+function picture(r, cls) {   // the film's letter is always under the picture: a picture that does not come leaves the letter, not a void
+  const p = r.picture, ph = `<span class="ph">${esc(String(r.title || r.name || "·").trim().slice(0, 1))}</span>`;
+  if (p && p.kind === "image") return `<span class="well ${cls || ""}">${ph}<img src="${esc(p.href)}" alt="" loading="lazy"></span>`;
+  if (p && p.kind === "video") return `<span class="well ${cls || ""}">${ph}<video muted playsinline preload="none" data-mid data-src="${esc(p.href)}"></video></span>`;
+  return `<span class="well ${cls || ""}">${ph}</span>`;
 }
 function card(r) {
-  const a = r.ask, lamp = lampOf(r.state);
+  const a = r.ask, lamp = lampOf(r);
   const ask = a ? `<span class="pcard-ask">${esc(a.decisions ? t("ask_n", { n: a.decisions, q: cut(a.question, 60) }) : t("ask_0", { q: cut(a.question, 60) }))}</span>` : "";
   const when = r.last_activity ? ago(r.last_activity.t) : "";
   const meta = [r.effort, r.type ? String(r.type).replace(/^\d+-/, "") : ""].filter(Boolean).join(" · ");
@@ -402,8 +404,9 @@ function copyText(s) {
   });
 }
 function loadMid(v) { if (v.src) return; v.addEventListener("loadedmetadata", () => { try { v.currentTime = v.duration / 2; } catch (e) { /* not seekable */ } }, { once: true }); v.preload = "metadata"; v.src = v.dataset.src; }
-function midFrames(root) {   // a card of a film shows its middle frame: the video's metadata and one frame, only once it is on screen
+function midFrames(root) {   // a card of a film shows its middle frame: the first cards' at once, the others' once they are near the screen
   const vids = $$("video[data-mid]", root);
+  vids.slice(0, 12).forEach(loadMid);   // (a hidden or background tab never reports what is on screen)
   if (!("IntersectionObserver" in window)) return vids.forEach(loadMid);
   const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { loadMid(e.target); io.unobserve(e.target); } }), { rootMargin: "200px" });
   vids.forEach((v) => io.observe(v));
@@ -421,11 +424,11 @@ function hoverClips(root) {   // a film's card plays 4 s of it, muted, while the
 function spaceColumn() {
   $("#colRound").hidden = true; $("#composer").hidden = true; $("#confirm").hidden = true;
   $("#colHead").innerHTML = `<b>${esc(t("col_space"))}</b>`;
-  const rows = (LIST && LIST.projects) || [], wait = rows.filter((x) => x.state === "waiting_person"), agent = rows.filter((x) => x.state === "waiting_agent" || x.state === "in_progress");
+  const rows = (LIST && LIST.projects) || [], wait = rows.filter((x) => x.state === "waiting_person"), agent = rows.filter((x) => (x.running || []).length);
   const li = (r) => `<li><a href="${projHash(r.key)}"><b>${esc(r.title || r.name)}</b><span class="meta">${esc(stateWords(r))}</span>${r.ask ? `<span class="q">${esc(cut(r.ask.question || "", 70))}</span>` : ""}</a></li>`;
   $("#colBody").innerHTML = `<section><h3 class="blk-h"><b>${esc(t("waiting_list"))}</b><span class="n mono">${wait.length}</span></h3>
       ${wait.length ? `<ul class="film-list">${wait.map(li).join("")}</ul>` : `<p class="next">${esc(t("none_waiting"))}</p>`}</section>
-    ${agent.length ? `<section><h3 class="blk-h"><b>${esc(t("agent_list"))}</b><span class="n mono">${agent.length}</span></h3><ul class="film-list agent">${agent.map(li).join("")}</ul></section>` : ""}
+    ${agent.length ? `<section><h3 class="blk-h"><b>${esc(t("agent_list"))}</b><span class="n mono">${agent.length}</span></h3><ul class="film-list agent">${agent.map((r) => `<li><a href="${projHash(r.key)}"><b>${esc(r.title || r.name)}</b><span class="q mono">${esc(cut(String(r.running[0] || ""), 70))}</span></a></li>`).join("")}</ul></section>` : ""}
     <p class="next">${esc(t("col_space_note"))}</p>`;
 }
 
@@ -460,7 +463,7 @@ async function loadProject(key) {
   if (!r.ok || !r.data) { $("#stage").innerHTML = `<p class="void module">${esc(r.data && r.data.error ? r.data.error : t("noServer"))}</p>`; return false; }
   D = r.data; PKEY = key; LAST = key; store.set("desk:last", key);
   ROUND = D.rounds[D.rounds.length - 1] || { id: "notes", gate: "", data: { decisions: [], least_sure: [], decided: [], delegated: [], assets: [], appendix: [], listen: [] } };
-  KEY = `desk:${D.project.slug}:${ROUND.id}`;
+  KEY = `desk:${PKEY}:${ROUND.id}`;   // the draft goes with the folder (its key), never with a folder of the same name
   FB = store.get(KEY) || { decisions: {}, items: {}, general: "" };
   FB.items = FB.items || {}; FB.decisions = FB.decisions || {};
   setLang(pickLang(D.lang));
@@ -506,10 +509,11 @@ function renderColumn() {
   const live = $("#colHead .state"); const on = live && live.classList.contains("agent");
   const roundName = ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);
   $("#colHead").innerHTML = `<b>${esc(t("col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t(on ? "live_on_tip" : "live_off_tip"))}"><i aria-hidden="true"></i><span>${esc(t(on ? "live_on" : "live_off"))}</span></span>`;
-  const g = GV && GV.current && roundWaits() ? GV : null;   // the cards only while this round's stop waits for the person
-  const decs = g && (ROUND.data.decisions || []).length ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${ROUND.data.decisions.length}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
-    : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}</p></section>`
-    : ROUND.id !== "notes" ? `<section><p class="next">${esc(t("round_quiet", { g: roundName, s: t("st_" + (roundState() || "done")) }))}</p></section>` : "";
+  const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
+  const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener">${esc(t("static_page"))} ↗</a>` : "";
+  const decs = g && (ROUND.data.decisions || []).length ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${ROUND.data.decisions.length}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
+    : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
+    : ROUND.id !== "notes" ? `<section><p class="next">${esc(t("round_quiet", { g: roundName, s: t("st_" + (roundState() || "done")) }))}${page}</p>${recentHtml()}</section>` : recentHtml();
   $("#colBody").innerHTML = `${FB.submittedAt ? `<p class="notice">${esc(t("submitted", { at: FB.submittedAt }))}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="cNext"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
@@ -522,12 +526,22 @@ function pick(dec, val) {
   FB.decisions[dec] = val; save();
   $$(`.g-dec[data-dec="${CSS.escape(dec)}"] input[type=radio]`).forEach((x) => { x.checked = x.value === val; });   // its twin in the module
 }
-function roundWaits() { return !!(D && D.current && ROUND.id === D.current && waitingGate() === D.current); }
+function roundOpen() {   // this round's stop is not settled yet (the server reads it from bin/vh status: not passed, not skipped)
+  if (!D || !D.current || ROUND.id !== D.current) return false;
+  if (typeof D.round_open === "boolean") return D.round_open;
+  return !["done", "skipped"].includes(roundState());
+}
 function roundState() { const s = stations().find((x) => (x.pages || []).includes(ROUND.id)); return s ? s.state : ""; }
-function gateMarks() { return (GV && GV.current && roundWaits() && GV.marks) || []; }
+function gateMarks() { return (GV && GV.current && roundOpen() && GV.marks) || []; }
+function recentHtml() {   // what was decided last, when nothing is open: REVIEW.md's "定了" lines and what the agent decided for you
+  const hist = D.history.slice().reverse().flatMap((h) => h.notes.filter((n) => /^(定了|Decided)/.test(n.k) && n.v && !/^[—–-]?$/.test(n.v.trim())).map((n) => ({ k: h.title, v: n.v }))).slice(0, 3);
+  const agent = D.agent_decided.filter((a) => !a.superseded).slice(-3).reverse().map((a) => ({ k: t("agent_decided_k", { x: a.topic || "" }), v: a.what }));
+  const R = hist.concat(agent);
+  return R.length ? `<h3 class="blk-h" style="margin-top:14px"><b>${esc(t("recent"))}</b></h3><ul class="note-list recent">${R.map((x) => `<li><span class="mono tc">·</span><span><b>${esc(cut(x.k, 40))}</b> ${esc(x.v)}</span></li>`).join("")}</ul>` : "";
+}
 function renderMarks() {
   const M = gateMarks(), least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
-  const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${m.t}"` : ""}${m.t1 != null ? ` data-t1="${m.t1}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(m.id)}</b> ` : ""}${esc(m.note)}</span></li>`;
+  const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${+(m.t)}"` : ""}${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(m.id)}</b> ` : ""}${esc(m.note)}</span></li>`;
   $("#cMarks").innerHTML = (least.length ? `<h3 class="blk-h"><b>${esc(t("c_least"))}</b><span class="n mono">${least.length}</span></h3><ul class="note-list marks">${least.map(li).join("")}</ul>` : "")
     + (listen.length ? `<h3 class="blk-h" style="margin-top:12px"><b>${esc(t("c_listen"))}</b><span class="n mono">${listen.length}</span></h3><ul class="note-list marks">${listen.map(li).join("")}</ul>` : "");
 }
@@ -535,7 +549,7 @@ function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.st
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${v.t}"` : ""}${v.t1 != null ? ` data-t1="${v.t1}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
+  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
   $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + (FB.general ? 1 : 0)}</span></h3>`
     + (items.length || gen ? `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>` : `<p class="next">${esc(t("c_none_mine"))}</p>`);
@@ -546,11 +560,11 @@ function renderNext() {
   const b = ((st.assets || {}).budget) || {}, money = (o) => Object.entries(o || {}).map(([c, v]) => `${v} ${c}`).join(", ");
   const spent = money(b.spent), limit = b.unlimited ? "∞" : money(b.limit);
   $("#cNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li><span class="mono tc" style="color:var(--agent)">●</span><span class="mono">${esc(cut(x.cmd || x, 80))}</span></li>`).join("")}</ul>` : "")
-    + (ns.do ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next"><span class="who ${who}">${esc(t("who_" + who))}</span>${esc(ns.do)}</p>` : "")
+    + (ns.do ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b><span class="tag quiet">${esc(t("ns_from"))}</span></h3><p class="next"><span class="who ${who}">${esc(t("who_" + who))}</span><code class="hint">${esc(ns.do)}</code></p>${(ns.commands || []).slice(0, 2).map((c) => `<p class="next"><code class="cmd">${esc(c)}</code></p>`).join("")}` : "")
     + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next mono">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
 function renderRound() {
-  const n = myItems().length + (FB.general ? 1 : 0), d = roundWaits() ? Object.keys(FB.decisions).length : 0;
+  const n = myItems().length + (FB.general ? 1 : 0), d = roundOpen() ? Object.keys(FB.decisions).length : 0;
   $("#colRound").hidden = false;
   $("#colRound").innerHTML = `<span>${esc(t("round_sum", { n, d }))}</span><button type="button" class="btn btn-primary" id="openConfirm">${esc(t("submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
@@ -640,14 +654,14 @@ $("#stage").addEventListener("click", (e) => {   // a place in a module: the not
 /* submitting: everything this round holds, then one button (the desk's channel; bin/vh desk wait wakes on it) */
 function payload() {
   const g = ROUND.data, decisions = {}, defaulted = [];
-  (roundWaits() ? g.decisions || [] : []).forEach((d) => {   // a stop already settled is not decided again by a later note
+  (roundOpen() ? g.decisions || [] : []).forEach((d) => {   // a stop already settled is not decided again by a later note
     const v = FB.decisions[d.id] || d.recommend;
     if (v && (d.options || []).some((o) => o.id === v)) { decisions[d.id] = v; if (!FB.decisions[d.id]) defaulted.push(d.id); }
   });
   const items = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: v.label || k, text: v.text || "" },
     v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}, v.t1 != null ? { t1: v.t1 } : {}));
   const general = [FB.general || "", ($("#cGeneral") || {}).value || ""].map((x) => x.trim()).filter(Boolean).join("\n");
-  return { round: ROUND.id, lang: LANG, decisions, defaulted, items, general };
+  return { round: ROUND.id, lang: LANG, decisions, defaulted, items, general, pid: D.pid };
 }
 function summaryText(p) {
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
@@ -689,6 +703,7 @@ async function submit() {
     setTimeout(async () => { $("#confirm").hidden = true; const key = PKEY; leaveProject(); D = null; PKEY = ""; await showProject(Object.assign(parse(), { key })); }, 1400);
     return;
   }
+  if (r && r.status === 409) { toast(t("moved")); $("#submitHint").textContent = t("moved"); return; }   // the address names another folder now
   if (r) { let e = r.status; try { e = (await r.json()).error || e; } catch (x) { /* not JSON */ } toast(t("refused", { e })); return; }
   copyText(text).then(() => toast(t("offline")), () => toast(t("offline2")));
   $("#confirm details").open = true;
@@ -745,10 +760,9 @@ function renderModule() {
   ({ outline: cur === "script" ? wireScript : wireOutline, board: wireBoard, sound: wireSound }[MOD] || (() => {}))();
   area.scrollTop = 0;
 }
-function stopPage(mod) {   // the stop's page this module shows on top: the one asked for, else this round's when it waits here
+function stopPage(mod) {   // the stop's page this module shows on top: the one asked for, else this round's while it is open here
   if (GATE && gateMod(GATE) === mod) return GATE;
-  const w = waitingGate();
-  return w && gateMod(w) === mod ? w : null;
+  return D.current && roundOpen() && gateMod(D.current) === mod ? D.current : null;
 }
 function pastPageLink(mod) {
   const f = FLOW.find((x) => x.mod === mod); if (!f) return "";
@@ -779,7 +793,7 @@ async function loadGatePart(gid) {
 function fbCtl(target, label, opt = {}) {
   const v = FB.items[target] || {}, st = v.status || "";
   const lab = opt.labels || [t("fb_ok"), t("fb_change"), t("fb_ask")];
-  return `<div class="fb" data-target="${esc(target)}" data-label="${esc(label)}"${opt.suggest != null ? ` data-orig="${esc(opt.suggest)}"` : ""}${opt.t != null ? ` data-t="${opt.t}"` : ""}${opt.labels ? ` data-labels="${esc(JSON.stringify(opt.labels))}"` : ""}${opt.def ? ` data-def="${esc(opt.def)}"` : ""}>
+  return `<div class="fb" data-target="${esc(target)}" data-label="${esc(label)}"${opt.suggest != null ? ` data-orig="${esc(opt.suggest)}"` : ""}${opt.t != null ? ` data-t="${+(opt.t)}"` : ""}${opt.labels ? ` data-labels="${esc(JSON.stringify(opt.labels))}"` : ""}${opt.def ? ` data-def="${esc(opt.def)}"` : ""}>
     <span class="seg3"><button type="button" data-st="ok" class="${st === "ok" ? "on" : ""}">${esc(lab[0])}</button><button type="button" data-st="change" class="${st === "change" ? "on" : ""}">${esc(lab[1])}</button><button type="button" data-st="ask" class="${st === "ask" ? "on" : ""}">${esc(lab[2])}</button></span>
     ${st ? "" : `<span class="def">${esc(opt.def || t("fb_def"))}</span>`}
     <div class="fb-more" ${st === "change" || st === "ask" ? "" : "hidden"}>
@@ -844,7 +858,7 @@ function vOutline() {
         <span class="meta mono">${when}${o.bars ? ` · ${esc(t("bars", { b: o.bars }))}` : ""}</span></div>
       ${o.know ? `<div style="margin-top:6px"><span class="chip quiet">${esc(t("know"))}</span> ${esc(o.know)}</div>` : ""}
       ${o.visual ? `<div class="small muted" style="margin-top:4px"><span class="chip quiet">${esc(t("visual"))}</span> ${esc(o.visual)}</div>` : ""}
-      ${caps.length ? `<details style="margin-top:8px"><summary class="small">${esc(t("seg_caps", { n: caps.length }))}</summary>${caps.map((x) => `<div class="segcap serif"><span class="id">${esc(x.id)}</span>${esc(x.text)}</div>`).join("")}</details>` : ""}
+      ${caps.length ? `<details style="margin-top:8px"><summary class="small">${esc(t("seg_caps", { n: caps.length }))}</summary>${caps.map((x) => `<div class="segcap serif"><span class="id">${esc(x.id)}</span>${esc(x.text)}</div>`).join("")}<div class="meta"><a href="${projHash(PKEY, "outline/script")}">${esc(t("to_script"))}</a></div></details>` : ""}
       ${fbCtl("seg:" + o.id, t("l_seg", { i: o.id, x: o.title }))}</div></div>`;
   }).join("");
   return `${O.length ? `<p class="sub">${esc(t("outline_tip"))}</p>` : ""}${bar}<div class="grid">${segs}</div>`;
@@ -907,9 +921,9 @@ function vSound() {
   const M = D.music;
   if (!M || (!M.audio && !(M.sections || []).length)) return `<div class="void">${esc(t("no_music"))}</div>`;
   const dur = M.duration || Math.max(1, ...(M.sections || []).map((s) => s.end));
-  const secs = (M.sections || []).map((s) => `<div data-t="${s.start}" title="${esc(s.name)}" style="flex:${Math.max(0.05, s.end - s.start).toFixed(2)}">${esc(s.label || s.name)}</div>`).join("");
+  const secs = (M.sections || []).map((s) => `<div data-t="${+(s.start)}" title="${esc(s.name)}" style="flex:${Math.max(0.05, s.end - s.start).toFixed(2)}">${esc(s.label || s.name)}</div>`).join("");
   const hits = (M.hits || []).map((h) => `<i style="left:${(h.t / dur) * 100}%" title="${esc(h.part)} ${fmt(h.t)}"></i>`).join("");
-  const listen = (ROUND.data.listen || []).map((l) => `<button class="btn" type="button" data-seek="${l.t}">▶ ${fmt(l.t)} · ${esc(l.note)}</button>`).join("");
+  const listen = (ROUND.data.listen || []).map((l) => `<button class="btn" type="button" data-seek="${+(l.t)}">▶ ${fmt(l.t)} · ${esc(l.note)}</button>`).join("");
   const tcs = Object.entries(FB.items).filter(([k]) => k.startsWith("atime:")).sort((a, b) => a[1].t - b[1].t);
   return `<p class="sub">${esc(t("sound_sub", { bpm: M.bpm || "–", d: (+dur).toFixed(1) }))}</p>
     <div>${M.audio ? `<audio id="au" src="${esc(src(M.audio))}" controls preload="metadata"></audio>` : `<p class="small muted">${esc(t("no_audio"))}</p>`}
@@ -917,7 +931,7 @@ function vSound() {
       ${M.audio ? `<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn" type="button" id="atc">${esc(t("comment_at", { t: "\u0001" })).replace("\u0001", '<span id="atnow">0:00.0</span>')}</button><span class="meta">${esc(t("sec_tip"))}</span></div>` : ""}</div>
     ${listen ? `<div class="sect"><h2>${esc(t("listen"))}</h2><div class="listen">${listen}</div></div>` : ""}
     <div class="sect"><h2>${esc(t("your_sound"))} <span class="n">${tcs.length}</span></h2>
-    <div>${tcs.map(([k, v]) => `<div class="card" style="margin-bottom:10px" data-mark="${esc(k)}"><span class="chip" data-seek="${v.t}">${fmt(v.t)}</span>${fbCtl(k, t("sound_label", { t: fmt(v.t) }), { t: v.t })}</div>`).join("") || `<div class="muted small">${esc(t("none_sound"))}</div>`}</div></div>
+    <div>${tcs.map(([k, v]) => `<div class="card" style="margin-bottom:10px" data-mark="${esc(k)}"><span class="chip" data-seek="${+(v.t)}">${fmt(v.t)}</span>${fbCtl(k, t("sound_label", { t: fmt(v.t) }), { t: v.t })}</div>`).join("") || `<div class="muted small">${esc(t("none_sound"))}</div>`}</div></div>
     ${M.roll ? `<details class="fold" style="margin-top:22px"><summary>${esc(t("roll"))}</summary><img class="roll" src="${esc(src(M.roll))}" alt="" loading="lazy"></details>` : ""}`;
 }
 function wireSound() {
@@ -992,16 +1006,8 @@ function vDocs() {
 }
 
 /* ---------- the cut module (docs/proposals/02-studio-client.md, 4): lists, the picture, one timeline ---------- */
-function filmPath() {   // this round's film when its stop is the cut's, else the film bin/vh status names, else its proxy
-  if (!D) return "";
-  const g = ROUND.data || {};
-  if (ROUND.gate && gateMod(ROUND.id) === "cut") {
-    const want = typeof g.film === "string" ? g.film : "";
-    const a = (g.assets || []).find((x) => x && (want ? x.path === want : isVideo(x.path)));
-    if (want || a) return want || a.path;
-  }
-  const m = (D.status && D.status.media) || {};
-  return m.film || m.proxy || "";
+function filmPath() {   // the server's pick, only a file that is there: this round's film at the cut's stop, else bin/vh status's, else its proxy
+  return (D && D.studio && D.studio.film) || "";
 }
 function TL() { return (D.studio && D.studio.timeline) || {}; }
 function cutShots() {
@@ -1078,8 +1084,12 @@ function CutModule(area) {
     frame.innerHTML = `<video id="cv" src="${esc(src(film))}" preload="metadata" playsinline></video>${prevV ? `<video class="vb" id="cvb" src="${esc(src(prevV.file))}" preload="metadata" playsinline muted hidden></video><div class="wipe-line" id="wl" hidden></div><span class="wipe-l" hidden>${esc(t("ver_now", { v: vnum(curV.id) }))}</span><span class="wipe-r" hidden>${esc(vnum(prevV.id))}</span>` : ""}<div class="safe" hidden></div>`;
     video = $("#cv", frame); vb = $("#cvb", frame);
   } else {
-    frame.innerHTML = `<img id="cimg" alt="">${shots.some(shotPic) ? "" : `<p class="none">${esc(t("no_film0"))}</p>`}<div class="safe" hidden></div>`;
-    if (shots.some(shotPic)) screen.insertAdjacentHTML("beforeend", `<p class="screen-note">${esc(t("no_film"))}</p>`);
+    // no film to play: the storyboard's key frames as the picture, else the contact sheet; the line under it says which, and
+    // names the file that was asked for when it is not there (moved, renamed, on another drive)
+    const gone = (ST.film_missing) || "", pics = shots.some(shotPic) ? "frames" : ST.sheet ? "sheet" : "";
+    const say = pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics, { p: gone }) : gone ? t("film_gone0", { p: gone }) : t("no_film0");
+    frame.innerHTML = `<img id="cimg" alt=""${pics === "sheet" ? ` src="${esc(src(ST.sheet))}"` : ""}>${pics ? "" : `<p class="none">${esc(say)}</p>`}<div class="safe" hidden></div>`;
+    if (pics) screen.insertAdjacentHTML("beforeend", `<p class="screen-note">${esc(say)}</p>`);
   }
   const nextq = document.createElement("div"); nextq.className = "nextq"; nextq.hidden = true; screen.appendChild(nextq);
 
@@ -1180,7 +1190,7 @@ function CutModule(area) {
     } else if (tab === "notes") {
       const R = allMarks().filter((m) => m.kind !== "check");
       const who = (m) => (m.kind === "mine" ? `<em style="color:var(--you)">${esc(t("k_mine"))}</em>` : m.kind === "least" ? `<em style="color:var(--wait)">${esc(t("k_least"))}</em>` : `<em style="color:var(--wait)">${esc(t("k_listen"))}</em>`);
-      h = R.map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${m.t}"${m.t1 != null ? ` data-t1="${m.t1}"` : ""}><span class="tc">${esc(fmt(m.t))}</span><span class="tx">${who(m)} ${esc(m.kind === "mine" ? (m.note || m.label) : m.note)}</span></button>`).join("")
+      h = R.map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="tc">${esc(fmt(m.t))}</span><span class="tx">${who(m)} ${esc(m.kind === "mine" ? (m.note || m.label) : m.note)}</span></button>`).join("")
         + (FB.general ? `<div class="lrow text"><span class="tc">·</span><span class="tx"><em style="color:var(--you)">${esc(t("c_whole_note"))}</em> ${esc(FB.general)}</span></div>` : "");
       if (!h) h = `<p class="void">${esc(t("c_none_mine"))}</p>`;
     } else {
@@ -1229,7 +1239,7 @@ function CutModule(area) {
     const beatH = beats.filter((b) => b.downbeat || pxPerS * (60 / (+T.bpm || 120)) > 10).map((b) => `<i class="bl${b.downbeat ? " down" : ""}" style="left:${pct(+b.t)}%"></i>`).join("");
     const secH = sections.map((s) => `<span class="sec" style="left:${pct(s.start)}%;width:${pct(s.end) - pct(s.start)}%" title="${esc(s.name)}">${esc(s.label || s.name)}</span>`).join("");
     const hitH = hitsL.map((h) => `<i class="hit" style="left:${pct(+h.t)}%" title="${esc((h.part || "") + " " + fmt(h.t))}"></i>`).join("");
-    const markH = AM.map((m) => `${m.t1 != null ? `<span class="span-mark ${m.kind}" style="left:${pct(m.t)}%;width:${pct(m.t1) - pct(m.t)}%"></span>` : ""}<button type="button" class="pin ${m.kind === "mine" ? "note" : m.kind}" style="left:${pct(m.t)}%" data-pick="mark:${esc(m.target)}" data-t="${m.t}"${m.t1 != null ? ` data-t1="${m.t1}"` : ""} title="${esc(fmt(m.t) + " · " + (m.note || m.label))}" aria-label="${esc(fmt(m.t) + " " + (m.note || m.label))}"></button>`).join("");
+    const markH = AM.map((m) => `${m.t1 != null ? `<span class="span-mark ${m.kind}" style="left:${pct(m.t)}%;width:${pct(m.t1) - pct(m.t)}%"></span>` : ""}<button type="button" class="pin ${m.kind === "mine" ? "note" : m.kind}" style="left:${pct(m.t)}%" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""} title="${esc(fmt(m.t) + " · " + (m.note || m.label))}" aria-label="${esc(fmt(m.t) + " " + (m.note || m.label))}"></button>`).join("");
     const diffH = changed.map((s) => `<span class="diff" style="left:${pct(s[0])}%;width:${Math.max(0.3, pct(s[1]) - pct(s[0]))}%">${esc(t("diff_label", { v: vnum(curV.id) }))}</span>`).join("")
       || (curV && curV.changed && curV.changed.whole ? `<span class="diff" style="left:0;width:100%">${esc(vnum(curV.id))} · ${esc(t("whole_render"))}</span>` : "");
     const grp = (k, name) => `<div class="grp" data-grp="${k}" role="button" tabindex="0">${esc(name)}</div>`;
@@ -1268,7 +1278,7 @@ function CutModule(area) {
       const isProxy = film && D.status && D.status.media && film === D.status.media.proxy && film !== D.status.media.film;
       $("#readout", area).innerHTML = (s ? `<span><b>${esc(s.id)}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
         + `<span class="ver">${esc([size, fps + " FPS", ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
-      if (!video) { const img = $("#cimg", frame); const pic = s ? shotPic(s) : ""; if (img) { if (pic) { if (img.getAttribute("src") !== pic) img.src = pic; img.hidden = false; } else img.hidden = true; } }
+      if (!video) { const img = $("#cimg", frame); const pic = s ? shotPic(s) : ""; if (img && shots.some(shotPic)) { if (pic) { if (img.getAttribute("src") !== pic) img.src = pic; img.hidden = false; } else img.hidden = true; } }
       if (tab === "shots") $$("#lbody .lrow", area).forEach((r) => r.classList.toggle("now", !!s && r.dataset.pick === "shot:" + s.id));
     }
     if (tab === "script") { const li = lines.findIndex((l) => x >= l.t0 && x < l.t1); $$("#lbody .lrow", area).forEach((r, i) => r.classList.toggle("now", i === li)); }
@@ -1321,7 +1331,7 @@ function CutModule(area) {
   tl.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || e.target.closest(".grp")) return;
     const trk = e.target.closest(".trk"); if (!trk) return;
-    drag = { x0: e.clientX, t0: tAt(e.clientX, true), pick: e.target.closest("[data-pick]"), moved: false, id: e.pointerId };
+    drag = { x0: e.clientX, t0: tAt(e.clientX, true), pick: e.target.closest("[data-pick]"), moved: false, id: e.pointerId, before: SEL };
     tl.setPointerCapture(e.pointerId);
   });
   tl.addEventListener("pointermove", (e) => {
@@ -1339,6 +1349,7 @@ function CutModule(area) {
   const endDrag = (e) => {
     if (!drag) return;
     const d = drag; drag = null;
+    if (e.type === "pointercancel") { SEL = d.before; paintSel(); return; }   // the gesture was taken away: nothing is selected by it
     if (d.moved) { const s = SEL; if (s && s.t1 - s.t >= 0.1) select({ kind: "range", t: s.t, t1: s.t1, label: s.label }); else select({ kind: "time", t: s ? s.t : d.t0, label: fmt(s ? s.t : d.t0) }); return; }
     if (d.pick && e.type === "pointerup") return pickThing(d.pick.dataset.pick, d.pick);
     const x = d.t0; select({ kind: "time", t: x, label: fmt(x) });
@@ -1347,13 +1358,15 @@ function CutModule(area) {
   function hoverTip(e, tip) {
     const r = overRect(); if (e.clientX < r.left || e.clientX > r.right) { tip.hidden = true; return; }
     const x = tAt(e.clientX, false), s = shotAt(x);
-    let fr = "";
+    const fr = document.createElement("span");   // the frame under the pointer, its address set through the style object, never written into markup
+    fr.className = "fr";
     if (thumbs) {
       const T3 = thumbs.tiles; let best = T3[0]; for (const q of T3) { if (Math.abs(q.t - x) < Math.abs(best.t - x)) best = q; }
       const sh = thumbs.sheets[best.sheet], W = 176, sc = W / thumbs.tile[0];
-      if (sh) fr = `<span class="fr" style="background-image:url('${esc(src(sh.file))}');background-size:${sh.size[0] * sc}px ${sh.size[1] * sc}px;background-position:-${best.x * sc}px -${best.y * sc}px;height:${Math.round(thumbs.tile[1] * sc)}px"></span>`;
-    } else if (s && shotPic(s)) fr = `<span class="fr" style="background-image:url('${esc(shotPic(s))}');background-size:cover;background-position:center"></span>`;
-    tip.innerHTML = `${fr}${esc(fmt(x))}${s ? " · " + esc(s.id) : ""}`;
+      if (sh) Object.assign(fr.style, { backgroundImage: `url(${JSON.stringify(src(sh.file))})`, backgroundSize: `${sh.size[0] * sc}px ${sh.size[1] * sc}px`,
+        backgroundPosition: `-${best.x * sc}px -${best.y * sc}px`, height: `${Math.round(thumbs.tile[1] * sc)}px` });
+    } else if (s && shotPic(s)) Object.assign(fr.style, { backgroundImage: `url(${JSON.stringify(shotPic(s))})`, backgroundSize: "cover", backgroundPosition: "center" });
+    tip.replaceChildren(...(fr.style.backgroundImage ? [fr] : []), document.createTextNode(fmt(x) + (s ? " · " + s.id : "")));
     tip.hidden = false;
     tip.style.left = Math.min(Math.max(e.clientX, 100), window.innerWidth - 100) + "px"; tip.style.top = (e.clientY - 12) + "px";
   }

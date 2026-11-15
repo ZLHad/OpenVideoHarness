@@ -40,6 +40,7 @@ STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charse
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
+FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
 CSP = ("default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; "
        "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 # every project file is served sandboxed without allow-same-origin: an HTML or SVG in the project (a HyperFrames
@@ -53,10 +54,19 @@ mimetypes.add_type("audio/wav", ".wav")
 mimetypes.add_type("image/svg+xml", ".svg")
 
 
-def keyify(name):
-    """A project's key in the console's addresses: its name as bin/vh projects gives it, a / (a project in a subfolder)
-    as ~. A clash gets ~2, ~3 … (Desk.listing)."""
-    return re.sub(r"[/\\]+", "~", str(name)).strip("~") or "project"
+def pid_of(path):
+    """A project folder's identity in the console: the SHA-1 of its real path. A submission carries it, and one whose
+    address names another folder by then is refused, never written there."""
+    return hashlib.sha1(os.path.realpath(str(path)).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def keyify(name, path):
+    """A project's key in the console's addresses: its name as bin/vh projects gives it (a / of a project in a subfolder as
+    ~), then ~ and six hex digits of its folder's identity. The same folder always has the same key, whatever else appears
+    under the roots or goes, and two folders of the same name never share one (Desk.listing lengthens the digits in the
+    one-in-millions case of two that agree on six)."""
+    base = re.sub(r"[/\\]+", "~", str(name)).strip("~") or "project"
+    return f"{base}~{pid_of(path)[:6]}"
 
 
 def link(key):
@@ -131,12 +141,22 @@ def picture_of(project, row, gate):
                 p = _inside(project, sh.get("frame")) if isinstance(sh, dict) else None
                 if p:
                     return {"path": p, "kind": "image", "from": "gate"}
-    cover = _newest(project, [f"out/final/covers/*{e}" for e in IMG] + [f"out/final/cover*{e}" for e in IMG] + [f"out/review/cover*{e}" for e in IMG])
+    cover = _newest(project, [f"{d}/*{e}" for d in ("out/covers", "out/final/covers") for e in IMG]
+                    + [f"{d}/cover*{e}" for d in ("out/final", "out/review", "out") for e in IMG])
     if cover:
         return {"path": cover, "kind": "image", "from": "cover"}
     film = (row.get("film") or {}).get("path") if isinstance(row.get("film"), dict) else None
-    if film and _inside(project, film) and film.lower().endswith(VID):
+    film = film if film and film.lower().endswith(VID) and _inside(project, film) else None
+    if film:   # a still of the film before the film itself: bin/vh thumbs' picture of its middle shot
+        still = _thumb_of(project, film)
+        if still:
+            return {"path": still, "kind": "image", "from": "thumbs"}
         return {"path": film, "kind": "video", "from": "film"}
+    sheet = _newest(project, [f"out/check/*sheet*{e}" for e in IMG] + [f"out/check/*/*sheet*{e}" for e in IMG])
+    if sheet:
+        return {"path": sheet, "kind": "image", "from": "sheet"}
+    for _, g in _gate_pictures(project):   # the pictures the stops showed, the newest page first
+        return {"path": g, "kind": "image", "from": "gate"}
     frames = sorted(Path(project).glob("out/check/storyboard/frames/*.png"))
     if frames:
         return {"path": frames[len(frames) // 2].relative_to(project).as_posix(), "kind": "image", "from": "storyboard"}
@@ -144,6 +164,45 @@ def picture_of(project, row, gate):
     if pic:
         return {"path": pic, "kind": "image", "from": "latest"}
     return None
+
+
+def _thumb_of(project, film):
+    """bin/vh thumbs' picture of the film's middle shot, when it made one for this film and it is there; else None."""
+    rec = _load(Path(project) / "out" / "proxy" / (Path(film).stem + ".thumbs") / "thumbs.json")
+    shots = [s for s in (rec or {}).get("shots") or [] if isinstance(s, dict) and _inside(project, s.get("file"))] if isinstance(rec, dict) else []
+    return shots[len(shots) // 2]["file"] if shots else None
+
+
+def _gate_pictures(project):
+    """(gate id, picture) for every picture a gate page names that is there: its cards' frames, its pictures, its shots'
+    key frames; the newest page first."""
+    for page in reversed(review.gate_pages(project)):
+        d = _load(page)
+        if not isinstance(d, dict):
+            continue
+        cand = [o.get("frame") for dec in d.get("decisions") or [] if isinstance(dec, dict) for o in dec.get("options") or [] if isinstance(o, dict)]
+        cand += [a.get("path") for a in d.get("assets") or [] if isinstance(a, dict)]
+        cand += [sh.get("frame") for sg in d.get("segments") or [] if isinstance(sg, dict) for sh in sg.get("shots") or [] if isinstance(sh, dict)]
+        for c in cand:
+            p = _inside(project, c)
+            if p and p.lower().endswith(IMG):
+                yield page.stem[5:], p
+
+
+def film_title(project, title):
+    """The film's name: BRIEF's (bin/vh status's title), else the newest gate page's title up to its stop's name
+    ("片名 · 关卡 ③ 初版" → "片名"), else the folder's name."""
+    name = Path(project).name
+    if title and title != name:
+        return title
+    for page in reversed(review.gate_pages(project)):
+        d = _load(page)
+        t = d.get("title") if isinstance(d, dict) else None
+        if isinstance(t, str) and t.strip():
+            head = re.split(r"\s+[·|｜—-]\s+(?=关卡|检查点|Gate|Checkpoint|E\d)", t.strip(), maxsplit=1)[0].strip()
+            if head and head != t.strip():
+                return head
+    return title or name
 
 
 def ask_of(row, gid, gate):
@@ -171,16 +230,34 @@ def studio_extras(project, data):
     is None, and the page names the command that makes it."""
     st = data.get("status") or {}
     media = st.get("media") or {}
-    out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None}
+    out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None, "film": None, "film_missing": None, "sheet": None}
+    # the film: this round's when its stop is the cut's (gate ③, E4, E5), else the one bin/vh status names, else its proxy
+    want = []
+    rounds = data.get("rounds") or []
+    if rounds and re.match(r"(3|E4|E5)", str(rounds[-1].get("id", ""))):
+        g = rounds[-1].get("data") or {}
+        if isinstance(g.get("film"), str):
+            want.append(g["film"])
+        want += [a.get("path") for a in g.get("assets") or [] if isinstance(a, dict) and str(a.get("path", "")).lower().endswith(VID)]
+    want += [media.get("film"), media.get("proxy")]
+    want = [w for w in want if isinstance(w, str) and w.strip() and not re.match(r"(?i)https?://", w)]
+    out["film"] = next((w for w in want if _inside(project, w)), None)
+    if not out["film"] and want:
+        out["film_missing"] = want[0]
+    out["sheet"] = _newest(project, [f"out/check/*sheet*{e}" for e in IMG] + [f"out/check/*/*sheet*{e}" for e in IMG])   # a picture when there is no film
     try:
         import resolved
         out["timeline"] = resolved.document(Path(project), data.get("lang"))
+        for sh in out["timeline"].get("shots") or []:   # a key frame that is not there is no key frame (and no 404)
+            if isinstance(sh, dict) and sh.get("frame") and not re.match(r"(?i)https?://", str(sh["frame"])) and not _inside(project, sh["frame"]):
+                sh["frame"] = None
     except (Exception, SystemExit) as e:   # one part's trouble is said, the rest is shown
         data["warnings"].append(f"bin/vh timeline --resolved: {type(e).__name__}: {e}")
     if media.get("thumbs"):
         t = _load(Path(project) / media["thumbs"])
-        if isinstance(t, dict):
-            out["thumbs"] = {k: t.get(k) for k in ("duration", "tile", "shot", "sheets", "tiles", "shots")}
+        if isinstance(t, dict) and all(_inside(project, sh.get("file")) for sh in t.get("sheets") or [] if isinstance(sh, dict)):
+            out["thumbs"] = {k: t.get(k) for k in ("duration", "tile", "shot", "sheets", "tiles")}
+            out["thumbs"]["shots"] = [x for x in t.get("shots") or [] if isinstance(x, dict) and _inside(project, x.get("file"))]
     if media.get("peaks"):
         pk = _load(Path(project) / media["peaks"])
         if isinstance(pk, dict) and isinstance(pk.get("peaks"), list):
@@ -198,10 +275,12 @@ def studio_extras(project, data):
 class Desk(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port, project=None, roots=()):
+    def __init__(self, port, project=None, roots=(), only=False):
         super().__init__(("127.0.0.1", port), Handler)
         self.project = Path(project).resolve() if project else None   # the project this desk was started for; None: the console
-        self.own_key = keyify(self.project.name) if self.project else None
+        self.own_key = keyify(self.project.name, self.project) if self.project else None
+        self.only = bool(only and self.project)   # bin/vh gate's desk: this project and nothing else under the roots
+        self._fresh_at = 0.0   # the last walk an unknown key asked for
         self.roots = [str(r) for r in roots]
         self.token = secrets.token_urlsafe(24)
         self.port = self.server_address[1]
@@ -230,29 +309,35 @@ class Desk(http.server.ThreadingHTTPServer):
             when, rec = self._listing
             if rec is not None and not fresh and time.time() - when < LISTING_TTL:
                 return rec
-            rec = PJ.listing(self.roots)
-            if self.project and not any(os.path.realpath(r["path"]) == os.path.realpath(str(self.project)) for r in rec["projects"]):
-                rec["projects"].append(PJ.row(self.project, self.project.name, S, False))
-                rec["count"] = len(rec["projects"])
+            if self.only:
+                rec = {"version": 1, "roots": [], "count": 1, "projects": [PJ.row(self.project, self.project.name, S, False)]}
+            else:
+                rec = PJ.listing(self.roots)
+                if self.project and not any(os.path.realpath(r["path"]) == os.path.realpath(str(self.project)) for r in rec["projects"]):
+                    rec["projects"].append(PJ.row(self.project, self.project.name, S, False))
+                    rec["count"] = len(rec["projects"])
             keys = {self.own_key: self.project} if self.project else {}
-            for r in sorted(rec["projects"], key=lambda r: r["path"]):
+            for r in rec["projects"]:
                 p = Path(r["path"])
                 if self.project and os.path.realpath(str(p)) == os.path.realpath(str(self.project)):
                     r["key"] = self.own_key
                     continue
-                k = base = keyify(r["name"])
-                n = 2
-                while k in keys:
-                    k, n = f"{base}~{n}", n + 1
+                k = keyify(r["name"], p)
+                if k in keys and os.path.realpath(str(keys[k])) != os.path.realpath(str(p)):   # six digits shared: twelve
+                    k = f"{k}{pid_of(p)[6:12]}"
                 keys[k] = p
                 r["key"] = k
             self._keys, self._listing = keys, (time.time(), rec)
             return rec
 
     def project_of(self, key):
-        """The folder a key names, or None (a key not seen yet: the roots are walked once more)."""
+        """The folder a key names, or None. A key not seen yet walks the roots once more, at most once in FRESH_GAP seconds
+        (a tab still asking for a project that is gone, or any /f/<nonsense>/, does not walk them on every request)."""
         if key in self._keys:
             return self._keys[key]
+        if self.only or time.time() - self._fresh_at < FRESH_GAP:
+            return None
+        self._fresh_at = time.time()
         self.listing(fresh=True)
         return self._keys.get(key)
 
@@ -364,7 +449,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 r["error"] = r.get("error") or f"{type(e).__name__}: {e}"
             if r["picture"]:
                 r["picture"]["href"] = link(r["key"])(r["picture"]["path"])
+            if not r.get("error"):
+                r["title"] = film_title(r["path"], r.get("title"))
             rows.append(r)
+        rank = lambda r: (0 if r.get("state") == "waiting_person" else 2 if r.get("state") == "delivered" else 1,   # noqa: E731
+                          -float((r.get("last_activity") or {}).get("t") or 0), r.get("name") or "")
+        rows.sort(key=rank)
         self._json({"version": 1, "home": self.server.own_key, "roots": rec["roots"], "count": len(rows),
                     "waiting": sum(1 for r in rows if r.get("state") == "waiting_person"), "projects": rows})
 
@@ -379,8 +469,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (Exception, SystemExit) as e:   # the page shows the rest without it
             data["status"] = None
             data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
-        data["key"], data["home"] = key, key == self.server.own_key
+        data["key"], data["home"], data["pid"] = key, key == self.server.own_key, pid_of(project)
+        data["only"] = self.server.only
         data["current"] = data["rounds"][-1]["id"] if data["rounds"] else None
+        data["project"]["title"] = film_title(project, data["project"].get("title"))
+        # this round is open until its stop is settled (passed or skipped): its decisions go with a submission, as before
+        cur = next((x for x in (data.get("status") or {}).get("stations") or [] if data["current"] in (x.get("pages") or [])), None)
+        data["round_open"] = bool(data["current"]) and not (cur and cur.get("state") in ("done", "skipped"))
         data["studio"] = studio_extras(project, data)
         return self._json(data)
 
@@ -512,7 +607,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.close_connection = True
             return self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says")
         try:
-            fb = F.validate(project, json.loads(body.decode("utf-8")))
+            raw = json.loads(body.decode("utf-8"))
+            if m:   # the console's address: the page says which folder it was opened on, and it has to be this one
+                if not isinstance(raw, dict) or raw.pop("pid", None) != pid_of(project):
+                    return self._error(409, "this address names another project now than the page was opened on: reload it")
+            fb = F.validate(project, raw)
         except (ValueError, TypeError, AttributeError, RecursionError) as e:   # UnicodeDecodeError is a ValueError
             return self._error(400, str(e) or type(e).__name__)
         saved = F.save(project, fb)
@@ -528,9 +627,27 @@ def _info_path(project, roots=()):
     set of roots (a console over other folders is another console)."""
     if project:
         return Path(project) / "out" / "review" / ".desk.json"
-    uid = os.getuid() if hasattr(os, "getuid") else os.environ.get("USERNAME", "user")
+    d = _own_dir()
+    if d is None:
+        return None
     which = hashlib.sha1("\n".join(sorted(os.path.realpath(r) for r in roots)).encode("utf-8")).hexdigest()[:10]
-    return Path(tempfile.gettempdir()) / f"ovh-console-{uid}-{which}.json"
+    return d / f"console-{which}.json"
+
+
+def _own_dir():
+    """This user's folder for consoles in the temp folder (on a Linux /tmp shared with other users too): made 0700, and
+    used only while it is a folder, not a link, owned by this user and closed to others; None otherwise."""
+    uid = os.getuid() if hasattr(os, "getuid") else None
+    d = Path(tempfile.gettempdir()) / f"ovh-desk-{uid if uid is not None else os.environ.get('USERNAME', 'user')}"
+    try:
+        d.mkdir(mode=0o700, exist_ok=True)
+        st = os.lstat(d)
+    except OSError:
+        return None
+    import stat as _st
+    if not _st.S_ISDIR(st.st_mode) or (uid is not None and st.st_uid != uid) or st.st_mode & 0o077:
+        return None
+    return d
 
 
 def running(project=None, roots=None):
@@ -538,7 +655,11 @@ def running(project=None, roots=None):
     alive and its port answers), else None. A copied project carries the original's file; the path tells them apart.
     project None: a console already running with the same roots."""
     info_p = _info_path(project, roots or ())
+    if info_p is None:
+        return None
     try:
+        if hasattr(os, "getuid") and os.lstat(info_p).st_uid != os.getuid():   # someone else's file says nothing about ours
+            return None
         info = json.loads(info_p.read_text())
         if project is not None and info.get("project") != os.path.realpath(str(project)):
             return None
@@ -547,16 +668,15 @@ def running(project=None, roots=None):
         os.kill(int(info["pid"]), 0)
         with socket.create_connection(("127.0.0.1", int(info["port"])), timeout=1):
             pass
-    except PermissionError:
-        return info.get("url")
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError):   # PermissionError too: a process this user cannot signal is not its desk
         return None
     return info.get("url")
 
 
-def serve(project=None, port=None, idle=None, roots=()):
+def serve(project=None, port=None, idle=None, roots=(), only=False):
     """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. project None: the console.
-    port None: the first free of 8780–8799; 0: any free port. → exit code."""
+    port None: the first free of 8780–8799; 0: any free port. only: this project and nothing else under the roots (the desk
+    bin/vh gate starts). → exit code."""
     project = Path(project).resolve() if project else None
     url = running(project, roots)
     if url:
@@ -566,7 +686,7 @@ def serve(project=None, port=None, idle=None, roots=()):
     srv, last = None, None
     for p in ([port] if port is not None else DEFAULT_PORTS):
         try:
-            srv = Desk(p, project, roots)
+            srv = Desk(p, project, roots, only)
             break
         except OSError as e:
             last = e
@@ -574,13 +694,19 @@ def serve(project=None, port=None, idle=None, roots=()):
         print(f"desk: no free port ({last}); pick one with --port N", file=sys.stderr)
         return 2
     info_p = _info_path(project, roots)
-    info_p.parent.mkdir(parents=True, exist_ok=True)
     info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds")}
     if project:
         info["project"] = os.path.realpath(str(project))
     else:
         info["roots"] = [os.path.realpath(r) for r in roots]
-    info_p.write_text(json.dumps(info))
+    try:   # without it this desk still serves; a second start just cannot find it
+        if info_p is None:
+            raise OSError("no folder of this user's own in the temp folder")
+        info_p.parent.mkdir(parents=True, exist_ok=True)
+        info_p.write_text(json.dumps(info))
+    except OSError as e:
+        print(f"desk: {e}: a second start will not find this one", file=sys.stderr)
+        info_p = None
 
     def stop(signum, _frame):   # the info file goes (finally, below); the exit status says what stopped it: 128 + the signal
         raise SystemExit(128 + signum)
@@ -596,7 +722,7 @@ def serve(project=None, port=None, idle=None, roots=()):
                     srv.shutdown()
                     return
         threading.Thread(target=watch, daemon=True).start()
-    what = f"{project.name}" if project else "console (every project)"
+    what = (f"{project.name}" + (" only" if only else "")) if project else "console (every project)"
     print(f"desk: {srv.url}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
     code = 0
     try:
@@ -606,7 +732,7 @@ def serve(project=None, port=None, idle=None, roots=()):
     finally:
         srv.server_close()
         try:
-            if json.loads(info_p.read_text()).get("pid") == os.getpid():
+            if info_p is not None and json.loads(info_p.read_text()).get("pid") == os.getpid():
                 info_p.unlink()
         except (OSError, ValueError):
             pass

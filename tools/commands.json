@@ -1151,14 +1151,14 @@
       ],
       "usage": [
         {
-          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
           "text": [
             "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio without the agent: modules on",
             "the left, the film's stops on top, what waits for the person and their notes on the right. No project: the space,",
             "every project bin/vh projects finds (--root: more folders), a card a film, waiting ones first. A project: the page",
-            "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). wait: block",
-            "until the person submits, print it, exit 0 (an agent runs it in the background); feedback: the latest submission;",
-            "data: what the desk reads from the project, as JSON"
+            "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
+            "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
+            "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON"
           ]
         }
       ],

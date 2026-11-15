@@ -176,7 +176,7 @@ def start_desk(project, port=None):
         return url, False
     log = project / "out" / "review" / ".desk.log"
     log.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [os.environ.get("OVH_BASH") or "bash", str(ROOT / "bin" / "vh"), "desk", str(project), "--idle", str(IDLE)]
+    cmd = [os.environ.get("OVH_BASH") or "bash", str(ROOT / "bin" / "vh"), "desk", str(project), "--idle", str(IDLE), "--only"]   # this stop's project only
     if port is not None:
         cmd += ["--port", str(port)]
     with open(log, "ab") as out:
@@ -246,7 +246,7 @@ def main(argv):
             return jsonerr.fail("failed", f"gate: the review desk did not start (out/review/.desk.log says why); the page is {page_path}. "
                                 f"Start it by hand: bin/vh desk {a.project}")
         print(f"✓ review desk {url} ({'started, in the background' if started else 'already serving this project'})", file=sys.stderr)
-        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url.rstrip("/") + "/#/p/" + quote(server.keyify(project.name), safe="") + "/gate/" + page.gate))
+        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url.rstrip("/") + "/#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
     print(f"  this stop is reviewed on the {channel} ({why})", file=sys.stderr)
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": page.gate, "page": str(page_path), "channel": channel, "url": url,

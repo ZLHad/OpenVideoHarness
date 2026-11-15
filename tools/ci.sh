@@ -2939,7 +2939,17 @@ PY
   "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
   for rc3 in $(seq 50); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
   python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/#/p/g/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+  only=$(python3 - "$url" <<'PY' 2>/dev/null
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1])
+def get(p):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return json.loads(d)
+rows = get("/api/projects")["projects"]
+print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
+PY
+)
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+    && [ "$only" = "1 True" ] \
     && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
@@ -2948,8 +2958,8 @@ gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
 sys.exit(0 if len(desk) == 1 and desk[0].get("parent") in gates and any(r["event"] == "feedback" for r in recs) else 1)
 PY
-  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), puts its address in the message, landing on this round's gate view; --wait hands over the submission"
-  else bad "gate on the desk (rc $rc/$rc2/$rc3): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
+  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), serving that project and nothing else, puts its address in the message, landing on this round's gate view; --wait hands over the submission"
+  else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
   "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!
@@ -3040,6 +3050,59 @@ print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.jo
 PY
 ) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css and studio.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
   else bad "theme contrast or stray colours: $a"; fi
+  # the console's own safety: project words reach the page only through escaping or the DOM; an unknown key walks the roots at
+  # most once in FRESH_GAP; the console's info file is trusted only in a folder of this user's own; a card's picture and a gate
+  # page ask for no file that is not there; a film's name when the BRIEF has none
+  if a=$(python3 - "$t" <<'PY'
+import json, os, re, sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import projects, review, server
+t = sys.argv[1]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+ui, studio, rv = (open(f, encoding="utf-8").read() for f in ("tools/desk/static/ui.js", "tools/desk/static/studio.js", "tools/review.py"))
+want("innerHTML" not in ui, "ui.js puts markup in the page (innerHTML): a frame's address or a label is the project's words")
+want("url('" not in studio and "data-cap=" not in rv, "a project path in a CSS url('…') or a caption in an attribute")
+calls, real = [], projects.listing
+projects.listing = lambda *a, **k: (calls.append(1), real(*a, **k))[1]
+srv = server.Desk(0, None, [t + "/root"])
+try:
+    for _ in range(5):
+        srv.project_of("nope~000000")
+finally:
+    srv.server_close(); projects.listing = real
+want(len(calls) == 1, f"five unknown keys walked the roots {len(calls)} times")
+tmp = tempfile.mkdtemp(dir=t); tempfile.tempdir = tmp
+own = Path(tmp) / f"ovh-desk-{os.getuid()}"
+os.symlink(tmp, own)
+want(server._info_path(None, [t]) is None, "a console's folder that is a link is trusted")
+own.unlink(); own.mkdir(mode=0o755); os.chmod(own, 0o755)
+want(server._info_path(None, [t]) is None, "a console's folder others can write in is trusted")
+os.chmod(own, 0o700)
+info = server._info_path(None, [t])
+want(info is not None and info.parent == own, "a console's folder of this user's own is not used")
+if info:
+    info.write_text(json.dumps({"pid": 1, "port": 9, "url": "http://127.0.0.1:9/", "roots": [os.path.realpath(t)]}))
+    want(server.running(None, [t]) is None, "an info file naming a process this user cannot signal counts as a running console")
+p = Path(t) / "pics"
+(p / "frames").mkdir(parents=True); (p / "out" / "review").mkdir(parents=True)
+(p / "frames" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+(p / "out" / "review" / "gate-1.json").write_text(json.dumps({"title": "编的片 · 关卡 ①", "summary": "选一张",
+    "decisions": [{"id": "c", "question": "哪张？", "options": [{"id": "A", "label": "甲", "frame": "frames/a.png"}, {"id": "B", "label": "乙"}], "recommend": "A"}],
+    "assets": [{"path": "frames/gone.png"}]}, ensure_ascii=False), encoding="utf-8")
+pic = server.picture_of(p, {"state": "in_progress", "film": {"path": "out/draft.mp4"}}, None)
+want(pic == {"path": "frames/a.png", "kind": "image", "from": "gate"}, f"a card whose film is not there: the gate page's picture, not the film: {pic}")
+want(server.film_title(p, "pics") == "编的片", f"a film's name from its gate page: {server.film_title(p, 'pics')!r}")
+pg = review.page_for(p, "1")
+html = pg.body()
+want("gone.png" not in " ".join(re.findall(r'(?:src|href|data-src)="([^"]*)"', html)) and any("frames/gone.png" in e for e in pg.errors),
+     "a gate page links a file that is not there")
+print("; ".join(bad))
+PY
+) && [ -z "$a" ]; then ok "console safety: no markup from project words in ui.js, no project path in a CSS url; an unknown key walks the roots once in FRESH_GAP; a console's info file only in this user's own closed folder, and a process it cannot signal is not its console; a card and a gate page ask for no missing file; the film's name from its gate page"
+  else bad "console safety: $a"; fi
   # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
   mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
   printf '%s\n' '{"summary": "立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。这页给你看第一轮的四张静帧和四十八秒的大纲，要你定两件事，约四分钟", "decisions": [{"id": "c", "question": "用哪个？", "options": ["A", "B"], "recommend": "A"}]}' > "$t/long/out/review/gate-1.json"
@@ -3049,13 +3112,18 @@ PY
     && grep -q 'keep it short: summary at most 40' "$t/init.out"
   then ok "word budget: an over-long summary is a warning (exit 0), and the page heads with its first sentence; gate --init says the budget"
   else bad "word budget (exit $rc): $a | $(cat "$t/init.out")"; fi
-  # the console: no project, the roots given; three projects, keys from their names, the waiting one with its question
-  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --port 0 > "$t/console.log" 2>&1 & pid=$!
+  # the console: no project, the roots given; three projects, keys from their names, the waiting one with its question; a
+  # second root with a made-up film whose film and key frame are gone and whose BRIEF has no title
+  mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
+  printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
+  printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
+  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!
   for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
-  if python3 - "$url" "$t/root" <<'PY'
-import http.client, json, os, sys, urllib.parse
-u = urllib.parse.urlsplit(sys.argv[1]); root = sys.argv[2]
+  if python3 - "$url" "$t/root" "$t/root2" <<'PY'
+import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1]); root, root2 = sys.argv[2], sys.argv[3]
+pid = lambda p: hashlib.sha1(os.path.realpath(p).encode()).hexdigest()   # noqa: E731
 def req(method, path, body=None, headers=None, host=None):
     c = http.client.HTTPConnection(u.hostname, u.port, timeout=20)
     h = {"Host": host or f"127.0.0.1:{u.port}"}
@@ -3078,12 +3146,24 @@ s, _, d = req("GET", "/api/projects"); d = json.loads(d)
 real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
 rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
 want(s == 200 and set(rows) == {"zh", "en", "demo"} and [n for n, r in rows.items() if r["state"] == "waiting_person"] == ["demo"], f"projects: {sorted(rows)}")
+want(all(re.fullmatch(re.escape(n) + r"~[0-9a-f]{6}", r["key"]) for n, r in rows.items()), f"keys: the name and six digits of the folder: {[r['key'] for r in rows.values()]}")
+waits = [r["state"] == "waiting_person" for r in d["projects"]]
+want(waits == sorted(waits, reverse=True), "the space: the films waiting for the person first")
+gn = next((r for r in d["projects"] if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/gone")), {})
+want(gn.get("title") == "编出来的片", f"a BRIEF without a title: the film's name from its gate page: {gn.get('title')!r}")
 dm = rows.get("demo", {"key": "demo"})
 K, Z = dm["key"], rows.get("zh", {"key": "zh"})["key"]
 want(dm.get("state") == "waiting_person" and (dm.get("ask") or {}).get("question") == "这版放行吗？" and (dm.get("ask") or {}).get("decisions") == 2, f"demo's ask: {dm.get('ask')}")
 want((dm.get("picture") or {}).get("from") == "gate" and dm["picture"]["href"].startswith(f"/f/{K}/"), f"demo's picture: {dm.get('picture')}")
 s, _, d = req("GET", f"/api/p/{K}/data"); d = json.loads(d)
 want(s == 200 and d["key"] == K and d["current"] == "3" and [x["state"] for x in d["status"]["stations"]][:3] == ["done", "done", "waiting_person"], "demo's data and stops")
+want(d.get("pid") == pid(root + "/demo") and d.get("round_open") is True and d.get("only") is False, f"demo's identity and open round: {d.get('round_open')}")
+want(json.loads(req("GET", f"/api/p/{Z}/data")[2]).get("round_open") is False, "zh: its round's stop is passed, so the round is settled")
+gd = json.loads(req("GET", f"/api/p/{gn.get('key', 'x')}/data")[2])
+gs = gd.get("studio") or {}
+want(gs.get("film") is None and gs.get("film_missing") == "out/draft.mp4" and [x.get("frame") for x in (gs.get("timeline") or {}).get("shots") or []] == [None]
+     and gd.get("project", {}).get("title") == "编出来的片" and gd.get("round_open") is True,
+     f"a film and a key frame that are not there: none asked for, the film named as missing: {gs.get('film')} {gs.get('film_missing')}")
 sd = d.get("studio") or {}
 tl = sd.get("timeline") or {}
 want(len(tl.get("shots") or []) == 6 and len(tl.get("narration") or []) == 6 and len(tl.get("beats") or []) > 40 and tl.get("bpm") == 90
@@ -3104,21 +3184,31 @@ for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF
     want(req("GET", p)[0] == 404, f"{p} answered")
 want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
 fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
-    "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}]}, **k)).encode()
+    "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
 H = {"Content-Type": "application/json", "X-Desk-Token": token}
 want(req("POST", f"/api/p/{K}/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
-want(req("POST", f"/api/p/{Z}/feedback", fb(), H)[0] == 400, "a round another project does not have")
+want(req("POST", f"/api/p/{Z}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 400, "a round another project does not have")
+want(req("POST", f"/api/p/{K}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 409 and req("POST", f"/api/p/{K}/feedback", fb(pid=None), H)[0] == 409,
+     "a submission that names another folder, or none, than the address's: refused")
 s, _, r = req("POST", f"/api/p/{K}/feedback", fb(), H)
 want(s == 200 and json.loads(r)["saved"].startswith("out/review/feedback/3-"), f"a submission: {s} {r[:200]}")
 rv = open(root + "/demo/REVIEW.md", encoding="utf-8").read()
 want("决定 draft：OK" in rv and "没把握：S04 [least:S04] · 要改：再大一点" in rv, "the submission in REVIEW.md")
+# a folder of the same name turns up under the other root: every key stays with its folder
+shutil.copytree(root + "/demo", root2 + "/demo")
+time.sleep(4.3)   # the listing is reused for 4 s
+demos = [r for r in json.loads(req("GET", "/api/projects")[2])["projects"] if r["name"] == "demo"]
+twin = next((r["key"] for r in demos if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/demo")), None)
+kd = json.loads(req("GET", f"/api/p/{K}/data")[2])
+want(len(demos) == 2 and K in [r["key"] for r in demos] and twin and twin != K and os.path.realpath(kd["status"]["project"]["path"]) == os.path.realpath(root + "/demo")
+     and req("POST", f"/api/p/{twin}/feedback", fb(), H)[0] == 409, f"keys after a second demo: {[r['key'] for r in demos]}")
 if bad:
     print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys, the waiting one with its question and picture), a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
+  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
   else bad "console"; fi
-  a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
+  a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
   # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
   if desk_start "$t/root/zh" "$t/zh.log"; then
@@ -3128,8 +3218,9 @@ u = urllib.parse.urlsplit(sys.argv[1])
 def get(p):
     c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return r.status, d
 page = get("/")[1].decode()
+home = page.split('name="desk-home" content="')[1].split('"')[0]
 keys = [r["key"] for r in json.loads(get("/api/projects")[1])["projects"]]
-print('name="desk-home" content="zh"' in page, "zh" in keys, get("/api/data")[0], get("/api/p/zh/data")[0])
+print(home.startswith("zh~"), home in keys, get("/api/data")[0], get(f"/api/p/{home}/data")[0])
 PY
 )
     [ "$a" = "True True 200 200" ] && ok "desk for a project: its page opens on it, the project is in the listing, and the first addresses still answer" || bad "desk for a project: $a"

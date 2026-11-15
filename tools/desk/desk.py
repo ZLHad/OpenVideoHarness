@@ -6,10 +6,12 @@ comments and submits.
                                                 page (its stops, its film with the ruler, what to decide, its checks and
                                                 documents); a stop's gate view, where the options are cards to pick and
                                                 one button submits. Already running with these roots: print its URL
-  bin/vh desk <project> [--root DIR …] [--port N] [--idle s]   the same page, opened on that project (bin/vh gate starts
-                                                this for a stop on the desk). Default port: the first free of 8780–8799
-                                                (--port 0: any free port). Already serving this project: print its URL.
-                                                --idle s: stop after s seconds without a request (bin/vh gate: 12 h)
+  bin/vh desk <project> [--root DIR …] [--port N] [--idle s] [--only]   the same page, opened on that project, every
+                                                other film a click away in the space. Default port: the first free of
+                                                8780–8799 (--port 0: any free port). Already serving this project: print
+                                                its URL. --idle s: stop after s seconds without a request. --only: this
+                                                project and nothing else under the roots (bin/vh gate starts the desk of a
+                                                stop so, with --idle 43200: 12 h)
   bin/vh desk wait <project> [--timeout s]      block until the reviewer submits, print the feedback, exit 0 (3 on
                                                 timeout; default 7100 s). An agent runs it in the background after each
                                                 stop: its exit is the wake-up call. A submission for the current page that
@@ -53,6 +55,8 @@ def main(argv):
         ap.add_argument("--port", type=int, help="port on 127.0.0.1 (default: the first free of 8780–8799; 0: any free)")
         ap.add_argument("--idle", type=float, help="stop after this many seconds without a request (an open desk page asks every "
                                                    "few seconds); default: never. bin/vh gate starts it with 43200 (12 h)")
+        ap.add_argument("--only", action="store_true", help="serve this project and nothing else under the roots (bin/vh gate's "
+                                                            "desk); without it the space has every film")
     elif sub == "wait":
         ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100, under Claude Code's 2 h)")
     elif sub == "feedback":
@@ -71,8 +75,11 @@ def main(argv):
         if a.project and not project:
             jsonerr.mark("no_project")
             return 2
+        if a.only and not project:
+            print("desk: --only needs a project (it serves that project and nothing else)", file=sys.stderr)
+            return 2
         import server
-        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root])
+        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only)
     project = find(a.project)
     if not project:
         jsonerr.mark("no_project")
