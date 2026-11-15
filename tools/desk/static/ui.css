@@ -23,10 +23,10 @@
   --gx:clamp(16px,4vw,56px);--ease:cubic-bezier(.2,.7,.2,1)}
 :root[data-theme=light]{color-scheme:light;
   --bg:#f1ebe0;--surface:#f7f2e9;--surface-2:#e9e2d5;--well:#14110f;--on-well:#efe7da;
-  --text:#1b1714;--text-hi:#000;--text-2:rgba(27,23,20,.74);--text-3:rgba(27,23,20,.6);
+  --text:#1b1714;--text-hi:#000;--text-2:rgba(27,23,20,.74);--text-3:rgba(27,23,20,.64);
   --line:rgba(27,23,20,.14);--line-2:rgba(27,23,20,.3);--veil:rgba(241,235,224,.9);
   --accent:#9b5a1c;--accent-2:rgba(155,90,28,.5);--accent-soft:rgba(155,90,28,.1);
-  --you:#9b5a1c;--wait:#9b5a1c;--run:#1b1714;--flag:#b2412a;--flag-soft:rgba(178,65,42,.09);--ok:#4b7a35}
+  --you:#9b5a1c;--wait:#9b5a1c;--run:#1b1714;--flag:#b2412a;--flag-soft:rgba(178,65,42,.09);--ok:#44702f}
 
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -80,7 +80,7 @@ code{font:.88em var(--mono);color:var(--text-hi);background:var(--surface-2);pad
 .g-warn ul{margin:4px 0 0;padding-left:18px}
 .g-gone{margin:12px 0 0;font-size:var(--fs-label);color:var(--text-3)}
 .g-gone summary{cursor:pointer}.g-gone ul{margin:4px 0 0;padding-left:18px}
-.blank{display:grid;place-items:center;aspect-ratio:16/9;color:var(--on-well);font-size:var(--fs-small);padding:16px;text-align:center}
+.well.blank{display:grid;place-items:center;aspect-ratio:16/9;color:var(--on-well);font-size:var(--fs-small);padding:16px;text-align:center}
 .blank span{opacity:.55}
 
 /* the body: the picture first, the decisions beside it */

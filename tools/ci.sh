@@ -2995,6 +2995,38 @@ sys.exit(1 if bad else 0)
 PY
   then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget"
   else bad "gate view on the fixtures"; fi
+  # the theme: every colour a variable, and the text colours at WCAG AA (4.5:1) on the ground in both themes
+  if a=$(python3 - <<'PY'
+import re
+css = open("tools/desk/static/ui.css", encoding="utf-8").read()
+def block(sel):
+    m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
+    return dict(re.findall(r"--([\w-]+):([^;}]+)", m.group(1))) if m else {}
+dark = block(":root"); light = dict(dark, **block(":root[data-theme=light]"))
+def rgb(v, t, bg=None):
+    v = v.strip()
+    m = re.fullmatch(r"var\(--([\w-]+)\)", v)
+    if m: return rgb(t[m.group(1)], t, bg)
+    if v.startswith("#"): return [int(v[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    m = re.fullmatch(r"rgba\((\d+),(\d+),(\d+),([\d.]+)\)", v.replace(" ", ""))
+    c, a = [int(x) / 255 for x in m.groups()[:3]], float(m.group(4))
+    return [x * a + y * (1 - a) for x, y in zip(c, bg)]
+def lum(c):
+    c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+low = []
+for name, t in (("dark", dark), ("light", light)):
+    bg = rgb(t["bg"], t)
+    for k in ("text", "text-2", "text-3", "accent", "flag", "ok"):
+        a, b = sorted((lum(rgb(t[k], t, bg)), lum(bg)))
+        r = (b + 0.05) / (a + 0.05)
+        if r < 4.5: low.append(f"{name} --{k} {r:.2f}:1")
+rules = re.sub(r":root(\[data-theme=light\])?\{.*?\}", "", css, flags=re.S)
+stray = re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", re.sub(r"/\*.*?\*/", "", rules, flags=re.S))
+print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables"] if stray else [])))
+PY
+) && [ -z "$a" ]; then ok "theme: every colour of ui.css is a variable on :root, and the text, the lamp, the flag and ok are at 4.5:1 or more on the ground, dark and light"
+  else bad "theme contrast or stray colours: $a"; fi
   # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
   mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
   printf '%s\n' '{"summary": "立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。这页给你看第一轮的四张静帧和四十八秒的大纲，要你定两件事，约四分钟", "decisions": [{"id": "c", "question": "用哪个？", "options": ["A", "B"], "recommend": "A"}]}' > "$t/long/out/review/gate-1.json"

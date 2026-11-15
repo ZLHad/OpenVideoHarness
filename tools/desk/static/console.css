@@ -237,6 +237,7 @@ pre.out{white-space:pre-wrap;background:var(--bg);padding:10px 12px;font-size:12
 @media (max-width:900px){.capr{grid-template-columns:1fr}.g2{grid-template-columns:1fr}.led{grid-template-columns:1fr}}
 @media (max-width:640px){
   .home{padding-top:20px}.cards{grid-template-columns:minmax(0,1fr);gap:26px}
+  .pcard .well:has(.ph){aspect-ratio:16/5}   /* no picture yet: a shorter mat in one column */
   .rail li{min-width:84px}
   .gate[data-live] .g-side .g-act{position:sticky;bottom:0;background:var(--bg);padding:10px 0 12px;z-index:4}
   .gate[data-live] .g-side .g-act .note{display:none}
