@@ -646,10 +646,13 @@ install("claude"); c = check("skills")
 if c["state"] != "ok" or "2 installed stubs" not in c["note"]:
     bad.append(f"a fresh install: {c}")
 front = lambda text: text.split("\n---\n", 1)[0]
+HL = re.compile(r"(?m)^Harness path \(set by install\.sh\): (.*)$")   # (compared resolved: bin/vh writes its logical pwd, a link in it kept)
+here = lambda text: bool(HL.search(text)) and os.path.realpath(HL.search(text).group(1)) == os.path.realpath(os.getcwd())
+point = lambda text, at: HL.sub(lambda m: "Harness path (set by install.sh): " + at, text)
 for name in ("open-video-harness", "open-video-harness-web"):
     got = open(os.path.join(home, ".claude/skills", name, "SKILL.md"), encoding="utf-8").read()
     repo = open(os.path.join("skills", name, "SKILL.md"), encoding="utf-8").read()
-    if front(got) != front(repo) or f"<harness>/skills/{name}/SKILL.md" not in got or "Harness path (set by install.sh): " + os.getcwd() not in got or len(got.splitlines()) > 30:
+    if front(got) != front(repo) or f"<harness>/skills/{name}/SKILL.md" not in got or not here(got) or len(got.splitlines()) > 30:
         bad.append(f"the stub for {name}: {got[:300]!r}")
 p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")
 with open(p, "a", encoding="utf-8") as f:
@@ -688,7 +691,7 @@ ch = os.path.join(t, "crlfhome")
 subprocess.run([sh, os.path.join(crlf, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=ch), check=True)
 got = open(os.path.join(ch, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
 real = open(os.path.join(home, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
-if b"\r" in got or not got.startswith(b"---\nname: open-video-harness\n") or got.replace(crlf.encode(), os.getcwd().encode()) != real:
+if b"\r" in got or not got.startswith(b"---\nname: open-video-harness\n") or point(got.decode(), "x") != point(real.decode(), "x"):
     bad.append(f"a CRLF checkout's stub: {got[:200]!r}")
 # a stub whose clone has gone (moved or removed) is outdated, not another clone's; install-skill from here takes it back
 h9 = os.path.join(t, "h9")
@@ -706,7 +709,7 @@ if c["state"] != "outdated" or "points at " + os.path.join(t, "gone") + ", where
 sk = os.path.join(h9, ".claude/skills")
 stub = open(os.path.join(sk, "open-video-harness-web/SKILL.md"), encoding="utf-8").read()
 for n, text, extra in (("ovh-old", stub, None), ("ovh-old2", stub, "notes.txt"), ("someone-else", "---\nname: someone-else\n---\n\nTheirs.\n", None),
-                       ("other-old", stub.replace(os.getcwd(), os.path.join(t, "elsewhere")), None)):
+                       ("other-old", point(stub, os.path.join(t, "elsewhere")), None)):
     os.makedirs(os.path.join(sk, n)); open(os.path.join(sk, n, "SKILL.md"), "w", encoding="utf-8").write(text)
     if extra:
         open(os.path.join(sk, n, extra), "w").write("mine\n")
