@@ -3040,7 +3040,7 @@ PY
   "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --port 0 > "$t/console.log" 2>&1 & pid=$!
   for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
-  if OVH_PROJECTS= python3 - "$url" "$t/root" <<'PY'
+  if python3 - "$url" "$t/root" <<'PY'
 import http.client, json, os, sys, urllib.parse
 u = urllib.parse.urlsplit(sys.argv[1]); root = sys.argv[2]
 def req(method, path, body=None, headers=None, host=None):
