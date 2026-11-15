@@ -4850,7 +4850,7 @@ sys.exit(0 if ok else 1)
 PY
       then ok "ref digest on a URL: the automatic captions in the spoken language, each rolling line once, linked to YouTube's ?t=; the zh auto captions refused as a translation; look fetched the span alone and its frame matches the original at that second (PSNR ${e:-?}); a run again calls no yt-dlp"
         a=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref look "$p" yt-AAAAAAAAAA1 75.5-80 --every 9 2>&1); rc=$?
-        b=$(ls "$p/research/digest/yt-AAAAAAAAAA1/look/00075-00080" | grep -c '^t'); c=$(tr '\n' ' ' < "$t/sections.log")
+        b=$(set -- "$p"/research/digest/yt-AAAAAAAAAA1/look/00075-00080/t*.jpg; echo $#); c=$(tr '\n' ' ' < "$t/sections.log")
         if [ "$rc|$b|$c" = "0|1|75.000-80.000 75.500-80.000 " ]; then ok "ref look: the same folder from another start fetched its span again, not the one cached; --every over the span gave one frame inside it"
         else bad "ref look from another start (exit $rc, $b frames, sections $c): $a"; fi
       else bad "ref digest on a URL: the cues, the links or the span's frame (PSNR ${e:-none}): $(tail -c 500 "$p/research/digest/yt-AAAAAAAAAA1/transcript.md")"; fi ;;
