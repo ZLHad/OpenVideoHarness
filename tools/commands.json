@@ -833,14 +833,16 @@
     {
       "name": "cast",
       "summary": "The project's cast: the settled references of its characters, costumes, props and sets, one folder each in cast/<id>/ with its pictures and cast.json, which image gen --ref cast:<id> sends and a 3D model made from four views will read.",
-      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), and whenever a picture of it is made from references",
+      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), whenever a picture of it is made from references, and on a draft made of generated shots (frames)",
       "stages": ["2", "3", "6"],
       "reads": [
         "<project>/cast/<id>/cast.json and its pictures",
-        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)"
+        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)",
+        "<video> (frames: a draft or the film, through ffprobe and tools/sheet.py)"
       ],
       "writes": [
-        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)"
+        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)",
+        "<project>/out/check/cast-<video>-<HHMMSS>.png (frames: the cast over the film's frames)"
       ],
       "usage": [
         {
@@ -858,6 +860,13 @@
             "changed since it was recorded fails: what was made from it may need making again; a picture whose terms are on",
             "record nowhere is said)"
           ]
+        },
+        {
+          "synopsis": "cast frames <project> <video> [--id a,b] [--n 16] [--out F] [--json]",
+          "text": [
+            "the settled cast against a film: the entries' pictures in a row on top, --n frames spread evenly below, each with",
+            "its time, in one picture (<project>/out/check/cast-<video>-<HHMMSS>.png) to look at side by side for drift"
+          ]
         }
       ],
       "subcommands": [
@@ -872,6 +881,10 @@
         {
           "name": "check",
           "summary": "each cast.json against its folder"
+        },
+        {
+          "name": "frames",
+          "summary": "the cast over frames spread evenly through a film"
         }
       ]
     },

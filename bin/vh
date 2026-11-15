@@ -368,7 +368,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
   case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
-    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
   esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
@@ -1373,7 +1373,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   timeline) case " $* " in *" --resolved "*) ;; *) act_start "$@" || true ;; esac ;;   # --resolved only reads
   history) case "${2:-}" in save|restore) act_start "$@" || true ;; esac ;;   # list and diff only read
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
-  cast) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list and check only read
+  cast) case "${2:-}" in add|frames) act_start "$@" || true ;; esac ;;   # list and check only read
   scout|ref) case "${2:-}" in list) ;; *) act_start "$@" || true ;; esac ;;   # list only reads
   web) case "${2:-}" in fetch|shot) act_start "$@" || true ;; esac ;;   # grep and list only read; install touches no project
   hf) [ "${2:-}" != add ] || act_start "$@" || true ;;   # catalog reads the registry, no project

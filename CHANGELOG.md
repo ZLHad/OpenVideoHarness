@@ -51,6 +51,11 @@
 - `references/community-skills.md` §10: LottieFiles' motion-design-skill (MIT), Motion's ai-kit (no licence: read only), hairline's isometric line figures and their two skills (MIT), and Scenario's Blender extension (GPL, its generation a paid service, its MCP under `engines/blender.md`'s safety rules), each with what it is to us.
 - `references/open-source.md` §6: postprocessing and its React wrapper, three.quarks, react-three-rapier and Tweakpane, each with how it would meet hard rule 1 (grain seeded by frame, particles and physics baked to a per-frame cache, the panel for look-dev only).
 
+**`bin/vh cast frames`: the settled cast over frames spread evenly through a film**
+- Why: a film made of generated shots drifts (a face, a costume, a count of fingers, a prop that melts); the check is to set the settled references beside frames spread through the cut and look. `cast check` only held the folder to its `cast.json`.
+- `bin/vh cast frames <project> <video> [--id a,b] [--n 16] [--out F] [--json]`: the entries' pictures (those named, else every character, costume and prop) in a row on top, `--n` frames below, each at the middle of its share of the film and stamped with its time, one picture in `<project>/out/check/`. `tools/sheet.py` draws it (a new `VH_SHEET_REFS` row over the frames). `playbook/05`'s character consistency says when to run it and what to look for.
+- `tools/ci.sh`: the references on top and the frames below, a set only when named, the times evenly spread, an unknown id or a project with no cast pictures as bad usage.
+
 ## v0.5.0 — 2026-11-10
 
 A minor release: the process is trimmed for the current models, and the style library gets its 33rd preset. The largest change is where a film stops for its person. A `standard` or `studio` film now stops at the concept and at the first draft, and at the storyboard only when the next step is costly: a film longer than about 90 s, a heavy 3D render, or a paid service. Only the user's own words take a stop away, as before, and a project made before this release keeps its three gates. Not yet tried on a real film: the stop rules were checked on made-up projects in `tools/ci.sh` and by one independent review.

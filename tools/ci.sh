@@ -4547,6 +4547,33 @@ PY
      && grep -q "an error in this tool itself, not in the cast (ZeroDivisionError" <<<"$b"
   then ok "cast check: a cast.json of a shape it did not foresee fails that entry and says why (no traceback); a fault of the tool itself exits 3"
   else bad "cast check on a hand-written view (exit $rc:$rc2:$rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | head -c 200)"; fi
+  # cast frames: the settled cast over frames spread evenly through a film, one picture (pillow through uv); the entries
+  # named or every character, costume and prop; an unknown id or a film with no cast pictures is bad usage
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "cast frames" "needs uv and ffmpeg"
+  else
+    q="$t/cf"; mkdir -p "$q"; printf '# BRIEF\n' > "$q/BRIEF.md"
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x3C50C8:s=320x180:d=4:r=24" -pix_fmt yuv420p "$q/film.mp4"
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0xC83C3C:s=100x100" -frames:v 1 "$t/red.png"
+    vh cast add "$q" hero --kind character --name h --ref "$t/red.png=front" --source t --license own >/dev/null
+    vh cast add "$q" hall --kind set --name s --ref "$t/red.png=front" --source t --license own >/dev/null
+    a=$(vh cast frames "$q" film.mp4 --n 8 --json 2>&1); rc=$?
+    b=$(vh cast frames "$q" film.mp4 --id hall --n 4 --out "$t/hall.png" 2>&1); rc2=$?
+    vh cast frames "$q" film.mp4 --id owl >/dev/null 2>&1; rc3=$?
+    mkdir -p "$t/cf2"; printf '# BRIEF\n' > "$t/cf2/BRIEF.md"; vh cast frames "$t/cf2" "$q/film.mp4" >/dev/null 2>&1; rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = 0:0:2:2 ] && [ -s "$t/hall.png" ] && uv run -q --no-project --with pillow python - "$a" <<'PY'
+import json, sys
+from PIL import Image
+d = json.loads(sys.argv[1])
+im = Image.open(d["out"]).convert("RGB")
+ok = [r["label"] for r in d["refs"]] == ["hero · front"] and len(d["times"]) == 8 and abs(d["times"][0] - 0.25) < 1e-6 and abs(d["times"][-1] - 3.75) < 1e-6
+ok = ok and "/out/check/cast-film-" in d["out"] and im.size[0] == 1600   # 4 columns of 400 px
+r, b = im.getpixel((200, 90)), im.getpixel((200, im.size[1] - 40))   # the reference on top (red), a frame at the bottom (blue)
+ok = ok and r[0] > r[2] + 60 and b[2] > b[0] + 60
+sys.exit(0 if ok else f"{d['refs']} {d['times']} {im.size} top {r} bottom {b}")
+PY
+    then ok "cast frames: the cast's pictures on top (a set only when named), frames spread evenly below at the middle of each share, in the project's out/check; an unknown id or no cast picture is bad usage"
+    else bad "cast frames ($rc:$rc2:$rc3:$rc4): $(printf '%s' "$a" | tail -c 300) | $b"; fi
+  fi
   rm -rf "$t"
 }
 
