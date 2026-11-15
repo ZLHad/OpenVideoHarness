@@ -3523,6 +3523,7 @@ try {
   want(run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet").text`) === "反馈已经交给 agent，REVIEW.md 里还没写这一关定了什么", "a station's note stays English in a Chinese page");
   want(run(`statusWords("the engine's scaffold is not there: this makes it").known`) && run(`shortPath("bin/vh hf-init /tmp/x/demo landscape")`) === "bin/vh hf-init <项目> landscape", "the next step's words or the project's folder");
   want(!run(`statusWords("a line the page has not met").known`), "an unknown line of status is passed off as known");
+  want(run(`statusWords("fill BRIEF.md (7 {…} left); render the final").text`) === "把 BRIEF.md 填完（还有 7 处 {…}）；渲染成片", "a next step of two of status's lines, as older projects get it");
   run(`LANG = "en"; L = STR.en;`);
   want(run(`t("round_sum", { n: 5, d: 1 })`) === "5 notes · 1 decision" && run(`t("round_sum", { n: 1, d: 2 })`) === "1 note · 2 decisions", "English counts: " + run(`t("round_sum", { n: 5, d: 1 })`));
   run(`LANG = "zh"; L = STR.zh;`);

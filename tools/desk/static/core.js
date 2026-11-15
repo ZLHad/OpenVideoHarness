@@ -259,12 +259,16 @@ const STATUS_ZH = [
   [/^write what was decided and changed under the desk's section for (.+?) in REVIEW\.md \(定了 \/ 改了\)$/, (m) => `在 REVIEW.md 里 ${m[1]} 那一节写下定了什么、改了什么`],
   [/^record the decision for (.+?) in REVIEW\.md$/, (m) => `把 ${m[1]} 的决定记进 REVIEW.md`],
   [/^paused \(REVIEW\.md\): the person resumes it$/, () => "暂停中（REVIEW.md）：等人恢复"],
+  [/^no REVIEW\.md: this project keeps no review record \(made before the templates had one\), so carry on from its files$/, () => "没有 REVIEW.md：这支片子做在模板有审阅记录之前，照它现有的文件接着做"],
   [/^delivered: what this film taught goes into LESSONS\.md$/, () => "已交付：这支片子学到的写进 LESSONS.md"],
   [/^carry on$/, () => "接着做"],
   [/^the engine's scaffold is not there: this makes it$/, () => "引擎的脚手架还没有：下面这条命令搭起来"],
   [/^check (.+?) and look at its contact sheet$/, (m) => `检查 ${m[1]}，看它的联系表`],
   [/^fix what bin\/vh check failed on (\S+)(?:: ([\s\S]*))?$/, (m) => `修 bin/vh check 在 ${m[1]} 上没过的地方${m[2] ? "：" + m[2] : ""}`],
   [/^render the final at delivery quality$/, () => "按交付画质渲染成片"],
+  [/^render the final$/, () => "渲染成片"],
+  [/^fill ([^,(]+?) \((\d+) \{…\} left\)$/, (m) => `把 ${m[1]} 填完（还有 ${m[2]} 处 {…}）`],
+  [/^the shots in shots\.json, then their key frames and the rhythm chart$/, () => "先把镜头写进 shots.json，再出关键帧和节奏图"],
   [/^bin\/vh gate refused the page for (.+?), so the person got nothing: fix it \(([\s\S]*)\), then send it again$/, (m) => `bin/vh gate 没发 ${m[1]} 的页，人什么也没收到：先修（${m[2]}），再发一次`],
 ];
 function stepPoint(shots, x, dir, dur) {   // ← → in the cut, from second x: {shot, t} the next or previous shot's start, else {t}
