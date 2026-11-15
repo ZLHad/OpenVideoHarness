@@ -4698,6 +4698,186 @@ PY
   rm -rf "$t"
 }
 
+digest_checks() {   # bin/vh ref digest and look (tools/scout/digest.py) on a made-up 150 s video: its subtitles read into a
+  # timed transcript in chunks, each cached; the lines an agent added kept across runs; frames of picked spans; a stand-in
+  # transcriber (OVH_DIGEST_ASR) failing one chunk, the next run redoing only that one; a missing Whisper model refused,
+  # never fetched; a URL's automatic captions through a stand-in yt-dlp (OVH_YTDLP), a translation refused, a span fetched
+  # alone and cut at its second. No network, no model
+  local t p F=tools/scout/fixtures/responses a b c d e rc rc2 rc3 rc4 rc5 tr
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if ! command -v ffmpeg >/dev/null 2>&1; then skip "ref digest and look" "no ffmpeg"; rm -rf "$t"; return; fi
+  OVH_PROJECTS="$t" vh new short digest >/dev/null 2>&1; p=$(ls -d "$t"/*-digest); tr="$p/research/digest/talk/transcript.md"
+  ffmpeg -v error -f lavfi -i "testsrc2=s=320x180:r=10:d=150" -f lavfi -i "sine=f=440:d=150" -c:v libx264 -preset ultrafast -g 10 -c:a aac -shortest "$p/talk.mp4"
+  python3 - "$p/talk.srt" "$t/rolling.vtt" <<'PY'
+import sys
+ts = lambda t, sep: f"{int(t // 3600):02d}:{int(t // 60 % 60):02d}:{int(t % 60):02d}{sep}{int(round(t % 1 * 1000)):03d}"
+said = ["我们先从一个问题开始。", "为什么天空是蓝的？", "光在大气里会散射。", "短波长的蓝光散得更多。", "所以白天看上去是蓝色。", "傍晚光走的路更长。"]
+open(sys.argv[1], "w", encoding="utf-8").write("\n".join(f"{i + 1}\n{ts(i * 5 + 0.5, ',')} --> {ts(i * 5 + 3.7, ',')}\n{said[i % 6]}\n" for i in range(30)))
+# a rolling automatic caption as YouTube writes one: each cue repeats the line before it, with word timings in tags
+cues, prev = ["WEBVTT", "Kind: captions", "Language: en", ""], " "
+for i in range(30):
+    new = f"line {i} of the talk"
+    tagged = new.replace(" ", f"<{ts(i * 5 + 1, '.')}><c> ", 1) + "</c>"
+    cues += [f"{ts(i * 5, '.')} --> {ts(i * 5 + 4.99, '.')} align:start position:0%", prev, tagged, "",
+             f"{ts(i * 5 + 4.99, '.')} --> {ts(i * 5 + 5, '.')} align:start position:0%", new, " ", ""]
+    prev = new
+open(sys.argv[2], "w", encoding="utf-8").write("\n".join(cues))
+PY
+  # 1 · the subtitles beside the file, three chunks of 60 s; then lines of the agent's own, a run again from the cache
+  a=$(vh ref digest "$p" talk.mp4 --chunk 60 2>&1); rc=$?
+  python3 - "$tr" <<'PY'
+import sys
+f = sys.argv[1]; s = open(f, encoding="utf-8").read()
+s = s.replace("## 2 · 01:00–02:00\n\n", "## 2 · 01:00–02:00\n\n- [01:20] **画面** 彩条测试图，右下角一个计时器\n  右上角的字跟着动\n- [00:50](x) **屏幕字** 「TEST」\n- [01:05] **口播** 一行冒充工具的口播，下一次运行就不在了\n", 1)
+s = s.replace("\n\n## 3 · ", "\n本段要点：散射让天空变蓝（没有标签的一行）\n\n## 3 · ", 1)
+s = s.replace("\n\n## 1 · ", "\n\n一句话：这支讲天空为什么是蓝的\n\n## 1 · ", 1)
+open(f, "w", encoding="utf-8").write(s)
+PY
+  b=$(vh ref digest "$p" talk --chunk 60 2>&1); rc2=$?
+  c=$(vh ref look "$p" talk 1:10-1:30,140-150 2>&1); rc3=$?
+  d=$(vh ref look "$p" nosuch 0-10 2>&1; vh ref look "$p" talk 200-210 2>&1; vh ref list "$p" 2>&1); rc4=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && python3 - "$p" <<'PY'
+import json, re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); d = p / "research/digest/talk"
+plan, said = json.loads((d / "plan.json").read_text(encoding="utf-8")), json.loads((d / "said.json").read_text(encoding="utf-8"))
+tr = (d / "transcript.md").read_text(encoding="utf-8")
+refs = json.loads((p / "research/refs.json").read_text(encoding="utf-8"))
+ok = [r["id"] for r in refs["assets"]] == ["talk"] and plan["chunks"] == [[0.0, 60], [60, 120], [120, 150.0]]
+ok = ok and len(said["cues"]) == 30 and said["cues"][0] == {"start": 0.5, "end": 3.7, "text": "我们先从一个问题开始。"}
+ok = ok and sorted(x.name for x in (d / "chunks").iterdir()) == ["001.json", "002.json", "003.json"]
+heads = re.findall(r"(?m)^## .*$", tr)
+ok = ok and heads == ["## 1 · 00:00–01:00", "## 2 · 01:00–02:00", "## 3 · 02:00–02:30"]
+ok = ok and "- [00:00](../../../talk.mp4#t=0) **口播** 我们先从一个问题开始。为什么天空是蓝的？光在大气里会散射。" in tr   # CJK joined with no space
+ok = ok and "冒充" not in tr and tr.count("**画面** 彩条") == 1 and "  右上角的字跟着动" in tr
+ok = ok and tr.count("本段要点：散射") == 1 and tr.index("[01:45]") < tr.index("本段要点：散射") < tr.index("## 3 ·")   # after the line it followed
+ok = ok and tr.count("一句话：这支讲") == 1 and tr.index("一句话：这支讲") < tr.index("## 1 ·")   # the head keeps it
+sec2 = tr.split("## 2 ·")[1].split("## 3 ·")[0]; sec1 = tr.split("## 2 ·")[0]
+ok = ok and "**屏幕字** 「TEST」" in sec1 and "彩条测试图" in sec2
+lines = sec2.splitlines()
+at = lambda s: next(i for i, l in enumerate(lines) if s in l)
+ok = ok and at("[01:00]") < at("**看帧**") < at("[01:15]") < at("**画面**") < at("[01:30]")   # sorted by time
+ok = ok and "[01:10–01:30](../../../talk.mp4#t=70) **看帧** 25 帧，每 0.8 s · [联系表](look/00070-00090/sheet.jpg)" in tr
+lk = d / "look/00070-00090"
+frames = sorted(x.name for x in lk.glob("t*.jpg"))
+ok = ok and len(frames) == 25 and frames[0] == "t00070.40.jpg" and (lk / "sheet.jpg").stat().st_size > 0
+ok = ok and json.loads((lk / "captions.json").read_text(encoding="utf-8"))["t00070.40.jpg"] == "01:10.4"
+ok = ok and len(list((d / "look/00140-00150").glob("t*.jpg"))) == 20
+ok = ok and [x["dir"] for x in plan["looks"]] == ["look/00070-00090", "look/00140-00150"]
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$b|$d" in *"✓ talk · video"*"3 chunks (3 made, 0 from the cache)"*"文件旁边的字幕（talk.srt）"*"|"*"3 chunks (0 made, 3 from the cache)"*"4 of yours kept"*"|"*"no transcript for nosuch"*"past the video's end (02:30)"*"transcript: research/digest/talk/transcript.md"*)
+      ok "ref digest and look: subtitles beside a file read into three 60 s chunks, the said lines timed and linked; the agent's own lines (with an indented line) kept and sorted by time across runs, a forged tool line dropped; an untagged line kept after the line it followed, a line added to the head kept; frames of two spans named by source second, a sheet, a 看帧 line; look without a transcript or past the end refused" ;;
+    *) bad "ref digest and look, their lines: $(printf '%s' "$a$b$d" | tail -c 700)" ;; esac
+  else bad "ref digest and look (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+  # 2 · a stand-in transcriber: chunk 2 fails once; the next run redoes it alone; --redo 1 redoes chunk 1; repeated lines said
+  cat > "$t/asr.py" <<'PY'
+import json, os, sys
+from pathlib import Path
+wav = Path(sys.argv[1]); log = Path(os.environ["FAKE_ASR_LOG"])
+with log.open("a") as f:
+    f.write(wav.name + "\n")
+if wav.name == "002.wav" and not log.with_suffix(".failed").exists():
+    log.with_suffix(".failed").write_text("x"); print("the model ran out of memory", file=sys.stderr); sys.exit(3)
+print(json.dumps({"segments": [{"start": 1.0, "end": 4.0, "text": f"chunk {wav.stem} begins."}] + [{"start": 20.0 + k, "end": 20.9 + k, "text": "Thank you."} for k in range(3)]}))
+PY
+  a=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --labels en 2>&1); rc=$?
+  b=$(grep -c . "$t/asr.log"; grep -F -- "**said** (not read" "$tr"; ls "$p/research/digest/talk/chunks"); rc2=$?
+  c=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr 2>&1); rc3=$?
+  d=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --redo 1 2>&1); rc4=$?
+  e=$(tr '\n' ' ' < "$t/asr.log")
+  case "$rc:$rc3:$rc4|$a|$b|$c|$d|$e" in "1:0:0|"*"✗ chunk 2: the transcription failed: the model ran out of memory"*"chunks 2 failed"*"|3"*"**said** (not read: the transcription failed"*"002.err"*"|"*"(1 made, 2 from the cache)"*"repeated three or more times"*"1: 1, 2: 1, 3: 1"*"|"*"(1 made, 2 from the cache)"*"|001.wav 002.wav 003.wav 002.wav 001.wav ")
+      if grep -q '彩条测试图' "$tr" && grep -qF -- '**said** chunk 002 begins.' "$tr" && [ ! -e "$p/research/digest/talk/chunks/002.err" ] && [ ! -e "$p/research/digest/talk/chunks/001.wav" ]
+      then ok "ref digest --from asr: chunk 2 failed and said so (exit 1, the others kept), the next run redid chunk 2 alone, --redo 1 chunk 1 alone; repeated lines counted and said; --labels en kept for later runs; the agent's lines kept"
+      else bad "ref digest --from asr: the transcript after the runs: $(tail -c 600 "$tr")"; fi ;;
+    *) bad "ref digest --from asr (exits $rc:$rc3:$rc4, want 1:0:0): $(printf '%s' "$a$b$c$d|$e" | tail -c 900)" ;; esac
+  # 3 · no subtitles and no model: refused before anything runs, nothing fetched; --from subs never transcribes; a subtitle
+  # track inside the file is read
+  ffmpeg -v error -f lavfi -i "testsrc2=s=160x90:r=5:d=20" -f lavfi -i "sine=f=330:d=20" -c:v libx264 -preset ultrafast -c:a aac -shortest "$p/bare.mp4"
+  ffmpeg -v error -i "$p/bare.mp4" -i "$p/talk.srt" -map 0 -map 1 -c copy -c:s mov_text "$p/inside.mp4"
+  mkdir -p "$t/hf"
+  a=$(unset OVH_DIGEST_ASR; HF_HOME="$t/hf" HF_HUB_CACHE="$t/hf/hub" WHISPER_MODEL=mlx-community/whisper-large-v3-turbo vh ref digest "$p" bare.mp4 2>&1); rc=$?
+  b=$(vh ref digest "$p" bare --from subs 2>&1); rc2=$?
+  c=$(vh ref digest "$p" inside.mp4 2>&1); rc3=$?
+  case "$rc:$rc2:$rc3|$a|$b|$c" in "1:1:0|"*"no subtitles, and no transcription here"*"--subs"*"|"*"--from subs never transcribes"*"|"*"文件自带的字幕轨"*)
+      if [ ! -e "$t/hf/hub/models--mlx-community--whisper-large-v3-turbo" ] && [ "$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["cues"]))' "$p/research/digest/inside/said.json")" = 30 ]
+      then ok "ref digest: no subtitles and no Whisper model refused with what is missing (nothing downloaded); --from subs never transcribes; a subtitle track inside the file read"
+      else bad "ref digest: a model folder was made, or the track inside was not read"; fi ;;
+    *) bad "ref digest without subtitles (exits $rc:$rc2:$rc3, want 1:1:0): $(printf '%s' "$a|$b|$c" | tail -c 700)" ;; esac
+  # 4 · a URL (a YouTube video recorded from fixtures) through a stand-in yt-dlp: the automatic captions in the spoken
+  # language, the rolling lines read once; a translation refused; a span downloaded alone, its frame the original's
+  cp "$t/rolling.vtt" "$t/track.vtt"
+  cat > "$t/ytdlp.py" <<'PY'
+import json, os, re, shutil, subprocess, sys
+a = sys.argv[1:]; t = os.environ["FAKE_DIR"]
+out = a[a.index("-o") + 1] if "-o" in a else None
+if "-J" in a:
+    print(json.dumps({"id": "AAAAAAAAAA1", "title": "The Doppler effect, slowed down", "duration": 150, "language": "en", "subtitles": {"danmaku": [{"ext": "xml"}]},
+                      "automatic_captions": {"en-orig": [{"ext": "vtt"}], "en": [{"ext": "vtt"}], "zh-Hans": [{"ext": "vtt"}]}}))
+elif "--skip-download" in a:
+    lang = a[a.index("--sub-langs") + 1]
+    shutil.copy(f"{t}/track.vtt", out.replace("%(ext)s", f"{lang}.vtt"))
+elif "--download-sections" in a:
+    x, y = re.fullmatch(r"\*([\d.]+)-([\d.]+)", a[a.index("--download-sections") + 1]).groups()
+    open(f"{t}/sections.log", "a").write(f"{x}-{y}\n")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", x, "-to", y, "-i", f"{t}/talk.mp4", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-an", out.replace("%(ext)s", "mp4")], check=True)
+else:
+    sys.exit("the stand-in yt-dlp got: " + " ".join(a))
+PY
+  cp "$p/talk.mp4" "$t/talk.mp4"
+  vh ref add "$p" "https://www.youtube.com/watch?v=AAAAAAAAAA1" --offline "$F" >/dev/null 2>&1
+  a=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 --from subs 2>&1); rc=$?
+  b=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 --from subs --lang zh 2>&1); rc2=$?
+  c=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref look "$p" yt-AAAAAAAAAA1 75-80 --every 1 2>&1); rc3=$?
+  c=$c$(OVH_YTDLP=false vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 2>&1); rc4=$?   # a run again needs no yt-dlp
+  d=$(cat "$t/sections.log" 2>&1)
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:1:0:0 ] && [ "$d" = 75.000-80.000 ]; then
+    ffmpeg -v error -y -ss 77.5 -i "$t/talk.mp4" -frames:v 1 -q:v 3 "$t/direct.jpg"
+    e=$(ffmpeg -i "$p/research/digest/yt-AAAAAAAAAA1/look/00075-00080/t00077.50.jpg" -i "$t/direct.jpg" -lavfi psnr -f null - 2>&1 | sed -n 's/.*average:\([0-9.inf]*\).*/\1/p')
+  fi
+  case "$rc:$rc2:$rc3:$rc4|$a|$b|$c" in "0:1:0:0|"*"平台的自动字幕（en-orig，yt-dlp）"*"这份字幕是机器转写的"*"|"*"machine translation of the en speech"*"|"*"5 frames every 1 s"*"(0 made, 3 from the cache)"*)
+      if python3 - "$p/research/digest/yt-AAAAAAAAAA1" "${e:-0}" <<'PY'
+import json, sys
+from pathlib import Path
+d = Path(sys.argv[1]); said = json.loads((d / "said.json").read_text(encoding="utf-8"))["cues"]
+tr = (d / "transcript.md").read_text(encoding="utf-8")
+ok = [c["text"] for c in said] == [f"line {i} of the talk" for i in range(30)]
+ok = ok and "- [00:00](https://www.youtube.com/watch?v=AAAAAAAAAA1&t=0s) **口播** line 0 of the talk line 1 of the talk" in tr
+ok = ok and "](https://www.youtube.com/watch?v=AAAAAAAAAA1&t=75s) **看帧** 5 帧" in tr
+psnr = sys.argv[2]
+ok = ok and (psnr == "inf" or float(psnr) > 30)
+sys.exit(0 if ok else 1)
+PY
+      then ok "ref digest on a URL: the automatic captions in the spoken language, each rolling line once, linked to YouTube's ?t=; the zh auto captions refused as a translation; look fetched the span alone and its frame matches the original at that second (PSNR ${e:-?}); a run again calls no yt-dlp"
+        a=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref look "$p" yt-AAAAAAAAAA1 75.5-80 --every 9 2>&1); rc=$?
+        b=$(ls "$p/research/digest/yt-AAAAAAAAAA1/look/00075-00080" | grep -c '^t'); c=$(tr '\n' ' ' < "$t/sections.log")
+        if [ "$rc|$b|$c" = "0|1|75.000-80.000 75.500-80.000 " ]; then ok "ref look: the same folder from another start fetched its span again, not the one cached; --every over the span gave one frame inside it"
+        else bad "ref look from another start (exit $rc, $b frames, sections $c): $a"; fi
+      else bad "ref digest on a URL: the cues, the links or the span's frame (PSNR ${e:-none}): $(tail -c 500 "$p/research/digest/yt-AAAAAAAAAA1/transcript.md")"; fi ;;
+    *) bad "ref digest on a URL (exits $rc:$rc2:$rc3:$rc4, want 0:1:0:0; sections $d): $(printf '%s' "$a|$b|$c" | tail -c 900)" ;; esac
+  # 5 · the pieces: a Whisper chunk's end moves to the longest pause within 30 s of its mark
+  if python3 -c '
+import sys; sys.path.insert(0, "tools/scout"); import digest
+b = digest.bounds(1500, 600, [(590.0, 592.0), (600.5, 601.0), (1195.0, 1199.0)])
+sys.exit(0 if b == [(0.0, 591.0), (591.0, 1197.0), (1197.0, 1500)] and digest.bounds(630, 600) == [(0.0, 630)] else 1)'
+  then ok "ref digest's chunks: a mark moves to the longest pause near it; a tail under a quarter chunk joins the last"
+    if python3 -c '
+import sys; sys.path.insert(0, "tools/scout"); import digest
+P = lambda info, lang=None: (lambda r: (r[0], r[1], bool(r[2])))(digest.pick_track(info, lang))
+ok = P({"language": "en-US", "subtitles": {"en": [], "fr": []}}) == ("subtitles", "en", False)        # en-US is en
+ok = ok and P({"language": "en", "subtitles": {"en": [], "zh-Hans": []}}, "zh") == ("subtitles", "zh-Hans", True)   # a translation, marked
+ok = ok and P({"language": "en", "subtitles": {"en": []}}, "zh") == ("subtitles", "en", True)       # no zh: the words as spoken
+ok = ok and P({"subtitles": {"danmaku": [], "ai-zh": []}}) == ("ai", "ai-zh", True)                # Bilibili AI subtitles: machine
+ok = ok and P({"language": "en", "automatic_captions": ["en-orig", "en", "zh-Hans"]}) == ("automatic", "en-orig", True)
+ok = ok and P({"language": "en", "automatic_captions": ["en-orig", "zh-Hans"]}, "zh")[0] is None    # a machine translation refused
+ok = ok and "danmaku" in digest.pick_track({"subtitles": {"danmaku": []}}, None)[2]
+sys.exit(0 if ok else 1)'
+    then ok "ref digest's track choice: en-US takes en, a translation is marked, Bilibili's AI subtitles count as machine-made, automatic captions only in the spoken language"
+    else bad "ref digest's track choice (tools/scout/digest.py pick_track)"; fi
+  else bad "ref digest's chunk bounds: $(python3 -c 'import sys; sys.path.insert(0, "tools/scout"); import digest; print(digest.bounds(1500, 600, [(590.0, 592.0), (600.5, 601.0), (1195.0, 1199.0)]), digest.bounds(630, 600))' 2>&1)"; fi
+  rm -rf "$t"
+}
+
 hf_checks() {   # bin/vh hf (tools/hf.py): HyperFrames' registry at the pin's tag, from a synthetic registry recorded under
   # the tag v0.0.0-ci (tools/assets/fixtures/hf-registry; HYPERFRAMES_VERSION points the tool there), no network
   local t p F a b c rc rc2 rc3
