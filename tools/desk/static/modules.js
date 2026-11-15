@@ -746,7 +746,7 @@ function mLedger2() {
   const who = (w, s) => (/等|wait/i.test(s || "") ? ["waits", "wait"] : /^own|你|person/i.test(w || "") ? ["you_decide", ""] : /^review|看/i.test(w || "") ? ["show_you", "quiet"] : ["agent_decides", "agent"]);
   const keyOf = (w) => String(w || "").trim().split(/\s+/)[0].toLowerCase();
   const stale = (l) => { const st = LED_STOP[keyOf(l.what)]; return (filmDelivered() || (st && ["done", "skipped"].includes(stationState(st)))) && /进行中|待|等|in progress|pending|waiting/i.test(l.status || ""); };
-  const over = (i) => (readOnly() ? "" : `<button type="button" class="xs over" data-overturn="${esc(i)}">${esc(t("overturn"))}</button>`);   // shown on hover (CSS)
+  const over = (i) => (readOnly() ? "" : `<button type="button" class="xs ovt" data-overturn="${esc(i)}">${esc(t("overturn"))}</button>`);   // on every row, quiet (CSS)
   // who decides what: a cell a decision; a status written before the film went out is said as decided, the words kept in the tooltip
   const grid = D.ledger.length ? `<div class="whogrid">${D.ledger.map((l, i) => { const [k, c] = who(l.who, l.status), old = stale(l);
       return `<div class="wg"${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${whatName(l.what)}` })}><b>${esc(whatName(l.what))}</b><span class="chip ${c}">${esc(t(k))}</span><span class="meta"${old ? ` title="${esc(l.status)}"` : ""}>${esc(old ? t("f_done") : stopWords(l.status))}</span>${k === "agent_decides" ? over("t" + i) : ""}</div>`; }).join("")}</div>` : voidLine(t("dec_none"));

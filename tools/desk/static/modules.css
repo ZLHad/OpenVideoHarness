@@ -274,9 +274,10 @@ table.t.ledger tr:hover td{background:var(--panel-3)}
 .declog{list-style:none;margin:0;padding:0}
 .declog li{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--rule);cursor:pointer}.declog li:first-child{border-top:0}
 .declog li>div{display:grid;gap:2px;min-width:0}.declog b{font-weight:500;color:var(--ink)}
-.xs.over{opacity:.45;border:1px solid var(--rule-2);background:none;color:var(--ink-2);border-radius:var(--r-pill);padding:1px 9px;font-size:var(--fs-label);cursor:pointer}
-.wg .xs.over{position:absolute;top:8px;right:8px}
-.wg:hover .xs.over,.declog li:hover .xs.over,.xs.over:focus-visible{opacity:1;color:var(--ink)}   /* "改" on every row, quiet; plain where the pointer is */
+.xs.ovt{opacity:.45;border:1px solid var(--rule-2);background:none;color:var(--ink-2);border-radius:var(--r-pill);padding:1px 9px;font-size:var(--fs-label);cursor:pointer}
+.wg .xs.ovt{position:absolute;top:8px;right:8px}
+.declog li>.xs.ovt{align-self:start}
+.wg:hover .xs.ovt,.declog li:hover .xs.ovt,.xs.ovt:focus-visible{opacity:1;color:var(--ink)}   /* "改" on every row, quiet; plain where the pointer is */
 .quotes q.fold{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .quotes q.fold.open{display:block}
 .quotes .means{display:block;margin-top:3px;font-size:var(--fs-small);color:var(--ink-2)}

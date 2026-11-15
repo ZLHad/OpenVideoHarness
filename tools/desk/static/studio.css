@@ -286,7 +286,7 @@ body{overflow:hidden}
 :root[data-theme=bridge] .pin{border-radius:0}
 .span-mark{position:absolute;top:50%;height:2px;margin-top:-1px;background:currentColor;opacity:.5}
 .diff{position:absolute;top:2px;bottom:2px;border-bottom:2px solid var(--agent);font-size:10.5px;color:var(--agent);padding:0 4px;overflow:hidden;white-space:nowrap}
-.over{position:absolute;top:0;bottom:0;left:var(--lab-w);right:12px;pointer-events:none}
+.tl>.over{position:absolute;top:0;bottom:0;left:var(--lab-w);right:12px;pointer-events:none}
 .selr{position:absolute;top:0;bottom:0;background:var(--you-soft);border-left:1px solid var(--you);border-right:1px solid var(--you)}
 .selr .cap{position:absolute;top:24px;left:4px;margin:0;font:10.5px/1.5 var(--mono);color:var(--you);background:var(--bg);padding:0 5px;white-space:nowrap;max-width:none}
 .tl-ph{position:absolute;top:0;bottom:0;width:1px;background:var(--live)}
@@ -511,3 +511,5 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .composer .send #sayHint{flex:1 1 auto;min-width:0}
 .tl-help dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:8px 0 0;align-items:baseline}
 .tl-help dt{margin:0;text-align:right}.tl-help dd{margin:0;color:var(--ink-2)}
+.blk.shot.thin,:root[data-theme=darkfield] .blk.shot.thin{border-left:1px solid var(--rule-2);padding:0}   /* too narrow for its number: the shot as a divided stretch */
+.blk.shot:not(.thin){padding-left:4px}

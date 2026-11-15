@@ -3603,6 +3603,13 @@ allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h
            "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
 want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
 want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")
+# a module's element never matches a rule of the shell's written for something else that takes the pointer away (the ledger's
+# overturn button once had the timeline overlay's class: a tall capsule nobody could press)
+mjs = open("tools/desk/static/modules.js", encoding="utf-8").read()
+used = {c for v in re.findall(r'class="([^"]*)"', mjs) for c in re.sub(r"\$\{[^}]*\}", " ", v).split() if re.fullmatch(r"[\w-]+", c)}
+blocked = {m.group(1) for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css + ui, flags=re.S)) if "pointer-events:none" in rule.replace(" ", "")
+           for part in sel.split(",") for m in [re.fullmatch(r"\s*\.([\w-]+)\s*", part)] if m}
+want(not (used & blocked), f"a class the modules use is a shell rule that takes the pointer away: {sorted(used & blocked)}")
 h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
 want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
 want(".cut.layout-sound{grid-template-rows:auto minmax(0,1fr)}" in css and re.search(r"\.cut\.layout-sound \.screen\{flex:none;height:clamp\(", css) and ".cut.layout-sound .timeline{max-height:none}" in css

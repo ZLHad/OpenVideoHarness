@@ -415,8 +415,11 @@ function gateKey(s) {   // the stop a title or a "where" names, in either langua
   const x = String(s || ""), c = x.match(/[①②③④⑤]/), e = x.match(/(?:^|[^A-Za-z0-9])(E\d)(?![0-9])/), g = x.match(/(?:gate|关卡)\s*(\d)(?![0-9])/i);
   return c ? String("①②③④⑤".indexOf(c[0]) + 1) : e ? e[1] : g ? g[1] : "";
 }
-function stopWords(s) {   // a stop written as a code inside a short status ("已定（关卡 ①）", "Gate 2") → its name ("已定（立意）")
-  return String(s || "").replace(/(?:关卡|检查点|Gate|Checkpoint)\s*([①②③④⑤]|E\d|\d)(?![0-9])/gi, (m, k) => { const g = gateKey("关卡 " + k) || k; return L.stn[g] || m; });
+const GATE_NAMES = ["立意和大纲", "分镜", "初版", "样帧", "脚本", "声音", "锁时", "样板章", "锁画面",   // review.py's GATES: a stop's name after its code
+  "concept and outline", "storyboard", "first draft", "style frames", "script", "sound", "timing lock", "sample chapter", "picture lock"];
+const STOP_RE = new RegExp(`(?:关卡|检查点|Gate|Checkpoint)\\s*([①②③④⑤]|E\\d|\\d)(?![0-9])(?:\\s*(?:${GATE_NAMES.join("|")}))?`, "gi");
+function stopWords(s) {   // a stop written as a code inside a short status ("已定（关卡 ①）", "Gate ③ first draft") → its name ("已定（立意）", "初版"), once
+  return String(s || "").replace(STOP_RE, (m, k) => { const g = gateKey("关卡 " + k) || k; return L.stn[g] || m; });
 }
 function gateName(g) {   // a stop by its name ("初版"); a later page of it by its number ("初版 · 第 3 页"), never a code
   const b = gateBase(g); if (!b) return g;
