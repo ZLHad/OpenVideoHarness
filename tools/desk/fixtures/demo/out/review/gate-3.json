@@ -1,0 +1,22 @@
+{
+ "summary": "初版 32 s：放行，还是改完再看？约 3 分钟",
+ "decisions": [
+  {"id": "draft", "question": "这版放行吗？",
+   "options": [{"id": "OK", "label": "放行，出正式画质", "pro": "今天能交", "con": "S04 的鼓包还偏小"},
+               {"id": "FIX", "label": "改完下面两处再看", "pro": "背面的鼓包更清楚", "con": "多半天"}],
+   "recommend": "FIX", "why": "背面的鼓包是全片要懂的那一下", "cost": "现在改：中 · 锁画面后改：高"},
+  {"id": "voice", "question": "配音语速？",
+   "options": [{"id": "V1", "label": "保持现在", "pro": "从容", "con": "结尾略拖"},
+               {"id": "V2", "label": "快 10%", "pro": "紧凑", "con": "术语容易听漏"}],
+   "recommend": "V1", "why": "讲原理宁慢勿快", "cost": "现在改：低"}
+ ],
+ "assets": [{"path": "out/check/sheet.svg", "caption": "联系表：每镜一格", "for": "draft"},
+            {"path": "out/frames/S4.svg", "caption": "S04：背面的鼓包", "for": "draft"}],
+ "least_sure": [{"id": "S04", "t": 15.5, "note": "背面的鼓包还是偏小，默认加大 20%"},
+                {"id": "27–32 s", "note": "曲线出来时字幕压在波峰上，默认上移"}],
+ "listen": [{"t": 9.2, "note": "转到太空时的那一声"}, {"t": 30.5, "note": "结尾收住的那一下"}],
+ "decided": ["立意卡 A：从海边讲起", "分镜 6 镜，S04 的鼓包加大"],
+ "delegated": ["配乐：低音提琴拨弦，压在 -18 LUFS 以下", "字幕一行，最多 16 个字"],
+ "not_reviewed": "声音：我听不了，只看了响度报告",
+ "appendix": [{"title": "reviewer 的分数", "text": "| 维度 | 分 |\n|---|---|\n| 立意 | 7 |\n| 画面 | 6 |\n| 节奏 | 7 |"}]
+}

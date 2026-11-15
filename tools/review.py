@@ -49,39 +49,42 @@ GATES = {"1": ("关卡 ① 立意和大纲", "Gate ① concept and outline"), "2
          "E5": ("检查点 E5 锁画面", "Checkpoint E5 picture lock")}
 
 T = {
-    "zh": dict(html_lang="zh-CN", decide="要你定的 {n} 件事", look="这一页只给你过目",
+    "zh": dict(html_lang="zh-CN", n_decide="要你定 {n} 件", look="这一页只给你过目", wait="等你看",
                nothing="这一页没有要你定的事：看一眼，回“通过”，或写要改的。",
-               rec="推荐", reply="回", take_all="照推荐回复", copy="复制", copied="已复制",
+               rec="推荐", why_rec="推荐 {r}：{w}", reply="回", take_all="照推荐回复", yours="你的回复", copy="复制", copied="已复制",
                rest="其余默认通过；要改哪一镜，写“{shot} 改：……”。", rest_plain="其余默认通过，只写要改的。",
-               unanswered="没回的决定按推荐走；",
-               least="我最没把握的", decided="已经定了", delegated="我替你定了", not_reviewed="这页不审",
-               decision="决定 {i}", options="选项", pro="好处", con="代价", other="其他材料",
-               seg="分镜 {i}/{n}", shots="{n} 镜", avg="平均 {s} s/镜", unsure="没把握", n_unsure="{n} 镜没把握",
-               shot="镜头", dur="时长", vo="旁白", see="看到什么", status="状态", ok="通过", plan="默认改",
-               pass_all="默认全部通过，只写要改的，例如“{shot} 改：……”。", clip="这一段动起来的样子（{a}–{b} s，播到段尾自动停）",
-               appendix="附录：不影响拍板的细节", others="其他审阅页", src="由 bin/vh review 从 {src} 生成",
+               unanswered="没回的决定按推荐走；", submit="提交", live_note="没动的决定按推荐算，其余默认通过。",
+               changed="改了：{x}", least="我最没把握的", listen="请你听这几处", decided="已经定了", delegated="我替你定了",
+               not_reviewed="这页不审：{x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
+               pro="好处", con="代价", seg="{i} / {n}", shots="{n} 镜", avg="平均 {s} s", unsure="没把握", n_unsure="{n} 镜没把握",
+               plan="默认改", pass_all="逐镜默认通过，只写要改的，例如“{shot} 改：……”。", no_frame="没有关键帧",
+               gone="文件不在了：{p}", gone_n="这一页发出以后，有 {n} 处对不上了（文件移走或改了名）",
+               others="其他审阅页", src="由 bin/vh review 从 {src} 生成", warn="这一页有 {n} 处没按规矩写，修好以前不会发给人：",
                spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", unlimited="不限", over="超了：{cur}",
-               theme="切换深色 / 浅色", nav_decide="决定", nav_other="材料", nav_appendix="附录",
+               theme="深色 / 浅色", play="播放 / 暂停（空格）", mute="静音", full="全屏", keys="空格播放 · ← → 跳镜头 · 1 2 3 选选项",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
-    "en": dict(html_lang="en", decide="{n} thing(s) for you to decide", look="Just for a look",
+    "en": dict(html_lang="en", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
                nothing="Nothing to decide on this page: take a look, then reply “ok” or say what to change.",
-               rec="Recommended", reply="Reply", take_all="Take every recommendation", copy="Copy", copied="Copied",
+               rec="recommended", why_rec="Recommended {r}: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
+               copy="Copy", copied="Copied",
                rest="Everything else passes by default; to change a shot, write “{shot} change: …”.",
                rest_plain="Everything else passes by default; only write what to change.",
-               unanswered="A decision you leave unanswered goes by its recommendation. ",
-               least="Least sure about", decided="Already decided", delegated="Decided for you", not_reviewed="Not reviewed here",
-               decision="Decision {i}", options="Options", pro="Pro", con="Cost", other="Other material",
-               seg="Storyboard {i}/{n}", shots="{n} shots", avg="{s} s per shot", unsure="unsure", n_unsure="{n} unsure",
-               shot="Shot", dur="Length", vo="Narration", see="On screen", status="Status", ok="ok", plan="will change",
-               pass_all="Every shot passes by default; only write what to change, e.g. “{shot} change: …”.",
-               clip="This segment in motion ({a}–{b} s; stops at the segment end)",
-               appendix="Appendix: details that don't change the decisions", others="Other review pages",
-               src="Built by bin/vh review from {src}", theme="Toggle dark / light",
+               unanswered="A decision left unanswered goes by its recommendation. ", submit="Submit",
+               live_note="Untouched decisions go by the recommendation; everything else passes.",
+               changed="changed: {x}", least="Least sure about", listen="Please listen to these", decided="Already decided",
+               delegated="Decided for you", not_reviewed="Not reviewed here: {x}", material="Material", appendix="Appendix",
+               board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", seg="{i} / {n}", shots="{n} shots",
+               avg="{s} s a shot", unsure="unsure", n_unsure="{n} unsure", plan="will change",
+               pass_all="Every shot passes by default; only write what to change, e.g. “{shot} change: …”.", no_frame="no key frame",
+               gone="Not there any more: {p}", gone_n="Since this page went out, {n} thing(s) no longer match (files moved or renamed)",
+               others="Other review pages", src="Built by bin/vh review from {src}",
+               warn="This page breaks {n} rule(s), and goes to nobody until they are fixed:",
                spend="Spent {spent} of {budget}", no_budget="no budget", unlimited="no cap", over="over: {cur}",
-               nav_decide="Decisions", nav_other="Material", nav_appendix="Appendix",
+               theme="Dark / light", play="Play / pause (space)", mute="Mute", full="Full screen",
+               keys="Space plays · ← → jump shots · 1 2 3 pick an option",
                page="Page", chat_head="{title} · {n} thing(s) for you to decide",
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
                chat_item="{i}. {q} Reply {reply}\n   Recommended: {r}{why}",
@@ -90,106 +93,67 @@ T = {
                why=" — {w}", sep="; ", colon=": ", quoted=" “{x}”"),
 }
 
-CSS = """
-:root{color-scheme:light;--bg:#f6f4ef;--card:#fff;--ink:#1d1f23;--muted:#6b6760;--line:#e3dfd5;--soft:#efebe2;
---acc:#2456c9;--acc-soft:#e7edfb;--flag:#c93a27;--flag-soft:#fbe8e3;--ok:#2e7d4f;--plan:#8a5a00;--code:#f0ece3}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#131518;--card:#1b1e22;--ink:#e9e7e2;
---muted:#9c978e;--line:#2d3137;--soft:#23272c;--acc:#86a8ff;--acc-soft:#1e2a44;--flag:#ff735e;--flag-soft:#3a211d;--ok:#5cc98a;
---plan:#e0b34f;--code:#262a30}}
-:root[data-theme=dark]{color-scheme:dark;--bg:#131518;--card:#1b1e22;--ink:#e9e7e2;--muted:#9c978e;--line:#2d3137;--soft:#23272c;
---acc:#86a8ff;--acc-soft:#1e2a44;--flag:#ff735e;--flag-soft:#3a211d;--ok:#5cc98a;--plan:#e0b34f;--code:#262a30}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",
-"Noto Sans CJK SC","Microsoft YaHei","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1160px;margin:0 auto;padding:0 28px}
-a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
-code{font:0.9em ui-monospace,"SF Mono",Menlo,monospace;background:var(--code);padding:1px 6px;border-radius:5px}
-header{padding:22px 0 6px}
-.eyebrow{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:13.5px}
-.eyebrow .spend{margin-left:auto;white-space:nowrap}.eyebrow .spend.over{color:var(--flag)}
-#theme{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:15px}
-h1{font-size:25px;line-height:1.35;margin:6px 0 10px;font-weight:650;letter-spacing:.01em}
-nav{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--muted);padding-bottom:14px;border-bottom:1px solid var(--line)}
-nav .nf{color:var(--flag);font-size:12.5px;margin-left:5px}
-h2{font-size:20px;margin:0 0 4px;font-weight:650}
-.meta{color:var(--muted);font-size:14px}
-section{padding:26px 0 8px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px}
-.decide{margin-top:18px;padding:18px 22px 16px}
-.decide h2{font-size:17px;color:var(--muted);font-weight:600;margin-bottom:6px}
-.drow{display:grid;grid-template-columns:34px 1fr auto;gap:4px 14px;padding:12px 0;border-top:1px solid var(--line)}
-.drow:first-of-type{border-top:0}
-.num{width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;text-decoration:none!important}
-:root[data-theme=dark] .num{color:#0f1115}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .num{color:#0f1115}}
-.q{font-size:18px;font-weight:650;line-height:1.4}
-.rec{margin-top:3px}.rec b{color:var(--acc)}
-.why{color:var(--muted)}
-.rep{margin-top:4px;font-size:14.5px;color:var(--muted)}
-.cost{align-self:start;font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:999px;padding:3px 10px;white-space:nowrap}
-.takeall{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:6px;padding-top:12px;border-top:1px dashed var(--line)}
-.takeall code{font-size:15px;padding:4px 10px;background:var(--acc-soft);color:var(--ink)}
-#copy{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:3px 12px;cursor:pointer;font-size:13.5px}
-.rest{color:var(--muted);font-size:14px;width:100%}
-.lines{margin:14px 2px 0;font-size:14.5px;display:grid;gap:5px}
-.lines .k{color:var(--muted);margin-right:8px}
-.mini{margin:3px 0 2px;padding-left:20px;columns:2;column-gap:32px;font-size:14px}.mini li{break-inside:avoid;margin:1px 0}
-.chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:1px 10px;margin:2px 6px 2px 0;font-size:13.5px}
-.chip.flag{border-color:var(--flag);color:var(--flag);background:var(--flag-soft)}
-figure{margin:14px 0 18px}
-figure img,figure video{display:block;max-width:100%;max-height:78vh;border-radius:10px;border:1px solid var(--line);background:var(--soft)}
-figure video{width:min(100%,760px)}.segbody figure video{width:100%}
-figcaption{color:var(--muted);font-size:14px;margin-top:6px}
-figure.audio{display:inline-block;margin:8px 22px 10px 0;vertical-align:top}
-figure.audio figcaption{margin:0 0 4px}
-table{border-collapse:collapse;width:100%;font-size:14.5px;margin:8px 0 6px}
-th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:600;font-size:13px}
-tr.pick td{background:var(--acc-soft)}
-.tag{font-size:12px;border-radius:5px;padding:0 6px;margin-left:6px;background:var(--acc);color:#fff;vertical-align:1px;white-space:nowrap}
-:root[data-theme=dark] .tag{color:#0f1115}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .tag{color:#0f1115}}
-.segment{border-top:2px solid var(--line);margin-top:18px}
-.seghead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
-.segnote{margin:6px 0 2px}
-.shots{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:16px;margin:14px 0 6px}
-.shotcard{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.shotcard.flag{border:2px solid var(--flag)}
-.shotcard img{display:block;width:100%;aspect-ratio:var(--ar,1.7778);object-fit:contain;background:var(--soft)}
-.shotcard .cap{padding:8px 12px 10px;font-size:14px}
-.shotcard .id{font-weight:700;margin-right:8px}
-.shotcard .t{color:var(--muted);font-size:13px}
-.shotcard .u{color:var(--flag);font-size:13.5px;margin-top:3px}
-.shotcard .p{color:var(--plan);font-size:13.5px;margin-top:3px}
-.segbody{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:22px;align-items:start;margin-top:10px}
-.segbody figure{margin-top:6px}
-table.shotlist td:nth-child(-n+2),table.shotlist th{white-space:nowrap}table.shotlist td:nth-child(3){width:46%}
-td.st.ok{color:var(--ok)}td.st.flag{color:var(--flag)}td.st .p{color:var(--plan)}
-.small{font-size:13.5px;color:var(--muted)}
-details{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:10px 16px;margin:10px 0}
-summary{cursor:pointer;font-weight:600}
-.text{white-space:pre-wrap;margin-top:8px;font-size:14.5px}
-footer{color:var(--muted);font-size:13px;padding:26px 0 40px;border-top:1px solid var(--line);margin-top:30px}
-@media (max-width:900px){.shots{grid-template-columns:repeat(calc(var(--cols,3) - 1),minmax(0,1fr))}.segbody{grid-template-columns:1fr}
-.drow{grid-template-columns:34px 1fr}.cost{grid-column:2;justify-self:start;white-space:normal}}
-@media (max-width:560px){.mini{columns:1}.wrap{padding:0 16px}.shots{grid-template-columns:1fr}.drow{grid-template-columns:30px 1fr}h1{font-size:21px}}
-"""
+# The word budget (playbook/01-pipeline.md, 审阅页): the first line is read before anything else, so it stays short; the rest
+# of what the agent wants to say goes into the decisions, the folds and the appendix. A warning, never a refusal.
+BUDGET = {"summary": (40, 100), "question": (30, 80), "label": (20, 50), "note": (40, 100)}
+
+STATIC = Path(__file__).resolve().parent / "desk" / "static"   # ui.css and ui.js: one stylesheet and one script for the static
+# page (inlined) and the console (served), so the gate view looks and behaves the same in both
+
+TIME_ID = re.compile(r"^\s*(?:(\d+):)?(\d+(?:\.\d+)?)\s*(?:[–—-]\s*(?:(\d+):)?(\d+(?:\.\d+)?))?\s*s?\s*$")   # "12.4 s", "0–5 s", "1:05–1:12"
+
+
+def budget_len(s):
+    """The length a word budget counts: a CJK character is 1, any other visible character ½ (so "48 s" is 1.5);
+    text without CJK counts its characters. → (length, has CJK)."""
+    s = re.sub(r"\s+", " ", re.sub(r"[`*]", "", txt(s))).strip()
+    cjk = len(re.findall(r"[　-鿿豈-﫿＀-￯]", s))
+    if not cjk:
+        return len(s), False
+    return cjk + 0.5 * len(re.sub(r"[\s　-鿿豈-﫿＀-￯]", "", s)), True
+
+
+def over_budget(s, key):
+    """(length, limit) when the text is over its word budget, else None."""
+    n, zh = budget_len(s)
+    lim = BUDGET[key][0 if zh else 1]
+    return (n, lim) if n > lim else None
+
+
+def time_of(label):
+    """'12.4 s', '0–5 s', '1:05–1:12' → (t0, t1 or None); anything else → None. A least-sure item names a time this way."""
+    m = TIME_ID.match(txt(label))
+    if not m or not (m.group(2)):
+        return None
+    t0 = float(m.group(2)) + 60 * int(m.group(1) or 0)
+    t1 = float(m.group(4)) + 60 * int(m.group(3) or 0) if m.group(4) else None
+    return t0, (t1 if t1 is not None and t1 > t0 else None)
+
+
+def clock(x):
+    """seconds → 0:12.4 (tabular figures do the rest)."""
+    if x is None:
+        return ""
+    m, s = divmod(max(0.0, float(x)), 60)
+    return f"{int(m)}:{s:04.1f}"
+
+
+def static_file(name):
+    try:
+        return (STATIC / name).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
 
 HEAD_JS = """(function(){var r=document.documentElement,t=null;try{t=new URLSearchParams(location.search).get('theme')}catch(e){}
-if(t!=='dark'&&t!=='light'){try{t=localStorage.getItem('ovh-review-theme')}catch(e){}}
+if(t!=='dark'&&t!=='light'){try{t=localStorage.getItem('ovh-theme')||localStorage.getItem('ovh-review-theme')}catch(e){}}
 if(t==='dark'||t==='light')r.setAttribute('data-theme',t)})();"""
 
-BODY_JS = """(function(){var r=document.documentElement,b=document.getElementById('theme'),c=document.getElementById('copy');
-if(b)b.addEventListener('click',function(){var cur=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-var n=cur==='dark'?'light':'dark';r.setAttribute('data-theme',n);try{localStorage.setItem('ovh-review-theme',n)}catch(e){}});
-if(c)c.addEventListener('click',function(){var s=c.getAttribute('data-text'),l=c.textContent;
-function done(){c.textContent=c.getAttribute('data-done');setTimeout(function(){c.textContent=l},1400)}
-function old(){var a=document.createElement('textarea');a.value=s;document.body.appendChild(a);a.select();try{document.execCommand('copy');done()}catch(e){}a.remove()}
-try{navigator.clipboard.writeText(s).then(done,old)}catch(e){old()}});
-document.querySelectorAll('video[data-t1]').forEach(function(v){var a=+v.getAttribute('data-t0')||0,e=+v.getAttribute('data-t1');
-v.addEventListener('play',function(){if(v.currentTime<a-0.05||v.currentTime>=e-0.05)v.currentTime=a});
-v.addEventListener('timeupdate',function(){if(v.currentTime>=e){v.pause();v.currentTime=e}})});})();"""
+ICON = {"play": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>',
+        "big": '<svg viewBox="0 0 54 54" aria-hidden="true"><path d="M20 15v24l19-12z"/><path d="M2 12V2h10M42 2h10v10M52 42v10H42M12 52H2V42"/></svg>',
+        "mute": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
+        "full": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>',
+        "theme": '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>'}
 
 
 def txt(x):
@@ -295,8 +259,14 @@ def image_ratio(path):
 
 
 class Page:
-    def __init__(self, project: Path, src: Path, data: dict, gate: str):
+    """One gate page. link: how a project path becomes an href (None: relative from out/review/, the static page that opens
+    from disk; the console passes its /f/ address); live: the console's gate view (a submit button instead of a reply to
+    copy). The markup is otherwise the same."""
+
+    def __init__(self, project: Path, src: Path, data: dict, gate: str, link=None, live=False):
         self.project, self.src, self.d, self.gate = project, src, data, gate
+        self.link, self.live, self._extra, self._normal = link, live, None, False
+        self.past = False   # the console showing a page that is no longer this round: what no longer matches is said quietly
         self.out = project / "out" / "review"
         lang = data.get("lang")
         # the same rule as the review desk: this page's lang, else the BRIEF's Review language, else zh
@@ -322,6 +292,9 @@ class Page:
 
     # ---- the shape of the JSON: normalize every field, or raise TypeError / ValueError (exit 2) ----------
     def normalize(self):
+        if self._normal:   # body() and render() both ask; once is enough
+            return
+        self._normal = True
         d = self.d
         jg = scalar(d.get("gate"), "gate").strip()
         if jg and jg != self.gate:
@@ -330,6 +303,11 @@ class Page:
             d[k] = scalar(d.get(k), k).strip()
         if not d["summary"]:
             self.err("`summary` is missing: one line saying what this page asks and how long it takes")
+        elif over_budget(d["summary"], "summary"):
+            n, lim = over_budget(d["summary"], "summary")
+            self.warn(f"`summary` is {n:g} long, over its budget of {lim} (a CJK character counts 1, other text ½): it is the first thing "
+                      "read, so say only what this page asks and how long it takes; the rest belongs in the decisions, folds and appendix "
+                      "(playbook/01-pipeline.md, 审阅页)")
         for k in ("decided", "delegated"):
             d[k] = [scalar(v, f"{k}[{i}]") for i, v in enumerate(as_list(d.get(k), k))]
         if d.get("decisions") is None:
@@ -339,12 +317,12 @@ class Page:
         if len(decs) > MAX_DECISIONS:
             self.warn(f"{len(decs)} decisions on one page: the default is at most {MAX_DECISIONS} (upstream first, the rest "
                       "on the next page); keep them together only if the human asked to see more at once")
-        ids = []
+        ids, long_q = [], []
         for i, dec in enumerate(decs, 1):
             opts = []
             for j, o in enumerate(as_list(dec.get("options"), f"decisions[{i - 1}].options"), 1):
                 o = dict(o) if isinstance(o, dict) else {"id": scalar(o, f"decisions[{i - 1}].options[{j - 1}]")}
-                for k in ("id", "label", "pro", "con"):
+                for k in ("id", "label", "pro", "con", "frame"):   # frame: the card's picture (a concept card's frame)
                     o[k] = scalar(o.get(k), f"decisions[{i - 1}].options[{j - 1}].{k}").strip()
                 if not o["id"]:
                     self.err(f"decision {i}: option {j} has no `id`")
@@ -359,6 +337,8 @@ class Page:
             dec["columns"] = [scalar(c, f"decisions[{i - 1}].columns[{k}]").strip() for k, c in enumerate(cols[:2])]
             if not dec["question"]:
                 self.err(f"decision {i}: no `question`")
+            elif over_budget(dec["question"], "question"):
+                long_q.append(str(i))
             if not dec["recommend"]:
                 self.err(f"decision {i} ({dec['id'] or '?'}): no `recommend`; every decision carries the agent's pick")
             if not dec["reply"]:
@@ -374,6 +354,9 @@ class Page:
                           "combined reply (use T1, A, H2 …)")
             dec["id"] = dec["id"] or f"d{i}"
             ids.append(dec["id"])
+        if long_q:
+            self.warn(f"the question of decision {', '.join(long_q)} is longer than one line ({BUDGET['question'][0]} CJK characters, "
+                      f"{BUDGET['question'][1]} letters): ask it in this film's words, put the reasons in `why`")
         seen = {}
         for i, dec in enumerate(decs, 1):
             for oid in {o["id"] for o in dec["options"] if o["id"]}:
@@ -385,9 +368,22 @@ class Page:
         least = []
         for i, x in enumerate(as_list(d.get("least_sure"), "least_sure")):
             x = dict(x) if isinstance(x, dict) else {"note": scalar(x, f"least_sure[{i}]")}
+            t0, t1 = seconds(x.get("t"), f"least_sure[{i}].t"), seconds(x.get("t1"), f"least_sure[{i}].t1")   # optional: where in the film
             least.append({"id": scalar(x.get("id"), f"least_sure[{i}].id").strip(),
-                          "note": scalar(x.get("note"), f"least_sure[{i}].note").strip()})
+                          "note": scalar(x.get("note"), f"least_sure[{i}].note").strip(), "t": t0, "t1": t1 if t1 and t0 is not None and t1 > t0 else None})
         d["least_sure"] = least
+        listen = []   # the review desk's "please listen to these" (tools/desk/README.md): [{t, note}]; a malformed one is left out
+        for i, x in enumerate(d.get("listen") if isinstance(d.get("listen"), list) else []):
+            try:
+                t = seconds(x.get("t"), f"listen[{i}].t") if isinstance(x, dict) else None
+            except (TypeError, ValueError):
+                t = None
+            if t is None or t < 0:
+                self.warn(f"listen[{i}]: needs t (seconds) and note; left out")
+                continue
+            listen.append({"t": t, "note": scalar(x.get("note"), f"listen[{i}].note").strip()})
+        d["listen"] = listen
+        d["film"] = d.get("film") if isinstance(d.get("film"), str) else ""
         segs = [dict(as_dict(x, f"segments[{i}]")) for i, x in enumerate(as_list(d.get("segments"), "segments"))]
         d["segments"] = segs
         for i, s in enumerate(segs, 1):
@@ -412,7 +408,7 @@ class Page:
                 sh["t0"], sh["t1"] = self.span(sh, f"shot {sh['id']}")
         for it in least:
             if it["id"]:
-                if self.shot_ids and it["id"] not in self.shot_ids:
+                if self.shot_ids and it["id"] not in self.shot_ids and not time_of(it["id"]):
                     self.warn(f"least_sure {it['id']!r} matches no shot; it is listed as text")
                 self.flagged.setdefault(it["id"], it["note"])
         dup = sorted({x for x in ids if ids.count(x) > 1})
@@ -446,8 +442,9 @@ class Page:
 
     # ---- helpers -------------------------------------------------------------------------------------------
     def url(self, p, what):
-        """A relative, percent-encoded URL from out/review/ to a project file; http(s) passes through escaped.
-        Any other scheme (javascript:, data:, file: …) is refused: returns None and records an error."""
+        """The href of a project file (the static page: relative from out/review/, so it opens from disk; the console:
+        its /f/ address), or an http(s) URL escaped. Any other scheme (javascript:, data:, file: …) is refused: returns
+        None and records an error."""
         p = txt(p).strip()
         if re.match(r"(?i)https?://", p):
             return html.escape(p, quote=True)
@@ -460,6 +457,8 @@ class Page:
         if not os.path.exists(f) and p not in self.bad_paths:
             self.bad_paths.add(p)
             self.err(f"{what}: {p} does not exist")
+        if self.link:
+            return html.escape(self.link(os.path.relpath(f, self.project).replace(os.sep, "/")), quote=True)
         rel = os.path.relpath(f, self.out).replace(os.sep, "/")
         return quote(rel, safe="/-_.~()")   # spaces, quotes, <, >, # and ? are percent-encoded
 
@@ -473,37 +472,19 @@ class Page:
             e = html.escape(part)
             e = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", e)
             e = re.sub(r"(?<![A-Za-z0-9])(S\d{1,3}[a-z]?)(?![0-9])",
-                       lambda m: f'<a href="#shot-{m.group(1)}">{m.group(1)}</a>' if m.group(1) in self.shot_ids else m.group(1), e)
+                       lambda m: f'<a href="#shot-{m.group(1)}" data-shot-link="{m.group(1)}">{m.group(1)}</a>' if m.group(1) in self.shot_ids else m.group(1), e)
             out.append(e.replace("\n", "<br>"))
         return "".join(out)
 
-    def media(self, path, caption="", what="asset", t0=None, t1=None, poster=None):
-        u = self.url(path, what)
-        if u is None:
-            return ""
+    @staticmethod
+    def kind(path):
         p = txt(path).strip()
         base = re.split(r"[?#]", p)[0] if re.match(r"(?i)https?://", p) else p   # a local "a#1.png" keeps its name
         ext = os.path.splitext(base)[1].lower()
-        cap = f"<figcaption>{self.text(caption)}</figcaption>" if caption else ""
-        if ext in IMG:
-            alt = html.escape(re.sub(r"[`*]", "", txt(caption)) or os.path.basename(base))
-            return f'<figure><a href="{u}" target="_blank"><img src="{u}" alt="{alt}" loading="lazy"></a>{cap}</figure>'
-        if ext in VID:
-            frag = data = ""
-            if t1 is not None:
-                a = t0 or 0.0
-                frag, data = f"#t={a:g},{t1:g}", f' data-t0="{a:g}" data-t1="{t1:g}"'
-            elif t0 is not None:
-                frag = f"#t={t0:g}"
-            elif not poster:
-                frag = "#t=0.001"   # Safari paints nothing before play under preload="metadata" without it
-            pu = self.url(poster, what) if poster else None
-            pa = f' poster="{pu}"' if pu else ""
-            return f'<figure><video controls preload="metadata" playsinline src="{u}{frag}"{data}{pa}></video>{cap}</figure>'
-        if ext in AUD:
-            return f'<figure class="audio">{cap}<audio controls preload="metadata" src="{u}"></audio></figure>'
-        name = html.escape(os.path.basename(base))
-        return f'<p><a href="{u}" target="_blank">{name}</a>{" · " + self.text(caption) if caption else ""}</p>'
+        return ("image" if ext in IMG else "video" if ext in VID else "audio" if ext in AUD else "file"), base
+
+    def alt(self, caption, base):
+        return html.escape(re.sub(r"[`*]", "", txt(caption)) or os.path.basename(base))
 
     def assets_for(self, key):
         return [a for a in self.d["assets"] if a["for"] == key]
@@ -529,148 +510,263 @@ class Page:
     def take_all(self):
         return " · ".join(f"{i} {dec['recommend']}" for i, dec in enumerate(self.d["decisions"], 1))
 
-    # ---- sections ------------------------------------------------------------------------------------------
-    def decisions_block(self):
-        t, decs, rows = self.t, self.d["decisions"], []
-        for i, dec in enumerate(decs, 1):
-            label = f" {self.text(self.rec_label(dec))}" if self.rec_label(dec) else ""
-            why = f' <span class="why">— {self.text(dec["why"])}</span>' if dec["why"] else ""
-            cost = f'<div class="cost">{self.text(dec["cost"])}</div>' if dec["cost"] else "<div></div>"
-            rows.append(f'<div class="drow"><a class="num" href="#d-{esc(dec["id"])}">{i}</a><div>'
-                        f'<div class="q">{self.text(dec["question"])}</div>'
-                        f'<div class="rec">{t["rec"]} <b>{esc(dec["recommend"])}</b>{label}{why}</div>'
-                        f'<div class="rep">{t["reply"]} <code>{esc(dec["reply"])}</code></div></div>{cost}</div>')
+    def all_shots(self):
+        return [sh for s in self.d["segments"] for sh in s["shots"]]
+
+    def project_extra(self):
+        """The outline and shot table the review desk reads from the project (tools/desk/reader.py), for a ruler when the
+        page itself has no segments; {} when they cannot be read. Read once."""
+        if self._extra is None:
+            self._extra = {}
+            try:
+                sys.path.insert(0, str(ROOT / "tools" / "desk"))
+                import reader
+                r = reader.read_project(self.project)
+                self._extra = {"outline": r.get("outline") or [], "shots": (r.get("shots") or {}).get("items") or []}
+            except Exception:   # the ruler is a help, never a reason for the page to fail
+                pass
+        return self._extra
+
+    # ---- what goes on the ruler ------------------------------------------------------------------------------
+    def marks(self):
+        """The places to look at or listen to, with their times when known: [{kind, t, t1, id, note, target}].
+        A least-sure item's time: its own t, a time in its id ("12.4 s", "0–5 s"), or its shot's start."""
+        starts = {sh["id"]: (sh["t0"], sh["t1"]) for sh in self.all_shots()}
+        out = []
+        for i, it in enumerate(self.d["least_sure"]):
+            t = it.get("t")
+            t1 = it.get("t1")
+            if t is None:
+                tt = time_of(it["id"])
+                if tt:
+                    t, t1 = tt
+                elif it["id"] in starts:
+                    t, t1 = starts[it["id"]]
+            out.append({"kind": "least", "t": t, "t1": t1, "id": it["id"], "note": it["note"], "target": f"least:{it['id'] or i}"})
+        for i, it in enumerate(self.d["listen"]):
+            out.append({"kind": "listen", "t": it["t"], "t1": None, "id": "", "note": it["note"], "target": f"atime:{it['t']:g}" if it["t"] is not None else f"least:listen{i}"})
+        return out
+
+    def ruler_parts(self):
+        """(segments [(t0, t1, title)], shots [(t0, id, label, frame href)]) for the ruler: the page's own segments and
+        shots, else the project's outline and shot table (no shots.json: the outline's parts; no outline either: only the
+        seconds and the marks)."""
+        segs = [(s["t0"], s["t1"], s["title"]) for s in self.d["segments"] if s["t0"] is not None and s["t1"] is not None]
+        shots = []
+        for sh in self.all_shots():
+            if sh["t0"] is not None:
+                fr = self.url(sh["frame"], f"shot {sh['id']} frame") if sh["frame"] else None
+                shots.append((sh["t0"], sh["id"], sh["see"], fr))
+        if not segs and not shots:
+            x = self.project_extra()
+            segs = [(o["t0"], o["t1"], o.get("title") or "") for o in x.get("outline", []) if o.get("t0") is not None and o.get("t1") is not None]
+            for sh in x.get("shots", []):
+                if sh.get("start") is not None:
+                    fr = sh.get("frame") or ""
+                    href = None
+                    if fr and not re.match(r"(?i)https?://", fr) and (self.project / fr).is_file():
+                        href = self.url(fr, f"shot {sh.get('id')} frame")
+                    shots.append((float(sh["start"]), txt(sh.get("id")), txt(sh.get("label")), href))
+        return segs, shots
+
+    # ---- components: one markup for the static page and the console -----------------------------------------
+    def player(self, a, film=True):
+        """A video on its mat, a bar under it and the ruler as its progress bar. Without JavaScript the browser's own
+        controls stay (ui.js takes them away when it takes over)."""
+        t = self.t
+        u = self.url(a["path"], "film" if film else "video")
+        if u is None:
+            return ""
+        poster = self.url(a["poster"], "poster") if a.get("poster") else None
+        if not poster:
+            first = next((sh["frame"] for sh in self.all_shots() if sh["frame"]), "")
+            poster = self.url(first, "poster") if first else None
+        frag = "" if poster else "#t=0.001"   # Safari paints nothing before play under preload="metadata" without it
+        segs, shots = self.ruler_parts()
+        marks = [m for m in self.marks() if m["t"] is not None]
+        ends = [x[1] for x in segs] + [x[0] for x in shots] + [m["t1"] or m["t"] for m in marks]
+        dur = max(ends) if ends else 0
+        parts = ['<span class="r-base"></span><span class="r-done"></span>']
+        for t0, t1, title in segs:
+            parts.append(f'<span class="r-seg" data-t="{t0:g}" data-t1="{t1:g}" title="{esc(title)}">{esc(title)}</span>')
+        for t0, sid, label, fr in shots:
+            parts.append(f'<span class="r-shot" data-t="{t0:g}" data-id="{esc(sid)}" data-label="{esc(label)}"'
+                         + (f' data-frame="{fr}"' if fr else "") + "></span>")
+        for m in marks:
+            kind = "listen" if m["kind"] == "listen" else "least"
+            parts.append(f'<button type="button" class="r-mark {kind}" data-t="{m["t"]:g}" data-target="{esc(m["target"])}" '
+                         f'title="{esc(clock(m["t"]))} {esc(m["id"])} {esc(re.sub(r"[`*]", "", m["note"]))}" aria-label="{esc(clock(m["t"]))}"></button>')
+        parts.append('<span class="r-head"></span><span class="r-tip" aria-hidden="true"></span>')
+        span = ""
+        if a.get("t1") is not None:
+            span = f' data-t0="{(a.get("t0") or 0):g}" data-t1="{a["t1"]:g}"'
+        elif a.get("t0") is not None:
+            span = f' data-t0="{a["t0"]:g}"'
+        cap = f'<p class="cap">{self.text(a["caption"])}</p>' if a.get("caption") else ""
+        return (f'<div class="player"{span} data-dur="{dur:g}"><div class="well">'
+                f'<video src="{u}{frag}" controls preload="metadata" playsinline'
+                + (f' poster="{poster}"' if poster else "") + f'></video><span class="big">{ICON["big"]}</span></div>'
+                f'<div class="p-bar"><button type="button" class="p-btn p-play" title="{esc(t["play"])}" aria-label="{esc(t["play"])}">{ICON["play"]}</button>'
+                f'<span class="p-time">0:00.0</span><div class="ruler" role="slider" tabindex="0" aria-label="{esc(t["keys"])}" aria-valuemin="0" aria-valuemax="{dur:g}" aria-valuenow="0">{"".join(parts)}</div>'
+                f'<button type="button" class="p-btn p-mute" title="{esc(t["mute"])}" aria-label="{esc(t["mute"])}">{ICON["mute"]}</button>'
+                f'<button type="button" class="p-btn p-full" title="{esc(t["full"])}" aria-label="{esc(t["full"])}">{ICON["full"]}</button></div>{cap}</div>')
+
+    def figure(self, a, what="asset", thumb=False):
+        """One asset: a picture on its mat, a sound to play, or a link."""
+        kind, base = self.kind(a["path"])
+        if kind == "video":
+            return self.player(a, film=False)
+        u = self.url(a["path"], what)
+        if u is None:
+            return ""
+        cap = f'<figcaption class="cap">{self.text(a["caption"])}</figcaption>' if a.get("caption") else ""
+        if kind == "image":
+            return (f'<figure><a class="well" href="{u}" target="_blank" rel="noopener">'
+                    f'<img src="{u}" alt="{self.alt(a.get("caption"), base)}" loading="lazy"></a>{cap}</figure>')
+        if kind == "audio":
+            return f'<figure class="audio-row">{cap}<audio controls preload="metadata" src="{u}"></audio></figure>'
+        name = html.escape(os.path.basename(base))
+        return f'<p class="cap"><a href="{u}" target="_blank" rel="noopener">{name}</a>{" · " + self.text(a["caption"]) if a.get("caption") else ""}</p>'
+
+    def gallery(self, imgs):
+        """Pictures as a light table: the first one large, the others in a strip that swaps it."""
+        if not imgs:
+            return ""
+        dec_n = {x["id"]: i for i, x in enumerate(self.d["decisions"], 1)}
+        items = []
+        for a in imgs:
+            u = self.url(a["path"], f"decision {a['for']}" if a["for"] else "asset")
+            if u:
+                items.append((a, u))
+        if not items:
+            return ""
+        a0, u0 = items[0]
+
+        def tag(a):
+            return f'<span class="for">→ {dec_n[a["for"]]}</span>' if a["for"] in dec_n else ""
+        main = (f'<a class="well gal-main" href="{u0}" target="_blank" rel="noopener"><img src="{u0}" alt="{self.alt(a0["caption"], a0["path"])}"></a>'
+                f'<p class="cap gal-cap">{self.text(a0["caption"])}{tag(a0)}</p>')
+        if len(items) == 1:
+            return f'<div class="gallery">{main}</div>'
+        strip = "".join(f'<button type="button" data-src="{u}" data-cap="{esc(self.text(a["caption"]) + tag(a))}" aria-current="{"true" if i == 0 else "false"}" '
+                        f'title="{self.alt(a["caption"], a["path"])}"><img src="{u}" alt="" loading="lazy">'
+                        + (f'<span class="tag">→ {dec_n[a["for"]]}</span>' if a["for"] in dec_n else "") + "</button>"
+                        for i, (a, u) in enumerate(items))
+        return f'<div class="gallery">{main}<div class="gal-strip">{strip}</div></div>'
+
+    def thumbs(self, imgs):
+        return f'<div class="thumbs">{"".join(self.figure(a) for a in imgs)}</div>' if imgs else ""
+
+    def decision(self, i, dec, wide=False):
+        t = self.t
+        cols = dec["columns"] + ["", ""]
+        pro_k, con_k = esc(cols[0]) or t["pro"], esc(cols[1]) or t["con"]
+        opts = []
+        for o in dec["options"]:
+            pick = o["id"] == dec["recommend"]
+            pic = ""
+            if o["frame"]:
+                u = self.url(o["frame"], f"option {o['id']} frame")
+                if u:
+                    pic = f'<span class="pic"><img src="{u}" alt="{esc(o["id"])} {self.alt(o["label"], o["frame"])}" loading="lazy"></span>'
+            pc = ""
+            if o["pro"] or o["con"]:
+                pc = ('<span class="pc">' + (f'<span><span class="k">{pro_k}</span>{self.text(o["pro"])}</span>' if o["pro"] else "")
+                      + (f'<span><span class="k">{con_k}</span>{self.text(o["con"])}</span>' if o["con"] else "") + "</span>")
+            full = re.sub(r"[`*]", "", " · ".join(x for x in (o["label"], o["pro"], o["con"]) if x))
+            opts.append(f'<label class="g-opt" title="{esc(full)}"><input type="radio" name="dec-{esc(dec["id"])}" value="{esc(o["id"])}"'
+                        f'{" checked" if pick else ""} data-rec="{"1" if pick else ""}">{pic}'
+                        f'<span class="row"><span class="id">{esc(o["id"])}</span><span class="lab">{self.text(o["label"]) or esc(o["id"])}</span>'
+                        + (f'<span class="rec">{t["rec"]}</span>' if pick else "") + f"</span>{pc}</label>")
+        why = ""
+        if dec["why"]:
+            r = esc(dec["recommend"])
+            why = f'<p class="g-why">{t["why_rec"].format(r=f"<b>{r}</b>", w=self.text(dec["why"]))}</p>'
+        elif not dec["options"]:
+            why = f'<p class="g-why">{t["reply"]} <code>{esc(dec["reply"])}</code></p>'
+        cost = f'<span class="g-cost">{self.text(dec["cost"])}</span>' if dec["cost"] else ""
+        body = f'<div class="g-opts{" wide" if wide else ""}" role="radiogroup" aria-label="{esc(re.sub(r"[`*]", "", dec["question"]))}">{"".join(opts)}</div>' if opts else ""
+        return (f'<div class="g-dec{" wide" if wide else ""}{"" if opts else " free"}" id="d-{esc(dec["id"])}" data-dec="{esc(dec["id"])}" '
+                f'data-n="{i}" data-rec="{esc(dec["recommend"])}" tabindex="-1">'
+                f'<p class="g-q"><span class="g-n">{i}</span><span>{self.text(dec["question"])}</span></p>{cost}{body}{why}</div>')
+
+    def act(self):
+        t, decs = self.t, self.d["decisions"]
+        if self.live:
+            return (f'<div class="g-act" data-live><button type="button" class="btn btn-primary g-submit">{t["submit"]}</button>'
+                    f'<p class="note">{t["live_note"]}</p></div>')
         shot = self.example_shot()
         rest = t["rest"].format(shot=esc(shot)) if shot else t["rest_plain"]
-        if decs:
-            allr = self.take_all()
-            foot = (f'<div class="takeall"><span>{t["take_all"]}</span><code>{esc(allr)}</code>'
-                    f'<button id="copy" data-text="{esc(allr)}" data-done="{t["copied"]}">{t["copy"]}</button>'
-                    f'<span class="rest">{t["unanswered"]}{rest}</span></div>')
-        else:
-            foot = f'<div class="rest">{t["nothing"]}</div>'
-        head = t["decide"].format(n=len(decs)) if decs else t["look"]
-        return f'<div class="card decide" id="decide"><h2>{head}</h2>{"".join(rows)}{foot}</div>'
+        if not decs:
+            return f'<div class="g-act"><p class="note">{t["nothing"]}</p></div>'
+        allr = esc(self.take_all())
+        return (f'<div class="g-act"><div class="g-reply"><span class="g-reply-k" data-yours="{esc(t["yours"])}">{t["take_all"]}</span>'
+                f'<code class="g-reply-v">{allr}</code><button type="button" class="btn g-copy" data-done="{t["copied"]}">{t["copy"]}</button></div>'
+                f'<p class="note">{t["unanswered"]}{rest}</p></div>')
 
-    def lines_block(self):
-        t, d, out = self.t, self.d, []
-        if d["least_sure"]:
-            chips = []
-            for it in d["least_sure"]:
-                sid = it["id"]
-                label = (f'<a href="#shot-{esc(sid)}">{esc(sid)}</a> ' if sid in self.shot_ids else (esc(sid) + " " if sid else ""))
-                chips.append(f'<span class="chip flag">{label}{self.text(it["note"])}</span>')
-            out.append(f'<div><span class="k">{t["least"]}</span>{"".join(chips)}</div>')
-        for key in ("decided", "delegated"):
-            if len(d[key]) > 2:      # a long list reads as a wall on one line
-                items = "".join(f"<li>{self.text(v)}</li>" for v in d[key])
-                out.append(f'<div><span class="k">{t[key]}</span><ul class="mini">{items}</ul></div>')
-            elif d[key]:
-                out.append(f'<div><span class="k">{t[key]}</span>{t["sep"].join(self.text(v) for v in d[key])}</div>')
-        if d["not_reviewed"]:
-            out.append(f'<div><span class="k">{t["not_reviewed"]}</span>{self.text(d["not_reviewed"])}</div>')
-        return f'<div class="lines">{"".join(out)}</div>' if out else ""
+    def marks_list(self, items, has_player):
+        out = []
+        for m in items:
+            when = clock(m["t"]) + (f'–{clock(m["t1"])}' if m["t1"] else "") if m["t"] is not None else ""
+            if when and has_player:
+                at = f'<button type="button" class="at" data-seek="{m["t"]:g}">{when}</button>'
+            else:
+                at = f'<span class="at static">{when}</span>'
+            sid = m["id"]
+            shown_id = "" if (sid and time_of(sid)) else (f'<a class="id" href="#shot-{esc(sid)}">{esc(sid)}</a>' if sid in self.shot_ids else (f'<span class="id">{esc(sid)}</span>' if sid else ""))
+            out.append(f'<li class="{m["kind"]}" data-target="{esc(m["target"])}"' + (f' data-t="{m["t"]:g}"' if m["t"] is not None else "")
+                       + f'>{at}<span>{shown_id}{self.text(m["note"])}</span></li>')
+        untimed = "" if any(m["t"] is not None for m in items) else " untimed"   # no times at all: no empty time column
+        return f'<ul class="g-marks{untimed}">{"".join(out)}</ul>' if out else ""
 
-    def decision_sections(self):
-        t, out = self.t, []
-        for i, dec in enumerate(self.d["decisions"], 1):
-            figs = "".join(self.media(a["path"], a["caption"], f"decision {dec['id']}", a["t0"], a["t1"], a["poster"] or None)
-                           for a in self.assets_for(dec["id"]))
-            opts, table = dec["options"], ""
-            if opts:
-                has_pc = any(o["pro"] or o["con"] for o in opts)
-                cols = dec["columns"] + ["", ""]
-                head = f'<tr><th>{t["options"]}</th>' + (f'<th>{esc(cols[0]) or t["pro"]}</th><th>{esc(cols[1]) or t["con"]}</th>' if has_pc else "") + "</tr>"
-                body = []
-                for o in opts:
-                    pick = o["id"] == dec["recommend"]
-                    tag = f'<span class="tag">{t["rec"]}</span>' if pick else ""
-                    label = f" {self.text(o['label'])}" if o["label"] else ""
-                    cells = f'<td><b>{esc(o["id"])}</b>{label}{tag}</td>'
-                    if has_pc:
-                        cells += f'<td>{self.text(o["pro"])}</td><td>{self.text(o["con"])}</td>'
-                    body.append(f'<tr class="{"pick" if pick else ""}">{cells}</tr>')
-                table = f'<table>{head}{"".join(body)}</table>'
-            label = f" {self.text(self.rec_label(dec))}" if self.rec_label(dec) else ""
-            cost = f' · {self.text(dec["cost"])}' if dec["cost"] else ""
-            meta = (f'<div class="meta">{t["rec"]} <b>{esc(dec["recommend"])}</b>{label} · {t["reply"]} '
-                    f'<code>{esc(dec["reply"])}</code>{cost}</div>')
-            out.append(f'<section id="d-{esc(dec["id"])}"><h2>{t["decision"].format(i=i)} · {self.text(dec["question"])}</h2>'
-                       f'{meta}{figs}{table}</section>')
-        return "".join(out)
-
-    def other_section(self):
-        rest = self.loose_assets()
-        if not rest:
+    def board(self):
+        t, segs = self.t, self.d["segments"]
+        if not segs:
             return ""
-        figs = "".join(self.media(a["path"], a["caption"], "asset", a["t0"], a["t1"], a["poster"] or None) for a in rest)
-        return f'<section id="other"><h2>{self.t["other"]}</h2>{figs}</section>'
-
-    def segment_sections(self):
-        t, segs, colon = self.t, self.d["segments"], self.t["colon"]
+        colon = t["colon"]
         out = []
         for i, s in enumerate(segs, 1):
             shots = s["shots"]
             durs = [sh["t1"] - sh["t0"] for sh in shots if sh["t0"] is not None and sh["t1"] is not None]
-            meta = [f'{s["t0"]:.1f}–{s["t1"]:.1f} s' if s["t0"] is not None and s["t1"] is not None else "",
+            meta = [f'{clock(s["t0"])}–{clock(s["t1"])}' if s["t0"] is not None and s["t1"] is not None else "",
                     t["shots"].format(n=len(shots)) if shots else "",
                     t["avg"].format(s=f"{sum(durs) / len(durs):.1f}") if durs else ""]
             first = next((sh["frame"] for sh in shots if sh["frame"]), "")
             ratio = (image_ratio(self.project / first) if first and not re.match(r"(?i)https?://", first) else None) or 16 / 9
-            cols = 3 if ratio >= 1.2 else (4 if ratio >= 0.8 else 5)
-            has_vo = any(sh["vo"] for sh in shots)
-            cards, rows = [], []
+            width = 220 if ratio >= 1.2 else (160 if ratio >= 0.8 else 130)
+            cards = []
             for sh in shots:
                 sid, flag = sh["id"], sh["id"] in self.flagged
                 dur = f'{sh["t1"] - sh["t0"]:.1f} s' if sh["t0"] is not None and sh["t1"] is not None else ""
-                tr = f'{sh["t0"]:.1f}–{sh["t1"]:.1f} s · {dur}' if dur else ""
-                img = ""
+                img = f'<span class="empty">{t["no_frame"]}</span>'
                 if sh["frame"]:
                     u = self.url(sh["frame"], f"shot {sid} frame")
                     if u:
-                        img = f'<a href="{u}" target="_blank"><img src="{u}" alt="{esc(sid)}" loading="lazy"></a>'
+                        img = f'<img src="{u}" alt="{esc(sid)}" loading="lazy">'
                 why = f'{colon}{self.text(self.flagged[sid])}' if flag and self.flagged[sid] else ""
-                unsure = f'<div class="u">? {t["unsure"]}{why}</div>' if flag else ""
-                plan = f'<div class="p">→ {t["plan"]}{colon}{self.text(sh["note"])}</div>' if sh["note"] else ""
-                cards.append(f'<div class="shotcard{" flag" if flag else ""}" id="shot-{esc(sid)}">{img}'
-                             f'<div class="cap"><span class="id">{esc(sid)}</span><span class="t">{tr}</span>'
-                             f'<div>{self.text(sh["see"])}</div>{unsure}{plan}</div></div>')
-                planline = f'<div class="p">→ {t["plan"]}{colon}{self.text(sh["note"])}</div>' if sh["note"] else ""
-                if flag:
-                    st = f'<td class="st flag">? {self.text(self.flagged[sid]) or t["unsure"]}{planline}</td>'
-                elif sh["note"]:
-                    st = f'<td class="st">{planline}</td>'
-                else:
-                    st = f'<td class="st ok">✓ {t["ok"]}</td>'
-                said = self.text(sh["vo"]) if has_vo else self.text(sh["see"])
-                rows.append(f'<tr><td><a href="#shot-{esc(sid)}">{esc(sid)}</a></td><td>{dur}</td><td>{said}</td>{st}</tr>')
-            table = ""
-            if rows:
-                third = t["vo"] if has_vo else t["see"]
-                hint = self.example_shot(shots)
-                table = (f'<div><table class="shotlist"><tr><th>{t["shot"]}</th><th>{t["dur"]}</th><th>{third}</th>'
-                         f'<th>{t["status"]}</th></tr>{"".join(rows)}</table>'
-                         f'<div class="small">{t["pass_all"].format(shot=esc(hint)) if hint else t["rest_plain"]}</div></div>')
-            clip = ""
-            if self.d["animatic"] and s["t0"] is not None and s["t1"] is not None:
-                cap = t["clip"].format(a=f'{s["t0"]:.1f}', b=f'{s["t1"]:.1f}')
-                clip = self.media(self.d["animatic"], cap, "animatic", s["t0"], s["t1"], first or None)
-            body = f'<div class="segbody"><div>{clip}</div>{table}</div>' if (clip or table) else ""
-            extra = "".join(self.media(a["path"], a["caption"], f"segment {s['id']}", a["t0"], a["t1"], a["poster"] or None)
-                            for a in self.assets_for(s["id"]))
-            note = f'<div class="segnote">{self.text(s["note"])}</div>' if s["note"] else ""
+                lines = (f'<span class="see">{self.text(sh["see"])}</span>' if sh["see"] else "") \
+                    + (f'<span class="vo">{self.text(sh["vo"])}</span>' if sh["vo"] else "") \
+                    + (f'<span class="u">? {t["unsure"]}{why}</span>' if flag else "") \
+                    + (f'<span class="p">→ {t["plan"]}{colon}{self.text(sh["note"])}</span>' if sh["note"] else "")
+                seek = f' data-t="{sh["t0"]:g}"' + (f' data-t1="{sh["t1"]:g}"' if sh["t1"] is not None else "") if sh["t0"] is not None else ""
+                cards.append(f'<figure class="g-shot{" flag" if flag else ""}" id="shot-{esc(sid)}" data-target="shot:{esc(sid)}" data-shot="{esc(sid)}"{seek}>'
+                             f'<div class="well">{img}<span class="sid">{esc(sid)}</span>' + (f'<span class="dur">{dur}</span>' if dur else "")
+                             + f'</div><figcaption>{lines}</figcaption></figure>')
+            extra = "".join(self.figure(a, f"segment {s['id']}") for a in self.assets_for(s["id"]))
+            note = f'<p class="g-seg-note">{self.text(s["note"])}</p>' if s["note"] else ""
             nflag = sum(1 for sh in shots if sh["id"] in self.flagged)
-            badge = f'<span class="chip flag">{t["n_unsure"].format(n=nflag)}</span>' if nflag else ""
-            out.append(f'<section class="segment" id="seg-{esc(s["id"])}"><div class="seghead">'
-                       f'<h2>{t["seg"].format(i=i, n=len(segs))} · {self.text(s["title"])}</h2>'
-                       f'<span class="meta">{" · ".join(m for m in meta if m)}</span>{badge}</div>{note}'
-                       f'<div class="shots" style="--cols:{cols};--ar:{ratio:.4f}">{"".join(cards)}</div>{body}{extra}</section>')
-        return "".join(out)
+            badge = f'<span class="flag">{t["n_unsure"].format(n=nflag)}</span>' if nflag else ""
+            out.append(f'<section class="g-seg" id="seg-{esc(s["id"])}"><div class="g-seg-h"><span class="meta">{t["seg"].format(i=i, n=len(segs))}</span>'
+                       f'<h3>{self.text(s["title"])}</h3><span class="meta">{" · ".join(m for m in meta if m)}</span>{badge}</div>{note}'
+                       f'<div class="g-shots" style="--ar:{ratio:.4f};--shot-w:{width}px">{"".join(cards)}</div>{extra}</section>')
+        hint = self.example_shot()
+        return (f'<section class="g-board"><h2 class="g-h">{t["board"]}<span class="n">{len(self.all_shots())}</span></h2>'
+                f'<p class="cap">{t["pass_all"].format(shot=esc(hint)) if hint else t["rest_plain"]}</p>{"".join(out)}</section>')
 
     def blocks(self, s):
         """Text with simple pipe tables: a run of lines starting with | whose second line is |---| becomes a table."""
         out, para, lines, i = [], [], txt(s).split("\n"), 0
-        cells = lambda l: [c.strip() for c in l.strip().strip("|").split("|")]
+        cells = lambda l: [c.strip() for c in l.strip().strip("|").split("|")]   # noqa: E731
         while i < len(lines):
             j = i
             while j < len(lines) and lines[j].strip().startswith("|"):
@@ -690,34 +786,32 @@ class Page:
             out.append(f'<div class="text">{self.text(chr(10).join(para))}</div>')
         return "".join(out)
 
-    def appendix_section(self):
-        items = []
-        for a in self.d["appendix"]:
+    def fold(self, key, title, n, body):
+        return f'<details class="fold" data-fold="{key}"><summary>{title}<span class="n">{n}</span></summary><div class="body">{body}</div></details>'
+
+    def more(self, files):
+        t, d, out = self.t, self.d, []
+        for key in ("decided", "delegated"):
+            if d[key]:
+                items = "".join(f'<li data-target="{"deleg:" + str(i) if key == "delegated" else ""}">{self.text(v)}</li>' for i, v in enumerate(d[key]))
+                out.append(self.fold(key, t[key], len(d[key]), f'<ul class="items">{items}</ul>'))
+        if files:
+            out.append(self.fold("material", t["material"], len(files), "".join(self.figure(a) for a in files)))
+        for a in d["appendix"]:
             body = self.blocks(a["text"]) if a["text"] else ""
             if a["path"]:
-                body += self.media(a["path"], "", "appendix")
-            items.append(f'<details><summary>{self.text(a["title"])}</summary>{body}</details>')
-        return f'<section id="appendix"><h2>{self.t["appendix"]}</h2>{"".join(items)}</section>' if items else ""
-
-    def nav(self):
-        t = self.t
-        links = [f'<a href="#decide">{t["nav_decide"]}</a>']
-        if self.loose_assets():
-            links.append(f'<a href="#other">{t["nav_other"]}</a>')
-        for i, s in enumerate(self.d["segments"], 1):
-            n = sum(1 for sh in s["shots"] if sh["id"] in self.flagged)
-            flag = f'<span class="nf">{t["n_unsure"].format(n=n)}</span>' if n else ""
-            links.append(f'<a href="#seg-{esc(s["id"])}">{i} {esc(s["title"])}</a>{flag}')
-        if self.d["appendix"]:
-            links.append(f'<a href="#appendix">{t["nav_appendix"]}</a>')
-        return f'<nav>{"".join(f"<span>{x}</span>" for x in links)}</nav>'
+                body += self.figure({"path": a["path"], "caption": ""}, "appendix")
+            out.append(self.fold("appendix", f'{t["appendix"]} · {self.text(a["title"])}', "", body))
+        return f'<section class="g-more">{"".join(out)}</section>' if out else ""
 
     def others(self):
+        if self.live:
+            return ""
         pages = sorted(p for p in self.out.glob("gate-*.html") if p.name != f"gate-{self.gate}.html")
         if not pages:
             return ""
         links = " · ".join(f'<a href="{quote(p.name)}">{esc(gate_title(p.stem[5:], self.lang))}</a>' for p in pages)
-        return f'{self.t["others"]}{self.t["colon"]}{links}<br>'
+        return f'<span>{self.t["others"]}{self.t["colon"]}{links}</span>'
 
     def spend(self):
         """Spent against the budget (tools/assets/budget.py), when there is a budget or a spend; never fails the page."""
@@ -736,21 +830,109 @@ class Page:
         over = f' · {t["over"].format(cur=", ".join(b["over"]))}' if b["over"] else ""
         return f'<span class="spend{" over" if b["over"] else ""}">{esc(t["spend"].format(spent=spent, budget=have))}{esc(over)}</span>'
 
-    def render(self):
+    def head(self):
+        t, d = self.t, self.d
+        n = len(d["decisions"])
+        s = d["summary"]
+        first, rest = s, ""
+        if over_budget(s, "summary"):   # a long first line: its first sentence stands as the heading, the rest under it
+            m = re.match(r"(.+?[。！？!?]|.+?[.;；:：](?=\s|$)|.+?：)(\s*\S.*)$", s, re.S)
+            if m and len(m.group(1)) < len(s):
+                first, rest = m.group(1).strip(), m.group(2).strip()
+        eyebrow = (f'<span class="g-gate">{esc(self.title())}</span>'
+                   + (f'<span class="g-wait">{t["n_decide"].format(n=n)}</span>' if n else f'<span>{t["look"]}</span>') + self.spend())
+        lead = f'<p class="g-lead" data-long>{self.text(rest)}</p>' if rest else ""
+        long = " long" if over_budget(first, "summary") else ""   # still long: a smaller heading, so the picture stays in view
+        warn = ""
+        if self.errors and self.past:
+            warn = (f'<details class="g-gone"><summary>{esc(t["gone_n"].format(n=len(self.errors)))}</summary>'
+                    f'<ul>{"".join(f"<li>{esc(e)}</li>" for e in self.errors)}</ul></details>')
+        elif self.errors:
+            warn = f'<div class="g-warn">{esc(t["warn"].format(n=len(self.errors)))}<ul>{"".join(f"<li>{esc(e)}</li>" for e in self.errors)}</ul></div>'
+        return f'<header class="g-head"><div class="g-eyebrow">{eyebrow}</div><h1 class="g-summary{long}">{self.text(first)}</h1>{lead}{warn}</header>'
+
+    # ---- the gate view ----------------------------------------------------------------------------------------
+    def body(self):
+        """The gate view: the picture first (the film with its ruler, the concept cards, the storyboard), the decisions beside it
+        as cards to pick, the marks to click, and the rest folded away. The same markup for the static page and the console."""
         self.normalize()
-        t, title = self.t, self.title()
-        body = (self.decisions_block() + self.lines_block() + self.decision_sections() + self.other_section()
-                + self.segment_sections() + self.appendix_section())
+        t, d = self.t, self.d
+        assets = d["assets"]
+        film = None
+        want = txt(d.get("film")).strip()
+        if want:
+            film = next((a for a in assets if a["path"] == want), None) or {"path": want, "caption": "", "for": "", "poster": "", "t0": None, "t1": None}
+        if not film:
+            film = next((a for a in assets if self.kind(a["path"])[0] == "video"), None)
+        if not film and d["animatic"]:
+            film = {"path": d["animatic"], "caption": "", "for": "", "poster": "", "t0": None, "t1": None}
+        seg_ids = {s["id"] for s in d["segments"]}
+        rest = [a for a in assets if a is not film and a["for"] not in seg_ids]
+        imgs = [a for a in rest if self.kind(a["path"])[0] == "image"]
+        imgs.sort(key=lambda a: 0 if a["for"] else 1)   # the pictures a decision points at first
+        sounds = [a for a in rest if self.kind(a["path"])[0] == "audio"]
+        videos = [a for a in rest if self.kind(a["path"])[0] == "video"]
+        files = [a for a in rest if self.kind(a["path"])[0] == "file"]
+        wide = [i for i, x in enumerate(d["decisions"]) if any(o["frame"] for o in x["options"])]
+        main = []
+        if film and not re.match(r"(?i)https?://", film["path"]) and not (self.project / film["path"]).is_file():
+            self.url(film["path"], "film")   # said as an error; the picture says the file is gone
+            main.append(f'<section class="g-stage"><div class="well blank"><span>{esc(t["gone"].format(p=film["path"]))}</span></div></section>')
+            film = None
+        elif film:
+            main.append(f'<section class="g-stage">{self.player(film)}</section>')
+        elif imgs and not wide:
+            main.append(f'<section class="g-stage">{self.gallery(imgs)}</section>')
+            imgs = []
+        for i in wide:
+            main.append(self.decision(i + 1, d["decisions"][i], wide=True))
+        if sounds:
+            main.append(f'<section>{"".join(self.figure(a) for a in sounds)}</section>')
+        marks = self.marks()
+        least = [m for m in marks if m["kind"] == "least"]
+        listen = [m for m in marks if m["kind"] == "listen"]
+        if least:
+            main.append(f'<section><h2 class="g-h">{t["least"]}<span class="n">{len(least)}</span></h2>{self.marks_list(least, bool(film))}</section>')
+        if listen:
+            main.append(f'<section><h2 class="g-h">{t["listen"]}<span class="n">{len(listen)}</span></h2>{self.marks_list(listen, bool(film))}</section>')
+        for a in videos:
+            main.append(f'<section>{self.player(a, film=False)}</section>')
+        if imgs:
+            main.append(f'<section><h2 class="g-h">{t["pictures"]}<span class="n">{len(imgs)}</span></h2>{self.thumbs(imgs)}</section>')
+        board = self.board()   # the storyboard is the picture when there is no film to play: first, beside the decisions
+        if board:
+            main = main + [board] if film else [board] + main
+        side_decs = "".join(self.decision(i + 1, x) for i, x in enumerate(d["decisions"]) if i not in wide)
+        side = f'<div class="g-decs">{side_decs}</div>{self.act()}' if side_decs else self.act()
+        if main:
+            grid = f'<div class="g-body has-side"><div class="g-main">{"".join(main)}</div><aside class="g-side">{side}</aside></div>'
+        else:
+            grid = f'<div class="g-body"><div class="g-main">{side}</div></div>'
+        foot = []
+        if d["not_reviewed"]:
+            foot.append(f'<span class="notseen">{t["not_reviewed"].format(x=self.text(d["not_reviewed"]))}</span>')
+        foot.append(self.others())
         src = os.path.relpath(self.src, self.project).replace(os.sep, "/")
+        foot.append(f'<span>{t["src"].format(src=esc(src))}</span>')
+        attrs = (f'data-gate="{esc(self.gate)}" data-lang="{self.lang}" data-takeall="{esc(self.take_all())}"'
+                 + (" data-live" if self.live else " data-static"))
+        more = self.more(files)   # before the head: every missing file is in its warning
+        return (f'<article class="gate" {attrs}>{self.head()}{grid}{more}'
+                f'<footer class="g-foot">{"".join(x for x in foot if x)}</footer></article>')
+
+    def render(self):
+        """The static page: the gate view with ui.css and ui.js inlined, so it opens from disk with no server."""
+        body = self.body()   # normalizes first: the title may come from the gate's name
+        t, title, film = self.t, self.title(), brief_title(self.project) or self.project.name
         return (f'<!doctype html><html lang="{t["html_lang"]}"><head><meta charset="utf-8">'
                 f'<meta name="viewport" content="width=device-width, initial-scale=1">'
-                f'<title>{esc(title)} · {esc(self.project.name)}</title>'
-                f'<style>{CSS}</style><script>{HEAD_JS}</script></head><body><div class="wrap">'
-                f'<header><div class="eyebrow"><span>{esc(self.project.name)} · {esc(title)}</span>{self.spend()}'
-                f'<button id="theme" title="{t["theme"]}" aria-label="{t["theme"]}">◐</button></div>'
-                f'<h1>{self.text(self.d["summary"])}</h1>{self.nav()}</header>'
-                f'{body}<footer>{self.others()}{t["src"].format(src=esc(src))}</footer></div>'
-                f'<script>{BODY_JS}</script></body></html>\n')
+                f'<title>{esc(title)} · {esc(film)}</title>'
+                f'<style>{static_file("ui.css")}</style><script>{HEAD_JS}</script></head><body>'
+                f'<header class="top"><div class="wrap"><span class="mark">OVH</span><nav class="crumbs">'
+                f'<span class="cr"><b>{esc(film)}</b></span><span class="cr hide-s"><span class="sep">/</span><span>{esc(title)}</span></span></nav>'
+                f'<div class="top-tools"><button type="button" class="p-btn" id="theme" title="{t["theme"]}" aria-label="{t["theme"]}">{ICON["theme"]}</button></div></div></header>'
+                f'<main class="wrap">{body}</main>'
+                f'<script>{static_file("ui.js")}</script></body></html>\n')
 
     def chat(self, page_path):
         """The whole chat message: plain text, no markup."""
@@ -876,6 +1058,16 @@ def review_lang(project):
     return "en" if v.startswith("en") else "zh" if v.startswith("zh") or v.startswith("中") else None
 
 
+def brief_title(project):
+    """The film's title from the BRIEF's first line (# BRIEF：片名), or None."""
+    try:
+        head = (Path(project) / "BRIEF.md").read_text(encoding="utf-8-sig", errors="replace")[:4000]
+    except OSError:
+        return None
+    m = re.search(r"^#\s+BRIEF\s*[：:]\s*(.+?)\s*$", head, re.M)
+    return m.group(1).strip() if m and "{" not in m.group(1) else None
+
+
 def find_project(arg):
     """The same lookup as bin/vh new, storyboard and style apply: a folder, or a name under $OVH_PROJECTS or
     <harness>/projects, the date prefix optional. None (with the reason on stderr) when nothing, or more than one, matches."""
@@ -911,6 +1103,41 @@ def merge_includes(project, data):
             if k not in data and k != "include":
                 data[k] = v
     return data
+
+
+def page_for(project, gate, link=None, live=False, lang=None):
+    """A Page for out/review/gate-<gate>.json with its includes, ready to render (body()), for a client that shows it:
+    the console's gate view; lang (zh | en) sets the words around the page's own text, as the console's language switch
+    does. Raises ValueError (no such page, not JSON, placeholders left, a field of the wrong shape)."""
+    project = Path(project)
+    src = _on_disk(_pages_on_disk(project), gate) if GATE_ID.fullmatch(gate or "") else None
+    if src is None:
+        raise ValueError(f"no out/review/gate-{gate}.json")
+    try:
+        data = json.loads(src.read_text(encoding="utf-8-sig"))
+    except OSError as e:
+        raise ValueError(f"can't read {src.name}: {e.strerror or e}")
+    if not isinstance(data, dict):
+        raise ValueError(f"{src.name}: expected a JSON object")
+    data = merge_includes(project, data)
+    if placeholders(data):
+        raise ValueError(f"{src.name}: placeholders still to fill in")
+    page = Page(project, src, data, src.stem[5:], link=link, live=live)
+    if lang in T:
+        page.lang, page.t = lang, T[lang]
+    try:
+        page.normalize()
+    except (AttributeError, KeyError, TypeError) as e:
+        raise ValueError(f"{src.name}: a field has the wrong shape ({type(e).__name__}: {e})")
+    return page
+
+
+def stage_for(project, film, link):
+    """The project page's picture when no gate waits (the console): the film with the ruler of the project's outline and
+    shots, in the gate view's player markup."""
+    page = Page(Path(project), Path(project) / "BRIEF.md", {"summary": "·", "decisions": []}, "stage", link=link, live=True)
+    page.normalize()
+    return page.player({"path": film, "caption": "", "poster": "", "t0": None, "t1": None, "for": ""})
 
 
 def main():

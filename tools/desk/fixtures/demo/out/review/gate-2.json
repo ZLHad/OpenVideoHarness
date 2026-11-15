@@ -1,0 +1,23 @@
+{
+ "summary": "6 镜分 3 段，逐镜默认通过，约 3 分钟",
+ "decisions": [
+  {"id": "pace", "question": "S03 和 S04 各 6 秒，要不要压短？",
+   "options": [{"id": "P1", "label": "保持 6 秒", "pro": "原理讲得清", "con": "中段偏慢"},
+               {"id": "P2", "label": "各压到 4 秒", "pro": "节奏紧", "con": "鼓包刚出来就切走"}],
+   "recommend": "P1", "why": "这是全片要懂的那一下", "cost": "现在改：低"}
+ ],
+ "least_sure": [{"id": "S04", "note": "背面的鼓包会不会看不懂"}],
+ "segments": [
+  {"id": "seg1", "title": "开场", "t0": 0, "t1": 9, "shots": [
+   {"id": "S01", "t0": 0, "t1": 4, "frame": "out/frames/S1.svg", "see": "夜里的海，月亮升起", "vo": "海水一天涨两次。"},
+   {"id": "S02", "t0": 4, "t1": 9, "frame": "out/frames/S2.svg", "see": "刻度桩，水退到低处", "vo": "可月亮一天只经过头顶一次。"}]},
+  {"id": "seg2", "title": "两个鼓包", "t0": 9, "t1": 21, "shots": [
+   {"id": "S03", "t0": 9, "t1": 15, "frame": "out/frames/S3.svg", "see": "朝月亮的一面鼓起来", "vo": "朝着月亮的这一面，水被拉过去。"},
+   {"id": "S04", "t0": 15, "t1": 21, "frame": "out/frames/S4.svg", "see": "背面也鼓起来", "vo": "背面的水被落在后面，也鼓起来。", "note": "鼓包加大一点"}]},
+  {"id": "seg3", "title": "转一圈", "t0": 21, "t1": 32, "shots": [
+   {"id": "S05", "t0": 21, "t1": 27, "frame": "out/frames/S5.svg", "see": "城市跟着地球转", "vo": "地球转一圈，你经过两个鼓包。"},
+   {"id": "S06", "t0": 27, "t1": 32, "frame": "out/frames/S6.svg", "see": "一天两个高潮的曲线", "vo": "所以一天涨两次。"}]}
+ ],
+ "decided": ["立意卡 A：从海边讲起"],
+ "not_reviewed": "声音（配音还没录）"
+}
