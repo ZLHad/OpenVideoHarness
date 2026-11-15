@@ -616,14 +616,18 @@ PY
   then ok "doctor from tools/modules.json: an old node, an ffmpeg without libx264, an aged yt-dlp and keys set or not are said, no six of a key's characters ever; --probe: a key taken, MiniMax's refusal, a 401 echoing a masked key (status and code only), no key skipped, a redirect not followed, an http base elsewhere not called; the platform's alternative; needs.programs; no python3 still reports and exits 0; usage errors 2 before any probe; bin/vh doctor --json here lists every module"
   else bad "bin/vh doctor and tools/modules.json"; fi
   rm -rf "$t"
-  # doctor's two lines about the host: skills (bin/vh install-skill copies the pointer skills, so a copy stays as it was
-  # when skills/ moves on: a copy six weeks old once still said "three review gates") and caches (in a sandbox that keeps
-  # writes to the workspace, a first render fails on a download it cannot store). A made-up home: nothing installed is
-  # no problem, a fresh install is ok, an edited copy and a skill the folder has not got are outdated with the command
-  # that copies them again; a cache folder that cannot be written is named with the variable that moves it
+  # doctor's two lines about the host: skills (bin/vh install-skill writes stubs that read skills/<name>/SKILL.md in the
+  # clone, so a git pull updates what a host reads; a whole copy stayed as it was when skills/ moved on: one six weeks old
+  # once still said "three review gates") and caches (in a sandbox that keeps writes to the workspace, a first render
+  # fails on a download it cannot store). A made-up home: nothing installed is no problem; a fresh install is a stub with
+  # the skill's own frontmatter and ok (bin/vh's awk and doctor's Python render the same stub); an edited stub, a whole
+  # copy and a skill the folder has not got are outdated with the command that writes them again; a clone path with & and
+  # # in it is written as it is, and a CRLF checkout writes the same stub; a stub whose clone has gone is outdated, not
+  # another clone's; a stub this clone wrote for a skill it no longer has is said, and install-skill removes it (alone in
+  # its folder, naming this clone; nothing else); a cache folder that cannot be written is named with the variable that moves it
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if python3 - "$t" "$VH_BASH" <<'PY'
-import json, os, re, subprocess, sys
+import json, os, re, shutil, subprocess, sys
 t, sh = sys.argv[1], sys.argv[2]
 home = os.path.join(t, "home"); os.makedirs(home)
 env = dict(os.environ, HOME=home)
@@ -639,21 +643,85 @@ c = check("skills")
 if c["state"] != "unchecked" or "install-skill" not in c["note"]:
     bad.append(f"nothing installed: {c}")
 install("claude"); c = check("skills")
-if c["state"] != "ok" or "2 installed copies" not in c["note"]:
+if c["state"] != "ok" or "2 installed stubs" not in c["note"]:
     bad.append(f"a fresh install: {c}")
-with open(os.path.join(home, ".claude/skills/open-video-harness/SKILL.md"), "a", encoding="utf-8") as f:
+front = lambda text: text.split("\n---\n", 1)[0]
+HL = re.compile(r"(?m)^Harness path \(set by install\.sh\): (.*)$")   # (compared resolved: bin/vh writes its logical pwd, a link in it kept)
+here = lambda text: bool(HL.search(text)) and os.path.realpath(HL.search(text).group(1)) == os.path.realpath(os.getcwd())
+point = lambda text, at: HL.sub(lambda m: "Harness path (set by install.sh): " + at, text)
+for name in ("open-video-harness", "open-video-harness-web"):
+    got = open(os.path.join(home, ".claude/skills", name, "SKILL.md"), encoding="utf-8").read()
+    repo = open(os.path.join("skills", name, "SKILL.md"), encoding="utf-8").read()
+    if front(got) != front(repo) or f"<harness>/skills/{name}/SKILL.md" not in got or not here(got) or len(got.splitlines()) > 30:
+        bad.append(f"the stub for {name}: {got[:300]!r}")
+p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")
+with open(p, "a", encoding="utf-8") as f:
     f.write("\nan older line\n")
 c = check("skills")
-if c["state"] != "outdated" or "open-video-harness/SKILL.md differs" not in c["note"] or "bin/vh install-skill claude " not in c["note"]:
-    bad.append(f"an edited copy: {c}")
+if c["state"] != "outdated" or "open-video-harness/SKILL.md is not the stub" not in c["note"] or "bin/vh install-skill claude " not in c["note"]:
+    bad.append(f"an edited stub: {c}")
+whole = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.getcwd(), open("skills/open-video-harness/SKILL.md", encoding="utf-8").read())
+open(p, "w", encoding="utf-8").write(whole); c = check("skills")   # what install-skill wrote before the stubs, or another installer
+if c["state"] != "outdated" or "is a whole copy of skills/open-video-harness/SKILL.md" not in c["note"]:
+    bad.append(f"a whole copy: {c}")
 install("all"); os.remove(os.path.join(home, ".agents/skills/open-video-harness-web/SKILL.md")); c = check("skills")
 if c["state"] != "outdated" or "~/.agents/skills has no open-video-harness-web" not in c["note"] or "bin/vh install-skill codex " not in c["note"]:
     bad.append(f"a skill the folder has not got: {c}")
-p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's is left alone
+p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's (there: bin/vh in it) is left alone
+os.makedirs(os.path.join(t, "elsewhere", "bin")); open(os.path.join(t, "elsewhere", "bin", "vh"), "w").write("#!/bin/sh\n")
 text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "elsewhere"), open(p, encoding="utf-8").read())
 open(p, "w", encoding="utf-8").write(text + "\ntheirs\n"); install("codex"); c = check("skills")
 if c["state"] != "ok" or "left alone: 1 copy pointing at" not in c["note"]:
     bad.append(f"another clone's copy: {c}")
+odd = os.path.normpath(os.path.join(t, "a&b #c"))   # a clone path the bash replacement must write as it is (normpath: bash's pwd has no // in it)
+os.makedirs(os.path.join(odd, "bin")); os.makedirs(os.path.join(odd, "tools"))
+shutil.copy("bin/vh", os.path.join(odd, "bin")); shutil.copy("tools/skill_stub.md", os.path.join(odd, "tools")); shutil.copytree("skills", os.path.join(odd, "skills"))
+oh = os.path.join(t, "oddhome")
+subprocess.run([sh, os.path.join(odd, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=oh), check=True)
+got = open(os.path.join(oh, ".agents/skills/open-video-harness/SKILL.md"), encoding="utf-8").read()
+if "Harness path (set by install.sh): " + odd + "\n" not in got:
+    bad.append(f"a clone path with & and #: {got[:400]!r}")
+# a CRLF checkout writes the same stub, frontmatter and all (awk's "---" and Python's would part on a \r otherwise)
+crlf = os.path.normpath(os.path.join(t, "crlf"))
+os.makedirs(os.path.join(crlf, "bin")); shutil.copy("bin/vh", os.path.join(crlf, "bin"))
+for src in ["tools/skill_stub.md"] + [os.path.join("skills", n, "SKILL.md") for n in os.listdir("skills") if os.path.isfile(os.path.join("skills", n, "SKILL.md"))]:
+    os.makedirs(os.path.dirname(os.path.join(crlf, src)), exist_ok=True)
+    open(os.path.join(crlf, src), "wb").write(open(src, "rb").read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+ch = os.path.join(t, "crlfhome")
+subprocess.run([sh, os.path.join(crlf, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=ch), check=True)
+got = open(os.path.join(ch, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
+real = open(os.path.join(home, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
+if b"\r" in got or not got.startswith(b"---\nname: open-video-harness\n") or point(got.decode(), "x") != point(real.decode(), "x"):
+    bad.append(f"a CRLF checkout's stub: {got[:200]!r}")
+# a stub whose clone has gone (moved or removed) is outdated, not another clone's; install-skill from here takes it back
+h9 = os.path.join(t, "h9")
+def install9(which):
+    return subprocess.run([sh, "bin/vh", "install-skill", which], capture_output=True, text=True, env=dict(env, HOME=h9))
+install9("claude")
+q = os.path.join(h9, ".claude/skills/open-video-harness/SKILL.md")
+text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "gone"), open(q, encoding="utf-8").read())
+open(q, "w", encoding="utf-8").write(text)
+c = check("skills", HOME=h9)
+if c["state"] != "outdated" or "points at " + os.path.join(t, "gone") + ", where there is no clone now" not in c["note"]:
+    bad.append(f"a stub whose clone has gone: {c}")
+# a stub this clone wrote for a skill skills/ no longer has: doctor says so; install-skill removes it when it is alone in its
+# folder and names this clone, and leaves another skill, another clone's stub and a folder with more in it
+sk = os.path.join(h9, ".claude/skills")
+stub = open(os.path.join(sk, "open-video-harness-web/SKILL.md"), encoding="utf-8").read()
+for n, text, extra in (("ovh-old", stub, None), ("ovh-old2", stub, "notes.txt"), ("someone-else", "---\nname: someone-else\n---\n\nTheirs.\n", None),
+                       ("other-old", point(stub, os.path.join(t, "elsewhere")), None)):
+    os.makedirs(os.path.join(sk, n)); open(os.path.join(sk, n, "SKILL.md"), "w", encoding="utf-8").write(text)
+    if extra:
+        open(os.path.join(sk, n, extra), "w").write("mine\n")
+c = check("skills", HOME=h9)
+if c["state"] != "outdated" or "ovh-old/SKILL.md is this clone's, for a skill skills/ no longer has" not in c["note"] or "someone-else" in c["note"] or "other-old" in c["note"]:
+    bad.append(f"stubs for a skill skills/ no longer has: {c}")
+r = install9("claude")
+left = sorted(os.listdir(sk))
+c = check("skills", HOME=h9)
+if left != ["open-video-harness", "open-video-harness-web", "other-old", "ovh-old2", "someone-else"] or "ovh-old2" not in r.stderr \
+        or c["state"] != "outdated" or "ovh-old2" not in c["note"] or "where there is no clone" in c["note"]:
+    bad.append(f"install-skill and the stubs it wrote for skills it no longer has: {left} {r.stderr[-300:]!r} {c}")
 c = check("caches")
 if c["state"] != "ok":
     bad.append(f"caches in a home that can be written: {c}")
@@ -668,7 +736,7 @@ if os.geteuid() != 0:   # root writes into a read-only folder all the same
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "doctor's skills and caches lines: nothing installed is no problem, a fresh install is ok, an edited copy and a missing skill are outdated with the command that copies them again, another clone's copy is left alone; a cache folder that cannot be written is named with the variable that moves it"
+  then ok "install-skill writes stubs that read skills/ in the clone (the skill's own frontmatter, a clone path with & and # as it is, the same from a CRLF checkout) and removes the ones it wrote for skills the clone no longer has, nothing else; doctor's skills and caches lines: nothing installed is no problem, a fresh install is ok, an edited stub, a whole copy, a missing skill, a stub whose clone has gone and one for a skill the clone no longer has are outdated with the command that writes them again, another clone's copy is left alone; a cache folder that cannot be written is named with the variable that moves it"
   else bad "doctor's skills and caches lines"; fi
   rm -rf "$t"
   # ManimGX, an optional backend for Manim scenes (tools/modules.json; CI does not install it): doctor lists it, and with
@@ -2997,6 +3065,152 @@ sys.stdout.buffer.write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,
     a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
   done
   [ "$rc" = 1 ] || ok "concept: usage errors exit 2, nothing on stdout"
+  rm -rf "$t"
+}
+
+words_checks() {   # bin/vh words (tools/words.py): a report on a script's sentence shapes, never an edit. A made-up project
+  # whose SCRIPT.md narration column hits each check on a known line; what is not one (是不是, 要不是, a colon before speech
+  # or a quotation, two items with one 顿号, a possessive 的) stays quiet; the project's STYLE.md allows a check by its name
+  # and one sentence by quoting it; audio/script.txt is read as spoken (@id, [direction], || English out); English text
+  # gets no counts; exit 0 with hits, and nothing in the project is written
+  local t
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 - "$t" "$VH_BASH" <<'PY'
+import json, os, subprocess, sys
+t, sh = sys.argv[1], sys.argv[2]
+def w(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, "w", encoding="utf-8").write(text)
+def vh(*args):
+    return subprocess.run([sh, "bin/vh", "words", *args], capture_output=True, text=True, encoding="utf-8")
+p = os.path.join(t, "p")
+w(f"{p}/BRIEF.md", "# BRIEF\n")
+w(f"{p}/SCRIPT.md", """# SCRIPT：旁白稿
+
+<!-- 不是注释，而是要跳过的：这一行不算 -->
+
+| # | 段 | 旁白（定稿） | 实测 s |
+|---|---|---|---|
+| {h1} | {钩子} | {不是模板，而是占位} | {2.9} |
+| a1 | 开 | 低轨卫星的真正挑战，不是速度，而是时间。 | 3 |
+| a2 | 开 | 答案很简单：频率在变。 | 2 |
+| a3 | 承 | 它需要克服延迟、抖动、丢包和功耗。 | 2 |
+| a4 | 承 | 它要更快，它要更稳，它要更省。 | 2 |
+| a5 | 转 | 一个在过去十年里被无数工程师反复验证过却始终没能真正落地的想法，终于有了回音。 | 4 |
+| a6 | 转 | 回音藏在轨道里。 | 2 |
+| a7 | 合 | 是不是这样？要不是轨道已知，他说：“算不出来。”工程师说：先算再拨。 | 3 |
+| a8 | 合 | 这是我的电脑和他的手机，还有卫星、地面站。 | 3 |
+| 03 收尾：一句话 | | | |
+""")
+before = {f: os.stat(os.path.join(dp, f)).st_mtime_ns for dp, _, fs in os.walk(p) for f in fs}
+bad = []
+r = vh(p, "--json")
+j = None
+if r.returncode:
+    bad.append(f"exit {r.returncode} with hits: {r.stderr[-300:]}")
+else:
+    j = json.loads(r.stdout)
+if j:
+    got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"]}
+    want = {"not_but": [8], "colon_verdict": [9], "dun_triple": [10], "triple_parallel": [11], "long_attributive": [12], "chain_link": [13]}
+    if got != want:
+        bad.append(f"hits by line: {got}, wanted {want}")
+    if j["input"] != {"kind": "table", "column": "旁白（定稿）", "units": 8} or j["lang"] != "zh":
+        bad.append(f"what it read: {j['input']} {j['lang']}")
+    c = next(c for c in j["checks"] if c["id"] == "not_but")
+    if c["ratio"] != 3.4 or c["per_1000"] <= 0 or "不是速度，而是" not in c["hits"][0]["text"] or "3.4 times" not in c["reading"]:
+        bad.append(f"not_but's record: {c}")
+    if not any("metaphor" in x for x in j["not_checked"]):
+        bad.append(f"not_checked: {j['not_checked']}")
+after = {f: os.stat(os.path.join(dp, f)).st_mtime_ns for dp, _, fs in os.walk(p) for f in fs}
+if after != before:
+    bad.append("the project changed")
+w(f"{p}/STYLE.md", "# STYLE\n\n## 允许的句式\n\n- 不是……而是：立意就是这组反差\n- “它要更快，它要更稳，它要更省”：片尾故意的\n\n## Palette\n\n- 排比\n")
+j = json.loads(vh(p, "--json").stdout)
+c = {c["id"]: c for c in j["checks"]}
+if (c["not_but"]["count"], c["not_but"]["allowed"], c["not_but"]["hits"]) != (0, 1, []) or (c["triple_parallel"]["count"], c["triple_parallel"]["allowed"]) != (0, 1) \
+        or c["dun_triple"]["count"] != 1 or len(j["allowed_rules"]) != 2:
+    bad.append(f"STYLE.md's 允许的句式 (a name, a quoted sentence; a list under another heading is not one): {[(k, v['count'], v['allowed']) for k, v in c.items()]} {j['allowed_rules']}")
+j = json.loads(vh(p, "--json", "--all").stdout)
+if [h.get("allowed_by", "").endswith("STYLE.md") for h in next(c for c in j["checks"] if c["id"] == "not_but")["hits"]] != [True]:
+    bad.append("--all does not list the allowed hit with where it was allowed")
+txt = vh(p).stdout
+if "L9  答案很简单：频率在变" not in txt or "L8" in txt or "allowed by the style guide" not in txt or "not checked:" not in txt:
+    bad.append(f"the text report: {txt[:400]!r}")
+q = os.path.join(t, "q")   # no SCRIPT.md: what the voice reads
+w(f"{q}/audio/script.txt", "# a comment: 不是这个，而是那个\n@speakers A=Kore B=Puck\n@a [轻快，不是指示，而是语气] A: 先看这里。 || not this, but that\n@b 卫星飞过去了。 || 不是英文，而是中文\n@c 与其说是速度，不如说是时间。\n")
+j = json.loads(vh(q, "--json").stdout)
+got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"] if c["hits"]}
+if j["input"]["kind"] != "script" or j["input"]["units"] != 3 or got != {"not_but": [5]}:
+    bad.append(f"audio/script.txt as spoken: {j['input']} {got}")
+w(f"{t}/en.md", "# Notes\n\nIt is not speed, but time. The answer is simple: the frequency moves.\n")
+j = json.loads(vh(f"{t}/en.md", "--json").stdout)
+if j["lang"] != "en" or j["checks"] != []:
+    bad.append(f"English text: {j['lang']} {j['checks']}")
+# the review of the first version, a check each: the narration column first when both are there; every table of a script
+# kept a table a chapter; --col with spaces in the header; speakers and @pronounce as tts reads them; colons that are no
+# verdict; a quoted sentence allows only what lies inside it; an item with its note after a comma; one it cannot read is said
+r2 = os.path.join(t, "r2")
+w(f"{r2}/BRIEF.md", "# BRIEF\n")
+w(f"{r2}/SCRIPT.md", """# SCRIPT
+
+## 第一章
+
+| # | 旁白（定稿） | 字幕 |
+|---|---|---|
+| 1 | 时间：晚上八点。地点：老城区。 | 字幕不是这个，而是那个。 |
+| 2 | 他回忆：那年冬天很冷。先说结论：快：慢。 | 字幕 |
+
+## 第二章
+
+| # | 旁白 · 中文 | 画面 |
+|---|---|---|
+| 3 | 它让沟通更高效，让协作更顺畅，让创新更自由。 | x |
+| 4 | 他不是医生，他是一个画家。问题不在于速度，在于时间。 | x |
+| 5 | 中国科学院上海天文台射电天文研究团队的成员都来了，还有那只盒子。 | x |
+| 6 | 盒子里装着延迟、抖动、丢包和功耗。 | x |
+""")
+j = json.loads(vh(r2, "--json").stdout)
+got = {c["id"]: [(h["line"], h["text"]) for h in c["hits"]] for c in j["checks"] if c["hits"]}
+want = {"colon_verdict": [(8, "先说结论：快：慢")], "triple_parallel": [(14, "它让沟通更高效，让协作更顺畅，让创新更自由")],
+        "not_but": [(15, "不是医生，他是"), (15, "不在于速度，在于")], "dun_triple": [(17, "…装着延迟、抖动、丢包和功耗")], "chain_link": [(17, "盒子")]}
+if j["input"] != {"kind": "table", "column": "旁白（定稿） / 旁白 · 中文", "units": 6} or got != want:
+    bad.append(f"two tables, the narration column first: {j['input']} {got}")
+r = vh(f"{r2}/SCRIPT.md", "--col", "旁白 · 中文", "--json")
+if r.returncode or json.loads(r.stdout)["input"]["units"] != 4:
+    bad.append(f"--col with spaces in the header: exit {r.returncode} {r.stdout[:200]}")
+w(f"{r2}/STYLE.md", "## 允许的句式\n\n- “盒子里”：只放过这一处\n- 排比，片尾故意的\n- 这一条读不懂\n")
+j = json.loads(vh(r2, "--json").stdout)
+c = {c["id"]: c for c in j["checks"]}
+if (c["chain_link"]["allowed"], c["triple_parallel"]["count"], c["triple_parallel"]["allowed"], c["not_but"]["count"]) != (1, 0, 1, 2) \
+        or [u["item"] for u in j["allowed_unread"]] != ["这一条读不懂"]:
+    bad.append(f"allowances: {[(k, v['count'], v['allowed']) for k, v in c.items()]} unread {j['allowed_unread']}")
+w(f"{t}/r3/SCRIPT.md", "| # | 旁白 |\n|---|---|\n| 1 | 我们去了那只盒子。 |\n| 2 | 盒子里没有书。 |\n| 3 | 后来又找到一个盒子。 |\n| 4 | 盒子底下压着信。 |\n")
+w(f"{t}/r3/STYLE.md", "## 允许的句式\n\n- “盒子里没有书”\n")
+j = json.loads(vh(f"{t}/r3", "--json").stdout)
+c = next(c for c in j["checks"] if c["id"] == "chain_link")
+if (c["count"], c["allowed"], [h["line"] for h in c["hits"]]) != (1, 1, [6]):
+    bad.append(f"a quoted sentence allows only the hit inside it: {c['count']} {c['allowed']} {c['hits']}")
+s2 = os.path.join(t, "s2")
+w(f"{s2}/audio/script.txt", "@speakers 主持=Kore 嘉宾=Puck\n@pronounce 硖合/(xia2)(he2)\n@a [轻快] 主持：今天聊聊卫星。 || Host: satellites\n@b 嘉宾：[笑] 好啊，聊聊硖合。\n注意：这一句没有说话人，后面很长很长。\n")
+j = json.loads(vh(s2, "--json").stdout)
+got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"] if c["hits"]}
+if j["input"]["units"] != 3 or got:
+    bad.append(f"speakers declared in @speakers and @pronounce, as tts reads them: {j['input']} {got}")
+j = json.loads(vh(p, "--json").stdout)   # the first project: the long modifier shown to its 的, not into the noun
+la = next(c for c in j["checks"] if c["id"] == "long_attributive")["hits"]
+if [h["text"] for h in la] != ["在过去十年里被无数工程师反复验证过却始终没能真正落地的…"]:
+    bad.append(f"the long modifier's words: {la}")
+os.makedirs(os.path.join(t, "empty"))
+for args, rc in (([], 2), ([os.path.join(t, "nope.md")], 1), ([f"{p}/BRIEF.md", "--col", "旁白"], 1), ([os.path.join(t, "empty")], 1)):
+    r = vh(*args)
+    if r.returncode != rc or r.stdout:
+        bad.append(f"bin/vh words {' '.join(args)}: exit {r.returncode} (wanted {rc}), stdout {r.stdout[:80]!r}")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "words: each check on its line of a SCRIPT.md narration column (template rows, comments and a chapter's title row left out), what only looks like one quiet (labels, speech and quotation colons, names before 的); the narration column before the caption one, every table of a script, --col with spaces; STYLE.md's 允许的句式 allows by name (a note after a comma too) and by quoted sentence (only what lies inside it), an item it cannot read is said; audio/script.txt read as tts reads it (@speakers labels, @pronounce); English gets no counts; exit 0 with hits, nothing written; no text exits 1, a usage error 2"
+  else bad "bin/vh words"; fi
   rm -rf "$t"
 }
 
@@ -7055,7 +7269,7 @@ for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("fra
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
     if C.is_ours(cmd, cl):
         bad.append(f"is_ours, not: {cmd}, {cl}")
-known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py"}
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")

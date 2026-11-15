@@ -23,9 +23,10 @@ never the value. A module whose needed modules (needs.programs) are not usable h
 that no redirect carries on (a 30x is not followed), over https only (a base address set in the environment may be
 http for this machine alone), and no answer's text is passed on: a failure is its HTTP status and the provider's error
 code, with any run of six or more of the key's characters taken out. A key is never printed, recorded or written.
-The machine and repo lines end with two about the host an agent runs in: skills, the copies bin/vh install-skill
-wrote against skills/ now (a copy is not updated when the repo is); caches, whether the folders a first run downloads
-into (uv's, npm's, Hugging Face's, HyperFrames', bin/vh's own) can be written, tried with a file made and removed.
+The machine and repo lines end with two about the host an agent runs in: skills, the stubs bin/vh install-skill
+wrote against the stub it would write now (a stub reads skills/ in the clone, so only the stub itself can fall behind;
+a whole copy stays as it was when the repo moves on); caches, whether the folders a first run downloads into (uv's,
+npm's, Hugging Face's, HyperFrames', bin/vh's own) can be written, tried with a file made and removed.
 Exit 0: it is a report (2 on a usage error or an unreadable table).
 
 --json, "version": 1 (these fields stay; new ones may be added): {"version", "tool", "platform", "modules": [{"name",
@@ -393,45 +394,90 @@ SKILL_HOMES = (("~/.claude/skills", "claude"), ("~/.agents/skills", "codex"))   
 HARNESS_LINE = "Harness path (set by install.sh):"   # the one line install-skill rewrites: the clone a copy points at
 
 
+def skill_stub(text, name, harness):
+    """What bin/vh install-skill writes for a skill: its frontmatter, then tools/skill_stub.md with the name and this clone
+    put in, line ends as LF whatever the checkout has (a CRLF one too). bin/vh renders the same with tr, awk and bash; the
+    two are held together by tools/ci.sh."""
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
+    front = []
+    if lines and lines[0].rstrip("\n") == "---":
+        for line in lines:
+            front.append(line)
+            if len(front) > 1 and line.rstrip("\n") == "---":
+                break
+    stub = (ROOT / "tools" / "skill_stub.md").read_text(encoding="utf-8").replace("\r", "").rstrip("\n")
+    return "".join(front) + stub.replace("@NAME@", name).replace("@HARNESS@", harness) + "\n"
+
+
+def is_clone(at):
+    """Whether a Harness path line names a folder with a clone in it (bin/vh there)."""
+    try:
+        return bool(at) and (home(at) / "bin" / "vh").is_file()
+    except OSError:
+        return False
+
+
 def skills_check():
-    """The pointer skills bin/vh install-skill wrote, against skills/*/SKILL.md as they are now. install-skill copies them,
-    so a copy stays as it was while the repo's moves on, and an agent that starts from the copy reads the old one (seen
-    2026-11: a copy six weeks old still said "8 video types" and "three review gates"). A copy that points at another
-    clone is that clone's; one of this clone's that differs, or a skill the folder has not got yet, is outdated."""
+    """The skills bin/vh install-skill wrote. They are stubs that send the agent to skills/<name>/SKILL.md in the clone, so a
+    git pull updates what a host reads; only the stub itself can fall behind: its frontmatter (a host triggers on the
+    description) or tools/skill_stub.md. A copy of the whole file, as install-skill wrote before 2026-11-15 or another
+    installer writes, stays as it was while skills/ moves on (seen 2026-11: a copy six weeks old still said "8 video
+    types" and "three review gates"). Outdated: one of this clone's that is not the stub as it would be written now, a
+    skill the folder has not got yet, one whose Harness path names a folder with no clone in it (moved or removed:
+    install-skill from here points it at this clone), and one this clone wrote for a skill skills/ no longer has (renamed
+    or removed: it still triggers on its old description; install-skill removes those). A copy that points at another
+    clone that is there is that clone's, and is left alone."""
     repo = {q.parent.name: q.read_text(encoding="utf-8") for q in sorted((ROOT / "skills").glob("*/SKILL.md"))}
     body = lambda text: [line for line in text.splitlines() if not line.startswith(HARNESS_LINE)]
     same, old, others = 0, {}, []
     for folder, target in SKILL_HOMES:
         ours, absent = False, []
-        for name, text in repo.items():
+        try:
+            there = sorted(q.parent.name for q in home(folder).glob("*/SKILL.md"))
+        except OSError:
+            there = []
+        for name in sorted(set(repo) | set(there)):
             f = home(folder) / name / "SKILL.md"
             try:
                 got = f.read_text(encoding="utf-8")
             except (OSError, ValueError):
-                absent.append(name)
+                if name in repo:
+                    absent.append(name)
                 continue
             at = next((line[len(HARNESS_LINE):].strip() for line in got.splitlines() if line.startswith(HARNESS_LINE)), "")
             try:
                 here = bool(at) and home(at).resolve() == ROOT
             except OSError:
                 here = False
+            if name not in repo:   # a skill of its own, or one this clone used to have
+                if here:
+                    old.setdefault(target, []).append(f"{shown(f)} is this clone's, for a skill skills/ no longer has (renamed or removed;"
+                                                      " it still triggers on its old description)")
+                continue
+            if not here and at and not is_clone(at):
+                ours = True
+                old.setdefault(target, []).append(f"{shown(f)} points at {at}, where there is no clone now (moved or removed?)")
+                continue
             if not here:
                 others.append(at or "no clone")
                 continue
             ours = True
-            if body(got) == body(text):
+            if body(got) == body(skill_stub(repo[name], name, str(ROOT))):
                 same += 1
+            elif body(got) == body(repo[name]):   # a whole copy, current today; it falls behind at the next pull
+                old.setdefault(target, []).append(f"{shown(f)} is a whole copy of skills/{name}/SKILL.md (it stays as it is when skills/ changes)")
             else:
-                old.setdefault(target, []).append(f"{shown(f)} differs from skills/{name}/SKILL.md")
+                old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now")
         if ours and absent:   # a skill added since this folder was installed
             old.setdefault(target, []).append(f"{folder} has no {', '.join(absent)}")
     left = (f"; left alone: {len(others)} cop{'y' if len(others) == 1 else 'ies'} pointing at {', '.join(sorted(set(others)))}") if others else ""
     if old:
         how = "bin/vh install-skill" + (f" {next(iter(old))}" if len(old) == 1 else "")
         return {"name": "skills", "state": "outdated", "note": "; ".join(x for v in old.values() for x in v)
-                + f" → {how} (it copies them again; an agent reads its skill when a session starts){left}"}
+                + f" → {how} (it writes stubs that read skills/ in this clone, so a git pull keeps them current, and removes"
+                  f" the ones it wrote for skills this clone no longer has; an agent reads its skill when a session starts){left}"}
     if same:
-        return {"name": "skills", "state": "ok", "note": f"{same} installed cop{'y' if same == 1 else 'ies'} as skills/ has them now{left}"}
+        return {"name": "skills", "state": "ok", "note": f"{same} installed stub{'' if same == 1 else 's'} reading skills/ in this clone (a git pull updates them){left}"}
     return {"name": "skills", "state": "unchecked", "note": "none installed for this clone (optional): bin/vh install-skill lets an agent in any folder find this harness" + left}
 
 
