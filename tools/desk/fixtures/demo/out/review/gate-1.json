@@ -1,0 +1,12 @@
+{
+ "summary": "选一张立意卡，约 2 分钟",
+ "decisions": [
+  {"id": "concept", "question": "从哪里讲起？",
+   "options": [
+    {"id": "A", "label": "从海边讲起", "frame": "out/review/card-A.svg", "pro": "刻度桩上的水位，人人见过\n钩子：水退到最低的那一刻", "con": "原理那段要飞上天，转场要一个理由"},
+    {"id": "B", "label": "从太空讲起", "frame": "out/review/card-B.svg", "pro": "两个鼓包一眼就懂\n钩子：地球被水裹成橄榄形", "con": "开头抽象，前 3 秒不好抓人"}],
+   "recommend": "A", "why": "先有画面再讲原理", "cost": "现在改：低 · 分镜后改：高"}
+ ],
+ "delegated": ["规格：横屏 1080p、30 fps、约 32 s，电脑上看", "引擎 HyperFrames，不花钱"],
+ "appendix": [{"title": "大纲", "text": "| 段落 | 时间 | 看完知道 |\n|---|---|---|\n| 开场 | 0–9 s | 一天涨两次 |\n| 两个鼓包 | 9–21 s | 两面都鼓起来 |\n| 转一圈 | 21–32 s | 经过两次 |"}]
+}

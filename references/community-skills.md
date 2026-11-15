@@ -1,6 +1,6 @@
 # 社区 skill 参考（2026-09-28）
 
-这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节；2026-10-11 补了花叔（alchaincyf）的两个仓库，见第 8 节。2026-10-21 补了 Anatomy 和 anatomy-reveal 两个等轴解剖图 skill，见第 9 节。
+这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节；2026-10-11 补了花叔（alchaincyf）的两个仓库，见第 8 节。2026-10-21 补了 Anatomy 和 anatomy-reveal 两个等轴解剖图 skill，见第 9 节；2026-11-15 补了一份动效仓库清单里没记过的四个，见第 10 节。
 
 - 下文"本地路径"都相对 `references/repos/`；写"未拉取"的只看过清单里的一句话描述，借用点标【推测】。
 - ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。标"清单外"的条目，⭐ 是 2026-09-29 在 GitHub 页面上读到的数，许可证读的是仓库里的 LICENSE。
@@ -435,3 +435,14 @@ athemeroy/awesome-opus-5-5-videos 是一份带来源的研究型目录：从 X �
 - `anatomy-reveal/references/inputs.md`、`objects.md`：从照片或名字到尺寸、功能和零件清单；曲面、软的、大的东西怎么用凸零件拼【未细读】。
 
 能借什么、和本仓库怎么分工：风格的语法收进了 `styles/iso-anatomy/STYLE.md`（样片的渲染器是另写的，没有复制它们的代码）。正式片要用它们的工具包，按硬规则 6 复制到项目里改，保留两份许可声明；它们自己的渲染（puppeteer 截帧、自己的编码）不经过 `bin/vh` 的混音和检查，出片前照常走 `bin/vh mix`、`bin/vh qa`、`bin/vh check`。Anatomy 能把作品发布到它的社区画廊，这是对外发布，只在人要求时做。
+
+## 10. 一份动效仓库清单里没记过的几个（2026-11-15）
+
+社区里流传一份"20 个仓库把模型变成动效工作室"的清单（技能、3D、特效、动效、声音、导出各一批）。其中 three.js、GSAP、Remotion 和它的官方 skills、Manim、lottie-web、librosa、whisperX、ffmpeg、Openverse、Anatomy 和 anatomy-reveal 已经记过（`open-source.md`、本文第 9 节、`bin/vh sfx` 的 Openverse）。剩下的逐个用 GitHub API 核对了存在、许可和最近一次提交（2026-11-15），读了 README，没有拉到本地，也没有装。库类的（后期、粒子、物理、调参面板）记在 `open-source.md` 第 6 节。
+
+| 仓库 | 许可（核对到的提交） | 是什么 | 对我们 |
+|---|---|---|---|
+| [LottieFiles/motion-design-skill](https://github.com/LottieFiles/motion-design-skill) | MIT（`f9a8a04`，2026-05-18） | 讲界面动效的通用原则：时长和缓动表、八步检查、动效"性格"、迪士尼十二法则改写到 UI、按情绪选运动、编排；不绑具体动画库 | 和 `playbook/03` 讲的是一类东西，偏界面微交互；想对照时长、缓动的另一份表时读。可复用，保留声明 |
+| [motiondivision/ai-kit](https://github.com/motiondivision/ai-kit) | **没有许可文件**（`1e42494`，2026-10-26） | Motion（原 Framer Motion）作者给 Cursor 做的插件：最佳实践、搜文档、用 CSS `linear()` 生成弹簧；性能审计要付费的 Motion+ | 只读不用。弹簧本仓库有闭式解（`components/lib/core.js` 的 `spring`），CSS 动画在渲染里也不能用（硬规则 1） |
+| [lucasmarkes/hairline](https://github.com/lucasmarkes/hairline) | MIT（`034f4bf`，2026-11-13） | 三十三种等轴测的细线图形（卡片托盘、柱阵、分层窗口、点阵、传送带、转台），跟着指针动；零依赖 ESM，带 React 封装；`skills/` 里有 `hairline-create`（从一个点子或一张 SVG 做一个新图形）和 `hairline-adopt` 两个 skill | 线稿、等轴测的装饰和图解可以参考。它跟着指针动，进片子要把"指针"换成 t 的函数；skill 没有细读 |
+| [scenario-labs/blender-plugin](https://github.com/scenario-labs/blender-plugin) | GPL-3.0-or-later（`885bfba`，2026-11-12） | Blender 5.0+ 扩展：在视口里调 Scenario 的生图、生视频、3D、PBR 材质，把文字描述搭成灰盒布局，另带一个本地 MCP 服务 | 生成走 Scenario 的付费服务（要预算，CLAUDE.md 底线）；MCP 照 `engines/blender.md` 的"安全"一节，不在没有沙箱时让它执行模型写的代码。只记参考 |

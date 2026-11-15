@@ -212,13 +212,13 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 71 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 72 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|
 | **Think** | `know` | What the repo already knows about a few words (recipes, components, a style, a playbook section, a case) without reading the docs first |
 | | `scout` | A topic on the platforms before you pick it (top videos and their outliers, hot lists), and your film's numbers after it goes out; public interfaces only, no login |
-| | `ref` | A reference video, post, image or page on record: where it came from, its licence, why it matters |
+| | `ref` | A reference video, post, image or page on record: where it came from, its licence, why it matters; a long video read as a timed transcript, then looked at where it says |
 | | `web` | Keep a rendered web page with its URL, date and HTTP status for fact checking; uses the installed Chrome/Chromium, with Obscura optional |
 | | `breakdown` | A reference film taken apart: its cuts and transitions against its beats, keyframes, what to swap |
 | | `concept` | Extras for the concept cards: a seeded "roulette" of frameworks and a six-then-three board |
@@ -231,8 +231,9 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | **Make** | `new` | A project from the templates; for most types the engine comes set up too |
 | | `style` · `recipes` · `components` | The style presets, the shot recipes and shot-grammar cards, the motion components |
 | | `edit` | The film as an edit list: pages, images, footage, other films and sounds in a row |
+| | `words` | The script read for the sentence shapes model drafts reach for (不是 A 而是 B, 排比 in threes, a colon that hands over the verdict): where they are and how often, for you to decide; it never edits |
 | | `tts` · `music` · `captions` · `mix` | Voiceover, a score written as code, subtitles, the mix ([Sound](#sound)) |
-| **Check and deliver** | `gate` · `desk` | A stop for your sign-off in one command; the review desk for item-by-item notes |
+| **Check and deliver** | `gate` · `desk` | A stop for your sign-off in one command; a console of every film, where you select a moment on the cut's timeline to note it and click the options |
 | | `frames` · `sheet` · `determinism` | Lossless frames, contact sheets, and a check that each frame really is a function of t |
 | | `check` | The rendered film against its brief: black, frozen or silent stretches, flashes, subtitles, colour tags, loudness |
 | | `render` | An MP4 drawn in parallel, resumable chunks, each render kept as a version |
@@ -287,9 +288,9 @@ A style is a reference, not a template: borrow one, mix several, or ignore them 
 
 ### Recipes, shot-grammar cards, components
 
-- **[Recipes](recipes/README.md)**: 75 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 10 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
+- **[Recipes](recipes/README.md)**: 75 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 11 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
 - **Shot-grammar cards**: 24 shot-grammar cards in `recipes/shot/` for shot sizes, angles, the axis and camera moves, each saying what it does to the viewer and when to take it or not. A shot's choice goes into its `camera` field, and `bin/vh storyboard` prints it under the shot.
-- **[Components](components/README.md)**: 5 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
+- **[Components](components/README.md)**: 6 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
 
 All of these are defaults to start from, not rules: a concept that needs something else simply does it.
 
@@ -336,7 +337,7 @@ The level sets how closely the agent checks its own work and how many review rou
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, type no smaller than the floor for the target screen, licences on record, and no paid call without a budget.
 
-For finer control, name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`) that builds a local review page opening with the decisions it needs from you, the frames, animatic and music playable in the browser. At `studio` the stop is the review desk (`bin/vh desk`): you mark each item ok, change or question, add a line and submit, and the agent, waiting in the background, carries on with your words copied into `REVIEW.md`. Both come in English or Chinese, following your first request.
+For finer control, name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`) that builds a local review page with the picture first: the decisions are cards to click, and the places the agent is least sure of sit on the ruler under the player, a click away; frames, animatic and music play in the browser. At `studio` the stop is the review desk (`bin/vh desk`), Studio without the agent: modules on the left, how far the film has come on top, and on the right the cards you decide and your notes. It opens on the stop that waits for you; at the cut, the film, its shots, narration, music, checks and notes lie on one timeline, and selecting a second, a span or a shot and writing a line makes a note; you submit once, and the agent, waiting in the background, carries on with your words copied into `REVIEW.md`. Opened with no project, `bin/vh desk` is the space of every film, the ones waiting for you first, in three dark themes (Darkfield, Prism, Bridge). Both come in English or Chinese, following your first request.
 
 ## Requirements, cost and limits
 
@@ -363,11 +364,11 @@ bash install.sh --no-skill                       # don't register the global ski
 ```
 
 - The installer fetches only the newest commit: the repo itself is about 95 MB to download and 200 MB on disk, before its packages and the reference repos. To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
-- To update, run the installer again with the same options; `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed.
+- To update, run the installer again with the same options (or `git pull`); `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed. The installed skills are short stubs that read `skills/` in the clone, so they follow the update; `bin/vh doctor` says in the rare case one needs `bin/vh install-skill` again.
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
 - The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, Python packages up to about 1.5 GB, and the default local voice's model about 2 GB (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
 
-Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench.
+Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench. That copy stays as it was when the repo changes; once the workbench is installed, `bin/vh install-skill` replaces it with a stub that follows the clone.
 
 ## Where things are
 
@@ -378,7 +379,7 @@ Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill op
 | General know-how: process, checks, motion, sound, effects, story, hooks, composition, ideas | [playbook/](playbook/) |
 | Styles, recipes and shot-grammar cards, components | [styles/](styles/README.md), [recipes/](recipes/README.md), [components/](components/README.md) |
 | Engines, the page contract, edit lists | [engines/](engines/README.md), [CONTRACT.md](engines/CONTRACT.md), [EDIT.md](engines/EDIT.md) |
-| 14 case studies of community work, and the repo's own films with every step on record | [cases/](cases/README.md), [showcase/](showcase/) |
+| 15 case studies of community work, and the repo's own films with every step on record | [cases/](cases/README.md), [showcase/](showcase/) |
 | What we measured, and what changed because of it | [docs/research/](docs/research/en/README.md) |
 | The CLI | `bin/vh commands`, `bin/vh help`, any command with `-h` |
 | Tutorials, troubleshooting, FAQ | the [wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |

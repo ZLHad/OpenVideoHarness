@@ -1,0 +1,88 @@
+{
+ "note": "测试用的六镜",
+ "shots": [
+  {
+   "id": "S1",
+   "segment": "开场",
+   "start": 0,
+   "end": 4,
+   "label": "夜里的海，月亮升起",
+   "caption": "海水一天涨两次。",
+   "frame": "out/frames/S1.svg",
+   "reads": [
+    "夜里的海",
+    "月亮升起来"
+   ],
+   "transition": "淡入"
+  },
+  {
+   "id": "S2",
+   "segment": "开场",
+   "start": 4,
+   "end": 9,
+   "label": "海边的刻度桩，水退到低处",
+   "caption": "可月亮一天只经过头顶一次。",
+   "frame": "out/frames/S2.svg",
+   "reads": [
+    "刻度桩上的水位",
+    "水退到低处"
+   ],
+   "transition": "切"
+  },
+  {
+   "id": "S3",
+   "segment": "两个鼓包",
+   "start": 9,
+   "end": 15,
+   "label": "地球朝月亮的一面，水被拉出一个鼓包",
+   "caption": "朝着月亮的这一面，水被拉过去。",
+   "frame": "out/frames/S3.svg",
+   "reads": [
+    "飞上去看地球",
+    "朝月亮的一面鼓起来"
+   ],
+   "transition": "推上天"
+  },
+  {
+   "id": "S4",
+   "segment": "两个鼓包",
+   "start": 15,
+   "end": 21,
+   "label": "背面也鼓起来",
+   "caption": "背面的水被落在后面，也鼓起来。",
+   "frame": "out/frames/S4.svg",
+   "reads": [
+    "背面也鼓起来"
+   ],
+   "transition": "转",
+   "unsure": "背面的鼓包会不会看不懂"
+  },
+  {
+   "id": "S5",
+   "segment": "转一圈",
+   "start": 21,
+   "end": 27,
+   "label": "城市跟着地球转，先后穿过两个鼓包",
+   "caption": "地球转一圈，你经过两个鼓包。",
+   "frame": "out/frames/S5.svg",
+   "reads": [
+    "城市跟着地球转",
+    "先后穿过两个鼓包"
+   ],
+   "transition": "叠化"
+  },
+  {
+   "id": "S6",
+   "segment": "转一圈",
+   "start": 27,
+   "end": 32,
+   "label": "一天里两个高潮的曲线",
+   "caption": "所以一天涨两次。",
+   "frame": "out/frames/S6.svg",
+   "reads": [
+    "一天两个高潮"
+   ],
+   "transition": "淡出"
+  }
+ ]
+}

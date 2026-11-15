@@ -1,48 +1,532 @@
-"""Review desk, server: one project, on 127.0.0.1 only, stdlib only.
+"""Review desk and console, server: on 127.0.0.1 only, stdlib only.
 
-  GET  /                 the desk (static/index.html, with this run's token)
-  GET  /static/<file>    desk.js, desk.css
-  GET  /api/data         the project, read fresh from its files (reader.read_project)
-  GET  /api/status       is an agent waiting for feedback (bin/vh desk wait)?
-  POST /api/feedback     a submission: checked, saved to out/review/feedback/, copied into REVIEW.md
-  GET  /p/<path>         a file inside the project (HTTP Range, so video and audio can seek); nothing outside it,
-                         no hidden files
+Started for a project (bin/vh desk <project>, or bin/vh gate on the desk channel) the page opens on that project; started
+without one (bin/vh desk) it opens on the console's home, every project bin/vh projects finds. Either way the page reaches
+every project under the roots (bin/vh projects': $OVH_PROJECTS, <repo>/projects, each --root), and the project it was
+started for wherever that is. The project files and bin/vh are the truth: every answer is read fresh from them, and the page
+keeps nothing of its own but the reviewer's draft (in the browser) until it is submitted.
+
+  GET  /                          the page (static/index.html, with this run's token and the project it opens on)
+  GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
+                                  studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
+                                  (the other modules), core.js (the words and helpers a static page shares)
+  GET  /api/projects              every project: bin/vh projects' rows, each with its key, a picture, and what it waits for
+  GET  /api/p/<key>/data          one project, read fresh: reader.read_project, plus bin/vh status (status), its key and
+                                  what the cut module lays out (studio: the resolved timeline, thumbnails, peaks, findings),
+                                  and what the other modules read besides (mods: loudness, voices, lifts, covers, the asset
+                                  ledger, references and their transcripts)
+  GET  /api/p/<key>/gate/<id>     a gate page as the gate view's markup (tools/review.py: the static page's markup)
+  GET  /api/p/<key>/stage         the project's film, or newest draft, as the same player markup, with its ruler
+  GET  /api/p/<key>/status        is an agent waiting for this project's feedback (bin/vh desk wait)?
+  POST /api/p/<key>/feedback      a submission: checked, saved to out/review/feedback/, copied into REVIEW.md
+  GET  /f/<key>/<path>            a file inside that project (HTTP Range, so video and audio can seek); nothing outside
+                                  it, no hidden files
+  The desk's first addresses stay, for the project it was started for: /api/data (reader.read_project alone, as bin/vh desk
+  data prints it), /api/status, /api/feedback, /p/<path>.
 
 Only requests whose Host is this server's own address are answered (no DNS rebinding); a POST also needs the token
 printed into the page, a JSON body and, when the browser sends one, a same-origin Origin. So another web page open
-in the same browser can neither read the project nor submit feedback in the reviewer's name.
+in the same browser can neither read a project nor submit feedback in the reviewer's name.
 """
-import datetime, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, threading, time
+import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
 import feedback as F   # noqa: E402
 import reader          # noqa: E402
+import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
 
-STATIC = {"desk.js": "text/javascript; charset=utf-8", "desk.css": "text/css; charset=utf-8"}
+STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
+          "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
+          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
+LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
+FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
 CSP = ("default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; "
        "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 # every project file is served sandboxed without allow-same-origin: an HTML or SVG in the project (a HyperFrames
 # index.html, node_modules, a downloaded reference) opened from the desk runs in an opaque origin, so it can neither
 # read the page's token nor post feedback in the reviewer's name
 P_CSP = "sandbox allow-scripts allow-popups"
+IMG = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".avif")
+VID = (".mp4", ".webm", ".mov", ".m4v")
 mimetypes.add_type("text/markdown", ".md")
 mimetypes.add_type("audio/wav", ".wav")
+mimetypes.add_type("image/svg+xml", ".svg")
+
+
+def pid_of(path):
+    """A project folder's identity in the console: the SHA-1 of its real path. A submission carries it, and one whose
+    address names another folder by then is refused, never written there."""
+    return hashlib.sha1(os.path.realpath(str(path)).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def keyify(name, path):
+    """A project's key in the console's addresses: its name as bin/vh projects gives it (a / of a project in a subfolder as
+    ~), then ~ and six hex digits of its folder's identity. The same folder always has the same key, whatever else appears
+    under the roots or goes, and two folders of the same name never share one (Desk.listing lengthens the digits in the
+    one-in-millions case of two that agree on six)."""
+    base = re.sub(r"[/\\]+", "~", str(name)).strip("~") or "project"
+    return f"{base}~{pid_of(path)[:6]}"
+
+
+def link(key):
+    """How a project path becomes an href in the console: /f/<key>/<path>."""
+    return lambda rel: f"/f/{quote(key, safe='')}/" + quote(rel, safe="/")
+
+
+def _inside(project, rel):
+    """rel when it names a file inside the project (no '..', no hidden part), else None."""
+    if not isinstance(rel, str) or not rel.strip() or re.match(r"(?i)[a-z][a-z0-9+.-]*:", rel):
+        return None
+    rel = rel.strip()
+    parts = [p for p in rel.replace("\\", "/").split("/") if p not in ("", ".")]
+    if not parts or any(p == ".." or p.startswith(".") for p in parts):
+        return None
+    root = os.path.realpath(str(project))
+    f = os.path.realpath(os.path.join(root, *parts))
+    return "/".join(parts) if os.path.commonpath([f, root]) == root and os.path.isfile(f) else None
+
+
+def _newest(project, patterns):
+    """The newest file matching any of the glob patterns, as a project path; None."""
+    best = None
+    for pat in patterns:
+        for p in Path(project).glob(pat):
+            try:
+                m = p.stat().st_mtime
+            except OSError:
+                continue
+            if p.is_file() and not p.name.startswith(".") and (best is None or m > best[0]):
+                best = (m, p)
+    return best[1].relative_to(project).as_posix() if best else None
+
+
+def gate_now(project):
+    """(this round's id, its gate JSON with includes) or (None, None)."""
+    pages = review.gate_pages(project)
+    if not pages:
+        return None, None
+    p = pages[-1]
+    try:
+        d = json.loads(p.read_text(encoding="utf-8-sig"))
+        d = review.merge_includes(Path(project), d) if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        d = {}
+    return p.stem[5:], d
+
+
+def picture_of(project, row, gate):
+    """The picture a project's card shows: what the person is asked to look at when the film waits for them (the round's
+    first card frame, else its film, else its first picture, else a shot's key frame), else a cover, else the film itself (the card shows its middle frame), else a storyboard
+    key frame, else the newest picture under out/review/ or out/check/. → {"path", "kind": image | video, "from"} or None."""
+    project = Path(project)
+    if row.get("state") == "waiting_person" and gate:
+        for dec in gate.get("decisions") or []:
+            for o in (dec.get("options") or []) if isinstance(dec, dict) else []:
+                p = _inside(project, o.get("frame")) if isinstance(o, dict) else None
+                if p:
+                    return {"path": p, "kind": "image", "from": "gate"}
+        assets = [a for a in gate.get("assets") or [] if isinstance(a, dict)]
+        film = gate.get("film") if isinstance(gate.get("film"), str) else None
+        for p in [film] + [a.get("path") for a in assets if str(a.get("path", "")).lower().endswith(VID)]:   # the film it asks about
+            p = _inside(project, p)
+            if p and p.lower().endswith(VID):
+                return {"path": p, "kind": "video", "from": "gate"}
+        for a in assets:
+            p = _inside(project, a.get("path"))
+            if p and p.lower().endswith(IMG):
+                return {"path": p, "kind": "image", "from": "gate"}
+        for s in gate.get("segments") or []:
+            for sh in (s.get("shots") or []) if isinstance(s, dict) else []:
+                p = _inside(project, sh.get("frame")) if isinstance(sh, dict) else None
+                if p:
+                    return {"path": p, "kind": "image", "from": "gate"}
+    cover = _newest(project, [f"{d}/*{e}" for d in ("out/covers", "out/final/covers") for e in IMG]
+                    + [f"{d}/cover*{e}" for d in ("out/final", "out/review", "out") for e in IMG])
+    if cover:
+        return {"path": cover, "kind": "image", "from": "cover"}
+    film = (row.get("film") or {}).get("path") if isinstance(row.get("film"), dict) else None
+    film = film if film and film.lower().endswith(VID) and _inside(project, film) else None
+    if film:   # a still of the film before the film itself: bin/vh thumbs' picture of its middle shot
+        still = _thumb_of(project, film)
+        if still:
+            return {"path": still, "kind": "image", "from": "thumbs"}
+        return {"path": film, "kind": "video", "from": "film"}
+    sheet = _newest(project, [f"out/check/*sheet*{e}" for e in IMG] + [f"out/check/*/*sheet*{e}" for e in IMG])
+    if sheet:
+        return {"path": sheet, "kind": "image", "from": "sheet"}
+    for _, g in _gate_pictures(project):   # the pictures the stops showed, the newest page first
+        return {"path": g, "kind": "image", "from": "gate"}
+    frames = sorted(Path(project).glob("out/check/storyboard/frames/*.png"))
+    if frames:
+        return {"path": frames[len(frames) // 2].relative_to(project).as_posix(), "kind": "image", "from": "storyboard"}
+    pic = _newest(project, [f"out/review/*{e}" for e in IMG] + [f"out/check/*{e}" for e in IMG] + [f"out/frames/*{e}" for e in IMG])
+    if pic:
+        return {"path": pic, "kind": "image", "from": "latest"}
+    return None
+
+
+def _thumb_of(project, film):
+    """bin/vh thumbs' picture of the film's middle shot, when it made one for this film and it is there; else None."""
+    rec = _load(Path(project) / "out" / "proxy" / (Path(film).stem + ".thumbs") / "thumbs.json")
+    shots = [s for s in (rec or {}).get("shots") or [] if isinstance(s, dict) and _inside(project, s.get("file"))] if isinstance(rec, dict) else []
+    return shots[len(shots) // 2]["file"] if shots else None
+
+
+def _gate_pictures(project):
+    """(gate id, picture) for every picture a gate page names that is there: its cards' frames, its pictures, its shots'
+    key frames; the newest page first."""
+    for page in reversed(review.gate_pages(project)):
+        d = _load(page)
+        if not isinstance(d, dict):
+            continue
+        cand = [o.get("frame") for dec in d.get("decisions") or [] if isinstance(dec, dict) for o in dec.get("options") or [] if isinstance(o, dict)]
+        cand += [a.get("path") for a in d.get("assets") or [] if isinstance(a, dict)]
+        cand += [sh.get("frame") for sg in d.get("segments") or [] if isinstance(sg, dict) for sh in sg.get("shots") or [] if isinstance(sh, dict)]
+        for c in cand:
+            p = _inside(project, c)
+            if p and p.lower().endswith(IMG):
+                yield page.stem[5:], p
+
+
+def film_title(project, title):
+    """The film's name: BRIEF's (bin/vh status's title), else the newest gate page's title up to its stop's name
+    ("片名 · 关卡 ③ 初版" → "片名"), else the folder's name."""
+    name = Path(project).name
+    if title and title != name:
+        return title
+    for page in reversed(review.gate_pages(project)):
+        d = _load(page)
+        t = d.get("title") if isinstance(d, dict) else None
+        if isinstance(t, str) and t.strip():
+            head = re.split(r"\s+[·|｜—-]\s+(?=关卡|检查点|Gate|Checkpoint|E\d)", t.strip(), maxsplit=1)[0].strip()
+            if head and head != t.strip():
+                return head
+    return title or name
+
+
+def ask_of(row, gid, gate):
+    """What a waiting project asks, in a line: the round's first question, else its summary. None when it waits for no one."""
+    if row.get("state") != "waiting_person" or not gate:
+        return None
+    decs = [d for d in gate.get("decisions") or [] if isinstance(d, dict)]
+    q = next((d.get("question") for d in decs if isinstance(d.get("question"), str) and d.get("question").strip()), None)
+    s = gate.get("summary") if isinstance(gate.get("summary"), str) else ""
+    return {"gate": gid, "title": review.gate_title(gid, "zh"), "title_en": review.gate_title(gid, "en"),
+            "question": (q or s or "").strip()[:160], "decisions": len(decs)}
+
+
+def _load(p):
+    try:
+        return json.loads(Path(p).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def studio_extras(project, data):
+    """What the cut module lays out, from what bin/vh has already made (nothing is run here): the resolved timeline (bin/vh
+    timeline --resolved: shots, chapters, narration, captions, beats), the film's thumbnails and waveform peaks when bin/vh
+    thumbs and peaks have made them, and the findings of its latest bin/vh check, each with its time. A part that is not there
+    is None, and the page names the command that makes it."""
+    st = data.get("status") or {}
+    media = st.get("media") or {}
+    out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None, "film": None, "film_missing": None, "sheet": None}
+    # the film: this round's when its stop is the cut's (gate ③, E4, E5), else the one bin/vh status names, else its proxy
+    want = []
+    rounds = data.get("rounds") or []
+    if rounds and re.match(r"(3|E4|E5)", str(rounds[-1].get("id", ""))):
+        g = rounds[-1].get("data") or {}
+        if isinstance(g.get("film"), str):
+            want.append(g["film"])
+        want += [a.get("path") for a in g.get("assets") or [] if isinstance(a, dict) and str(a.get("path", "")).lower().endswith(VID)]
+    want += [media.get("film"), media.get("proxy")]
+    want = [w for w in want if isinstance(w, str) and w.strip() and not re.match(r"(?i)https?://", w)]
+    out["film"] = next((w for w in want if _inside(project, w)), None)
+    if not out["film"] and want:
+        out["film_missing"] = want[0]
+    out["sheet"] = _newest(project, [f"out/check/*sheet*{e}" for e in IMG] + [f"out/check/*/*sheet*{e}" for e in IMG])   # a picture when there is no film
+    try:
+        import resolved
+        out["timeline"] = resolved.document(Path(project), data.get("lang"))
+        for sh in out["timeline"].get("shots") or []:   # a key frame that is not there is no key frame (and no 404)
+            if isinstance(sh, dict) and sh.get("frame") and not re.match(r"(?i)https?://", str(sh["frame"])) and not _inside(project, sh["frame"]):
+                sh["frame"] = None
+    except (Exception, SystemExit) as e:   # one part's trouble is said, the rest is shown
+        data["warnings"].append(f"bin/vh timeline --resolved: {type(e).__name__}: {e}")
+    if media.get("thumbs"):
+        t = _json_in(project, media["thumbs"])[0]   # inside the project only, as /f/ serves
+        if isinstance(t, dict) and all(_inside(project, sh.get("file")) for sh in t.get("sheets") or [] if isinstance(sh, dict)):
+            out["thumbs"] = {k: t.get(k) for k in ("duration", "tile", "shot", "sheets", "tiles")}
+            out["thumbs"]["shots"] = [x for x in t.get("shots") or [] if isinstance(x, dict) and _inside(project, x.get("file"))]
+    if media.get("peaks"):
+        pk = _json_in(project, media["peaks"])[0]
+        if isinstance(pk, dict) and isinstance(pk.get("peaks"), list):
+            out["peaks"] = {"duration": pk.get("duration"), "peaks": pk["peaks"]}
+    chk = st.get("check")
+    if isinstance(chk, dict) and chk.get("record"):
+        rec = _json_in(project, chk["record"])[0]
+        if isinstance(rec, dict):
+            out["check"] = {k: chk.get(k) for k in ("verdict", "video", "at", "stale", "counts")}
+            out["findings"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in rec.get("findings") or []
+                               if isinstance(f, dict) and f.get("severity") in ("fail", "warn")][:200]
+    return out
+
+
+def _json_in(project, rel):
+    """(the JSON of a file of the project, its path), read only when it is a file inside the project: a link that leads out
+    is not followed, as /f/ does not serve one. (None, None) for anything else; raises nothing."""
+    r = _inside(project, rel) if isinstance(rel, str) else None
+    return (_load(Path(project) / r) if r else None), r
+
+
+def _not_out(project, name, rel):
+    """A file of a fixed name that is there but leads out of the project (a link): said, not read."""
+    if not rel and os.path.lexists(Path(project) / name):
+        raise ValueError(f"{name} is not a file inside the project (a link that leads out, or missing): not read")
+
+
+def _texts(x):
+    """A list of short texts from a list, or from one text written in place of one (a ledger's used_by by hand)."""
+    if isinstance(x, str):
+        return [x] if x.strip() else []
+    return [str(v) for v in x if isinstance(v, (str, int, float)) and not isinstance(v, bool)] if isinstance(x, list) else []
+
+
+def _list(x, what):
+    if x is None:
+        return []
+    if not isinstance(x, list):
+        raise ValueError(f"{what} is not a list")
+    return x
+
+
+def module_extras(project, data):
+    """What the other modules lay out, from files bin/vh has already made (nothing is run here): the sound module's readouts
+    (the latest bin/vh check's loudness and its silences, bin/vh pace's speech rates from the narration's timeline), its
+    voice audition (bin/vh voices audition's audition.json) and the music's candidate lifts (bin/vh beats); the delivery
+    module's covers, caption files and every finding of the check; the material module's asset ledger (bin/vh assets),
+    references (bin/vh ref) and long-video transcripts (bin/vh ref digest). A part that is not there is empty, and the
+    page names the command that makes it. Each part is read on its own: one that does not read is empty and `errors` names
+    its file and why, while the others show. Only files inside the project are read (a link that leads out is not)."""
+    project = Path(project)
+    out = {"loudness": None, "silences": None, "checks": [], "pace": None, "voice": None, "audition": None, "lifts": [], "covers": [],
+           "subs": [], "assets": None, "assets_notes": None, "refs": [], "digests": [], "errors": {}}
+    where = {}
+
+    def part(name, fn):
+        try:
+            fn()
+        except Exception as e:   # one file that does not read never empties the other parts
+            out["errors"][name] = f"{where.get(name) or name} · {type(e).__name__}: {e}"
+
+    def narration():
+        tl = (data.get("studio") or {}).get("timeline")
+        narr = ((tl.get("sources") or {}).get("narration") or {}).get("path") if isinstance(tl, dict) else None
+        ntl, where["pace"] = _json_in(project, narr)
+        if not isinstance(ntl, dict):
+            return
+        if isinstance(ntl.get("voice"), str):
+            out["voice"] = ntl["voice"]   # the voice the narration was read in (bin/vh tts)
+        pc = ntl.get("pace")
+        if isinstance(pc, dict):   # bin/vh pace's numbers: voice only, every pause of 0.12 s or more inside a line left out
+            rates = pc.get("rates") if isinstance(pc.get("rates"), dict) else {}
+            out["pace"] = {"reference": pc.get("reference"), "unit": pc.get("unit"), "speech": rates.get("speech"), "with_pauses": rates.get("with_pauses"),
+                           "lines": [{k: x.get(k) for k in ("id", "units", "pace", "after", "tempo", "note")} for x in _list(pc.get("lines"), "pace.lines") if isinstance(x, dict)][:2000]}
+
+    def check():
+        chk = (data.get("status") or {}).get("check")
+        rec, where["check"] = _json_in(project, chk.get("record")) if isinstance(chk, dict) else (None, None)
+        if not isinstance(rec, dict):
+            return
+        F_ = [f for f in _list(rec.get("findings"), "findings") if isinstance(f, dict)]
+        out["checks"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in F_][:300]
+        ld = next((f for f in F_ if f.get("kind") == "check.loudness"), None)
+        if ld:
+            ev = ld.get("evidence") if isinstance(ld.get("evidence"), dict) else {}
+            out["loudness"] = {k: ev.get(k) for k in ("integrated", "true_peak", "lra", "target")}
+            out["loudness"]["severity"] = ld.get("severity")
+        out["silences"] = sum(1 for f in F_ if "silence" in str(f.get("kind", "")) or str(f.get("message", "")).startswith("silence"))
+
+    def audition():   # where bin/vh voices audition writes (audition-<text>/ beside the text, or --out): a few places, not a walk of out/
+        cands = []
+        for pat in ("audition.json", "audition-*/audition.json", "audio/audition.json", "audio/*/audition.json", "out/audition.json", "out/audition-*/audition.json"):
+            for f in sorted(project.glob(pat)):
+                r = _inside(project, f.relative_to(project).as_posix())
+                if r:
+                    cands.append((os.stat(project / r).st_mtime, r))
+        if not cands:
+            return
+        r = max(cands)[1]
+        a, where["audition"] = _json_in(project, r)
+        if not isinstance(a, dict):
+            raise ValueError("not a JSON object")
+        rows, base = [], os.path.dirname(r)
+        for v in _list(a.get("voices"), "voices"):
+            if isinstance(v, dict) and v.get("voice"):
+                f = v.get("file") if isinstance(v.get("file"), str) else ""
+                take = _inside(project, os.path.relpath(os.path.join(os.path.realpath(project / base), f), os.path.realpath(project))) if f else None
+                rows.append({"voice": str(v.get("voice")), "file": take, "duration": v.get("duration"), "pitch_hz": v.get("pitch_hz"),
+                             "speech_rate": v.get("speech_rate"), "misread": v.get("misread") if isinstance(v.get("misread"), list) else None,
+                             "error": v.get("error")})
+        out["audition"] = {"file": r, "provider": a.get("provider"), "unit": a.get("unit"), "text": a.get("text"), "voices": rows}
+
+    def lifts():
+        cands = [r for f in sorted((project / "audio").glob("*.beats.json")) if (r := _inside(project, f.relative_to(project).as_posix()))] \
+            if (project / "audio").is_dir() else []
+        if not cands:
+            return
+        b, where["lifts"] = _json_in(project, max(cands, key=lambda r: os.stat(project / r).st_mtime))
+        if isinstance(b, dict):
+            out["lifts"] = [{k: x.get(k) for k in ("t", "strength", "depth_db", "rise_db", "on")} for x in _list(b.get("lifts"), "lifts") if isinstance(x, dict)][:40]
+
+    def covers():
+        pk = data.get("packaging") or {}
+        where["covers"] = "PACKAGING.md"
+        rows = [x for x in _list(pk.get("covers"), "covers") if isinstance(x, dict)]
+        folders = [f.relative_to(project).as_posix() for d in ("out/covers", "out/final/covers") if (project / d).is_dir()
+                   for f in sorted((project / d).iterdir()) if f.suffix.lower() in IMG]
+        seen = set()
+        for c in [x.get("image") for x in rows] + folders:   # PACKAGING.md's covers first, then the cover folders'
+            r = _inside(project, c)
+            if r and r not in seen:
+                seen.add(r)
+                ratio = review.image_ratio(project / r)
+                row = next((x for x in rows if x.get("image") == c), {})
+                out["covers"].append({"path": r, "ratio": round(ratio, 3) if ratio else None, "id": row.get("id", ""), "text": row.get("text", "")})
+
+    def subs():
+        out["subs"] = [r for d in ("out/final", "out", "audio") if (project / d).is_dir() for f in sorted((project / d).glob("*.srt"))
+                       if (r := _inside(project, f.relative_to(project).as_posix()))][:20]
+
+    def notes_ledger():   # no assets/ledger.json: the table NOTES.md kept before bin/vh assets (templates/NOTES.md until 2026-10-26), read only
+        r = _inside(project, "NOTES.md")
+        if not r:
+            return
+        where["assets"] = r
+        body = reader.section(reader.strip_comments((Path(project) / r).read_text(encoding="utf-8", errors="replace")), r"素材台账", r"^assets?\b", r"asset (ledger|log)")
+        tb = reader.first_table(body, "文件", "file")
+        rows = []
+        for row in tb.rows if tb else []:
+            f, s, li = (reader.plain(tb.get(row, *k)) for k in (("文件", "file"), ("来源", "source"), ("许可", "licen")))
+            if f or s or li:
+                if "{" not in f + s + li:   # the template's empty row, or one not filled in yet
+                    link = bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", f))   # a link has no file to be there or not
+                    rows.append({"file": f, "source": s, "license": li, "there": None if link or not f else bool(_inside(project, f))})
+        if rows:
+            out["assets_notes"] = {"file": r, "rows": rows[:200]}
+
+    def assets():
+        led, where["assets"] = _json_in(project, "assets/ledger.json")
+        _not_out(project, "assets/ledger.json", where["assets"])
+        if not isinstance(led, dict):
+            notes_ledger()
+            return
+        rows = []
+        for r in _list(led.get("assets"), "assets"):
+            if not isinstance(r, dict) or r.get("removed"):
+                continue
+            lic, src = r.get("license") if isinstance(r.get("license"), dict) else {}, r.get("source") if isinstance(r.get("source"), dict) else {}
+            raw = r.get("path") if isinstance(r.get("path"), str) else ""
+            rel = _inside(project, raw)   # there, and inside; else a name in the project (missing now), or a path outside it (bin/vh assets add takes one)
+            named = bool(raw) and not raw.startswith(("/", "~", "\\")) and not re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", raw) and ".." not in re.split(r"[/\\]", raw)
+            rows.append({"id": str(r.get("id") or ""), "kind": r.get("kind"), "path": rel or (raw.strip() if named else None), "outside": "" if rel or named else raw, "there": bool(rel),
+                         "license": lic.get("class") if isinstance(lic.get("class"), str) else "unknown", "license_name": lic.get("name") or lic.get("spdx") or "",
+                         "source": src.get("title") or src.get("url") or src.get("tool") or src.get("kind") or "", "url": src.get("url") or "",
+                         "aigc": bool(r.get("aigc")), "used_by": _texts(r.get("used_by")), "note": r.get("note") or ""})
+        out["assets"] = rows
+
+    def refs():
+        rf, where["refs"] = _json_in(project, "research/refs.json")
+        _not_out(project, "research/refs.json", where["refs"])
+        items = (rf.get("refs") or rf.get("assets") or []) if isinstance(rf, dict) else rf if isinstance(rf, list) else []
+        for r in _list(items, "refs"):
+            if isinstance(r, dict) and r.get("id"):
+                src = r.get("source") if isinstance(r.get("source"), dict) else {}
+                lic = r.get("license") if isinstance(r.get("license"), dict) else {}
+                out["refs"].append({"id": str(r.get("id")), "kind": r.get("kind"), "title": src.get("title") or r.get("note") or str(r.get("id")),
+                                    "url": src.get("url") or "", "author": src.get("author") or "", "license": lic.get("class") or "unknown",
+                                    "path": _inside(project, r.get("path")), "note": r.get("note") or ""})
+
+    def digests():
+        d = project / "research" / "digest"
+        for f in sorted(d.glob("*/transcript.md")) if d.is_dir() else []:
+            r = _inside(project, f.relative_to(project).as_posix())
+            if r:
+                out["digests"].append({"id": f.parent.name, "path": r, "bytes": os.stat(project / r).st_size})
+
+    for name, fn in (("pace", narration), ("check", check), ("audition", audition), ("lifts", lifts), ("covers", covers), ("subs", subs),
+                     ("assets", assets), ("refs", refs), ("digests", digests)):
+        part(name, fn)
+    return out
+
+
+def _drop_missing(project, d, key):
+    """d[key] when it names a file of the project that is there (or a URL); else "", the name kept in d[key + "_missing"]:
+    a page never asks for a file that is not there."""
+    v = d.get(key) if isinstance(d, dict) else None
+    if isinstance(v, str) and v and not re.match(r"(?i)https?://", v) and not _inside(project, v):
+        d[key], d[key + "_missing"] = "", v
+
+
+def project_data(project, parts=("studio", "mods")):
+    """A project's data as the console reads it (GET /api/p/<key>/data, less the key): reader.read_project, bin/vh status,
+    the folder's identity, this round and whether it is open, and the parts asked for, what the cut module lays out (studio)
+    and what the other modules read (mods). A static review page asks for what its stop's modules need (tools/review.py).
+    Raises what read_project raises; a part that cannot be read is null, the reason in warnings."""
+    data = reader.read_project(project)
+    try:
+        import status as S
+        data["status"] = S.collect(project)
+    except (Exception, SystemExit) as e:   # the page shows the rest without it
+        data["status"] = None
+        data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
+    data["pid"] = pid_of(project)
+    _drop_missing(project, data.get("shots"), "video")   # the storyboard's animatic, and the pictures the gate pages name
+    for r in data.get("rounds") or []:
+        g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
+        for dec in g.get("decisions") or []:
+            for o in (dec.get("options") or []) if isinstance(dec, dict) else []:
+                _drop_missing(project, o, "frame")
+        for seg in g.get("segments") or []:
+            for sh in (seg.get("shots") or []) if isinstance(seg, dict) else []:
+                _drop_missing(project, sh, "frame")
+    data["current"] = data["rounds"][-1]["id"] if data["rounds"] else None
+    data["project"]["title"] = film_title(project, data["project"].get("title"))
+    # this round is open until its stop is settled (passed or skipped): its decisions go with a submission, as before
+    cur = next((x for x in (data.get("status") or {}).get("stations") or [] if data["current"] in (x.get("pages") or [])), None)
+    data["round_open"] = bool(data["current"]) and not (cur and cur.get("state") in ("done", "skipped"))
+    if "studio" in parts or "mods" in parts:
+        data["studio"] = studio_extras(project, data)
+    if "mods" in parts:
+        try:
+            data["mods"] = module_extras(project, data)
+        except (Exception, SystemExit) as e:   # the other modules show their empty states; the reason is said
+            data["mods"] = None
+            data["warnings"].append(f"modules: {type(e).__name__}: {e}")
+    return data
 
 
 class Desk(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port, project):
+    def __init__(self, port, project=None, roots=(), only=False):
         super().__init__(("127.0.0.1", port), Handler)
-        self.project = Path(project).resolve()
+        self.project = Path(project).resolve() if project else None   # the project this desk was started for; None: the console
+        self.own_key = keyify(self.project.name, self.project) if self.project else None
+        self.only = bool(only and self.project)   # bin/vh gate's desk: this project and nothing else under the roots
+        self._fresh_at = 0.0   # the last walk an unknown key asked for
+        self.roots = [str(r) for r in roots]
         self.token = secrets.token_urlsafe(24)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
+        self._lock = threading.Lock()
+        self._listing = (0.0, None)
+        self._keys = {self.own_key: self.project} if self.project else {}
 
     def server_bind(self):
         # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
@@ -53,6 +537,47 @@ class Desk(http.server.ThreadingHTTPServer):
     @property
     def url(self):
         return f"http://127.0.0.1:{self.port}/"
+
+    def listing(self, fresh=False):
+        """bin/vh projects' record over this desk's roots (the project it was started for always in it), each row with its
+        key; reused for LISTING_TTL seconds."""
+        import projects as PJ
+        import status as S
+        with self._lock:
+            when, rec = self._listing
+            if rec is not None and not fresh and time.time() - when < LISTING_TTL:
+                return rec
+            if self.only:
+                rec = {"version": 1, "roots": [], "count": 1, "projects": [PJ.row(self.project, self.project.name, S, False)]}
+            else:
+                rec = PJ.listing(self.roots)
+                if self.project and not any(os.path.realpath(r["path"]) == os.path.realpath(str(self.project)) for r in rec["projects"]):
+                    rec["projects"].append(PJ.row(self.project, self.project.name, S, False))
+                    rec["count"] = len(rec["projects"])
+            keys = {self.own_key: self.project} if self.project else {}
+            for r in rec["projects"]:
+                p = Path(r["path"])
+                if self.project and os.path.realpath(str(p)) == os.path.realpath(str(self.project)):
+                    r["key"] = self.own_key
+                    continue
+                k = keyify(r["name"], p)
+                if k in keys and os.path.realpath(str(keys[k])) != os.path.realpath(str(p)):   # six digits shared: twelve
+                    k = f"{k}{pid_of(p)[6:12]}"
+                keys[k] = p
+                r["key"] = k
+            self._keys, self._listing = keys, (time.time(), rec)
+            return rec
+
+    def project_of(self, key):
+        """The folder a key names, or None. A key not seen yet walks the roots once more, at most once in FRESH_GAP seconds
+        (a tab still asking for a project that is gone, or any /f/<nonsense>/, does not walk them on every request)."""
+        if key in self._keys:
+            return self._keys[key]
+        if self.only or time.time() - self._fresh_at < FRESH_GAP:
+            return None
+        self._fresh_at = time.time()
+        self.listing(fresh=True)
+        return self._keys.get(key)
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -101,24 +626,124 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self._host_ok():
             return
         path = urlsplit(self.path).path
+        srv = self.server
         if path in ("/", "/index.html"):
-            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", self.server.token)
+            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token) \
+                .replace("{{HOME}}", srv.own_key or "")
             return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
         if path.startswith("/static/") and path[8:] in STATIC:
             return self._send(200, (HERE / "static" / path[8:]).read_bytes(), STATIC[path[8:]])
-        if path == "/api/data":
+        if path == "/api/projects":
+            return self._projects()
+        m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
+        if m:
+            key = unquote(m.group(1))
+            project = srv.project_of(key)
+            if project is None:
+                return self._error(404, f"no project {key!r} under this desk's roots")
+            what = m.group(2)
+            if what == "data":
+                return self._data(project, key)
+            if what == "status":   # with this round's page: the console notices a new page the agent sent
+                pages = review.gate_pages(project)
+                return self._json(dict(F.listening(project), project=project.name, key=key, round=pages[-1].stem[5:] if pages else None))
+            if what == "stage":
+                return self._stage(project, key)
+            lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]
+            return self._gate(project, key, m.group(3), lang if lang in ("zh", "en") else None)
+        if path.startswith("/f/"):
+            key, _, rel = path[3:].partition("/")
+            project = srv.project_of(unquote(key))
+            if project is None:
+                return self._error(404, "no such project")
+            return self._file(project, rel)
+        # the desk's first addresses: the project it was started for
+        if srv.project and path == "/api/data":
             try:
-                data = reader.read_project(self.server.project)
+                data = reader.read_project(srv.project)
             except Exception as e:   # a reader bug must not take the desk down; the page says what happened
                 return self._error(500, f"could not read the project: {type(e).__name__}: {e}")
             return self._json(data)
-        if path == "/api/status":
-            return self._json(dict(F.listening(self.server.project), project=self.server.project.name))
-        if path.startswith("/p/"):
-            return self._file(path[3:])
+        if srv.project and path == "/api/status":
+            return self._json(dict(F.listening(srv.project), project=srv.project.name))
+        if srv.project and path.startswith("/p/"):
+            return self._file(srv.project, path[3:])
         self._error(404, "not found")
 
-    def _resolve(self, rel):
+    def _projects(self):
+        try:
+            rec = self.server.listing()
+        except Exception as e:
+            return self._error(500, f"could not list the projects: {type(e).__name__}: {e}")
+        rows = []
+        for r in rec["projects"]:
+            r = dict(r)
+            try:
+                gid, gate = gate_now(r["path"]) if not r.get("error") else (None, None)
+                r["picture"] = picture_of(r["path"], r, gate) if not r.get("error") else None
+                r["ask"] = ask_of(r, gid, gate)
+            except Exception as e:   # one project's trouble stays in its card
+                r["picture"], r["ask"] = None, None
+                r["error"] = r.get("error") or f"{type(e).__name__}: {e}"
+            if r["picture"]:
+                r["picture"]["href"] = link(r["key"])(r["picture"]["path"])
+            if not r.get("error"):
+                r["title"] = film_title(r["path"], r.get("title"))
+            rows.append(r)
+        rank = lambda r: (0 if r.get("state") == "waiting_person" else 2 if r.get("state") == "delivered" else 1,   # noqa: E731
+                          -float((r.get("last_activity") or {}).get("t") or 0), r.get("name") or "")
+        rows.sort(key=rank)
+        self._json({"version": 1, "home": self.server.own_key, "roots": rec["roots"], "count": len(rows),
+                    "waiting": sum(1 for r in rows if r.get("state") == "waiting_person"), "projects": rows})
+
+    def _data(self, project, key):
+        try:
+            data = project_data(project)
+        except Exception as e:
+            return self._error(500, f"could not read the project: {type(e).__name__}: {e}")
+        data["key"], data["home"], data["only"] = key, key == self.server.own_key, self.server.only
+        return self._json(data)
+
+    def _gate(self, project, key, gid, lang=None):
+        try:
+            page = review.page_for(project, gid, link=link(key), live=True, lang=lang)
+            pages = review.gate_pages(project)
+            page.past = not pages or pages[-1].stem[5:] != page.gate
+            body = page.body()
+        except (ValueError, OSError) as e:
+            return self._error(404, str(e))
+        except (AttributeError, KeyError, TypeError) as e:
+            return self._error(500, f"gate-{gid}.json: {type(e).__name__}: {e}")
+        cur = pages[-1].stem[5:] if pages else None
+        cards = "".join(page.decision(i + 1, d) for i, d in enumerate(page.d["decisions"]))   # the right column's 要你定, compact
+        self._json({"version": 1, "gate": page.gate, "current": page.gate == cur, "this_round": cur, "title": page.title(),
+                    "lang": page.lang, "takeall": page.take_all(), "html": body, "errors": page.errors, "warnings": page.warnings,
+                    "summary": page.d["summary"], "cards": cards, "marks": page.marks(), "not_reviewed": page.d["not_reviewed"],
+                    "decisions": [{"id": d["id"], "question": d["question"], "recommend": d["recommend"],
+                                   "options": [o["id"] for o in d["options"]]} for d in page.d["decisions"]]})
+
+    def _stage(self, project, key):
+        """The project's picture when no gate waits: its film (bin/vh status's), else the newest draft or animatic, as the
+        gate view's player with the ruler of the project's outline and shots; else the newest picture."""
+        film = None
+        try:
+            import status as S
+            film = S.collect(project, light=True)["media"]["film"]
+        except (Exception, SystemExit):
+            pass
+        film = film or _newest(project, [f"out/{n}{e}" for n in ("draft*", "final*", "animatic*") for e in VID])
+        if film and _inside(project, film):
+            try:
+                html = review.stage_for(project, film, link(key))
+            except (ValueError, OSError, AttributeError, KeyError, TypeError) as e:
+                return self._error(500, f"the film's player: {type(e).__name__}: {e}")
+            return self._json({"version": 1, "kind": "video", "path": film, "html": html})
+        pic = _newest(project, [f"out/check/*{e}" for e in IMG] + [f"out/review/*{e}" for e in IMG] + [f"out/frames/*{e}" for e in IMG])
+        if pic:
+            return self._json({"version": 1, "kind": "image", "path": pic, "href": link(key)(pic)})
+        return self._json({"version": 1, "kind": None})
+
+    def _resolve(self, project, rel):
         """A file inside the project, or None: no '..', no hidden parts (.env, .git, .listening), no *.env, checked
         on the name asked for and on the file it resolves to (a symlink to .env is refused too), ignoring case."""
         rel = unquote(rel)
@@ -126,14 +751,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         hidden = lambda ps: any(p == ".." or p.startswith(".") or p.lower().endswith(".env") for p in ps)   # noqa: E731
         if not parts or "\x00" in rel or hidden(parts):
             return None
-        root = os.path.realpath(str(self.server.project))
+        root = os.path.realpath(str(project))
         f = os.path.realpath(os.path.join(root, *parts))
         if os.path.commonpath([f, root]) != root or not os.path.isfile(f) or hidden(os.path.relpath(f, root).split(os.sep)):
             return None
         return f
 
-    def _file(self, rel):
-        f = self._resolve(rel)
+    def _file(self, project, rel):
+        f = self._resolve(project, rel)
         if not f:
             return self._error(404, "no such file in this project")
         size = os.path.getsize(f)
@@ -174,7 +799,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._host_ok():
             return
-        if urlsplit(self.path).path != "/api/feedback":
+        path = urlsplit(self.path).path
+        m = re.fullmatch(r"/api/p/([^/]+)/feedback", path)
+        if m:
+            project = self.server.project_of(unquote(m.group(1)))
+            if project is None:
+                return self._error(404, "no such project")
+        elif path == "/api/feedback" and self.server.project:
+            project = self.server.project
+        else:
             return self._error(404, "not found")
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
@@ -199,57 +832,106 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.close_connection = True
             return self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says")
         try:
-            fb = F.validate(self.server.project, json.loads(body.decode("utf-8")))
+            raw = json.loads(body.decode("utf-8"))
+            if m:   # the console's address: the page says which folder it was opened on, and it has to be this one
+                if not isinstance(raw, dict) or raw.pop("pid", None) != pid_of(project):
+                    return self._error(409, "this address names another project now than the page was opened on: reload it")
+            fb = F.validate(project, raw)
         except (ValueError, TypeError, AttributeError, RecursionError) as e:   # UnicodeDecodeError is a ValueError
             return self._error(400, str(e) or type(e).__name__)
-        path = F.save(self.server.project, fb)
-        sys.stderr.write(f"desk: feedback saved → {path} (also in REVIEW.md)\n")
+        saved = F.save(project, fb)
+        sys.stderr.write(f"desk: feedback saved → {saved} (also in REVIEW.md)\n")
         sys.stderr.flush()
-        self._json(dict(F.listening(self.server.project), saved=os.path.relpath(path, self.server.project)))
+        self._json(dict(F.listening(project), saved=os.path.relpath(saved, project)))
 
 
-# ---------- start, once per project ----------
+# ---------- start: once per project, or one console ----------
 
-def running(project):
-    """The URL of a desk already serving this project (out/review/.desk.json names this very folder, its process is
-    alive and its port answers), else None. A copied project carries the original's file; the path tells them apart."""
-    info_p = Path(project) / "out" / "review" / ".desk.json"
+def _info_path(project, roots=()):
+    """Where a running desk says so: out/review/.desk.json in its project; a console's in the temp folder, one per user and
+    set of roots (a console over other folders is another console)."""
+    if project:
+        return Path(project) / "out" / "review" / ".desk.json"
+    d = _own_dir()
+    if d is None:
+        return None
+    which = hashlib.sha1("\n".join(sorted(os.path.realpath(r) for r in roots)).encode("utf-8")).hexdigest()[:10]
+    return d / f"console-{which}.json"
+
+
+def _own_dir():
+    """This user's folder for consoles in the temp folder (on a Linux /tmp shared with other users too): made 0700, and
+    used only while it is a folder, not a link, owned by this user and closed to others; None otherwise."""
+    uid = os.getuid() if hasattr(os, "getuid") else None
+    d = Path(tempfile.gettempdir()) / f"ovh-desk-{uid if uid is not None else os.environ.get('USERNAME', 'user')}"
     try:
+        d.mkdir(mode=0o700, exist_ok=True)
+        st = os.lstat(d)
+    except OSError:
+        return None
+    import stat as _st
+    if not _st.S_ISDIR(st.st_mode) or (uid is not None and st.st_uid != uid) or st.st_mode & 0o077:
+        return None
+    return d
+
+
+def running(project=None, roots=None):
+    """The URL of a desk already serving this project (out/review/.desk.json names this very folder, its process is
+    alive and its port answers), else None. A copied project carries the original's file; the path tells them apart.
+    project None: a console already running with the same roots."""
+    info_p = _info_path(project, roots or ())
+    if info_p is None:
+        return None
+    try:
+        if hasattr(os, "getuid") and os.lstat(info_p).st_uid != os.getuid():   # someone else's file says nothing about ours
+            return None
         info = json.loads(info_p.read_text())
-        if info.get("project") != os.path.realpath(str(project)):
+        if project is not None and info.get("project") != os.path.realpath(str(project)):
+            return None
+        if project is None and sorted(info.get("roots") or []) != sorted(os.path.realpath(r) for r in roots or []):
             return None
         os.kill(int(info["pid"]), 0)
         with socket.create_connection(("127.0.0.1", int(info["port"])), timeout=1):
             pass
-    except PermissionError:
-        return info.get("url")
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError):   # PermissionError too: a process this user cannot signal is not its desk
         return None
     return info.get("url")
 
 
-def serve(project, port=None, idle=None):
-    """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. port None: the first free
-    of 8780–8799; 0: any free port. → exit code."""
-    project = Path(project).resolve()
-    url = running(project)
+def serve(project=None, port=None, idle=None, roots=(), only=False):
+    """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. project None: the console.
+    port None: the first free of 8780–8799; 0: any free port. only: this project and nothing else under the roots (the desk
+    bin/vh gate starts). → exit code."""
+    project = Path(project).resolve() if project else None
+    url = running(project, roots)
     if url:
-        print(f"desk: already serving {project.name} at {url} (stop that process to start another)", flush=True)
+        what = project.name if project else "the console"
+        print(f"desk: already serving {what} at {url} (stop that process to start another)", flush=True)
         return 0
     srv, last = None, None
     for p in ([port] if port is not None else DEFAULT_PORTS):
         try:
-            srv = Desk(p, project)
+            srv = Desk(p, project, roots, only)
             break
         except OSError as e:
             last = e
     if srv is None:
         print(f"desk: no free port ({last}); pick one with --port N", file=sys.stderr)
         return 2
-    info_p = project / "out" / "review" / ".desk.json"
-    info_p.parent.mkdir(parents=True, exist_ok=True)
-    info_p.write_text(json.dumps({"pid": os.getpid(), "port": srv.port, "url": srv.url, "project": os.path.realpath(str(project)),
-                                  "started": datetime.datetime.now().isoformat(timespec="seconds")}))
+    info_p = _info_path(project, roots)
+    info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds")}
+    if project:
+        info["project"] = os.path.realpath(str(project))
+    else:
+        info["roots"] = [os.path.realpath(r) for r in roots]
+    try:   # without it this desk still serves; a second start just cannot find it
+        if info_p is None:
+            raise OSError("no folder of this user's own in the temp folder")
+        info_p.parent.mkdir(parents=True, exist_ok=True)
+        info_p.write_text(json.dumps(info))
+    except OSError as e:
+        print(f"desk: {e}: a second start will not find this one", file=sys.stderr)
+        info_p = None
 
     def stop(signum, _frame):   # the info file goes (finally, below); the exit status says what stopped it: 128 + the signal
         raise SystemExit(128 + signum)
@@ -265,7 +947,8 @@ def serve(project, port=None, idle=None):
                     srv.shutdown()
                     return
         threading.Thread(target=watch, daemon=True).start()
-    print(f"desk: {srv.url}  ·  {project.name}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    what = (f"{project.name}" + (" only" if only else "")) if project else "console (every project)"
+    print(f"desk: {srv.url}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
     code = 0
     try:
         srv.serve_forever(poll_interval=0.25)
@@ -274,7 +957,7 @@ def serve(project, port=None, idle=None):
     finally:
         srv.server_close()
         try:
-            if json.loads(info_p.read_text()).get("pid") == os.getpid():
+            if info_p is not None and json.loads(info_p.read_text()).get("pid") == os.getpid():
                 info_p.unlink()
         except (OSError, ValueError):
             pass
@@ -282,4 +965,4 @@ def serve(project, port=None, idle=None):
 
 
 if __name__ == "__main__":
-    sys.exit(serve(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else None))
+    sys.exit(serve(sys.argv[1] if len(sys.argv) > 1 else None, int(sys.argv[2]) if len(sys.argv) > 2 else None))

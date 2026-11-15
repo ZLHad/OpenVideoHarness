@@ -352,6 +352,32 @@ print("; ".join(bad) or f"the ruleset's {len(ctx)} required checks are jobs of c
 sys.exit(1 if bad or not ctx else 0)
 PY
   ); then ok "$a"; else bad "workflow and ruleset: $a"; fi
+  # engines/blender.md's crowd along a path: the sketch runs as written (numpy), and is a function of t: the same t gives
+  # the same positions, the head of the queue is further along the route than its tail, nothing is NaN; and it is continuous through the
+  # route's end (u clipped at 1 once made the leaders jump and the crowd collapse there): no frame's step far above the
+  # others' for the leader over 40 s or for anyone round its arrival, and the crowd keeps its width past the end
+  if ! command -v uv >/dev/null; then skip "engines/blender.md's queue sketch" "needs uv"
+  elif a=$(uv run -q --no-project --with numpy python - engines/blender.md 2>&1 <<'PY'
+import re, sys
+import numpy as np
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"### 一大群东西沿路线飞.*?```python\n(.*?)```", s, re.S)
+ns = {}
+exec(m.group(1), ns)
+P = ns["positions"]
+a, b = P(4.0), P(4.0)
+six = P(6.0)   # the route runs left to right: the head of the queue is further right than its tail
+lead = np.array([P(t)[0] for t in np.arange(0, 40, 1 / 30)])
+s1 = np.linalg.norm(np.diff(lead, axis=0), axis=1)
+near = np.stack([P(t) for t in np.arange(12.3, 12.8, 1 / 30)])   # the leader reaches u = 1 at 12.5 s
+s2 = np.linalg.norm(np.diff(near, axis=0), axis=2)
+jump, jump_all, width = s1.max() / np.median(s1), s2.max() / np.median(s2), P(40.0)[:, 1].std()
+ok = a.shape == (ns["N"], 3) and np.isfinite(a).all() and np.array_equal(a, b) and six[0, 0] > six[-1, 0] + 1 and jump < 1.5 and jump_all < 2 and width > 0.5
+print("ok" if ok else f"shape {a.shape}, same {np.array_equal(a, b)}, head x {six[0, 0]:.2f} tail x {six[-1, 0]:.2f}, step ratio {jump:.2f} / {jump_all:.2f}, width {width:.2f}")
+sys.exit(0 if ok else 1)
+PY
+  ); then ok "engines/blender.md: the crowd-along-a-path sketch runs as written, is a function of t (the same t, the same positions; the head ahead of the tail) and is continuous through the route's end"
+  else bad "engines/blender.md's queue sketch: $a"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
@@ -616,6 +642,129 @@ PY
   then ok "doctor from tools/modules.json: an old node, an ffmpeg without libx264, an aged yt-dlp and keys set or not are said, no six of a key's characters ever; --probe: a key taken, MiniMax's refusal, a 401 echoing a masked key (status and code only), no key skipped, a redirect not followed, an http base elsewhere not called; the platform's alternative; needs.programs; no python3 still reports and exits 0; usage errors 2 before any probe; bin/vh doctor --json here lists every module"
   else bad "bin/vh doctor and tools/modules.json"; fi
   rm -rf "$t"
+  # doctor's two lines about the host: skills (bin/vh install-skill writes stubs that read skills/<name>/SKILL.md in the
+  # clone, so a git pull updates what a host reads; a whole copy stayed as it was when skills/ moved on: one six weeks old
+  # once still said "three review gates") and caches (in a sandbox that keeps writes to the workspace, a first render
+  # fails on a download it cannot store). A made-up home: nothing installed is no problem; a fresh install is a stub with
+  # the skill's own frontmatter and ok (bin/vh's awk and doctor's Python render the same stub); an edited stub, a whole
+  # copy and a skill the folder has not got are outdated with the command that writes them again; a clone path with & and
+  # # in it is written as it is, and a CRLF checkout writes the same stub; a stub whose clone has gone is outdated, not
+  # another clone's; a stub this clone wrote for a skill it no longer has is said, and install-skill removes it (alone in
+  # its folder, naming this clone; nothing else); a cache folder that cannot be written is named with the variable that moves it
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 - "$t" "$VH_BASH" <<'PY'
+import json, os, re, shutil, subprocess, sys
+t, sh = sys.argv[1], sys.argv[2]
+home = os.path.join(t, "home"); os.makedirs(home)
+env = dict(os.environ, HOME=home)
+for k in ("UV_CACHE_DIR", "NPM_CONFIG_CACHE", "npm_config_cache", "HF_HOME", "XDG_CACHE_HOME", "HYPERFRAMES_FONT_CACHE_DIR"):
+    env.pop(k, None)
+def check(name, **more):
+    r = subprocess.run([sys.executable, "tools/doctor.py", "--json"], capture_output=True, text=True, encoding="utf-8", env=dict(env, **more))
+    return next(c for c in json.loads(r.stdout)["checks"] if c["name"] == name)
+def install(which):
+    subprocess.run([sh, "bin/vh", "install-skill", which], capture_output=True, text=True, env=env, check=True)
+bad = []
+c = check("skills")
+if c["state"] != "unchecked" or "install-skill" not in c["note"]:
+    bad.append(f"nothing installed: {c}")
+install("claude"); c = check("skills")
+if c["state"] != "ok" or "2 installed stubs" not in c["note"]:
+    bad.append(f"a fresh install: {c}")
+front = lambda text: text.split("\n---\n", 1)[0]
+HL = re.compile(r"(?m)^Harness path \(set by install\.sh\): (.*)$")   # (compared resolved: bin/vh writes its logical pwd, a link in it kept)
+here = lambda text: bool(HL.search(text)) and os.path.realpath(HL.search(text).group(1)) == os.path.realpath(os.getcwd())
+point = lambda text, at: HL.sub(lambda m: "Harness path (set by install.sh): " + at, text)
+for name in ("open-video-harness", "open-video-harness-web"):
+    got = open(os.path.join(home, ".claude/skills", name, "SKILL.md"), encoding="utf-8").read()
+    repo = open(os.path.join("skills", name, "SKILL.md"), encoding="utf-8").read()
+    if front(got) != front(repo) or f"<harness>/skills/{name}/SKILL.md" not in got or not here(got) or len(got.splitlines()) > 30:
+        bad.append(f"the stub for {name}: {got[:300]!r}")
+p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")
+with open(p, "a", encoding="utf-8") as f:
+    f.write("\nan older line\n")
+c = check("skills")
+if c["state"] != "outdated" or "open-video-harness/SKILL.md is not the stub" not in c["note"] or "bin/vh install-skill claude " not in c["note"]:
+    bad.append(f"an edited stub: {c}")
+whole = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.getcwd(), open("skills/open-video-harness/SKILL.md", encoding="utf-8").read())
+open(p, "w", encoding="utf-8").write(whole); c = check("skills")   # what install-skill wrote before the stubs, or another installer
+if c["state"] != "outdated" or "is a whole copy of skills/open-video-harness/SKILL.md" not in c["note"]:
+    bad.append(f"a whole copy: {c}")
+install("all"); os.remove(os.path.join(home, ".agents/skills/open-video-harness-web/SKILL.md")); c = check("skills")
+if c["state"] != "outdated" or "~/.agents/skills has no open-video-harness-web" not in c["note"] or "bin/vh install-skill codex " not in c["note"]:
+    bad.append(f"a skill the folder has not got: {c}")
+p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's (there: bin/vh in it) is left alone
+os.makedirs(os.path.join(t, "elsewhere", "bin")); open(os.path.join(t, "elsewhere", "bin", "vh"), "w").write("#!/bin/sh\n")
+text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "elsewhere"), open(p, encoding="utf-8").read())
+open(p, "w", encoding="utf-8").write(text + "\ntheirs\n"); install("codex"); c = check("skills")
+if c["state"] != "ok" or "left alone: 1 copy pointing at" not in c["note"]:
+    bad.append(f"another clone's copy: {c}")
+odd = os.path.normpath(os.path.join(t, "a&b #c"))   # a clone path the bash replacement must write as it is (normpath: bash's pwd has no // in it)
+os.makedirs(os.path.join(odd, "bin")); os.makedirs(os.path.join(odd, "tools"))
+shutil.copy("bin/vh", os.path.join(odd, "bin")); shutil.copy("tools/skill_stub.md", os.path.join(odd, "tools")); shutil.copytree("skills", os.path.join(odd, "skills"))
+oh = os.path.join(t, "oddhome")
+subprocess.run([sh, os.path.join(odd, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=oh), check=True)
+got = open(os.path.join(oh, ".agents/skills/open-video-harness/SKILL.md"), encoding="utf-8").read()
+if "Harness path (set by install.sh): " + odd + "\n" not in got:
+    bad.append(f"a clone path with & and #: {got[:400]!r}")
+# a CRLF checkout writes the same stub, frontmatter and all (awk's "---" and Python's would part on a \r otherwise)
+crlf = os.path.normpath(os.path.join(t, "crlf"))
+os.makedirs(os.path.join(crlf, "bin")); shutil.copy("bin/vh", os.path.join(crlf, "bin"))
+for src in ["tools/skill_stub.md"] + [os.path.join("skills", n, "SKILL.md") for n in os.listdir("skills") if os.path.isfile(os.path.join("skills", n, "SKILL.md"))]:
+    os.makedirs(os.path.dirname(os.path.join(crlf, src)), exist_ok=True)
+    open(os.path.join(crlf, src), "wb").write(open(src, "rb").read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+ch = os.path.join(t, "crlfhome")
+subprocess.run([sh, os.path.join(crlf, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=ch), check=True)
+got = open(os.path.join(ch, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
+real = open(os.path.join(home, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
+if b"\r" in got or not got.startswith(b"---\nname: open-video-harness\n") or point(got.decode(), "x") != point(real.decode(), "x"):
+    bad.append(f"a CRLF checkout's stub: {got[:200]!r}")
+# a stub whose clone has gone (moved or removed) is outdated, not another clone's; install-skill from here takes it back
+h9 = os.path.join(t, "h9")
+def install9(which):
+    return subprocess.run([sh, "bin/vh", "install-skill", which], capture_output=True, text=True, env=dict(env, HOME=h9))
+install9("claude")
+q = os.path.join(h9, ".claude/skills/open-video-harness/SKILL.md")
+text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "gone"), open(q, encoding="utf-8").read())
+open(q, "w", encoding="utf-8").write(text)
+c = check("skills", HOME=h9)
+if c["state"] != "outdated" or "points at " + os.path.join(t, "gone") + ", where there is no clone now" not in c["note"]:
+    bad.append(f"a stub whose clone has gone: {c}")
+# a stub this clone wrote for a skill skills/ no longer has: doctor says so; install-skill removes it when it is alone in its
+# folder and names this clone, and leaves another skill, another clone's stub and a folder with more in it
+sk = os.path.join(h9, ".claude/skills")
+stub = open(os.path.join(sk, "open-video-harness-web/SKILL.md"), encoding="utf-8").read()
+for n, text, extra in (("ovh-old", stub, None), ("ovh-old2", stub, "notes.txt"), ("someone-else", "---\nname: someone-else\n---\n\nTheirs.\n", None),
+                       ("other-old", point(stub, os.path.join(t, "elsewhere")), None)):
+    os.makedirs(os.path.join(sk, n)); open(os.path.join(sk, n, "SKILL.md"), "w", encoding="utf-8").write(text)
+    if extra:
+        open(os.path.join(sk, n, extra), "w").write("mine\n")
+c = check("skills", HOME=h9)
+if c["state"] != "outdated" or "ovh-old/SKILL.md is this clone's, for a skill skills/ no longer has" not in c["note"] or "someone-else" in c["note"] or "other-old" in c["note"]:
+    bad.append(f"stubs for a skill skills/ no longer has: {c}")
+r = install9("claude")
+left = sorted(os.listdir(sk))
+c = check("skills", HOME=h9)
+if left != ["open-video-harness", "open-video-harness-web", "other-old", "ovh-old2", "someone-else"] or "ovh-old2" not in r.stderr \
+        or c["state"] != "outdated" or "ovh-old2" not in c["note"] or "where there is no clone" in c["note"]:
+    bad.append(f"install-skill and the stubs it wrote for skills it no longer has: {left} {r.stderr[-300:]!r} {c}")
+c = check("caches")
+if c["state"] != "ok":
+    bad.append(f"caches in a home that can be written: {c}")
+if os.geteuid() != 0:   # root writes into a read-only folder all the same
+    shut = os.path.join(t, "shut"); os.makedirs(shut); os.chmod(shut, 0o555)
+    c = check("caches", UV_CACHE_DIR=os.path.join(shut, "uv"), HF_HOME=shut)
+    os.chmod(shut, 0o755)
+    if c["state"] != "incomplete" or "UV_CACHE_DIR=<folder>" not in c["note"] or "HF_HOME=<folder>" not in c["note"] or "NPM_CONFIG_CACHE" in c["note"]:
+        bad.append(f"two caches that cannot be written: {c}")
+    if any(n.startswith(".vh-doctor-") for d, _, names in os.walk(t) for n in names):
+        bad.append("the write test left a file behind")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "install-skill writes stubs that read skills/ in the clone (the skill's own frontmatter, a clone path with & and # as it is, the same from a CRLF checkout) and removes the ones it wrote for skills the clone no longer has, nothing else; doctor's skills and caches lines: nothing installed is no problem, a fresh install is ok, an edited stub, a whole copy, a missing skill, a stub whose clone has gone and one for a skill the clone no longer has are outdated with the command that writes them again, another clone's copy is left alone; a cache folder that cannot be written is named with the variable that moves it"
+  else bad "doctor's skills and caches lines"; fi
+  rm -rf "$t"
   # ManimGX, an optional backend for Manim scenes (tools/modules.json; CI does not install it): doctor lists it, and with
   # no manimgx on the PATH says it is missing and how to install it (a uv tool, Python 3.13, the pinned version); a
   # manimgx that says another version is told apart from the pin, the pinned one is ok while uv and ffmpeg (what it
@@ -653,7 +802,7 @@ PY
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
-           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
+           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate "desk no-such" "desk --root $t/no-such" \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" "sheet $t/no-such.mp4 --out $t/x.png" "sheet $t/no-such.mp4 $t/x.png" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
            "check $t/no-such.mp4" \
@@ -683,6 +832,30 @@ PY
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
+  # sheet --gray: every tile in luma only, anywhere among the arguments, its own name; a red square on a green ground of
+  # another lightness parts in it, and the colour sheet keeps its colour
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "sheet --gray" "needs uv and ffmpeg"
+  else
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x3CB43C:s=320x180:d=2:r=24" -vf "drawbox=x=100:y=50:w=80:h=80:c=0xC83C3C:t=fill" -pix_fmt yuv420p "$t/rg.mp4"
+    mkdir -p "$t/rgp/out"; printf '# BRIEF\n' > "$t/rgp/BRIEF.md"; cp "$t/rg.mp4" "$t/rgp/out/rg.mp4"
+    vh sheet "$t/rg.mp4" 2 1 "$t/gray.png" --gray >/dev/null 2>&1; rc=$?
+    vh sheet --gray "$t/rg.mp4" 2 1 "$t/gray2.png" >/dev/null 2>&1; rc2=$?
+    vh sheet "$t/rg.mp4" 2 1 "$t/col.png" >/dev/null 2>&1; rc3=$?
+    a=$(vh sheet "$t/rgp/out/rg.mp4" --gray 2>/dev/null)
+    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && case "$a" in *"/out/check/rg-sheet-gray-"*.png) true ;; *) false ;; esac \
+       && uv run -q --no-project --with pillow python - "$t/gray.png" "$t/gray2.png" "$t/col.png" <<'PY'
+import sys
+from PIL import Image
+g, g2, c = (Image.open(f).convert("RGB") for f in sys.argv[1:4])
+sq, gr = g.getpixel((210, 135)), g.getpixel((40, 240))   # the first tile (480 px wide, 1.5x the clip): the square, the ground
+ok = sq[0] == sq[1] == sq[2] and gr[0] == gr[1] == gr[2] and abs(sq[0] - gr[0]) > 15 and list(g.getdata()) == list(g2.getdata())
+cs = c.getpixel((210, 135))
+ok = ok and cs[0] > cs[1] + 60   # the colour sheet: still red
+sys.exit(0 if ok else f"gray {sq} {gr}, colour {cs}")
+PY
+    then ok "sheet --gray: every tile in luma only (red on green parts by lightness), --gray before or after the video, its own file name in the project's out/check; without it the colour stays"
+    else bad "sheet --gray ($rc/$rc2/$rc3): $a"; fi
+  fi
   # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with and the project render's
   # gate check reads: a flag that takes no value in front of it must not swallow it (frames --covers, --no-title and cues
   # --chapters took the project for their value and found "."; render --alpha and --fresh too, until arg_dir had them). The
@@ -1072,6 +1245,14 @@ PY
   then ok "recipes list --type long and recap: the types' own words, and the cards of the types they share a language with, said on stderr"
   else bad "recipes list --type long, recap ($rc/$r2): $c"; fi
   vh recipes list --intent no-such-intent >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "recipes list rejects an unknown vocabulary value" || bad "recipes list --intent no-such-intent exited $rc"
+  # --sequences: the whole-film skeletons, which list leaves out; filtered by the fields a skeleton has, the rest refused
+  a=$(vh recipes list --sequences --ids); b=$(vh recipes list --sequences --seconds 17 --type short --ids)
+  e=$(vh recipes list --sequences --intent hook 2>&1 >/dev/null); rc=$?; vh recipes list --sequences --grammar >/dev/null 2>&1; rc2=$?
+  c=$(vh recipes list --ids); d=0; for x in recipes/sequences/*.md; do [ "${x##*/}" = README.md ] || d=$((d + 1)); done
+  if [ "$rc:$rc2" = 2:2 ] && [ "$(printf '%s\n' "$a" | grep -c .)" = "$d" ] && grep -qx breakdown-reel <<<"$a" && grep -qx launch-15s <<<"$a" \
+     && [ "$b" = breakdown-reel ] && ! grep -qx breakdown-reel <<<"$c" && grep -q "do not filter" <<<"$e"
+  then ok "recipes list --sequences: every skeleton (none of them in the recipe list), --seconds and --type narrow it, a recipe-only filter or --grammar with it is refused"
+  else bad "recipes list --sequences ($rc/$rc2): $(echo $a) | $b | $e"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   sed 's/^id: .*/id: ci-copy/' recipes/seam/flash-cut.md > "$t/ok.md"; sed 's/^energy: .*/energy: 9/' "$t/ok.md" > "$t/bad.md"
   a=$(vh recipes check "$t/bad.md" 2>&1); rc=$?
@@ -2764,7 +2945,8 @@ import json, sys
 sys.path.insert(0, "tools")
 import review
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2 and len(d["assets"]) == 2 else 1)
+sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2
+         and all(review.placeholders(o.get("frame")) for o in d["decisions"][0]["options"]) and "assets" not in d else 1)
 PY
   then ok "gate: no JSON points to --init and the section of the playbook; --init writes a skeleton with version 1, and does not overwrite"
   else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
@@ -2782,7 +2964,8 @@ def fill(x):
     if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
-d = fill(d); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+d = fill(d); d.pop("assets", None); d["decisions"][0]["recommend"] = "A"
+for o in d["decisions"][0]["options"]: o.pop("frame", None)   # a card's frame is a path: filled with words, it would be a missing file
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?
@@ -2811,7 +2994,10 @@ def fill(x):
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
 d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None)
-for x in d.get("decisions", []): x["recommend"] = recommend
+for x in d.get("decisions", []):
+    x["recommend"] = recommend
+    for o in x.get("options", []):
+        if isinstance(o, dict): o.pop("frame", None)
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   }
@@ -2879,7 +3065,17 @@ PY
   "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
   for rc3 in $(seq 50); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
   python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+  only=$(python3 - "$url" <<'PY' 2>/dev/null
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1])
+def get(p):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return json.loads(d)
+rows = get("/api/projects")["projects"]
+print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
+PY
+)
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+    && [ "$only" = "1 True" ] \
     && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
@@ -2888,14 +3084,553 @@ gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
 sys.exit(0 if len(desk) == 1 and desk[0].get("parent") in gates and any(r["event"] == "feedback" for r in recs) else 1)
 PY
-  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), puts its address in the message; --wait hands over the submission"
-  else bad "gate on the desk (rc $rc/$rc2/$rc3): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
+  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), serving that project and nothing else, puts its address in the message, landing on this round's gate view; --wait hands over the submission"
+  else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
   "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!
   for i in $(seq 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
   if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
   else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
+}
+# the gate view (tools/review.py, tools/desk/static/ui.css and ui.js) and the console (bin/vh desk with no project): one
+# stylesheet and one script for the static page and the desk, inlined whole into the page; the picture first, the options as
+# cards with the recommendation picked; times in least-sure ids; the word budget a warning; the demo fixture's three gates;
+# the console's projects, project data, gate views and files over several projects, its refusals, and a submission
+console_checks() {
+  local t a b rc pid url
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  mkdir "$t/root" && cp -R tools/desk/fixtures/zh tools/desk/fixtures/en tools/desk/fixtures/demo "$t/root/"
+  rc=0; for g in 1 2 3; do vh review "$t/root/demo" "$g" > "$t/demo$g.out" 2> "$t/demo$g.err" || rc="$rc $g"; done
+  vh review "$t/root/zh" 1 >/dev/null 2>&1 || rc="$rc zh"
+  if python3 - "$t/root" "$rc" "$(cat "$t"/demo*.err)" <<'PY'
+import os, re, sys
+sys.path.insert(0, "tools")
+import review
+root, rc, err = sys.argv[1], sys.argv[2], sys.argv[3]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+css, js = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("ui.css", "ui.js"))
+pages = {g: open(f"{root}/demo/out/review/gate-{g}.html", encoding="utf-8").read() for g in "123"}
+zh = open(f"{root}/zh/out/review/gate-1.html", encoding="utf-8").read()
+want(rc == "0", f"review exits: {rc}")
+want("over its budget" not in err and "! " not in err, f"the demo pages warn: {err[:300]}")
+for g, h in list(pages.items()) + [("zh", zh)]:
+    want(css in h and js in h, f"gate {g}: ui.css and ui.js are not inlined whole")
+    want(not re.search(r"<(script|link)[^>]+(src|href)=", h) and "https://" not in h and "http://" not in h, f"gate {g}: loads something from outside the page")
+want('<input type="radio" name="dec-look" value="L1" checked data-rec="1" aria-label="L1 浅色清新 · 推荐" aria-describedby="o-look-L1">' in zh and '<code class="g-reply-v">1 L1</code>' in zh, "zh gate 1: the recommended card is not picked, or no reply")
+want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
+want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
+import json
+mod = {g: re.search(r'<script type="application/json" id="ovh-data">(.*?)</script>', h, re.S) for g, h in pages.items()}
+mod = {g: json.loads(m.group(1)) if m else None for g, m in mod.items()}
+inl = [open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("modules.css", "core.js", "modules.js", "static.js")]
+want(mod["1"] and mod["1"]["modules"] == ["idea", "outline"] and mod["1"]["rel"] == "../../" and mod["1"]["data"]["current"] == "1"
+     and mod["2"] and mod["2"]["modules"] == ["board"] and len(mod["2"]["data"]["shots"]["items"]) == 6 and mod["3"] is None
+     and all(x in pages["1"] for x in inl) and not any(x in pages["3"] for x in inl[1:]) and "</script" not in "".join(inl[1:]),
+     f"the static pages' modules (立意 and 大纲 on ①, 分镜 on ②, none on ③): {[(g, m and m['modules']) for g, m in mod.items()]}")
+want('class="g-marks"' in pages["3"] and "0:27.0–0:32.0" in pages["3"] and 'data-t="15.5"' in pages["3"], "demo gate 3: the least-sure times (t, and a time as the id)")
+want(review.time_of("0–5 s") == (0.0, 5.0) and review.time_of("1:05–1:12") == (65.0, 72.0) and review.time_of("12.4 s") == (12.4, None) and review.time_of("S04") is None, "time_of")
+want(review.budget_len("初版 32 s") == (3.5, True) and review.budget_len("A short line") == (12, False), f"budget_len: {review.budget_len('初版 32 s')}")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget; gate ① and ② carry their stop's modules (the data and the console's renderers inlined), gate ③ none"
+  else bad "gate view on the fixtures"; fi
+  # the themes (docs/proposals/02-studio-client.md, 5): three blocks of one set of variables, the default on :root (one value
+  # in ui.js names it); every colour of ui.css and studio.css a variable; the type, the lamps and the readouts at WCAG AA
+  # (4.5:1) on the ground in each, and the type on a picture's grey at 4.5:1 on it
+  if a=$(python3 - <<'PY'
+import re
+css = open("tools/desk/static/ui.css", encoding="utf-8").read()
+studio = open("tools/desk/static/studio.css", encoding="utf-8").read() + open("tools/desk/static/modules.css", encoding="utf-8").read()
+js = open("tools/desk/static/ui.js", encoding="utf-8").read()
+def block(sel):
+    m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
+    return dict((k, v.strip()) for k, v in re.findall(r"--([\w-]+):([^;}]+)", m.group(1))) if m else {}
+base = block(":root,:root[data-theme=darkfield]")
+themes = {"darkfield": base, "prism": dict(base, **block(":root[data-theme=prism]")), "bridge": dict(base, **block(":root[data-theme=bridge]"))}
+def rgb(v, t, bg=None):
+    v = v.strip()
+    m = re.fullmatch(r"var\(--([\w-]+)\)", v)
+    if m: return rgb(t[m.group(1)], t, bg)
+    if v.startswith("#"):
+        h = v[1:] if len(v) > 4 else "".join(c * 2 for c in v[1:])
+        return [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    m = re.fullmatch(r"rgba\((\d+),(\d+),(\d+),([\d.]+)\)", v.replace(" ", ""))
+    c, a = [int(x) / 255 for x in m.groups()[:3]], float(m.group(4))
+    return [x * a + y * (1 - a) for x, y in zip(c, bg)]
+def lum(c):
+    c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+low = []
+for name, t in themes.items():
+    if not t or "bg" not in t:
+        low.append(f"no {name} block"); continue
+    for k, ground in [(k, "bg") for k in ("ink", "ink-2", "ink-3", "you", "agent", "live", "wait", "ok")] + [("on-pic", "pic")]:
+        g = rgb(t[ground], t, rgb(t["bg"], t))
+        a, b = sorted((lum(rgb(t[k], t, g)), lum(g)))
+        r = (b + 0.05) / (a + 0.05)
+        if r < 4.5: low.append(f"{name} --{k} {r:.2f}:1")
+if 'DEFAULT_THEME = "darkfield"' not in js or 'THEMES = ["darkfield", "prism", "bridge"]' not in js:
+    low.append("ui.js: THEMES and DEFAULT_THEME")
+stray = []
+for f, text in (("ui.css", css), ("studio.css and modules.css", studio)):
+    rules = re.sub(r"/\*.*?\*/", "", re.sub(r":root(,:root)?(\[data-theme=\w+\])?\{.*?\}", "", text, flags=re.S), flags=re.S)
+    stray += [f"{f} {x}" for x in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", rules)]
+print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.join(stray[:4])}"] if stray else [])))
+PY
+) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css, studio.css and modules.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
+  else bad "theme contrast or stray colours: $a"; fi
+  # the console's own safety: project words reach the page only through escaping or the DOM; an unknown key walks the roots at
+  # most once in FRESH_GAP; the console's info file is trusted only in a folder of this user's own; a card's picture and a gate
+  # page ask for no file that is not there; a film's name when the BRIEF has none
+  if a=$(python3 - "$t" <<'PY'
+import json, os, re, sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import projects, review, server
+t = sys.argv[1]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+ui, studio, rv, mods = (open(f, encoding="utf-8").read() for f in ("tools/desk/static/ui.js", "tools/desk/static/studio.js", "tools/review.py", "tools/desk/static/modules.js"))
+want("innerHTML" not in ui + mods, "ui.js or modules.js puts markup in the page (innerHTML): a frame's address or a label is the project's words")
+want("url('" not in studio + mods and "data-cap=" not in rv and not re.search(r"\son[a-z]+=", mods), "a project path in a CSS url('…'), a caption in an attribute, or an inline handler in modules.js")
+calls, real = [], projects.listing
+projects.listing = lambda *a, **k: (calls.append(1), real(*a, **k))[1]
+srv = server.Desk(0, None, [t + "/root"])
+try:
+    for _ in range(5):
+        srv.project_of("nope~000000")
+finally:
+    srv.server_close(); projects.listing = real
+want(len(calls) == 1, f"five unknown keys walked the roots {len(calls)} times")
+tmp = tempfile.mkdtemp(dir=t); tempfile.tempdir = tmp
+own = Path(tmp) / f"ovh-desk-{os.getuid()}"
+os.symlink(tmp, own)
+want(server._info_path(None, [t]) is None, "a console's folder that is a link is trusted")
+own.unlink(); own.mkdir(mode=0o755); os.chmod(own, 0o755)
+want(server._info_path(None, [t]) is None, "a console's folder others can write in is trusted")
+os.chmod(own, 0o700)
+info = server._info_path(None, [t])
+want(info is not None and info.parent == own, "a console's folder of this user's own is not used")
+if info:
+    info.write_text(json.dumps({"pid": 1, "port": 9, "url": "http://127.0.0.1:9/", "roots": [os.path.realpath(t)]}))
+    want(server.running(None, [t]) is None, "an info file naming a process this user cannot signal counts as a running console")
+p = Path(t) / "pics"
+(p / "frames").mkdir(parents=True); (p / "out" / "review").mkdir(parents=True)
+(p / "frames" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+(p / "out" / "review" / "gate-1.json").write_text(json.dumps({"title": "编的片 · 关卡 ①", "summary": "选一张",
+    "decisions": [{"id": "c", "question": "哪张？", "options": [{"id": "A", "label": "甲", "frame": "frames/a.png"}, {"id": "B", "label": "乙"}], "recommend": "A"}],
+    "assets": [{"path": "frames/gone.png"}]}, ensure_ascii=False), encoding="utf-8")
+pic = server.picture_of(p, {"state": "in_progress", "film": {"path": "out/draft.mp4"}}, None)
+want(pic == {"path": "frames/a.png", "kind": "image", "from": "gate"}, f"a card whose film is not there: the gate page's picture, not the film: {pic}")
+want(server.film_title(p, "pics") == "编的片", f"a film's name from its gate page: {server.film_title(p, 'pics')!r}")
+pg = review.page_for(p, "1")
+html = pg.body()
+want("gone.png" not in " ".join(re.findall(r'(?:src|href|data-src)="([^"]*)"', html)) and any("frames/gone.png" in e for e in pg.errors),
+     "a gate page links a file that is not there")
+print("; ".join(bad))
+PY
+) && [ -z "$a" ]; then ok "console safety: no markup from project words in ui.js or modules.js, no project path in a CSS url, no inline handler in modules.js; an unknown key walks the roots once in FRESH_GAP; a console's info file only in this user's own closed folder, and a process it cannot signal is not its console; a card and a gate page ask for no missing file; the film's name from its gate page"
+  else bad "console safety: $a"; fi
+  # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
+  mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
+  printf '%s\n' '{"summary": "立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。这页给你看第一轮的四张静帧和四十八秒的大纲，要你定两件事，约四分钟", "decisions": [{"id": "c", "question": "用哪个？", "options": ["A", "B"], "recommend": "A"}]}' > "$t/long/out/review/gate-1.json"
+  a=$(vh review "$t/long" 1 2>&1 >/dev/null); rc=$?
+  b=$(vh gate "$t/long" 1 --init 2>&1); vh gate "$t/long" 2 --init > "$t/init.out" 2>&1
+  if [ $rc = 0 ] && case "$a" in *"summary"*"over its budget of 40"*) true ;; *) false ;; esac && grep -q '<h1 class="g-summary">立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。</h1><p class="g-lead"' "$t/long/out/review/gate-1.html" \
+    && grep -q 'keep it short: summary at most 40' "$t/init.out"
+  then ok "word budget: an over-long summary is a warning (exit 0), and the page heads with its first sentence; gate --init says the budget"
+  else bad "word budget (exit $rc): $a | $(cat "$t/init.out")"; fi
+  # the console: no project, the roots given; three projects, keys from their names, the waiting one with its question; a
+  # second root with a made-up film whose film and key frame are gone and whose BRIEF has no title
+  mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
+  printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
+  printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
+  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!
+  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
+  if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
+  if python3 - "$url" "$t/root" "$t/root2" <<'PY'
+import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1]); root, root2 = sys.argv[2], sys.argv[3]
+pid = lambda p: hashlib.sha1(os.path.realpath(p).encode()).hexdigest()   # noqa: E731
+def req(method, path, body=None, headers=None, host=None):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20)
+    h = {"Host": host or f"127.0.0.1:{u.port}"}
+    h.update(headers or {})
+    c.request(method, path, body=body, headers=h)
+    r = c.getresponse(); data = r.read(); c.close()
+    return r.status, r.headers, data
+bad = []
+def want(cond, msg):
+    if not cond: bad.append(msg)
+s, _, page = req("GET", "/")
+page = page.decode()
+token = page.split('name="desk-token" content="')[1].split('"')[0]
+want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
+want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
+for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js"):
+    want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
+want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its seven files (static.js is the static page's)")
+s, _, d = req("GET", "/api/projects"); d = json.loads(d)
+real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
+rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
+want(s == 200 and set(rows) == {"zh", "en", "demo"} and [n for n, r in rows.items() if r["state"] == "waiting_person"] == ["demo"], f"projects: {sorted(rows)}")
+want(all(re.fullmatch(re.escape(n) + r"~[0-9a-f]{6}", r["key"]) for n, r in rows.items()), f"keys: the name and six digits of the folder: {[r['key'] for r in rows.values()]}")
+waits = [r["state"] == "waiting_person" for r in d["projects"]]
+want(waits == sorted(waits, reverse=True), "the space: the films waiting for the person first")
+gn = next((r for r in d["projects"] if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/gone")), {})
+want(gn.get("title") == "编出来的片", f"a BRIEF without a title: the film's name from its gate page: {gn.get('title')!r}")
+dm = rows.get("demo", {"key": "demo"})
+K, Z = dm["key"], rows.get("zh", {"key": "zh"})["key"]
+want(dm.get("state") == "waiting_person" and (dm.get("ask") or {}).get("question") == "这版放行吗？" and (dm.get("ask") or {}).get("decisions") == 2, f"demo's ask: {dm.get('ask')}")
+want((dm.get("picture") or {}).get("from") == "gate" and dm["picture"]["href"].startswith(f"/f/{K}/"), f"demo's picture: {dm.get('picture')}")
+s, _, d = req("GET", f"/api/p/{K}/data"); d = json.loads(d)
+want(s == 200 and d["key"] == K and d["current"] == "3" and [x["state"] for x in d["status"]["stations"]][:3] == ["done", "done", "waiting_person"], "demo's data and stops")
+want(d.get("pid") == pid(root + "/demo") and d.get("round_open") is True and d.get("only") is False, f"demo's identity and open round: {d.get('round_open')}")
+want(json.loads(req("GET", f"/api/p/{Z}/data")[2]).get("round_open") is False, "zh: its round's stop is passed, so the round is settled")
+gd = json.loads(req("GET", f"/api/p/{gn.get('key', 'x')}/data")[2])
+gs = gd.get("studio") or {}
+want(gs.get("film") is None and gs.get("film_missing") == "out/draft.mp4" and [x.get("frame") for x in (gs.get("timeline") or {}).get("shots") or []] == [None]
+     and gd.get("project", {}).get("title") == "编出来的片" and gd.get("round_open") is True,
+     f"a film and a key frame that are not there: none asked for, the film named as missing: {gs.get('film')} {gs.get('film_missing')}")
+sd = d.get("studio") or {}
+tl = sd.get("timeline") or {}
+want(len(tl.get("shots") or []) == 6 and len(tl.get("narration") or []) == 6 and len(tl.get("beats") or []) > 40 and tl.get("bpm") == 90
+     and [(f["severity"], f["t"]) for f in sd.get("findings") or []] == [("warn", 28.5), ("warn", 31.0)] and (sd.get("check") or {}).get("verdict") == "warn"
+     and sd.get("thumbs") is None and sd.get("peaks") is None, f"demo's cut data: {sorted(tl)} {sd.get('findings')}")
+md = d.get("mods") or {}
+pc, au = md.get("pace") or {}, md.get("audition") or {}
+want((md.get("loudness") or {}).get("integrated") == -14.2 and md.get("silences") == 0 and pc.get("unit") == "chars/s" and len(pc.get("lines") or []) == 6
+     and md.get("voice") == "Charon" and [v["voice"] for v in au.get("voices") or []] == ["Charon", "Kore", "Puck"] and [x["t"] for x in md.get("lifts") or []] == [9.0, 21.3],
+     f"demo's sound data: {json.dumps({k: md.get(k) for k in ('loudness', 'silences', 'voice', 'lifts')}, ensure_ascii=False)[:300]}")
+want([(c["id"], c["ratio"] < 1) for c in md.get("covers") or [] if c.get("ratio")] == [("A", True), ("B", False)] and md.get("subs") == []
+     and [(a["id"], a["license"], a["there"]) for a in md.get("assets") or []] == [("tide-gauge", "cc0", True), ("card-a", "own", True), ("tide-clip", "unknown", False), ("vo", "generated", False)]
+     and [r["id"] for r in md.get("refs") or []] == ["tide-lecture"] and [x["path"] for x in md.get("digests") or []] == ["research/digest/tide-lecture/transcript.md"],
+     f"demo's delivery and material data: {json.dumps({k: md.get(k) for k in ('covers', 'assets', 'refs', 'digests')}, ensure_ascii=False)[:400]}")
+json.dump(d, open(os.path.join(os.path.dirname(root), "demo-data.json"), "w", encoding="utf-8"), ensure_ascii=False)   # for the modules' render check below
+pk = d.get("packaging") or {}
+want("白板" in ((d.get("ideas") or {}).get("same_topic") or "") and [x["id"] for x in pk.get("titles") or []] == ["T1", "T2", "T3"]
+     and [(x["name"], len(x["tags"])) for x in pk.get("platforms") or []] == [("B站", 4), ("抖音", 2)] and [h.get("date") for h in d.get("history") or []] == ["2026-11-14", "2026-11-14"],
+     f"NOTES' ideas, PACKAGING's titles and platforms, REVIEW's dates: {json.dumps(pk.get('platforms'), ensure_ascii=False)[:200]}")
+s, _, g = req("GET", f"/api/p/{K}/gate/3"); g = json.loads(g)
+want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g["html"] and [x["id"] for x in g["decisions"]] == ["draft", "voice"]
+     and f'src="/f/{K}/out/check/sheet.svg"' in g["html"] and not g["errors"], f"gate 3's view: {g.get('errors')}")
+want(g.get("cards", "").count('class="g-dec') == 2 and "g-act" not in g.get("cards", "") and [(m["kind"], m["t"]) for m in g.get("marks") or []] == [("least", 15.5), ("least", 27.0), ("listen", 9.2), ("listen", 30.5)]
+     and g.get("summary", "").startswith("初版"), f"gate 3's right column: {g.get('marks')}")
+s, _, g1 = req("GET", f"/api/p/{K}/gate/1?lang=en"); g1 = json.loads(g1)
+want(s == 200 and not g1["current"] and "Recommended" in g1["html"], "gate 1, an earlier page, in English")
+s, _, st = req("GET", f"/api/p/{K}/status")
+want(s == 200 and json.loads(st)["round"] == "3", "status names this round")
+s, h, _ = req("GET", f"/f/{K}/out/frames/S1.svg")
+want(s == 200 and h.get("Content-Security-Policy", "").startswith("sandbox"), "a project file, sandboxed")
+for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF.md", "/api/p/nope-x/data", f"/api/p/{K}/gate/9", "/api/data", "/p/BRIEF.md"):
+    want(req("GET", p)[0] == 404, f"{p} answered")
+want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
+fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
+    "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
+H = {"Content-Type": "application/json", "X-Desk-Token": token}
+want(req("POST", f"/api/p/{K}/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
+want(req("POST", f"/api/p/{Z}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 400, "a round another project does not have")
+want(req("POST", f"/api/p/{K}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 409 and req("POST", f"/api/p/{K}/feedback", fb(pid=None), H)[0] == 409,
+     "a submission that names another folder, or none, than the address's: refused")
+s, _, r = req("POST", f"/api/p/{K}/feedback", fb(), H)
+want(s == 200 and json.loads(r)["saved"].startswith("out/review/feedback/3-"), f"a submission: {s} {r[:200]}")
+rv = open(root + "/demo/REVIEW.md", encoding="utf-8").read()
+want("决定 draft：OK" in rv and "没把握：S04 [least:S04] · 要改：再大一点" in rv, "the submission in REVIEW.md")
+# a folder of the same name turns up under the other root: every key stays with its folder
+shutil.copytree(root + "/demo", root2 + "/demo")
+time.sleep(4.3)   # the listing is reused for 4 s
+demos = [r for r in json.loads(req("GET", "/api/projects")[2])["projects"] if r["name"] == "demo"]
+twin = next((r["key"] for r in demos if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/demo")), None)
+kd = json.loads(req("GET", f"/api/p/{K}/data")[2])
+want(len(demos) == 2 and K in [r["key"] for r in demos] and twin and twin != K and os.path.realpath(kd["status"]["project"]["path"]) == os.path.realpath(root + "/demo")
+     and req("POST", f"/api/p/{twin}/feedback", fb(), H)[0] == 409, f"keys after a second demo: {[r['key'] for r in demos]}")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings) and what the other modules read (the check's loudness, bin/vh pace's rates and the voice, the audition, the lifts, covers, the asset ledger, references and transcripts; NOTES' same-topic line, PACKAGING's titles and copy for each platform, REVIEW's dates), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
+  else bad "console"; fi
+  a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
+  # the modules (tools/desk/static/modules.js) drawn from the demo's data as the console reads it, and read only from what the
+  # static pages carry: each module draws, nothing says undefined or NaN, and each shows what the fixture has for it
+  cat > "$t/modules-render.js" <<'JS'
+const vm = require("vm"), fs = require("fs");
+const [dataFile, page1, page2] = process.argv.slice(2), bad = [];
+const want = (c, m) => { if (!c) bad.push(m); };
+function host(D, readOnly) {   // core.js and modules.js in one context, with the little a host gives them
+  const g = vm.createContext({ console, __D: D });
+  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
+  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
+    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
+  return (code) => vm.runInContext(code, g);
+}
+const draw = (run, m) => { try { const h = run("MODVIEW." + m + ".main()"); want(!/undefined|NaN|\[object Object\]/.test(h), m + ": undefined, NaN or an object in the page"); return h; } catch (e) { bad.push(m + ": " + e.message); return ""; } };
+const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
+for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
+want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes("同题的视频常见的样子") && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
+want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
+want(h.board.includes("第 1 页 · 开场") && (h.board.match(/class="shotc/g) || []).length === 2, "board: page 1, two shots");
+run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
+want(b2.includes("第 2 页 · 两个鼓包") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
+  "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
+want(h.sound.includes("-14.2") && h.sound.includes("在用") && h.sound.includes("比中位数快") && h.sound.includes("换气之后的重拍"), "sound: loudness, the voice in use, a fast line, a lift");
+want(h.ship.includes("cover-a.svg") && h.ship.includes("抖音") && h.ship.includes("月亮只来一次，海水为什么涨两次？") && h.ship.includes("1 处注意"), "ship: covers, platforms, a title, the check");
+want(h.assets.includes("tide-gauge") && h.assets.includes("来源没写许可") && h.assets.includes("读文稿"), "assets: an item, an uncleared licence, a transcript");
+want(h.ledger.includes("用 A，从海边开场。") && h.ledger.includes("翻案") && h.ledger.includes("2026-11-14"), "ledger: your words, an overturn, the dates");
+for (const [f, mods] of [[page1, ["idea", "outline"]], [page2, ["board"]]]) {   // a static page: its own data, read only
+  const m = fs.readFileSync(f, "utf8").match(/<script type="application\/json" id="ovh-data">([\s\S]*?)<\/script>/);
+  if (!m) { bad.push(f + ": no module data"); continue; }
+  const x = JSON.parse(m[1]), r = host(x.data, true);
+  want(JSON.stringify(x.modules) === JSON.stringify(mods), f + ": modules " + x.modules);
+  for (const k of x.modules) { const s = draw(r, k); want(!s.includes('class="subtabs"') && !s.includes("data-like") && !s.includes("href=\"#/p/"), "static " + k + ": a console-only part"); }
+  if (mods[0] === "idea") want(draw(r, "idea").includes("data-pick-card"), "static idea: the cards pick");
+  if (mods[0] === "board") {   // every link the gate view's lists have to a shot lands on a card of the module (the gate's own board is hidden)
+    const html = fs.readFileSync(f, "utf8"), ids = new Set(), out = [];
+    for (let p = 1; p <= 3; p++) { r("SUB = '" + p + "'"); for (const m2 of draw(r, "board").matchAll(/id="(shot-[^"]+)"/g)) ids.add(m2[1]); }
+    for (const m2 of html.matchAll(/href="#(shot-[^"]+)"/g)) if (!ids.has(m2[1])) out.push(m2[1]);
+    want(ids.size === 6 && !out.length, "static board: links with no card to land on: " + out.join(" "));
+  }
+}
+const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x));
+{ const x = JSON.parse(fs.readFileSync(page1, "utf8").match(/id="ovh-data">([\s\S]*?)<\/script>/)[1]); x.data.current = "E0";   // a settled stop's page: nothing to pick
+  want(!draw(host(x.data, true), "idea").includes("data-pick-card"), "static E0: the settled concept cards pick nothing"); }
+{ const d = clone(D0); d.outline = [{ id: "1", title: "a", t0: 5, t1: 10 }, { id: "2", title: "b", t0: 20, t1: 30 }];   // a late start and a gap, on one scale
+  const o = draw(host(d, false), "outline"); want(o.includes("left:16.667%;width:16.667%") && o.includes("left:66.667%;width:33.333%"), "outline: the bar is not on the scale of its ticks"); }
+{ const d = clone(D0); d.history = [{ title: "Gate ① Concept", date: "2026-03-04", quotes: [{ label: "", text: "Use A." }], notes: [], desk: false }];
+  d.ledger = [{ what: "concept", who: "own", status: "A", where: "REVIEW.md gate 1" }];
+  const row = (draw(host(d, false), "ledger").match(/<tr[^>]*>(?:(?!<\/tr>)[\s\S])*?>concept<[\s\S]*?<\/tr>/) || [""])[0];
+  want(row.includes("2026-03-04") && row.includes("Use A."), "ledger in English: the decision's row has gate 1's date and words"); }
+{ const s0 = draw(host(clone(D0), false), "sound"), d = clone(D0);   // no curve: said, with its command; with one, on the film's own time
+  d.studio.peaks = { duration: 32, peaks: Array.from({ length: 64 }, (_, i) => [-(i % 7) / 10, (i % 5) / 10]) }; const s1 = draw(host(d, false), "sound");
+  want(!s0.includes('class="energy"') && s0.includes("bin/vh peaks &lt;项目&gt;") && s0.includes('class="secband"') && s1.includes('class="energy"'), "sound: an empty curve drawn, or a curve not drawn"); }
+// extreme and tainted data: every target and label a module makes is one tools/desk/feedback.py takes, and nothing reaches the page unescaped
+const P = '<img src=x onerror=1>"\'><svg onload=1>&amp;';
+const taint = (v) => (typeof v === "string" ? v + P : Array.isArray(v) ? v.map(taint) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, taint(x)])) : v);
+const X = taint(clone(D0));
+X.mods.assets[0].path = "/Users/someone/outside.png"; X.mods.assets[1].path = "../escape.png"; X.mods.assets[2].used_by = "S2";
+X.ledger[0].what = "决".repeat(400); X.packaging.titles[0].id = ""; X.packaging.titles[0].title = "标".repeat(500);
+X.outline[0].title = "段\n名".repeat(120); X.outline[0].id = "1\t2"; X.facts[0].id = "#" + "9".repeat(300); X.shots.items[0].id = "S1 \u0007bell";
+X.agent_decided[0].topic = "t".repeat(400); X.mods.digests[0].path = "research/digest/" + "x".repeat(300) + "/transcript.md";
+X.studio.timeline.narration[0].end = X.studio.timeline.narration[0].start;
+const unq = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const marks = [];
+for (const ro of [false, true]) {
+  const r = host(X, ro);
+  for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
+    const s = draw(r, m);
+    want(!/<img\s+src=x|<svg\s+onload/i.test(s), m + (ro ? " (static)" : "") + ": a project's words reached the page unescaped");
+    for (const tag of s.matchAll(/<[a-z0-9]+\b[^>]*\sdata-mark="([^"]*)"[^>]*>/g)) {
+      const lab = tag[0].match(/\sdata-label="([^"]*)"/), tt = tag[0].match(/\sdata-t="([^"]*)"/);
+      marks.push({ target: unq(tag[1]), label: lab ? unq(lab[1]) : "", t: tt ? +unq(tt[1]) : null });
+    }
+  }
+}
+fs.writeFileSync(process.argv[5], JSON.stringify(marks));
+want(marks.length > 40, "extreme data: only " + marks.length + " marks drawn");
+console.log(bad.join("\n"));
+JS
+  if a=$(node "$t/modules-render.js" "$t/demo-data.json" "$t/root/demo/out/review/gate-1.html" "$t/root/demo/out/review/gate-2.html" "$t/marks.json" 2>&1) && [ -z "$a" ]; then ok "modules: 立意, 大纲, 分镜, 声音, 交付, 素材 and 账本 draw the demo's data with what it has for each (cards with frames, parts, the gate ② page's own shots with their plan lines and notes, readouts, platforms, licences, your words), and the static pages' modules read only (no sub-tabs, no note shortcuts, no console links, every link to a shot lands, a settled stop's cards pick nothing); the outline's bar on its ticks' scale, an English ledger's dates and words, a sound panel with no curve saying so; tainted data never reaches the page unescaped"
+  else bad "modules drawn from the demo's data: $a"; fi
+  if a=$(python3 - "$t/marks.json" "$t" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/desk")
+import feedback
+marks, tmp = json.load(open(sys.argv[1], encoding="utf-8")), sys.argv[2]
+items = [dict({"target": m["target"], "status": "change", "label": m["label"], "text": "x"}, **({"t": m["t"]} if isinstance(m["t"], (int, float)) and 0 <= m["t"] < 1e6 else {})) for m in marks]
+bad = []
+for i in range(0, len(items), 400):   # every target and label the modules made of extreme data, as one submission would carry them
+    try:
+        feedback.validate(tmp, {"round": "notes", "lang": "zh", "decisions": {}, "defaulted": [], "items": items[i:i + 400], "general": ""})
+    except ValueError as e:
+        bad.append(str(e))
+kinds = sorted({m["target"].split(":")[0] for m in marks})
+print("; ".join(bad) if bad else ("" if {"card", "seg", "shot", "fact", "asset", "doc", "led", "range", "atime"} <= set(kinds) else f"kinds drawn: {kinds}"))
+PY
+) && [ -z "$a" ]; then ok "modules: every target and label the seven modules make of extreme data (an asset outside the project or above it, 400-character decisions and titles, control characters in ids, a line with no length) is one tools/desk/feedback.py takes, so one note can never turn a whole submission down"
+  else bad "a module made a target feedback.py refuses: $a"; fi
+  # the modules' data a part at a time, and only from inside the project: a file that does not read empties its own part and
+  # is named; a link that leads out is not followed (as /f/ does not serve it)
+  mkdir -p "$t/out-side" && cp -R tools/desk/fixtures/demo "$t/broken"
+  if a=$(python3 - "$t/broken" "$t/out-side" <<'PY'
+import json, os, sys
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import server
+P, O = Path(sys.argv[1]), Path(sys.argv[2])
+bad = []
+def want(c, m):
+    if not c: bad.append(m)
+au = P / "audio/audition-script/audition.json"
+a = json.loads(au.read_text()); a["voices"][0]["file"] = "/etc/hosts"; au.write_text(json.dumps(a))
+m = server.project_data(P)["mods"]
+want(m["audition"] and [v["file"] for v in m["audition"]["voices"]][0] is None and not m["errors"], f"a take outside the project: {m['errors']}")
+a["voices"] = 7; au.write_text(json.dumps(a))
+b = json.loads((P / "audio/music.beats.json").read_text()); b["lifts"] = 5; (P / "audio/music.beats.json").write_text(json.dumps(b))
+os.symlink(P / "nowhere.json", P / "out/audition.json")
+(O / "ledger.json").write_text(json.dumps({"assets": [{"id": "LEAK", "path": "x.png", "license": {"class": "cc0"}}]}))
+(O / "refs.json").write_text(json.dumps({"refs": [{"id": "LEAKREF"}]}))
+(O / "check.json").write_text(json.dumps({"findings": [{"kind": "check.loudness", "severity": "info", "message": "LEAKCHECK", "evidence": {"integrated": -99}}]}))
+for name, src in (("assets/ledger.json", "ledger.json"), ("research/refs.json", "refs.json"), ("out/check/draft.check.json", "check.json")):
+    os.remove(P / name); os.symlink(O / src, P / name)
+d = server.project_data(P)
+m, text = d["mods"], json.dumps([d["mods"], d["studio"]], ensure_ascii=False)   # (bin/vh status reads its own records)
+want(set(m["errors"]) == {"audition", "lifts", "assets", "refs"} and "audition-script/audition.json" in m["errors"]["audition"] and "music.beats.json" in m["errors"]["lifts"],
+     f"each broken part named, with its file: {m['errors']}")
+want("LEAK" not in text and "LEAKCHECK" not in text and m["loudness"] is None and m["assets"] is None and m["refs"] == [], "a file of the project that links out was read")
+want(m["pace"] and len(m["covers"]) == 2 and len(m["digests"]) == 1 and m["voice"] == "Charon", f"a broken part emptied others: {sorted(k for k, v in m.items() if not v)}")
+print("; ".join(bad))
+PY
+) && [ -z "$a" ]; then ok "module data: a part whose file does not read (voices or lifts not a list, a take outside the project, a broken link) is empty and named with its file while the others show; a ledger, refs or check record that links out of the project is not read"
+  else bad "module data a part at a time: $a"; fi
+  # after a trial run (a person using it, two rounds): a submission goes once, ← → selects the shot, Esc and ⌘↩ hand the keys
+  # back, a reload keeps the page on screen, commands and paths are never set in capitals, the old asset table is read, every
+  # row the agent decides can be overturned, status's lines in Chinese with the project's folder as <项目>, English counts
+  cat > "$t/trial.js" <<'JS'
+const vm = require("vm"), fs = require("fs");
+const [dataFile] = process.argv.slice(2), bad = [];
+const want = (c, m) => { if (!c) bad.push(m); };
+function host(D, readOnly) {
+  const g = vm.createContext({ console, __D: D });
+  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
+  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
+    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
+  return (code) => vm.runInContext(code, g);
+}
+const draw = (run, m) => { try { return run("MODVIEW." + m + ".main()"); } catch (e) { bad.push(m + ": " + e.message); return ""; } };
+const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x)), J = JSON.stringify;
+const run = host(clone(D0), false);
+try {
+  // 1: what the server took leaves the draft; a decision sent goes again only when picked differently
+  run(`var DECS = [{ id: "draft", recommend: "FIX", options: [{ id: "OK" }, { id: "FIX" }] }, { id: "voice", recommend: "V1", options: [{ id: "V1" }, { id: "V2" }] }];
+       var FB1 = { decisions: { draft: "OK" }, items: { "time:10.7": { status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }, "asset:/x": { status: "change", label: "x", text: "y" } }, general: "整体偏慢" };
+       var P1 = { decisions: toSend(DECS, FB1.decisions, FB1.sentDec, true).decisions, items: [{ target: "time:10.7", status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }], general: "整体偏慢" };
+       var FB2 = afterSent(FB1, P1, "19:51");`);
+  want(J(run("P1.decisions")) === J({ draft: "OK", voice: "V1" }), "the first submission: the picked decision and the recommended one");
+  want(J(run("Object.keys(FB2.items)")) === J(["asset:/x"]) && run("FB2.general") === "" && J(run("FB2.sent")) === J({ at: "19:51", n: 2, d: 2 }), "after a submission the sent note and the overall words stay in the draft: " + J(run("FB2")));
+  want(J(run("toSend(DECS, FB2.decisions, FB2.sentDec, true).decisions")) === "{}", "a second submission sends the decisions again");
+  want(J(run("toSend(DECS, Object.assign({}, FB2.decisions, { voice: 'V2' }), FB2.sentDec, true).decisions")) === J({ voice: "V2" }), "a decision changed after sending does not go");
+  // 2: ← → from 0:10.7 lands on S4 and S3, as shots
+  run(`var SH = [{ id: "S1", t0: 0, t1: 4 }, { id: "S2", t0: 4, t1: 9 }, { id: "S3", t0: 9, t1: 15 }, { id: "S4", t0: 15, t1: 21 }, { id: "S5", t0: 21, t1: 32 }];`);
+  want(J(run("stepPoint(SH, 10.7, 1, 32)")) === J({ shot: "S4", t: 15 }) && J(run("stepPoint(SH, 10.7, -1, 32)")) === J({ shot: "S3", t: 9 }) && J(run("stepPoint(SH, 25, 1, 32)")) === J({ t: 32 }), "← → by shot: " + J(run("stepPoint(SH, 10.7, 1, 32)")));
+  // 11: status's lines in Chinese, the project's folder as <项目>, English counts
+  run(`D.status = Object.assign({}, D.status, { project: { path: "/tmp/x/demo" } });`);
+  want(run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet").text`) === "反馈已经交给 agent，REVIEW.md 里还没写这一关定了什么", "a station's note stays English in a Chinese page");
+  want(run(`statusWords("the engine's scaffold is not there: this makes it").known`) && run(`shortPath("bin/vh hf-init /tmp/x/demo landscape")`) === "bin/vh hf-init <项目> landscape", "the next step's words or the project's folder");
+  want(!run(`statusWords("a line the page has not met").known`), "an unknown line of status is passed off as known");
+  want(run(`statusWords("fill BRIEF.md (7 {…} left); render the final").text`) === "把 BRIEF.md 填完（还有 7 处 {…}）；渲染成片", "a next step of two of status's lines, as older projects get it");
+  run(`LANG = "en"; L = STR.en;`);
+  want(run(`t("round_sum", { n: 5, d: 1 })`) === "5 notes · 1 decision" && run(`t("round_sum", { n: 1, d: 2 })`) === "1 note · 2 decisions", "English counts: " + run(`t("round_sum", { n: 5, d: 1 })`));
+  run(`LANG = "zh"; L = STR.zh;`);
+} catch (e) { bad.push("core.js: " + e.message); }
+{ const r = run("[Object.keys(STR.zh).concat(Object.keys(STR.en)), Object.keys(MSTR.zh).concat(Object.keys(MSTR.en))]"), S = new Set(r[0]), clash = [...new Set(r[1].filter((k) => S.has(k)))];
+  want(!clash.length, "a module's word under a key the shell has too (the shell's word wins): " + clash.join(" ")); }
+// 9: every row the agent decides has Overturn, the DECISIONS.md table's (who: delegate) as well as the list's
+{ const d = clone(D0); d.ledger = d.ledger.concat([{ what: "style 风格", who: "delegate", status: "已定：暗场蓝", where: "STYLE.md" }]);
+  const h = draw(host(d, false), "ledger"), rows = h.match(/<tr\b[\s\S]*?<\/tr>/g) || [], agent = rows.filter((r) => r.includes("chip agent"));
+  want(agent.length >= 2 && agent.every((r) => r.includes("data-overturn")), "a row the agent decided without Overturn: " + agent.filter((r) => !r.includes("data-overturn")).length + " of " + agent.length); }
+// 5: no ledger: the older table in NOTES.md read only, and no filters over nothing
+{ const d = clone(D0); d.mods.assets = null; d.mods.refs = []; d.mods.digests = [];
+  d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "自己拍的", license: "自有", there: false }, { file: "https://example.org/y.png", source: "某馆", license: "", there: null }] };
+  const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const h0 = draw(host(e, false), "assets");
+  want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes("还没有素材台账"), "the NOTES.md table, or filters over nothing");
+  want((h.match(/<th>/g) || []).length === 3 && (h.match(/class="chip wait" title=/g) || []).length === 1, "the NOTES.md table: three columns, a tag beside the file not here and none beside the link");
+  want(!h0.includes('class="pgtabs"') && h0.includes("还没有素材台账"), "no ledger and no table: filters, or nothing said"); }
+// 6: a command, a path or a file name is never inside a label the themes set in capitals (text-transform is inherited)
+const CAPS = ["kick", "pn-h", "mat-h", "g-eyebrow", "g-h", "blk-h", "lgroup", "grp"], KEEP = ["pn-sub", "quiet"], VOID = /^(img|br|hr|input|meta|link|source|wbr|path|line|circle|rect)$/i;
+const capsText = (html) => {
+  const out = [], stack = [];
+  for (const m of html.matchAll(/<(\/?)([a-zA-Z0-9]+)([^>]*?)(\/?)>|([^<]+)/g)) {
+    if (m[5] != null) { const top = stack[stack.length - 1]; if (top && top.caps && /bin\/vh|&lt;项目&gt;|&lt;project&gt;|[\w.-]+\.(md|json|mp4|wav|png|jpe?g)\b|\w\/\w/.test(m[5])) out.push(m[5].trim().slice(0, 60)); continue; }
+    if (m[1]) { stack.pop(); continue; }
+    if (m[4] || VOID.test(m[2])) continue;
+    const cls = ((m[3].match(/\sclass="([^"]*)"/) || [])[1] || "").split(/\s+/), up = stack[stack.length - 1] || { caps: false };
+    stack.push({ caps: m[2] === "code" || cls.some((c) => KEEP.includes(c)) ? false : up.caps || cls.some((c) => CAPS.includes(c)) });
+  }
+  return out;
+};
+for (const ro of [false, true]) for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
+  const d = clone(D0); if (m === "assets") { d.mods.assets = null; d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "s", license: "l", there: true }] }; }
+  const c = capsText(draw(host(d, ro), m)); want(!c.length, `${m}${ro ? " (static)" : ""}: a command or a path in capitals: ${c.join(" | ")}`);
+}
+console.log(bad.join("\n"));
+JS
+  if a=$(node "$t/trial.js" "$t/demo-data.json" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the modules and core.js: a submission goes once (what the server took leaves the draft; a decision goes again only when picked differently); ← → lands on the next shot as a shot; status's lines in Chinese with the project's folder as <项目>, and English counts; every row the agent decides has Overturn; with no ledger the older table in NOTES.md, read only, and no filters over nothing; no command, path or file name inside a label set in capitals; no module word under a key the shell has too"
+  else bad "after a trial run, in the modules and core.js: $a"; fi
+  cat > "$t/trial.py" <<'PY'
+import json, re, shutil, sys
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import server
+t = Path(sys.argv[1])
+bad = []
+def want(c, m):
+    if not c: bad.append(m)
+st, ui, css, mcss = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("studio.js", "ui.css", "studio.css", "modules.css"))
+html = open("tools/desk/static/index.html", encoding="utf-8").read()
+def body(name):   # a function's text in studio.js, up to the next top-level one
+    m = re.search(r"\n(?:async )?function " + name + r"\([\s\S]*?\n}", st)
+    return m.group(0) if m else ""
+rl, sub, poll = body("reloadProject"), body("submit"), body("pollLive")
+want(rl and rl.index("fetchProject(") < rl.index("leaveProject(") and "renderShellLoading" not in rl and ".innerHTML" not in rl,
+     "a reload clears the page before the new data is in")
+want("afterSent(" in sub and "reloadProject(" in sub and "leaveProject(" not in sub and "reloadProject(" in poll and "leaveProject(" not in poll, "a submission or a new page blanks the page, or keeps what it sent")
+want(re.search(r'e\.key === "Escape"[\s\S]{0,240}typing\(\)\) \{ e\.preventDefault\(\); document\.activeElement\.blur\(\);', st) and re.search(r"function addNote\(\)[\s\S]*?ta\.blur\(\);\s*//[^\n]*\n}", st),
+     "Esc does not leave a text box, or ⌘↩ keeps the keys in it")
+want(re.search(r"function jumpShot\(dir\)[\s\S]{0,200}stepPoint\([\s\S]{0,80}pickThing\(\"shot:\"", st), "← → moves the playhead without selecting the shot")
+ids = re.findall(r'\sid="([A-Za-z][\w-]*)"', html + st + open("tools/desk/static/modules.js", encoding="utf-8").read())
+dup = sorted({i for i in ids if ids.count(i) > 1} - {"gatePart"})   # gatePart: one of two exclusive layouts
+want(not dup, f"an id written twice in the console (a reload keeps the old module on screen while the column is drawn): {dup}")
+caps = []
+for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss)):
+    for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)):
+        if re.search(r"text-transform:\s*(uppercase|var\(--label-case\))", rule):
+            caps += [f"{f}: {s.strip()}" for s in sel.split(",")]
+allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2",
+           "studio.css: .ask .kick", "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
+want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
+want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")
+h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
+want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
+want(re.search(r"\.cut\.layout-sound \.timeline\{max-height:min\(58vh,calc\(100vh - \d+px\)\)\}", css) and "min-height:min(200px,22vh)" in re.search(r"\.screen\{[^}]*\}", css).group(0),
+     "on a short window the tall lanes push the picture's controls under the timeline")
+want(all(x in css for x in (".app.is-cut .cut>.viewer{order:2}", ".app.is-cut>.col{order:3}", ".app.is-cut .cut>.lists{order:5")) and '$("#app").classList.toggle("is-cut", bench)' in st,
+     "on a phone the cut does not put the picture, then the decisions, then the lists")
+# 5: no ledger: the table NOTES.md kept before bin/vh assets, read only; a ledger: that, not the table
+p = t / "oldnotes"; shutil.copytree("tools/desk/fixtures/zh", p)
+(p / "NOTES.md").write_text((p / "NOTES.md").read_text(encoding="utf-8") + "\n## 素材台账\n| 文件 | 来源 | 许可 |\n|---|---|---|\n| assets/harbor.jpg | 自己拍的 | 自有 |\n| https://example.org/t.png | 某馆 | 没写 |\n| {文件} | {来源} | {许可} |\n| | | |\n", encoding="utf-8")
+m = server.project_data(p)["mods"]
+rows = (m.get("assets_notes") or {}).get("rows") or []
+want([r["file"] for r in rows] == ["assets/harbor.jpg", "https://example.org/t.png"] and rows[1]["there"] is None and rows[0]["there"] is False and not m["errors"], f"the NOTES.md asset table: {m.get('assets_notes')} {m['errors']}")
+(p / "assets").mkdir(); (p / "assets" / "ledger.json").write_text(json.dumps({"v": 1, "assets": []}))
+want(server.project_data(p)["mods"].get("assets_notes") is None, "the NOTES.md table read beside a ledger")
+print("; ".join(bad))
+PY
+  if a=$(python3 "$t/trial.py" "$t" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the console's code: a reload reads before it changes the screen, a submission and a new page keep the page on screen and never resend; Esc leaves a text box and ⌘↩ hands the keys back; ← → selects the shot; no id twice; capitals only on short labels, never on code; one-line timeline bar; a tall waveform drawn to its loudest peak in the listen layout; the cut on a phone puts the picture, the decisions, then the lists; the asset table of NOTES.md when there is no ledger"
+  else bad "after a trial run, in the console's code: $a"; fi
+  kill $pid 2>/dev/null; wait $pid 2>/dev/null
+  # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
+  if desk_start "$t/root/zh" "$t/zh.log"; then
+    a=$(python3 - "$desk_url" <<'PY'
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1])
+def get(p):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return r.status, d
+page = get("/")[1].decode()
+home = page.split('name="desk-home" content="')[1].split('"')[0]
+keys = [r["key"] for r in json.loads(get("/api/projects")[1])["projects"]]
+print(home.startswith("zh~"), home in keys, get("/api/data")[0], get(f"/api/p/{home}/data")[0])
+PY
+)
+    [ "$a" = "True True 200 200" ] && ok "desk for a project: its page opens on it, the project is in the listing, and the first addresses still answer" || bad "desk for a project: $a"
+    kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
+  fi
+  rm -rf "$t"
 }
 concept_checks() {   # bin/vh concept: the roulette (seeded by the project's name, what the project has and --not left out)
   # and the six-then-three board (pillow through uv: the same bytes for the same input)
@@ -2942,6 +3677,152 @@ sys.stdout.buffer.write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,
     a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
   done
   [ "$rc" = 1 ] || ok "concept: usage errors exit 2, nothing on stdout"
+  rm -rf "$t"
+}
+
+words_checks() {   # bin/vh words (tools/words.py): a report on a script's sentence shapes, never an edit. A made-up project
+  # whose SCRIPT.md narration column hits each check on a known line; what is not one (是不是, 要不是, a colon before speech
+  # or a quotation, two items with one 顿号, a possessive 的) stays quiet; the project's STYLE.md allows a check by its name
+  # and one sentence by quoting it; audio/script.txt is read as spoken (@id, [direction], || English out); English text
+  # gets no counts; exit 0 with hits, and nothing in the project is written
+  local t
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 - "$t" "$VH_BASH" <<'PY'
+import json, os, subprocess, sys
+t, sh = sys.argv[1], sys.argv[2]
+def w(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, "w", encoding="utf-8").write(text)
+def vh(*args):
+    return subprocess.run([sh, "bin/vh", "words", *args], capture_output=True, text=True, encoding="utf-8")
+p = os.path.join(t, "p")
+w(f"{p}/BRIEF.md", "# BRIEF\n")
+w(f"{p}/SCRIPT.md", """# SCRIPT：旁白稿
+
+<!-- 不是注释，而是要跳过的：这一行不算 -->
+
+| # | 段 | 旁白（定稿） | 实测 s |
+|---|---|---|---|
+| {h1} | {钩子} | {不是模板，而是占位} | {2.9} |
+| a1 | 开 | 低轨卫星的真正挑战，不是速度，而是时间。 | 3 |
+| a2 | 开 | 答案很简单：频率在变。 | 2 |
+| a3 | 承 | 它需要克服延迟、抖动、丢包和功耗。 | 2 |
+| a4 | 承 | 它要更快，它要更稳，它要更省。 | 2 |
+| a5 | 转 | 一个在过去十年里被无数工程师反复验证过却始终没能真正落地的想法，终于有了回音。 | 4 |
+| a6 | 转 | 回音藏在轨道里。 | 2 |
+| a7 | 合 | 是不是这样？要不是轨道已知，他说：“算不出来。”工程师说：先算再拨。 | 3 |
+| a8 | 合 | 这是我的电脑和他的手机，还有卫星、地面站。 | 3 |
+| 03 收尾：一句话 | | | |
+""")
+before = {f: os.stat(os.path.join(dp, f)).st_mtime_ns for dp, _, fs in os.walk(p) for f in fs}
+bad = []
+r = vh(p, "--json")
+j = None
+if r.returncode:
+    bad.append(f"exit {r.returncode} with hits: {r.stderr[-300:]}")
+else:
+    j = json.loads(r.stdout)
+if j:
+    got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"]}
+    want = {"not_but": [8], "colon_verdict": [9], "dun_triple": [10], "triple_parallel": [11], "long_attributive": [12], "chain_link": [13]}
+    if got != want:
+        bad.append(f"hits by line: {got}, wanted {want}")
+    if j["input"] != {"kind": "table", "column": "旁白（定稿）", "units": 8} or j["lang"] != "zh":
+        bad.append(f"what it read: {j['input']} {j['lang']}")
+    c = next(c for c in j["checks"] if c["id"] == "not_but")
+    if c["ratio"] != 3.4 or c["per_1000"] <= 0 or "不是速度，而是" not in c["hits"][0]["text"] or "3.4 times" not in c["reading"]:
+        bad.append(f"not_but's record: {c}")
+    if not any("metaphor" in x for x in j["not_checked"]):
+        bad.append(f"not_checked: {j['not_checked']}")
+after = {f: os.stat(os.path.join(dp, f)).st_mtime_ns for dp, _, fs in os.walk(p) for f in fs}
+if after != before:
+    bad.append("the project changed")
+w(f"{p}/STYLE.md", "# STYLE\n\n## 允许的句式\n\n- 不是……而是：立意就是这组反差\n- “它要更快，它要更稳，它要更省”：片尾故意的\n\n## Palette\n\n- 排比\n")
+j = json.loads(vh(p, "--json").stdout)
+c = {c["id"]: c for c in j["checks"]}
+if (c["not_but"]["count"], c["not_but"]["allowed"], c["not_but"]["hits"]) != (0, 1, []) or (c["triple_parallel"]["count"], c["triple_parallel"]["allowed"]) != (0, 1) \
+        or c["dun_triple"]["count"] != 1 or len(j["allowed_rules"]) != 2:
+    bad.append(f"STYLE.md's 允许的句式 (a name, a quoted sentence; a list under another heading is not one): {[(k, v['count'], v['allowed']) for k, v in c.items()]} {j['allowed_rules']}")
+j = json.loads(vh(p, "--json", "--all").stdout)
+if [h.get("allowed_by", "").endswith("STYLE.md") for h in next(c for c in j["checks"] if c["id"] == "not_but")["hits"]] != [True]:
+    bad.append("--all does not list the allowed hit with where it was allowed")
+txt = vh(p).stdout
+if "L9  答案很简单：频率在变" not in txt or "L8" in txt or "allowed by the style guide" not in txt or "not checked:" not in txt:
+    bad.append(f"the text report: {txt[:400]!r}")
+q = os.path.join(t, "q")   # no SCRIPT.md: what the voice reads
+w(f"{q}/audio/script.txt", "# a comment: 不是这个，而是那个\n@speakers A=Kore B=Puck\n@a [轻快，不是指示，而是语气] A: 先看这里。 || not this, but that\n@b 卫星飞过去了。 || 不是英文，而是中文\n@c 与其说是速度，不如说是时间。\n")
+j = json.loads(vh(q, "--json").stdout)
+got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"] if c["hits"]}
+if j["input"]["kind"] != "script" or j["input"]["units"] != 3 or got != {"not_but": [5]}:
+    bad.append(f"audio/script.txt as spoken: {j['input']} {got}")
+w(f"{t}/en.md", "# Notes\n\nIt is not speed, but time. The answer is simple: the frequency moves.\n")
+j = json.loads(vh(f"{t}/en.md", "--json").stdout)
+if j["lang"] != "en" or j["checks"] != []:
+    bad.append(f"English text: {j['lang']} {j['checks']}")
+# the review of the first version, a check each: the narration column first when both are there; every table of a script
+# kept a table a chapter; --col with spaces in the header; speakers and @pronounce as tts reads them; colons that are no
+# verdict; a quoted sentence allows only what lies inside it; an item with its note after a comma; one it cannot read is said
+r2 = os.path.join(t, "r2")
+w(f"{r2}/BRIEF.md", "# BRIEF\n")
+w(f"{r2}/SCRIPT.md", """# SCRIPT
+
+## 第一章
+
+| # | 旁白（定稿） | 字幕 |
+|---|---|---|
+| 1 | 时间：晚上八点。地点：老城区。 | 字幕不是这个，而是那个。 |
+| 2 | 他回忆：那年冬天很冷。先说结论：快：慢。 | 字幕 |
+
+## 第二章
+
+| # | 旁白 · 中文 | 画面 |
+|---|---|---|
+| 3 | 它让沟通更高效，让协作更顺畅，让创新更自由。 | x |
+| 4 | 他不是医生，他是一个画家。问题不在于速度，在于时间。 | x |
+| 5 | 中国科学院上海天文台射电天文研究团队的成员都来了，还有那只盒子。 | x |
+| 6 | 盒子里装着延迟、抖动、丢包和功耗。 | x |
+""")
+j = json.loads(vh(r2, "--json").stdout)
+got = {c["id"]: [(h["line"], h["text"]) for h in c["hits"]] for c in j["checks"] if c["hits"]}
+want = {"colon_verdict": [(8, "先说结论：快：慢")], "triple_parallel": [(14, "它让沟通更高效，让协作更顺畅，让创新更自由")],
+        "not_but": [(15, "不是医生，他是"), (15, "不在于速度，在于")], "dun_triple": [(17, "…装着延迟、抖动、丢包和功耗")], "chain_link": [(17, "盒子")]}
+if j["input"] != {"kind": "table", "column": "旁白（定稿） / 旁白 · 中文", "units": 6} or got != want:
+    bad.append(f"two tables, the narration column first: {j['input']} {got}")
+r = vh(f"{r2}/SCRIPT.md", "--col", "旁白 · 中文", "--json")
+if r.returncode or json.loads(r.stdout)["input"]["units"] != 4:
+    bad.append(f"--col with spaces in the header: exit {r.returncode} {r.stdout[:200]}")
+w(f"{r2}/STYLE.md", "## 允许的句式\n\n- “盒子里”：只放过这一处\n- 排比，片尾故意的\n- 这一条读不懂\n")
+j = json.loads(vh(r2, "--json").stdout)
+c = {c["id"]: c for c in j["checks"]}
+if (c["chain_link"]["allowed"], c["triple_parallel"]["count"], c["triple_parallel"]["allowed"], c["not_but"]["count"]) != (1, 0, 1, 2) \
+        or [u["item"] for u in j["allowed_unread"]] != ["这一条读不懂"]:
+    bad.append(f"allowances: {[(k, v['count'], v['allowed']) for k, v in c.items()]} unread {j['allowed_unread']}")
+w(f"{t}/r3/SCRIPT.md", "| # | 旁白 |\n|---|---|\n| 1 | 我们去了那只盒子。 |\n| 2 | 盒子里没有书。 |\n| 3 | 后来又找到一个盒子。 |\n| 4 | 盒子底下压着信。 |\n")
+w(f"{t}/r3/STYLE.md", "## 允许的句式\n\n- “盒子里没有书”\n")
+j = json.loads(vh(f"{t}/r3", "--json").stdout)
+c = next(c for c in j["checks"] if c["id"] == "chain_link")
+if (c["count"], c["allowed"], [h["line"] for h in c["hits"]]) != (1, 1, [6]):
+    bad.append(f"a quoted sentence allows only the hit inside it: {c['count']} {c['allowed']} {c['hits']}")
+s2 = os.path.join(t, "s2")
+w(f"{s2}/audio/script.txt", "@speakers 主持=Kore 嘉宾=Puck\n@pronounce 硖合/(xia2)(he2)\n@a [轻快] 主持：今天聊聊卫星。 || Host: satellites\n@b 嘉宾：[笑] 好啊，聊聊硖合。\n注意：这一句没有说话人，后面很长很长。\n")
+j = json.loads(vh(s2, "--json").stdout)
+got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"] if c["hits"]}
+if j["input"]["units"] != 3 or got:
+    bad.append(f"speakers declared in @speakers and @pronounce, as tts reads them: {j['input']} {got}")
+j = json.loads(vh(p, "--json").stdout)   # the first project: the long modifier shown to its 的, not into the noun
+la = next(c for c in j["checks"] if c["id"] == "long_attributive")["hits"]
+if [h["text"] for h in la] != ["在过去十年里被无数工程师反复验证过却始终没能真正落地的…"]:
+    bad.append(f"the long modifier's words: {la}")
+os.makedirs(os.path.join(t, "empty"))
+for args, rc in (([], 2), ([os.path.join(t, "nope.md")], 1), ([f"{p}/BRIEF.md", "--col", "旁白"], 1), ([os.path.join(t, "empty")], 1)):
+    r = vh(*args)
+    if r.returncode != rc or r.stdout:
+        bad.append(f"bin/vh words {' '.join(args)}: exit {r.returncode} (wanted {rc}), stdout {r.stdout[:80]!r}")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "words: each check on its line of a SCRIPT.md narration column (template rows, comments and a chapter's title row left out), what only looks like one quiet (labels, speech and quotation colons, names before 的); the narration column before the caption one, every table of a script, --col with spaces; STYLE.md's 允许的句式 allows by name (a note after a comma too) and by quoted sentence (only what lies inside it), an item it cannot read is said; audio/script.txt read as tts reads it (@speakers labels, @pronounce); English gets no counts; exit 0 with hits, nothing written; no text exits 1, a usage error 2"
+  else bad "bin/vh words"; fi
   rm -rf "$t"
 }
 
@@ -4441,6 +5322,48 @@ PY
      && grep -q "an error in this tool itself, not in the cast (ZeroDivisionError" <<<"$b"
   then ok "cast check: a cast.json of a shape it did not foresee fails that entry and says why (no traceback); a fault of the tool itself exits 3"
   else bad "cast check on a hand-written view (exit $rc:$rc2:$rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | head -c 200)"; fi
+  # cast frames: the settled cast over frames spread evenly through a film, one picture (pillow through uv); the entries
+  # named or every character, costume and prop; an unknown id or a film with no cast pictures is bad usage
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "cast frames" "needs uv and ffmpeg"
+  else
+    q="$t/cf"; mkdir -p "$q"; printf '# BRIEF\n' > "$q/BRIEF.md"
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x3C50C8:s=320x180:d=4:r=24" -pix_fmt yuv420p "$q/film.mp4"
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0xC83C3C:s=100x100" -frames:v 1 "$t/red.png"
+    vh cast add "$q" hero --kind character --name h --ref "$t/red.png=front" --source t --license own >/dev/null
+    vh cast add "$q" hall --kind set --name s --ref "$t/red.png=front" --source t --license own >/dev/null
+    a=$(vh cast frames "$q" film.mp4 --n 8 --json 2>&1); rc=$?
+    b=$(vh cast frames "$q" film.mp4 --id hall --n 4 --out "$t/hall.png" 2>&1); rc2=$?
+    vh cast frames "$q" film.mp4 --id owl >/dev/null 2>&1; rc3=$?
+    mkdir -p "$t/cf2"; printf '# BRIEF\n' > "$t/cf2/BRIEF.md"; vh cast frames "$t/cf2" "$q/film.mp4" >/dev/null 2>&1; rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = 0:0:2:2 ] && [ -s "$t/hall.png" ] && uv run -q --no-project --with pillow python - "$a" <<'PY'
+import json, sys
+from PIL import Image
+d = json.loads(sys.argv[1])
+im = Image.open(d["out"]).convert("RGB")
+ok = [r["label"] for r in d["refs"]] == ["hero · front"] and len(d["times"]) == 8 and abs(d["times"][0] - 0.25) < 1e-6 and abs(d["times"][-1] - 3.75) < 1e-6
+ok = ok and "/out/check/cast-film-" in d["out"] and im.size[0] == 1600   # 4 columns of 400 px
+r, b = im.getpixel((200, 90)), im.getpixel((200, im.size[1] - 40))   # the reference on top (red), a frame at the bottom (blue)
+ok = ok and r[0] > r[2] + 60 and b[2] > b[0] + 60
+sys.exit(0 if ok else f"{d['refs']} {d['times']} {im.size} top {r} bottom {b}")
+PY
+    then ok "cast frames: the cast's pictures on top (a set only when named), frames spread evenly below at the middle of each share, in the project's out/check; an unknown id or no cast picture is bad usage"
+    else bad "cast frames ($rc:$rc2:$rc3:$rc4): $(printf '%s' "$a" | tail -c 300) | $b"; fi
+    # a cutout whose transparent pixels still hold the chroma green it was keyed from is laid on grey, not shown green;
+    # the video's path in --json is absolute, as project and out are
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x00ff00@0.0:s=100x100,format=rgba" -frames:v 1 "$t/clear.png"
+    vh cast add "$q" ghost --kind prop --name g --ref "$t/clear.png=front" --source t --license own >/dev/null
+    a=$(cd "$q" && vh cast frames . film.mp4 --id ghost --n 4 --json 2>&1); rc=$?
+    if [ "$rc" = 0 ] && uv run -q --no-project --with pillow python - "$a" <<'PY'
+import json, sys
+from PIL import Image
+d = json.loads(sys.argv[1])
+px = Image.open(d["out"]).convert("RGB").getpixel((200, 90))   # the middle of the reference tile
+ok = d["video"].startswith("/") and d["project"].startswith("/") and max(px) - min(px) <= 6 and 100 <= px[1] <= 160
+sys.exit(0 if ok else f"video {d['video']}, reference tile {px}")
+PY
+    then ok "cast frames: a transparent reference laid on grey, not on the green kept in its clear pixels; --json's paths all absolute"
+    else bad "cast frames on a transparent reference ($rc): $(printf '%s' "$a" | tail -c 300)"; fi
+  fi
   rm -rf "$t"
 }
 
@@ -4643,6 +5566,259 @@ PY
   rm -rf "$t"
 }
 
+digest_checks() {   # bin/vh ref digest and look (tools/scout/digest.py) on a made-up 150 s video: its subtitles read into a
+  # timed transcript in chunks, each cached; the lines an agent added kept across runs; frames of picked spans; a stand-in
+  # transcriber (OVH_DIGEST_ASR) failing one chunk, the next run redoing only that one, a run killed mid-chunk going on;
+  # a missing Whisper model refused, never fetched; --lang choosing a track beside or inside a file; frames at a video's
+  # end; a URL's automatic captions through a stand-in yt-dlp (OVH_YTDLP) that refuses a call allowing cookies, a
+  # translation refused, a span fetched alone and cut at its second, --video not invalidating a transcription; a
+  # Bilibili part of its own. No network, no model
+  local t p F=tools/scout/fixtures/responses a b c d e rc rc2 rc3 rc4 rc5 tr
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if ! command -v ffmpeg >/dev/null 2>&1; then skip "ref digest and look" "no ffmpeg"; rm -rf "$t"; return; fi
+  OVH_PROJECTS="$t" vh new short digest >/dev/null 2>&1; p=$(ls -d "$t"/*-digest); tr="$p/research/digest/talk/transcript.md"
+  ffmpeg -v error -f lavfi -i "testsrc2=s=320x180:r=10:d=150" -f lavfi -i "sine=f=440:d=150" -c:v libx264 -preset ultrafast -g 10 -c:a aac -shortest "$p/talk.mp4"
+  python3 - "$p/talk.srt" "$t/rolling.vtt" <<'PY'
+import sys
+ts = lambda t, sep: f"{int(t // 3600):02d}:{int(t // 60 % 60):02d}:{int(t % 60):02d}{sep}{int(round(t % 1 * 1000)):03d}"
+said = ["我们先从一个问题开始。", "为什么天空是蓝的？", "光在大气里会散射。", "短波长的蓝光散得更多。", "所以白天看上去是蓝色。", "傍晚光走的路更长。"]
+open(sys.argv[1], "w", encoding="utf-8").write("\n".join(f"{i + 1}\n{ts(i * 5 + 0.5, ',')} --> {ts(i * 5 + 3.7, ',')}\n{said[i % 6]}\n" for i in range(30)))
+# a rolling automatic caption as YouTube writes one: each cue repeats the line before it, with word timings in tags
+cues, prev = ["WEBVTT", "Kind: captions", "Language: en", ""], " "
+for i in range(30):
+    new = f"line {i} of the talk"
+    tagged = new.replace(" ", f"<{ts(i * 5 + 1, '.')}><c> ", 1) + "</c>"
+    cues += [f"{ts(i * 5, '.')} --> {ts(i * 5 + 4.99, '.')} align:start position:0%", prev, tagged, "",
+             f"{ts(i * 5 + 4.99, '.')} --> {ts(i * 5 + 5, '.')} align:start position:0%", new, " ", ""]
+    prev = new
+open(sys.argv[2], "w", encoding="utf-8").write("\n".join(cues))
+PY
+  # 1 · the subtitles beside the file, three chunks of 60 s; then lines of the agent's own, a run again from the cache
+  a=$(vh ref digest "$p" talk.mp4 --chunk 60 2>&1); rc=$?
+  python3 - "$tr" <<'PY'
+import sys
+f = sys.argv[1]; s = open(f, encoding="utf-8").read()
+s = s.replace("## 2 · 01:00–02:00\n\n", "## 2 · 01:00–02:00\n\n- [01:20] **画面** 彩条测试图，右下角一个计时器\n  右上角的字跟着动\n- [00:50](x) **屏幕字** 「TEST」\n- [01:05] **口播** 一行冒充工具的口播，下一次运行就不在了\n", 1)
+s = s.replace("\n\n## 3 · ", "\n本段要点：散射让天空变蓝（没有标签的一行）\n\n## 3 · ", 1)
+s = s.replace("\n\n## 1 · ", "\n\n一句话：这支讲天空为什么是蓝的\n- 注意：我自己记的一条\n# 我的笔记标题\n\n## 1 · ", 1)
+s = s.replace("\n\n## 2 · ", "\n## 我的小结：开场\n\n## 2 · ", 1)
+open(f, "w", encoding="utf-8").write(s)
+PY
+  b=$(vh ref digest "$p" talk --chunk 60 2>&1); rc2=$?
+  c=$(vh ref look "$p" talk 1:10-1:30,140-150 2>&1); rc3=$?
+  d=$(vh ref look "$p" nosuch 0-10 2>&1; vh ref look "$p" talk 200-210 2>&1; vh ref list "$p" 2>&1); rc4=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && python3 - "$p" <<'PY'
+import json, re, sys
+from pathlib import Path
+p = Path(sys.argv[1]); d = p / "research/digest/talk"
+plan, said = json.loads((d / "plan.json").read_text(encoding="utf-8")), json.loads((d / "said.json").read_text(encoding="utf-8"))
+tr = (d / "transcript.md").read_text(encoding="utf-8")
+refs = json.loads((p / "research/refs.json").read_text(encoding="utf-8"))
+ok = [r["id"] for r in refs["assets"]] == ["talk"] and plan["chunks"] == [[0.0, 60], [60, 120], [120, 150.0]]
+ok = ok and len(said["cues"]) == 30 and said["cues"][0] == {"start": 0.5, "end": 3.7, "text": "我们先从一个问题开始。"}
+ok = ok and sorted(x.name for x in (d / "chunks").iterdir()) == ["001.json", "002.json", "003.json"]
+heads = re.findall(r"(?m)^## .*$", tr)
+ok = ok and heads == ["## 1 · 00:00–01:00", "## 我的小结：开场", "## 2 · 01:00–02:00", "## 3 · 02:00–02:30"]   # a heading of one's own kept
+ok = ok and "- [00:00](../../../talk.mp4#t=0) **口播** 我们先从一个问题开始。为什么天空是蓝的？光在大气里会散射。" in tr   # CJK joined with no space
+ok = ok and tr.count("冒充") == 1 and tr.count("**画面** 彩条") == 1 and "  右上角的字跟着动" in tr   # a said line by hand kept
+for mine in ("一句话：这支讲", "- 注意：我自己记的一条", "# 我的笔记标题"):   # head lines, the tool's prefixes or not
+    ok = ok and tr.count(mine) == 1 and tr.index(mine) < tr.index("## 1 ·")
+ok = ok and bool(plan["written"]) and bool(plan["head"]) and "- 注意：我自己记的一条" not in plan["head"]
+ok = ok and tr.count("本段要点：散射") == 1 and tr.index("[01:45]") < tr.index("本段要点：散射") < tr.index("## 3 ·")   # after the line it followed
+ok = ok and tr.count("一句话：这支讲") == 1 and tr.index("一句话：这支讲") < tr.index("## 1 ·")   # the head keeps it
+sec2 = tr.split("## 2 ·")[1].split("## 3 ·")[0]; sec1 = tr.split("## 2 ·")[0]
+ok = ok and "**屏幕字** 「TEST」" in sec1 and "彩条测试图" in sec2
+lines = sec2.splitlines()
+at = lambda s: next(i for i, l in enumerate(lines) if s in l)
+ok = ok and at("[01:00]") < at("**看帧**") < at("[01:15]") < at("**画面**") < at("[01:30]")   # sorted by time
+ok = ok and "[01:10–01:30](../../../talk.mp4#t=70) **看帧** 25 帧，每 0.8 s · [联系表](look/00070-00090/sheet.jpg)" in tr
+lk = d / "look/00070-00090"
+frames = sorted(x.name for x in lk.glob("t*.jpg"))
+ok = ok and len(frames) == 25 and frames[0] == "t00070.40.jpg" and (lk / "sheet.jpg").stat().st_size > 0
+ok = ok and json.loads((lk / "captions.json").read_text(encoding="utf-8"))["t00070.40.jpg"] == "01:10.4"
+ok = ok and len(list((d / "look/00140-00150").glob("t*.jpg"))) == 20
+ok = ok and [x["dir"] for x in plan["looks"]] == ["look/00070-00090", "look/00140-00150"]
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$b|$d" in *"✓ talk · video"*"3 chunks (3 made, 0 from the cache)"*"文件旁边的字幕（talk.srt）"*"|"*"3 chunks (0 made, 3 from the cache)"*"6 of yours kept"*"1 line tagged 口播 or 看帧 the tool did not write"*"|"*"no transcript for nosuch"*"past the video's end (02:30)"*"transcript: research/digest/talk/transcript.md"*)
+      ok "ref digest and look: subtitles beside a file read into three 60 s chunks, the said lines timed and linked; the agent's own lines (with an indented line) kept and sorted by time across runs, a said line added by hand kept and said; an untagged line kept after the line it followed, a heading of its own kept, head lines kept even with the tool's prefixes; frames of two spans named by source second, a sheet, a 看帧 line; look without a transcript or past the end refused" ;;
+    *) bad "ref digest and look, their lines: $(printf '%s' "$a$b$d" | tail -c 700)" ;; esac
+  else bad "ref digest and look (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+  # the subtitles changed: every chunk made again from them, the agent's lines kept
+  python3 -c 'import sys; f = sys.argv[1]; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("我们先从一个问题开始。", "我们先从这个问题开始。", 1))' "$p/talk.srt"
+  a=$(vh ref digest "$p" talk --chunk 60 2>&1); rc=$?
+  if [ "$rc" = 0 ] && grep -qF '我们先从这个问题开始。为什么' "$tr" && grep -q '彩条测试图' "$tr" && case "$a" in *"(3 made, 0 from the cache)"*) true ;; *) false ;; esac
+  then ok "ref digest: subtitles changed on disk make every chunk again (the cache is under their sha256), the agent's lines kept"
+  else bad "ref digest after the subtitles changed (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
+  # 2 · a stand-in transcriber: chunk 2 fails once; the next run redoes it alone; --redo 1 redoes chunk 1; repeated lines said
+  cat > "$t/asr.py" <<'PY'
+import json, os, sys
+from pathlib import Path
+wav = Path(sys.argv[1]); log = Path(os.environ["FAKE_ASR_LOG"])
+with log.open("a") as f:
+    f.write(wav.name + "\n")
+if wav.name == "002.wav" and os.environ.get("FAKE_KILL"):   # the run killed while it transcribes chunk 2
+    os.kill(os.getppid(), 9)
+if wav.name == "002.wav" and not log.with_suffix(".failed").exists():
+    log.with_suffix(".failed").write_text("x"); print("the model ran out of memory", file=sys.stderr); sys.exit(3)
+print(json.dumps({"segments": [{"start": 1.0, "end": 4.0, "text": f"chunk {wav.stem} begins."}] + [{"start": 20.0 + k, "end": 20.9 + k, "text": "Thank you."} for k in range(3)]}))
+PY
+  a=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --labels en 2>&1); rc=$?
+  b=$(grep -c . "$t/asr.log"; grep -F -- "**said** (not read" "$tr"; ls "$p/research/digest/talk/chunks"); rc2=$?
+  c=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr 2>&1); rc3=$?
+  d=$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --redo 1 2>&1); rc4=$?
+  OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" FAKE_KILL=1 vh ref digest "$p" talk --chunk 60 --from asr --lang en >/dev/null 2>&1; rc5=$?   # a new key: every chunk to make
+  d=$d$(OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" talk --chunk 60 --from asr --lang en 2>&1); rc4=$rc4:$?:$rc5
+  e=$(tr '\n' ' ' < "$t/asr.log")
+  case "$rc:$rc3:$rc4|$a|$b|$c|$d|$e" in "1:0:0:0:137|"*"✗ chunk 2: the transcription failed: the model ran out of memory"*"chunks 2 failed"*"|3"*"**said** (not read: the transcription failed"*"002.err"*"|"*"(1 made, 2 from the cache)"*"repeated three or more times"*"1: 1, 2: 1, 3: 1"*"|"*"(1 made, 2 from the cache)"*"(2 made, 1 from the cache)"*"|001.wav 002.wav 003.wav 002.wav 001.wav 001.wav 002.wav 002.wav 003.wav ")
+      if grep -q '彩条测试图' "$tr" && grep -qF -- '**said** chunk 002 begins.' "$tr" && [ ! -e "$p/research/digest/talk/chunks/002.err" ] && [ ! -e "$p/research/digest/talk/chunks/001.wav" ] && [ ! -e "$p/research/digest/talk/chunks/002.wav" ]
+      then ok "ref digest --from asr: chunk 2 failed and said so (exit 1, the others kept), the next run redid chunk 2 alone, --redo 1 chunk 1 alone; a run killed while it transcribed chunk 2 went on from there (chunk 1 kept from the killed run, 2 and 3 made, no WAV left); repeated lines counted and said; --labels en kept for later runs; the agent's lines kept"
+      else bad "ref digest --from asr: the transcript after the runs: $(tail -c 600 "$tr")"; fi ;;
+    *) bad "ref digest --from asr (exits $rc:$rc3:$rc4, want 1:0:0:0:137): $(printf '%s' "$a$b$c$d|$e" | tail -c 900)" ;; esac
+  a=$(vh ref digest "$p" talk --subs "$p/talk.srt" --from asr 2>&1); rc=$?
+  case "$rc|$a" in "2|"*"--subs and --from asr ask for opposite things"*) ok "ref digest: --subs with --from asr is a usage error, not one of them quietly winning" ;;
+    *) bad "ref digest --subs with --from asr (exit $rc, want 2): $a" ;; esac
+  # 3 · no subtitles and no model: refused before anything runs, nothing fetched; --from subs never transcribes; a subtitle
+  # track inside the file is read
+  ffmpeg -v error -f lavfi -i "testsrc2=s=160x90:r=5:d=20" -f lavfi -i "sine=f=330:d=20" -c:v libx264 -preset ultrafast -c:a aac -shortest "$p/bare.mp4"
+  ffmpeg -v error -i "$p/bare.mp4" -i "$p/talk.srt" -map 0 -map 1 -c copy -c:s mov_text "$p/inside.mp4"
+  mkdir -p "$t/hf"
+  a=$(unset OVH_DIGEST_ASR; HF_HOME="$t/hf" HF_HUB_CACHE="$t/hf/hub" WHISPER_MODEL=mlx-community/whisper-large-v3-turbo vh ref digest "$p" bare.mp4 2>&1); rc=$?
+  b=$(vh ref digest "$p" bare --from subs 2>&1); rc2=$?
+  c=$(vh ref digest "$p" inside.mp4 2>&1); rc3=$?
+  case "$rc:$rc2:$rc3|$a|$b|$c" in "1:1:0|"*"no subtitles, and no transcription here"*"--subs"*"|"*"--from subs never transcribes"*"|"*"文件自带的字幕轨"*)
+      if [ ! -e "$t/hf/hub/models--mlx-community--whisper-large-v3-turbo" ] && [ "$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["cues"]))' "$p/research/digest/inside/said.json")" = 30 ]
+      then ok "ref digest: no subtitles and no Whisper model refused with what is missing (nothing downloaded); --from subs never transcribes; a subtitle track inside the file read"
+      else bad "ref digest: a model folder was made, or the track inside was not read"; fi ;;
+    *) bad "ref digest without subtitles (exits $rc:$rc2:$rc3, want 1:1:0): $(printf '%s' "$a|$b|$c" | tail -c 700)" ;; esac
+  cp "$p/bare.mp4" "$p/lang.mp4"; printf '1\n00:00:01,000 --> 00:00:02,000\nplain track\n' > "$p/lang.srt"; printf '1\n00:00:01,000 --> 00:00:02,000\n中文那一轨\n' > "$p/lang.zh-Hans.srt"
+  printf '1\n00:00:01,000 --> 00:00:02,000\nthe English track\n' > "$t/en.srt"; printf '1\n00:00:01,000 --> 00:00:02,000\n嵌在里面的中文轨\n' > "$t/zh.srt"
+  ffmpeg -v error -i "$p/bare.mp4" -i "$t/en.srt" -i "$t/zh.srt" -map 0 -map 1 -map 2 -c copy -c:s mov_text -metadata:s:s:0 language=eng -metadata:s:s:1 language=chi "$p/two.mp4"
+  ffmpeg -v error -f lavfi -i "testsrc2=s=160x90:r=2:d=20" -f lavfi -i "sine=f=330:d=23" -c:v libx264 -preset ultrafast -c:a aac "$p/slides.mp4"   # 2 fps, the sound 3 s longer
+  printf '1\n00:00:01,000 --> 00:00:03,000\nslide one\n\n2\n00:00:21,000 --> 00:00:22,500\nthe end\n' > "$p/slides.srt"
+  a=$(vh ref digest "$p" lang.mp4 --lang zh 2>&1; vh ref digest "$p" lang 2>&1); rc=$?
+  b=$(vh ref digest "$p" two.mp4 --lang zh 2>&1; grep -c '嵌在里面的中文轨' "$p/research/digest/two/transcript.md"); rc2=$?
+  vh ref digest "$p" slides.mp4 >/dev/null 2>&1
+  c=$(vh ref look "$p" slides 18-23 --every 0.2 2>&1; vh ref look "$p" slides 19.9-20.5 2>&1); rc3=$?
+  d=$(vh ref look "$p" slides 22.1-23 2>&1); rc4=$?
+  e=$(cd "$p/research/digest/slides/look" && echo 00018-00023/t*.jpg 00019-00021/t*.jpg; [ -e 00022-00023 ] && echo "an empty folder left")
+  case "$rc:$rc2:$rc3:$rc4|$a|$b|$c|$d|$e" in "0:0:0:1|"*"文件旁边的字幕（lang.zh-Hans.srt）"*"文件旁边的字幕（lang.srt）"*"|"*"文件自带的字幕轨（chi）"*"1|"*"8 frames every 0.2 s"*"1 frame every"*"|"*"no picture in this span: the video's last frame is at 00:19.5"*"|00018-00023/t00018.10.jpg"*"00018-00023/t00019.50.jpg 00019-00021/t00019.50.jpg")
+      ok "ref digest --lang: the zh subtitles beside a file over its plain .srt (zh-Hans counts), the plain one without --lang; the track inside tagged chi over the first; ref look at a video's end: frames no later than the last one (2 fps, a longer sound), a span just after it takes that frame at its time, one well after it has no picture (exit 1, no empty folder)" ;;
+    *) bad "ref digest --lang and look at the end (exits $rc:$rc2:$rc3:$rc4, want 0:0:0:1): $(printf '%s' "$a|$b|$c|$d|$e" | tail -c 900)" ;; esac
+  # 4 · a URL (a YouTube video recorded from fixtures) through a stand-in yt-dlp: the automatic captions in the spoken
+  # language, the rolling lines read once; a translation refused; a span downloaded alone, its frame the original's
+  cp "$t/rolling.vtt" "$t/track.vtt"
+  cat > "$t/ytdlp.py" <<'PY'
+import json, os, re, shutil, subprocess, sys
+a = sys.argv[1:]; t = os.environ["FAKE_DIR"]
+out = a[a.index("-o") + 1] if "-o" in a else None
+open(f"{t}/ytdlp.log", "a").write(" ".join(a) + "\n")
+if "--no-cookies" not in a or "--no-cookies-from-browser" not in a or a[-2] != "--":
+    sys.exit("ERROR: called without --no-cookies --no-cookies-from-browser, or the URL not after --")
+if "-J" in a:
+    print(json.dumps({"id": "AAAAAAAAAA1", "title": "The Doppler effect, slowed down", "duration": 150, "language": "en", "subtitles": {"danmaku": [{"ext": "xml"}]},
+                      "automatic_captions": {"en-orig": [{"ext": "vtt"}], "en": [{"ext": "vtt"}], "zh-Hans": [{"ext": "vtt"}]}}))
+elif "--skip-download" in a:
+    lang = a[a.index("--sub-langs") + 1]
+    shutil.copy(f"{t}/track.vtt", out.replace("%(ext)s", f"{lang}.vtt"))
+elif "--download-sections" in a:
+    x, y = re.fullmatch(r"\*([\d.]+)-([\d.]+)", a[a.index("--download-sections") + 1]).groups()
+    open(f"{t}/sections.log", "a").write(f"{x}-{y}\n")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", x, "-to", y, "-i", f"{t}/talk.mp4", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-an", out.replace("%(ext)s", "mp4")], check=True)
+elif "-f" in a and "/audio." in out:
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", f"{t}/talk.mp4", "-vn", "-c:a", "copy", out.replace("%(ext)s", "m4a")], check=True)
+elif "-f" in a and "/video." in out:
+    shutil.copy(f"{t}/talk.mp4", out.replace("%(ext)s", "mp4"))
+else:
+    sys.exit("the stand-in yt-dlp got: " + " ".join(a))
+PY
+  cp "$p/talk.mp4" "$t/talk.mp4"
+  vh ref add "$p" "https://www.youtube.com/watch?v=AAAAAAAAAA1" --offline "$F" >/dev/null 2>&1
+  a=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 --from subs 2>&1); rc=$?
+  b=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 --from subs --lang zh 2>&1); rc2=$?
+  c=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref look "$p" yt-AAAAAAAAAA1 75-80 --every 1 2>&1); rc3=$?
+  c=$c$(OVH_YTDLP=false vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 2>&1); rc4=$?   # a run again needs no yt-dlp
+  d=$(cat "$t/sections.log" 2>&1)
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:1:0:0 ] && [ "$d" = 75.000-80.000 ]; then
+    ffmpeg -v error -y -ss 77.5 -i "$t/talk.mp4" -frames:v 1 -q:v 3 "$t/direct.jpg"
+    e=$(ffmpeg -i "$p/research/digest/yt-AAAAAAAAAA1/look/00075-00080/t00077.50.jpg" -i "$t/direct.jpg" -lavfi psnr -f null - 2>&1 | sed -n 's/.*average:\([0-9.inf]*\).*/\1/p')
+  fi
+  case "$rc:$rc2:$rc3:$rc4|$a|$b|$c" in "0:1:0:0|"*"平台的自动字幕（en-orig，yt-dlp）"*"这份字幕是机器转写的"*"|"*"machine translation of the en speech"*"|"*"5 frames every 1 s"*"(0 made, 3 from the cache)"*)
+      if python3 - "$p/research/digest/yt-AAAAAAAAAA1" "${e:-0}" <<'PY'
+import json, sys
+from pathlib import Path
+d = Path(sys.argv[1]); said = json.loads((d / "said.json").read_text(encoding="utf-8"))["cues"]
+tr = (d / "transcript.md").read_text(encoding="utf-8")
+ok = [c["text"] for c in said] == [f"line {i} of the talk" for i in range(30)]
+ok = ok and "- [00:00](https://www.youtube.com/watch?v=AAAAAAAAAA1&t=0s) **口播** line 0 of the talk line 1 of the talk" in tr
+ok = ok and "](https://www.youtube.com/watch?v=AAAAAAAAAA1&t=75s) **看帧** 5 帧" in tr
+psnr = sys.argv[2]
+ok = ok and (psnr == "inf" or float(psnr) > 30)
+sys.exit(0 if ok else 1)
+PY
+      then ok "ref digest on a URL: the automatic captions in the spoken language, each rolling line once, linked to YouTube's ?t=; the zh auto captions refused as a translation; look fetched the span alone and its frame matches the original at that second (PSNR ${e:-?}); a run again calls no yt-dlp"
+        a=$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" vh ref look "$p" yt-AAAAAAAAAA1 75.5-80 --every 9 2>&1); rc=$?
+        b=$(set -- "$p"/research/digest/yt-AAAAAAAAAA1/look/00075-00080/t*.jpg; echo $#); c=$(tr '\n' ' ' < "$t/sections.log")
+        if [ "$rc|$b|$c" = "0|1|75.000-80.000 75.500-80.000 " ]; then ok "ref look: the same folder from another start fetched its span again, not the one cached; --every over the span gave one frame inside it"
+        else bad "ref look from another start (exit $rc, $b frames, sections $c): $a"; fi
+        # transcribed: the audio alone; then --video (the video fetched, the sound's transcription kept); then without again
+        : > "$t/asr.log"; a=""
+        for v in "" --video ""; do
+          a=$a$(OVH_YTDLP="python3 $t/ytdlp.py" FAKE_DIR="$t" OVH_DIGEST_ASR="python3 $t/asr.py" FAKE_ASR_LOG="$t/asr.log" vh ref digest "$p" yt-AAAAAAAAAA1 --chunk 60 --from asr $v 2>&1) || a="$a (exit $?)"
+        done
+        b=$(grep -c . "$t/asr.log"); c=$(cd "$p/research/digest/yt-AAAAAAAAAA1/media" && echo *)
+        case "$b|$c|$a" in "3|audio.m4a video.mp4|"*"(3 made, 0 from the cache)"*"(0 made, 3 from the cache)"*"(0 made, 3 from the cache)"*)
+            ok "ref digest --from asr on a URL: the audio alone fetched and transcribed; a run with --video fetched the video and transcribed nothing again, nor did the run after it (the cache names the source, not the file carrying it); every yt-dlp call with --no-cookies --no-cookies-from-browser and the URL after --" ;;
+          *) bad "ref digest --video and the cache ($b transcriptions, want 3; media: $c): $(printf '%s' "$a" | tail -c 700)" ;; esac
+      else bad "ref digest on a URL: the cues, the links or the span's frame (PSNR ${e:-none}): $(tail -c 500 "$p/research/digest/yt-AAAAAAAAAA1/transcript.md")"; fi ;;
+    *) bad "ref digest on a URL (exits $rc:$rc2:$rc3:$rc4, want 0:1:0:0; sections $d): $(printf '%s' "$a|$b|$c" | tail -c 900)" ;; esac
+  # a Bilibili part past the first: a transcript of its own under the one reference, its links keeping the part
+  vh ref add "$p" https://www.bilibili.com/video/BV1Ab4y1C7De --offline "$F" >/dev/null 2>&1
+  a=$(vh ref digest "$p" "https://www.bilibili.com/video/BV1Ab4y1C7De?p=2" --subs "$p/talk.srt" 2>&1; vh ref digest "$p" bili-BV1Ab4y1C7De-p2 --subs "$p/talk.srt" 2>&1); rc=$?
+  b=$(python3 -c 'import json, sys; print(sum(1 for r in json.load(open(sys.argv[1]))["assets"] if r["id"].startswith("bili-")))' "$p/research/refs.json")
+  if [ "$rc|$b" = "0|1" ] && grep -qF '](https://www.bilibili.com/video/BV1Ab4y1C7De?p=2&t=0) **口播**' "$p/research/digest/bili-BV1Ab4y1C7De-p2/transcript.md" && [ ! -e "$p/research/digest/bili-BV1Ab4y1C7De" ]
+  then ok "ref digest on a Bilibili part (?p=2): its own transcript (bili-BV…-p2) under the one reference, its links keeping p=2; the transcript's id finds it again"
+  else bad "ref digest on a Bilibili part (exit $rc, $b bili records): $(printf '%s' "$a" | tail -c 600)"; fi
+  # 5 · the pieces: a Whisper chunk's end moves to the longest pause within 30 s of its mark
+  if python3 -c '
+import sys; sys.path.insert(0, "tools/scout"); import digest
+b = digest.bounds(1500, 600, [(590.0, 592.0), (600.5, 601.0), (1195.0, 1199.0)])
+sys.exit(0 if b == [(0.0, 591.0), (591.0, 1197.0), (1197.0, 1500)] and digest.bounds(630, 600) == [(0.0, 630)] else 1)'
+  then ok "ref digest's chunks: a mark moves to the longest pause near it; a tail under a quarter chunk joins the last"
+    if python3 -c '
+import sys; sys.path.insert(0, "tools/scout"); import digest
+P = lambda info, lang=None: (lambda r: (r[0], r[1], bool(r[2])))(digest.pick_track(info, lang))
+ok = P({"language": "en-US", "subtitles": {"en": [], "fr": []}}) == ("subtitles", "en", False)        # en-US is en
+ok = ok and P({"language": "en", "subtitles": {"en": [], "zh-Hans": []}}, "zh") == ("subtitles", "zh-Hans", True)   # a translation, marked
+ok = ok and P({"language": "en", "subtitles": {"en": []}}, "zh") == ("subtitles", "en", True)       # no zh: the words as spoken
+ok = ok and P({"subtitles": {"danmaku": [], "ai-zh": []}}) == ("ai", "ai-zh", True)                # Bilibili AI subtitles: machine
+ok = ok and P({"language": "en", "automatic_captions": ["en-orig", "en", "zh-Hans"]}) == ("automatic", "en-orig", True)
+ok = ok and P({"language": "en", "automatic_captions": ["en-orig", "zh-Hans"]}, "zh")[0] is None    # a machine translation refused
+ok = ok and "danmaku" in digest.pick_track({"subtitles": {"danmaku": []}}, None)[2]
+sys.exit(0 if ok else 1)'
+    then ok "ref digest's track choice: en-US takes en, a translation is marked, Bilibili's AI subtitles count as machine-made, automatic captions only in the spoken language"
+    else bad "ref digest's track choice (tools/scout/digest.py pick_track)"; fi
+    if a=$(python3 -c '
+import sys, tempfile; from pathlib import Path; sys.path.insert(0, "tools/scout"); import digest
+T = lambda s: [c["text"] for c in digest.parse_subs(s)]
+cue = lambda i, a, b, *lines: f"{i}\n00:00:0{a},000 --> 00:00:0{b},000\n" + "\n".join(lines) + "\n"
+bad = []
+if T("\n".join([cue(1, 1, 3, "A"), cue(2, 3, 5, "A", "B"), cue(3, 5, 7, "B", "C")])) != ["A", "B", "C"]: bad.append("two-line rolling SRT")
+if T("\n".join([cue(1, 1, 2, "Yes."), cue(2, 2, 3, "Yes.")])) != ["Yes.", "Yes."]: bad.append("a line said twice")
+if T("\n".join([cue(1, 1, 2, "the arrow --> points right", "and on"), cue(2, 3, 4, "next")])) != ["the arrow --> points right", "and on", "next"]: bad.append("--> in the words")
+if [digest.stamp(x, frac=True) for x in (750.95, 750.04, 3600.96)] != ["12:31", "12:30", "1:00:01"]: bad.append("stamps")
+c = lambda i, s: {"start": i * 2.0, "end": i * 2 + 1.9, "text": s}
+j = digest.paragraphs([c(0, "第1个问题"), c(1, "今天我们来聊一聊"), c(2, "好。"), c(3, "下一句"), c(4, "「引号」")])[0]["text"]
+if j != "第1个问题 今天我们来聊一聊 好。下一句「引号」": bad.append(f"unpunctuated Chinese cues joined: {j}")
+d = Path(tempfile.mkdtemp()); r = digest.silences(d / "nothing.wav", d, "k")
+if r[0] != [] or not r[1] or (d / "silences.json").exists(): bad.append(f"a failed silence search cached: {r}")
+print("; ".join(bad)); sys.exit(1 if bad else 0)' 2>&1)
+    then ok "ref digest's subtitles: two-line rolling cues in SRT read once each, a line said twice kept twice, a --> among the words kept; unpunctuated Chinese cues joined with a space at each edge, punctuated ones as they are; a stamp rounded to the tenth (750.95 is 12:31); a failed search for pauses said, not cached"
+    else bad "ref digest's subtitle parsing, stamps or pauses: $a"; fi
+  else bad "ref digest's chunk bounds: $(python3 -c 'import sys; sys.path.insert(0, "tools/scout"); import digest; print(digest.bounds(1500, 600, [(590.0, 592.0), (600.5, 601.0), (1195.0, 1199.0)]), digest.bounds(630, 600))' 2>&1)"; fi
+  rm -rf "$t"
+}
+
 hf_checks() {   # bin/vh hf (tools/hf.py): HyperFrames' registry at the pin's tag, from a synthetic registry recorded under
   # the tag v0.0.0-ci (tools/assets/fixtures/hf-registry; HYPERFRAMES_VERSION points the tool there), no network
   local t p F a b c rc rc2 rc3
@@ -4799,6 +5975,10 @@ const T = await import("./components/page-turn/component.js"); await run("page-t
 const F = await import("./components/paper-transition/component.js"); await run("fold", (t) => F.state({}, t / 5)); await run("blot", (t) => F.state({ variant: "blot" }, t / 5));
 const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
 const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
+const FF = await import("./components/film-finish/component.js"); await run("film-finish", (t) => FF.state({ haze: 0.3 }, t));
+// film-finish: new grain every frame by default; with grainFps 15 on the 30 fps timeline, the same for two frames
+const g = (t, p = {}) => FF.state(p, t).grainSeed, h = { grainFps: 15 };
+if (g(0) === g(1 / 30) || g(0, h) !== g(1 / 30, h) || g(0, h) === g(2 / 30, h) || g(0) === g(0, { seed: 12 }) || FF.state({ amount: 0 }, 1).amount !== 0) bad.push("film-finish: its grain step");
 const B = await import("./components/build-up/component.js"), cube = (x, y, z) => ({ x, y, z, w: 1, h: 1, d: 1 });
 const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1, 1.5, 1)], order: "height", bucket: 1, stagger: 0.7, jitter: 0.3, appear: "rise" },
   { pieces: [cube(0, 0.5, 0), cube(2, 0.5, 0), cube(4, 0.5, 0)], order: "distance", from: [4, 0, 0], appear: "grow", stagger: 1 },
@@ -4820,7 +6000,7 @@ if (!(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box.y > 0.5) || one({ ease:
   bad.push(`build-up: overshoot ${j(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box)}`);
 [[{ ease: "outBak" }, "ease is a name"], [{ pieces: [{ x: 0, y: 0, z: 0, w: 1, d: 1 }] }, "pieces[0].h is a number"], [{ stagger: -1 }, "stagger is a number, 0 or more"], [{ from: [1, 2] }, "from is [x, y, z]"]].forEach(([o, want]) => {
   try { B.state({ pieces: [cube(0, 0.5, 0)], ...o }, 1); bad.push(`build-up: ${j(o)} passed`); } catch (e) { if (!String(e.message).includes(want)) bad.push(`build-up: ${j(o)}: ${e.message}`); } });
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar, film-finish and build-up (by height, distance, seed), the same forwards, backwards and alone; film-finish's grain new every frame by default, the same within a grain step when one is set; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
@@ -4937,6 +6117,75 @@ HTML
   b=$(vh determinism "$p/dom.html" --samples 3 2>&1); rc2=$?
   case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: paper-transition's fold and blot, spring-scene's canvas and DOM painters and the chapter bar's DOM painter are each a function of t (bin/vh determinism)" ;;
     *) bad "components' other painters, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
+  # film-finish through the page contract in software WebGL: a still scene finished with a depth picture; with a grain step
+  # of 15 a second the grain is the same at 0 and 1/30 s and new at 2/30 s, and the page holds under determinism
+  vh components add "$p" film-finish > /dev/null
+  cat > "$p/finish.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as F from "./components/film-finish/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+const scene = (x, depth) => { x.fillStyle = depth ? "#fff" : "#1d2a3c"; x.fillRect(0, 0, 640, 360); x.fillStyle = depth ? "#333" : "#555"; x.fillRect(60, 200, 520, 160);
+  x.fillStyle = depth ? "#888" : "#fff6e0"; x.beginPath(); x.arc(320, 120, 18, 0, Math.PI * 2); x.fill(); };
+window.film = { duration: 1,
+  frame(t) { X.reset();
+    const src = L.offscreen("s", (x) => scene(x, false)), depth = L.offscreen("d", (x) => scene(x, true));
+    F.canvas(X, F.state({ haze: 0.4, grain: 0.06, grainFps: 15 }, t), src, { depth }); } };
+</script></body></html>
+HTML
+  a=$(vh frames "$p/finish.html" --at 0,0.0333,0.0667 --soft-gl --out "$t/ff" 2>&1); rc=$?
+  b=$(vh determinism "$p/finish.html" --samples 3 --soft-gl 2>&1); rc2=$?
+  f0="$t/ff/finish-t0000.000.png"; f1="$t/ff/finish-t0000.033.png"; f2="$t/ff/finish-t0000.067.png"
+  if [ "$rc:$rc2" = "0:0" ] && grep -q "determinism: holds" <<<"$b" && [ -s "$f0" ] && [ -s "$f2" ] \
+     && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" = "$(ffmpeg -nostdin -v error -i "$f1" -pix_fmt rgba -f md5 - 2>&1)" ] \
+     && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" != "$(ffmpeg -nostdin -v error -i "$f2" -pix_fmt rgba -f md5 - 2>&1)" ]
+  then ok "components: film-finish on a page (software WebGL) keeps its grain within a grain step, changes it across one, and holds under bin/vh determinism"
+  else bad "components: film-finish on a page (frames $rc, determinism $rc2): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # its spill does not miss a small light: a light 2 px wide moving 3 px a frame keeps a glow of the same energy (the
+  # first version gathered 40 taps on a spiral and swung 136 % across these frames; every source pixel is read now)
+  cat > "$p/spill.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as F from "./components/film-finish/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+window.film = { duration: 1,
+  frame(t) { X.reset(); const x = 200 + Math.round(t * 30) * 3;
+    const src = L.offscreen("s", (c) => { c.fillStyle = "#101418"; c.fillRect(0, 0, 640, 360); c.fillStyle = "#fff"; c.fillRect(x, 180, 2, 2); });
+    F.canvas(X, F.state({ grain: 0, vignette: 0, aberration: 0, bloom: 0.6, halation: 0, radius: 0.03 }, t), src); } };
+</script></body></html>
+HTML
+  if ! command -v uv >/dev/null; then skip "film-finish's spill on a small light" "needs uv"
+  elif a=$(vh frames "$p/spill.html" --at 0,0.0333,0.0667,0.1,0.1333,0.1667 --soft-gl --out "$t/sp" 2>&1) \
+     && a=$(uv run -q --no-project --with pillow python - "$t/sp" <<'PY'
+import glob, sys
+from PIL import Image
+e = []
+for f in sorted(glob.glob(sys.argv[1] + "/spill-t*.png")):
+    k = round(float(f.rsplit("-t", 1)[1][:-4]) * 30); x = 200 + 3 * k
+    im = Image.open(f).convert("L"); px = im.load(); bg = px[30, 30]
+    e.append(sum(max(0, px[i, j] - bg) for i in range(x - 40, x + 42) for j in range(140, 222) if not (x - 4 <= i <= x + 6 and 176 <= j <= 186)))
+spread = (max(e) - min(e)) / (sum(e) / len(e)) if e and min(e) > 0 else 9
+print(f"{len(e)} frames, glow {[round(v) for v in e]}, spread {spread:.0%}")
+sys.exit(0 if len(e) == 6 and spread < 0.2 else 1)
+PY
+  ); then ok "components: film-finish's spill keeps a small moving light's glow steady ($a)"
+  else bad "components: film-finish's spill on a small moving light: $a"; fi
+  # the finishing chain playbook/08 gives for a finished film runs as written, and gives the same bytes twice
+  python3 - "$ROOT/playbook/08-vfx-and-motion-sources.md" "$t/chain.sh" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<!-- finish-chain:[^>]*-->\n```bash\n(.*?)```", s, re.S)
+open(sys.argv[2], "w").write(m.group(1) if m else "exit 9\n")
+PY
+  ffmpeg -nostdin -v error -y -f lavfi -i "testsrc2=s=320x180:d=0.5:r=24" -c:v libx264 -pix_fmt yuv420p "$t/in.mp4"
+  (cd "$t" && sed 's/ffmpeg -i/ffmpeg -nostdin -v error -y -i/' chain.sh > c1.sh && sed 's/out\.mp4/out2.mp4/' c1.sh > c2.sh && bash c1.sh && bash c2.sh) 2>"$t/chain.err"; rc=$?
+  if [ $rc = 0 ] && [ -s "$t/out.mp4" ] && [ "$(ffmpeg -nostdin -v error -i "$t/out.mp4" -f md5 - 2>&1)" = "$(ffmpeg -nostdin -v error -i "$t/out2.mp4" -f md5 - 2>&1)" ]
+  then ok "playbook/08's finishing chain (ffmpeg) runs as written and gives the same frames twice"
+  else bad "playbook/08's finishing chain ($rc): $(tail -c 300 "$t/chain.err")"; fi
   rm -rf "$t"
 }
 
@@ -6747,7 +7996,7 @@ for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("fra
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
     if C.is_ours(cmd, cl):
         bad.append(f"is_ours, not: {cmd}, {cl}")
-known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py"}
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
@@ -7066,7 +8315,8 @@ def fill(x):
     if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
-d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None); d["decisions"][0]["recommend"] = "A"
+for o in d["decisions"][0]["options"]: o.pop("frame", None)   # a card's frame is a path: filled with words, a missing file
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   e=$(ns "$p" '"send the page" in n["do"] and "--init" not in c')
@@ -7637,6 +8887,20 @@ PY
   if [ "$rc:$rc2:$rc3:$k" = 1:1:1:1 ] && case "$a|$b|$c|$q" in *"no section"*"审阅页"*"|"*"no such markdown file"*"|"*"no such markdown file"*"|"*"2 sections"*"审阅页"*"审阅台"*) true ;; *) false ;; esac
   then ok "know --show: no such section lists the file's; no such file, or one outside the repo, is said; a part that fits two is listed, not guessed"
   else bad "know --show on what is not there ($rc/$rc2/$rc3/$k): $a | $b | $c | $q"; fi
+  # the film-craft sections are found by the words an agent would use: a shot card for an image prompt (playbook/05),
+  # the finishing pass (playbook/08 and the component), and image gen's help names the card
+  a=$(vh know 镜头卡 生图 --kind doc --json 2>/dev/null); b=$(vh know 光晕 色散 收尾 --json 2>/dev/null); c=$(vh image -h 2>&1)
+  if python3 - "$a" "$b" <<'PY' && grep -q "shot card" <<<"$c"
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+h = a["hits"][0]
+ok = h["file"] == "playbook/05-hybrid-genvideo.md" and h["title"].endswith("给生图写镜头卡")
+docs = [x for x in b["hits"] if x["kind"] == "doc"]; comps = [x for x in b["hits"] if x["kind"] == "component"]
+ok = ok and docs and docs[0]["file"] == "playbook/08-vfx-and-motion-sources.md" and "成片的收尾" in docs[0]["title"] and comps and comps[0]["id"] == "film-finish"
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: 镜头卡 finds playbook/05's shot card, 光晕 色散 收尾 finds playbook/08's finishing pass and film-finish; image gen -h names the shot card"
+  else bad "know, the film-craft sections: $(printf '%s' "$a" | head -c 300) | $(printf '%s' "$b" | head -c 300)"; fi
   rm -rf "$t"
 }
 
