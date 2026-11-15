@@ -90,7 +90,6 @@ const STR = {
     th_ver: "版", th_state: "状态", th_made: "怎么来的", th_note: "说明",
     assets_sub: "素材台账（bin/vh assets）：登记了多少，哪些许可还没清，花了多少。", no_assets: "还没有素材台账。",
     a_records: "登记", a_uncleared: "许可没清", a_not_taken: "片子用了但没登记", a_aigc: "生成的", a_spent: "已花", a_budget: "预算",
-    ship_none: "交付的东西（标题、封面、多平台文案）在 bin/vh deliver 之后出现在这里。",
     stn: { "1": "立意", "2": "分镜", "3": "初版", E0: "样帧", E1: "脚本", E2: "声音", E3: "锁时", E4: "样板章", E5: "锁画面", deliver: "交付" },
   },
   en: {
@@ -173,7 +172,6 @@ const STR = {
     th_ver: "Version", th_state: "State", th_made: "Made by", th_note: "Note",
     assets_sub: "The asset ledger (bin/vh assets): what is on record, which licences are not cleared, what was spent.", no_assets: "No asset ledger yet.",
     a_records: "On record", a_uncleared: "Licence not cleared", a_not_taken: "Used but not on record", a_aigc: "Generated", a_spent: "Spent", a_budget: "Budget",
-    ship_none: "What gets delivered (titles, covers, copy for each platform) shows up here after bin/vh deliver.",
     stn: { "1": "Concept", "2": "Storyboard", "3": "Draft", E0: "Style frames", E1: "Script", E2: "Sound", E3: "Timing lock", E4: "Sample chapter", E5: "Picture lock", deliver: "Delivery" },
   },
 };
@@ -213,7 +211,7 @@ let MOD = "", SUB = "", DOC = "", GATE = "", SCOPE = null, capFilter = "all";
 let COLCTL = null, PARTCTL = null, CUT = null, liveTimer = null, homeTimer = null, LAST = store.get("desk:last") || "";
 const src = (p) => (/^https?:\/\//.test(p || "") ? p : `/f/${enc(PKEY)}/` + String(p || "").split("/").map(enc).join("/"));
 const MODS = ["idea", "outline", "board", "sound", "cut", "ship", "assets", "ledger"];
-const SUBS = { outline: ["outline", "script", "facts"], ship: ["check", "versions"], ledger: ["decisions", "history", "docs"] };
+const SUBS = { outline: ["outline", "script", "facts"], ship: ["deliver", "check", "versions"], ledger: ["decisions", "history", "docs"] };
 const FLOW = [   // the flow bar: a fixed six, each the film's stops that belong to it
   { mod: "idea", st: ["1", "E0"] }, { mod: "outline", st: ["1", "E1"] }, { mod: "board", st: ["2"] },
   { mod: "sound", st: ["E2", "E3"] }, { mod: "cut", st: ["3", "E4", "E5"] }, { mod: "ship", st: ["deliver"] }];
@@ -771,7 +769,7 @@ function renderModule() {
     return;
   }
   const fn = { idea: mIdea, outline: () => ({ outline: vOutline, script: vScript, facts: vFacts }[cur] || vOutline)(), board: mBoard, sound: vSound,
-    ship: () => (cur === "versions" ? vVersions() : vCheck() + `<p class="void">${esc(t("ship_none"))}</p>`), assets: vAssets,
+    ship: () => (cur === "versions" ? vVersions() : vCheck()), assets: vAssets,
     ledger: () => ({ decisions: vLedger, history: vHistory, docs: vDocs }[cur] || vLedger)(), cut: () => "" }[MOD] || mIdea;
   const page = stopPage(MOD);
   area.innerHTML = `<section class="module" data-mod="${MOD}">${moduleHead(kickOf(MOD), "", "")}${page ? '<div id="gatePart"></div>' : ""}${subtabs(MOD)}<div id="modBody">${fn()}</div></section>`;

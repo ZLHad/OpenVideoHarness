@@ -333,3 +333,148 @@ function wireSound2() {
   $$("[data-use]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest(".vcard"), t("use_say", { x: b.dataset.use })); }));
 }
 MODVIEW.sound = { main: mSound2, wire: wireSound2 };
+
+/* ---------- 交付: the covers, each platform's copy, what comes out, the check before delivery ---------- */
+moduleWords({
+  sub_deliver: "交付", ship_title: "母版、封面和各平台文案", ship_sub: "成片那一站通过以后才出片。点哪张封面、哪条文案，都能单独说。",
+  covers: "封面", covers_sub: "竖 9:16、横 4:3 或 16:9，标题要大", vertical: "竖", horizontal: "横", square: "方", covers_none: "还没有封面：PACKAGING.md 的封面表，或 out/covers/。",
+  copy: "文案", titles: "标题候选", t_title: "标题", t_desc: "简介", t_tags: "标签", t_chapters: "章节", copy_none: "还没有 PACKAGING.md：标题、封面和各平台的文案写在那里（templates/PACKAGING.md）。",
+  plat_none: "PACKAGING.md 的「发布文案」还没有平台小节（### B站 …），bin/vh check 会量它们的长度。", checked_n: "标题里的数字和说法：{a} 条核实过，{b} 条还没有（硬规则 5）",
+  outputs: "会出什么", o_master: "母版（bin/vh render，检查通过）", o_upload: "上传用的副本（bin/vh deliver）", o_srt: "字幕 SRT", o_covers: "封面 {n} 张", o_copy: "各平台文案 {n} 个", pending: "待出", made: "已出",
+  precheck: "出片前检查", to_fix: "有 {n} 处要修", to_mind: "{n} 处注意", passed: "过了", stale2: "片子在这次检查之后改过：再跑一次 bin/vh check",
+  precheck_none: "还没跑出片前检查：bin/vh check <片子>。", next_cmd: "成片通过以后：", bar_ship: "成片那一站通过以后才出片", to_cut: "去成片",
+  g_safe: "安全框、字号、读时", g_text: "字不被光烧白", g_loud: "响度和真峰值", g_av: "数字静音、闪白、黑场、冻帧", g_assets: "素材许可", g_pack: "标题和文案", g_other: "其他",
+}, {
+  sub_deliver: "Delivery", ship_title: "Master, covers and copy for each platform", ship_sub: "The film is delivered once the cut's stop has passed. Click a cover or a line of copy to say something about it alone.",
+  covers: "Covers", covers_sub: "vertical 9:16, horizontal 4:3 or 16:9, a big title", vertical: "vertical", horizontal: "horizontal", square: "square", covers_none: "No covers yet: PACKAGING.md's cover table, or out/covers/.",
+  copy: "Copy", titles: "Title candidates", t_title: "Title", t_desc: "Description", t_tags: "Tags", t_chapters: "Chapters", copy_none: "No PACKAGING.md yet: the titles, the covers and each platform's copy go there (templates/PACKAGING.md).",
+  plat_none: "PACKAGING.md's 发布文案 has no platform yet (### Bilibili …); bin/vh check measures them.", checked_n: "The numbers and claims in the titles: {a} checked, {b} not yet (hard rule 5)",
+  outputs: "What comes out", o_master: "The master (bin/vh render, checked)", o_upload: "The copy to upload (bin/vh deliver)", o_srt: "Captions (SRT)", o_covers: "{n} covers", o_copy: "Copy for {n} platforms", pending: "to come", made: "made",
+  precheck: "Before delivery", to_fix: "{n} to fix", to_mind: "{n} to mind", passed: "passed", stale2: "The film changed after this check: run bin/vh check again",
+  precheck_none: "No check before delivery yet: bin/vh check <film>.", next_cmd: "Once the cut has passed:", bar_ship: "The film is delivered once the cut's stop has passed", to_cut: "To the cut",
+  g_safe: "Safe area, type size, read time", g_text: "Type not burnt out by light", g_loud: "Loudness and true peak", g_av: "Digital silence, flashes, black, freezes", g_assets: "Licences", g_pack: "Titles and copy", g_other: "Other",
+});
+const CHECK_GROUPS = [["g_safe", /safe|read|scale|subtitle|caption|size/i], ["g_text", /textcheck|^text/i], ["g_loud", /loud|peak|lufs/i],   // check's kinds (tools/desk/README.md, 检查记录)
+  ["g_av", /silence|flash|black|freeze|static|fade|\.iso|periodic|\.cut|blind/i], ["g_assets", /asset|licen/i], ["g_pack", /packag|cover|title/i]];
+let shipPlat = 0;
+const ratioName = (r) => { const R = [["9:16", 0.5625], ["3:4", 0.75], ["1:1", 1], ["4:3", 1.333], ["16:9", 1.778]]; return R.reduce((a, b) => (Math.abs(b[1] - r) < Math.abs(a[1] - r) ? b : a))[0]; };
+function mShip2() {
+  const X = D.mods || {}, pk = D.packaging, covers = X.covers || [], st = D.status || {};
+  const cov = covers.length ? `<div class="covers">${covers.map((c) => `<figure class="cov${c.ratio && c.ratio < 1 ? " v" : ""}"${dattr({ mark: "asset:" + c.path, label: `${t("covers")} ${c.id || c.path.split("/").pop()}` })}>
+      <span class="well"><span class="ph">${esc(c.id || "")}</span><img src="${esc(src(c.path))}" alt="${esc(c.text || c.id || "")}" loading="lazy"></span>
+      <figcaption class="meta">${esc([c.ratio ? `${t(c.ratio < 0.95 ? "vertical" : c.ratio > 1.05 ? "horizontal" : "square")} ${ratioName(c.ratio)}` : "", c.id, c.text].filter(Boolean).join(" · "))}</figcaption></figure>`).join("")}</div>` : voidLine(t("covers_none"));
+  let copy = voidLine(t("copy_none"));
+  if (pk) {
+    const P = pk.platforms || [], i = Math.min(shipPlat, Math.max(0, P.length - 1)), p = P[i], chap = (pk.copy.find((c) => /章节|chapter/i.test(c.k)) || {}).v;
+    const row = (k, v, html) => `<div${dattr({ mark: `doc:PACKAGING.md#${p ? p.name + " " : ""}${t(k)}`, label: `${p ? p.name + " · " : ""}${t(k)}` })}><dt>${esc(t(k))}</dt><dd>${html || esc(v)}</dd></div>`;
+    const tabs = P.length > 1 ? `<nav class="pgtabs plat">${P.map((x, j) => `<button type="button" data-plat="${j}" aria-current="${j === i}">${esc(x.name)}</button>`).join("")}</nav>` : P.length ? `<span class="chip quiet">${esc(p.name)}</span>` : "";
+    const fields = p ? `<dl class="kv2">${p.title ? row("t_title", p.title) : ""}${p.desc ? row("t_desc", "", esc(p.desc).replace(/\n/g, "<br>")) : ""}${chap ? row("t_chapters", chap) : ""}${p.tags.length ? row("t_tags", "", p.tags.map((x) => `<span class="tagc">${esc(x)}</span>`).join("")) : ""}</dl>` : voidLine(t("plat_none"));
+    const T = pk.titles || [], checked = (x) => /已核实|核实过|verified|^yes$|^✓$/i.test(x.checked || ""), facts = T.filter((x) => x.fact && !/^[—–-]$/.test(x.fact));
+    const titles = T.length ? `<h3 class="mat-h">${esc(t("titles"))}</h3><ul class="copyl">${T.map((x) => `<li${dattr({ mark: `doc:PACKAGING.md#${x.id || x.title}`, label: `${t("t_title")} ${x.id || ""}`.trim() })}><span class="mono">${esc(x.id)}</span><b>${esc(x.title)}</b>${x.type ? `<span class="meta">${esc(x.type)}</span>` : ""}${facts.includes(x) ? `<span class="chip ${checked(x) ? "ok" : "wait"}">${esc(x.fact)}</span>` : ""}</li>`).join("")}</ul>
+      ${facts.length ? `<p class="meta fine">${esc(t("checked_n", { a: facts.filter(checked).length, b: facts.filter((x) => !checked(x)).length }))}</p>` : ""}` : "";
+    copy = `<div class="copyhead">${tabs}</div>${fields}${titles}`;
+  }
+  const dl = st.deliveries || [], chk = st.check;
+  const outs = [["o_master", chk && chk.verdict === "pass" && !chk.stale ? chk.video : ""], ["o_upload", dl.length ? dl[dl.length - 1].output : ""],
+    ["o_srt", (X.subs || [])[0] || ""], ["o_covers", covers.length ? " " : ""], ["o_copy", pk && (pk.platforms || []).length ? " " : ""]];
+  const outputs = `<ul class="outl">${outs.map(([k, v]) => `<li><span class="chip ${v ? "ok" : "quiet"}">${esc(t(v ? "made" : "pending"))}</span><span>${esc(t(k, { n: k === "o_covers" ? covers.length : ((pk && pk.platforms) || []).length }))}</span>${v.trim() ? `<span class="meta mono">${esc(v)}</span>` : ""}</li>`).join("")}</ul>`;
+  const C = X.checks || [];
+  const groups = CHECK_GROUPS.map(([k, re]) => [k, C.filter((f) => re.test(f.kind || ""))]).concat([["g_other", C.filter((f) => !CHECK_GROUPS.some(([, re]) => re.test(f.kind || "")))]]).filter(([k, fs]) => k !== "g_other" || fs.length);
+  const pre = chk ? `${chk.stale ? `<p class="notice">${esc(t("stale2"))}</p>` : ""}<ul class="checkl">${groups.map(([k, fs]) => {
+      const fail = fs.filter((f) => f.severity === "fail").length, warn = fs.filter((f) => f.severity === "warn").length;
+      const chip = fail ? `<span class="chip live">${esc(t("to_fix", { n: fail }))}</span>` : warn ? `<span class="chip wait">${esc(t("to_mind", { n: warn }))}</span>` : `<span class="chip ok">${esc(t("passed"))}</span>`;
+      const first = fs.find((f) => f.severity !== "info");
+      return `<li${dattr(first && first.t != null ? { mark: "time:" + (+first.t).toFixed(1), label: `${t("precheck")} · ${t(k)}`, t: first.t } : { scope: `${t("precheck")} · ${t(k)}` })}><span><b>${esc(t(k))}</b>${first ? `<span class="meta">${esc(cut(first.message, 60))}</span>` : ""}</span>${chip}</li>`; }).join("")}</ul>` : voidLine(t("precheck_none"));
+  const next = `<p class="meta fine">${esc(t("next_cmd"))} <code>bin/vh deliver ${esc((chk && chk.video) || "<master>")}</code></p>`;
+  return headM("ship", t("ship_title"), t("ship_sub")) + subtabs("ship")
+    + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov)}${panel(t("copy"), "PACKAGING.md", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs)}${panel(t("precheck"), "bin/vh check", pre + next)}</aside></div>`
+    + barM(t("bar_ship"), "cut", t("to_cut"));
+}
+function wireShip2() { $$(".pgtabs.plat [data-plat]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); shipPlat = +b.dataset.plat; renderModule(); })); }
+MODVIEW.ship = { main: mShip2, wire: wireShip2 };
+
+/* ---------- 素材: every item with its licence, its source and its shot; the references and their transcripts ---------- */
+moduleWords({
+  assets_title: "素材库", assets_sub2: "每一件都记着从哪来、什么许可、用在哪一镜。许可没写清的，出片前会拦下来。",
+  f_image: "图片", f_video: "视频", f_audio: "声音", f_font: "字体", f_ref: "参考", k_file: "文件",
+  drop: "把文件拖进来，或者贴一个链接", drop_note: "这一版不接 agent：登记用 bin/vh assets add <项目> <文件>，参考用 bin/vh ref add",
+  l_cc0: "CC0", l_pd: "公有领域", l_own: "自己做的", l_generated: "自己生成", l_unknown: "来源没写许可", l_free: "免费可用", l_managed: "平台授权", l_ref: "只做参考",
+  used_in: "用在 {x}", from: "来自 {x}", not_used: "还没用上", gone_file: "文件不在了", read_transcript: "读文稿", open_src: "原始链接", digest: "长视频读成的文稿", none_kind: "这一类还没有。",
+  licenses_ok: "{n} 件许可记清了", licenses_todo: "{n} 件许可没清：只能当参考，不能放进片子", ledger_at: "记在 assets/ledger.json（bin/vh assets）", assets_none: "还没有素材台账：bin/vh assets add <项目> <文件>。",
+}, {
+  assets_title: "Material", assets_sub2: "Each item says where it came from, its licence and the shot it is in. Anything whose licence isn't clear is stopped before delivery.",
+  f_image: "Images", f_video: "Video", f_audio: "Sound", f_font: "Fonts", f_ref: "References", k_file: "File",
+  drop: "Drop a file here, or paste a link", drop_note: "No agent in this console yet: bin/vh assets add <project> <file> records an item, bin/vh ref add a reference",
+  l_cc0: "CC0", l_pd: "public domain", l_own: "made here", l_generated: "generated", l_unknown: "no licence given", l_free: "free to use", l_managed: "licensed", l_ref: "reference only",
+  used_in: "in {x}", from: "from {x}", not_used: "not used yet", gone_file: "the file is gone", read_transcript: "Read the transcript", open_src: "The source", digest: "Long videos read as transcripts", none_kind: "None of these yet.",
+  licenses_ok: "{n} licences on record", licenses_todo: "{n} not cleared: reference only, not in the film", ledger_at: "in assets/ledger.json (bin/vh assets)", assets_none: "No asset ledger yet: bin/vh assets add <project> <file>.",
+});
+let assetFilter = "all";
+const LIC_WORD = { pd: "l_pd", cc0: "l_cc0", own: "l_own", generated: "l_generated", free: "l_free", managed: "l_managed", unknown: "l_unknown" };
+const CLEARED = ["pd", "cc0", "cc-by", "free", "managed", "own", "generated"];   // what bin/vh assets takes under Assets: strict (tools/assets/licenses.py)
+const licLamp = (c) => (c === "generated" ? "agent" : CLEARED.includes(c) ? "ok" : "wait");
+const licText = (a) => (LIC_WORD[a.license] ? t(LIC_WORD[a.license]) : String(a.license || "").replace(/^cc-/, "CC ").toUpperCase());
+const assetKind = (k) => (["image", "video", "audio", "font"].includes(k) ? k : "file");
+function mAssets2() {
+  const X = D.mods || {}, A = X.assets, R = X.refs || [], G = X.digests || [];
+  const items = (A || []).map((a) => ({ k: assetKind(a.kind), a })).concat(R.map((r) => ({ k: "ref", r })));
+  const shown = items.filter((x) => assetFilter === "all" || x.k === assetFilter);
+  const card = (x) => {
+    if (x.r) { const r = x.r, g = G.find((d) => d.id === r.id), safe = /^https?:\/\//.test(r.url || "");
+      return `<article class="acard"${dattr({ mark: `doc:research/refs.json#${r.id}`, label: `${t("f_ref")} ${r.id}` })}><div class="well"><span class="ph">${esc(r.kind === "video" ? "▶" : r.kind === "audio" ? "♪" : "↗")}</span></div>
+        <div class="ac-b"><h3>${esc(r.title || r.id)}</h3><p><span class="chip quiet">${esc(t("l_ref"))}</span><span class="meta">${esc(["image", "video", "audio", "font"].includes(r.kind) ? t("f_" + r.kind) : r.kind || "")}</span></p>
+        <p class="meta">${esc(t("from", { x: r.author || r.url || "—" }))}</p>${r.note ? `<p class="meta">${esc(r.note)}</p>` : ""}
+        <p class="links">${g ? `<a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a>` : ""}${safe ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(t("open_src"))} ↗</a>` : ""}</p></div></article>`; }
+    const a = x.a, uses = (a.used_by || []).join("、");
+    const pic = x.k === "image" && a.there ? `<img src="${esc(src(a.path))}" alt="" loading="lazy">` : x.k === "font" ? `<span class="glyph">字 Aa</span>` : "";
+    return `<article class="acard${CLEARED.includes(a.license) ? "" : " flag"}"${dattr({ mark: a.path ? "asset:" + a.path : "", scope: a.path ? "" : `${t("m_assets")} · ${a.id}`, label: `${t("m_assets")} ${a.id}` })}>
+      <div class="well"><span class="ph">${esc(x.k === "audio" ? "♪" : x.k === "video" ? "▶" : x.k === "font" ? "" : String(a.id || "·").slice(0, 1))}</span>${pic}</div>
+      <div class="ac-b"><h3>${esc(a.id)}</h3><p><span class="chip ${licLamp(a.license)}"${a.license_name ? ` title="${esc(a.license_name)}"` : ""}>${esc(licText(a))}</span><span class="meta">${esc(t(x.k === "file" ? "k_file" : "f_" + x.k))}</span>${a.aigc ? `<span class="meta">AIGC</span>` : ""}</p>
+      <p class="meta">${esc(uses ? t("used_in", { x: uses }) : t("not_used"))}${a.source ? " · " + esc(t("from", { x: a.source })) : ""}</p>${a.note ? `<p class="meta">${esc(a.note)}</p>` : ""}${a.path && !a.there ? `<p class="meta warn">${esc(t("gone_file"))}</p>` : ""}</div></article>`;
+  };
+  const counts = { all: items.length }; items.forEach((x) => { counts[x.k] = (counts[x.k] || 0) + 1; });
+  const filters = `<nav class="pgtabs" aria-label="${esc(t("m_assets"))}">${["all", "image", "video", "audio", "font", "ref"].map((k) => `<button type="button" data-af="${k}" aria-current="${assetFilter === k}">${esc(t("f_" + k))}${counts[k] ? ` <span class="mono">${counts[k]}</span>` : ""}</button>`).join("")}</nav>`;
+  const ok = (A || []).filter((a) => CLEARED.includes(a.license)).length, todo = (A || []).length - ok;
+  const digests = G.length ? panel(t("digest"), "bin/vh ref digest", `<ul class="copyl">${G.map((g) => `<li${dattr({ mark: "asset:" + g.path, label: `${t("digest")} ${g.id}` })}><span class="mono">${esc(g.id)}</span><a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a><span class="meta mono">${esc(Math.max(1, Math.round(g.bytes / 1024)) + " kB")}</span></li>`).join("")}</ul>`) : "";
+  return headM("assets", t("assets_title"), t("assets_sub2"), filters)
+    + (readOnly() ? "" : `<div class="drop"><b>${esc(t("drop"))}</b><span class="meta">${esc(t("drop_note"))}</span></div>`)
+    + (A == null && !R.length ? voidLine(t("assets_none")) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + digests
+    + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t("licenses_todo", { n: todo }))}` : ""}</span><span class="meta">${esc(t("ledger_at"))}</span></footer>` : "");
+}
+function wireAssets2() { $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; renderModule(); })); }
+MODVIEW.assets = { main: mAssets2, wire: wireAssets2 };
+
+/* ---------- 账本: the decisions, your words, the versions ---------- */
+moduleWords({
+  ledger_title: "谁定的、为什么、什么时候", ledger_sub2: "DECISIONS.md 和 REVIEW.md 在这里一起看。agent 定的每一条都能翻案：这一版写成点评，随这一轮交给它。",
+  decisions: "决定", what: "什么事", decided: "定成什么", who: "谁定的", when: "时间", reason: "理由", you_decide: "你定", show_you: "给你看", agent_decides: "agent 定", waits: "等你",
+  overturn_say: "翻案：", your_words: "你的原话", your_words_sub: "逐字记在 REVIEW.md", versions: "版本", ver_cmd: "bin/vh versions", v_n: "第 {n} 版",
+  changed_n: "改了 {n} 段", changed_s: "改了 {x}", whole_film2: "整片", words_none: "REVIEW.md 里还没有原话。", versions_none: "还没有版本记录：第一次 bin/vh render 或 patch 之后才有。",
+  dec_none: "DECISIONS.md 里还没有决定。", you_said2: "你说：{q}",
+}, {
+  ledger_title: "Who decided, why, and when", ledger_sub2: "DECISIONS.md and REVIEW.md side by side. Anything the agent decided can be overturned: write it as a note for now, and it goes with this round.",
+  decisions: "Decisions", what: "What", decided: "Decided", who: "By", when: "When", reason: "Why", you_decide: "you", show_you: "shown to you", agent_decides: "the agent", waits: "waiting for you",
+  overturn_say: "Overturn: ", your_words: "Your words", your_words_sub: "verbatim in REVIEW.md", versions: "Versions", ver_cmd: "bin/vh versions", v_n: "v{n}",
+  changed_n: "{n} stretches changed", changed_s: "changed {x}", whole_film2: "the whole film", words_none: "No words of yours in REVIEW.md yet.", versions_none: "No versions recorded yet: the first bin/vh render or patch makes one.",
+  dec_none: "No decisions in DECISIONS.md yet.", you_said2: "you said: {q}",
+});
+const dateOf = (h) => h.date || "";
+function mLedger2() {
+  const who = (w, s) => (/等|wait/i.test(s || "") ? ["waits", "wait"] : /^own|你|person/i.test(w || "") ? ["you_decide", ""] : /^review|看/i.test(w || "") ? ["show_you", "quiet"] : ["agent_decides", "agent"]);
+  const quoteFor = (where) => { const g = (String(where || "").match(/[①②③]|E\d/) || [""])[0]; const h = g ? D.history.find((x) => x.title.includes(g)) : null; return h && h.quotes && h.quotes.length ? h.quotes[h.quotes.length - 1].text : ""; };
+  const rows = D.ledger.map((l) => { const [k, c] = who(l.who, l.status), q = quoteFor(l.where), h = D.history.find((x) => /[①②③]|E\d/.test(l.where || "") && x.title.includes((String(l.where).match(/[①②③]|E\d/) || [""])[0]));
+      return `<tr${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${l.what}` })}><td>${esc(l.what)}</td><td>${esc(l.status)}</td><td><span class="chip ${c}">${esc(t(k))}</span></td><td class="mono">${esc(h ? dateOf(h) : "")}</td><td class="muted">${esc(q ? t("you_said2", { q }) : l.where || "")}</td><td></td></tr>`; })
+    .concat(D.agent_decided.filter((a) => !a.superseded).map((a) => { const i = D.agent_decided.indexOf(a);
+      return `<tr${dattr({ mark: "led:" + i, label: t("l_led", { x: (a.topic ? a.topic + COLON() : "") + cut(a.what, 20) }) })}><td>${esc(a.topic || "—")}</td><td>${esc(a.what)}</td><td><span class="chip agent">${esc(t("agent_decides"))}</span></td><td class="mono">${esc(a.date || "")}</td><td class="muted">${esc(a.why || "")}</td><td>${readOnly() ? "" : `<button type="button" class="xs" data-overturn="${i}">${esc(t("overturn"))}</button>`}</td></tr>`; })).join("");
+  const dec = rows ? `<div class="tscroll"><table class="t ledger"><thead><tr><th>${esc(t("what"))}</th><th>${esc(t("decided"))}</th><th>${esc(t("who"))}</th><th>${esc(t("when"))}</th><th>${esc(t("reason"))}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : voidLine(t("dec_none"));
+  const Q = D.history.flatMap((h) => (h.quotes || []).map((q) => ({ h, q })));
+  const words = Q.length ? `<ul class="quotes">${Q.map(({ h, q }) => `<li${dattr({ scope: `${t("your_words")} · ${cut(h.title, 24)}` })}><q>${esc(q.text)}</q><span class="meta">${esc([cut(h.title, 30), q.label, dateOf(h)].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>` : voidLine(t("words_none"));
+  const V = ((D.status || {}).versions || {}).list || [];
+  const vers = V.length ? `<ul class="copyl vers">${V.slice().reverse().map((v) => { const n = v.n != null ? v.n : (String(v.id).match(/\d+/) || [""])[0], ch = v.changed || {};
+      const what = ch.whole || !Object.keys(ch).length ? t("whole_film2") : (ch.shots || []).length ? t("changed_s", { x: ch.shots.slice(0, 4).join("、") }) : t("changed_n", { n: (ch.seconds || ch.frames || []).length });
+      return `<li${dattr({ scope: `${t("versions")} · ${t("v_n", { n })}` })}><span class="chip ${v.state === "current" ? "" : "quiet"}">${esc(t("v_n", { n }))}</span><b>${esc(v.note || v.made_by || "")}</b><span class="meta">${esc(what)}</span></li>`; }).join("")}</ul>` : voidLine(t("versions_none"));
+  return headM("ledger", t("ledger_title"), t("ledger_sub2")) + subtabs("ledger") + panel(t("decisions"), "DECISIONS.md · REVIEW.md", dec)
+    + `<div class="mgrid ledger">${panel(t("your_words"), t("your_words_sub"), words)}${panel(t("versions"), t("ver_cmd"), vers)}</div>`;
+}
+function wireLedger2() { $$("[data-overturn]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest("[data-mark]"), t("overturn_say")); })); }
+MODVIEW.ledger = { main: mLedger2, wire: wireLedger2 };

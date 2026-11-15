@@ -136,9 +136,62 @@ table.t.lines tr:hover td{background:var(--panel-3)}
 .dotw.you{color:var(--you)}.dotw.wait{color:var(--wait)}.dotw.live{color:var(--live)}.dotw.ok{color:var(--ok)}
 #mau{margin-top:10px}
 
+/* ---------- 交付 ---------- */
+.mgrid.ship{grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr)}
+.covers{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px}
+.cov{margin:0;flex:0 1 300px;min-width:0;cursor:pointer}
+.cov.v{flex-basis:150px}
+.cov .well{border-radius:var(--r-card)}
+.cov .well img{position:relative;max-height:340px}
+.cov figcaption{margin-top:6px}
+.copyhead{display:flex;justify-content:flex-start;margin:0 0 10px}
+.tagc{display:inline-block;margin:0 6px 4px 0;padding:0 7px;border:1px solid var(--rule-2);border-radius:var(--r-pill);font-size:var(--fs-label);color:var(--ink-2)}
+.copyl{list-style:none;margin:0;padding:0;font-size:var(--fs-small)}
+.copyl li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:7px 0;border-top:1px solid var(--rule);cursor:pointer}
+.copyl li:first-child{border-top:0}
+.copyl b{font-weight:500;color:var(--ink-hi)}
+.copyl .mono{color:var(--ink-3);min-width:2.2em}
+.fine{margin:10px 0 0}
+.outl,.checkl{list-style:none;margin:0;padding:0;font-size:var(--fs-small)}
+.outl li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:7px 0;border-top:1px solid var(--rule)}
+.outl li:first-child,.checkl li:first-child{border-top:0}
+.outl .meta{flex-basis:100%;padding-left:0;overflow-wrap:anywhere}
+.checkl li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--rule);cursor:pointer}
+.checkl li>span:first-child{min-width:0}
+.checkl b{display:block;font-weight:500;color:var(--ink)}
+.checkl .meta{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- 素材 ---------- */
+.drop{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;padding:14px 16px;border:1px dashed var(--rule-2);border-radius:var(--r-card);color:var(--ink-hi);font-size:var(--fs-small)}
+.drop b{font-weight:500}
+.acards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.acard{display:flex;flex-direction:column;border:1px solid var(--rule);background:var(--panel-2);border-radius:var(--r-card);overflow:hidden;cursor:pointer;min-width:0}
+.acard.flag{border-color:var(--wait-line)}
+.acard .well{aspect-ratio:16/10}
+.acard .well img{position:relative;width:100%;height:100%;object-fit:cover;max-height:none}
+.acard .glyph{position:absolute;inset:0;display:grid;place-items:center;font:500 34px/1 var(--display);color:var(--on-pic)}
+.ac-b{padding:10px 12px 12px;display:flex;flex-direction:column;gap:5px}
+.ac-b h3{margin:0;font:500 var(--fs-small)/1.4 var(--sans);color:var(--ink-hi);overflow-wrap:anywhere}
+.ac-b p{margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+.ac-b .links{gap:12px;font-size:var(--fs-small)}
+.ac-b .warn{color:var(--wait)}
+
+/* ---------- 账本 ---------- */
+table.t.ledger,table.t.lines{font-family:var(--sans)}
+table.t.ledger td:nth-child(4){white-space:nowrap;font-family:var(--mono)}
+table.t.ledger tr{cursor:pointer}
+table.t.ledger tr:hover td{background:var(--panel-3)}
+.mgrid.ledger{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.quotes{list-style:none;margin:0;padding:0}
+.quotes li{padding:6px 0 6px 12px;border-left:2px solid var(--you-line);margin:0 0 10px;cursor:pointer}
+.quotes q{display:block;font:var(--fs-text)/1.6 var(--prose);color:var(--ink-hi)}
+.quotes .meta{display:block;margin-top:2px}
+.vers li{flex-wrap:nowrap}
+.vers .meta{margin-left:auto;white-space:nowrap}
+
 /* ---------- narrow screens: one column ---------- */
 @media (max-width:900px){
-  .mgrid.idea,.mgrid.outline,.mgrid.board,.mgrid.sound{grid-template-columns:minmax(0,1fr)}
+  .mgrid.idea,.mgrid.outline,.mgrid.board,.mgrid.sound,.mgrid.ship,.mgrid.ledger{grid-template-columns:minmax(0,1fr)}
   .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .mbar{position:static}
   .mbar{margin:auto -16px 0;padding:12px 16px}
