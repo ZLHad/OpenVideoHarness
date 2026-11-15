@@ -138,7 +138,7 @@ const STR = {
     safe: "Safe area", compare: "Compare with {v}", ver_now: "{v} · now", lay_review: "Review", lay_fine: "Fine cut", lay_sound: "Listen", layout: "Layout",
     tl_hint: "Click a second, drag a span, click a shot or chapter to select it · I/O in and out · Space plays · ←→ shot by shot · N next place",
     next_place: "Next place", snap: "Snap", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
-    g_pic: "Picture", g_sound: "Sound", g_review: "Review", ln_chap: "Chapters", ln_shots: "Shots", ln_voice: "Voice", ln_music: "Music", ln_hits: "Hits", ln_wave: "Waveform", ln_marks: "Notes · checks", ln_diff: "Changed",
+    g_pic: "Picture", g_sound: "Sound", g_review: "Review", ln_chap: "Chapters", ln_shots: "Shots", ln_voice: "Voice", ln_music: "Music", ln_hits: "Hits", ln_wave: "Waveform", ln_marks: "Marks", ln_diff: "Changed",
     e_chap: "No chapters, and the outline has no times", e_shots: "No shot table · shots.json", e_voice: "No narration timing · bin/vh tts", e_music: "No music sections or beats · bin/vh beats", e_wave: "No waveform · bin/vh peaks <project>",
     e_diff: "This version doesn't record what changed (bin/vh patch does)", e_marks: "No notes or checks here yet", whole_render: "re-rendered whole",
     diff_label: "{v} changed this", next_q: "Next · {x}", no_next: "Nothing more after here", k_least: "unsure", k_listen: "listen", k_check: "check", k_mine: "me",
