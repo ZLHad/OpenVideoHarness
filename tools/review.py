@@ -594,7 +594,7 @@ class Page:
                          + (f' data-frame="{fr}"' if fr else "") + "></span>")
         for m in marks:
             kind = "listen" if m["kind"] == "listen" else "least"
-            parts.append(f'<button type="button" class="r-mark {kind}" data-t="{m["t"]:g}" data-target="{esc(m["target"])}" '
+            parts.append(f'<button type="button" tabindex="-1" class="r-mark {kind}" data-t="{m["t"]:g}" data-target="{esc(m["target"])}" '
                          f'title="{esc(clock(m["t"]))} {esc(m["id"])} {esc(re.sub(r"[`*]", "", m["note"]))}" aria-label="{esc(clock(m["t"]))}"></button>')
         parts.append('<span class="r-head"></span><span class="r-tip" aria-hidden="true"></span>')
         span = ""
@@ -670,12 +670,15 @@ class Page:
                 if u:
                     pic = f'<span class="pic"><img src="{u}" alt="{esc(o["id"])} {self.alt(o["label"], o["frame"])}" loading="lazy"></span>'
             pc = ""
+            oid = re.sub(r"[^A-Za-z0-9_-]", "_", f'o-{dec["id"]}-{o["id"]}')   # an id that aria-describedby can name
             if o["pro"] or o["con"]:
-                pc = ('<span class="pc">' + (f'<span><span class="k">{pro_k}</span>{self.text(o["pro"])}</span>' if o["pro"] else "")
+                pc = (f'<span class="pc" id="{oid}">' + (f'<span><span class="k">{pro_k}</span>{self.text(o["pro"])}</span>' if o["pro"] else "")
                       + (f'<span><span class="k">{con_k}</span>{self.text(o["con"])}</span>' if o["con"] else "") + "</span>")
             full = re.sub(r"[`*]", "", " · ".join(x for x in (o["label"], o["pro"], o["con"]) if x))
+            name = re.sub(r"[`*]", "", f'{o["id"]} {o["label"]}'.strip()) + (f' · {t["rec"]}' if pick else "")
             opts.append(f'<label class="g-opt" title="{esc(full)}"><input type="radio" name="dec-{esc(dec["id"])}" value="{esc(o["id"])}"'
-                        f'{" checked" if pick else ""} data-rec="{"1" if pick else ""}">{pic}'
+                        f'{" checked" if pick else ""} data-rec="{"1" if pick else ""}" aria-label="{esc(name)}"'
+                        + (f' aria-describedby="{oid}"' if pc else "") + f'>{pic}'
                         f'<span class="row"><span class="id">{esc(o["id"])}</span><span class="lab">{self.text(o["label"]) or esc(o["id"])}</span>'
                         + (f'<span class="rec">{t["rec"]}</span>' if pick else "") + f"</span>{pc}</label>")
         why = ""

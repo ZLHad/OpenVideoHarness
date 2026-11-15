@@ -24,7 +24,7 @@ Only requests whose Host is this server's own address are answered (no DNS rebin
 printed into the page, a JSON body and, when the browser sends one, a same-origin Origin. So another web page open
 in the same browser can neither read a project nor submit feedback in the reviewer's name.
 """
-import datetime, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
+import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
@@ -481,19 +481,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 # ---------- start: once per project, or one console ----------
 
-def _info_path(project):
-    """Where a running desk says so: out/review/.desk.json in its project; the console's in the temp folder, per user."""
+def _info_path(project, roots=()):
+    """Where a running desk says so: out/review/.desk.json in its project; a console's in the temp folder, one per user and
+    set of roots (a console over other folders is another console)."""
     if project:
         return Path(project) / "out" / "review" / ".desk.json"
     uid = os.getuid() if hasattr(os, "getuid") else os.environ.get("USERNAME", "user")
-    return Path(tempfile.gettempdir()) / f"ovh-console-{uid}.json"
+    which = hashlib.sha1("\n".join(sorted(os.path.realpath(r) for r in roots)).encode("utf-8")).hexdigest()[:10]
+    return Path(tempfile.gettempdir()) / f"ovh-console-{uid}-{which}.json"
 
 
 def running(project=None, roots=None):
     """The URL of a desk already serving this project (out/review/.desk.json names this very folder, its process is
     alive and its port answers), else None. A copied project carries the original's file; the path tells them apart.
     project None: a console already running with the same roots."""
-    info_p = _info_path(project)
+    info_p = _info_path(project, roots or ())
     try:
         info = json.loads(info_p.read_text())
         if project is not None and info.get("project") != os.path.realpath(str(project)):
@@ -529,7 +531,7 @@ def serve(project=None, port=None, idle=None, roots=()):
     if srv is None:
         print(f"desk: no free port ({last}); pick one with --port N", file=sys.stderr)
         return 2
-    info_p = _info_path(project)
+    info_p = _info_path(project, roots)
     info_p.parent.mkdir(parents=True, exist_ok=True)
     info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds")}
     if project:

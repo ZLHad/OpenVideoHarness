@@ -29,6 +29,7 @@ Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the
 """
 import argparse, contextlib, json, os, re, subprocess, sys, time
 from pathlib import Path
+from urllib.parse import quote
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -64,20 +65,20 @@ def skeleton(gate, lang, plan=None):
         return f"{{填：{a}}}" if zh else f"{{fill in: {b}}}"   # a shape no stylesheet can write (.bar {fill: #e33} is a page's own text)
 
     def card(k):
-        return {"id": k, "label": f(f"立意卡 {k}：一句话核心想法", f"concept card {k}: the idea in one line"),
-                "pro": f("推出的画面、钩子、首尾，各占一行（JSON 里用 \\n 换行）；为什么是这份材料",
-                         "the picture, the hook and the ending it leads to, a line each (\\n in the JSON); why this material"),
-                "con": f("风险或代价", "its risk or cost")}
-    d = {"version": 1, "summary": f("一句话：这页要人定什么、看完要多久", "one line: what this page asks the person, and how long it takes")}
+        return {"id": k, "label": f(f"立意卡 {k}：核心想法，不超过 20 个字", f"concept card {k}: the idea, in at most 50 characters"),
+                "frame": f(f"立意卡 {k} 那一帧画面的路径（卡上就放这一帧）", f"the path of card {k}'s frame (the card shows it)"),
+                "pro": f("推出的画面、钩子、首尾，各一句一行（JSON 里用 \\n 换行）",
+                         "the picture, the hook and the ending it leads to, a sentence a line (\\n in the JSON)"),
+                "con": f("风险或代价，一句", "its risk or cost, in a sentence")}
+    d = {"version": 1, "summary": f("这页要人定什么、看完要多久，不超过 40 个字：人第一眼读的就是这句",
+                                    "what this page asks the person and how long it takes, in at most 100 characters: the first thing they read")}
     stop = stop_of(gate)
     if stop == "1":
-        d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题", "which concept card? In this film's own words"),
+        d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题，一行", "which concept card? In this film's own words, one line"),
                            # two cards to start from: as many as really differ, each with its frame (add a C, or keep to two)
                            "options": [card("A"), card("B")], "recommend": f("A 或 B", "A or B"),
                            "columns": ["这张卡讲什么", "风险或代价"] if zh else ["what the card is", "its risk or cost"],
                            "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high"}]
-        d["assets"] = [{"path": f(f"立意卡 {k} 那一帧画面的路径", f"the path of card {k}'s frame"),
-                        "caption": f("这一帧在说什么", "what this frame says"), "for": "concept"} for k in "AB"]
         d["delegated"] = [f("替人定了的事，一项一条：规格（画幅、分辨率、帧率、时长、在哪看）、引擎、费用",
                             "what you decided for the person, one an item: the spec (frame, resolution, rate, length, where it is watched), the engine, the cost")]
         d["appendix"] = [{"title": "大纲" if zh else "Outline", "text": f("按推荐立意写的大纲，这支片子有几段写几段，竖线表：段落、时间、看完知道什么", "the outline for the recommended concept, as many segments as this film has, a pipe table: segment, time, what the viewer knows after it")},
@@ -101,7 +102,8 @@ def skeleton(gate, lang, plan=None):
                            "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high"}]
         d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
                        {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
-        d["least_sure"] = [{"id": f("镜头号", "shot id"), "note": f("自己最不满意的一处，和可选的修法；有几处写几处", "a place you like least, and how it could be fixed; as many entries as there are such places")}]
+        d["least_sure"] = [{"id": f("镜头号（S04）或片子里的时间（12.4 s、0–5 s）：有时间的落在标尺上", "a shot id (S04) or a time in the film (12.4 s, 0–5 s): a time lands on the ruler"),
+                            "note": f("自己最不满意的一处和默认的修法，一句；有几处写几处", "a place you like least and the fix it gets by default, a sentence; as many entries as there are such places")}]
         d["appendix"] = [{"title": "reviewer 的分数" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
         if plan and not plan["quick"] and "2" not in plan["gates"]:   # no storyboard stop: the storyboard is shown here, each shot passed unless the person says otherwise
             d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it, from the draft's own frames
@@ -139,6 +141,8 @@ def init_page(project, gate_arg, shown, as_json=False):
     elif stop_of(g) == "3" and "2" not in gatecheck.plan_of(project)["gates"]:
         print("  this film has no storyboard stop, so this page includes the storyboard: bin/vh storyboard writes out/check/storyboard/review.json", file=say)
     print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file", file=say)
+    print("  keep it short: summary at most 40 CJK characters (100 letters), a question one line, a label 20 (50), pro, con and each "
+          "least-sure note a sentence; reasons go into why, details into the appendix", file=say)
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}', file=say)
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
     if as_json:
@@ -236,12 +240,13 @@ def main(argv):
         lines.append(gatecheck.plan_words(gatecheck.plan_of(project), page.lang, lambda g: review.gate_title(g, page.lang)))
     url = None
     if channel == "desk":
+        import server
         url, started = start_desk(project, a.port)
         if not url:
             return jsonerr.fail("failed", f"gate: the review desk did not start (out/review/.desk.log says why); the page is {page_path}. "
                                 f"Start it by hand: bin/vh desk {a.project}")
         print(f"✓ review desk {url} ({'started, in the background' if started else 'already serving this project'})", file=sys.stderr)
-        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url))
+        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url.rstrip("/") + "/#/p/" + quote(server.keyify(project.name), safe="") + "/gate/" + page.gate))
     print(f"  this stop is reviewed on the {channel} ({why})", file=sys.stderr)
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": page.gate, "page": str(page_path), "channel": channel, "url": url,

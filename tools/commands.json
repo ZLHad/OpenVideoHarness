@@ -1135,12 +1135,13 @@
     },
     {
       "name": "desk",
-      "summary": "The review desk: a local page where the reviewer ticks, comments and submits; wait blocks until they submit, feedback prints the latest submission, data what the desk reads.",
-      "when": "studio's stops, or whenever the person wants to review item by item",
+      "summary": "The console and review desk: with no project, a local page of every film, waiting ones first; a project's stops, its film with the ruler, and its gate view, where the options are cards to pick and one button submits; wait blocks until the person submits, feedback prints the latest submission, data what the desk reads.",
+      "when": "whenever the person wants to see every film; studio's stops, or whenever the person wants to review item by item",
       "stages": ["1", "3", "8"],
       "reads": [
         "<project>/out/review/gate-<n>.json",
-        "<project>/BRIEF.md, SCRIPT.md, NOTES.md, DECISIONS.md, REVIEW.md, the shot table (shots.json or edit.json)"
+        "<project>/BRIEF.md, SCRIPT.md, NOTES.md, DECISIONS.md, REVIEW.md, the shot table (shots.json or edit.json)",
+        "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects, each --root), as bin/vh status reads it"
       ],
       "writes": [
         "<project>/out/review/feedback/<round>-<time>.json and .md",
@@ -1149,11 +1150,13 @@
       ],
       "usage": [
         {
-          "synopsis": "desk <project> [--port N] [--idle s] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
           "text": [
-            "the review desk (studio's review surface, tools/desk/README.md): a local page on 127.0.0.1 where the reviewer",
-            "ticks, comments and submits; wait: block until they submit, print it, exit 0 (an agent runs it in the background);",
-            "feedback: the latest submission; data: what the desk reads from the project, as JSON"
+            "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1. No project: every project bin/vh",
+            "projects finds (--root: more folders), a card a film, waiting ones first. A project: the page opens on it: its stops,",
+            "its film with the ruler, the gate view of a stop (the static page's markup; the options are cards, one button",
+            "submits) and the desk's item views. wait: block until the person submits, print it, exit 0 (an agent runs it in the",
+            "background); feedback: the latest submission; data: what the desk reads from the project, as JSON"
           ]
         }
       ],

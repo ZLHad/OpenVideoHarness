@@ -13,7 +13,7 @@ h1,h2,h3{font-weight:500}
 .live i{width:7px;height:7px;border:1px solid var(--text-3)}
 .live.on{color:var(--wait)}.live.on i{background:var(--wait);border-color:var(--wait)}
 .search{border-top:1px solid var(--line);background:var(--bg)}
-.search .wrap{padding-top:12px;padding-bottom:14px}
+.top .search .wrap{display:block;min-height:0;padding-top:12px;padding-bottom:14px}
 .search input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:6px 0;font-size:var(--fs-lead);outline:none;border-radius:0}
 .search input:focus{border-bottom-color:var(--accent)}
 .results{list-style:none;margin:8px 0 0;padding:0;max-height:52vh;overflow:auto}

@@ -708,7 +708,7 @@ PY
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
-           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
+           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate "desk no-such" "desk --root $t/no-such" \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" "sheet $t/no-such.mp4 --out $t/x.png" "sheet $t/no-such.mp4 $t/x.png" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
            "check $t/no-such.mp4" \
@@ -2819,7 +2819,8 @@ import json, sys
 sys.path.insert(0, "tools")
 import review
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2 and len(d["assets"]) == 2 else 1)
+sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2
+         and all(review.placeholders(o.get("frame")) for o in d["decisions"][0]["options"]) and "assets" not in d else 1)
 PY
   then ok "gate: no JSON points to --init and the section of the playbook; --init writes a skeleton with version 1, and does not overwrite"
   else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
@@ -2837,7 +2838,8 @@ def fill(x):
     if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
-d = fill(d); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+d = fill(d); d.pop("assets", None); d["decisions"][0]["recommend"] = "A"
+for o in d["decisions"][0]["options"]: o.pop("frame", None)   # a card's frame is a path: filled with words, it would be a missing file
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?
@@ -2866,7 +2868,10 @@ def fill(x):
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
 d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None)
-for x in d.get("decisions", []): x["recommend"] = recommend
+for x in d.get("decisions", []):
+    x["recommend"] = recommend
+    for o in x.get("options", []):
+        if isinstance(o, dict): o.pop("frame", None)
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   }
@@ -2934,7 +2939,7 @@ PY
   "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
   for rc3 in $(seq 50); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
   python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/#/p/g/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
     && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
@@ -2943,7 +2948,7 @@ gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
 sys.exit(0 if len(desk) == 1 and desk[0].get("parent") in gates and any(r["event"] == "feedback" for r in recs) else 1)
 PY
-  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), puts its address in the message; --wait hands over the submission"
+  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), puts its address in the message, landing on this round's gate view; --wait hands over the submission"
   else bad "gate on the desk (rc $rc/$rc2/$rc3): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
@@ -2951,6 +2956,132 @@ PY
   for i in $(seq 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
   if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
   else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
+}
+# the gate view (tools/review.py, tools/desk/static/ui.css and ui.js) and the console (bin/vh desk with no project): one
+# stylesheet and one script for the static page and the desk, inlined whole into the page; the picture first, the options as
+# cards with the recommendation picked; times in least-sure ids; the word budget a warning; the demo fixture's three gates;
+# the console's projects, project data, gate views and files over several projects, its refusals, and a submission
+console_checks() {
+  local t a b rc pid url
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  mkdir "$t/root" && cp -R tools/desk/fixtures/zh tools/desk/fixtures/en tools/desk/fixtures/demo "$t/root/"
+  rc=0; for g in 1 2 3; do vh review "$t/root/demo" "$g" > "$t/demo$g.out" 2> "$t/demo$g.err" || rc="$rc $g"; done
+  vh review "$t/root/zh" 1 >/dev/null 2>&1 || rc="$rc zh"
+  if python3 - "$t/root" "$rc" "$(cat "$t"/demo*.err)" <<'PY'
+import os, re, sys
+sys.path.insert(0, "tools")
+import review
+root, rc, err = sys.argv[1], sys.argv[2], sys.argv[3]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+css, js = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("ui.css", "ui.js"))
+pages = {g: open(f"{root}/demo/out/review/gate-{g}.html", encoding="utf-8").read() for g in "123"}
+zh = open(f"{root}/zh/out/review/gate-1.html", encoding="utf-8").read()
+want(rc == "0", f"review exits: {rc}")
+want("over its budget" not in err and "! " not in err, f"the demo pages warn: {err[:300]}")
+for g, h in list(pages.items()) + [("zh", zh)]:
+    want(css in h and js in h, f"gate {g}: ui.css and ui.js are not inlined whole")
+    want(not re.search(r"<(script|link)[^>]+(src|href)=", h) and "https://" not in h and "http://" not in h, f"gate {g}: loads something from outside the page")
+want('<input type="radio" name="dec-look" value="L1" checked data-rec="1" aria-label="L1 浅色清新 · 推荐" aria-describedby="o-look-L1">' in zh and '<code class="g-reply-v">1 L1</code>' in zh, "zh gate 1: the recommended card is not picked, or no reply")
+want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
+want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
+want('class="g-marks"' in pages["3"] and "0:27.0–0:32.0" in pages["3"] and 'data-t="15.5"' in pages["3"], "demo gate 3: the least-sure times (t, and a time as the id)")
+want(review.time_of("0–5 s") == (0.0, 5.0) and review.time_of("1:05–1:12") == (65.0, 72.0) and review.time_of("12.4 s") == (12.4, None) and review.time_of("S04") is None, "time_of")
+want(review.budget_len("初版 32 s") == (3.5, True) and review.budget_len("A short line") == (12, False), f"budget_len: {review.budget_len('初版 32 s')}")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget"
+  else bad "gate view on the fixtures"; fi
+  # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
+  mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
+  printf '%s\n' '{"summary": "立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。这页给你看第一轮的四张静帧和四十八秒的大纲，要你定两件事，约四分钟", "decisions": [{"id": "c", "question": "用哪个？", "options": ["A", "B"], "recommend": "A"}]}' > "$t/long/out/review/gate-1.json"
+  a=$(vh review "$t/long" 1 2>&1 >/dev/null); rc=$?
+  b=$(vh gate "$t/long" 1 --init 2>&1); vh gate "$t/long" 2 --init > "$t/init.out" 2>&1
+  if [ $rc = 0 ] && case "$a" in *"summary"*"over its budget of 40"*) true ;; *) false ;; esac && grep -q '<h1 class="g-summary">立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。</h1><p class="g-lead"' "$t/long/out/review/gate-1.html" \
+    && grep -q 'keep it short: summary at most 40' "$t/init.out"
+  then ok "word budget: an over-long summary is a warning (exit 0), and the page heads with its first sentence; gate --init says the budget"
+  else bad "word budget (exit $rc): $a | $(cat "$t/init.out")"; fi
+  # the console: no project, the roots given; three projects, keys from their names, the waiting one with its question
+  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --port 0 > "$t/console.log" 2>&1 & pid=$!
+  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
+  if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
+  if OVH_PROJECTS= python3 - "$url" "$t/root" <<'PY'
+import http.client, json, os, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1]); root = sys.argv[2]
+def req(method, path, body=None, headers=None, host=None):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20)
+    h = {"Host": host or f"127.0.0.1:{u.port}"}
+    h.update(headers or {})
+    c.request(method, path, body=body, headers=h)
+    r = c.getresponse(); data = r.read(); c.close()
+    return r.status, r.headers, data
+bad = []
+def want(cond, msg):
+    if not cond: bad.append(msg)
+s, _, page = req("GET", "/")
+page = page.decode()
+token = page.split('name="desk-token" content="')[1].split('"')[0]
+want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
+for f in ("ui.css", "ui.js", "console.css", "console.js"):
+    want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
+s, _, d = req("GET", "/api/projects"); d = json.loads(d)
+real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
+rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
+want(s == 200 and set(rows) == {"zh", "en", "demo"} and [n for n, r in rows.items() if r["state"] == "waiting_person"] == ["demo"], f"projects: {sorted(rows)}")
+dm = rows.get("demo", {"key": "demo"})
+K, Z = dm["key"], rows.get("zh", {"key": "zh"})["key"]
+want(dm.get("state") == "waiting_person" and (dm.get("ask") or {}).get("question") == "这版放行吗？" and (dm.get("ask") or {}).get("decisions") == 2, f"demo's ask: {dm.get('ask')}")
+want((dm.get("picture") or {}).get("from") == "gate" and dm["picture"]["href"].startswith(f"/f/{K}/"), f"demo's picture: {dm.get('picture')}")
+s, _, d = req("GET", f"/api/p/{K}/data"); d = json.loads(d)
+want(s == 200 and d["key"] == K and d["current"] == "3" and [x["state"] for x in d["status"]["stations"]][:3] == ["done", "done", "waiting_person"], "demo's data and stops")
+s, _, g = req("GET", f"/api/p/{K}/gate/3"); g = json.loads(g)
+want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g["html"] and [x["id"] for x in g["decisions"]] == ["draft", "voice"]
+     and f'src="/f/{K}/out/check/sheet.svg"' in g["html"] and not g["errors"], f"gate 3's view: {g.get('errors')}")
+s, _, g1 = req("GET", f"/api/p/{K}/gate/1?lang=en"); g1 = json.loads(g1)
+want(s == 200 and not g1["current"] and "Recommended" in g1["html"], "gate 1, an earlier page, in English")
+s, _, st = req("GET", f"/api/p/{K}/status")
+want(s == 200 and json.loads(st)["round"] == "3", "status names this round")
+s, h, _ = req("GET", f"/f/{K}/out/frames/S1.svg")
+want(s == 200 and h.get("Content-Security-Policy", "").startswith("sandbox"), "a project file, sandboxed")
+for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF.md", "/api/p/nope-x/data", f"/api/p/{K}/gate/9", "/api/data", "/p/BRIEF.md"):
+    want(req("GET", p)[0] == 404, f"{p} answered")
+want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
+fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
+    "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}]}, **k)).encode()
+H = {"Content-Type": "application/json", "X-Desk-Token": token}
+want(req("POST", f"/api/p/{K}/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
+want(req("POST", f"/api/p/{Z}/feedback", fb(), H)[0] == 400, "a round another project does not have")
+s, _, r = req("POST", f"/api/p/{K}/feedback", fb(), H)
+want(s == 200 and json.loads(r)["saved"].startswith("out/review/feedback/3-"), f"a submission: {s} {r[:200]}")
+rv = open(root + "/demo/REVIEW.md", encoding="utf-8").read()
+want("决定 draft：OK" in rv and "没把握：S04 [least:S04] · 要改：再大一点" in rv, "the submission in REVIEW.md")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "console: bin/vh desk with no project serves every project under the roots (keys, the waiting one with its question and picture), a project's data and stops, its gate views (this round live, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
+  else bad "console"; fi
+  a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
+  kill $pid 2>/dev/null; wait $pid 2>/dev/null
+  # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
+  if desk_start "$t/root/zh" "$t/zh.log"; then
+    a=$(python3 - "$desk_url" <<'PY'
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1])
+def get(p):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return r.status, d
+page = get("/")[1].decode()
+keys = [r["key"] for r in json.loads(get("/api/projects")[1])["projects"]]
+print('name="desk-home" content="zh"' in page, "zh" in keys, get("/api/data")[0], get("/api/p/zh/data")[0])
+PY
+)
+    [ "$a" = "True True 200 200" ] && ok "desk for a project: its page opens on it, the project is in the listing, and the first addresses still answer" || bad "desk for a project: $a"
+    kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
+  fi
+  rm -rf "$t"
 }
 concept_checks() {   # bin/vh concept: the roulette (seeded by the project's name, what the project has and --not left out)
   # and the six-then-three board (pillow through uv: the same bytes for the same input)
@@ -7121,7 +7252,8 @@ def fill(x):
     if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
-d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None); d["decisions"][0]["recommend"] = "A"
+for o in d["decisions"][0]["options"]: o.pop("frame", None)   # a card's frame is a path: filled with words, a missing file
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   e=$(ns "$p" '"send the page" in n["do"] and "--init" not in c')
