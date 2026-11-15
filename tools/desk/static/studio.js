@@ -395,8 +395,9 @@ function renderMine() {
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
   const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
-  $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + (FB.general ? 1 : 0)}</span></h3>`
-    + (items.length || gen ? `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>` : `<p class="next">${esc(t(MOD === "cut" ? "c_none_mine" : "c_none_mine_m"))}</p>`);
+  const none = !items.length && !gen;   // none yet: the heading and how to start, on one line
+  $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + (FB.general ? 1 : 0)}</span>${none ? `<span class="hint-inline">${esc(t(MOD === "cut" ? "c_mine_how" : "c_mine_how_m"))}</span>` : ""}</h3>`
+    + (none ? "" : `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>`);
 }
 function renderNext() {   // what happens next, in a line: who, and what (status's words in this page's language; its commands only in a tooltip)
   const st = (D && D.status) || {}, ns = st.next_step || {}, run = ((st.activity || {}).running || []);
@@ -461,10 +462,10 @@ function gotoTarget(target, tt, t1, label) {   // a note or a mark in the column
 function buildComposer() {
   const c = $("#composer");
   c.dataset.ready = "1";
-  c.innerHTML = `<div class="crow"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button></div>
+  // one row: what the note is on, and the button that notes it; the box under it (the agent's side of the box waits, hidden, until one is connected)
+  c.innerHTML = `<div class="crow send"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button><span class="meta" id="sayHint"></span><span class="kbd" aria-hidden="true">${esc(t("note_keys"))}</span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>
     <div class="crow" hidden><span class="modes" role="group"><button type="button" disabled title="${esc(t("say_agent_tip"))}">${esc(t("say_agent"))}</button><button type="button" aria-pressed="true">${esc(t("as_note"))}</button></span></div>
-    <textarea id="say" rows="2" maxlength="4000"></textarea>
-    <div class="send"><span class="meta" id="sayHint"></span><span class="kbd" aria-hidden="true">${esc(t("note_keys"))}</span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>`;
+    <textarea id="say" rows="2" maxlength="4000"></textarea>`;
   $("#toWhole").addEventListener("click", () => setScope(null));
   $("#sayAdd").addEventListener("click", addNote);
   $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } });
