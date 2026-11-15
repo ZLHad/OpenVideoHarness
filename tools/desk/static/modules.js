@@ -463,10 +463,10 @@ moduleWords({
 });
 moduleWords({
   notes_ledger: "素材台账（旧记法）", notes_ledger_sub: "NOTES.md 里的表，只读：bin/vh assets 之前的记法",
-  notes_ledger_note: "这里只读。登记进 assets/ledger.json 才会查许可、出署名：bin/vh assets add <项目> <文件>。", nl_file: "文件", nl_src: "来源", nl_lic: "许可", nl_there: "文件在不在", there_y: "在", there_n: "不在",
+  notes_ledger_note: "这里只读。登记进 assets/ledger.json 才会查许可、出署名：bin/vh assets add <项目> <文件>。", nl_file: "文件", nl_src: "来源", nl_lic: "许可", nl_gone: "不在", nl_gone_tip: "项目里没有这个文件",
 }, {
   notes_ledger: "Asset table (the older way)", notes_ledger_sub: "the table in NOTES.md, read only: how assets were noted before bin/vh assets",
-  notes_ledger_note: "Read only. Recorded in assets/ledger.json, an item gets its licence checked and its credit line: bin/vh assets add <project> <file>.", nl_file: "File", nl_src: "Source", nl_lic: "Licence", nl_there: "On disk", there_y: "yes", there_n: "no",
+  notes_ledger_note: "Read only. Recorded in assets/ledger.json, an item gets its licence checked and its credit line: bin/vh assets add <project> <file>.", nl_file: "File", nl_src: "Source", nl_lic: "Licence", nl_gone: "not here", nl_gone_tip: "No such file in the project",
 });
 let assetFilter = "all";
 const LIC_WORD = { pd: "l_pd", cc0: "l_cc0", own: "l_own", generated: "l_generated", free: "l_free", managed: "l_managed", unknown: "l_unknown" };
@@ -494,8 +494,8 @@ function mAssets2() {
   const counts = { all: items.length }; items.forEach((x) => { counts[x.k] = (counts[x.k] || 0) + 1; });
   const filters = items.length ? `<nav class="pgtabs" aria-label="${esc(t("m_assets"))}">${["all", "image", "video", "audio", "font", "ref"].map((k) => `<button type="button" data-af="${k}" aria-current="${assetFilter === k}">${esc(t("f_" + k))}${counts[k] ? ` <span class="mono">${counts[k]}</span>` : ""}</button>`).join("")}</nav>` : "";   // nothing to filter: no filters
   const N = A == null && X.assets_notes && (X.assets_notes.rows || []).length ? X.assets_notes : null;   // no ledger: the older table in NOTES.md, read only
-  const notesTable = N ? panel(t("notes_ledger"), t("notes_ledger_sub"), `<div class="tscroll"><table class="t"><thead><tr><th>${esc(t("nl_file"))}</th><th>${esc(t("nl_src"))}</th><th>${esc(t("nl_lic"))}</th><th>${esc(t("nl_there"))}</th></tr></thead><tbody>${N.rows.map((r) =>
-      `<tr${dattr({ mark: r.file ? "asset:" + r.file : "", scope: r.file ? "" : `${t("notes_ledger")} · ${cut(r.source || r.license, 30)}`, label: `${t("notes_ledger")} · ${cut(r.file, 60)}` })}><td class="mono">${esc(r.file || "—")}</td><td>${esc(r.source || "—")}</td><td>${esc(r.license || "—")}</td><td>${esc(r.there == null ? "—" : t(r.there ? "there_y" : "there_n"))}</td></tr>`).join("")}</tbody></table></div><p class="meta">${esc(t("notes_ledger_note"))}</p>`) : "";
+  const notesTable = N ? panel(t("notes_ledger"), t("notes_ledger_sub"), `<div class="tscroll"><table class="t nl"><thead><tr><th>${esc(t("nl_file"))}</th><th>${esc(t("nl_src"))}</th><th>${esc(t("nl_lic"))}</th></tr></thead><tbody>${N.rows.map((r) =>   // a file not in the project: a tag beside its name (a link has none)
+      `<tr${dattr({ mark: r.file ? "asset:" + r.file : "", scope: r.file ? "" : `${t("notes_ledger")} · ${cut(r.source || r.license, 30)}`, label: `${t("notes_ledger")} · ${cut(r.file, 60)}` })}><td><span class="mono">${esc(r.file || "—")}</span>${r.there === false ? ` <span class="chip wait" title="${esc(t("nl_gone_tip"))}">${esc(t("nl_gone"))}</span>` : ""}</td><td>${esc(r.source || "—")}</td><td>${esc(r.license || "—")}</td></tr>`).join("")}</tbody></table></div><p class="meta">${esc(t("notes_ledger_note"))}</p>`) : "";
   const ok = (A || []).filter((a) => CLEARED.includes(a.license)).length, todo = (A || []).length - ok;
   const digests = G.length ? panel(t("digest"), "bin/vh ref digest", `<ul class="copyl">${G.map((g) => `<li${dattr({ mark: "asset:" + g.path, label: `${t("digest")} ${g.id}` })}><span class="mono">${esc(g.id)}</span><a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a><span class="meta mono">${esc(Math.max(1, Math.round(g.bytes / 1024)) + " kB")}</span></li>`).join("")}</ul>`) : "";
   return headM("assets", t("assets_title"), t("assets_sub2"), filters)

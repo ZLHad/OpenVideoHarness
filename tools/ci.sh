@@ -3539,6 +3539,7 @@ try {
   d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "自己拍的", license: "自有", there: false }, { file: "https://example.org/y.png", source: "某馆", license: "", there: null }] };
   const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const h0 = draw(host(e, false), "assets");
   want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes("还没有素材台账"), "the NOTES.md table, or filters over nothing");
+  want((h.match(/<th>/g) || []).length === 3 && (h.match(/class="chip wait" title=/g) || []).length === 1, "the NOTES.md table: three columns, a tag beside the file not here and none beside the link");
   want(!h0.includes('class="pgtabs"') && h0.includes("还没有素材台账"), "no ledger and no table: filters, or nothing said"); }
 // 6: a command, a path or a file name is never inside a label the themes set in capitals (text-transform is inherited)
 const CAPS = ["kick", "pn-h", "mat-h", "g-eyebrow", "g-h", "blk-h", "lgroup", "grp"], KEEP = ["pn-sub", "quiet"], VOID = /^(img|br|hr|input|meta|link|source|wbr|path|line|circle|rect)$/i;

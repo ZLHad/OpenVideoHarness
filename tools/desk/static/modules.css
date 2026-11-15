@@ -233,3 +233,4 @@ table.t.ledger tr:hover td{background:var(--panel-3)}
   .hits2 li{grid-template-columns:14px 52px minmax(0,1fr)}
   .hits2 .meta,.hits2 .xs{grid-column:3}
 }
+.t.nl th,.t.nl td{min-width:6em}.t.nl th:first-child,.t.nl td:first-child{min-width:12em}   /* the older asset table: no column squeezed to a character a line */
