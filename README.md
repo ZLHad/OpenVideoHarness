@@ -212,7 +212,7 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 71 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 72 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|
@@ -231,6 +231,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | **Make** | `new` | A project from the templates; for most types the engine comes set up too |
 | | `style` · `recipes` · `components` | The style presets, the shot recipes and shot-grammar cards, the motion components |
 | | `edit` | The film as an edit list: pages, images, footage, other films and sounds in a row |
+| | `words` | The script read for the sentence shapes model drafts reach for (不是 A 而是 B, 排比 in threes, a colon that hands over the verdict): where they are and how often, for you to decide; it never edits |
 | | `tts` · `music` · `captions` · `mix` | Voiceover, a score written as code, subtitles, the mix ([Sound](#sound)) |
 | **Check and deliver** | `gate` · `desk` | A stop for your sign-off in one command; the review desk for item-by-item notes |
 | | `frames` · `sheet` · `determinism` | Lossless frames, contact sheets, and a check that each frame really is a function of t |

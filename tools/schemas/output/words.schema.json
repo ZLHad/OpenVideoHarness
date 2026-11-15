@@ -1,0 +1,66 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/words.schema.json",
+ "title": "bin/vh words <project | SCRIPT.md | file.md | file.txt | audio/script.txt> --json",
+ "description": "Where a script uses the sentence shapes one paired experiment found model drafts reach for (tools/words.py): a report, never an edit. chars counts Han characters, letters and digits; per_1000 is count per 1000 of them. checks is empty when lang is en (none was measured on English).",
+ "type": "object",
+ "required": ["version", "tool", "source", "input", "lang", "chars", "checks", "allowed_rules", "not_checked", "note"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"enum": ["words"]},
+  "source": {"type": "string"},
+  "input": {
+   "type": "object",
+   "required": ["kind", "column", "units"],
+   "properties": {
+    "kind": {"enum": ["table", "script", "text"]},
+    "column": {"type": ["string", "null"]},
+    "units": {"type": "integer"}
+   }
+  },
+  "lang": {"enum": ["zh", "en"]},
+  "chars": {"type": "integer"},
+  "checks": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "name", "ratio", "count", "allowed", "per_1000", "reading", "hits"],
+    "properties": {
+     "id": {"type": "string"},
+     "name": {"type": "string"},
+     "ratio": {"type": ["number", "null"]},
+     "count": {"type": "integer"},
+     "allowed": {"type": "integer"},
+     "per_1000": {"type": "number"},
+     "reading": {"type": "string"},
+     "hits": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": ["line", "text", "context"],
+       "properties": {
+        "line": {"type": "integer"},
+        "text": {"type": "string"},
+        "context": {"type": "string"},
+        "allowed_by": {"type": "string"}
+       }
+      }
+     }
+    }
+   }
+  },
+  "allowed_rules": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["rule", "from"],
+    "properties": {
+     "rule": {"type": "string"},
+     "from": {"type": "string"}
+    }
+   }
+  },
+  "not_checked": {"type": "array", "items": {"type": "string"}},
+  "note": {"type": "string"}
+ }
+}

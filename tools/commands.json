@@ -1372,6 +1372,28 @@
       ]
     },
     {
+      "name": "words",
+      "summary": "Where a script uses the sentence shapes model drafts reach for (不是 A 而是 B, a colon that hands over the verdict, 顿号 lists, 排比 in threes, long modifiers, paragraphs chained end to start): a report, never an edit.",
+      "when": "once the narration or caption script is written, before the person reads it; again after a rewrite",
+      "stages": ["3"],
+      "reads": [
+        "<project>/SCRIPT.md (the 旁白 / Narration column, else 字幕 / Caption), else <project>/audio/script.txt; or any .md / .txt",
+        "<project>/STYLE.md (its 允许的句式 section), and --style files"
+      ],
+      "writes": [],
+      "usage": [
+        {
+          "synopsis": "words <project|SCRIPT.md|file.md|file.txt|audio/script.txt> [--col 旁白|字幕|<header>] [--style FILE] [--all] [--json]",
+          "text": [
+            "each check's hits (line, the words hit, the sentence), per 1000 characters, and how to read the count: the ratios come from one",
+            "paired experiment on other writing, not re-measured here. Exit 0 whatever it finds; not part of bin/vh check. Chinese only:",
+            "English text gets no counts. STYLE.md's 允许的句式 section (a check's name, or a quoted sentence) stops counting what the",
+            "project chose on purpose; --all lists those too"
+          ]
+        }
+      ]
+    },
+    {
       "name": "edit",
       "summary": "The film as an edit list (edit.json, engines/EDIT.md): a row of entries, each drawn from a page, an image, a colour, footage, another film or nothing yet (a slate), and tracks of sounds; init folds shots.json into one, build resolves it to whole frames, check and list.",
       "when": "a film made of several pages (a chapter an engine), with still images or footage, and gate ②'s full-length animatic (edit init: every shot a slate, timed as planned)",

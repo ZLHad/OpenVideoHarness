@@ -3021,6 +3021,98 @@ sys.stdout.buffer.write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,
   rm -rf "$t"
 }
 
+words_checks() {   # bin/vh words (tools/words.py): a report on a script's sentence shapes, never an edit. A made-up project
+  # whose SCRIPT.md narration column hits each check on a known line; what is not one (是不是, 要不是, a colon before speech
+  # or a quotation, two items with one 顿号, a possessive 的) stays quiet; the project's STYLE.md allows a check by its name
+  # and one sentence by quoting it; audio/script.txt is read as spoken (@id, [direction], || English out); English text
+  # gets no counts; exit 0 with hits, and nothing in the project is written
+  local t
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 - "$t" "$VH_BASH" <<'PY'
+import json, os, subprocess, sys
+t, sh = sys.argv[1], sys.argv[2]
+def w(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, "w", encoding="utf-8").write(text)
+def vh(*args):
+    return subprocess.run([sh, "bin/vh", "words", *args], capture_output=True, text=True, encoding="utf-8")
+p = os.path.join(t, "p")
+w(f"{p}/BRIEF.md", "# BRIEF\n")
+w(f"{p}/SCRIPT.md", """# SCRIPT：旁白稿
+
+<!-- 不是注释，而是要跳过的：这一行不算 -->
+
+| # | 段 | 旁白（定稿） | 实测 s |
+|---|---|---|---|
+| {h1} | {钩子} | {不是模板，而是占位} | {2.9} |
+| a1 | 开 | 低轨卫星的真正挑战，不是速度，而是时间。 | 3 |
+| a2 | 开 | 答案很简单：频率在变。 | 2 |
+| a3 | 承 | 它需要克服延迟、抖动、丢包和功耗。 | 2 |
+| a4 | 承 | 它要更快，它要更稳，它要更省。 | 2 |
+| a5 | 转 | 一个在过去十年里被无数工程师反复验证过却始终没能真正落地的想法，终于有了回音。 | 4 |
+| a6 | 转 | 回音藏在轨道里。 | 2 |
+| a7 | 合 | 是不是这样？要不是轨道已知，他说：“算不出来。”工程师说：先算再拨。 | 3 |
+| a8 | 合 | 这是我的电脑和他的手机，还有卫星、地面站。 | 3 |
+| 03 收尾：一句话 | | | |
+""")
+before = {f: os.stat(os.path.join(dp, f)).st_mtime_ns for dp, _, fs in os.walk(p) for f in fs}
+bad = []
+r = vh(p, "--json")
+j = None
+if r.returncode:
+    bad.append(f"exit {r.returncode} with hits: {r.stderr[-300:]}")
+else:
+    j = json.loads(r.stdout)
+if j:
+    got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"]}
+    want = {"not_but": [8], "colon_verdict": [9], "dun_triple": [10], "triple_parallel": [11], "long_attributive": [12], "chain_link": [13]}
+    if got != want:
+        bad.append(f"hits by line: {got}, wanted {want}")
+    if j["input"] != {"kind": "table", "column": "旁白（定稿）", "units": 8} or j["lang"] != "zh":
+        bad.append(f"what it read: {j['input']} {j['lang']}")
+    c = next(c for c in j["checks"] if c["id"] == "not_but")
+    if c["ratio"] != 3.4 or c["per_1000"] <= 0 or "不是速度，而是" not in c["hits"][0]["text"] or "3.4 times" not in c["reading"]:
+        bad.append(f"not_but's record: {c}")
+    if not any("metaphor" in x for x in j["not_checked"]):
+        bad.append(f"not_checked: {j['not_checked']}")
+after = {f: os.stat(os.path.join(dp, f)).st_mtime_ns for dp, _, fs in os.walk(p) for f in fs}
+if after != before:
+    bad.append("the project changed")
+w(f"{p}/STYLE.md", "# STYLE\n\n## 允许的句式\n\n- 不是……而是：立意就是这组反差\n- “它要更快，它要更稳，它要更省”：片尾故意的\n\n## Palette\n\n- 排比\n")
+j = json.loads(vh(p, "--json").stdout)
+c = {c["id"]: c for c in j["checks"]}
+if (c["not_but"]["count"], c["not_but"]["allowed"], c["not_but"]["hits"]) != (0, 1, []) or (c["triple_parallel"]["count"], c["triple_parallel"]["allowed"]) != (0, 1) \
+        or c["dun_triple"]["count"] != 1 or len(j["allowed_rules"]) != 2:
+    bad.append(f"STYLE.md's 允许的句式 (a name, a quoted sentence; a list under another heading is not one): {[(k, v['count'], v['allowed']) for k, v in c.items()]} {j['allowed_rules']}")
+j = json.loads(vh(p, "--json", "--all").stdout)
+if [h.get("allowed_by", "").endswith("STYLE.md") for h in next(c for c in j["checks"] if c["id"] == "not_but")["hits"]] != [True]:
+    bad.append("--all does not list the allowed hit with where it was allowed")
+txt = vh(p).stdout
+if "L9  答案很简单：频率在变" not in txt or "L8" in txt or "allowed by the style guide" not in txt or "not checked:" not in txt:
+    bad.append(f"the text report: {txt[:400]!r}")
+q = os.path.join(t, "q")   # no SCRIPT.md: what the voice reads
+w(f"{q}/audio/script.txt", "# a comment: 不是这个，而是那个\n@speakers A=Kore B=Puck\n@a [轻快，不是指示，而是语气] A: 先看这里。 || not this, but that\n@b 卫星飞过去了。 || 不是英文，而是中文\n@c 与其说是速度，不如说是时间。\n")
+j = json.loads(vh(q, "--json").stdout)
+got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"] if c["hits"]}
+if j["input"]["kind"] != "script" or j["input"]["units"] != 3 or got != {"not_but": [5]}:
+    bad.append(f"audio/script.txt as spoken: {j['input']} {got}")
+w(f"{t}/en.md", "# Notes\n\nIt is not speed, but time. The answer is simple: the frequency moves.\n")
+j = json.loads(vh(f"{t}/en.md", "--json").stdout)
+if j["lang"] != "en" or j["checks"] != []:
+    bad.append(f"English text: {j['lang']} {j['checks']}")
+os.makedirs(os.path.join(t, "empty"))
+for args, rc in (([], 2), ([os.path.join(t, "nope.md")], 1), ([f"{p}/BRIEF.md", "--col", "旁白"], 1), ([os.path.join(t, "empty")], 1)):
+    r = vh(*args)
+    if r.returncode != rc or r.stdout:
+        bad.append(f"bin/vh words {' '.join(args)}: exit {r.returncode} (wanted {rc}), stdout {r.stdout[:80]!r}")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "words: each check on its line of a SCRIPT.md narration column (template rows, comments and a chapter's title row left out), what only looks like one quiet; STYLE.md's 允许的句式 allows by name and by quoted sentence; audio/script.txt read as spoken; English gets no counts; exit 0 with hits, nothing written; no text exits 1, a usage error 2"
+  else bad "bin/vh words"; fi
+  rm -rf "$t"
+}
+
 # bin/vh status: a new standard project works towards gate ①; a page out waits for the person; a desk submission waits for
 # the agent until it is handed over and REVIEW.md has its decision, and then the next gate is in progress; a Director stop
 # adds its checkpoint; quick skips the gates; the user's waiver skips what it names; a pause waits for the person; a delivery
@@ -6823,7 +6915,7 @@ for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("fra
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
     if C.is_ours(cmd, cl):
         bad.append(f"is_ours, not: {cmd}, {cl}")
-known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py"}
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
