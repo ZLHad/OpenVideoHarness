@@ -430,7 +430,7 @@ moduleWords({
   sound_unchecked: "还没检查过声音。",
   sound_unchecked_done: "这支片子的声音没有检查记录。",
   misread_as: "「{a}」读成了「{b}」",
-  take_gone: "录音不在本机",
+  take_gone: "录音不在本机", takes_gone: "这几段试听的录音都不在本机，只剩下面的数字。",
 }, {
   sound_title: "Sound", sound_sub2: "The agent can't hear; it only sees these numbers. Anything off? Write a line.", sound_sub_s: "The agent can't hear. The places to listen to are below.",
   u_loud: "target {x}", u_peak: "limit −1", u_speech: "{u}, pauses left out", u_speech2: "{u}, pauses in", u_silence: "digital silences",
@@ -457,7 +457,7 @@ moduleWords({
   sound_unchecked: "The sound isn't checked yet.",
   sound_unchecked_done: "This film's sound has no check on record.",
   misread_as: "“{a}” read as “{b}”",
-  take_gone: "The take isn't on this computer",
+  take_gone: "The take isn't on this computer", takes_gone: "None of these takes is on this computer; the numbers below are what's left.",
 });
 const unitsOf = (s) => (/[㐀-鿿]/.test(s) ? (s.match(/[㐀-鿿]/g) || []).length : s.trim().split(/\s+/).filter(Boolean).length);
 function narrLines() {   // each line's rate: bin/vh pace's (voice only) when it has run, else first word to last
@@ -500,9 +500,10 @@ function mSound2() {
   const tiles = T.length ? `<div class="tiles">${T.join("")}</div>` : `<p class="note-line wide">${esc(t(done ? "sound_unchecked_done" : "sound_unchecked"))}</p>`;
   const inUse = (v) => !!X.voice && String(X.voice).toLowerCase() === String(v).toLowerCase();
   const A = X.audition, film = (D.studio && D.studio.film) || "";
-  const voices = A && A.voices.length ? `<div class="voices">${A.voices.map((v) => `<article class="vcard${inUse(v.voice) ? " on" : ""}"${dattr(v.file ? { mark: "asset:" + v.file, label: `${t("audition")} · ${v.voice}` } : { scope: `${t("audition")} · ${v.voice}` })}>
+  const allGone = !!A && A.voices.length > 1 && A.voices.every((v) => !v.file);   // none of the takes here: said once, not on every card
+  const voices = A && A.voices.length ? `${allGone ? `<p class="meta">${esc(t("takes_gone"))}</p>` : ""}<div class="voices">${A.voices.map((v) => `<article class="vcard${inUse(v.voice) ? " on" : ""}"${dattr(v.file ? { mark: "asset:" + v.file, label: `${t("audition")} · ${v.voice}` } : { scope: `${t("audition")} · ${v.voice}` })}>
       <h3><b>${esc(v.voice)}</b>${inUse(v.voice) ? `<span class="chip ok">${esc(t("in_use"))}</span>` : readOnly() ? "" : `<button type="button" class="btn btn-quiet" data-use="${esc(v.voice)}">${esc(t("use_this"))}</button>`}</h3>
-      ${v.file ? `<audio src="${esc(src(v.file))}" controls preload="none"></audio>` : `<p class="meta">${esc(t("take_gone"))}</p>`}${v.error ? `<p class="meta">${esc(v.error)}</p>` : ""}
+      ${v.file ? `<audio src="${esc(src(v.file))}" controls preload="none"></audio>` : allGone ? "" : `<p class="meta">${esc(t("take_gone"))}</p>`}${v.error ? `<p class="meta">${esc(v.error)}</p>` : ""}
       <dl class="vm"><div><dt>${esc(t("pitch"))}</dt><dd class="mono">${v.pitch_hz != null ? esc(Math.round(v.pitch_hz) + " Hz") : "—"}</dd></div><div><dt>${esc(t("rate"))}</dt><dd class="mono">${v.speech_rate != null ? esc((+v.speech_rate).toFixed(1)) : "—"}</dd></div>
       <div><dt>${esc(t("misread"))}</dt><dd${Array.isArray(v.misread) && v.misread.length ? ' class="warn"' : ""}>${esc(Array.isArray(v.misread) ? (v.misread.length ? v.misread.map((m) => { const [a, b] = String(m).split(/\s*(?:→|->)\s*/); return b ? t("misread_as", { a, b }) : String(m); }).join("、") : t("no_misread")) : "—")}</dd></div></dl></article>`).join("")}</div>` : "";
   const lines = nl.rows.length ? `<div class="tscroll"><table class="t lines"><thead><tr>${film ? "<th></th>" : ""}<th>${esc(t("line_k"))}</th><th>${esc(t("text_k"))}</th><th>${esc(nl.unit)}</th><th>${esc(t("pause_k"))}</th><th></th></tr></thead><tbody>${nl.rows.map((r) => {
@@ -527,7 +528,7 @@ function mSound2() {
   const listFold = (rows, f) => rows.length > 8 ? `<ul class="hits2">${rows.slice(0, 8).map(f).join("")}</ul><details class="more"><summary>${esc(t("more_n", { n: rows.length - 8 }))}</summary><ul class="hits2">${rows.slice(8).map(f).join("")}</ul></details>` : rows.length ? `<ul class="hits2">${rows.map(f).join("")}</ul>` : "";
   const fpanel = done && !(env && fdur) && !fmarks.length ? ""   // a film that went out with no curve and nothing to listen to: the line above says it
     : panel(t("film_sound"), t("env_cmd"), (env && fdur ? `<svg class="energy" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${env}" class="env"/>${fmarks.map((k) => `<line x1="${fx(k.t)}" x2="${fx(k.t)}" y1="0" y2="${H}" class="mk ${k.cls}"/>`).join("")}</svg>` : voidLine(t("env_none")))
-    + listFold(fmarks, frow) + partErr("check") + (film ? `<audio id="fau" src="${esc(src(film))}" preload="none"${fmarks.length ? " controls" : ""}></audio>` : ""));
+    + listFold(fmarks, frow) + partErr("check") + (film ? `<audio id="fau" src="${esc(src(film))}" preload="metadata"${fmarks.length ? " controls" : ""}></audio>` : ""));
   const hasMusic = secs.length && mdur;
   const mpanel = !hasMusic && !mmarks.length && done ? `<p class="note-line">${esc(t("music_unused"))}</p>`   // done, and never had music: said in a line
     : panel(t("music"), t("music_cmd"), (hasMusic ? `<div class="secband">${secs.map((s, i) => `<span class="s${i % 2}" style="left:${mp(s.start)}%;width:${(mp(s.end) - mp(s.start)).toFixed(2)}%" title="${esc([s.name, s.label].filter(Boolean).join(" · "))}">${mp(s.end) - mp(s.start) >= 7 ? esc([s.name, s.label].filter(Boolean).join(" · ")) : ""}</span>`).join("")}${mmarks.map((k) => `<i class="tick ${k.cls}" style="left:${mp(k.t)}%"></i>`).join("")}</div>` : voidLine(t("music_none")))

@@ -251,6 +251,9 @@ body{overflow:hidden}
 .tl .grp-t:hover,.tl .grp-t:focus-visible{color:var(--ink)}
 .tl .grp-n{font-size:10px;color:var(--ink-3)}
 .tl .trk{-webkit-user-select:none;user-select:none}   /* scrubbing across the narration selects no text */
+.tl .blk img{pointer-events:none;-webkit-user-drag:none}   /* a shot's picture is not a thing to drag: the press is the lane's */
+.tl-more{display:flex;align-items:baseline;gap:10px;padding:8px 0 0 calc(var(--lab-w) + 6px);font-size:11px;color:var(--ink-3)}.tl-more button{border:0;background:none;padding:0;font:inherit;color:var(--ink-2);cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px}
+.col-body .note-list li.just{background:var(--panel-3);transition:background .6s var(--ease)}   /* the note just added, lit for a moment */
 .tl{--lab-w:80px}
 .lane{display:grid;grid-template-columns:var(--lab-w) minmax(0,1fr);align-items:center;min-height:24px}
 .lane .lab{font-size:11px;color:var(--ink-3);text-align:right;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -520,7 +523,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .tl-help dt{margin:0;text-align:right}.tl-help dd{margin:0;color:var(--ink-2)}
 .blk.shot.thin,:root[data-theme=darkfield] .blk.shot.thin{border-left:1px solid var(--rule-2);padding:0}   /* too narrow for its number: the shot as a divided stretch */
 .blk.shot:not(.thin){padding-left:4px}
-.col-body .away{display:block;padding:9px 11px;border:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);text-decoration:none;border-radius:var(--r-card);font-size:var(--fs-small)}   /* the round's decisions, from another module: one line */
+.col-body .away{display:flex;align-items:center;gap:8px;padding:2px 0;color:var(--wait);text-decoration:none;font-size:var(--fs-small)}.col-body .away::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--wait)}.col-body .away:hover,.col-body .away:focus-visible{text-decoration:underline}   /* the round's decisions, from another module: one line */
 .col-body .away:hover{border-color:var(--wait)}
 /* the column's decision cards, compact: an option a line and its good and its cost on one more, so what is under them is in view */
 .col .g-dec{padding:8px 10px}

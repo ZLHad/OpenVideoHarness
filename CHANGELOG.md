@@ -40,6 +40,15 @@
     - ⌘/Ctrl + wheel, or a pinch, zooms around the pointer;
     - a group folds from its name only. The whole row used to fold it, so a click a little off a lane folded a group, and the fold was kept; folds made that way open again;
     - "?" lists the mouse and the keys.
+  - After two reviews from a user's side, one trying the cut page and one looking at every page:
+    - a drag started on a shot's picture works (the browser took it as dragging the image away);
+    - the frame under the pointer shows only over the ruler, above it, where it used to cover the lanes;
+    - the review layout says where the sound lanes are;
+    - a note just added is brought into view in the column;
+    - on another module, the line to a stop's decisions is a quiet link, with no "下一步" under it saying the same;
+    - an option's pros and costs show whole on hover where the column cuts them to a line;
+    - takes that are not on this machine are said once, not on every card;
+    - the film's sound shows its length before it plays.
   - The waiting film's card and a static page's main picture prefer a picture of the film to a contact sheet.
   - A static page made after its stop settled is a record ("已定", nothing to pick).
   - A static page writes a shot one way, S4 as the console does; its anchor and the reply keep the id as given. In English, the reason for the recommended option reads "Why: …". `bin/vh gate --init` titles the reviewer's scores "评审打的分" on a Chinese page.

@@ -360,6 +360,10 @@ function renderColumn() {
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
+  $$(".g-opt", cards || document.createElement("i")).forEach((o) => {   // the column cuts an option's pros and costs to a line: the whole of them on hover
+    const lines = $$(".pc>span", o).map((x) => { const k = $(".k", x), all = x.textContent.trim(); return k ? `${k.textContent.trim()} ${all.slice(k.textContent.length).trim()}` : all; });
+    if (lines.length) o.title = lines.join("\n");
+  });
   renderMarks(); renderMine(); renderNext(); renderRound();
   if (!$("#composer").dataset.ready) buildComposer();
   $("#composer").hidden = false;
@@ -406,7 +410,7 @@ function renderNext() {   // what happens next, in a line: who, and what (status
   const spent = money(b.spent), limit = b.unlimited ? "∞" : money(b.limit);
   const said = statusWords(ns.do || ""), cmds = [shortPath(ns.do || "")].concat((ns.commands || []).map(shortPath)).filter(Boolean).join("\n");   // the tooltip: status's own line and its commands
   const wait = stations().find((s) => s.state === "waiting_person"), words = who === "person" ? (wait ? t("next_you", { s: gateName(wait.id) }) : t("next_you0")) : t("next_agent");
-  const said_here = who === "person" && $(".c-cards", $("#colBody"));   // the cards above and the 交给 agent button already say the person's next step
+  const said_here = who === "person" && $(".c-cards, .away", $("#colBody"));   // the cards above (or the line to them) and 交给 agent already say the person's next step
   const next = ns.do && who !== "nobody" && !said_here ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next" title="${esc([said.text].concat(cmds ? [cmds] : []).join("\n"))}"><span class="who ${who}">${esc(t("who_" + who))}</span><span>${esc(words)}</span></p>` : "";
   $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li title="${esc(shortPath(x.cmd || x))}"><span class="mono tc" style="color:var(--agent)">●</span><span>${esc(cmdWords(x.cmd || x))}</span></li>`).join("")}</ul>` : "")
     + next + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
@@ -496,6 +500,8 @@ function addNote() {
       SCOPE.t != null ? { t: SCOPE.t } : {}, SCOPE.t1 != null ? { t1: SCOPE.t1 } : {});
   }
   ta.value = ""; save(); toast(t("noted", { x: scopeLabel() }));
+  const li = $(`#cMine li[data-goto="${CSS.escape(SCOPE && SCOPE.target ? SCOPE.target : "")}"]`) || $("#cMine li.general");   // the note in the column, in view and lit for a moment
+  if (li) { li.scrollIntoView({ block: "nearest", behavior: "smooth" }); li.classList.add("just"); setTimeout(() => li.classList.remove("just"), 1600); }
   ta.blur();   // noted: the next key (N, ← →, Space) goes to the film, not into the box
 }
 $("#stage").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.hidden = true; }, true);   // a picture not there: the letter under it shows
@@ -1142,6 +1148,7 @@ function CutModule(area) {
       + grp("sound", t("g_sound")) + lane("voice extra", t("ln_voice"), lineH, "sound", t("e_voice")) + lane("music extra", t("ln_music"), beatH + secH, "sound", t("e_music"))
       + (hitsL.length ? lane("thin extra", t("ln_hits"), hitH, "sound") : "") + lane("wave extra", t("ln_wave"), wave(), "sound", t("e_wave"))
       + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + (diffH ? lane("thin extra", t("ln_diff"), diffH, "review") : "")   // what changed: a lane only when it is on record
+      + (layout === "review" && (lines.length || peaks || sections.length || beats.length) ? `<div class="tl-more"><span>${esc(t("tl_more"))}</span><button type="button" data-lay-go="fine">${esc(t("lay_fine"))}</button><button type="button" data-lay-go="sound">${esc(t("lay_sound"))}</button></div>` : "")   // the review layout keeps the picture and the review: say where the sound is
       + `<div class="over" aria-hidden="true"><div class="selr" hidden><span class="cap"></span></div><div class="tl-ph"><span class="cap"></span></div></div><div class="hover-tip" hidden></div>`;
     const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => k === "mine" || AM.some((m) => m.kind === k));
     $("#tlLegend", area).innerHTML = kinds.map(([, cls, w]) => `<span class="lg"><i class="pin ${cls}" aria-hidden="true"></i>${esc(t(w))}</span>`).join("");
@@ -1152,6 +1159,7 @@ function CutModule(area) {
   tl.addEventListener("click", (e) => {
     const p = e.detail === 0 && e.target.closest("[data-pick]");   // Enter or Space on a pin
     if (p) { pickThing(p.dataset.pick, p); return; }
+    const lg = e.target.closest("[data-lay-go]"); if (lg) { setLayout(lg.dataset.layGo); return; }
     const g = e.target.closest(".grp-t"); if (!g) return;
     const k = g.parentElement.dataset.grp; if (closed.has(k)) closed.delete(k); else closed.add(k);
     store.set("desk:cut-folded", [...closed]); draw();
@@ -1264,6 +1272,7 @@ function CutModule(area) {
     select({ kind: "time", t: x, label: fmt(x) });
   };
   tl.addEventListener("pointerup", endDrag); tl.addEventListener("pointercancel", endDrag);
+  tl.addEventListener("dragstart", (e) => e.preventDefault());   // a shot's picture is an image: pressed and moved, the browser would drag it away and end the scrub
   function playPiece(kind, id) {   // a double click: that shot, line or chapter, once, from its start to its end
     if (kind === "line") return pickThing("play:" + id);
     const it = kind === "shot" ? shots.find((x) => x.id === id) : chapters.find((x) => x.id === id);
@@ -1271,8 +1280,8 @@ function CutModule(area) {
     pickThing(kind + ":" + id);
     stopAt = it.t1; start();
   }
-  function hoverTip(e, tip) {
-    const r = overRect(); if (e.clientX < r.left || e.clientX > r.right) { tip.hidden = true; return; }
+  function hoverTip(e, tip) {   // over the ruler only, drawn above it: over the lanes it covered what the pointer was about to press
+    const ru = e.target.closest(".ruler-l"), r = overRect(); if (!ru || e.clientX < r.left || e.clientX > r.right) { tip.hidden = true; return; }
     const x = tAt(e.clientX, false), s = shotAt(x);
     const fr = document.createElement("span");   // the frame under the pointer, its address set through the style object, never written into markup
     fr.className = "fr";
@@ -1284,7 +1293,7 @@ function CutModule(area) {
     } else if (s && shotPic(s)) Object.assign(fr.style, { backgroundImage: `url(${JSON.stringify(shotPic(s))})`, backgroundSize: "cover", backgroundPosition: "center" });
     tip.replaceChildren(...(fr.style.backgroundImage ? [fr] : []), document.createTextNode(fmt(x) + (s ? " · " + s.id : "")));
     tip.hidden = false;
-    tip.style.left = Math.min(Math.max(e.clientX, 100), window.innerWidth - 100) + "px"; tip.style.top = (e.clientY - 12) + "px";
+    tip.style.left = Math.min(Math.max(e.clientX, 100), window.innerWidth - 100) + "px"; tip.style.top = (ru.getBoundingClientRect().top - 4) + "px";
   }
 
   /* N: the next place to look at */
