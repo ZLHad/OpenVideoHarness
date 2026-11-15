@@ -2057,13 +2057,14 @@
       ],
       "usage": [
         {
-          "synopsis": "sheet <video> [cols] [fps] [out]",
+          "synopsis": "sheet <video> [cols] [fps] [out] [--gray]",
           "text": [
-            "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)"
+            "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)",
+            "--gray: every tile in luma only (<name>-sheet-gray-<HHMMSS>.png): do subject and ground part by light and dark alone? (TASTE_CHECKLIST #1)"
           ]
         },
         {
-          "synopsis": "sheet <folder> [cols] [-] [out]",
+          "synopsis": "sheet <folder> [cols] [-] [out] [--gray]",
           "text": [
             "a folder's pictures in the order of their names, each in a 16:9 cell, its caption from captions.json",
             "({\"file name\": \"caption\"}) under it, else its name (bin/vh scout topic --covers makes one)"

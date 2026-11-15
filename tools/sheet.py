@@ -2,7 +2,9 @@
 
 usage: uv run --with pillow python tools/sheet.py <video> <out.png> [cols=6] [fps=1] [width=480]
        uv run --with pillow python tools/sheet.py <folder> <out.png> [cols=5] [-] [width=320]
-       label colour via env VH_SHEET_LABEL (default #ffdc00); VH_SHEET_AT=t,t,… takes those times instead of fps
+       label colour via env VH_SHEET_LABEL (default #ffdc00); VH_SHEET_AT=t,t,… takes those times instead of fps;
+       VH_SHEET_GRAY=1: every tile in luma only (Rec. 601 weights), the labels still in colour: do subject and ground
+       part by light and dark alone?
 Frames are sampled at t = (k + 0.5) / fps so each tile sits mid-interval; the label is that exact time.
 A time past the last frame is clamped to it, so a clip shorter than one interval (0.4 s at fps 1) still gets a tile.
 A folder: its pictures (covers, stills) in the order of their names, each scaled into a 16:9 cell, its caption from
@@ -13,6 +15,12 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 LABEL = os.environ.get("VH_SHEET_LABEL", "#ffdc00")  # tile label colour; use a grey when the sheet appears inside a film
+GRAY = os.environ.get("VH_SHEET_GRAY", "") not in ("", "0")   # luma only: does the picture hold up in light and dark alone
+
+
+def tone(im):
+    """The tile as it goes on the sheet: in colour, or its luma (PIL's L, ITU-R 601 weights) back in RGB."""
+    return im.convert("L").convert("RGB") if GRAY else im
 
 def probe_duration(video: str):
     """→ (duration, latest safe seek time): a seek past the last frame's start extracts nothing, so stop half a frame
@@ -55,7 +63,7 @@ def image_sheet(folder: str, out: str, cols: int, width: int):
     for i, p in enumerate(files):
         x, y = 8 + (i % cols) * (width + 8), 8 + (i // cols) * cell_h
         try:
-            im = Image.open(p).convert("RGB")
+            im = tone(Image.open(p).convert("RGB"))
         except OSError:
             draw.rectangle([x, y, x + width - 1, y + ch - 1], outline=(90, 90, 90))
             draw.text((x + 8, y + 8), "not a picture", fill=(160, 160, 160), font=f)
@@ -87,7 +95,7 @@ def main():
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", video, "-frames:v", "1",
                             "-vf", f"scale={width}:-1", str(p)], check=True)
             if p.exists():
-                tiles.append((t, Image.open(p).convert("RGB")))
+                tiles.append((t, tone(Image.open(p).convert("RGB"))))
     if not tiles:
         sys.exit("no frames extracted")
     tw, th = tiles[0][1].size

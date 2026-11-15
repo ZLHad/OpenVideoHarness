@@ -738,6 +738,30 @@ PY
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
+  # sheet --gray: every tile in luma only, anywhere among the arguments, its own name; a red square on a green ground of
+  # another lightness parts in it, and the colour sheet keeps its colour
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "sheet --gray" "needs uv and ffmpeg"
+  else
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x3CB43C:s=320x180:d=2:r=24" -vf "drawbox=x=100:y=50:w=80:h=80:c=0xC83C3C:t=fill" -pix_fmt yuv420p "$t/rg.mp4"
+    mkdir -p "$t/rgp/out"; printf '# BRIEF\n' > "$t/rgp/BRIEF.md"; cp "$t/rg.mp4" "$t/rgp/out/rg.mp4"
+    vh sheet "$t/rg.mp4" 2 1 "$t/gray.png" --gray >/dev/null 2>&1; rc=$?
+    vh sheet --gray "$t/rg.mp4" 2 1 "$t/gray2.png" >/dev/null 2>&1; rc2=$?
+    vh sheet "$t/rg.mp4" 2 1 "$t/col.png" >/dev/null 2>&1; rc3=$?
+    a=$(vh sheet "$t/rgp/out/rg.mp4" --gray 2>/dev/null)
+    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && case "$a" in *"/out/check/rg-sheet-gray-"*.png) true ;; *) false ;; esac \
+       && uv run -q --no-project --with pillow python - "$t/gray.png" "$t/gray2.png" "$t/col.png" <<'PY'
+import sys
+from PIL import Image
+g, g2, c = (Image.open(f).convert("RGB") for f in sys.argv[1:4])
+sq, gr = g.getpixel((210, 135)), g.getpixel((40, 240))   # the first tile (480 px wide, 1.5x the clip): the square, the ground
+ok = sq[0] == sq[1] == sq[2] and gr[0] == gr[1] == gr[2] and abs(sq[0] - gr[0]) > 15 and list(g.getdata()) == list(g2.getdata())
+cs = c.getpixel((210, 135))
+ok = ok and cs[0] > cs[1] + 60   # the colour sheet: still red
+sys.exit(0 if ok else f"gray {sq} {gr}, colour {cs}")
+PY
+    then ok "sheet --gray: every tile in luma only (red on green parts by lightness), --gray before or after the video, its own file name in the project's out/check; without it the colour stays"
+    else bad "sheet --gray ($rc/$rc2/$rc3): $a"; fi
+  fi
   # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with and the project render's
   # gate check reads: a flag that takes no value in front of it must not swallow it (frames --covers, --no-title and cues
   # --chapters took the project for their value and found "."; render --alpha and --fresh too, until arg_dir had them). The

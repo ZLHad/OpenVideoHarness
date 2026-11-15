@@ -29,6 +29,12 @@
 - Character consistency: the description is one fixed text copied word for word into every prompt (`cast.json`'s `prompt`), one small fixed flaw to spot drift by, a variant (covered in flour, hurt) as a cast entry of its own, a settled sheet never redrawn.
 - `tools/ci.sh`: `bin/vh know 镜头卡` finds the card and `光晕 色散 收尾` the finishing section and the component; `image -h` names the card. Nothing in this entry was tried with a video model here: the chapter says so where it applies.
 
+**Storyboarding a shot at a time: what moves, varied framing, a colour table, and `bin/vh sheet --gray`**
+- Why: four habits from directing generated films hold for films made in code too: every shot can say what moves in it, framing does not repeat shot after shot, colour is settled per scene before the first shot, and a picture is checked in black and white.
+- `playbook/03`, new §7 "分镜时一镜一镜过一遍": the four, as questions to ask while storyboarding, not fields to fill; a concept that wants one fixed camera or one colour goes its own way.
+- `templates/STORYBOARD.md`'s checklist asks what moves in each shot, whether framing repeats, and whether the key frames part in grey; `templates/STYLE.md` has an optional colour table by scene under the palette; `TASTE_CHECKLIST.md` #1 names the gray sheet (none of these are marked as floors).
+- `bin/vh sheet … --gray` (a video or a folder of key frames, the option anywhere among the arguments): every tile in luma only, written as `<name>-sheet-gray-<HHMMSS>.png`; without a uv it falls back to ffmpeg's `format=gray`. `tools/ci.sh`: a red square on a green ground of another lightness parts in the gray sheet, the option goes before or after the video, and the colour sheet is unchanged.
+
 ## v0.5.0 — 2026-11-10
 
 A minor release: the process is trimmed for the current models, and the style library gets its 33rd preset. The largest change is where a film stops for its person. A `standard` or `studio` film now stops at the concept and at the first draft, and at the storyboard only when the next step is costly: a film longer than about 90 s, a heavy 3D render, or a paid service. Only the user's own words take a stop away, as before, and a project made before this release keeps its three gates. Not yet tried on a real film: the stop rules were checked on made-up projects in `tools/ci.sh` and by one independent review.
