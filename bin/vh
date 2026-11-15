@@ -909,8 +909,8 @@ cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser o
 cmd_peaks() { [ $# -gt 0 ] || { cmd_usage peaks >&2; exit 2; }; python3 "$ROOT/tools/peaks.py" "$@"; }       # ffmpeg only; a repeat none
 cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate >&2; exit 2; }   # exec: stopping a backgrounded gate --wait stops its watcher;
   export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
-cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk >&2; exit 2; }   # stdlib only: no uv, works offline; exec, so stopping
-  exec python3 "$ROOT/tools/desk/desk.py" "$@"; }            # a backgrounded bin/vh desk stops the server itself
+cmd_desk() { # stdlib only: no uv, works offline; exec, so stopping a backgrounded bin/vh desk stops the server itself.
+  exec python3 "$ROOT/tools/desk/desk.py" "$@"; }   # no project: the console (every project bin/vh projects finds)
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves);
   # $1 = the slug or scene folder: a Blender scene (swatch.py and no swatch.js) does not need it

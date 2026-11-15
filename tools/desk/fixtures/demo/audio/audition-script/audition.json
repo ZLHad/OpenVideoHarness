@@ -1,0 +1,43 @@
+{
+ "provider": "fixture",
+ "lang": "zh",
+ "unit": "字/秒",
+ "units": 14,
+ "text": "海水一天涨两次，可月亮只来一次。",
+ "instruct": null,
+ "align": "gemini",
+ "voices": [
+  {
+   "voice": "Charon",
+   "file": "Charon.wav",
+   "duration": 2.6,
+   "pitch_hz": 118,
+   "centroid_hz": 1400,
+   "speech_s": 2.5,
+   "speech_rate": 5.6,
+   "misread": []
+  },
+  {
+   "voice": "Kore",
+   "file": "Kore.wav",
+   "duration": 2.4,
+   "pitch_hz": 212,
+   "centroid_hz": 1700,
+   "speech_s": 2.3,
+   "speech_rate": 6.1,
+   "misread": [
+    "只来→只赖"
+   ]
+  },
+  {
+   "voice": "Puck",
+   "file": "Puck.wav",
+   "duration": 2.2,
+   "pitch_hz": 141,
+   "centroid_hz": 1550,
+   "speech_s": 2.1,
+   "speech_rate": 6.7,
+   "misread": []
+  }
+ ]
+}

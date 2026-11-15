@@ -1,0 +1,89 @@
+{
+ "v": 1,
+ "note": "示例项目的素材台账（编的）",
+ "events": [],
+ "assets": [
+  {
+   "v": 1,
+   "aigc": false,
+   "added_at": "2026-11-14T10:00:00+0800",
+   "tags": [],
+   "id": "tide-gauge",
+   "kind": "image",
+   "path": "assets/tide-gauge.svg",
+   "sha256": "15991c519837603d45280d0b0e5f2fac99046d4ea737dbff7c83e61edc8886a1",
+   "license": {
+    "class": "cc0",
+    "name": "CC0 1.0"
+   },
+   "source": {
+    "kind": "web",
+    "title": "海边的刻度桩（示例图库）",
+    "url": "https://example.org/tide-gauge"
+   },
+   "used_by": [
+    "S2"
+   ]
+  },
+  {
+   "v": 1,
+   "aigc": false,
+   "added_at": "2026-11-14T10:00:00+0800",
+   "tags": [],
+   "id": "card-a",
+   "kind": "image",
+   "path": "out/review/card-A.svg",
+   "sha256": "44f6310f639cc07132d9bf1286a58b572bbf0c57b5582b694bc6597ec2d53265",
+   "license": {
+    "class": "own"
+   },
+   "source": {
+    "kind": "made",
+    "tool": "film.html"
+   },
+   "used_by": [
+    "S1"
+   ]
+  },
+  {
+   "v": 1,
+   "aigc": false,
+   "added_at": "2026-11-14T10:00:00+0800",
+   "tags": [],
+   "id": "tide-clip",
+   "kind": "video",
+   "path": "research/refs/tide-clip.mp4",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+   "license": {
+    "class": "unknown"
+   },
+   "source": {
+    "kind": "web",
+    "title": "退潮延时摄影（来源没写许可）",
+    "url": "https://example.org/tide-clip"
+   },
+   "used_by": [],
+   "note": "只当参考看，不进片子"
+  },
+  {
+   "v": 1,
+   "aigc": true,
+   "added_at": "2026-11-14T10:00:00+0800",
+   "tags": [],
+   "id": "vo",
+   "kind": "audio",
+   "path": "audio/vo.zh.wav",
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+   "license": {
+    "class": "generated"
+   },
+   "source": {
+    "kind": "generated",
+    "tool": "bin/vh tts"
+   },
+   "used_by": [
+    "film"
+   ]
+  }
+ ]
+}

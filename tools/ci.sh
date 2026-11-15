@@ -802,7 +802,7 @@ PY
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
-           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
+           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate "desk no-such" "desk --root $t/no-such" \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" "sheet $t/no-such.mp4 --out $t/x.png" "sheet $t/no-such.mp4 $t/x.png" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
            "check $t/no-such.mp4" \
@@ -2945,7 +2945,8 @@ import json, sys
 sys.path.insert(0, "tools")
 import review
 d = json.load(open(sys.argv[1], encoding="utf-8"))
-sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2 and len(d["assets"]) == 2 else 1)
+sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2
+         and all(review.placeholders(o.get("frame")) for o in d["decisions"][0]["options"]) and "assets" not in d else 1)
 PY
   then ok "gate: no JSON points to --init and the section of the playbook; --init writes a skeleton with version 1, and does not overwrite"
   else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
@@ -2963,7 +2964,8 @@ def fill(x):
     if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
-d = fill(d); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+d = fill(d); d.pop("assets", None); d["decisions"][0]["recommend"] = "A"
+for o in d["decisions"][0]["options"]: o.pop("frame", None)   # a card's frame is a path: filled with words, it would be a missing file
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?
@@ -2992,7 +2994,10 @@ def fill(x):
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
 d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None)
-for x in d.get("decisions", []): x["recommend"] = recommend
+for x in d.get("decisions", []):
+    x["recommend"] = recommend
+    for o in x.get("options", []):
+        if isinstance(o, dict): o.pop("frame", None)
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   }
@@ -3060,7 +3065,17 @@ PY
   "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
   for rc3 in $(seq 50); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
   python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+  only=$(python3 - "$url" <<'PY' 2>/dev/null
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1])
+def get(p):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return json.loads(d)
+rows = get("/api/projects")["projects"]
+print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
+PY
+)
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+    && [ "$only" = "1 True" ] \
     && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
@@ -3069,14 +3084,553 @@ gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
 sys.exit(0 if len(desk) == 1 and desk[0].get("parent") in gates and any(r["event"] == "feedback" for r in recs) else 1)
 PY
-  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), puts its address in the message; --wait hands over the submission"
-  else bad "gate on the desk (rc $rc/$rc2/$rc3): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
+  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), serving that project and nothing else, puts its address in the message, landing on this round's gate view; --wait hands over the submission"
+  else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
   "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!
   for i in $(seq 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
   if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
   else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
+}
+# the gate view (tools/review.py, tools/desk/static/ui.css and ui.js) and the console (bin/vh desk with no project): one
+# stylesheet and one script for the static page and the desk, inlined whole into the page; the picture first, the options as
+# cards with the recommendation picked; times in least-sure ids; the word budget a warning; the demo fixture's three gates;
+# the console's projects, project data, gate views and files over several projects, its refusals, and a submission
+console_checks() {
+  local t a b rc pid url
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  mkdir "$t/root" && cp -R tools/desk/fixtures/zh tools/desk/fixtures/en tools/desk/fixtures/demo "$t/root/"
+  rc=0; for g in 1 2 3; do vh review "$t/root/demo" "$g" > "$t/demo$g.out" 2> "$t/demo$g.err" || rc="$rc $g"; done
+  vh review "$t/root/zh" 1 >/dev/null 2>&1 || rc="$rc zh"
+  if python3 - "$t/root" "$rc" "$(cat "$t"/demo*.err)" <<'PY'
+import os, re, sys
+sys.path.insert(0, "tools")
+import review
+root, rc, err = sys.argv[1], sys.argv[2], sys.argv[3]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+css, js = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("ui.css", "ui.js"))
+pages = {g: open(f"{root}/demo/out/review/gate-{g}.html", encoding="utf-8").read() for g in "123"}
+zh = open(f"{root}/zh/out/review/gate-1.html", encoding="utf-8").read()
+want(rc == "0", f"review exits: {rc}")
+want("over its budget" not in err and "! " not in err, f"the demo pages warn: {err[:300]}")
+for g, h in list(pages.items()) + [("zh", zh)]:
+    want(css in h and js in h, f"gate {g}: ui.css and ui.js are not inlined whole")
+    want(not re.search(r"<(script|link)[^>]+(src|href)=", h) and "https://" not in h and "http://" not in h, f"gate {g}: loads something from outside the page")
+want('<input type="radio" name="dec-look" value="L1" checked data-rec="1" aria-label="L1 浅色清新 · 推荐" aria-describedby="o-look-L1">' in zh and '<code class="g-reply-v">1 L1</code>' in zh, "zh gate 1: the recommended card is not picked, or no reply")
+want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
+want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
+import json
+mod = {g: re.search(r'<script type="application/json" id="ovh-data">(.*?)</script>', h, re.S) for g, h in pages.items()}
+mod = {g: json.loads(m.group(1)) if m else None for g, m in mod.items()}
+inl = [open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("modules.css", "core.js", "modules.js", "static.js")]
+want(mod["1"] and mod["1"]["modules"] == ["idea", "outline"] and mod["1"]["rel"] == "../../" and mod["1"]["data"]["current"] == "1"
+     and mod["2"] and mod["2"]["modules"] == ["board"] and len(mod["2"]["data"]["shots"]["items"]) == 6 and mod["3"] is None
+     and all(x in pages["1"] for x in inl) and not any(x in pages["3"] for x in inl[1:]) and "</script" not in "".join(inl[1:]),
+     f"the static pages' modules (立意 and 大纲 on ①, 分镜 on ②, none on ③): {[(g, m and m['modules']) for g, m in mod.items()]}")
+want('class="g-marks"' in pages["3"] and "0:27.0–0:32.0" in pages["3"] and 'data-t="15.5"' in pages["3"], "demo gate 3: the least-sure times (t, and a time as the id)")
+want(review.time_of("0–5 s") == (0.0, 5.0) and review.time_of("1:05–1:12") == (65.0, 72.0) and review.time_of("12.4 s") == (12.4, None) and review.time_of("S04") is None, "time_of")
+want(review.budget_len("初版 32 s") == (3.5, True) and review.budget_len("A short line") == (12, False), f"budget_len: {review.budget_len('初版 32 s')}")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget; gate ① and ② carry their stop's modules (the data and the console's renderers inlined), gate ③ none"
+  else bad "gate view on the fixtures"; fi
+  # the themes (docs/proposals/02-studio-client.md, 5): three blocks of one set of variables, the default on :root (one value
+  # in ui.js names it); every colour of ui.css and studio.css a variable; the type, the lamps and the readouts at WCAG AA
+  # (4.5:1) on the ground in each, and the type on a picture's grey at 4.5:1 on it
+  if a=$(python3 - <<'PY'
+import re
+css = open("tools/desk/static/ui.css", encoding="utf-8").read()
+studio = open("tools/desk/static/studio.css", encoding="utf-8").read() + open("tools/desk/static/modules.css", encoding="utf-8").read()
+js = open("tools/desk/static/ui.js", encoding="utf-8").read()
+def block(sel):
+    m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
+    return dict((k, v.strip()) for k, v in re.findall(r"--([\w-]+):([^;}]+)", m.group(1))) if m else {}
+base = block(":root,:root[data-theme=darkfield]")
+themes = {"darkfield": base, "prism": dict(base, **block(":root[data-theme=prism]")), "bridge": dict(base, **block(":root[data-theme=bridge]"))}
+def rgb(v, t, bg=None):
+    v = v.strip()
+    m = re.fullmatch(r"var\(--([\w-]+)\)", v)
+    if m: return rgb(t[m.group(1)], t, bg)
+    if v.startswith("#"):
+        h = v[1:] if len(v) > 4 else "".join(c * 2 for c in v[1:])
+        return [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    m = re.fullmatch(r"rgba\((\d+),(\d+),(\d+),([\d.]+)\)", v.replace(" ", ""))
+    c, a = [int(x) / 255 for x in m.groups()[:3]], float(m.group(4))
+    return [x * a + y * (1 - a) for x, y in zip(c, bg)]
+def lum(c):
+    c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+low = []
+for name, t in themes.items():
+    if not t or "bg" not in t:
+        low.append(f"no {name} block"); continue
+    for k, ground in [(k, "bg") for k in ("ink", "ink-2", "ink-3", "you", "agent", "live", "wait", "ok")] + [("on-pic", "pic")]:
+        g = rgb(t[ground], t, rgb(t["bg"], t))
+        a, b = sorted((lum(rgb(t[k], t, g)), lum(g)))
+        r = (b + 0.05) / (a + 0.05)
+        if r < 4.5: low.append(f"{name} --{k} {r:.2f}:1")
+if 'DEFAULT_THEME = "darkfield"' not in js or 'THEMES = ["darkfield", "prism", "bridge"]' not in js:
+    low.append("ui.js: THEMES and DEFAULT_THEME")
+stray = []
+for f, text in (("ui.css", css), ("studio.css and modules.css", studio)):
+    rules = re.sub(r"/\*.*?\*/", "", re.sub(r":root(,:root)?(\[data-theme=\w+\])?\{.*?\}", "", text, flags=re.S), flags=re.S)
+    stray += [f"{f} {x}" for x in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", rules)]
+print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.join(stray[:4])}"] if stray else [])))
+PY
+) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css, studio.css and modules.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
+  else bad "theme contrast or stray colours: $a"; fi
+  # the console's own safety: project words reach the page only through escaping or the DOM; an unknown key walks the roots at
+  # most once in FRESH_GAP; the console's info file is trusted only in a folder of this user's own; a card's picture and a gate
+  # page ask for no file that is not there; a film's name when the BRIEF has none
+  if a=$(python3 - "$t" <<'PY'
+import json, os, re, sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import projects, review, server
+t = sys.argv[1]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+ui, studio, rv, mods = (open(f, encoding="utf-8").read() for f in ("tools/desk/static/ui.js", "tools/desk/static/studio.js", "tools/review.py", "tools/desk/static/modules.js"))
+want("innerHTML" not in ui + mods, "ui.js or modules.js puts markup in the page (innerHTML): a frame's address or a label is the project's words")
+want("url('" not in studio + mods and "data-cap=" not in rv and not re.search(r"\son[a-z]+=", mods), "a project path in a CSS url('…'), a caption in an attribute, or an inline handler in modules.js")
+calls, real = [], projects.listing
+projects.listing = lambda *a, **k: (calls.append(1), real(*a, **k))[1]
+srv = server.Desk(0, None, [t + "/root"])
+try:
+    for _ in range(5):
+        srv.project_of("nope~000000")
+finally:
+    srv.server_close(); projects.listing = real
+want(len(calls) == 1, f"five unknown keys walked the roots {len(calls)} times")
+tmp = tempfile.mkdtemp(dir=t); tempfile.tempdir = tmp
+own = Path(tmp) / f"ovh-desk-{os.getuid()}"
+os.symlink(tmp, own)
+want(server._info_path(None, [t]) is None, "a console's folder that is a link is trusted")
+own.unlink(); own.mkdir(mode=0o755); os.chmod(own, 0o755)
+want(server._info_path(None, [t]) is None, "a console's folder others can write in is trusted")
+os.chmod(own, 0o700)
+info = server._info_path(None, [t])
+want(info is not None and info.parent == own, "a console's folder of this user's own is not used")
+if info:
+    info.write_text(json.dumps({"pid": 1, "port": 9, "url": "http://127.0.0.1:9/", "roots": [os.path.realpath(t)]}))
+    want(server.running(None, [t]) is None, "an info file naming a process this user cannot signal counts as a running console")
+p = Path(t) / "pics"
+(p / "frames").mkdir(parents=True); (p / "out" / "review").mkdir(parents=True)
+(p / "frames" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+(p / "out" / "review" / "gate-1.json").write_text(json.dumps({"title": "编的片 · 关卡 ①", "summary": "选一张",
+    "decisions": [{"id": "c", "question": "哪张？", "options": [{"id": "A", "label": "甲", "frame": "frames/a.png"}, {"id": "B", "label": "乙"}], "recommend": "A"}],
+    "assets": [{"path": "frames/gone.png"}]}, ensure_ascii=False), encoding="utf-8")
+pic = server.picture_of(p, {"state": "in_progress", "film": {"path": "out/draft.mp4"}}, None)
+want(pic == {"path": "frames/a.png", "kind": "image", "from": "gate"}, f"a card whose film is not there: the gate page's picture, not the film: {pic}")
+want(server.film_title(p, "pics") == "编的片", f"a film's name from its gate page: {server.film_title(p, 'pics')!r}")
+pg = review.page_for(p, "1")
+html = pg.body()
+want("gone.png" not in " ".join(re.findall(r'(?:src|href|data-src)="([^"]*)"', html)) and any("frames/gone.png" in e for e in pg.errors),
+     "a gate page links a file that is not there")
+print("; ".join(bad))
+PY
+) && [ -z "$a" ]; then ok "console safety: no markup from project words in ui.js or modules.js, no project path in a CSS url, no inline handler in modules.js; an unknown key walks the roots once in FRESH_GAP; a console's info file only in this user's own closed folder, and a process it cannot signal is not its console; a card and a gate page ask for no missing file; the film's name from its gate page"
+  else bad "console safety: $a"; fi
+  # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
+  mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
+  printf '%s\n' '{"summary": "立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。这页给你看第一轮的四张静帧和四十八秒的大纲，要你定两件事，约四分钟", "decisions": [{"id": "c", "question": "用哪个？", "options": ["A", "B"], "recommend": "A"}]}' > "$t/long/out/review/gate-1.json"
+  a=$(vh review "$t/long" 1 2>&1 >/dev/null); rc=$?
+  b=$(vh gate "$t/long" 1 --init 2>&1); vh gate "$t/long" 2 --init > "$t/init.out" 2>&1
+  if [ $rc = 0 ] && case "$a" in *"summary"*"over its budget of 40"*) true ;; *) false ;; esac && grep -q '<h1 class="g-summary">立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。</h1><p class="g-lead"' "$t/long/out/review/gate-1.html" \
+    && grep -q 'keep it short: summary at most 40' "$t/init.out"
+  then ok "word budget: an over-long summary is a warning (exit 0), and the page heads with its first sentence; gate --init says the budget"
+  else bad "word budget (exit $rc): $a | $(cat "$t/init.out")"; fi
+  # the console: no project, the roots given; three projects, keys from their names, the waiting one with its question; a
+  # second root with a made-up film whose film and key frame are gone and whose BRIEF has no title
+  mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
+  printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
+  printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
+  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!
+  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
+  if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
+  if python3 - "$url" "$t/root" "$t/root2" <<'PY'
+import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1]); root, root2 = sys.argv[2], sys.argv[3]
+pid = lambda p: hashlib.sha1(os.path.realpath(p).encode()).hexdigest()   # noqa: E731
+def req(method, path, body=None, headers=None, host=None):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20)
+    h = {"Host": host or f"127.0.0.1:{u.port}"}
+    h.update(headers or {})
+    c.request(method, path, body=body, headers=h)
+    r = c.getresponse(); data = r.read(); c.close()
+    return r.status, r.headers, data
+bad = []
+def want(cond, msg):
+    if not cond: bad.append(msg)
+s, _, page = req("GET", "/")
+page = page.decode()
+token = page.split('name="desk-token" content="')[1].split('"')[0]
+want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
+want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
+for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js"):
+    want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
+want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its seven files (static.js is the static page's)")
+s, _, d = req("GET", "/api/projects"); d = json.loads(d)
+real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
+rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
+want(s == 200 and set(rows) == {"zh", "en", "demo"} and [n for n, r in rows.items() if r["state"] == "waiting_person"] == ["demo"], f"projects: {sorted(rows)}")
+want(all(re.fullmatch(re.escape(n) + r"~[0-9a-f]{6}", r["key"]) for n, r in rows.items()), f"keys: the name and six digits of the folder: {[r['key'] for r in rows.values()]}")
+waits = [r["state"] == "waiting_person" for r in d["projects"]]
+want(waits == sorted(waits, reverse=True), "the space: the films waiting for the person first")
+gn = next((r for r in d["projects"] if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/gone")), {})
+want(gn.get("title") == "编出来的片", f"a BRIEF without a title: the film's name from its gate page: {gn.get('title')!r}")
+dm = rows.get("demo", {"key": "demo"})
+K, Z = dm["key"], rows.get("zh", {"key": "zh"})["key"]
+want(dm.get("state") == "waiting_person" and (dm.get("ask") or {}).get("question") == "这版放行吗？" and (dm.get("ask") or {}).get("decisions") == 2, f"demo's ask: {dm.get('ask')}")
+want((dm.get("picture") or {}).get("from") == "gate" and dm["picture"]["href"].startswith(f"/f/{K}/"), f"demo's picture: {dm.get('picture')}")
+s, _, d = req("GET", f"/api/p/{K}/data"); d = json.loads(d)
+want(s == 200 and d["key"] == K and d["current"] == "3" and [x["state"] for x in d["status"]["stations"]][:3] == ["done", "done", "waiting_person"], "demo's data and stops")
+want(d.get("pid") == pid(root + "/demo") and d.get("round_open") is True and d.get("only") is False, f"demo's identity and open round: {d.get('round_open')}")
+want(json.loads(req("GET", f"/api/p/{Z}/data")[2]).get("round_open") is False, "zh: its round's stop is passed, so the round is settled")
+gd = json.loads(req("GET", f"/api/p/{gn.get('key', 'x')}/data")[2])
+gs = gd.get("studio") or {}
+want(gs.get("film") is None and gs.get("film_missing") == "out/draft.mp4" and [x.get("frame") for x in (gs.get("timeline") or {}).get("shots") or []] == [None]
+     and gd.get("project", {}).get("title") == "编出来的片" and gd.get("round_open") is True,
+     f"a film and a key frame that are not there: none asked for, the film named as missing: {gs.get('film')} {gs.get('film_missing')}")
+sd = d.get("studio") or {}
+tl = sd.get("timeline") or {}
+want(len(tl.get("shots") or []) == 6 and len(tl.get("narration") or []) == 6 and len(tl.get("beats") or []) > 40 and tl.get("bpm") == 90
+     and [(f["severity"], f["t"]) for f in sd.get("findings") or []] == [("warn", 28.5), ("warn", 31.0)] and (sd.get("check") or {}).get("verdict") == "warn"
+     and sd.get("thumbs") is None and sd.get("peaks") is None, f"demo's cut data: {sorted(tl)} {sd.get('findings')}")
+md = d.get("mods") or {}
+pc, au = md.get("pace") or {}, md.get("audition") or {}
+want((md.get("loudness") or {}).get("integrated") == -14.2 and md.get("silences") == 0 and pc.get("unit") == "chars/s" and len(pc.get("lines") or []) == 6
+     and md.get("voice") == "Charon" and [v["voice"] for v in au.get("voices") or []] == ["Charon", "Kore", "Puck"] and [x["t"] for x in md.get("lifts") or []] == [9.0, 21.3],
+     f"demo's sound data: {json.dumps({k: md.get(k) for k in ('loudness', 'silences', 'voice', 'lifts')}, ensure_ascii=False)[:300]}")
+want([(c["id"], c["ratio"] < 1) for c in md.get("covers") or [] if c.get("ratio")] == [("A", True), ("B", False)] and md.get("subs") == []
+     and [(a["id"], a["license"], a["there"]) for a in md.get("assets") or []] == [("tide-gauge", "cc0", True), ("card-a", "own", True), ("tide-clip", "unknown", False), ("vo", "generated", False)]
+     and [r["id"] for r in md.get("refs") or []] == ["tide-lecture"] and [x["path"] for x in md.get("digests") or []] == ["research/digest/tide-lecture/transcript.md"],
+     f"demo's delivery and material data: {json.dumps({k: md.get(k) for k in ('covers', 'assets', 'refs', 'digests')}, ensure_ascii=False)[:400]}")
+json.dump(d, open(os.path.join(os.path.dirname(root), "demo-data.json"), "w", encoding="utf-8"), ensure_ascii=False)   # for the modules' render check below
+pk = d.get("packaging") or {}
+want("白板" in ((d.get("ideas") or {}).get("same_topic") or "") and [x["id"] for x in pk.get("titles") or []] == ["T1", "T2", "T3"]
+     and [(x["name"], len(x["tags"])) for x in pk.get("platforms") or []] == [("B站", 4), ("抖音", 2)] and [h.get("date") for h in d.get("history") or []] == ["2026-11-14", "2026-11-14"],
+     f"NOTES' ideas, PACKAGING's titles and platforms, REVIEW's dates: {json.dumps(pk.get('platforms'), ensure_ascii=False)[:200]}")
+s, _, g = req("GET", f"/api/p/{K}/gate/3"); g = json.loads(g)
+want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g["html"] and [x["id"] for x in g["decisions"]] == ["draft", "voice"]
+     and f'src="/f/{K}/out/check/sheet.svg"' in g["html"] and not g["errors"], f"gate 3's view: {g.get('errors')}")
+want(g.get("cards", "").count('class="g-dec') == 2 and "g-act" not in g.get("cards", "") and [(m["kind"], m["t"]) for m in g.get("marks") or []] == [("least", 15.5), ("least", 27.0), ("listen", 9.2), ("listen", 30.5)]
+     and g.get("summary", "").startswith("初版"), f"gate 3's right column: {g.get('marks')}")
+s, _, g1 = req("GET", f"/api/p/{K}/gate/1?lang=en"); g1 = json.loads(g1)
+want(s == 200 and not g1["current"] and "Recommended" in g1["html"], "gate 1, an earlier page, in English")
+s, _, st = req("GET", f"/api/p/{K}/status")
+want(s == 200 and json.loads(st)["round"] == "3", "status names this round")
+s, h, _ = req("GET", f"/f/{K}/out/frames/S1.svg")
+want(s == 200 and h.get("Content-Security-Policy", "").startswith("sandbox"), "a project file, sandboxed")
+for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF.md", "/api/p/nope-x/data", f"/api/p/{K}/gate/9", "/api/data", "/p/BRIEF.md"):
+    want(req("GET", p)[0] == 404, f"{p} answered")
+want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
+fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
+    "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
+H = {"Content-Type": "application/json", "X-Desk-Token": token}
+want(req("POST", f"/api/p/{K}/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
+want(req("POST", f"/api/p/{Z}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 400, "a round another project does not have")
+want(req("POST", f"/api/p/{K}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 409 and req("POST", f"/api/p/{K}/feedback", fb(pid=None), H)[0] == 409,
+     "a submission that names another folder, or none, than the address's: refused")
+s, _, r = req("POST", f"/api/p/{K}/feedback", fb(), H)
+want(s == 200 and json.loads(r)["saved"].startswith("out/review/feedback/3-"), f"a submission: {s} {r[:200]}")
+rv = open(root + "/demo/REVIEW.md", encoding="utf-8").read()
+want("决定 draft：OK" in rv and "没把握：S04 [least:S04] · 要改：再大一点" in rv, "the submission in REVIEW.md")
+# a folder of the same name turns up under the other root: every key stays with its folder
+shutil.copytree(root + "/demo", root2 + "/demo")
+time.sleep(4.3)   # the listing is reused for 4 s
+demos = [r for r in json.loads(req("GET", "/api/projects")[2])["projects"] if r["name"] == "demo"]
+twin = next((r["key"] for r in demos if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/demo")), None)
+kd = json.loads(req("GET", f"/api/p/{K}/data")[2])
+want(len(demos) == 2 and K in [r["key"] for r in demos] and twin and twin != K and os.path.realpath(kd["status"]["project"]["path"]) == os.path.realpath(root + "/demo")
+     and req("POST", f"/api/p/{twin}/feedback", fb(), H)[0] == 409, f"keys after a second demo: {[r['key'] for r in demos]}")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings) and what the other modules read (the check's loudness, bin/vh pace's rates and the voice, the audition, the lifts, covers, the asset ledger, references and transcripts; NOTES' same-topic line, PACKAGING's titles and copy for each platform, REVIEW's dates), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
+  else bad "console"; fi
+  a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
+  # the modules (tools/desk/static/modules.js) drawn from the demo's data as the console reads it, and read only from what the
+  # static pages carry: each module draws, nothing says undefined or NaN, and each shows what the fixture has for it
+  cat > "$t/modules-render.js" <<'JS'
+const vm = require("vm"), fs = require("fs");
+const [dataFile, page1, page2] = process.argv.slice(2), bad = [];
+const want = (c, m) => { if (!c) bad.push(m); };
+function host(D, readOnly) {   // core.js and modules.js in one context, with the little a host gives them
+  const g = vm.createContext({ console, __D: D });
+  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
+  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
+    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
+  return (code) => vm.runInContext(code, g);
+}
+const draw = (run, m) => { try { const h = run("MODVIEW." + m + ".main()"); want(!/undefined|NaN|\[object Object\]/.test(h), m + ": undefined, NaN or an object in the page"); return h; } catch (e) { bad.push(m + ": " + e.message); return ""; } };
+const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
+for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
+want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes("同题的视频常见的样子") && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
+want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
+want(h.board.includes("第 1 页 · 开场") && (h.board.match(/class="shotc/g) || []).length === 2, "board: page 1, two shots");
+run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
+want(b2.includes("第 2 页 · 两个鼓包") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
+  "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
+want(h.sound.includes("-14.2") && h.sound.includes("在用") && h.sound.includes("比中位数快") && h.sound.includes("换气之后的重拍"), "sound: loudness, the voice in use, a fast line, a lift");
+want(h.ship.includes("cover-a.svg") && h.ship.includes("抖音") && h.ship.includes("月亮只来一次，海水为什么涨两次？") && h.ship.includes("1 处注意"), "ship: covers, platforms, a title, the check");
+want(h.assets.includes("tide-gauge") && h.assets.includes("来源没写许可") && h.assets.includes("读文稿"), "assets: an item, an uncleared licence, a transcript");
+want(h.ledger.includes("用 A，从海边开场。") && h.ledger.includes("翻案") && h.ledger.includes("2026-11-14"), "ledger: your words, an overturn, the dates");
+for (const [f, mods] of [[page1, ["idea", "outline"]], [page2, ["board"]]]) {   // a static page: its own data, read only
+  const m = fs.readFileSync(f, "utf8").match(/<script type="application\/json" id="ovh-data">([\s\S]*?)<\/script>/);
+  if (!m) { bad.push(f + ": no module data"); continue; }
+  const x = JSON.parse(m[1]), r = host(x.data, true);
+  want(JSON.stringify(x.modules) === JSON.stringify(mods), f + ": modules " + x.modules);
+  for (const k of x.modules) { const s = draw(r, k); want(!s.includes('class="subtabs"') && !s.includes("data-like") && !s.includes("href=\"#/p/"), "static " + k + ": a console-only part"); }
+  if (mods[0] === "idea") want(draw(r, "idea").includes("data-pick-card"), "static idea: the cards pick");
+  if (mods[0] === "board") {   // every link the gate view's lists have to a shot lands on a card of the module (the gate's own board is hidden)
+    const html = fs.readFileSync(f, "utf8"), ids = new Set(), out = [];
+    for (let p = 1; p <= 3; p++) { r("SUB = '" + p + "'"); for (const m2 of draw(r, "board").matchAll(/id="(shot-[^"]+)"/g)) ids.add(m2[1]); }
+    for (const m2 of html.matchAll(/href="#(shot-[^"]+)"/g)) if (!ids.has(m2[1])) out.push(m2[1]);
+    want(ids.size === 6 && !out.length, "static board: links with no card to land on: " + out.join(" "));
+  }
+}
+const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x));
+{ const x = JSON.parse(fs.readFileSync(page1, "utf8").match(/id="ovh-data">([\s\S]*?)<\/script>/)[1]); x.data.current = "E0";   // a settled stop's page: nothing to pick
+  want(!draw(host(x.data, true), "idea").includes("data-pick-card"), "static E0: the settled concept cards pick nothing"); }
+{ const d = clone(D0); d.outline = [{ id: "1", title: "a", t0: 5, t1: 10 }, { id: "2", title: "b", t0: 20, t1: 30 }];   // a late start and a gap, on one scale
+  const o = draw(host(d, false), "outline"); want(o.includes("left:16.667%;width:16.667%") && o.includes("left:66.667%;width:33.333%"), "outline: the bar is not on the scale of its ticks"); }
+{ const d = clone(D0); d.history = [{ title: "Gate ① Concept", date: "2026-03-04", quotes: [{ label: "", text: "Use A." }], notes: [], desk: false }];
+  d.ledger = [{ what: "concept", who: "own", status: "A", where: "REVIEW.md gate 1" }];
+  const row = (draw(host(d, false), "ledger").match(/<tr[^>]*>(?:(?!<\/tr>)[\s\S])*?>concept<[\s\S]*?<\/tr>/) || [""])[0];
+  want(row.includes("2026-03-04") && row.includes("Use A."), "ledger in English: the decision's row has gate 1's date and words"); }
+{ const s0 = draw(host(clone(D0), false), "sound"), d = clone(D0);   // no curve: said, with its command; with one, on the film's own time
+  d.studio.peaks = { duration: 32, peaks: Array.from({ length: 64 }, (_, i) => [-(i % 7) / 10, (i % 5) / 10]) }; const s1 = draw(host(d, false), "sound");
+  want(!s0.includes('class="energy"') && s0.includes("bin/vh peaks &lt;项目&gt;") && s0.includes('class="secband"') && s1.includes('class="energy"'), "sound: an empty curve drawn, or a curve not drawn"); }
+// extreme and tainted data: every target and label a module makes is one tools/desk/feedback.py takes, and nothing reaches the page unescaped
+const P = '<img src=x onerror=1>"\'><svg onload=1>&amp;';
+const taint = (v) => (typeof v === "string" ? v + P : Array.isArray(v) ? v.map(taint) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, taint(x)])) : v);
+const X = taint(clone(D0));
+X.mods.assets[0].path = "/Users/someone/outside.png"; X.mods.assets[1].path = "../escape.png"; X.mods.assets[2].used_by = "S2";
+X.ledger[0].what = "决".repeat(400); X.packaging.titles[0].id = ""; X.packaging.titles[0].title = "标".repeat(500);
+X.outline[0].title = "段\n名".repeat(120); X.outline[0].id = "1\t2"; X.facts[0].id = "#" + "9".repeat(300); X.shots.items[0].id = "S1 \u0007bell";
+X.agent_decided[0].topic = "t".repeat(400); X.mods.digests[0].path = "research/digest/" + "x".repeat(300) + "/transcript.md";
+X.studio.timeline.narration[0].end = X.studio.timeline.narration[0].start;
+const unq = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const marks = [];
+for (const ro of [false, true]) {
+  const r = host(X, ro);
+  for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
+    const s = draw(r, m);
+    want(!/<img\s+src=x|<svg\s+onload/i.test(s), m + (ro ? " (static)" : "") + ": a project's words reached the page unescaped");
+    for (const tag of s.matchAll(/<[a-z0-9]+\b[^>]*\sdata-mark="([^"]*)"[^>]*>/g)) {
+      const lab = tag[0].match(/\sdata-label="([^"]*)"/), tt = tag[0].match(/\sdata-t="([^"]*)"/);
+      marks.push({ target: unq(tag[1]), label: lab ? unq(lab[1]) : "", t: tt ? +unq(tt[1]) : null });
+    }
+  }
+}
+fs.writeFileSync(process.argv[5], JSON.stringify(marks));
+want(marks.length > 40, "extreme data: only " + marks.length + " marks drawn");
+console.log(bad.join("\n"));
+JS
+  if a=$(node "$t/modules-render.js" "$t/demo-data.json" "$t/root/demo/out/review/gate-1.html" "$t/root/demo/out/review/gate-2.html" "$t/marks.json" 2>&1) && [ -z "$a" ]; then ok "modules: 立意, 大纲, 分镜, 声音, 交付, 素材 and 账本 draw the demo's data with what it has for each (cards with frames, parts, the gate ② page's own shots with their plan lines and notes, readouts, platforms, licences, your words), and the static pages' modules read only (no sub-tabs, no note shortcuts, no console links, every link to a shot lands, a settled stop's cards pick nothing); the outline's bar on its ticks' scale, an English ledger's dates and words, a sound panel with no curve saying so; tainted data never reaches the page unescaped"
+  else bad "modules drawn from the demo's data: $a"; fi
+  if a=$(python3 - "$t/marks.json" "$t" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/desk")
+import feedback
+marks, tmp = json.load(open(sys.argv[1], encoding="utf-8")), sys.argv[2]
+items = [dict({"target": m["target"], "status": "change", "label": m["label"], "text": "x"}, **({"t": m["t"]} if isinstance(m["t"], (int, float)) and 0 <= m["t"] < 1e6 else {})) for m in marks]
+bad = []
+for i in range(0, len(items), 400):   # every target and label the modules made of extreme data, as one submission would carry them
+    try:
+        feedback.validate(tmp, {"round": "notes", "lang": "zh", "decisions": {}, "defaulted": [], "items": items[i:i + 400], "general": ""})
+    except ValueError as e:
+        bad.append(str(e))
+kinds = sorted({m["target"].split(":")[0] for m in marks})
+print("; ".join(bad) if bad else ("" if {"card", "seg", "shot", "fact", "asset", "doc", "led", "range", "atime"} <= set(kinds) else f"kinds drawn: {kinds}"))
+PY
+) && [ -z "$a" ]; then ok "modules: every target and label the seven modules make of extreme data (an asset outside the project or above it, 400-character decisions and titles, control characters in ids, a line with no length) is one tools/desk/feedback.py takes, so one note can never turn a whole submission down"
+  else bad "a module made a target feedback.py refuses: $a"; fi
+  # the modules' data a part at a time, and only from inside the project: a file that does not read empties its own part and
+  # is named; a link that leads out is not followed (as /f/ does not serve it)
+  mkdir -p "$t/out-side" && cp -R tools/desk/fixtures/demo "$t/broken"
+  if a=$(python3 - "$t/broken" "$t/out-side" <<'PY'
+import json, os, sys
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import server
+P, O = Path(sys.argv[1]), Path(sys.argv[2])
+bad = []
+def want(c, m):
+    if not c: bad.append(m)
+au = P / "audio/audition-script/audition.json"
+a = json.loads(au.read_text()); a["voices"][0]["file"] = "/etc/hosts"; au.write_text(json.dumps(a))
+m = server.project_data(P)["mods"]
+want(m["audition"] and [v["file"] for v in m["audition"]["voices"]][0] is None and not m["errors"], f"a take outside the project: {m['errors']}")
+a["voices"] = 7; au.write_text(json.dumps(a))
+b = json.loads((P / "audio/music.beats.json").read_text()); b["lifts"] = 5; (P / "audio/music.beats.json").write_text(json.dumps(b))
+os.symlink(P / "nowhere.json", P / "out/audition.json")
+(O / "ledger.json").write_text(json.dumps({"assets": [{"id": "LEAK", "path": "x.png", "license": {"class": "cc0"}}]}))
+(O / "refs.json").write_text(json.dumps({"refs": [{"id": "LEAKREF"}]}))
+(O / "check.json").write_text(json.dumps({"findings": [{"kind": "check.loudness", "severity": "info", "message": "LEAKCHECK", "evidence": {"integrated": -99}}]}))
+for name, src in (("assets/ledger.json", "ledger.json"), ("research/refs.json", "refs.json"), ("out/check/draft.check.json", "check.json")):
+    os.remove(P / name); os.symlink(O / src, P / name)
+d = server.project_data(P)
+m, text = d["mods"], json.dumps([d["mods"], d["studio"]], ensure_ascii=False)   # (bin/vh status reads its own records)
+want(set(m["errors"]) == {"audition", "lifts", "assets", "refs"} and "audition-script/audition.json" in m["errors"]["audition"] and "music.beats.json" in m["errors"]["lifts"],
+     f"each broken part named, with its file: {m['errors']}")
+want("LEAK" not in text and "LEAKCHECK" not in text and m["loudness"] is None and m["assets"] is None and m["refs"] == [], "a file of the project that links out was read")
+want(m["pace"] and len(m["covers"]) == 2 and len(m["digests"]) == 1 and m["voice"] == "Charon", f"a broken part emptied others: {sorted(k for k, v in m.items() if not v)}")
+print("; ".join(bad))
+PY
+) && [ -z "$a" ]; then ok "module data: a part whose file does not read (voices or lifts not a list, a take outside the project, a broken link) is empty and named with its file while the others show; a ledger, refs or check record that links out of the project is not read"
+  else bad "module data a part at a time: $a"; fi
+  # after a trial run (a person using it, two rounds): a submission goes once, ← → selects the shot, Esc and ⌘↩ hand the keys
+  # back, a reload keeps the page on screen, commands and paths are never set in capitals, the old asset table is read, every
+  # row the agent decides can be overturned, status's lines in Chinese with the project's folder as <项目>, English counts
+  cat > "$t/trial.js" <<'JS'
+const vm = require("vm"), fs = require("fs");
+const [dataFile] = process.argv.slice(2), bad = [];
+const want = (c, m) => { if (!c) bad.push(m); };
+function host(D, readOnly) {
+  const g = vm.createContext({ console, __D: D });
+  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
+  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
+    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
+  return (code) => vm.runInContext(code, g);
+}
+const draw = (run, m) => { try { return run("MODVIEW." + m + ".main()"); } catch (e) { bad.push(m + ": " + e.message); return ""; } };
+const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x)), J = JSON.stringify;
+const run = host(clone(D0), false);
+try {
+  // 1: what the server took leaves the draft; a decision sent goes again only when picked differently
+  run(`var DECS = [{ id: "draft", recommend: "FIX", options: [{ id: "OK" }, { id: "FIX" }] }, { id: "voice", recommend: "V1", options: [{ id: "V1" }, { id: "V2" }] }];
+       var FB1 = { decisions: { draft: "OK" }, items: { "time:10.7": { status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }, "asset:/x": { status: "change", label: "x", text: "y" } }, general: "整体偏慢" };
+       var P1 = { decisions: toSend(DECS, FB1.decisions, FB1.sentDec, true).decisions, items: [{ target: "time:10.7", status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }], general: "整体偏慢" };
+       var FB2 = afterSent(FB1, P1, "19:51");`);
+  want(J(run("P1.decisions")) === J({ draft: "OK", voice: "V1" }), "the first submission: the picked decision and the recommended one");
+  want(J(run("Object.keys(FB2.items)")) === J(["asset:/x"]) && run("FB2.general") === "" && J(run("FB2.sent")) === J({ at: "19:51", n: 2, d: 2 }), "after a submission the sent note and the overall words stay in the draft: " + J(run("FB2")));
+  want(J(run("toSend(DECS, FB2.decisions, FB2.sentDec, true).decisions")) === "{}", "a second submission sends the decisions again");
+  want(J(run("toSend(DECS, Object.assign({}, FB2.decisions, { voice: 'V2' }), FB2.sentDec, true).decisions")) === J({ voice: "V2" }), "a decision changed after sending does not go");
+  // 2: ← → from 0:10.7 lands on S4 and S3, as shots
+  run(`var SH = [{ id: "S1", t0: 0, t1: 4 }, { id: "S2", t0: 4, t1: 9 }, { id: "S3", t0: 9, t1: 15 }, { id: "S4", t0: 15, t1: 21 }, { id: "S5", t0: 21, t1: 32 }];`);
+  want(J(run("stepPoint(SH, 10.7, 1, 32)")) === J({ shot: "S4", t: 15 }) && J(run("stepPoint(SH, 10.7, -1, 32)")) === J({ shot: "S3", t: 9 }) && J(run("stepPoint(SH, 25, 1, 32)")) === J({ t: 32 }), "← → by shot: " + J(run("stepPoint(SH, 10.7, 1, 32)")));
+  // 11: status's lines in Chinese, the project's folder as <项目>, English counts
+  run(`D.status = Object.assign({}, D.status, { project: { path: "/tmp/x/demo" } });`);
+  want(run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet").text`) === "反馈已经交给 agent，REVIEW.md 里还没写这一关定了什么", "a station's note stays English in a Chinese page");
+  want(run(`statusWords("the engine's scaffold is not there: this makes it").known`) && run(`shortPath("bin/vh hf-init /tmp/x/demo landscape")`) === "bin/vh hf-init <项目> landscape", "the next step's words or the project's folder");
+  want(!run(`statusWords("a line the page has not met").known`), "an unknown line of status is passed off as known");
+  want(run(`statusWords("fill BRIEF.md (7 {…} left); render the final").text`) === "把 BRIEF.md 填完（还有 7 处 {…}）；渲染成片", "a next step of two of status's lines, as older projects get it");
+  run(`LANG = "en"; L = STR.en;`);
+  want(run(`t("round_sum", { n: 5, d: 1 })`) === "5 notes · 1 decision" && run(`t("round_sum", { n: 1, d: 2 })`) === "1 note · 2 decisions", "English counts: " + run(`t("round_sum", { n: 5, d: 1 })`));
+  run(`LANG = "zh"; L = STR.zh;`);
+} catch (e) { bad.push("core.js: " + e.message); }
+{ const r = run("[Object.keys(STR.zh).concat(Object.keys(STR.en)), Object.keys(MSTR.zh).concat(Object.keys(MSTR.en))]"), S = new Set(r[0]), clash = [...new Set(r[1].filter((k) => S.has(k)))];
+  want(!clash.length, "a module's word under a key the shell has too (the shell's word wins): " + clash.join(" ")); }
+// 9: every row the agent decides has Overturn, the DECISIONS.md table's (who: delegate) as well as the list's
+{ const d = clone(D0); d.ledger = d.ledger.concat([{ what: "style 风格", who: "delegate", status: "已定：暗场蓝", where: "STYLE.md" }]);
+  const h = draw(host(d, false), "ledger"), rows = h.match(/<tr\b[\s\S]*?<\/tr>/g) || [], agent = rows.filter((r) => r.includes("chip agent"));
+  want(agent.length >= 2 && agent.every((r) => r.includes("data-overturn")), "a row the agent decided without Overturn: " + agent.filter((r) => !r.includes("data-overturn")).length + " of " + agent.length); }
+// 5: no ledger: the older table in NOTES.md read only, and no filters over nothing
+{ const d = clone(D0); d.mods.assets = null; d.mods.refs = []; d.mods.digests = [];
+  d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "自己拍的", license: "自有", there: false }, { file: "https://example.org/y.png", source: "某馆", license: "", there: null }] };
+  const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const h0 = draw(host(e, false), "assets");
+  want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes("还没有素材台账"), "the NOTES.md table, or filters over nothing");
+  want((h.match(/<th>/g) || []).length === 3 && (h.match(/class="chip wait" title=/g) || []).length === 1, "the NOTES.md table: three columns, a tag beside the file not here and none beside the link");
+  want(!h0.includes('class="pgtabs"') && h0.includes("还没有素材台账"), "no ledger and no table: filters, or nothing said"); }
+// 6: a command, a path or a file name is never inside a label the themes set in capitals (text-transform is inherited)
+const CAPS = ["kick", "pn-h", "mat-h", "g-eyebrow", "g-h", "blk-h", "lgroup", "grp"], KEEP = ["pn-sub", "quiet"], VOID = /^(img|br|hr|input|meta|link|source|wbr|path|line|circle|rect)$/i;
+const capsText = (html) => {
+  const out = [], stack = [];
+  for (const m of html.matchAll(/<(\/?)([a-zA-Z0-9]+)([^>]*?)(\/?)>|([^<]+)/g)) {
+    if (m[5] != null) { const top = stack[stack.length - 1]; if (top && top.caps && /bin\/vh|&lt;项目&gt;|&lt;project&gt;|[\w.-]+\.(md|json|mp4|wav|png|jpe?g)\b|\w\/\w/.test(m[5])) out.push(m[5].trim().slice(0, 60)); continue; }
+    if (m[1]) { stack.pop(); continue; }
+    if (m[4] || VOID.test(m[2])) continue;
+    const cls = ((m[3].match(/\sclass="([^"]*)"/) || [])[1] || "").split(/\s+/), up = stack[stack.length - 1] || { caps: false };
+    stack.push({ caps: m[2] === "code" || cls.some((c) => KEEP.includes(c)) ? false : up.caps || cls.some((c) => CAPS.includes(c)) });
+  }
+  return out;
+};
+for (const ro of [false, true]) for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
+  const d = clone(D0); if (m === "assets") { d.mods.assets = null; d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "s", license: "l", there: true }] }; }
+  const c = capsText(draw(host(d, ro), m)); want(!c.length, `${m}${ro ? " (static)" : ""}: a command or a path in capitals: ${c.join(" | ")}`);
+}
+console.log(bad.join("\n"));
+JS
+  if a=$(node "$t/trial.js" "$t/demo-data.json" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the modules and core.js: a submission goes once (what the server took leaves the draft; a decision goes again only when picked differently); ← → lands on the next shot as a shot; status's lines in Chinese with the project's folder as <项目>, and English counts; every row the agent decides has Overturn; with no ledger the older table in NOTES.md, read only, and no filters over nothing; no command, path or file name inside a label set in capitals; no module word under a key the shell has too"
+  else bad "after a trial run, in the modules and core.js: $a"; fi
+  cat > "$t/trial.py" <<'PY'
+import json, re, shutil, sys
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import server
+t = Path(sys.argv[1])
+bad = []
+def want(c, m):
+    if not c: bad.append(m)
+st, ui, css, mcss = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("studio.js", "ui.css", "studio.css", "modules.css"))
+html = open("tools/desk/static/index.html", encoding="utf-8").read()
+def body(name):   # a function's text in studio.js, up to the next top-level one
+    m = re.search(r"\n(?:async )?function " + name + r"\([\s\S]*?\n}", st)
+    return m.group(0) if m else ""
+rl, sub, poll = body("reloadProject"), body("submit"), body("pollLive")
+want(rl and rl.index("fetchProject(") < rl.index("leaveProject(") and "renderShellLoading" not in rl and ".innerHTML" not in rl,
+     "a reload clears the page before the new data is in")
+want("afterSent(" in sub and "reloadProject(" in sub and "leaveProject(" not in sub and "reloadProject(" in poll and "leaveProject(" not in poll, "a submission or a new page blanks the page, or keeps what it sent")
+want(re.search(r'e\.key === "Escape"[\s\S]{0,240}typing\(\)\) \{ e\.preventDefault\(\); document\.activeElement\.blur\(\);', st) and re.search(r"function addNote\(\)[\s\S]*?ta\.blur\(\);\s*//[^\n]*\n}", st),
+     "Esc does not leave a text box, or ⌘↩ keeps the keys in it")
+want(re.search(r"function jumpShot\(dir\)[\s\S]{0,200}stepPoint\([\s\S]{0,80}pickThing\(\"shot:\"", st), "← → moves the playhead without selecting the shot")
+ids = re.findall(r'\sid="([A-Za-z][\w-]*)"', html + st + open("tools/desk/static/modules.js", encoding="utf-8").read())
+dup = sorted({i for i in ids if ids.count(i) > 1} - {"gatePart"})   # gatePart: one of two exclusive layouts
+want(not dup, f"an id written twice in the console (a reload keeps the old module on screen while the column is drawn): {dup}")
+caps = []
+for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss)):
+    for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)):
+        if re.search(r"text-transform:\s*(uppercase|var\(--label-case\))", rule):
+            caps += [f"{f}: {s.strip()}" for s in sel.split(",")]
+allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2",
+           "studio.css: .ask .kick", "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
+want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
+want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")
+h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
+want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
+want(re.search(r"\.cut\.layout-sound \.timeline\{max-height:min\(58vh,calc\(100vh - \d+px\)\)\}", css) and "min-height:min(200px,22vh)" in re.search(r"\.screen\{[^}]*\}", css).group(0),
+     "on a short window the tall lanes push the picture's controls under the timeline")
+want(all(x in css for x in (".app.is-cut .cut>.viewer{order:2}", ".app.is-cut>.col{order:3}", ".app.is-cut .cut>.lists{order:5")) and '$("#app").classList.toggle("is-cut", bench)' in st,
+     "on a phone the cut does not put the picture, then the decisions, then the lists")
+# 5: no ledger: the table NOTES.md kept before bin/vh assets, read only; a ledger: that, not the table
+p = t / "oldnotes"; shutil.copytree("tools/desk/fixtures/zh", p)
+(p / "NOTES.md").write_text((p / "NOTES.md").read_text(encoding="utf-8") + "\n## 素材台账\n| 文件 | 来源 | 许可 |\n|---|---|---|\n| assets/harbor.jpg | 自己拍的 | 自有 |\n| https://example.org/t.png | 某馆 | 没写 |\n| {文件} | {来源} | {许可} |\n| | | |\n", encoding="utf-8")
+m = server.project_data(p)["mods"]
+rows = (m.get("assets_notes") or {}).get("rows") or []
+want([r["file"] for r in rows] == ["assets/harbor.jpg", "https://example.org/t.png"] and rows[1]["there"] is None and rows[0]["there"] is False and not m["errors"], f"the NOTES.md asset table: {m.get('assets_notes')} {m['errors']}")
+(p / "assets").mkdir(); (p / "assets" / "ledger.json").write_text(json.dumps({"v": 1, "assets": []}))
+want(server.project_data(p)["mods"].get("assets_notes") is None, "the NOTES.md table read beside a ledger")
+print("; ".join(bad))
+PY
+  if a=$(python3 "$t/trial.py" "$t" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the console's code: a reload reads before it changes the screen, a submission and a new page keep the page on screen and never resend; Esc leaves a text box and ⌘↩ hands the keys back; ← → selects the shot; no id twice; capitals only on short labels, never on code; one-line timeline bar; a tall waveform drawn to its loudest peak in the listen layout; the cut on a phone puts the picture, the decisions, then the lists; the asset table of NOTES.md when there is no ledger"
+  else bad "after a trial run, in the console's code: $a"; fi
+  kill $pid 2>/dev/null; wait $pid 2>/dev/null
+  # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
+  if desk_start "$t/root/zh" "$t/zh.log"; then
+    a=$(python3 - "$desk_url" <<'PY'
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1])
+def get(p):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return r.status, d
+page = get("/")[1].decode()
+home = page.split('name="desk-home" content="')[1].split('"')[0]
+keys = [r["key"] for r in json.loads(get("/api/projects")[1])["projects"]]
+print(home.startswith("zh~"), home in keys, get("/api/data")[0], get(f"/api/p/{home}/data")[0])
+PY
+)
+    [ "$a" = "True True 200 200" ] && ok "desk for a project: its page opens on it, the project is in the listing, and the first addresses still answer" || bad "desk for a project: $a"
+    kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
+  fi
+  rm -rf "$t"
 }
 concept_checks() {   # bin/vh concept: the roulette (seeded by the project's name, what the project has and --not left out)
   # and the six-then-three board (pillow through uv: the same bytes for the same input)
@@ -7761,7 +8315,8 @@ def fill(x):
     if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
     if isinstance(x, list): return [fill(v) for v in x]
     return "填好了" if isinstance(x, str) and x.startswith("{") else x
-d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None); d["decisions"][0]["recommend"] = "A"
+for o in d["decisions"][0]["options"]: o.pop("frame", None)   # a card's frame is a path: filled with words, a missing file
 json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   e=$(ns "$p" '"send the page" in n["do"] and "--init" not in c')

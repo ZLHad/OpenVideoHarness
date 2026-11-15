@@ -4,38 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="desk-token" content="{{TOKEN}}">
-<title>审阅台 · Review desk</title>
-<link rel="stylesheet" href="/static/desk.css">
+<meta name="desk-home" content="{{HOME}}">
+<title>片场 · OpenVideoHarness</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111111'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%235ec9dc'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/ui.css">
+<link rel="stylesheet" href="/static/studio.css">
+<link rel="stylesheet" href="/static/modules.css">
+<script src="/static/ui.js"></script>
 </head>
 <body>
-<header class="top">
-  <div class="brand"><b id="brand">审阅台</b><span class="proj" id="ptitle">…</span><span class="pill" id="pstatus"></span></div>
-  <ol class="rail" id="rail"></ol>
-  <div class="actions">
-    <span class="live" id="live"><span>●</span><span id="liveTxt">…</span></span>
-    <button class="btn ghost" id="reload" type="button">↻</button>
-    <button class="btn ghost" id="lang" type="button">EN</button>
-    <button class="btn ghost" id="theme" type="button">◐</button>
-    <button class="btn" id="openTray" type="button"><span id="myLabel">我的点评</span><span class="n" id="cnt">0</span></button>
-    <button class="btn primary" id="submitTop" type="button">提交</button>
-  </div>
-</header>
-<div class="layout">
-  <nav class="side" id="side"></nav>
-  <main id="view"><div class="empty">…</div></main>
+<a class="skiplink" href="#stage" id="skip">跳到内容</a>
+<div class="app" id="app">
+  <header class="topbar">
+    <a class="mark" href="#/" id="mark">ovh</a>
+    <nav class="crumbs" id="crumbs" aria-label="位置"></nav>
+    <ol class="flow" id="flow" aria-label="这支片子的几站"></ol>
+    <div class="tools">
+      <button type="button" class="btn btn-quiet" id="searchBtn"><span id="searchLabel">搜片子</span> <span class="kbd">/</span></button>
+      <div class="themes" role="group" id="themes" aria-label="主题">
+        <button type="button" data-theme-set="darkfield" aria-pressed="false">暗场</button><button type="button" data-theme-set="prism" aria-pressed="false">棱镜</button><button type="button" data-theme-set="bridge" aria-pressed="false">舰桥</button>
+      </div>
+      <button type="button" class="btn btn-quiet" id="lang">EN</button>
+    </div>
+  </header>
+  <nav class="rail" id="rail" aria-label="模块"></nav>
+  <main class="stage-area" id="stage" tabindex="-1"><p class="loading">…</p></main>
+  <aside class="col" id="col" aria-label="这一轮">
+    <div class="col-head" id="colHead"></div>
+    <div class="col-body" id="colBody"></div>
+    <div class="col-round" id="colRound" hidden></div>
+    <div class="composer" id="composer" hidden></div>
+    <div class="confirm" id="confirm" hidden></div>
+  </aside>
 </div>
-<aside class="tray" id="tray">
-  <header><b id="trayTitle">我的点评</b><button class="btn ghost" id="closeTray" type="button">×</button></header>
-  <div class="list" id="trayList"></div>
-  <footer>
-    <label class="small muted" id="generalLabel" for="general"></label>
-    <textarea id="general" rows="3"></textarea>
-    <details><summary class="small" id="previewLabel"></summary><pre class="out" id="preview"></pre></details>
-    <button class="btn primary" id="submit" type="button"></button>
-    <div class="tiny muted" id="submitHint"></div>
-  </footer>
-</aside>
+<div class="search" id="search" hidden role="dialog" aria-label="搜片子">
+  <input id="q" type="search" autocomplete="off" spellcheck="false"><ol class="results" id="results" role="listbox"></ol>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/static/desk.js"></script>
+<script src="/static/core.js"></script>
+<script src="/static/modules.js"></script>
+<script src="/static/studio.js"></script>
 </body>
 </html>
