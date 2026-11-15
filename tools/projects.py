@@ -112,10 +112,12 @@ def overall(st):
             break
     if st["paused"]:
         return "paused", at
+    if at and at["state"] == "waiting_person":   # a page waits for the person, even after the film went out
+        return at["state"], at
+    if stops and stops[-1]["state"] == "done":   # it went out: what an older stop still says does not make it unfinished
+        return "delivered", stops[-1]
     if at:
         return at["state"], at
-    if stops and stops[-1]["state"] == "done":
-        return "delivered", stops[-1]
     if any(s["state"] == "no_record" for s in stops):
         return "no_record", None
     return "not_started", None
@@ -149,7 +151,7 @@ def film_of(project, st):
 def row(project, name, S, assign):
     """One project's row. Whatever goes wrong reading it stays in this row (error)."""
     r = {"id": identity.id_of(project), "name": name, "title": None, "path": str(project), "type": None, "effort": None, "state": None, "station": None, "waiting_on": None,
-         "next_step": None, "running": [], "last_activity": None, "film": None, "same_id_as": [], "error": None}
+         "next_step": None, "running": [], "last_activity": None, "film": None, "delivered": None, "same_id_as": [], "error": None}
     if assign and r["id"] is None:
         try:
             r["id"], r["assigned"] = identity.ensure(project)[0]["id"], True
@@ -161,6 +163,8 @@ def row(project, name, S, assign):
         r.update(title=st["project"]["title"], type=st["project"]["type"], effort=st["project"]["effort"], state=state,
                  station={"id": at["id"], "name": at["name"]} if at else None, waiting_on=st["waiting_on"], next_step=st["next_step"],
                  running=[x["cmd"] for x in st["activity"]["running"]], last_activity=last_activity(st), film=film_of(project, st))
+        if state == "delivered":   # the day it went out (bin/vh status's delivery record, or REVIEW.md's line for the final film)
+            r["delivered"] = ((at or {}).get("delivered") or {}).get("date")
     except (Exception, SystemExit) as e:   # one project's trouble is one row
         r["error"] = f"{type(e).__name__}: {e}"
     return r

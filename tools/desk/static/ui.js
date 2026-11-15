@@ -152,7 +152,8 @@
     if (lead) lead.addEventListener("click", () => lead.classList.toggle("open"));
 
     // the picks: the recommendation is checked to begin with; hooks.initial (the console's draft) comes on top
-    Object.entries(hooks.initial || {}).forEach(([id, v]) => { const r = $$(`.g-dec[data-dec] input[type=radio]`, root).find((x) => x.closest(".g-dec").dataset.dec === id && x.value === v); if (r) r.checked = true; });
+    // a decision the person picked (data-picked) is framed; one left alone shows the recommendation as its default, unframed
+    Object.entries(hooks.initial || {}).forEach(([id, v]) => { const r = $$(`.g-dec[data-dec] input[type=radio]`, root).find((x) => x.closest(".g-dec").dataset.dec === id && x.value === v); if (r) { r.checked = true; r.closest(".g-dec").dataset.picked = "1"; } });
     const choices = () => { const o = {}; decs.forEach((d) => { const r = $("input:checked", d); if (r) o[d.dataset.dec] = r.value; }); return o; };
     const reply = () => decs.map((d, i) => { const r = $("input:checked", d); return r ? `${i + 1} ${r.value}` : ""; }).filter(Boolean).join(" · ");
     function refreshReply() {
@@ -166,7 +167,7 @@
       d.addEventListener("focusin", () => setActive(d));
       d.addEventListener("pointerdown", () => setActive(d));
       $$("input[type=radio]", d).forEach((r) => r.addEventListener("change", () => {
-        setActive(d); refreshReply();
+        d.dataset.picked = "1"; setActive(d); refreshReply();
         if (hooks.onPick) hooks.onPick(d.dataset.dec, r.value, r.value === d.dataset.rec);
         const next = decs[i + 1]; if (next && hooks.advance !== false) setActive(next);
       }));
@@ -209,7 +210,11 @@
   }
 
   window.OVH = { mount, Player, theme, clock, THEMES, DEFAULT_THEME };
-  document.addEventListener("click", (e) => { const b = e.target.closest("[data-theme-set]"); if (b) theme(b.dataset.themeSet); });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-theme-set]"); if (b) theme(b.dataset.themeSet);
+    document.querySelectorAll("details.tmenu[open]").forEach((d) => { if (b || !d.contains(e.target)) d.open = false; });   // a pick, or a click elsewhere, closes the menu
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll("details.tmenu[open]").forEach((d) => { d.open = false; }); });
   document.addEventListener("change", (e) => { if (e.target.matches("select[data-theme-select]")) theme(e.target.value); });
   document.addEventListener("DOMContentLoaded", () => theme(document.documentElement.getAttribute("data-theme")));
   const auto = document.querySelector(".gate[data-static]");

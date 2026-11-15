@@ -9,7 +9,7 @@ body{overflow:hidden}
 .app.col-closed{--col-w:44px}
 
 /* ---------- top: crumbs, the flow bar, tools ---------- */
-.topbar{grid-column:1/-1;display:flex;align-items:center;gap:16px;min-width:0;padding:0 14px 0 0;border-bottom:1px solid var(--rule);background:var(--bg)}
+.topbar{grid-column:1/-1;position:relative;z-index:20;display:flex;align-items:center;gap:16px;min-width:0;padding:0 14px 0 0;border-bottom:1px solid var(--rule);background:var(--bg)}   /* above the columns: its menu opens over them in every theme */
 :root[data-theme=prism] .topbar,:root[data-theme=bridge] .topbar{border:1px solid var(--rule);padding:0 12px 0 0;background:var(--glass),var(--panel);border-radius:var(--r-panel)}
 :root[data-theme=prism] .topbar{backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
 .topbar .mark{flex:0 0 64px;text-align:center}
@@ -17,18 +17,20 @@ body{overflow:hidden}
 .flow{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:0;list-style:none;margin:0;padding:0;min-width:0;overflow-x:auto;scrollbar-width:none}
 .flow li{display:flex;align-items:center;flex:0 0 auto}
 .flow li+li::before{content:"";width:16px;height:1px;margin:0 8px;background:var(--rule-2)}
-.stn{position:relative;display:inline-flex;align-items:center;gap:6px;border:0;background:none;cursor:pointer;font-size:var(--fs-small);color:var(--ink-3);padding:5px 8px;border-radius:var(--r-pill);white-space:nowrap}
+.stn{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;cursor:pointer;font-size:var(--fs-small);line-height:1.25;color:var(--ink-3);padding:4px 10px;border-radius:var(--r-card);white-space:nowrap}
+.stn .nm{display:inline-flex;align-items:center;gap:6px}
 .stn i{width:7px;height:7px;border-radius:50%;background:var(--rule-2);flex:0 0 auto}
-.stn small{font:11px var(--mono);color:inherit;opacity:.8}
+.stn small{font-size:10.5px;color:var(--ink-3);padding-left:13px}
 .stn em{font-style:normal;font-size:11px}
 .stn.done{color:var(--ink-2)}.stn.done i{background:var(--ok)}
 .stn.agent{color:var(--ink-2)}.stn.agent i{background:var(--agent);box-shadow:0 0 8px var(--agent)}
 .stn.wait{color:var(--ink)}.stn.wait i{background:var(--wait);box-shadow:0 0 8px var(--wait)}.stn.wait em{color:var(--wait)}
 .stn.off i{background:none;border:1px dashed var(--rule-2)}
-.stn.skip{text-decoration:line-through;text-decoration-color:var(--ink-3)}
+.stn.past i{background:var(--ok);opacity:.45}.stn.past small{color:var(--ink-3)}   /* a film that went out: a stop it left open, past, with no word */
+.stn.wait small{color:var(--wait)}.stn.agent small{color:var(--agent)}
+.stn.wait{background:var(--wait-soft);box-shadow:inset 0 0 0 1px var(--wait-line)}   /* where it waits for you, at a glance (舰桥's solid block, softer) */
 .stn[aria-current=true]{color:var(--ink-hi);background:var(--panel-3)}
 :root[data-theme=darkfield] .stn[aria-current=true]{background:none;box-shadow:inset 0 -1px 0 var(--ink)}
-:root[data-theme=darkfield] .stn.wait em{font-family:var(--display);font-style:italic;font-size:var(--fs-small)}
 :root[data-theme=prism] .stn.wait{background:var(--wait-soft);box-shadow:inset 0 0 0 1px var(--wait-line)}
 :root[data-theme=bridge] .stn{border-radius:0;background:var(--panel-2)}
 :root[data-theme=bridge] .stn.wait{background:var(--wait);color:var(--on-wait)}:root[data-theme=bridge] .stn.wait em,:root[data-theme=bridge] .stn.wait small{color:var(--on-wait)}
@@ -73,13 +75,25 @@ body{overflow:hidden}
 .banner b{color:var(--wait);font-weight:500}
 
 /* ---------- the space ---------- */
-.ask{padding:20px 22px;margin:0 0 26px;border:1px solid var(--rule);background:var(--glass),var(--panel);border-radius:var(--r-panel)}
-.ask .kick{font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--you)}
-.ask h2{margin:8px 0 12px;font:500 var(--fs-h2)/1.3 var(--display);color:var(--ink-hi)}
-.ask textarea{width:100%;min-height:58px;resize:vertical;border:1px solid var(--rule-2);background:var(--panel-2);padding:10px 12px;font:var(--fs-text)/1.5 var(--prose);border-radius:var(--r-card)}
+.ask{display:grid;gap:8px}   /* the space's column: the sentence that starts a new film */
+.ask textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--rule-2);background:var(--panel-2);padding:10px 12px;font:var(--fs-text)/1.5 var(--prose);border-radius:var(--r-card)}
 .ask textarea:focus{outline:none;border-color:var(--you)}
-.ask .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:var(--fs-label);color:var(--ink-3)}
+.ask .row{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;font-size:var(--fs-label);color:var(--ink-3)}
+.ask .row span{flex:1 1 12em}
 .ask .row .btn-primary{margin-left:auto}
+.heroes{display:grid;gap:16px}   /* a film waiting for you: a row of its own, its picture big, its questions, one button */
+.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px 24px;align-items:stretch;padding:14px;text-decoration:none;color:inherit;border:1px solid var(--wait-line);background:var(--wait-soft);border-radius:var(--r-panel)}
+.hero .well{aspect-ratio:16/9;border-radius:var(--r-card)}
+.hero .well img,.hero .well video{width:100%;height:100%;object-fit:cover;max-height:none}
+.hero-txt{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;padding:2px 4px 2px 0}
+.hero-name{font:500 var(--fs-h2)/1.3 var(--display);color:var(--ink-hi)}
+.hero-sum{font-size:var(--fs-small);line-height:1.5;color:var(--ink-2)}
+.hero-q{display:grid;gap:6px}
+.hero-q span{padding-left:10px;border-left:2px solid var(--wait);font:var(--fs-text)/1.45 var(--prose);color:var(--ink)}
+.hero .btn-primary{margin-top:auto}
+.hero:hover .well,.hero:focus-visible .well{box-shadow:0 0 0 1px var(--you-line)}
+.hero:focus-visible{outline:1px solid var(--you);outline-offset:2px}
+.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:22px 18px}
 .pcard{display:grid;gap:8px;text-decoration:none;color:inherit;min-width:0;padding:0;border-radius:var(--r-card)}
 .pcard .well{aspect-ratio:16/9;border:1px solid var(--rule);border-radius:var(--r-card);transition:border-color .16s var(--ease)}
@@ -87,6 +101,8 @@ body{overflow:hidden}
 .well>.ph{position:absolute;inset:0;display:grid;place-items:center;font:500 30px/1 var(--display);color:var(--on-pic);opacity:.25}
 .well>.ph~img,.well>.ph~video{position:relative}
 .results .well>.ph{font-size:16px}
+.well>.ph-why{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:var(--fs-label);color:var(--on-pic);opacity:.55}
+.results .well>.ph-why{display:none}
 .pcard:hover .well,.pcard:focus-visible .well{border-color:var(--you-line)}
 .pcard:focus-visible{outline:none}
 .pcard-name{font:500 var(--fs-text)/1.35 var(--display);color:var(--ink-hi)}
@@ -98,13 +114,13 @@ body{overflow:hidden}
 .pcard-meta .mono{font-size:11px}
 .pcard-ask{font-size:var(--fs-small);color:var(--ink-2);line-height:1.45;padding-left:9px;border-left:2px solid var(--wait)}
 .pcard .err{font-size:var(--fs-label);color:var(--live)}
-.roots{margin-top:26px;font:var(--fs-label) var(--mono);color:var(--ink-3);overflow-wrap:anywhere}
+.roots{margin-top:26px;font-size:var(--fs-label);color:var(--ink-3)}
 
 /* ---------- the right column: everything that holds without the agent online ---------- */
 .col{grid-row:2;grid-column:3;display:flex;flex-direction:column;min-height:0;min-width:0;border-left:1px solid var(--rule);background:var(--glass),var(--panel)}
 :root[data-theme=prism] .col,:root[data-theme=bridge] .col{border:1px solid var(--rule);border-radius:var(--r-panel)}
 :root[data-theme=prism] .col{backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
-.col-head{display:flex;align-items:baseline;gap:10px;padding:14px 16px 12px;border-bottom:1px solid var(--rule)}
+.col-head{display:flex;align-items:baseline;gap:10px;padding:10px 16px 9px;border-bottom:1px solid var(--rule)}
 .col-head b{font:500 var(--fs-lead)/1.2 var(--display);color:var(--ink-hi)}
 :root[data-theme=bridge] .col-head b{font:600 12px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase}
 .col-head .who{font-size:var(--fs-label);color:var(--ink-3)}
@@ -117,15 +133,19 @@ body{overflow:hidden}
 .col-body .blk-h{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;font-size:var(--fs-label);color:var(--ink-3);letter-spacing:var(--label-track);text-transform:var(--label-case)}
 .col-body .blk-h b{font-weight:600;color:var(--ink-2)}
 .col-body .blk-h .tag{margin-left:auto}
-.col-body .round-h{font:500 var(--fs-text)/1.45 var(--prose);color:var(--ink)}
+.col-body .round-h{font:500 var(--fs-small)/1.5 var(--prose);color:var(--ink)}
 .col-body .round-h .meta{display:block;margin-bottom:4px}
 .col-body .note-list{list-style:none;margin:0;padding:0}
-.col-body .note-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid var(--rule);font-size:var(--fs-small);color:var(--ink-2)}
+.col-body .note-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--rule);font-size:var(--fs-small);color:var(--ink-2)}
 .col-body .note-list li:first-child{border-top:0}
 .col-body .note-list .x{border:0;background:none;color:var(--ink-3);cursor:pointer;font-size:var(--fs-label)}
 .col-body .next{font-size:var(--fs-small);color:var(--ink-2)}
 .col-body .next .who{font-size:var(--fs-label);margin-right:6px;color:var(--agent)}
 .col-body .next .who.person{color:var(--wait)}
+.col-body .next .raw{color:var(--ink-3);font-size:var(--fs-label)}
+.col-body .quiet-line{color:var(--ink-2)}
+.col-body.more{-webkit-mask-image:linear-gradient(var(--ink) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--ink) calc(100% - 36px),transparent)}   /* more below: the column fades out instead of ending under the bar */
+.app .g-opt .id{display:none}   /* the console says an option by its words; the static page keeps the codes its reply line uses */
 .col-body .next code{display:inline;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11.5px;color:var(--ink-2);background:none;padding:0}
 .col-body .next code.cmd{display:block;margin-top:4px;padding:4px 7px;background:var(--panel-2);color:var(--ink)}
 .col-body .blk-h .tag.quiet{color:var(--ink-3);font:11px var(--mono);letter-spacing:0;text-transform:none}
@@ -133,6 +153,7 @@ body{overflow:hidden}
 .col-round{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--rule);font-size:var(--fs-small);color:var(--ink-2)}
 .col-round b{color:var(--ink);font-weight:500}
 .col-round .btn-primary{margin-left:auto}
+.col-round .btn-primary[disabled]{opacity:.4;cursor:default}
 .composer{padding:12px 16px 14px;border-top:1px solid var(--rule);display:grid;gap:8px}
 .composer .crow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:var(--fs-label);color:var(--ink-3)}
 .composer .crow .xs{border:0;background:none;color:var(--ink-3);cursor:pointer;font-size:var(--fs-label);text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px}
@@ -140,9 +161,10 @@ body{overflow:hidden}
 .composer .modes button{border:0;background:none;padding:3px 10px;font-size:var(--fs-label);color:var(--ink-3);cursor:pointer}
 .composer .modes button[aria-pressed=true]{background:var(--panel-3);color:var(--ink)}
 .composer .modes button[disabled]{cursor:not-allowed;opacity:.55}
-.composer textarea{width:100%;min-height:62px;resize:vertical;border:1px solid var(--rule-2);background:var(--panel-2);padding:8px 10px;font:var(--fs-small)/1.5 var(--prose);border-radius:var(--r-card)}
+.composer .kbd{font-size:12px;line-height:20px;padding:0 7px;color:var(--ink-2)}   /* ⌘↩ beside 记下: readable, not a speck */
+.composer textarea{width:100%;min-height:36px;resize:vertical;transition:min-height .16s var(--ease);border:1px solid var(--rule-2);background:var(--panel-2);padding:8px 10px;font:var(--fs-small)/1.5 var(--prose);border-radius:var(--r-card)}
 :root[data-theme=darkfield] .composer textarea{border:0;border-bottom:1px solid var(--rule-2);background:none;padding:6px 0;font-size:var(--fs-text);border-radius:0}
-.composer textarea:focus{outline:none;border-color:var(--you)}
+.composer textarea:focus{outline:none;border-color:var(--you);min-height:96px}
 .composer .send{display:flex;align-items:center;gap:10px}
 .composer .send .btn-primary{margin-left:auto}
 .col-closed .col-body,.col-closed .col-round,.col-closed .composer,.col-closed .col-head>*:not(.col-fold){display:none}
@@ -201,7 +223,7 @@ body{overflow:hidden}
 .frame .wipe-l,.frame .wipe-r{position:absolute;top:10px;font:11px var(--mono);color:var(--on-pic);background:var(--scrim);padding:1px 6px;pointer-events:none}
 .frame .wipe-l{left:10px}.frame .wipe-r{right:10px}
 .screen .none{position:absolute;color:var(--on-pic);opacity:.6;font-size:var(--fs-small);text-align:center;padding:20px}
-.screen-note{position:absolute;left:12px;bottom:10px;margin:0;font:11.5px var(--mono);color:var(--on-pic);opacity:.7;pointer-events:none;max-width:calc(100% - 24px)}
+.screen-note{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);margin:0;font:500 var(--fs-small)/1.45 var(--sans);color:var(--on-pic);background:var(--scrim);padding:7px 12px;border-radius:var(--r-card);pointer-events:none;max-width:calc(100% - 32px);text-align:center}   /* why the film is not playing: on the picture, where the eye is */
 .transport{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 16px 12px}
 .transport .p-btn{width:30px;height:30px}
 .transport .play{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--bg)}
@@ -223,9 +245,16 @@ body{overflow:hidden}
 .tl-bar .btn{min-height:26px;font-size:var(--fs-label);white-space:nowrap}
 .tl-scroll{overflow:auto;position:relative}
 .tl{position:relative;min-width:100%;padding:0 12px 10px 0}
-.tl .grp{display:flex;align-items:center;gap:6px;padding:4px 0 2px 10px;font-size:11px;color:var(--ink-3);cursor:pointer;user-select:none;letter-spacing:var(--label-track);text-transform:var(--label-case)}
-.tl .grp::before{content:"▾";font-size:10px}
-.tl .grp.closed::before{content:"▸"}
+.tl .grp{display:flex;align-items:center;gap:6px;padding:4px 0 2px 10px;font-size:11px;color:var(--ink-3);cursor:default;user-select:none;letter-spacing:var(--label-track);text-transform:var(--label-case)}
+.tl .grp-t{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:1px 6px 1px 0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;border-radius:3px}   /* the name folds the group; the row around it does nothing */
+.tl .grp-t::before{content:"▾";font-size:10px}
+.tl .grp.closed .grp-t::before{content:"▸"}
+.tl .grp-t:hover,.tl .grp-t:focus-visible{color:var(--ink)}
+.tl .grp-n{font-size:10px;color:var(--ink-3)}
+.tl .trk{-webkit-user-select:none;user-select:none}   /* scrubbing across the narration selects no text */
+.tl .blk img{pointer-events:none;-webkit-user-drag:none}   /* a shot's picture is not a thing to drag: the press is the lane's */
+.tl-more{display:flex;align-items:baseline;gap:10px;padding:8px 0 0 calc(var(--lab-w) + 6px);font-size:11px;color:var(--ink-3)}.tl-more button{border:0;background:none;padding:0;font:inherit;color:var(--ink-2);cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px}
+.col-body .note-list li.just{background:var(--panel-3);transition:background .6s var(--ease)}   /* the note just added, lit for a moment */
 .tl{--lab-w:80px}
 .lane{display:grid;grid-template-columns:var(--lab-w) minmax(0,1fr);align-items:center;min-height:24px}
 .lane .lab{font-size:11px;color:var(--ink-3);text-align:right;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -268,7 +297,7 @@ body{overflow:hidden}
 :root[data-theme=bridge] .pin{border-radius:0}
 .span-mark{position:absolute;top:50%;height:2px;margin-top:-1px;background:currentColor;opacity:.5}
 .diff{position:absolute;top:2px;bottom:2px;border-bottom:2px solid var(--agent);font-size:10.5px;color:var(--agent);padding:0 4px;overflow:hidden;white-space:nowrap}
-.over{position:absolute;top:0;bottom:0;left:var(--lab-w);right:12px;pointer-events:none}
+.tl>.over{position:absolute;top:0;bottom:0;left:var(--lab-w);right:12px;pointer-events:none}
 .selr{position:absolute;top:0;bottom:0;background:var(--you-soft);border-left:1px solid var(--you);border-right:1px solid var(--you)}
 .selr .cap{position:absolute;top:24px;left:4px;margin:0;font:10.5px/1.5 var(--mono);color:var(--you);background:var(--bg);padding:0 5px;white-space:nowrap;max-width:none}
 .tl-ph{position:absolute;top:0;bottom:0;width:1px;background:var(--live)}
@@ -387,7 +416,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .col{position:relative}
 .col .notice{margin:0}
 .col .blk-h .n{font-size:11px;color:var(--ink-3)}
-.col .c-cards{display:grid;gap:10px}
+.col .c-cards{display:grid;gap:8px}
 .col .g-dec{padding:10px}
 .col .g-q{font-size:var(--fs-ui)}
 .col .g-opt{padding:7px 8px 8px}
@@ -424,10 +453,8 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .lane-empty{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink-3);white-space:nowrap;opacity:.8}
 .bl.down{border-left-color:var(--rule-2)}
 .lane.wave .trk{height:34px}
-.cut.layout-sound .lane.wave .trk{height:120px}   /* listen: the sound lanes tall, the waveform tallest */
-.cut.layout-sound .wav path{opacity:.75}
-.cut.layout-sound .timeline{max-height:min(58vh,calc(100vh - 380px))}   /* the tall lanes scroll before they push the picture's controls under them */
-.cut.layout-sound .screen{min-height:120px}
+.cut.layout-sound .lane.wave .trk{height:96px}   /* listen: the sound lanes tall, the waveform tallest */
+.cut.layout-sound .wav path{opacity:.45}
 .cut.layout-review .screen{margin:0 16px}
 .span-mark.mine{color:var(--you)}.span-mark.least,.span-mark.listen{color:var(--wait)}.span-mark.check{color:var(--live)}
 .transport .p-btn svg{width:16px;height:16px}
@@ -441,7 +468,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
   .app{display:block;height:auto;padding:0!important}
   .topbar{position:sticky;top:0;z-index:20;flex-wrap:wrap;padding:6px 10px;gap:8px;border-radius:0!important;background:var(--bg)!important}
   .topbar .mark{flex:0 0 auto}.topbar .crumbs{max-width:60%}
-  .flow{order:5;flex-basis:100%;justify-content:flex-start}
+  .flow{display:none}   /* one row of navigation on a phone: the modules (their dot says where it waits for you) */
   .rail{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--rule);padding:4px 6px;border-radius:0!important}
   .rail hr,.rail .grow{display:none}
   .mod{min-height:44px;flex:0 0 auto}
@@ -454,12 +481,85 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
   .screen{min-height:0;aspect-ratio:16/9;margin:0}
   .timeline{max-height:none}
   .capr{grid-template-columns:1fr}.g2{grid-template-columns:1fr}.led{grid-template-columns:1fr}
+  .hero{grid-template-columns:1fr}
   .topbar .tools .meta,.topbar select{display:none}
   /* the cut on a phone: the picture first, then what waits for you to decide (the right column), then the timeline, the lists last */
   .app.is-cut{display:flex;flex-direction:column}
   .app.is-cut>.stage-area,.app.is-cut .cut{display:contents}
   .app.is-cut>.topbar{order:0}.app.is-cut>.rail{order:1}
-  .app.is-cut .cut>.viewer{order:2}.app.is-cut>.col{order:3}.app.is-cut .cut>.timeline{order:4;border-top:1px solid var(--rule)}.app.is-cut .cut>.lists{order:5;border-top:1px solid var(--rule)}
-  .col-round{position:sticky;bottom:0;z-index:6;background:var(--bg)}   /* submitting stays in reach while the column is on screen */
+  .app.is-cut .cut>.viewer{order:2}.app.is-cut .cut>.timeline{order:3;border-top:1px solid var(--rule)}.app.is-cut>.col{order:4}.app.is-cut .cut>.lists{order:5;border-top:1px solid var(--rule)}
+  .col-round{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--bg);border-top:1px solid var(--rule-2)}   /* submitting is always in reach */
+  .app:has(.col-round:not([hidden])){padding-bottom:64px!important}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+.screen-note .xs,.screen .none .xs{pointer-events:auto;margin-left:8px;border:1px solid var(--rule-2);background:var(--panel);color:var(--ink);border-radius:var(--r-pill);padding:1px 9px;font-size:var(--fs-label);cursor:pointer}
+
+/* the timeline's bar: the marks' legend, drawn as the pins are; the help behind "?"; keys only where there is a keyboard */
+.tl-bar .legend{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;min-width:0}
+.tl-bar .lg{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.tl-bar .lg .pin{position:relative;top:auto;left:auto;margin:0;width:10px;height:10px;cursor:default;flex:0 0 auto}
+.tl-bar .help{min-width:26px;padding:0 8px;font-family:var(--mono)}
+.timeline{position:relative}
+.tl-help{position:absolute;right:12px;bottom:calc(100% + 6px);z-index:7;max-width:min(440px,calc(100% - 24px));margin:0;padding:10px 12px;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r-card);box-shadow:0 14px 30px -14px var(--shadow);font-size:var(--fs-small);color:var(--ink-2)}
+.tl-help p{margin:0}.tl-help p+p{margin-top:6px;color:var(--ink-3)}.tl-help p.h{margin-top:10px;color:var(--ink-2);font-weight:600}
+@media (hover:none) and (pointer:coarse){.kbd,.keys-only{display:none!important}}
+.pin.least{background:none;border:2px solid var(--wait)}
+.pin.listen{background:radial-gradient(circle,var(--wait) 0 2px,transparent 2.6px);border:2px solid var(--wait)}
+:root[data-theme=darkfield] .pin.note{background:var(--you)}
+:root[data-theme=darkfield] .pin.listen{background:radial-gradient(circle,var(--wait) 0 2px,transparent 2.6px)}
+.pin.listen,:root[data-theme=darkfield] .pin.listen,:root[data-theme=bridge] .pin.listen{background:var(--wait);border:0;border-radius:0;transform:none;clip-path:polygon(18% 0,100% 50%,18% 100%)}   /* 请你听: a play mark, not a second ring beside the agent's ○ */
+.tl-ph .cap{top:0;left:-5px;width:11px;height:8px;padding:0;border-radius:0;clip-path:polygon(0 0,100% 0,50% 100%)}
+.selr .cap:empty{display:none}
+.blk.line .pl{flex:0 0 auto;font-style:normal;font-size:9px;color:var(--ink-3);cursor:pointer;padding:2px 3px;border-radius:var(--r-ctl)}
+.blk.line .pl:hover{color:var(--you);background:var(--panel-3)}
+/* listen: the picture small, the sound lanes take the room */
+.cut.layout-sound{grid-template-rows:auto minmax(0,1fr)}
+.cut.layout-sound .screen{flex:none;height:clamp(120px,24vh,220px);min-height:0}
+.cut.layout-sound .timeline{max-height:none}
+.fgrp{margin:0 0 10px;border-top:1px solid var(--rule)}   /* facts, a kind a fold */
+.fgrp>summary{display:flex;align-items:baseline;gap:8px;padding:9px 0;cursor:pointer;font-size:var(--fs-small);color:var(--ink-2)}
+.fgrp>summary b{font-weight:500;color:var(--ink)}
+.fgrp>summary .n{font:11px var(--mono);color:var(--ink-3)}
+.composer .send #sayHint{flex:1 1 auto;min-width:0}
+.tl-help dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:8px 0 0;align-items:baseline}
+.tl-help dt{margin:0;text-align:right}.tl-help dd{margin:0;color:var(--ink-2)}
+.blk.shot.thin,:root[data-theme=darkfield] .blk.shot.thin{border-left:1px solid var(--rule-2);padding:0}   /* too narrow for its number: the shot as a divided stretch */
+.blk.shot:not(.thin){padding-left:4px}
+.col-body .away{display:flex;align-items:center;gap:8px;padding:2px 0;color:var(--wait);text-decoration:none;font-size:var(--fs-small)}.col-body .away::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--wait)}.col-body .away:hover,.col-body .away:focus-visible{text-decoration:underline}   /* the round's decisions, from another module: one line */
+.col-body .away:hover{border-color:var(--wait)}
+/* the column's decision cards, compact: an option a line and its good and its cost on one more, so what is under them is in view */
+.col .g-dec{padding:8px 10px}
+.col .g-q{margin:0 0 2px}
+.col .g-cost{display:block;margin:0 0 5px}
+.col .g-opts{gap:6px}
+.col .g-opt{padding:6px 8px 7px}
+.col .g-opt .pc{display:grid;gap:1px;margin-top:3px;font-size:var(--fs-label);line-height:1.45;color:var(--ink-2)}   /* the pros and costs whole, a line each: comparing them is what the card is for */
+.col .g-opt .pc>span{display:block!important;-webkit-line-clamp:unset!important;white-space:normal!important;overflow:visible!important}
+.col .g-opt .pc .k{margin-right:4px}
+.col .g-why{margin-top:4px;-webkit-line-clamp:2}
+/* a shot on the timeline: a cell of the strip, its picture filling it, its number on the picture's corner, a divider between */
+.blk.shot{flex-direction:column;align-items:flex-start;justify-content:space-between;gap:0;padding:0!important;border:0;border-left:1px solid var(--rule-2);border-radius:0}
+:root[data-theme=darkfield] .blk.shot{border-left:1px solid var(--rule-2)}
+.blk.shot img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover}
+.blk.shot .sid{position:relative;z-index:1;margin:2px 0 0 2px;font:500 10.5px/1.35 var(--mono);color:var(--on-pic);background:var(--scrim);padding:0 4px;border-radius:2px}
+.blk.shot .sid.flag::after{content:" ○";color:var(--wait)}.blk.shot .sid.note::after{content:" ●";color:var(--you)}   /* the legend's own marks: unsure ○, your note ● */
+.blk.shot .slab{position:relative;z-index:1;margin:0 0 2px 2px;max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis;font-size:10.5px;color:var(--on-pic);background:var(--scrim);padding:0 4px;border-radius:2px}
+.blk.shot.sel{box-shadow:inset 0 0 0 2px var(--you)}
+.wav path{fill:var(--ink-3);opacity:.3;stroke:var(--ink-2);stroke-width:1;vector-effect:non-scaling-stroke}   /* the sound's outline, not a block */
+.transport .p-btn[disabled]{opacity:.35;cursor:default}
+.ask textarea{min-height:56px}
+.col-round>span:first-child{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* the count in one line, whatever the language */
+.col-body .blk-h{text-transform:none;letter-spacing:normal}   /* a label with "agent" in it is not set in capitals (舰桥) */
+@media (max-width:900px){.rail .mod{width:36px;min-height:40px}.rail .mod span{display:none}.rail{justify-content:space-between}}   /* a phone: the modules as icons, all in one row */
+
+:root[data-theme=darkfield] .mod[aria-current=page]{background:var(--panel-3)}   /* where you are, more than an underline */
+.col-body .blk-h .hint-inline{flex:1 1 auto;min-width:0;font-weight:400;color:var(--ink-3);letter-spacing:0;text-transform:none}   /* how to start, beside a heading whose count says none yet */
+.col-body{gap:10px;padding-bottom:10px}
+.col-body>section:empty{display:none}   /* an empty block takes no gap */
+.col-body .blk-h>b,.col-body .blk-h>.n{flex:0 0 auto;white-space:nowrap}   /* the heading keeps its line; the hint beside it gives way */
+.phone-dec{display:none}
+@media (max-width:900px){.app.is-cut .cut>.phone-dec:not([hidden]){order:1;display:flex;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--wait-line);background:var(--wait-soft);color:var(--wait);font-size:var(--fs-small);text-decoration:none}
+  .app.is-cut .cut>.phone-dec::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--wait)}}   /* a phone: above the picture, the way to what you are asked to decide */
+.col-body .cfold>summary{cursor:pointer;list-style:none;margin:0}.col-body .cfold>summary::-webkit-details-marker{display:none}
+.col-body .cfold>summary::before{content:"▸";flex:none;width:10px;font-size:10px;color:var(--ink-3)}.col-body .cfold[open]>summary::before{content:"▾"}
+.col-body .cfold[open]>summary{margin-bottom:8px}.col-body .cfold+.cfold{margin-top:10px}.col-body .cfold>summary:hover b{color:var(--ink)}   /* the unsure places and the places to listen, folded to a heading */
