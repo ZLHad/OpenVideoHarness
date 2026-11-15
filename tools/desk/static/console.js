@@ -463,6 +463,13 @@ function renderTabs() {
   nav.innerHTML = shown.map((v) => { const n = tabCount(v), c = marked(v); return `<a href="${projHash(PKEY, v)}" role="tab" aria-selected="${v === TAB}" data-tab="${v}">${esc(viewName(v))}${n !== "" && n != null ? `<span class="n">${n}</span>` : ""}${c ? `<span class="n chg">· ${c} ✎</span>` : ""}</a>`; }).join("")
     + (D.rounds.some((r) => r.page) ? `<a href="${esc(src(D.rounds[D.rounds.length - 1].page))}" target="_blank" rel="noopener" class="meta" style="margin-left:auto">${esc(t("side_pages"))} ↗</a>` : "");
 }
+document.addEventListener("click", (e) => {   // a link to a tab of this project switches the tab in place: the page above (an earlier gate page too) stays
+  const a = e.target.closest("#tabs a[href^='#/p/']");
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || !D) return;
+  const m = decodeURIComponent(a.getAttribute("href")).match(/^#\/p\/([^/]+)\/([a-z]+)(?:\/(.*))?$/);
+  if (!m || m[1] !== PKEY || !VIEWS.includes(m[2])) return;
+  e.preventDefault(); TAB = m[2]; if (m[2] === "docs") DOC = m[3] || DOC; renderTabs(); renderTab();
+});
 const VIEWFN = { concept: vConcept, script: vScript, board: vBoard, sound: vSound, facts: vFacts, film: vFilm, check: vCheck, versions: vVersions, assets: vAssets, ledger: vLedger, history: vHistory, docs: vDocs };
 const WIRE = { script: wireScript, board: wireBoard, sound: wireSound, film: wireFilm, concept: wireConcept };
 function renderTab() {
