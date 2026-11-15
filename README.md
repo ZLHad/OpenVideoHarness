@@ -378,7 +378,7 @@ Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill op
 | General know-how: process, checks, motion, sound, effects, story, hooks, composition, ideas | [playbook/](playbook/) |
 | Styles, recipes and shot-grammar cards, components | [styles/](styles/README.md), [recipes/](recipes/README.md), [components/](components/README.md) |
 | Engines, the page contract, edit lists | [engines/](engines/README.md), [CONTRACT.md](engines/CONTRACT.md), [EDIT.md](engines/EDIT.md) |
-| 14 case studies of community work, and the repo's own films with every step on record | [cases/](cases/README.md), [showcase/](showcase/) |
+| 15 case studies of community work, and the repo's own films with every step on record | [cases/](cases/README.md), [showcase/](showcase/) |
 | What we measured, and what changed because of it | [docs/research/](docs/research/en/README.md) |
 | The CLI | `bin/vh commands`, `bin/vh help`, any command with `-h` |
 | Tutorials, troubleshooting, FAQ | the [wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |

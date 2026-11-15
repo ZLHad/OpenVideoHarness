@@ -352,6 +352,25 @@ print("; ".join(bad) or f"the ruleset's {len(ctx)} required checks are jobs of c
 sys.exit(1 if bad or not ctx else 0)
 PY
   ); then ok "$a"; else bad "workflow and ruleset: $a"; fi
+  # engines/blender.md's crowd along a path: the sketch runs as written (numpy), and is a function of t: the same t gives
+  # the same positions, the head of the queue leaves before its tail, and nothing is NaN
+  if ! command -v uv >/dev/null; then skip "engines/blender.md's queue sketch" "needs uv"
+  elif a=$(uv run -q --no-project --with numpy python - engines/blender.md 2>&1 <<'PY'
+import re, sys
+import numpy as np
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"### 一大群东西沿路线飞.*?```python\n(.*?)```", s, re.S)
+ns = {}
+exec(m.group(1), ns)
+P = ns["positions"]
+a, b, c = P(4.0), P(4.0), P(0.0)
+moved = np.linalg.norm(P(6.0) - c, axis=1)
+ok = a.shape == (ns["N"], 3) and np.isfinite(a).all() and np.array_equal(a, b) and moved[0] > moved[-1]
+print("ok" if ok else f"shape {a.shape}, same {np.array_equal(a, b)}, head {moved[0]:.2f} tail {moved[-1]:.2f}")
+sys.exit(0 if ok else 1)
+PY
+  ); then ok "engines/blender.md: the crowd-along-a-path sketch runs as written and is a function of t (the same t, the same positions; the head leaves first)"
+  else bad "engines/blender.md's queue sketch: $a"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
