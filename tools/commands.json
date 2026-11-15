@@ -1377,7 +1377,7 @@
       "when": "once the narration or caption script is written, before the person reads it; again after a rewrite",
       "stages": ["3"],
       "reads": [
-        "<project>/SCRIPT.md (the 旁白 / Narration column, else 字幕 / Caption), else <project>/audio/script.txt; or any .md / .txt",
+        "<project>/SCRIPT.md (every table with a 旁白 / Narration column, else with a 字幕 / Caption one), else <project>/audio/script.txt as tts reads it; or any .md / .txt",
         "<project>/STYLE.md (its 允许的句式 section), and --style files"
       ],
       "writes": [],

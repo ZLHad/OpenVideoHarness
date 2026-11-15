@@ -3100,6 +3100,60 @@ w(f"{t}/en.md", "# Notes\n\nIt is not speed, but time. The answer is simple: the
 j = json.loads(vh(f"{t}/en.md", "--json").stdout)
 if j["lang"] != "en" or j["checks"] != []:
     bad.append(f"English text: {j['lang']} {j['checks']}")
+# the review of the first version, a check each: the narration column first when both are there; every table of a script
+# kept a table a chapter; --col with spaces in the header; speakers and @pronounce as tts reads them; colons that are no
+# verdict; a quoted sentence allows only what lies inside it; an item with its note after a comma; one it cannot read is said
+r2 = os.path.join(t, "r2")
+w(f"{r2}/BRIEF.md", "# BRIEF\n")
+w(f"{r2}/SCRIPT.md", """# SCRIPT
+
+## 第一章
+
+| # | 旁白（定稿） | 字幕 |
+|---|---|---|
+| 1 | 时间：晚上八点。地点：老城区。 | 字幕不是这个，而是那个。 |
+| 2 | 他回忆：那年冬天很冷。先说结论：快：慢。 | 字幕 |
+
+## 第二章
+
+| # | 旁白 · 中文 | 画面 |
+|---|---|---|
+| 3 | 它让沟通更高效，让协作更顺畅，让创新更自由。 | x |
+| 4 | 他不是医生，他是一个画家。问题不在于速度，在于时间。 | x |
+| 5 | 中国科学院上海天文台射电天文研究团队的成员都来了，还有那只盒子。 | x |
+| 6 | 盒子里装着延迟、抖动、丢包和功耗。 | x |
+""")
+j = json.loads(vh(r2, "--json").stdout)
+got = {c["id"]: [(h["line"], h["text"]) for h in c["hits"]] for c in j["checks"] if c["hits"]}
+want = {"colon_verdict": [(8, "先说结论：快：慢")], "triple_parallel": [(14, "它让沟通更高效，让协作更顺畅，让创新更自由")],
+        "not_but": [(15, "不是医生，他是"), (15, "不在于速度，在于")], "dun_triple": [(17, "…装着延迟、抖动、丢包和功耗")], "chain_link": [(17, "盒子")]}
+if j["input"] != {"kind": "table", "column": "旁白（定稿） / 旁白 · 中文", "units": 6} or got != want:
+    bad.append(f"two tables, the narration column first: {j['input']} {got}")
+r = vh(f"{r2}/SCRIPT.md", "--col", "旁白 · 中文", "--json")
+if r.returncode or json.loads(r.stdout)["input"]["units"] != 4:
+    bad.append(f"--col with spaces in the header: exit {r.returncode} {r.stdout[:200]}")
+w(f"{r2}/STYLE.md", "## 允许的句式\n\n- “盒子里”：只放过这一处\n- 排比，片尾故意的\n- 这一条读不懂\n")
+j = json.loads(vh(r2, "--json").stdout)
+c = {c["id"]: c for c in j["checks"]}
+if (c["chain_link"]["allowed"], c["triple_parallel"]["count"], c["triple_parallel"]["allowed"], c["not_but"]["count"]) != (1, 0, 1, 2) \
+        or [u["item"] for u in j["allowed_unread"]] != ["这一条读不懂"]:
+    bad.append(f"allowances: {[(k, v['count'], v['allowed']) for k, v in c.items()]} unread {j['allowed_unread']}")
+w(f"{t}/r3/SCRIPT.md", "| # | 旁白 |\n|---|---|\n| 1 | 我们去了那只盒子。 |\n| 2 | 盒子里没有书。 |\n| 3 | 后来又找到一个盒子。 |\n| 4 | 盒子底下压着信。 |\n")
+w(f"{t}/r3/STYLE.md", "## 允许的句式\n\n- “盒子里没有书”\n")
+j = json.loads(vh(f"{t}/r3", "--json").stdout)
+c = next(c for c in j["checks"] if c["id"] == "chain_link")
+if (c["count"], c["allowed"], [h["line"] for h in c["hits"]]) != (1, 1, [6]):
+    bad.append(f"a quoted sentence allows only the hit inside it: {c['count']} {c['allowed']} {c['hits']}")
+s2 = os.path.join(t, "s2")
+w(f"{s2}/audio/script.txt", "@speakers 主持=Kore 嘉宾=Puck\n@pronounce 硖合/(xia2)(he2)\n@a [轻快] 主持：今天聊聊卫星。 || Host: satellites\n@b 嘉宾：[笑] 好啊，聊聊硖合。\n注意：这一句没有说话人，后面很长很长。\n")
+j = json.loads(vh(s2, "--json").stdout)
+got = {c["id"]: [h["line"] for h in c["hits"]] for c in j["checks"] if c["hits"]}
+if j["input"]["units"] != 3 or got:
+    bad.append(f"speakers declared in @speakers and @pronounce, as tts reads them: {j['input']} {got}")
+j = json.loads(vh(p, "--json").stdout)   # the first project: the long modifier shown to its 的, not into the noun
+la = next(c for c in j["checks"] if c["id"] == "long_attributive")["hits"]
+if [h["text"] for h in la] != ["在过去十年里被无数工程师反复验证过却始终没能真正落地的…"]:
+    bad.append(f"the long modifier's words: {la}")
 os.makedirs(os.path.join(t, "empty"))
 for args, rc in (([], 2), ([os.path.join(t, "nope.md")], 1), ([f"{p}/BRIEF.md", "--col", "旁白"], 1), ([os.path.join(t, "empty")], 1)):
     r = vh(*args)
@@ -3108,7 +3162,7 @@ for args, rc in (([], 2), ([os.path.join(t, "nope.md")], 1), ([f"{p}/BRIEF.md", 
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "words: each check on its line of a SCRIPT.md narration column (template rows, comments and a chapter's title row left out), what only looks like one quiet; STYLE.md's 允许的句式 allows by name and by quoted sentence; audio/script.txt read as spoken; English gets no counts; exit 0 with hits, nothing written; no text exits 1, a usage error 2"
+  then ok "words: each check on its line of a SCRIPT.md narration column (template rows, comments and a chapter's title row left out), what only looks like one quiet (labels, speech and quotation colons, names before 的); the narration column before the caption one, every table of a script, --col with spaces; STYLE.md's 允许的句式 allows by name (a note after a comma too) and by quoted sentence (only what lies inside it), an item it cannot read is said; audio/script.txt read as tts reads it (@speakers labels, @pronounce); English gets no counts; exit 0 with hits, nothing written; no text exits 1, a usage error 2"
   else bad "bin/vh words"; fi
   rm -rf "$t"
 }

@@ -4,34 +4,39 @@ writes no replacement sentences, and exits 0 whatever it finds (2 on a usage err
 
   bin/vh words <project|SCRIPT.md|file.md|file.txt|audio/script.txt> [--col 旁白|字幕|<header>] [--style FILE] [--all] [--json]
 
-What it reads: a project folder → its SCRIPT.md table (the 旁白 / Narration column, else 字幕 / Caption), else
-audio/script.txt. A .md with such a table → that column (--col picks another header); any other .md or .txt → its prose
-(headings, tables, code, HTML comments left out). audio/script.txt → the spoken text of each line (@id, [direction] and
-the English after || left out). Line numbers are the file's.
+What it reads: a project folder → its SCRIPT.md tables, else audio/script.txt. In a .md, every table with a 旁白 /
+Narration column is read (a script in one table a chapter is read whole), or, where no table has one, every table with a
+字幕 / Caption column; a header that starts with the word counts (旁白（定稿）), spaces aside; --col names another header.
+Any other .md or .txt → its prose (headings, tables, code, HTML comments left out). audio/script.txt → what the voice
+reads, parsed as bin/vh tts parses it: @speakers and @pronounce are directives, not speech; @id, a leading [direction],
+a speaker's label once @speakers declared it (主持：…) and the English after || are left out. Line numbers are the file's.
 
 The checks, each named by one paired experiment that set model drafts against human ones on the same topics (about
 five million characters of Chinese prose; the ratio is how many times as often model drafts used it). Not re-measured
 here, and measured on other writing than film scripts, so a count is a place to reread, not a verdict:
-  not_but           不是 A 而是 B, 不是 A，是 B, 与其说 A 不如说 B                 3.4×
+  not_but           不是 A 而是 B, 不是 A，(他)是 B, 不在于 A，在于 B, 与其说 A 不如说 B   3.4×
   colon_verdict     a full-width colon that hands over the conclusion (答案很简单：…)  2.1×
   dun_triple        three or more items in a row joined by 顿号 (A、B、C)              1.8×
   triple_parallel   three clauses in a row that start or end alike (排比)              2.75×
   long_attributive  a long run of modifiers before 的 and its noun, no pause in it     named, no ratio quoted
   chain_link        a paragraph (table row, script line) that opens on the words the last one ended on   named, no ratio quoted
 How each is found is a heuristic of this tool's own (the 16-character run before 的, for one; the patterns are in this
-file), so expect a miss or a stray hit now and then.
-Not checked: whether a metaphor fits, which the same experiment found to be the real problem with metaphors and no
-pattern can see. English text: none of these were measured on English, so it reports that and nothing else.
+file), so expect a miss or a stray hit now and then. A colon after a speech verb (他回忆：), before a quotation or a list,
+or after a bare label (时间：…) is not counted; a run of names before 的 (…研究团队的成员) is not a long modifier.
+Not found: whether a metaphor fits, which the same experiment found to be the real problem with metaphors and no
+pattern can see; other ways of saying "not A but B" (并不…而…, 不…却…); 排比 whose clauses differ in length and share
+neither a start nor an end. English text: none of these were measured on English, so it reports that and nothing else.
 
 A project's own style comes first: under a heading 允许的句式 (or "Allowed patterns") in its STYLE.md, or in a file given
 with --style, a list item naming a check (its id or Chinese name: "- 不是……而是：…") stops counting it, and a list item
 holding a quoted sentence ("- “不是第一次，而是第三次”") stops counting the hits inside that sentence. Allowed hits are
-summed, and listed with --all.
+summed, and listed with --all. A list item it cannot read as either is reported, not passed over.
 
 --json, "version": 1 (fields are only added): {"version", "tool", "source", "input": {"kind": "table"|"script"|"text",
 "column", "units"}, "lang": "zh"|"en", "chars", "checks": [{"id", "name", "ratio" (null when none is quoted), "count",
 "allowed", "per_1000", "reading", "hits": [{"line", "text", "context", "allowed_by"?}]}], "allowed_rules": [{"rule",
-"from"}], "not_checked", "note"}. chars counts Han characters, letters and digits (punctuation and spaces not).
+"from"}], "allowed_unread": [{"item", "from"}], "not_checked", "note"}. chars counts Han characters, letters and digits
+(punctuation and spaces not). column is the header read, or several joined with " / " when the tables differ.
 """
 import argparse
 import json
@@ -80,6 +85,7 @@ ALIASES = {   # what a STYLE.md list item may call a check (compared on its Han 
     "chain_link": ("首尾相接", "顶真", "段与段首尾相接"),
 }
 NOT_CHECKED = ["whether a metaphor fits (the experiment's finding about metaphors; a reader's call)",
+               "other ways of saying not A but B (并不…而…, 不…却…), and 排比 whose clauses share neither a start, an end nor one frame",
                "the other habits playbook/09-narrative.md §10 lists (对仗, 或许, 某种意义上, a closing line after a dash): not measured"]
 
 
@@ -168,18 +174,21 @@ def tables(lines):
     return out
 
 
-NARRATION = ("旁白", "narration", "vo", "voiceover")
+NARRATION = ("旁白", "narration", "vo", "voiceover")   # (compared with the header's spaces taken out, in lower case)
 CAPTION = ("字幕", "caption", "captions", "on-screen")
 
 
-def pick_column(head, want):
-    low = [re.sub(r"\s+", "", h).lower() for h in head]
-    names = [want.lower()] if want else list(NARRATION) + list(CAPTION)
+def norm_head(h):
+    return re.sub(r"\s+", "", h).lower()
+
+
+def pick_column(head, names):
+    """The first of names (in order: exact, then a header that starts with it) that this header row has."""
+    low = [norm_head(h) for h in head]
     for n in names:
         if n in low:
             return low.index(n)
-    for n in names:   # 旁白（字幕写法）, Narration (final)
-        if n != "vo":
+        if n != "vo":   # 旁白（字幕写法）, Narration (final)
             hit = next((i for i, h in enumerate(low) if h.startswith(n)), None)
             if hit is not None:
                 return hit
@@ -187,37 +196,54 @@ def pick_column(head, want):
 
 
 def from_table(lines, want):
-    for head, rows in tables(lines):
-        k = pick_column(head, want)
-        if k is None:
+    """Every table with the column: --col's, else 旁白 / Narration where any table has one, else 字幕 / Caption (a script
+    in one table a chapter is read whole). → (units, the column's header(s)), or (None, None) with no such table."""
+    found = tables(lines)
+    for names in ([norm_head(want)],) if want else (NARRATION, CAPTION):
+        picked = [(head, rows, k) for head, rows in found for k in [pick_column(head, names)] if k is not None]
+        if not picked:
             continue
-        units = []
-        for ln, row in rows:
-            cell = row[k] if k < len(row) else ""
-            if re.fullmatch(r"\{[^{}]*\}", cell):   # a template placeholder, {两颗卫星…}
-                continue
-            if re.match(r"^\**\d{1,2}\s", cell) and not re.search(f"[{END}，,]", cell):   # a chapter's title row, 03 刹车片：…
-                continue
-            u = Unit()
-            u.add(inline(cell.replace("<br>", "")), ln)
-            if u.text:
-                units.append(u)
-        return units, head[k]
+        units, heads = [], []
+        for head, rows, k in picked:
+            if head[k] not in heads:
+                heads.append(head[k])
+            for ln, row in rows:
+                cell = row[k] if k < len(row) else ""
+                if re.fullmatch(r"\{[^{}]*\}", cell):   # a template placeholder, {两颗卫星…}
+                    continue
+                if re.match(r"^\**\d{1,2}\s", cell) and not re.search(f"[{END}，,]", cell):   # a chapter's title row, 03 刹车片：…
+                    continue
+                u = Unit()
+                u.add(inline(cell.replace("<br>", "")), ln)
+                if u.text:
+                    units.append(u)
+        return units, " / ".join(heads)
     return None, None
 
 
 def from_script_txt(lines):
-    units = []
-    for i, ln in enumerate(lines, 1):
-        s = ln.strip()
-        if not s or s.startswith("#") or s.startswith("@speakers"):
+    """What the voice reads, parsed as tools/audio/tts.py's parse_script does: # comments, the @speakers and @pronounce
+    lines (directives, not speech), @id, a [direction] at the start, a speaker's label only once @speakers declared it,
+    and the side before || (the side tts reads in Chinese; a line without || as it is)."""
+    units, speakers = [], set()
+    for i, raw in enumerate(lines, 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
             continue
-        s = s.split("||", 1)[0]
-        s = re.sub(r"^@\S+\s*", "", s)
-        s = re.sub(r"\[[^\]]*\]", "", s)
-        s = re.sub(r"^[A-Z]\s*[:：]\s*", "", s.strip())   # a dialogue line's speaker
+        head = re.fullmatch(r"@speakers((?:\s+[^\s=]+=\S+)+)", line)
+        if head:
+            speakers.update(p.split("=", 1)[0] for p in head.group(1).split())
+            continue
+        if re.fullmatch(r"@pronounce\s+(.+/.+)", line):
+            continue
+        if line.startswith("@") and " " in line:
+            line = line.split(" ", 1)[1]
+        line = re.sub(r"^\[[^\]]+\]\s*", "", line.strip())
+        m = re.match(r"(\S+?)\s*[:：]\s*", line) if speakers else None
+        if m and m.group(1) in speakers:   # 主持：… once @speakers 主持=Kore said so; an undeclared 注意：… stays speech
+            line = re.sub(r"^\[[^\]]+\]\s*", "", line[m.end():])
         u = Unit()
-        u.add(s.strip(), i)
+        u.add(line.partition("||")[0].strip(), i)
         if u.text:
             units.append(u)
     return units
@@ -290,7 +316,8 @@ def sentence_at(t, a, b):
 
 NOT_BUT = [
     re.compile(r"(?<![是要可])(?:不是|并不是|并非|不再是)[^。！？!?；;\n]{1,30}?[，,；;—…\s]*(?:而是|而在于)"),
-    re.compile(r"(?<![是要可])(?:不是|并不是)[^。！？!?；;\n，,]{1,20}[，,]\s*是(?![不否])"),
+    re.compile(r"(?<![是要可])(?:不是|并不是)[^。！？!?；;\n，,]{1,20}[，,]\s*(?:[他她它我你这那]们?)?是(?![不否])"),   # 他不是医生，他是…
+    re.compile(r"不在于[^。！？!?；;\n，,]{1,20}[，,]\s*(?:而是?)?在于"),   # 问题不在于速度，在于时间
     re.compile(r"与其说[^。！？!?\n]{1,30}?不如说"),
 ]
 
@@ -304,8 +331,11 @@ def find_not_but(t):
     return sorted(seen)
 
 
-SPEECH = re.compile(r"((说|道|答|回|讲|喊|叫|写|念|称|表示|宣布|提到)(了|着|过)?(她|他|我|你|它|我们|你们|他们|她们|大家)?(一句|一声|一个词|一句话|一行字?)?(话)?|(问|告诉|审问|回答)[^：，。]{0,5})$")
+SPEECH = re.compile(r"((说|道|答|回|讲|喊|叫|写|念|称|想|笑|骂|吼|表示|宣布|提到|回忆|心想|感叹|解释|补充|强调|承认|指出|认为|坦言|"
+                    r"记得|嘟囔|嘀咕|透露|回应|描述|形容|发问)(了|着|过|道)?(她|他|我|你|它|我们|你们|他们|她们|大家)?"
+                    r"(一句|一声|一个词|一句话|一行字?)?(话)?|(问|告诉|审问|回答|提醒|追问|反问)[^：，。]{0,5})$")   # 她说：, 他回忆：, 有人问她：
 INTRO = re.compile(r"((第一|最后|下一|上一|这|那|一)(句|个词|行|段|条)(话)?(是|写着|写的是)?|[两三四五六几]+(个|种|件|样|条|点|句)[^：，。]{0,6})$")
+VERDICT = re.compile(r"^(答案|结论|真相|原因|关键|结果|秘密|重点|核心|代价|区别|办法|方法|道理|本质|问题|事实)$")   # 答案：… is the shape
 
 
 def find_colon(t):
@@ -316,12 +346,15 @@ def find_colon(t):
         before = t[s:i]
         e = min([j for j in (t.find(c, i + 1) for c in END + "\n") if j >= 0] or [len(t)])
         after = t[i + 1:e].strip()
-        if len(IS_CJK.findall(before)) < 2 or not after or len(after) > 20:
+        if (s, e) in out or len(IS_CJK.findall(before)) < 2 or not after or len(after) > 20:   # (a sentence once, however many colons)
             continue
         if after[0] in "“\"「『‘(（" or re.match(r"\d+[.)、]", after) or "、" in after or after.count("，") > 1:
             continue
         if SPEECH.search(before) or INTRO.search(before):   # 她说：…, 书的第一句是：…, 有两个关键词：…
             continue
+        lead = before.strip()
+        if len(lead) <= 4 and IS_CJK.fullmatch(lead[:1] or "x") and not re.search("[是很就只都最才]", lead) and not VERDICT.match(lead):
+            continue   # a label, as captions write them: 时间：晚上八点。地点：老城区。
         out.append((s, e))
     return out
 
@@ -333,9 +366,10 @@ def find_dun(t):
     out = []
     for m in DUN.finditer(t):
         items = m.group().split("、")
-        cut = max(0, len(items[0]) - 4)    # the match runs into the words around the list: 它需要克服延迟、抖动 → 克服延迟、抖动
-        over = max(0, len(items[-1]) - 6)  # (the hit's context has the whole sentence)
-        out.append((m.start() + cut, m.end() - over))
+        cut = max(0, len(items[0]) - 4)    # the match runs into the words around the list (no spaces to stop it), so its
+        over = max(0, len(items[-1]) - 6)  # ends are cut and marked with …: …克服延迟、抖动、丢包和功耗; the context has it whole
+        a, b = m.start() + cut, m.end() - over
+        out.append((a, b, ("…" if cut else "") + t[a:b] + ("…" if over else "")))
     return out
 
 
@@ -359,7 +393,7 @@ def common(a, b, rev=False):
     return n
 
 
-def alike(cs):
+def same_shape(cs, loose=True):
     lens = [len(c) for c in cs]
     if min(lens) < 2 or max(lens) > 2.5 * min(lens):
         return False
@@ -367,7 +401,21 @@ def alike(cs):
     suf = min(common(cs[0], c, rev=True) for c in cs[1:])
     if max(pre, suf) >= 2 and max(pre, suf) < min(lens):
         return True
-    return pre >= 1 and max(lens) <= 5 and pre < min(lens)   # 更快，更高，更远
+    if loose and pre >= 1 and max(lens) <= 5 and pre < min(lens):   # 更快，更高，更远
+        return True
+    if pre >= 1 and len(set(lens)) == 1 and lens[0] <= 8:   # one frame, the words swapped: 让协作更顺畅，让创新更自由
+        same = sum(1 for i in range(lens[0]) if IS_CJK.match(cs[0][i]) and all(c[i] == cs[0][i] for c in cs[1:]))
+        return 2 <= same < lens[0]
+    return False
+
+
+def alike(cs):
+    if same_shape(cs):
+        return True
+    for k in (1, 2):   # the subject in the first clause alone: 它让沟通更高效，让协作更顺畅，让创新更自由
+        if len(cs[0]) > k + 1 and cs[0][k] == cs[1][0] == cs[2][0] and same_shape([cs[0][k:]] + cs[1:], loose=False):
+            return True
+    return False
 
 
 def find_triple(t):
@@ -388,6 +436,9 @@ MARK = re.compile(r"[一这那每某][个种位场段次件部本条项些群名
                   r"|开始|进入|尝试|成为|变成|带来|提出|找到|看到|发现|需要|出现|做出|给出|留下|探索出|递过来")   # after a measure word or a verb
 
 
+CLAUSAL = re.compile("[被在把了过着地得不没很最更都也又就才从对向给让使所而因为曾已正将能会要]")   # a modifier with a clause in it
+
+
 def find_long_attr(t):
     out = []
     for a, b, c in clauses(t):
@@ -398,8 +449,8 @@ def find_long_attr(t):
             head = c[:k]
             marks = [x.end() for x in MARK.finditer(head)]
             run = head[marks[-1]:] if marks else head
-            if len(IS_CJK.findall(run)) >= 16:
-                out.append((a + k - len(run), min(b, a + k + 4)))
+            if len(IS_CJK.findall(run)) >= 16 and CLAUSAL.search(run):   # a name alone (中国科学院…研究团队的) is not one
+                out.append((a + k - len(run), a + k + 1, run + "的…"))
                 break
     return out
 
@@ -423,7 +474,7 @@ def find_chain(units):
                     tail = tail[1:]
                 start = nxt.text.find(tail)
                 k = len(tail)
-                out.append((nxt, start, start + k, f"{prev.text[-12:]} / {nxt.text[:16]}", nxt.line(start)))
+                out.append((nxt, start, start + k, f"{prev.text[-12:]} / {nxt.text[:16]}"))
                 break
     return out
 
@@ -431,8 +482,8 @@ def find_chain(units):
 # ---------------------------------------------------------------- the project's own style
 
 def allowed_rules(files):
-    """[(rule, file)]: rule is a check id, or ("text", a quoted sentence)."""
-    rules = []
+    """([(rule, file)], [(an item it could not read, file)]): rule is a check id, or ("text", a quoted sentence)."""
+    rules, unread = [], []
     for f in files:
         try:
             lines = Path(f).read_text(encoding="utf-8").splitlines()
@@ -457,12 +508,14 @@ def allowed_rules(files):
             if q:
                 rules.append((("text", q.group(1)), str(f)))
                 continue
-            name = re.split(r"[：:（(—]", item, maxsplit=1)[0].strip()
+            name = re.split(r"[：:（(—，,；;]", item, maxsplit=1)[0].strip()   # 排比，片尾故意的 · 排比：… · 排比（…）
             ids = [cid for cid, *_ in CHECKS if name.lower().replace("-", "_") == cid]
             han = "".join(IS_CJK.findall(name))
             ids += [cid for cid, al in ALIASES.items() if han and han in al and cid not in ids]
             rules += [(cid, str(f)) for cid in ids]
-    return rules
+            if not ids:
+                unread.append((item, str(f)))
+    return rules, unread
 
 
 def style_files(src, extra):
@@ -488,13 +541,14 @@ def run(path, col=None, extra_styles=(), show_all=False):
     han, letters = len(IS_CJK.findall(alltext)), len(re.findall(r"[A-Za-z]", alltext))
     chars = len(COUNTED.findall(alltext))
     lang = "zh" if han and han * 10 >= 3 * (han + letters) else "en"
-    rules = allowed_rules(style_files(src, extra_styles))
+    rules, unread = allowed_rules(style_files(src, extra_styles))
     report = {"version": 1, "tool": "words", "source": str(src), "input": {"kind": kind, "column": column, "units": len(units)},
               "lang": lang, "chars": chars, "checks": [], "allowed_rules": [], "not_checked": list(NOT_CHECKED),
               "note": "A report: the hits are places to reread, not errors. The ratios were measured once, on other writing; "
                       "a count says where to look, not whether the script is good. Edit only what the person agrees to, "
                       "and only the words hit."}
     report["allowed_rules"] = [{"rule": r if isinstance(r, str) else f"“{r[1]}”", "from": f} for r, f in rules]
+    report["allowed_unread"] = [{"item": i, "from": f} for i, f in unread]
     if lang == "en":
         report["note"] = ("These markers were measured on Chinese prose; none has been measured on English here, so "
                           "English text gets no counts.")
@@ -502,19 +556,27 @@ def run(path, col=None, extra_styles=(), show_all=False):
         return report
     finders = {"not_but": find_not_but, "colon_verdict": find_colon, "dun_triple": find_dun,
                "triple_parallel": find_triple, "long_attributive": find_long_attr}
-    found = {cid: [] for cid, *_ in CHECKS}
+    found = {cid: [] for cid, *_ in CHECKS}   # (unit, start, end, the words shown, the context)
     for u in units:
         for cid, fn in finders.items():
-            for a, b in fn(u.text):
-                found[cid].append((u.line(a), u.text[a:b].strip(), sentence_at(u.text, a, b)))
-    for nxt, a, b, ctx, ln in find_chain(units):
-        found["chain_link"].append((ln, nxt.text[a:b], ctx))
+            for a, b, *show in fn(u.text):
+                found[cid].append((u, a, b, show[0] if show else u.text[a:b].strip(), sentence_at(u.text, a, b)))
+    for nxt, a, b, ctx in find_chain(units):
+        found["chain_link"].append((nxt, a, b, nxt.text[a:b], ctx))
+
+    def inside(u, a, b, q):   # the hit lies within an occurrence of the quoted sentence in the script
+        o = u.text.find(q)
+        while o >= 0:
+            if o <= a and b <= o + len(q):
+                return True
+            o = u.text.find(q, o + 1)
+        return False
     for cid, name, ratio, reading in CHECKS:
         whole = next((f for r, f in rules if r == cid), None)
         hits, n_allowed = [], 0
-        for ln, text, ctx in found[cid]:
-            by = whole or next((f for r, f in rules if isinstance(r, tuple) and (text in r[1] or r[1] in ctx)), None)
-            h = {"line": ln, "text": text, "context": ctx}
+        for u, a, b, text, ctx in found[cid]:
+            by = whole or next((f for r, f in rules if isinstance(r, tuple) and inside(u, a, b, r[1])), None)
+            h = {"line": u.line(a), "text": text, "context": ctx}
             if by:
                 h["allowed_by"] = by
                 n_allowed += 1
@@ -557,6 +619,9 @@ def text_report(r):
             out.append(f"  … {len(c['hits']) - 12} more (--json lists them all)")
     if r["allowed_rules"]:
         out += ["", "style guide: " + "; ".join(f"{a['rule']} ({shown(a['from'])})" for a in r["allowed_rules"])]
+    if r.get("allowed_unread"):
+        out += ["style guide, not understood (name a check, e.g. 排比 or not_but, or quote a sentence): "
+                + "; ".join(f"- {a['item']} ({shown(a['from'])})" for a in r["allowed_unread"])]
     out += ["", "not checked: " + "; ".join(r["not_checked"])]
     return "\n".join(out)
 

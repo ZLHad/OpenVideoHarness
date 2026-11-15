@@ -4,7 +4,7 @@
  "title": "bin/vh words <project | SCRIPT.md | file.md | file.txt | audio/script.txt> --json",
  "description": "Where a script uses the sentence shapes one paired experiment found model drafts reach for (tools/words.py): a report, never an edit. chars counts Han characters, letters and digits; per_1000 is count per 1000 of them. checks is empty when lang is en (none was measured on English).",
  "type": "object",
- "required": ["version", "tool", "source", "input", "lang", "chars", "checks", "allowed_rules", "not_checked", "note"],
+ "required": ["version", "tool", "source", "input", "lang", "chars", "checks", "allowed_rules", "allowed_unread", "not_checked", "note"],
  "properties": {
   "version": {"enum": [1]},
   "tool": {"enum": ["words"]},
@@ -56,6 +56,17 @@
     "required": ["rule", "from"],
     "properties": {
      "rule": {"type": "string"},
+     "from": {"type": "string"}
+    }
+   }
+  },
+  "allowed_unread": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["item", "from"],
+    "properties": {
+     "item": {"type": "string"},
      "from": {"type": "string"}
     }
    }
