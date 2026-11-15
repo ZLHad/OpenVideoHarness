@@ -19,6 +19,9 @@ every field:
   language" line, else zh), decided[], delegated[], not_reviewed, include (a JSON file, or a list of them, whose keys fill in
   what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②). The review desk (bin/vh
   desk, tools/desk/README.md) reads the same file and a few more optional keys (listen, music, film); this page ignores them.
+  With JavaScript the page also shows its stop's module read only, above the gate view, as the console draws it (立意 and
+  大纲 for gate ①, 分镜 for ②, 声音 for E2 and E3; tools/desk/static/modules.js): the project's data for it goes into the
+  page, with the console's renderers. Without JavaScript, or when the project cannot be read, the page is the gate view.
   A text that still holds a {填：…} or {fill in: …} from bin/vh gate --init, here or in a file it includes, is not ready: nothing
   is written (exit 2), and the file is no page yet for bin/vh status, the desk or this round.
 
@@ -143,6 +146,41 @@ def static_file(name):
         return (STATIC / name).read_text(encoding="utf-8")
     except OSError:
         return ""
+
+
+# the console's modules a static page shows above its gate view, read only, by the gate's base (tools/desk/static/modules.js);
+# a stop the cut module stands for (③, E4, E5) has none: the gate view's player and its ruler are its static version
+STATION_MODULES = {"1": ("idea", "outline"), "E0": ("idea",), "E1": ("outline",), "2": ("board",), "E2": ("sound",), "E3": ("sound",)}
+
+
+def module_payload(project, gate, out_dir, marks, lang):
+    """What a static page's module reads, as JSON for a <script type="application/json">: the console's reading of the project
+    (tools/desk/server.py, project_data) cut to what the stop's modules use, the page's marks, and the way from the page's
+    folder to the project's files. None for a stop with no module, or a project that cannot be read."""
+    mods = STATION_MODULES.get((re.match(r"E\d|\d", gate or "") or [""])[0])
+    if not mods:
+        return None
+    here = str(STATIC.parent)   # tools/desk
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import server   # noqa: E402  (imported here: it imports this file)
+    d = server.project_data(project, parts=("studio", "mods") if "sound" in mods else ())
+    st = d.get("status") or {}
+    data = {k: d.get(k) for k in ("project", "concept", "spec", "outline", "facts", "ideas", "shots", "ledger", "agent_decided", "music", "lang")}
+    data["rounds"] = [{"id": r["id"], "data": r["data"]} for r in d.get("rounds") or []]
+    data["current"] = gate   # the page's own round: its decisions are the ones the module picks
+    data["history"] = [{k: h.get(k) for k in ("title", "date", "quotes", "notes")} for h in d.get("history") or []]
+    data["status"] = {"stations": st.get("stations") or [], "assets": {"budget": ((st.get("assets") or {}).get("budget") or {})}}
+    data["docs"] = [x for x in d.get("docs") or [] if x.get("file") == "STORYBOARD.md"] if "board" in mods else []
+    data["marks"] = marks
+    if "sound" in mods:
+        tl = (d.get("studio") or {}).get("timeline") or {}
+        data["studio"] = {"timeline": {"narration": tl.get("narration") or [], "duration": tl.get("duration")}, "peaks": (d.get("studio") or {}).get("peaks")}
+        data["mods"] = {k: (d.get("mods") or {}).get(k) for k in ("loudness", "silences", "checks", "pace", "voice", "audition", "lifts")}
+    rel = os.path.relpath(project, out_dir).replace(os.sep, "/")
+    body = json.dumps({"modules": list(mods), "lang": lang, "rel": "" if rel == "." else rel + "/", "data": data}, ensure_ascii=False, separators=(",", ":"))
+    # nothing in it can close the script element or read as markup, and no address reads as one to load
+    return body.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e").replace("/", "\\/")
 
 
 HEAD_JS = """(function(){var r=document.documentElement,k=['darkfield','prism','bridge'],t=null;try{t=new URLSearchParams(location.search).get('theme')}catch(e){}
@@ -937,20 +975,29 @@ class Page:
                 f'<footer class="g-foot">{"".join(x for x in foot if x)}</footer></article>')
 
     def render(self):
-        """The static page: the gate view with ui.css and ui.js inlined, so it opens from disk with no server."""
+        """The static page: the gate view with ui.css and ui.js inlined, so it opens from disk with no server; with its stop's
+        module above it (module_payload) when the stop has one and the project reads."""
         body = self.body()   # normalizes first: the title may come from the gate's name
         t, title, film = self.t, self.title(), brief_title(self.project) or self.project.name
+        try:
+            data = module_payload(self.project, self.gate, self.out, self.marks(), self.lang)
+        except Exception as e:   # an old project, a file that does not read: the page is the gate view alone
+            data = None
+            self.warn(f"the stop's module above the page left out ({type(e).__name__}: {e})")
+        mod_css = f'<style>{static_file("modules.css")}</style>' if data else ""
+        mod_js = (f'<script type="application/json" id="ovh-data">{data}</script>'
+                  + "".join(f"<script>{static_file(n)}</script>" for n in ("core.js", "modules.js", "static.js"))) if data else ""
         return (f'<!doctype html><html lang="{t["html_lang"]}"><head><meta charset="utf-8">'
                 f'<meta name="viewport" content="width=device-width, initial-scale=1">'
                 f'<title>{esc(title)} · {esc(film)}</title>'
-                f'<style>{static_file("ui.css")}</style><script>{HEAD_JS}</script></head><body>'
+                f'<style>{static_file("ui.css")}</style>{mod_css}<script>{HEAD_JS}</script></head><body>'
                 f'<header class="top"><div class="wrap"><span class="mark">OVH</span><nav class="crumbs">'
                 f'<span class="cr"><b>{esc(film)}</b></span><span class="cr hide-s"><span class="sep">/</span><span>{esc(title)}</span></span></nav>'
                 f'<div class="top-tools"><div class="themes" role="group" aria-label="{t["theme"]}">'
                 + "".join(f'<button type="button" data-theme-set="{k}" aria-pressed="false">{n}</button>' for k, n in zip(("darkfield", "prism", "bridge"), t["themes"]))
                 + '</div></div></div></header>'
                 f'<main class="wrap">{body}</main>'
-                f'<script>{static_file("ui.js")}</script></body></html>\n')
+                f'<script>{static_file("ui.js")}</script>{mod_js}</body></html>\n')
 
     def chat(self, page_path):
         """The whole chat message: plain text, no markup."""

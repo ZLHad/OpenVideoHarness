@@ -15,17 +15,19 @@ const MODVIEW = {};   // module → { main(): html, wire(), sync(decision, optio
 const readOnly = () => typeof STATIC_PAGE !== "undefined";   // a static page (bin/vh review): nothing to note, nothing to send
 
 /* ---------- shared pieces ---------- */
-moduleWords({ page_rest: "{g} 的页里还有这些" }, { page_rest: "Also on {g}'s page" });
+moduleWords({ page_rest: "{g} 的页里还有这些", file_gone: "文件不在了" }, { page_rest: "Also on {g}'s page", file_gone: "the file is gone" });
 const dattr = (o) => Object.entries(o).filter(([, v]) => v != null && v !== "").map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
 const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");   // a gate page's own marks
 const panel = (title, sub, body, cls) => `<section class="pn${cls ? " " + cls : ""}">${title ? `<h2 class="pn-h"><span>${esc(title)}</span>${sub ? `<span class="pn-sub">${esc(sub)}</span>` : ""}</h2>` : ""}${body}</section>`;
 const voidLine = (s) => `<p class="void">${esc(s)}</p>`;
-function headM(mod, title, sub, extra) {
-  return `<header class="mh2"><div class="mh2-t"><span class="kick">${esc(kickOf(mod))}</span><h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ""}</div>${extra || ""}</header>`;
+function headM(mod, title, sub, extra) {   // on a static page the stop's own heading is above: a title that repeats it goes
+  const H = readOnly() ? "h2" : "h1", same = readOnly() && title === String((ROUND.data || {}).summary || "");
+  return `<header class="mh2"><div class="mh2-t"><span class="kick">${esc(kickOf(mod))}</span>${same ? "" : `<${H}>${esc(title)}</${H}>`}${sub ? `<p>${esc(sub)}</p>` : ""}</div>${extra || ""}</header>`;
 }
 function barM(text, mod, label) {   // the bar under a module: where its stop stands, and the next module
   return `<footer class="mbar"><span>${esc(text)}</span>${mod && !readOnly() ? `<a class="btn" href="${projHash(PKEY, mod)}">${esc(label)} →</a>` : ""}</footer>`;
 }
+const tabs = (mod) => (readOnly() ? "" : subtabs(mod));   // a module's sub-tabs are the console's routes
 const stationState = (id) => (stations().find((x) => x.id === id) || {}).state || "";
 function prefill(card, words) {   // a note shortcut: select the thing, put the start of the sentence in the note box
   setScope(card.dataset.mark ? { target: card.dataset.mark, label: card.dataset.label, el: card } : { label: card.dataset.scope, el: card });
@@ -42,7 +44,7 @@ moduleWords({
   rec: "推荐", picked: "你选的", pick_this: "选这张", picked_btn: "已选", like_this: "再想一张像它的", like_say: "再想一张像 {x} 的：",
   pro: "好处", con: "代价", l_card: "立意卡 {x}",
   cards_none: "还没有立意卡：关卡 ① 的页（bin/vh gate <项目> 1）写好后，卡在这里。下面是 BRIEF 写下的立意。",
-  bar_idea_wait: "关卡 ① 等你选：选好以后，在右边一列提交这一轮", bar_idea_done: "立意定了：再改它，大纲和分镜都要跟着重做", to_outline: "看大纲",
+  bar_idea_wait: "关卡 ① 等你选：选好以后，在右边一列提交这一轮", bar_idea_wait_s: "关卡 ① 等你选：在卡上或下面选好，把下面那行回复发给 agent", bar_idea_done: "立意定了：再改它，大纲和分镜都要跟着重做", to_outline: "看大纲",
 }, {
   idea_title: "{n} concept cards: pick one", idea_sub: "Pick a card and the concept, the look and the hook are settled together. On the left: what only this subject has.",
   mat_h: "What only this subject has", k_number: "Numbers", k_object: "Objects", k_quote: "Words", k_conflict: "Contradictions", k_surprise: "Surprises", k_other: "Other",
@@ -51,7 +53,7 @@ moduleWords({
   rec: "recommended", picked: "your pick", pick_this: "Pick this", picked_btn: "Picked", like_this: "Another like it", like_say: "Another card like {x}: ",
   pro: "Pro", con: "Cost", l_card: "Concept card {x}",
   cards_none: "No concept cards yet: once gate ①'s page is written (bin/vh gate <project> 1), they are here. Below is the concept the BRIEF has.",
-  bar_idea_wait: "Gate ① waits for you: once you have picked, submit this round in the right column", bar_idea_done: "The concept is settled: change it now, and the outline and the storyboard follow", to_outline: "See the outline",
+  bar_idea_wait: "Gate ① waits for you: once you have picked, submit this round in the right column", bar_idea_wait_s: "Gate ① waits for you: pick on a card or below, then send the reply line below to the agent", bar_idea_done: "The concept is settled: change it now, and the outline and the storyboard follow", to_outline: "See the outline",
 });
 const KINDS = [["number", /数字|数据|number/i], ["object", /物件|物|object|thing/i], ["quote", /原话|引文|引语|quote|words/i], ["conflict", /矛盾|冲突|contradict|conflict/i], ["surprise", /意外|反常|surpris/i]];
 const kindOf = (k) => (KINDS.find(([, re]) => re.test(k || "")) || ["other"])[0];
@@ -90,7 +92,7 @@ function mIdea2() {
     right = `<div class="cards2">${dec.options.filter((o) => o && o.id).map((o) => {
       const on = chosen === o.id, rec = o.id === dec.recommend;
       return `<article class="ccard${on ? " on" : ""}"${dattr({ mark: "card:" + o.id, label: t("l_card", { x: o.id }) + (o.label ? " · " + o.label : ""), opt: o.id })}>
-        <div class="well"><span class="ph">${esc(o.id)}</span>${o.frame ? `<img src="${esc(src(o.frame))}" alt="${esc(o.id)}" loading="lazy">` : ""}</div>
+        <div class="well"><span class="ph">${esc(o.id)}</span>${o.frame ? `<img src="${esc(src(o.frame))}" alt="${esc(o.id)}" loading="lazy">` : o.frame_missing ? `<span class="miss" title="${esc(o.frame_missing)}">${esc(t("file_gone"))}</span>` : ""}</div>
         <div class="cc-b"><h3><span class="cid">${esc(o.id)}</span><span class="cl">${rich(o.label || o.id)}</span>${rec ? `<span class="chip quiet">${esc(t("rec"))}</span>` : ""}<span class="chip you-pick"${on ? "" : " hidden"}>${esc(t("picked"))}</span></h3>
         <dl>${o.pro ? `<dt>${esc(cols[0] || t("pro"))}</dt><dd>${rich(o.pro)}</dd>` : ""}${o.con ? `<dt>${esc(cols[1] || t("con"))}</dt><dd>${rich(o.con)}</dd>` : ""}</dl>
         <div class="cc-act">${cr.open || readOnly() ? `<button type="button" class="btn${on ? "" : " btn-primary"}" data-pick-card="${esc(o.id)}" aria-pressed="${on}">${esc(t(on ? "picked_btn" : "pick_this"))}</button>` : ""}${readOnly() ? "" : `<button type="button" class="btn btn-quiet" data-like="${esc(o.id)}">${esc(t("like_this"))}</button>`}</div></div></article>`;
@@ -101,7 +103,7 @@ function mIdea2() {
   }
   const wait = stationState("1") === "waiting_person" || (cr && cr.open && !chosenOf(cr));
   return headM("idea", title, t("idea_sub")) + `<div class="mgrid idea">${left}<div class="cards-col">${right}</div></div>`
-    + barM(t(wait ? "bar_idea_wait" : "bar_idea_done"), "outline", t("to_outline"));
+    + barM(t(wait ? (readOnly() ? "bar_idea_wait_s" : "bar_idea_wait") : "bar_idea_done"), "outline", t("to_outline"));
 }
 function syncIdea(dec, val) {   // a pick made anywhere (the cards here, the right column): the cards follow
   const cr = conceptRound(); if (!cr || cr.dec.id !== dec) return;
@@ -116,17 +118,17 @@ function wireIdea() {
   $$("[data-pick-card]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); if (cr) pick(cr.dec.id, b.dataset.pickCard); }));
   $$("[data-like]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest("[data-mark]"), t("like_say", { x: b.dataset.like })); }));
 }
-MODVIEW.idea = { main: mIdea2, wire: wireIdea, sync: syncIdea,
-  drawn(root) { const cr = conceptRound(); if (cr) $$(".g-dec.wide", root).filter((x) => x.dataset.dec === cr.dec.id).forEach((x) => x.remove()); } };
+MODVIEW.idea = { main: mIdea2, wire: wireIdea, sync: syncIdea,   // drawn: what of the gate view the module draws itself goes (the console) or hides (a static page)
+  drawn(root, gone = (x) => x.remove()) { const cr = conceptRound(); if (cr) $$(".g-dec.wide", root).filter((x) => x.dataset.dec === cr.dec.id).forEach(gone); } };
 
 /* ---------- 大纲: the parts in proportion, the BRIEF, the engine and the cost ---------- */
 moduleWords({
-  outline_title: "{n} 段大纲", outline_sub: "段名按内容起，看名字就知道这段讲什么。点一段，就能只对它说。", seg_know: "要看懂", seg_pic: "画面", unsure_n: "{n} 处没把握",
+  outline_title: "{n} 段大纲", outline_sub: "段名按内容起，看名字就知道这段讲什么。点一段，就能只对它说。", outline_sub_s: "段名按内容起，看名字就知道这段讲什么。", seg_know: "要看懂", seg_pic: "画面", unsure_n: "{n} 处没把握",
   brief_h: "BRIEF", engine_cost: "引擎和花费", engine: "引擎", voice: "配音", budget: "预算", spent: "已花", stops: "停在哪", free: "不调付费接口",
   b_concept: "立意", b_spine: "主线", b_end: "看完以后", b_hook: "钩子", b_audience: "观众", b_watch: "在哪看", b_output: "规格", b_pace: "节奏", b_effort: "档位", b_director: "谁拍板",
   outline_none: "BRIEF 的大纲还没写成表格（列名见 tools/desk/README.md 的读取约定）。", bar_outline: "大纲属于关卡 ①（{s}）：改它，分镜要跟着重做", to_board: "去分镜",
 }, {
-  outline_title: "An outline in {n} parts", outline_sub: "Each part is named by what it says. Click one to say something about it alone.", seg_know: "Reads", seg_pic: "Picture", unsure_n: "{n} unsure",
+  outline_title: "An outline in {n} parts", outline_sub: "Each part is named by what it says. Click one to say something about it alone.", outline_sub_s: "Each part is named by what it says.", seg_know: "Reads", seg_pic: "Picture", unsure_n: "{n} unsure",
   brief_h: "BRIEF", engine_cost: "Engine and cost", engine: "Engine", voice: "Voice", budget: "Budget", spent: "Spent", stops: "Stops", free: "no paid calls",
   b_concept: "Concept", b_spine: "Spine", b_end: "At the end", b_hook: "Hook", b_audience: "Audience", b_watch: "Watch on", b_output: "Output", b_pace: "Pace", b_effort: "Effort", b_director: "Director",
   outline_none: "The BRIEF's outline isn't a table yet (its columns are in tools/desk/README.md, the reading contract).", bar_outline: "The outline belongs to gate ① ({s}): change it, and the storyboard follows", to_board: "To the storyboard",
@@ -157,7 +159,7 @@ function mOutline2() {
   const budget = b.unlimited ? "∞" : money(b.limit) || (b.from ? "" : t("free"));
   const eng = [[t("engine"), specGet("engine")], [t("voice"), voice], [t("spent"), money(b.spent)], [t("budget"), budget], [t("stops"), specGet("stops")]].filter(([, v]) => v);
   const engine = panel(t("engine_cost"), "BRIEF · bin/vh assets", eng.length ? `<dl class="kv2">${eng.map(([k, v]) => `<div${dattr({ scope: `${t("engine_cost")} · ${k}` })}><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : voidLine(t("no_brief")));
-  return headM("outline", O.length ? t("outline_title", { n: O.length }) : t("m_outline"), t("outline_sub")) + subtabs("outline")
+  return headM("outline", O.length ? t("outline_title", { n: O.length }) : t("m_outline"), t(readOnly() ? "outline_sub_s" : "outline_sub")) + tabs("outline")
     + `<div class="mgrid outline"><div class="segs">${bar}${cards || voidLine(t("outline_none"))}</div><aside class="side">${brief}${engine}</aside></div>`
     + barM(t("bar_outline", { s: t("st_" + (stationState("1") || "not_started")) }), "board", t("to_board"));
 }
@@ -174,12 +176,12 @@ MODVIEW.outline = { main: mOutline2, wire: wireOutline2 };
 moduleWords({
   board_title: "第 {i} 页 · {x}", board_sub2: "每镜写着观众要依次看懂什么。没把握的镜头标出来了，其余默认通过；先看灰盒的节奏。",
   page_n: "第 {i} 页", this_page: "这一页", shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "灰盒", grey_note: "只看节奏和构图，颜色到成片才上",
-  no_anim: "还没有灰盒 animatic：有了就在这里播这一页（shots.json 的 video，或 out/animatic.mp4）。", default_pass: "默认通过", you_said: "你说了", trans_k: "转场",
+  no_anim: "还没有灰盒 animatic：有了就在这里播这一页（shots.json 的 video，或 out/animatic.mp4）。", anim_gone: "灰盒 animatic 不在了：{x}（移走或改名了）。", default_pass: "默认通过", you_said: "你说了", trans_k: "转场",
   board_none: "还没有镜头表：shots.json 写好后（bin/vh storyboard 读它），镜头按段落分页排在这里。", bar_board: "关卡 ② · {s}", bar_said: "关卡 ② · {s}：你当时说「{q}」", to_sound: "去声音",
 }, {
   board_title: "Page {i} · {x}", board_sub2: "Each shot says what the viewer should get, in order. The shots the agent is unsure of are marked; the rest pass unless you say. Watch the grey box for the pace first.",
   page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} shots", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Grey box", grey_note: "pace and framing only; colour comes with the film",
-  no_anim: "No grey-box animatic yet: once there is one (shots.json's video, or out/animatic.mp4), this page plays here.", default_pass: "passes", you_said: "you said", trans_k: "Transition",
+  no_anim: "No grey-box animatic yet: once there is one (shots.json's video, or out/animatic.mp4), this page plays here.", anim_gone: "The grey-box animatic is gone: {x} (moved or renamed).", default_pass: "passes", you_said: "you said", trans_k: "Transition",
   board_none: "No shot table yet: once shots.json is written (bin/vh storyboard reads it), the shots are laid out here, a page a part.", bar_board: "Gate ② · {s}", bar_said: "Gate ② · {s}: you said “{q}”", to_sound: "To the sound",
 });
 const sameId = (a, b) => String(a || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase() === String(b || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase();   // S04 is S4
@@ -210,7 +212,7 @@ function mBoard2() {
     : `<a href="${projHash(PKEY, "board/" + (j + 1))}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</a>`).join("")}</nav>` : "";
   const first = S.find((s) => s.frame);
   const player = vid ? `<div class="bplay"><div class="well"><video id="bv2" src="${esc(src(vid))}" preload="metadata" playsinline controls${t0 != null ? ` data-t0="${t0}"` : ""}${t1 != null ? ` data-t1="${t1}"` : ""}></video></div></div>`
-    : `<div class="bplay"><div class="well">${first ? `<span class="ph">${esc(first.id)}</span><img src="${esc(src(first.frame))}" alt="">` : ""}</div><p class="void">${esc(t("no_anim"))}</p></div>`;
+    : `<div class="bplay"><div class="well">${first ? `<span class="ph">${esc(first.id)}</span><img src="${esc(src(first.frame))}" alt="">` : ""}</div><p class="void">${esc(D.shots.video_missing ? t("anim_gone", { x: D.shots.video_missing }) : t("no_anim"))}</p></div>`;
   const info = panel(t("this_page"), "", `<dl class="kv2"><div><dt>${esc(t("shots_k"))}</dt><dd>${esc(t("shots_n", { n: S.length }))}</dd></div>
     <div><dt>${esc(t("unsure_k"))}</dt><dd>${unsure.length ? unsure.map((s) => `<span class="chip wait">${esc(s.id)}</span>`).join(" ") : esc(t("none"))}</dd></div>
     ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd class="mono">${esc(fmt(t0) + "–" + fmt(t1))}</dd></div>` : ""}<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div></dl>`);
@@ -242,27 +244,27 @@ function wireBoard2() {
   });
   $$(".shotc .well[data-play]").forEach((w) => w.addEventListener("click", (e) => { e.stopPropagation(); v.currentTime = +w.dataset.play + 0.01; stopAt = w.dataset.stop != null ? +w.dataset.stop : null; v.play().catch(() => {}); }));
 }
-MODVIEW.board = { main: mBoard2, wire: wireBoard2, drawn(root) { if (boardPages().length) $$(".g-board", root).forEach((x) => x.remove()); } };
+MODVIEW.board = { main: mBoard2, wire: wireBoard2, drawn(root, gone = (x) => x.remove()) { if (boardPages().length) $$(".g-board", root).forEach(gone); } };
 
 /* ---------- 声音: the readouts, the voices, the lines, the music ---------- */
 moduleWords({
-  sound_title: "音色、旁白、配乐和混音", sound_sub2: "agent 听不见，读的是这些数。换音色、重念要 agent：这一版写成点评，随这一轮交给它。",
+  sound_title: "音色、旁白、配乐和混音", sound_sub2: "agent 听不见，读的是这些数。换音色、重念要 agent：这一版写成点评，随这一轮交给它。", sound_sub_s: "agent 听不见，读的是这些数；请你听的地方在下面。",
   u_loud: "LUFS · 目标 {x}", u_peak: "dBTP · 上限 −1", u_speech: "{u} · 不算停顿", u_speech2: "{u} · 含句中停顿", u_silence: "处数字静音",
   no_check_val: "bin/vh check", no_narr_val: "bin/vh tts",
   audition: "试听音色", audition_cmd: "bin/vh voices audition · 同一段话，几个音色各念一遍", in_use: "在用", use_this: "换成它", use_say: "换成 {x}：",
   pitch: "音高中位", rate: "语速", misread: "误读", no_misread: "没有误读", audition_none: "还没试听过音色：bin/vh voices audition <文本> --voices A,B,C。",
   lines: "旁白逐句", lines_pace: "bin/vh pace：只算有声的部分", lines_raw: "按句首到句尾算，含句中停顿 · bin/vh pace --dry-run 给只算有声的", line_k: "句", text_k: "文字", per_s2: "字/秒", pause_k: "句后停顿",
-  slower: "比中位数慢 ×{x}", faster: "比中位数快 ×{x}", lines_none: "还没有旁白的时间：bin/vh tts 出了配音才有。", unit_zh: "字/秒",
+  slower: "比中位数慢 ×{x}", faster: "比中位数快 ×{x}", lines_none: "还没有旁白的时间：bin/vh tts 出了配音才有。", unit_zh: "字/秒", unit_syll: "音节/秒",
   music: "配乐", music_cmd: "段落和候选落点 · bin/vh beats", env_cmd: "响度包络 · bin/vh peaks", lift: "换气之后的重拍", lift_src: "bin/vh beats 的 lifts 候选", hit_src: "计划的音效",
   listen_src: "请你听", play_at: "从 {t} 播", music_none: "还没有配乐的段落：bin/vh beats <音乐>；波形：bin/vh peaks <项目>。", sound_checks: "bin/vh check 里和声音有关的",
 }, {
-  sound_title: "Voice, narration, music and mix", sound_sub2: "The agent can't hear; it reads these numbers. Recasting and rereading need the agent: write them as notes for now, and they go with this round.",
+  sound_title: "Voice, narration, music and mix", sound_sub2: "The agent can't hear; it reads these numbers. Recasting and rereading need the agent: write them as notes for now, and they go with this round.", sound_sub_s: "The agent can't hear; it reads these numbers. The places to listen to are below.",
   u_loud: "LUFS · target {x}", u_peak: "dBTP · limit −1", u_speech: "{u} · pauses left out", u_speech2: "{u} · pauses inside lines in", u_silence: "digital silences",
   no_check_val: "bin/vh check", no_narr_val: "bin/vh tts",
   audition: "Voice audition", audition_cmd: "bin/vh voices audition · the same text, read in each voice", in_use: "in use", use_this: "Use this", use_say: "Use {x}: ",
   pitch: "Pitch", rate: "Rate", misread: "Misreads", no_misread: "none", audition_none: "No audition yet: bin/vh voices audition <text> --voices A,B,C.",
   lines: "Narration, line by line", lines_pace: "bin/vh pace: voice only", lines_raw: "first word to last, pauses inside the line in · bin/vh pace --dry-run gives voice only", line_k: "Line", text_k: "Text", per_s2: "rate", pause_k: "Pause after",
-  slower: "×{x} slower than the median", faster: "×{x} faster than the median", lines_none: "No narration timing yet: bin/vh tts makes it.", unit_zh: "chars/s",
+  slower: "×{x} slower than the median", faster: "×{x} faster than the median", lines_none: "No narration timing yet: bin/vh tts makes it.", unit_zh: "chars/s", unit_syll: "syllables/s",
   music: "Music", music_cmd: "sections and candidate lifts · bin/vh beats", env_cmd: "loudness · bin/vh peaks", lift: "the hit after a breath", lift_src: "a bin/vh beats lift", hit_src: "a planned sound",
   listen_src: "please listen", play_at: "Play from {t}", music_none: "No music sections yet: bin/vh beats <music>; the waveform: bin/vh peaks <project>.", sound_checks: "bin/vh check, on the sound",
 });
@@ -277,7 +279,7 @@ function narrLines() {   // each line's rate: bin/vh pace's (voice only) when it
   const R = rows.map((r) => r.rate).filter((x) => x != null).sort((a, b) => a - b);
   const med = P && P.reference != null ? +P.reference : R.length ? R[Math.floor(R.length / 2)] : null;
   const take = P && Array.isArray(P.speech) ? +(P.speech[1] != null ? P.speech[1] : P.speech[0]) : med;
-  return { rows, med, take, paced: !!P, unit: (P && P.unit) || t("unit_zh") };
+  return { rows, med, take, paced: !!P, unit: t(P && P.unit === "syll/s" ? "unit_syll" : "unit_zh") };   // pace says chars/s (zh) or syll/s (en)
 }
 function envelope(w, h) {   // the film's loudness as an area: bin/vh peaks' bins, a column the louder of |min| and |max|
   const P = D.studio && D.studio.peaks && D.studio.peaks.peaks; if (!Array.isArray(P) || !P.length) return "";
@@ -315,13 +317,13 @@ function mSound2() {
   const chart = env || secs.length ? `<svg class="energy" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${secs.map((s, i) => `<rect x="${x(s.start).toFixed(1)}" y="0" width="${Math.max(1, x(s.end) - x(s.start)).toFixed(1)}" height="${H}" class="sec s${i % 2}"/>`).join("")}
       ${env ? `<path d="${env}" class="env"/>` : ""}${marks.map((k) => `<line x1="${x(k.t).toFixed(1)}" x2="${x(k.t).toFixed(1)}" y1="0" y2="${H}" class="mk ${k.cls}"/>`).join("")}</svg>
       <div class="secnames">${secs.map((s) => `<span style="left:${((s.start / dur) * 100).toFixed(2)}%;width:${(((s.end - s.start) / dur) * 100).toFixed(2)}%">${esc([s.name, s.label].filter(Boolean).join(" · "))}</span>`).join("")}</div>` : "";
-  const can = !!soundSource() || !!(D.studio && D.studio.film);
-  const list = marks.length ? `<ul class="hits2">${marks.map((k) => `<li${dattr({ mark: "atime:" + k.t.toFixed(1), label: t("sound_label", { t: fmt(k.t) }), t: k.t })}><i class="dotw ${k.cls}" aria-hidden="true">●</i><span class="mono">${esc(fmt(k.t))}</span><span>${esc(k.what)}</span><span class="meta">${esc(k.src)}</span>${can && !readOnly() ? `<button type="button" class="xs" data-seek="${k.t}">${esc(t("play_at", { t: fmt(k.t) }))}</button>` : ""}</li>`).join("")}</ul>` : "";
+  const can = !!soundSource() || (!readOnly() && !!(D.studio && D.studio.film));   // a sound file plays here; else the console's cut has the film
+  const list = marks.length ? `<ul class="hits2">${marks.map((k) => `<li${dattr({ mark: "atime:" + k.t.toFixed(1), label: t("sound_label", { t: fmt(k.t) }), t: k.t })}><i class="dotw ${k.cls}" aria-hidden="true">●</i><span class="mono">${esc(fmt(k.t))}</span><span>${esc(k.what)}</span><span class="meta">${esc(k.src)}</span>${can ? `<button type="button" class="xs" data-seek="${k.t}">${esc(t("play_at", { t: fmt(k.t) }))}</button>` : ""}</li>`).join("")}</ul>` : "";
   const SC = (X.checks || []).filter((f) => f.severity !== "info" && /loud|peak|silence|click|clip|audio|sound|voice/i.test(`${f.kind} ${f.message}`));
   const checks = SC.length ? `<p class="mat-h">${esc(t("sound_checks"))}</p><ul class="hits2">${SC.map((f) => `<li${dattr(f.t != null ? { mark: "atime:" + (+f.t).toFixed(1), label: t("sound_label", { t: fmt(f.t) }), t: f.t } : { scope: `${t("m_sound")} · ${f.kind}` })}><i class="dotw ${f.severity === "fail" ? "live" : "wait"}" aria-hidden="true">●</i><span class="mono">${f.t != null ? esc(fmt(f.t)) : ""}</span><span>${esc(f.message)}</span></li>`).join("")}</ul>` : "";
   const music = chart || list ? `${chart}${list}${checks}` : voidLine(t("music_none")) + checks;
   const src2 = soundSource();
-  return headM("sound", t("sound_title"), t("sound_sub2")) + tiles + panel(t("audition"), t("audition_cmd"), voices)
+  return headM("sound", t("sound_title"), t(readOnly() ? "sound_sub_s" : "sound_sub2")) + tiles + panel(t("audition"), t("audition_cmd"), voices)
     + `<div class="mgrid sound">${panel(t("lines"), t(nl.paced ? "lines_pace" : "lines_raw"), lines)}${panel(t("music"), env ? `${t("music_cmd")} · ${t("env_cmd")}` : t("music_cmd"), music + (src2 ? `<audio id="mau" src="${esc(src(src2))}" preload="none" controls></audio>` : ""))}</div>`;
 }
 function wireSound2() {
@@ -386,7 +388,7 @@ function mShip2() {
       const first = fs.find((f) => f.severity !== "info");
       return `<li${dattr(first && first.t != null ? { mark: "time:" + (+first.t).toFixed(1), label: `${t("precheck")} · ${t(k)}`, t: first.t } : { scope: `${t("precheck")} · ${t(k)}` })}><span><b>${esc(t(k))}</b>${first ? `<span class="meta">${esc(cut(first.message, 60))}</span>` : ""}</span>${chip}</li>`; }).join("")}</ul>` : voidLine(t("precheck_none"));
   const next = `<p class="meta fine">${esc(t("next_cmd"))} <code>bin/vh deliver ${esc((chk && chk.video) || "<master>")}</code></p>`;
-  return headM("ship", t("ship_title"), t("ship_sub")) + subtabs("ship")
+  return headM("ship", t("ship_title"), t("ship_sub")) + tabs("ship")
     + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov)}${panel(t("copy"), "PACKAGING.md", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs)}${panel(t("precheck"), "bin/vh check", pre + next)}</aside></div>`
     + barM(t("bar_ship"), "cut", t("to_cut"));
 }
@@ -473,7 +475,7 @@ function mLedger2() {
   const vers = V.length ? `<ul class="copyl vers">${V.slice().reverse().map((v) => { const n = v.n != null ? v.n : (String(v.id).match(/\d+/) || [""])[0], ch = v.changed || {};
       const what = ch.whole || !Object.keys(ch).length ? t("whole_film2") : (ch.shots || []).length ? t("changed_s", { x: ch.shots.slice(0, 4).join("、") }) : t("changed_n", { n: (ch.seconds || ch.frames || []).length });
       return `<li${dattr({ scope: `${t("versions")} · ${t("v_n", { n })}` })}><span class="chip ${v.state === "current" ? "" : "quiet"}">${esc(t("v_n", { n }))}</span><b>${esc(v.note || v.made_by || "")}</b><span class="meta">${esc(what)}</span></li>`; }).join("")}</ul>` : voidLine(t("versions_none"));
-  return headM("ledger", t("ledger_title"), t("ledger_sub2")) + subtabs("ledger") + panel(t("decisions"), "DECISIONS.md · REVIEW.md", dec)
+  return headM("ledger", t("ledger_title"), t("ledger_sub2")) + tabs("ledger") + panel(t("decisions"), "DECISIONS.md · REVIEW.md", dec)
     + `<div class="mgrid ledger">${panel(t("your_words"), t("your_words_sub"), words)}${panel(t("versions"), t("ver_cmd"), vers)}</div>`;
 }
 function wireLedger2() { $$("[data-overturn]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest("[data-mark]"), t("overturn_say")); })); }

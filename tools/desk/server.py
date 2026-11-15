@@ -9,7 +9,7 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   GET  /                          the page (static/index.html, with this run's token and the project it opens on)
   GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
                                   studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
-                                  (the other modules)
+                                  (the other modules), core.js (the words and helpers a static page shares)
   GET  /api/projects              every project: bin/vh projects' rows, each with its key, a picture, and what it waits for
   GET  /api/p/<key>/data          one project, read fresh: reader.read_project, plus bin/vh status (status), its key and
                                   what the cut module lays out (studio: the resolved timeline, thumbnails, peaks, findings),
@@ -41,7 +41,7 @@ import review          # noqa: E402  (tools/review.py: the gate view, the same m
 
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
-          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8"}
+          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
@@ -363,6 +363,52 @@ def module_extras(project, data):
     return out
 
 
+def _drop_missing(project, d, key):
+    """d[key] when it names a file of the project that is there (or a URL); else "", the name kept in d[key + "_missing"]:
+    a page never asks for a file that is not there."""
+    v = d.get(key) if isinstance(d, dict) else None
+    if isinstance(v, str) and v and not re.match(r"(?i)https?://", v) and not _inside(project, v):
+        d[key], d[key + "_missing"] = "", v
+
+
+def project_data(project, parts=("studio", "mods")):
+    """A project's data as the console reads it (GET /api/p/<key>/data, less the key): reader.read_project, bin/vh status,
+    the folder's identity, this round and whether it is open, and the parts asked for, what the cut module lays out (studio)
+    and what the other modules read (mods). A static review page asks for what its stop's modules need (tools/review.py).
+    Raises what read_project raises; a part that cannot be read is null, the reason in warnings."""
+    data = reader.read_project(project)
+    try:
+        import status as S
+        data["status"] = S.collect(project)
+    except (Exception, SystemExit) as e:   # the page shows the rest without it
+        data["status"] = None
+        data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
+    data["pid"] = pid_of(project)
+    _drop_missing(project, data.get("shots"), "video")   # the storyboard's animatic, and the pictures the gate pages name
+    for r in data.get("rounds") or []:
+        g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
+        for dec in g.get("decisions") or []:
+            for o in (dec.get("options") or []) if isinstance(dec, dict) else []:
+                _drop_missing(project, o, "frame")
+        for seg in g.get("segments") or []:
+            for sh in (seg.get("shots") or []) if isinstance(seg, dict) else []:
+                _drop_missing(project, sh, "frame")
+    data["current"] = data["rounds"][-1]["id"] if data["rounds"] else None
+    data["project"]["title"] = film_title(project, data["project"].get("title"))
+    # this round is open until its stop is settled (passed or skipped): its decisions go with a submission, as before
+    cur = next((x for x in (data.get("status") or {}).get("stations") or [] if data["current"] in (x.get("pages") or [])), None)
+    data["round_open"] = bool(data["current"]) and not (cur and cur.get("state") in ("done", "skipped"))
+    if "studio" in parts or "mods" in parts:
+        data["studio"] = studio_extras(project, data)
+    if "mods" in parts:
+        try:
+            data["mods"] = module_extras(project, data)
+        except (Exception, SystemExit) as e:   # the other modules show their empty states; the reason is said
+            data["mods"] = None
+            data["warnings"].append(f"modules: {type(e).__name__}: {e}")
+    return data
+
+
 class Desk(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
@@ -551,28 +597,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _data(self, project, key):
         try:
-            data = reader.read_project(project)
+            data = project_data(project)
         except Exception as e:
             return self._error(500, f"could not read the project: {type(e).__name__}: {e}")
-        try:
-            import status as S
-            data["status"] = S.collect(project)
-        except (Exception, SystemExit) as e:   # the page shows the rest without it
-            data["status"] = None
-            data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
-        data["key"], data["home"], data["pid"] = key, key == self.server.own_key, pid_of(project)
-        data["only"] = self.server.only
-        data["current"] = data["rounds"][-1]["id"] if data["rounds"] else None
-        data["project"]["title"] = film_title(project, data["project"].get("title"))
-        # this round is open until its stop is settled (passed or skipped): its decisions go with a submission, as before
-        cur = next((x for x in (data.get("status") or {}).get("stations") or [] if data["current"] in (x.get("pages") or [])), None)
-        data["round_open"] = bool(data["current"]) and not (cur and cur.get("state") in ("done", "skipped"))
-        data["studio"] = studio_extras(project, data)
-        try:
-            data["mods"] = module_extras(project, data)
-        except (Exception, SystemExit) as e:   # the other modules show their empty states; the reason is said
-            data["mods"] = None
-            data["warnings"].append(f"modules: {type(e).__name__}: {e}")
+        data["key"], data["home"], data["only"] = key, key == self.server.own_key, self.server.only
         return self._json(data)
 
     def _gate(self, project, key, gid, lang=None):

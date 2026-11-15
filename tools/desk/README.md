@@ -19,6 +19,8 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 **关卡视图只有一套。** 静态页（`bin/vh review`，file:// 直接打开，不起服务）和审阅台里的这一轮，是 `tools/review.py` 写的同一份标记，用同一个样式表 `static/ui.css` 和同一个脚本 `static/ui.js`（静态页把两个文件整个内嵌进去）：画面在前（播放器和它下面的标尺、立意卡并排、或者分镜的镜头格），决定是能点的卡（推荐的预先选上），没把握的地方是标尺上的记号和一条一句，已经定了、替人定了、材料和附录收起来只露条数。两处的差别只有最后一步：静态页是一句跟着选择变的回复，复制回聊天；审阅台是一个提交按钮。改样子改一处，两处一起变。颜色全是 `ui.css` 里的变量，三套主题各是一块取值（见下面的"主题"）。
 
+**静态页也是这一站模块的只读版。** 关卡 ① 的静态页在关卡视图上面画立意和大纲，② 画分镜，E2、E3 画声音，用的是控制台同一套渲染（`static/core.js`、`modules.js`，加一个只给静态页的 `static/static.js`），数据是 `bin/vh review` 出页时按控制台的读法（`server.project_data`）读出来、只留这一站用得上的那些，写进页里的一个 JSON 块；文件地址相对页面所在的文件夹。没有写点评的框，什么也不发：模块上的立意卡和下面关卡视图里的同一件决定联动，回复照旧复制回聊天。模块已经画了的（立意卡、分镜格），关卡视图里藏起来，不再画一遍。关卡 ③ 和 E4、E5 没有模块：关卡视图的播放器和标尺就是成片模块的静态版。不开 JavaScript，或这个项目读不出来（老项目里缺这缺那），页面还是原来的关卡视图。
+
 `bin/vh gate`（`tools/gate.py`）把一次停要做的事做完：审阅方式取 `--desk` / `--page` / `--chat`，没有就取 `LOCAL.md` 的"审阅方式"一行，再没有就按档位（`studio` 审阅台，`standard`、`quick` 静态页）。每种方式都出静态页、打印聊天消息；审阅台方式再起服务，把地址加进消息。退出码：0 发出去了（`--wait` 时是收到了提交）；1 页面写了但不合规矩，不发消息也不起服务；2 没东西可发（没有 gate JSON、服务起不来、不是审阅台却要 `--wait`）；3 `--wait` 超时。
 
 **一站的数据就是 `out/review/gate-<n>.json` 这一个文件。** 静态页（`bin/vh review`）、审阅台和以后的客户端都只渲染它（审阅台另外读下面这些项目文件），各自不另存一份。
@@ -44,7 +46,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 - **右边一列**：这一轮要你定的事（关卡页的选项卡，能点，推荐的预先选上，`1`–`9` 给当前这件选第几个），它最没把握的和请你听的（点一下到那一秒），你的点评（点一下回到那一处，× 删掉），下一步、正在跑的命令和花费，一个"提交这一轮"，和一个写点评的框：对着什么，就是模块里选中的那一处（一秒、一段、一个镜头、一章、一个记号、一张卡），没选就是整个模块（记进这一轮的整体意见）。"说给 agent"这一版是关着的。
 - **提交**：先列出每件决定选了什么（没动的标"按推荐"）和每条点评，可以再写一句整体意见；走的还是 `POST …/feedback` 这一条通道，`bin/vh desk wait` 照样被唤醒。服务没起来时，回复复制到剪贴板。
 - **主题**：暗场（默认）、棱镜、舰桥三套，顶上切换，浏览器记住；三套是 `ui.css` 里同一组语义变量的三块取值，默认用哪一套是 `ui.js` 里的一个值（`DEFAULT_THEME`）。四条规矩不随主题变：画面四周是中性灰；读数用等宽字；颜色只说谁、在发生什么（青是你选的和标的，紫是 agent，红是播放头、出错和正在发生，琥珀是等你，绿是过了），其余是灰；只有深色。
-- **关卡页的标尺**（静态页和模块上方的关卡页）：有镜头表（关卡页自己的分段和镜头，或项目的 `shots.json`、剪辑表）时标镜头和分段；都没有时用 BRIEF 大纲表的段落和时间；大纲也没写时间时，只是一把带秒刻度的尺子，加上没把握和请你听的记号。
+- **关卡页的标尺**（静态页和模块下面的关卡页）：有镜头表（关卡页自己的分段和镜头，或项目的 `shots.json`、剪辑表）时标镜头和分段；都没有时用 BRIEF 大纲表的段落和时间；大纲也没写时间时，只是一把带秒刻度的尺子，加上没把握和请你听的记号。
 - **键盘**：`/` 搜片子（↑↓ 选，回车打开，Esc 关）；成片模块的见上面；关卡页里空格播放，`←` `→` 跳镜头，`1`–`9` 选选项。
 
 ### HTTP 接口
@@ -52,7 +54,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 | 地址 | 给什么 |
 |---|---|
 | `GET /` | 页面，带这一次启动的令牌，和打开在哪个项目上 |
-| `GET /static/<文件>` | `ui.css`、`ui.js`（关卡视图的，静态页内嵌的是同两份）、`studio.css`、`studio.js`（控制台的外壳和成片模块）、`modules.css`、`modules.js`（其余模块） |
+| `GET /static/<文件>` | `ui.css`、`ui.js`（关卡视图的，静态页内嵌的是同两份）、`studio.css`、`studio.js`（控制台的外壳和成片模块）、`modules.css`、`modules.js`（其余模块）、`core.js`（控制台和静态页共用的文字和小函数） |
 | `GET /api/projects` | `{version, home, roots, count, waiting, projects}`：`bin/vh projects` 的每一行，等人的在前，其余按最后一次动静从新到旧，交付了的在最后；加 `key`（地址里的项目键，见下面）、`picture`（`{path, kind: image \| video, from, href}`：封面，`bin/vh thumbs` 的镜头图，片子本身，联系表，关卡页里的图，分镜关键帧，最新的一张图，只取在的文件）、`ask`（等人时：`{gate, title, title_en, question, decisions}`）；`title` 在 BRIEF 没写片名时取最新一页关卡页的标题里关卡名之前的那一段 |
 | `GET /api/p/<键>/data` | `bin/vh desk data` 的内容，加 `status`（`bin/vh status --json`）、`key`、`home`、`pid`（这个项目文件夹的身份：真实路径的 SHA-1，提交要带上）、`only`、`current`（这一轮的页名）、`round_open`（这一轮那一站还没定：不是 done、skipped；这时提交带上它的决定），和 `studio`（`film` 是成片模块播的那一支，只取在的文件；要的那支不在时，`film_missing` 是它的路径；`sheet` 是最新的联系表；成片模块用的：`timeline` 是 `bin/vh timeline --resolved` 的内容；`thumbs`、`peaks` 是 `bin/vh thumbs`、`peaks` 做过才有的记录；`check` 和 `findings` 是最近一次检查的结论和带时间的问题，没过和要注意的；读不出来的那一样是 `null`，原因记在 `warnings`），和 `mods`（其余模块读的，都是已有命令写下的文件：`loudness` `{integrated, true_peak, lra, target, severity}` 和 `silences`、`checks`（最近一次检查的每条 finding：`kind, severity, message, t, t1`）；`pace`（旁白时间轴里 `bin/vh pace` 写的 `reference, unit, speech, with_pauses` 和逐句的 `lines`）、`voice`（旁白用的音色）、`audition`（最新的 `audition.json`：`{file, provider, unit, text, voices: [{voice, file, duration, pitch_hz, speech_rate, misread, error}]}`）、`lifts`（最新的 `*.beats.json` 的候选落点）；`covers` `[{path, ratio, id, text}]`、`subs`（字幕文件）；`assets`（台账里没删的每一件：`{id, kind, path, there, license, license_name, source, url, aigc, used_by, note}`，没有台账是 `null`）、`refs`（`research/refs.json`）、`digests` `[{id, path, bytes}]`） |
 | `GET /api/p/<键>/gate/<页>[?lang=zh\|en]` | 那一页的关卡视图：`{version, gate, current, this_round, title, lang, takeall, html, errors, warnings, decisions: [{id, question, recommend, options}], summary, cards, marks, not_reviewed}`；`html` 和静态页同一份标记，文件地址换成 `/f/<键>/…`；`cards` 是所有决定的选项卡（右栏用，同一份标记），`marks` 是没把握和请你听的地方 `[{kind: least \| listen, t, t1, id, note, target}]` |
@@ -378,4 +380,4 @@ JSON 的格式：
 
 ## 测试
 
-`tools/ci.sh` 用 `tools/desk/fixtures/` 里的小项目测：`zh`、`en` 两个测读取；`demo` 是一支编的片子（海水为什么一天涨两次），关卡 ①②③ 都有，画面是几张小 SVG，它还带着旁白的时间、节拍表和一份检查记录，成片模块的每条轨道都有东西。`console_checks` 用它测关卡视图（静态页整个内嵌 `ui.css` 和 `ui.js`、不从外面加载东西、推荐的卡预先选上、立意卡带帧、分镜就是画面、没把握的时间）、三套主题（同一组变量，每种字色对底色 4.5:1 以上，样式里没有变量以外的颜色）、字数提醒和控制台（外壳、多个项目、键、等人的排前面和它的问题与画面、项目数据和成片模块的数据、关卡视图和右栏的卡与记号、文件、各种拒绝、一次提交）；PR 的截图也只用它。读取的测试（包括读不出表格时退回原文、"这一轮"取 `.current`（2 之后的 1b、3 之后的 E3b、自起的页名，`.current` 指向已删的页时退回流程顺序）、语言规则、超长和深层嵌套的 markdown），在空闲端口起一个服务测 `/api/data`、206 Range、`/p/` 的 sandbox、各种拒绝和坏请求、提交到临时副本、REVIEW.md 的追加，测 `wait` 在有提交时退出 0、启动前就到的提交立刻交出、交过的不再交，拷来的 `.desk.json` 和 `.listening` 不算数，以及 `bin/vh desk -h`。
+`tools/ci.sh` 用 `tools/desk/fixtures/` 里的小项目测：`zh`、`en` 两个测读取；`demo` 是一支编的片子（海水为什么一天涨两次），关卡 ①②③ 都有，画面是几张小 SVG，它还带着旁白的时间、节拍表和一份检查记录，成片模块的每条轨道都有东西。`console_checks` 用它测关卡视图（静态页整个内嵌 `ui.css` 和 `ui.js`、不从外面加载东西、推荐的卡预先选上、立意卡带帧、分镜就是画面、没把握的时间，关卡 ①② 的页带着这一站的模块）、七个模块按它的数据画出来（node 里跑 `core.js` 和 `modules.js`，控制台的和静态页只读的都画）、三套主题（同一组变量，每种字色对底色 4.5:1 以上，样式里没有变量以外的颜色）、字数提醒和控制台（外壳、多个项目、键、等人的排前面和它的问题与画面、项目数据和成片模块的数据、关卡视图和右栏的卡与记号、文件、各种拒绝、一次提交）；PR 的截图也只用它。读取的测试（包括读不出表格时退回原文、"这一轮"取 `.current`（2 之后的 1b、3 之后的 E3b、自起的页名，`.current` 指向已删的页时退回流程顺序）、语言规则、超长和深层嵌套的 markdown），在空闲端口起一个服务测 `/api/data`、206 Range、`/p/` 的 sandbox、各种拒绝和坏请求、提交到临时副本、REVIEW.md 的追加，测 `wait` 在有提交时退出 0、启动前就到的提交立刻交出、交过的不再交，拷来的 `.desk.json` 和 `.listening` 不算数，以及 `bin/vh desk -h`。

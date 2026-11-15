@@ -3064,6 +3064,14 @@ for g, h in list(pages.items()) + [("zh", zh)]:
 want('<input type="radio" name="dec-look" value="L1" checked data-rec="1" aria-label="L1 浅色清新 · 推荐" aria-describedby="o-look-L1">' in zh and '<code class="g-reply-v">1 L1</code>' in zh, "zh gate 1: the recommended card is not picked, or no reply")
 want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
 want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
+import json
+mod = {g: re.search(r'<script type="application/json" id="ovh-data">(.*?)</script>', h, re.S) for g, h in pages.items()}
+mod = {g: json.loads(m.group(1)) if m else None for g, m in mod.items()}
+inl = [open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("modules.css", "core.js", "modules.js", "static.js")]
+want(mod["1"] and mod["1"]["modules"] == ["idea", "outline"] and mod["1"]["rel"] == "../../" and mod["1"]["data"]["current"] == "1"
+     and mod["2"] and mod["2"]["modules"] == ["board"] and len(mod["2"]["data"]["shots"]["items"]) == 6 and mod["3"] is None
+     and all(x in pages["1"] for x in inl) and not any(x in pages["3"] for x in inl[1:]) and "</script" not in "".join(inl[1:]),
+     f"the static pages' modules (立意 and 大纲 on ①, 分镜 on ②, none on ③): {[(g, m and m['modules']) for g, m in mod.items()]}")
 want('class="g-marks"' in pages["3"] and "0:27.0–0:32.0" in pages["3"] and 'data-t="15.5"' in pages["3"], "demo gate 3: the least-sure times (t, and a time as the id)")
 want(review.time_of("0–5 s") == (0.0, 5.0) and review.time_of("1:05–1:12") == (65.0, 72.0) and review.time_of("12.4 s") == (12.4, None) and review.time_of("S04") is None, "time_of")
 want(review.budget_len("初版 32 s") == (3.5, True) and review.budget_len("A short line") == (12, False), f"budget_len: {review.budget_len('初版 32 s')}")
@@ -3071,7 +3079,7 @@ if bad:
     print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget"
+  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget; gate ① and ② carry their stop's modules (the data and the console's renderers inlined), gate ③ none"
   else bad "gate view on the fixtures"; fi
   # the themes (docs/proposals/02-studio-client.md, 5): three blocks of one set of variables, the default on :root (one value
   # in ui.js names it); every colour of ui.css and studio.css a variable; the type, the lamps and the readouts at WCAG AA
@@ -3079,7 +3087,7 @@ PY
   if a=$(python3 - <<'PY'
 import re
 css = open("tools/desk/static/ui.css", encoding="utf-8").read()
-studio = open("tools/desk/static/studio.css", encoding="utf-8").read()
+studio = open("tools/desk/static/studio.css", encoding="utf-8").read() + open("tools/desk/static/modules.css", encoding="utf-8").read()
 js = open("tools/desk/static/ui.js", encoding="utf-8").read()
 def block(sel):
     m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
@@ -3111,12 +3119,12 @@ for name, t in themes.items():
 if 'DEFAULT_THEME = "darkfield"' not in js or 'THEMES = ["darkfield", "prism", "bridge"]' not in js:
     low.append("ui.js: THEMES and DEFAULT_THEME")
 stray = []
-for f, text in (("ui.css", css), ("studio.css", studio)):
+for f, text in (("ui.css", css), ("studio.css and modules.css", studio)):
     rules = re.sub(r"/\*.*?\*/", "", re.sub(r":root(,:root)?(\[data-theme=\w+\])?\{.*?\}", "", text, flags=re.S), flags=re.S)
     stray += [f"{f} {x}" for x in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", rules)]
 print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.join(stray[:4])}"] if stray else [])))
 PY
-) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css and studio.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
+) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css, studio.css and modules.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
   else bad "theme contrast or stray colours: $a"; fi
   # the console's own safety: project words reach the page only through escaping or the DOM; an unknown key walks the roots at
   # most once in FRESH_GAP; the console's info file is trusted only in a folder of this user's own; a card's picture and a gate
@@ -3207,9 +3215,9 @@ page = page.decode()
 token = page.split('name="desk-token" content="')[1].split('"')[0]
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
 want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
-for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js"):
+for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js"):
     want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
-want(req("GET", "/static/console.js")[0] == 404, "/static/ serves only its six files")
+want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its seven files (static.js is the static page's)")
 s, _, d = req("GET", "/api/projects"); d = json.loads(d)
 real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
 rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
@@ -3246,6 +3254,7 @@ want([(c["id"], c["ratio"] < 1) for c in md.get("covers") or [] if c.get("ratio"
      and [(a["id"], a["license"], a["there"]) for a in md.get("assets") or []] == [("tide-gauge", "cc0", True), ("card-a", "own", True), ("tide-clip", "unknown", False), ("vo", "generated", False)]
      and [r["id"] for r in md.get("refs") or []] == ["tide-lecture"] and [x["path"] for x in md.get("digests") or []] == ["research/digest/tide-lecture/transcript.md"],
      f"demo's delivery and material data: {json.dumps({k: md.get(k) for k in ('covers', 'assets', 'refs', 'digests')}, ensure_ascii=False)[:400]}")
+json.dump(d, open(os.path.join(os.path.dirname(root), "demo-data.json"), "w", encoding="utf-8"), ensure_ascii=False)   # for the modules' render check below
 pk = d.get("packaging") or {}
 want("白板" in ((d.get("ideas") or {}).get("same_topic") or "") and [x["id"] for x in pk.get("titles") or []] == ["T1", "T2", "T3"]
      and [(x["name"], len(x["tags"])) for x in pk.get("platforms") or []] == [("B站", 4), ("抖音", 2)] and [h.get("date") for h in d.get("history") or []] == ["2026-11-14", "2026-11-14"],
@@ -3290,6 +3299,43 @@ PY
   then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings) and what the other modules read (the check's loudness, bin/vh pace's rates and the voice, the audition, the lifts, covers, the asset ledger, references and transcripts; NOTES' same-topic line, PACKAGING's titles and copy for each platform, REVIEW's dates), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
   else bad "console"; fi
   a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
+  # the modules (tools/desk/static/modules.js) drawn from the demo's data as the console reads it, and read only from what the
+  # static pages carry: each module draws, nothing says undefined or NaN, and each shows what the fixture has for it
+  cat > "$t/modules-render.js" <<'JS'
+const vm = require("vm"), fs = require("fs");
+const [dataFile, page1, page2] = process.argv.slice(2), bad = [];
+const want = (c, m) => { if (!c) bad.push(m); };
+function host(D, readOnly) {   // core.js and modules.js in one context, with the little a host gives them
+  const g = vm.createContext({ console, __D: D });
+  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
+  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
+    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
+  return (code) => vm.runInContext(code, g);
+}
+const draw = (run, m) => { try { const h = run("MODVIEW." + m + ".main()"); want(!/undefined|NaN|\[object Object\]/.test(h), m + ": undefined, NaN or an object in the page"); return h; } catch (e) { bad.push(m + ": " + e.message); return ""; } };
+const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
+for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
+want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes("同题的视频常见的样子") && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
+want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
+want(h.board.includes("第 1 页 · 开场") && (h.board.match(/class="shotc/g) || []).length === 2, "board: page 1, two shots");
+run("SUB = '2'"); const b2 = draw(run, "board");
+want(b2.includes("第 2 页 · 两个鼓包") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂"), "board: page 2 with S4 unsure");
+want(h.sound.includes("-14.2") && h.sound.includes("在用") && h.sound.includes("比中位数快") && h.sound.includes("换气之后的重拍"), "sound: loudness, the voice in use, a fast line, a lift");
+want(h.ship.includes("cover-a.svg") && h.ship.includes("抖音") && h.ship.includes("月亮只来一次，海水为什么涨两次？") && h.ship.includes("1 处注意"), "ship: covers, platforms, a title, the check");
+want(h.assets.includes("tide-gauge") && h.assets.includes("来源没写许可") && h.assets.includes("读文稿"), "assets: an item, an uncleared licence, a transcript");
+want(h.ledger.includes("用 A，从海边开场。") && h.ledger.includes("翻案") && h.ledger.includes("2026-11-14"), "ledger: your words, an overturn, the dates");
+for (const [f, mods] of [[page1, ["idea", "outline"]], [page2, ["board"]]]) {   // a static page: its own data, read only
+  const m = fs.readFileSync(f, "utf8").match(/<script type="application\/json" id="ovh-data">([\s\S]*?)<\/script>/);
+  if (!m) { bad.push(f + ": no module data"); continue; }
+  const x = JSON.parse(m[1]), r = host(x.data, true);
+  want(JSON.stringify(x.modules) === JSON.stringify(mods), f + ": modules " + x.modules);
+  for (const k of x.modules) { const s = draw(r, k); want(!s.includes('class="subtabs"') && !s.includes("data-like") && !s.includes("href=\"#/p/"), "static " + k + ": a console-only part"); }
+  if (mods[0] === "idea") want(draw(r, "idea").includes("data-pick-card"), "static idea: the cards pick");
+}
+console.log(bad.join("\n"));
+JS
+  if a=$(node "$t/modules-render.js" "$t/demo-data.json" "$t/root/demo/out/review/gate-1.html" "$t/root/demo/out/review/gate-2.html" 2>&1) && [ -z "$a" ]; then ok "modules: 立意, 大纲, 分镜, 声音, 交付, 素材 and 账本 draw the demo's data with what it has for each (cards with frames, parts, pages of shots with an unsure one, readouts, platforms, licences, your words), and the static pages' modules read only (no sub-tabs, no note shortcuts, no console links)"
+  else bad "modules drawn from the demo's data: $a"; fi
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
   # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
   if desk_start "$t/root/zh" "$t/zh.log"; then
