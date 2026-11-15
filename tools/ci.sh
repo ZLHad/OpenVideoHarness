@@ -1151,6 +1151,14 @@ PY
   then ok "recipes list --type long and recap: the types' own words, and the cards of the types they share a language with, said on stderr"
   else bad "recipes list --type long, recap ($rc/$r2): $c"; fi
   vh recipes list --intent no-such-intent >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "recipes list rejects an unknown vocabulary value" || bad "recipes list --intent no-such-intent exited $rc"
+  # --sequences: the whole-film skeletons, which list leaves out; filtered by the fields a skeleton has, the rest refused
+  a=$(vh recipes list --sequences --ids); b=$(vh recipes list --sequences --seconds 10 --type short --ids)
+  e=$(vh recipes list --sequences --intent hook 2>&1 >/dev/null); rc=$?; vh recipes list --sequences --grammar >/dev/null 2>&1; rc2=$?
+  c=$(vh recipes list --ids); d=0; for x in recipes/sequences/*.md; do [ "${x##*/}" = README.md ] || d=$((d + 1)); done
+  if [ "$rc:$rc2" = 2:2 ] && [ "$(printf '%s\n' "$a" | grep -c .)" = "$d" ] && grep -qx breakdown-reel <<<"$a" && grep -qx launch-15s <<<"$a" \
+     && [ "$b" = breakdown-reel ] && ! grep -qx breakdown-reel <<<"$c" && grep -q "do not filter" <<<"$e"
+  then ok "recipes list --sequences: every skeleton (none of them in the recipe list), --seconds and --type narrow it, a recipe-only filter or --grammar with it is refused"
+  else bad "recipes list --sequences ($rc/$rc2): $(echo $a) | $b | $e"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   sed 's/^id: .*/id: ci-copy/' recipes/seam/flash-cut.md > "$t/ok.md"; sed 's/^energy: .*/energy: 9/' "$t/ok.md" > "$t/bad.md"
   a=$(vh recipes check "$t/bad.md" 2>&1); rc=$?
