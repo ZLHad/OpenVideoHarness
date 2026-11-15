@@ -808,7 +808,7 @@ PY
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
            "check $t/no-such.mp4" \
            captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" \
-           "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check" \
+           "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check no-such" "style check --bogus" "style register" \
            "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4" \
            assets "assets no-such" "assets list $t/no-such" "assets check $t/empty" "assets add" "assets add $t/no-such $t/v.mp4" "assets credits" \
            "assets remove $t/fx no-such-id" "assets add $t/fx $t/no-such.png" "assets add $t/fx $t/v.mp4 --class nope" "assets check $t/fx --policy loose"; do
