@@ -288,9 +288,9 @@ AI 做的视频放着不管，很容易长成一个样子：暗底、发光、�
 
 ### 配方、镜头语法卡、组件
 
-- **[配方](recipes/README.md)**：75 张镜头配方（一个镜头或一个接缝怎么动：分几段、每段多少帧、哪些参数不能降、在哪容易翻车），另有 10 条全片骨架（整支片子的能量弧和停顿预算）。`bin/vh recipes list --intent … --energy …` 按意图和能量筛；写了代码草图的配方都带一张实渲的样片联系表。
+- **[配方](recipes/README.md)**：75 张镜头配方（一个镜头或一个接缝怎么动：分几段、每段多少帧、哪些参数不能降、在哪容易翻车），另有 11 条全片骨架（整支片子的能量弧和停顿预算）。`bin/vh recipes list --intent … --energy …` 按意图和能量筛；写了代码草图的配方都带一张实渲的样片联系表。
 - **镜头语法卡**：`recipes/shot/` 里有 24 张镜头语法卡，讲景别、角度、轴线和运镜，每张写它对观众起什么作用、什么时候用、什么时候别用。选定的写进镜头表的 `camera`，`bin/vh storyboard` 会印在镜头下面。
-- **[组件](components/README.md)**：5 个动效组件（弹簧场景、翻页、纸面转场、章节进度条、一块块搭起来的建筑），每个都由 t 算出状态，再用很薄的一层画进 canvas、DOM 或 Three.js。`bin/vh components add` 把它复制进项目。
+- **[组件](components/README.md)**：6 个动效组件（弹簧场景、翻页、纸面转场、章节进度条、一块块搭起来的建筑、给太干净的画面收尾），每个都由 t 算出状态，再用很薄的一层画进 canvas、DOM 或 Three.js。`bin/vh components add` 把它复制进项目。
 
 这些都是起步用的默认做法，不是规则：立意需要别的做法，直接做就行。
 
@@ -379,7 +379,7 @@ bash install.sh --no-skill                       # 不注册全局 skill
 | 通用知识：流程、自查、运动设计、声音、特效、叙事、钩子、作曲、创意 | [playbook/](playbook/) |
 | 风格、配方和镜头语法卡、组件 | [styles/](styles/README.md)、[recipes/](recipes/README.md)、[components/](components/README.md) |
 | 引擎、页面合约、剪辑表 | [engines/](engines/README.md)、[CONTRACT.md](engines/CONTRACT.md)、[EDIT.md](engines/EDIT.md) |
-| 社区作品的 14 个案例拆解，以及本仓库自己做的片子和全部过程记录 | [cases/](cases/README.md)、[showcase/](showcase/) |
+| 社区作品的 15 个案例拆解，以及本仓库自己做的片子和全部过程记录 | [cases/](cases/README.md)、[showcase/](showcase/) |
 | 我们量过什么、因此改了什么 | [docs/research/](docs/research/README.md) |
 | 命令行 | `bin/vh commands`、`bin/vh help`，每条命令加 `-h` |
 | 新手教程、排错、常见问题 | [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |

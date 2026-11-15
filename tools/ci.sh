@@ -352,6 +352,32 @@ print("; ".join(bad) or f"the ruleset's {len(ctx)} required checks are jobs of c
 sys.exit(1 if bad or not ctx else 0)
 PY
   ); then ok "$a"; else bad "workflow and ruleset: $a"; fi
+  # engines/blender.md's crowd along a path: the sketch runs as written (numpy), and is a function of t: the same t gives
+  # the same positions, the head of the queue is further along the route than its tail, nothing is NaN; and it is continuous through the
+  # route's end (u clipped at 1 once made the leaders jump and the crowd collapse there): no frame's step far above the
+  # others' for the leader over 40 s or for anyone round its arrival, and the crowd keeps its width past the end
+  if ! command -v uv >/dev/null; then skip "engines/blender.md's queue sketch" "needs uv"
+  elif a=$(uv run -q --no-project --with numpy python - engines/blender.md 2>&1 <<'PY'
+import re, sys
+import numpy as np
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"### 一大群东西沿路线飞.*?```python\n(.*?)```", s, re.S)
+ns = {}
+exec(m.group(1), ns)
+P = ns["positions"]
+a, b = P(4.0), P(4.0)
+six = P(6.0)   # the route runs left to right: the head of the queue is further right than its tail
+lead = np.array([P(t)[0] for t in np.arange(0, 40, 1 / 30)])
+s1 = np.linalg.norm(np.diff(lead, axis=0), axis=1)
+near = np.stack([P(t) for t in np.arange(12.3, 12.8, 1 / 30)])   # the leader reaches u = 1 at 12.5 s
+s2 = np.linalg.norm(np.diff(near, axis=0), axis=2)
+jump, jump_all, width = s1.max() / np.median(s1), s2.max() / np.median(s2), P(40.0)[:, 1].std()
+ok = a.shape == (ns["N"], 3) and np.isfinite(a).all() and np.array_equal(a, b) and six[0, 0] > six[-1, 0] + 1 and jump < 1.5 and jump_all < 2 and width > 0.5
+print("ok" if ok else f"shape {a.shape}, same {np.array_equal(a, b)}, head x {six[0, 0]:.2f} tail x {six[-1, 0]:.2f}, step ratio {jump:.2f} / {jump_all:.2f}, width {width:.2f}")
+sys.exit(0 if ok else 1)
+PY
+  ); then ok "engines/blender.md: the crowd-along-a-path sketch runs as written, is a function of t (the same t, the same positions; the head ahead of the tail) and is continuous through the route's end"
+  else bad "engines/blender.md's queue sketch: $a"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
@@ -806,6 +832,30 @@ PY
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
+  # sheet --gray: every tile in luma only, anywhere among the arguments, its own name; a red square on a green ground of
+  # another lightness parts in it, and the colour sheet keeps its colour
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "sheet --gray" "needs uv and ffmpeg"
+  else
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x3CB43C:s=320x180:d=2:r=24" -vf "drawbox=x=100:y=50:w=80:h=80:c=0xC83C3C:t=fill" -pix_fmt yuv420p "$t/rg.mp4"
+    mkdir -p "$t/rgp/out"; printf '# BRIEF\n' > "$t/rgp/BRIEF.md"; cp "$t/rg.mp4" "$t/rgp/out/rg.mp4"
+    vh sheet "$t/rg.mp4" 2 1 "$t/gray.png" --gray >/dev/null 2>&1; rc=$?
+    vh sheet --gray "$t/rg.mp4" 2 1 "$t/gray2.png" >/dev/null 2>&1; rc2=$?
+    vh sheet "$t/rg.mp4" 2 1 "$t/col.png" >/dev/null 2>&1; rc3=$?
+    a=$(vh sheet "$t/rgp/out/rg.mp4" --gray 2>/dev/null)
+    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && case "$a" in *"/out/check/rg-sheet-gray-"*.png) true ;; *) false ;; esac \
+       && uv run -q --no-project --with pillow python - "$t/gray.png" "$t/gray2.png" "$t/col.png" <<'PY'
+import sys
+from PIL import Image
+g, g2, c = (Image.open(f).convert("RGB") for f in sys.argv[1:4])
+sq, gr = g.getpixel((210, 135)), g.getpixel((40, 240))   # the first tile (480 px wide, 1.5x the clip): the square, the ground
+ok = sq[0] == sq[1] == sq[2] and gr[0] == gr[1] == gr[2] and abs(sq[0] - gr[0]) > 15 and list(g.getdata()) == list(g2.getdata())
+cs = c.getpixel((210, 135))
+ok = ok and cs[0] > cs[1] + 60   # the colour sheet: still red
+sys.exit(0 if ok else f"gray {sq} {gr}, colour {cs}")
+PY
+    then ok "sheet --gray: every tile in luma only (red on green parts by lightness), --gray before or after the video, its own file name in the project's out/check; without it the colour stays"
+    else bad "sheet --gray ($rc/$rc2/$rc3): $a"; fi
+  fi
   # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with and the project render's
   # gate check reads: a flag that takes no value in front of it must not swallow it (frames --covers, --no-title and cues
   # --chapters took the project for their value and found "."; render --alpha and --fresh too, until arg_dir had them). The
@@ -1195,6 +1245,14 @@ PY
   then ok "recipes list --type long and recap: the types' own words, and the cards of the types they share a language with, said on stderr"
   else bad "recipes list --type long, recap ($rc/$r2): $c"; fi
   vh recipes list --intent no-such-intent >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "recipes list rejects an unknown vocabulary value" || bad "recipes list --intent no-such-intent exited $rc"
+  # --sequences: the whole-film skeletons, which list leaves out; filtered by the fields a skeleton has, the rest refused
+  a=$(vh recipes list --sequences --ids); b=$(vh recipes list --sequences --seconds 17 --type short --ids)
+  e=$(vh recipes list --sequences --intent hook 2>&1 >/dev/null); rc=$?; vh recipes list --sequences --grammar >/dev/null 2>&1; rc2=$?
+  c=$(vh recipes list --ids); d=0; for x in recipes/sequences/*.md; do [ "${x##*/}" = README.md ] || d=$((d + 1)); done
+  if [ "$rc:$rc2" = 2:2 ] && [ "$(printf '%s\n' "$a" | grep -c .)" = "$d" ] && grep -qx breakdown-reel <<<"$a" && grep -qx launch-15s <<<"$a" \
+     && [ "$b" = breakdown-reel ] && ! grep -qx breakdown-reel <<<"$c" && grep -q "do not filter" <<<"$e"
+  then ok "recipes list --sequences: every skeleton (none of them in the recipe list), --seconds and --type narrow it, a recipe-only filter or --grammar with it is refused"
+  else bad "recipes list --sequences ($rc/$rc2): $(echo $a) | $b | $e"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   sed 's/^id: .*/id: ci-copy/' recipes/seam/flash-cut.md > "$t/ok.md"; sed 's/^energy: .*/energy: 9/' "$t/ok.md" > "$t/bad.md"
   a=$(vh recipes check "$t/bad.md" 2>&1); rc=$?
@@ -4710,6 +4768,48 @@ PY
      && grep -q "an error in this tool itself, not in the cast (ZeroDivisionError" <<<"$b"
   then ok "cast check: a cast.json of a shape it did not foresee fails that entry and says why (no traceback); a fault of the tool itself exits 3"
   else bad "cast check on a hand-written view (exit $rc:$rc2:$rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | head -c 200)"; fi
+  # cast frames: the settled cast over frames spread evenly through a film, one picture (pillow through uv); the entries
+  # named or every character, costume and prop; an unknown id or a film with no cast pictures is bad usage
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "cast frames" "needs uv and ffmpeg"
+  else
+    q="$t/cf"; mkdir -p "$q"; printf '# BRIEF\n' > "$q/BRIEF.md"
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x3C50C8:s=320x180:d=4:r=24" -pix_fmt yuv420p "$q/film.mp4"
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0xC83C3C:s=100x100" -frames:v 1 "$t/red.png"
+    vh cast add "$q" hero --kind character --name h --ref "$t/red.png=front" --source t --license own >/dev/null
+    vh cast add "$q" hall --kind set --name s --ref "$t/red.png=front" --source t --license own >/dev/null
+    a=$(vh cast frames "$q" film.mp4 --n 8 --json 2>&1); rc=$?
+    b=$(vh cast frames "$q" film.mp4 --id hall --n 4 --out "$t/hall.png" 2>&1); rc2=$?
+    vh cast frames "$q" film.mp4 --id owl >/dev/null 2>&1; rc3=$?
+    mkdir -p "$t/cf2"; printf '# BRIEF\n' > "$t/cf2/BRIEF.md"; vh cast frames "$t/cf2" "$q/film.mp4" >/dev/null 2>&1; rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = 0:0:2:2 ] && [ -s "$t/hall.png" ] && uv run -q --no-project --with pillow python - "$a" <<'PY'
+import json, sys
+from PIL import Image
+d = json.loads(sys.argv[1])
+im = Image.open(d["out"]).convert("RGB")
+ok = [r["label"] for r in d["refs"]] == ["hero · front"] and len(d["times"]) == 8 and abs(d["times"][0] - 0.25) < 1e-6 and abs(d["times"][-1] - 3.75) < 1e-6
+ok = ok and "/out/check/cast-film-" in d["out"] and im.size[0] == 1600   # 4 columns of 400 px
+r, b = im.getpixel((200, 90)), im.getpixel((200, im.size[1] - 40))   # the reference on top (red), a frame at the bottom (blue)
+ok = ok and r[0] > r[2] + 60 and b[2] > b[0] + 60
+sys.exit(0 if ok else f"{d['refs']} {d['times']} {im.size} top {r} bottom {b}")
+PY
+    then ok "cast frames: the cast's pictures on top (a set only when named), frames spread evenly below at the middle of each share, in the project's out/check; an unknown id or no cast picture is bad usage"
+    else bad "cast frames ($rc:$rc2:$rc3:$rc4): $(printf '%s' "$a" | tail -c 300) | $b"; fi
+    # a cutout whose transparent pixels still hold the chroma green it was keyed from is laid on grey, not shown green;
+    # the video's path in --json is absolute, as project and out are
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x00ff00@0.0:s=100x100,format=rgba" -frames:v 1 "$t/clear.png"
+    vh cast add "$q" ghost --kind prop --name g --ref "$t/clear.png=front" --source t --license own >/dev/null
+    a=$(cd "$q" && vh cast frames . film.mp4 --id ghost --n 4 --json 2>&1); rc=$?
+    if [ "$rc" = 0 ] && uv run -q --no-project --with pillow python - "$a" <<'PY'
+import json, sys
+from PIL import Image
+d = json.loads(sys.argv[1])
+px = Image.open(d["out"]).convert("RGB").getpixel((200, 90))   # the middle of the reference tile
+ok = d["video"].startswith("/") and d["project"].startswith("/") and max(px) - min(px) <= 6 and 100 <= px[1] <= 160
+sys.exit(0 if ok else f"video {d['video']}, reference tile {px}")
+PY
+    then ok "cast frames: a transparent reference laid on grey, not on the green kept in its clear pixels; --json's paths all absolute"
+    else bad "cast frames on a transparent reference ($rc): $(printf '%s' "$a" | tail -c 300)"; fi
+  fi
   rm -rf "$t"
 }
 
@@ -5321,6 +5421,10 @@ const T = await import("./components/page-turn/component.js"); await run("page-t
 const F = await import("./components/paper-transition/component.js"); await run("fold", (t) => F.state({}, t / 5)); await run("blot", (t) => F.state({ variant: "blot" }, t / 5));
 const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
 const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
+const FF = await import("./components/film-finish/component.js"); await run("film-finish", (t) => FF.state({ haze: 0.3 }, t));
+// film-finish: new grain every frame by default; with grainFps 15 on the 30 fps timeline, the same for two frames
+const g = (t, p = {}) => FF.state(p, t).grainSeed, h = { grainFps: 15 };
+if (g(0) === g(1 / 30) || g(0, h) !== g(1 / 30, h) || g(0, h) === g(2 / 30, h) || g(0) === g(0, { seed: 12 }) || FF.state({ amount: 0 }, 1).amount !== 0) bad.push("film-finish: its grain step");
 const B = await import("./components/build-up/component.js"), cube = (x, y, z) => ({ x, y, z, w: 1, h: 1, d: 1 });
 const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1, 1.5, 1)], order: "height", bucket: 1, stagger: 0.7, jitter: 0.3, appear: "rise" },
   { pieces: [cube(0, 0.5, 0), cube(2, 0.5, 0), cube(4, 0.5, 0)], order: "distance", from: [4, 0, 0], appear: "grow", stagger: 1 },
@@ -5342,7 +5446,7 @@ if (!(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box.y > 0.5) || one({ ease:
   bad.push(`build-up: overshoot ${j(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box)}`);
 [[{ ease: "outBak" }, "ease is a name"], [{ pieces: [{ x: 0, y: 0, z: 0, w: 1, d: 1 }] }, "pieces[0].h is a number"], [{ stagger: -1 }, "stagger is a number, 0 or more"], [{ from: [1, 2] }, "from is [x, y, z]"]].forEach(([o, want]) => {
   try { B.state({ pieces: [cube(0, 0.5, 0)], ...o }, 1); bad.push(`build-up: ${j(o)} passed`); } catch (e) { if (!String(e.message).includes(want)) bad.push(`build-up: ${j(o)}: ${e.message}`); } });
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar, film-finish and build-up (by height, distance, seed), the same forwards, backwards and alone; film-finish's grain new every frame by default, the same within a grain step when one is set; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
@@ -5459,6 +5563,75 @@ HTML
   b=$(vh determinism "$p/dom.html" --samples 3 2>&1); rc2=$?
   case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: paper-transition's fold and blot, spring-scene's canvas and DOM painters and the chapter bar's DOM painter are each a function of t (bin/vh determinism)" ;;
     *) bad "components' other painters, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
+  # film-finish through the page contract in software WebGL: a still scene finished with a depth picture; with a grain step
+  # of 15 a second the grain is the same at 0 and 1/30 s and new at 2/30 s, and the page holds under determinism
+  vh components add "$p" film-finish > /dev/null
+  cat > "$p/finish.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as F from "./components/film-finish/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+const scene = (x, depth) => { x.fillStyle = depth ? "#fff" : "#1d2a3c"; x.fillRect(0, 0, 640, 360); x.fillStyle = depth ? "#333" : "#555"; x.fillRect(60, 200, 520, 160);
+  x.fillStyle = depth ? "#888" : "#fff6e0"; x.beginPath(); x.arc(320, 120, 18, 0, Math.PI * 2); x.fill(); };
+window.film = { duration: 1,
+  frame(t) { X.reset();
+    const src = L.offscreen("s", (x) => scene(x, false)), depth = L.offscreen("d", (x) => scene(x, true));
+    F.canvas(X, F.state({ haze: 0.4, grain: 0.06, grainFps: 15 }, t), src, { depth }); } };
+</script></body></html>
+HTML
+  a=$(vh frames "$p/finish.html" --at 0,0.0333,0.0667 --soft-gl --out "$t/ff" 2>&1); rc=$?
+  b=$(vh determinism "$p/finish.html" --samples 3 --soft-gl 2>&1); rc2=$?
+  f0="$t/ff/finish-t0000.000.png"; f1="$t/ff/finish-t0000.033.png"; f2="$t/ff/finish-t0000.067.png"
+  if [ "$rc:$rc2" = "0:0" ] && grep -q "determinism: holds" <<<"$b" && [ -s "$f0" ] && [ -s "$f2" ] \
+     && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" = "$(ffmpeg -nostdin -v error -i "$f1" -pix_fmt rgba -f md5 - 2>&1)" ] \
+     && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" != "$(ffmpeg -nostdin -v error -i "$f2" -pix_fmt rgba -f md5 - 2>&1)" ]
+  then ok "components: film-finish on a page (software WebGL) keeps its grain within a grain step, changes it across one, and holds under bin/vh determinism"
+  else bad "components: film-finish on a page (frames $rc, determinism $rc2): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # its spill does not miss a small light: a light 2 px wide moving 3 px a frame keeps a glow of the same energy (the
+  # first version gathered 40 taps on a spiral and swung 136 % across these frames; every source pixel is read now)
+  cat > "$p/spill.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as F from "./components/film-finish/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+window.film = { duration: 1,
+  frame(t) { X.reset(); const x = 200 + Math.round(t * 30) * 3;
+    const src = L.offscreen("s", (c) => { c.fillStyle = "#101418"; c.fillRect(0, 0, 640, 360); c.fillStyle = "#fff"; c.fillRect(x, 180, 2, 2); });
+    F.canvas(X, F.state({ grain: 0, vignette: 0, aberration: 0, bloom: 0.6, halation: 0, radius: 0.03 }, t), src); } };
+</script></body></html>
+HTML
+  if ! command -v uv >/dev/null; then skip "film-finish's spill on a small light" "needs uv"
+  elif a=$(vh frames "$p/spill.html" --at 0,0.0333,0.0667,0.1,0.1333,0.1667 --soft-gl --out "$t/sp" 2>&1) \
+     && a=$(uv run -q --no-project --with pillow python - "$t/sp" <<'PY'
+import glob, sys
+from PIL import Image
+e = []
+for f in sorted(glob.glob(sys.argv[1] + "/spill-t*.png")):
+    k = round(float(f.rsplit("-t", 1)[1][:-4]) * 30); x = 200 + 3 * k
+    im = Image.open(f).convert("L"); px = im.load(); bg = px[30, 30]
+    e.append(sum(max(0, px[i, j] - bg) for i in range(x - 40, x + 42) for j in range(140, 222) if not (x - 4 <= i <= x + 6 and 176 <= j <= 186)))
+spread = (max(e) - min(e)) / (sum(e) / len(e)) if e and min(e) > 0 else 9
+print(f"{len(e)} frames, glow {[round(v) for v in e]}, spread {spread:.0%}")
+sys.exit(0 if len(e) == 6 and spread < 0.2 else 1)
+PY
+  ); then ok "components: film-finish's spill keeps a small moving light's glow steady ($a)"
+  else bad "components: film-finish's spill on a small moving light: $a"; fi
+  # the finishing chain playbook/08 gives for a finished film runs as written, and gives the same bytes twice
+  python3 - "$ROOT/playbook/08-vfx-and-motion-sources.md" "$t/chain.sh" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<!-- finish-chain:[^>]*-->\n```bash\n(.*?)```", s, re.S)
+open(sys.argv[2], "w").write(m.group(1) if m else "exit 9\n")
+PY
+  ffmpeg -nostdin -v error -y -f lavfi -i "testsrc2=s=320x180:d=0.5:r=24" -c:v libx264 -pix_fmt yuv420p "$t/in.mp4"
+  (cd "$t" && sed 's/ffmpeg -i/ffmpeg -nostdin -v error -y -i/' chain.sh > c1.sh && sed 's/out\.mp4/out2.mp4/' c1.sh > c2.sh && bash c1.sh && bash c2.sh) 2>"$t/chain.err"; rc=$?
+  if [ $rc = 0 ] && [ -s "$t/out.mp4" ] && [ "$(ffmpeg -nostdin -v error -i "$t/out.mp4" -f md5 - 2>&1)" = "$(ffmpeg -nostdin -v error -i "$t/out2.mp4" -f md5 - 2>&1)" ]
+  then ok "playbook/08's finishing chain (ffmpeg) runs as written and gives the same frames twice"
+  else bad "playbook/08's finishing chain ($rc): $(tail -c 300 "$t/chain.err")"; fi
   rm -rf "$t"
 }
 
@@ -8159,6 +8332,20 @@ PY
   if [ "$rc:$rc2:$rc3:$k" = 1:1:1:1 ] && case "$a|$b|$c|$q" in *"no section"*"审阅页"*"|"*"no such markdown file"*"|"*"no such markdown file"*"|"*"2 sections"*"审阅页"*"审阅台"*) true ;; *) false ;; esac
   then ok "know --show: no such section lists the file's; no such file, or one outside the repo, is said; a part that fits two is listed, not guessed"
   else bad "know --show on what is not there ($rc/$rc2/$rc3/$k): $a | $b | $c | $q"; fi
+  # the film-craft sections are found by the words an agent would use: a shot card for an image prompt (playbook/05),
+  # the finishing pass (playbook/08 and the component), and image gen's help names the card
+  a=$(vh know 镜头卡 生图 --kind doc --json 2>/dev/null); b=$(vh know 光晕 色散 收尾 --json 2>/dev/null); c=$(vh image -h 2>&1)
+  if python3 - "$a" "$b" <<'PY' && grep -q "shot card" <<<"$c"
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+h = a["hits"][0]
+ok = h["file"] == "playbook/05-hybrid-genvideo.md" and h["title"].endswith("给生图写镜头卡")
+docs = [x for x in b["hits"] if x["kind"] == "doc"]; comps = [x for x in b["hits"] if x["kind"] == "component"]
+ok = ok and docs and docs[0]["file"] == "playbook/08-vfx-and-motion-sources.md" and "成片的收尾" in docs[0]["title"] and comps and comps[0]["id"] == "film-finish"
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: 镜头卡 finds playbook/05's shot card, 光晕 色散 收尾 finds playbook/08's finishing pass and film-finish; image gen -h names the shot card"
+  else bad "know, the film-craft sections: $(printf '%s' "$a" | head -c 300) | $(printf '%s' "$b" | head -c 300)"; fi
   rm -rf "$t"
 }
 

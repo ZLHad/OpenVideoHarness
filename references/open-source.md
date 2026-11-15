@@ -128,6 +128,13 @@ ClaudeAnimationBase 在 `engines/` 下，依赖已装好。清单里的其他项
 
 **画风与动画库**：[p5.brush](https://github.com/acamposuribe/p5.brush)（水彩、笔刷）、[rough.js](https://github.com/rough-stuff/rough)（手绘风，稳定但停更）、[perfect-freehand](https://github.com/steveruizok/perfect-freehand)（压感笔迹）、[excalidraw-animate](https://github.com/dai-shi/excalidraw-animate)（白板逐笔）、[GSAP](https://github.com/greensock/GSAP)（免费含商用，非 OSI）、[anime.js](https://github.com/juliangarnier/anime)、[lottie-web](https://github.com/airbnb/lottie-web)、[three.js](https://github.com/mrdoob/three.js)。
 
+**3D 后期、粒子、物理、调参**（2026-11-15 用 GitHub API 核对许可和最近一次提交，没有装）：
+- [pmndrs/postprocessing](https://github.com/pmndrs/postprocessing)（Zlib，`a1f1035`，2026-11-01）：three.js 的后期库，bloom、景深、色差、暗角、噪点、色调映射，把多个效果合进少数几遍。本仓库的 Three.js 层要更重的后期（真景深、大范围 bloom）时先看它；轻量的收尾用 `components/film-finish`。效果里的噪点要按帧号取种子，不能用它自己的时间（硬规则 1）。
+- [pmndrs/react-postprocessing](https://github.com/pmndrs/react-postprocessing)（MIT，`e07ef9a`，2026-10-21）：上面那个的 React Three Fiber 封装。本仓库不用 R3F，只在项目本身是 R3F 时有用。
+- [Alchemist0823/three.quarks](https://github.com/Alchemist0823/three.quarks)（MIT，`de7c207`，2026-05-21）：three.js 的粒子和特效引擎（拖尾、爆发、发射器）。粒子是逐帧积分的，要进片子得能从任意 t 直接算出状态，或者先烘焙成按帧号取的缓存；成群的东西沿路线走，更简单的写法见 `engines/blender.md` 的"一大群东西沿路线飞"（同样适用于 Three.js 的 `InstancedMesh`）。
+- [pmndrs/react-three-rapier](https://github.com/pmndrs/react-three-rapier)（MIT，`ae5c3fe`，2025-11-03）：R3F 里的 Rapier 刚体物理。物理同样是逐帧积分，进片子要先模拟一遍、把每帧的位置存成文件再按帧号读，和 Blender 的刚体烘焙一样。
+- [cocopon/tweakpane](https://github.com/cocopon/tweakpane)（MIT，`50a18c3`，2026-03-15）：一块小的调参面板，滑块、颜色、监视值。look-dev 时在浏览器预览里调参数用，调好的值写回场景的常量或 STYLE.md；渲染的页面里不带它。
+
 **数据可视化**：[d3](https://github.com/d3/d3)、[echarts](https://github.com/apache/echarts)、[vizzu-lib](https://github.com/vizzuhq/vizzu-lib)（图表之间的形变过渡）。
 
 ## 7. 生成式视频与数字人（要 NVIDIA GPU 或云端）

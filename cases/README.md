@@ -19,6 +19,7 @@
 | [community-prompts.md](community-prompts.md)：社区公开的 prompt | 各类 | 各类 | 二手合集 | 成功 prompt 的八个共同点 |
 | [opus55-gallery.md](opus55-gallery.md)：Opus 5.5 社区代码视频精选 | 各类，另有 3D 长片深读 | 各类；Austerlitz 为 WebGL2 | `awesome-opus5-5-videos/`、`opus55-catalog-zhuyansen/`、`Battle-of-Austerlitz-Film/`（均无 license，只读） | 389 支作品的 prompt 统计和精选；Austerlitz 用旁白实测时长驱动镜头，从画面推导音效 |
 | [oneshot-five.md](oneshot-five.md)：五支社区代码视频（3 秒钟、我眼中的你、用做法讲做法、FunTech、Mirage） | 科普、肖像、自我介绍、showreel、发布片 | 未公开（推测为 HTML/WebGL，FunTech 混有生成素材） | 无 | 立意装置先于风格；具体的数字和原话；和我们口味规则的出入 |
+| [3d-paper-library.md](3d-paper-library.md)：月光图书馆里飞起来的两万四千页纸 | 3D 短片 | Blender（Cycles，Python 驱动）+ numpy | 无 | 一个物件撑全片；纸群在队列里有固定位置、沿路线流；光源只有两盏；先低清后高清 |
 | [douyin-vibe-knowledge.md](douyin-vibe-knowledge.md)：抖音上的十支 AI 动画（9 支发于 2026-09 底） | 知识讲解为主，横屏中视频 | 未公开（多数自述用 Claude / Opus 写代码；1 支生成式视频） | 无 | 前四支的几处相似；横屏 2.5–5 分钟、字幕偏小；一个号 15 支的赞数分布；同题的两种立意 |
 
 ## 按需求查案例
@@ -31,3 +32,4 @@
 - 要做抖音上的横屏知识中视频，或者想看同一个题目被做成两支不同的片子：douyin-vibe-knowledge。
 - 想知道 prompt 怎么写：community-prompts，再从 opus55-gallery 第 3 节挑同类型的。
 - 要做 3D 场景或几分钟的长片：opus55-gallery 第 6 节（Austerlitz 深读）。
+- 要用 Blender 路径追踪出一支短片，或要让一大群东西沿路线流动、聚成形状：3d-paper-library。
