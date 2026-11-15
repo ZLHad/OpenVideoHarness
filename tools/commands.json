@@ -570,7 +570,7 @@
             "one picture a call into assets/genimg/<id>/, on record (aigc, model, prompt, seed, cost, inputs); gemini (default):",
             "draft = Nano Banana 2.1, final = Nano Banana Pro, each call held against the budget (none, or over it: not called,",
             "the shortfall said); --provider codex: image_gen on the ChatGPT plan; --alpha: cut out of chroma green; --dry-run: the estimate",
-            "a picture meant to look photographed: the prompt as a shot card (people, lights, defects, staging; playbook/05 镜头卡)"
+            "a picture meant to look photographed: the prompt as a shot card (who is in it, the light, its flaws, camera and action; playbook/05 镜头卡)"
           ]
         },
         {
