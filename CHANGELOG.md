@@ -2,6 +2,74 @@
 
 ## Unreleased
 
+**The console reads at a glance: states that are true, words without jargon, a space, a timeline and a column to find your way in**
+- Why: on real films (older ones, their finals moved to another drive) everything was there and hard to read. A file not there was a big empty box; a delivered film said "交付 · 在做"; a decided concept still asked you to pick a card; a recommended option was framed like a picked one; and the pages were full of commands, file names, codes and inside terms.
+- `bin/vh status` counts a film as delivered from REVIEW.md's line for the final film with its date (`- 成片（2026-10-23）：out/final.mp4`) when the film has moved since; the delivery stop carries `delivered: {date}` (`--json`; `bin/vh projects` rows carry `delivered`; schemas and `tools/desk/README.md` say so), the terminal says it, and `templates/REVIEW.md` has the line.
+- Something not there is said in a line, one of three ways: moved (its cover, contact sheet or key frames stand in, with a button that asks the agent where it went), not made yet, or not used by this film (no narration, no music: that part is not drawn).
+- States in words: each stop by its name and state (已定 11-14, 等你, 跳过, 已交付 10-23), no circled numbers, no strikethrough. A delivered film opens on a look back: its cover, the day, how often it stopped for you, your words (a reply in codes, `1 A · 2 S1`, said again in the options' words). A decided step is in the past tense and read only.
+- Decisions: a radio dot, "推荐" a small tab on the option's edge, a frame only on what you picked; the bar under the column counts "2 件按推荐"; option codes only on the static page's reply line.
+- The right column, top to bottom: what to decide, where the agent is unsure, your notes, the note box (two lines until used), the submit bar. Nothing to decide is one line; a delivered film's column is "这支片子 · 已交付".
+- The space: the films waiting for you first, a row each with the picture, what it asks and "去看"; the rest grouped 在做 / 做完了, with their kind in words and one way to write a day; the column holds the sentence that starts a new film; the rail shows a film's modules only while one is open.
+- The timeline: no time label over the ruler (the time is by the play button); the marks' legend in its bar; help behind "?"; "下一处（1/4）" beside play; a shot too narrow for its name shows its number, or nothing. Listening, the picture is small, the sound lanes take the room, and each narration line has a ▶.
+- Long things fold: facts by kind, sound effects by name, long quotes, the older asset table's cells; the ledger is a "谁来定" grid and a log of what was decided, its "改" on every row; tables are set in the text face.
+- Words: the console, the static page (`tools/review.py`) and the lines of `bin/vh status` the console shows were rewritten: no command or file name in the text (a tooltip at most), no codes or inside terms (圈号, 过了, 档位, 灰盒, 翻案, reads), one thing a sentence, short names for titles; the English completed. The static page names its stop ("初版"); the chat message and the terminal keep their codes.
+- 暗场 takes 棱镜's buttons (framed, a solid primary, small filled badges); the theme switch is a menu. On a phone: one row of navigation, the timeline right after the picture, submitting fixed at the bottom, no key hints on a touch screen.
+- Checks that held old wording now hold behaviour: what a module shows from the data, that a status line names no file or placeholder in either language, that every decision the agent made can be overturned, the listen layout and the phone's order as they are now; and a check for REVIEW.md's delivery line.
+- After an acceptance review on screenshots, older films read right too. `bin/vh status`:
+  - A stop decided in the person's own words stays decided, also under a later waiver.
+  - A film made before the activity log and the delivery record went out once its LESSONS.md was written past the template, the playbook's last step. This needs gate ③ passed or skipped, or no REVIEW.md, and no render in its log. Its day comes from a NOTES.md or REVIEW.md line that finalised it (定稿, 最终版).
+  - The delivery stop names the film (`delivered.films`).
+  - A delivered film waits for no one, whatever an older stop still says. `bin/vh projects` calls it delivered unless a page waits for the person.
+  - An older BRIEF's "# BRIEF — 片名" is read as the film's name.
+- The console:
+  - A film that went out says "没单独停" for the stops it left open, skipped or never had (no "跳过" beside "已交付", and no station without a word).
+  - The right column holds a stop's decisions only on that stop's module; elsewhere it is one line ("初版等你定 2 件 →"). Its cards are compact.
+  - At 1440×900 the column fits without a fade, in both languages:
+    - the note button sits on the line that says what the note is on;
+    - an empty "我的意见" says how to start beside its heading;
+    - on the stop's own module "下一步" is left out, because the cards and "交给 agent" already say it;
+    - an empty block takes no space.
+  - A film card with no picture at all says why ("还没有画面", or "画面不在本机" for a delivered film). A dim letter alone looked like an image still loading.
+  - "下一步" says whose turn it is in a sentence. The agent's own line is in the tooltip.
+  - The timeline's shots are cells of a strip: the picture fills each one and its number sits on the picture.
+  - The timeline's pointer works as an editor's (asked for after use: clicks did unexpected things, and groups folded by themselves):
+    - a click puts the playhead where you click, with no snapping; on a shot, a line, a chapter or a mark it also selects it, and a mark takes its own second;
+    - a drag scrubs and selects nothing;
+    - Shift + drag chooses a span, the one gesture that snaps (while "对齐镜头" is on);
+    - a double click on a shot or a line plays just that;
+    - ⌘/Ctrl + wheel, or a pinch, zooms around the pointer;
+    - a group folds from its name only. The whole row used to fold it, so a click a little off a lane folded a group, and the fold was kept; folds made that way open again;
+    - "?" lists the mouse and the keys.
+  - After two reviews from a user's side, one trying the cut page and one looking at every page:
+    - a drag started on a shot's picture works (the browser took it as dragging the image away);
+    - the frame under the pointer shows only over the ruler, above it, where it used to cover the lanes;
+    - the review layout says where the sound lanes are;
+    - a note just added is brought into view in the column;
+    - on another module, the line to a stop's decisions is a quiet link, with no "下一步" under it saying the same;
+    - takes that are not on this machine are said once, not on every card;
+    - the film's sound shows its length before it plays;
+    - on a phone, a bar above the picture says what waits ("初版等你定 2 件 ↓") and goes to the decisions, which come after the picture and the timeline;
+    - N keeps a span you chose and only moves the playhead, until Esc or a click;
+    - a place to listen is marked with a play triangle, not a second ring beside the agent's ○;
+    - an option's pros and costs in the column are as bright as on the static page; on 棱镜's amber card they had read at under 4:1;
+    - the ⌘↩ badge beside 记下 is readable.
+  - After a second acceptance review on screenshots:
+    - a decision's options in the right column show their pros and costs whole, a line each. They had been cut to one line to fit 900 px; "agent 没把握的" and "请你听" fold to their headings instead and open on a click;
+    - the board page's bar says the stop in the top bar's words, and a delivered film's 立意 and 大纲 bars say that a change now remakes the film;
+    - a delivered film's ledger shows no "还没出过版本" and no row for a decision it never came to. "改" is always there, as a small link;
+    - a static page made after its stop settled shows one status line (the module's), and says "要改，在对话里说", since it has no note box. Its outline counts the open round's unsure places, as the console does;
+    - a shot is written one way in a check's message and in the submission's list, which also keeps a span's end;
+    - the board's moved rough cut offers to say where it went on a delivered film too, and with no picture the page leaves no gap;
+    - the marks are one set on every page: a place to listen an amber ▶, the agent's unsure place an amber ○, the check's finding a red ✕, your note a cyan ●. This covers the sound page and the static page, and a shot flagged unsure carries the ○ that the legend lists;
+    - the music panel says its player is the music's whole track, not the film;
+    - a quote's date is said once, and a log topic of "fact" reads 事实;
+    - the demo's contact sheet shows its six frames.
+  - The waiting film's card and a static page's main picture prefer a picture of the film to a contact sheet.
+  - A static page made after its stop settled is a record ("已定", nothing to pick).
+  - A static page writes a shot one way, S4 as the console does; its anchor and the reply keep the id as given. In English, the reason for the recommended option reads "Why: …". `bin/vh gate --init` titles the reviewer's scores "评审打的分" on a Chinese page.
+  - Covers named in PACKAGING.md are marked as the ones used; the rest are folded. The check, the titles and the licences count one way.
+  - A film no longer here offers to say where it went, on its cut, its look back and its assets.
+
 **`bin/vh desk` becomes Studio without the agent: modules, the film's stops, a right column, and the cut on one timeline**
 - Why: at a stop the person met a document to read. The first thing on the page was a paragraph in bold (one gate ③ opened with more than 150 characters), the film came several screens later, the same choice was said three times, the options were text with a "reply N1 / N2" to type into the chat, the places the agent was least sure of sat in one box with no way to get to that second, and nothing showed where the film stood or led to another film. A person comes to a stop to look, point, say a line and decide; Studio (`docs/proposals/02-studio-client.md`) had already drawn where each of those goes.
 - The shell is Studio's with nothing that needs an agent connected: a rail of modules on the left (空间 立意 大纲 分镜 声音 成片 交付 素材 账本; an amber dot where a stop waits), the flow of the film's own stops on top (passed green, waiting for you amber, the agent at work violet, a station this film does not stop at a hollow dot), and one column on the right: what you are asked to decide as cards to click (the recommended one picked, 1–9 to pick), the places the agent is least sure of and asks you to listen to, your notes, the next step and the spend, one "submit this round", and a note box that writes against whatever is selected. "Tell the agent" is there and switched off; plans, progress and results wait for the agent bridge.

@@ -136,15 +136,18 @@ def picture_of(project, row, gate):
             p = _inside(project, p)
             if p and p.lower().endswith(VID):
                 return {"path": p, "kind": "video", "from": "gate"}
-        for a in assets:
-            p = _inside(project, a.get("path"))
-            if p and p.lower().endswith(IMG):
-                return {"path": p, "kind": "image", "from": "gate"}
+        imgs = [p for p in (_inside(project, a.get("path")) for a in assets) if p and p.lower().endswith(IMG)]
+        for p in [p for p in imgs if "sheet" not in Path(p).name.lower()]:   # a picture of the film, not a contact sheet
+            return {"path": p, "kind": "image", "from": "gate"}
         for s in gate.get("segments") or []:
             for sh in (s.get("shots") or []) if isinstance(s, dict) else []:
                 p = _inside(project, sh.get("frame")) if isinstance(sh, dict) else None
                 if p:
                     return {"path": p, "kind": "image", "from": "gate"}
+        if imgs:   # only a contact sheet: the cover or the film come first, the sheet when there is nothing else
+            sheet = imgs[0]
+            pic = picture_of(project, dict(row, state=None), None)
+            return pic if pic and pic.get("from") != "sheet" else {"path": sheet, "kind": "image", "from": "gate"}
     cover = _newest(project, [f"{d}/*{e}" for d in ("out/covers", "out/final/covers") for e in IMG]
                     + [f"{d}/cover*{e}" for d in ("out/final", "out/review", "out") for e in IMG])
     if cover:
@@ -216,8 +219,9 @@ def ask_of(row, gid, gate):
     decs = [d for d in gate.get("decisions") or [] if isinstance(d, dict)]
     q = next((d.get("question") for d in decs if isinstance(d.get("question"), str) and d.get("question").strip()), None)
     s = gate.get("summary") if isinstance(gate.get("summary"), str) else ""
+    qs = [d["question"].strip()[:80] for d in decs if isinstance(d.get("question"), str) and d["question"].strip()][:4]
     return {"gate": gid, "title": review.gate_title(gid, "zh"), "title_en": review.gate_title(gid, "en"),
-            "question": (q or s or "").strip()[:160], "decisions": len(decs)}
+            "question": (q or s or "").strip()[:160], "questions": qs, "summary": s.strip()[:160], "decisions": len(decs)}
 
 
 def _load(p):
@@ -274,6 +278,9 @@ def studio_extras(project, data):
             out["findings"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in rec.get("findings") or []
                                if isinstance(f, dict) and f.get("severity") in ("fail", "warn")][:200]
     return out
+
+
+SYSTEM_FONTS = re.compile(r"^(/System/Library/.*Font|/Library/Fonts/|~/Library/Fonts/|/usr/share/fonts/|[A-Za-z]:[\\/]Windows[\\/]Fonts[\\/])", re.I)
 
 
 def _json_in(project, rel):
@@ -415,7 +422,8 @@ def module_extras(project, data):
             if f or s or li:
                 if "{" not in f + s + li:   # the template's empty row, or one not filled in yet
                     link = bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", f))   # a link has no file to be there or not
-                    rows.append({"file": f, "source": s, "license": li, "there": None if link or not f else bool(_inside(project, f))})
+                    path = bool(re.fullmatch(r"[\w./~-]+\.\w{1,5}", f.strip("` ")))   # one file by its path; "字体", "屏幕壁纸" or a list with * says what, not where
+                    rows.append({"file": f, "source": s, "license": li, "there": bool(_inside(project, f.strip("` "))) if path and not link else None})
         if rows:
             out["assets_notes"] = {"file": r, "rows": rows[:200]}
 
@@ -433,7 +441,9 @@ def module_extras(project, data):
             raw = r.get("path") if isinstance(r.get("path"), str) else ""
             rel = _inside(project, raw)   # there, and inside; else a name in the project (missing now), or a path outside it (bin/vh assets add takes one)
             named = bool(raw) and not raw.startswith(("/", "~", "\\")) and not re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", raw) and ".." not in re.split(r"[/\\]", raw)
-            rows.append({"id": str(r.get("id") or ""), "kind": r.get("kind"), "path": rel or (raw.strip() if named else None), "outside": "" if rel or named else raw, "there": bool(rel),
+            system = not rel and bool(SYSTEM_FONTS.match(raw.strip()))   # a font the system has (macOS, Windows, Linux): there, not "outside"
+            rows.append({"id": str(r.get("id") or ""), "kind": r.get("kind"), "path": rel or (raw.strip() if named else None), "outside": "" if rel or named or system else raw,
+                         "there": bool(rel) or system, "system": system,
                          "license": lic.get("class") if isinstance(lic.get("class"), str) else "unknown", "license_name": lic.get("name") or lic.get("spdx") or "",
                          "source": src.get("title") or src.get("url") or src.get("tool") or src.get("kind") or "", "url": src.get("url") or "",
                          "aigc": bool(r.get("aigc")), "used_by": _texts(r.get("used_by")), "note": r.get("note") or ""})

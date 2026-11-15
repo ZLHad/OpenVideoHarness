@@ -72,7 +72,13 @@
        "last": {"type": "string"}
       }
      },
-     "note": {"type": ["string", "null"]}
+     "note": {"type": ["string", "null"]},
+     "delivered": {
+      "type": "object",
+      "description": "the delivery stop once the film went out: the day it did (YYYY-MM-DD), from its delivery record, a passing check of the final film, or REVIEW.md's line for the final film; null when no day is written",
+      "required": ["date"],
+      "properties": {"date": {"type": ["string", "null"]}, "films": {"type": "array", "items": {"type": "string"}, "description": "the final films the record names (may be gone from this machine)"}}
+     }
     }
    }
   },

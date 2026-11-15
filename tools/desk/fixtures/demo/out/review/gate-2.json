@@ -4,7 +4,7 @@
   {"id": "pace", "question": "S03 和 S04 各 6 秒，要不要压短？",
    "options": [{"id": "P1", "label": "保持 6 秒", "pro": "原理讲得清", "con": "中段偏慢"},
                {"id": "P2", "label": "各压到 4 秒", "pro": "节奏紧", "con": "鼓包刚出来就切走"}],
-   "recommend": "P1", "why": "这是全片要懂的那一下", "cost": "现在改：低"}
+   "recommend": "P1", "why": "这一镜是全片最要讲懂的一点", "cost": "现在改：低"}
  ],
  "least_sure": [{"id": "S04", "note": "背面的鼓包会不会看不懂"}],
  "segments": [

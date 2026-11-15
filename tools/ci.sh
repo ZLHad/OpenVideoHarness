@@ -2914,6 +2914,7 @@ PY
     vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
   else bad "new --lang: Review language not written"; fi
   cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
+  for x in rz re; do printf '# REVIEW\n' > "$t/$x/REVIEW.md"; done   # gate ① still open (the fixture's is decided): a page that asks, with its reply
   sed 's/^{/{"lang": "en",/' tools/desk/fixtures/zh/out/review/gate-1.json > "$t/rz/out/review/gate-1b.json"
   if vh review "$t/rz" 1 >/dev/null 2>&1 && vh review "$t/re" 1 >/dev/null 2>&1 && vh review "$t/rz" 1b >/dev/null 2>&1 \
     && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html" \
@@ -3119,7 +3120,11 @@ want("over its budget" not in err and "! " not in err, f"the demo pages warn: {e
 for g, h in list(pages.items()) + [("zh", zh)]:
     want(css in h and js in h, f"gate {g}: ui.css and ui.js are not inlined whole")
     want(not re.search(r"<(script|link)[^>]+(src|href)=", h) and "https://" not in h and "http://" not in h, f"gate {g}: loads something from outside the page")
-want('<input type="radio" name="dec-look" value="L1" checked data-rec="1" aria-label="L1 浅色清新 · 推荐" aria-describedby="o-look-L1">' in zh and '<code class="g-reply-v">1 L1</code>' in zh, "zh gate 1: the recommended card is not picked, or no reply")
+art = lambda h: (re.search(r'<article class="gate"[^>]*>', h) or [""])[0]   # the page's own tag (the inlined ui.css names the same attributes)
+want('<input type="radio" name="dec-draft" value="FIX" checked data-rec="1"' in pages["3"] and '<code class="g-reply-v">1 FIX · 2 V1</code>' in pages["3"] and "data-settled" not in art(pages["3"]),
+     "demo gate 3 (still open): the recommended option is not picked, or no reply")
+want('data-settled="done"' in art(zh) and 'value="L1" disabled data-rec="1"' in zh and '<code class="g-reply-v">' not in zh and 'data-settled="done"' in art(pages["1"]),
+     "zh gate 1 and demo gate 1 (decided since): not a record (said as decided, nothing picked or to pick, no reply)")
 want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
 want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
 import json
@@ -3323,7 +3328,7 @@ want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g[
 want(g.get("cards", "").count('class="g-dec') == 2 and "g-act" not in g.get("cards", "") and [(m["kind"], m["t"]) for m in g.get("marks") or []] == [("least", 15.5), ("least", 27.0), ("listen", 9.2), ("listen", 30.5)]
      and g.get("summary", "").startswith("初版"), f"gate 3's right column: {g.get('marks')}")
 s, _, g1 = req("GET", f"/api/p/{K}/gate/1?lang=en"); g1 = json.loads(g1)
-want(s == 200 and not g1["current"] and "Recommended" in g1["html"], "gate 1, an earlier page, in English")
+want(s == 200 and not g1["current"] and '<span class="rec">recommended</span>' in g1["html"] and "推荐" not in g1["html"], "gate 1, an earlier page, in English (its recommended option marked in English)")
 s, _, st = req("GET", f"/api/p/{K}/status")
 want(s == 200 and json.loads(st)["round"] == "3", "status names this round")
 s, h, _ = req("GET", f"/f/{K}/out/frames/S1.svg")
@@ -3373,16 +3378,17 @@ function host(D, readOnly) {   // core.js and modules.js in one context, with th
 const draw = (run, m) => { try { const h = run("MODVIEW." + m + ".main()"); want(!/undefined|NaN|\[object Object\]/.test(h), m + ": undefined, NaN or an object in the page"); return h; } catch (e) { bad.push(m + ": " + e.message); return ""; } };
 const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
 for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
-want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes("同题的视频常见的样子") && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
+want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes(run("esc(D.ideas.same_topic)")) && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
 want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
 want(h.board.includes("第 1 页 · 开场") && (h.board.match(/class="shotc/g) || []).length === 2, "board: page 1, two shots");
 run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
 want(b2.includes("第 2 页 · 两个鼓包") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
   "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
-want(h.sound.includes("-14.2") && h.sound.includes("在用") && h.sound.includes("比中位数快") && h.sound.includes("换气之后的重拍"), "sound: loudness, the voice in use, a fast line, a lift");
+want(h.sound.includes("-14.2") && /<article class="vcard on"[^>]*>\s*<h3><b>Charon<\/b>/.test(h.sound) && (h.sound.match(/<tr\b[\s\S]*?<\/tr>/g) || []).filter((r) => r.includes("chip wait")).length === 1
+  && ["0:09.0", "0:21.3"].every((x) => h.sound.includes(x)), "sound: loudness, the voice in use, one fast line flagged, the lifts at their seconds");
 want(h.ship.includes("cover-a.svg") && h.ship.includes("抖音") && h.ship.includes("月亮只来一次，海水为什么涨两次？") && h.ship.includes("1 处注意"), "ship: covers, platforms, a title, the check");
 want(h.assets.includes("tide-gauge") && h.assets.includes("来源没写许可") && h.assets.includes("读文稿"), "assets: an item, an uncleared licence, a transcript");
-want(h.ledger.includes("用 A，从海边开场。") && h.ledger.includes("翻案") && h.ledger.includes("2026-11-14"), "ledger: your words, an overturn, the dates");
+want(h.ledger.includes("用 A，从海边开场。") && h.ledger.includes("data-overturn") && h.ledger.includes(run('shortDate("2026-11-14")')), "ledger: your words, an overturn, the dates");
 for (const [f, mods] of [[page1, ["idea", "outline"]], [page2, ["board"]]]) {   // a static page: its own data, read only
   const m = fs.readFileSync(f, "utf8").match(/<script type="application\/json" id="ovh-data">([\s\S]*?)<\/script>/);
   if (!m) { bad.push(f + ": no module data"); continue; }
@@ -3404,11 +3410,12 @@ const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.pa
   const o = draw(host(d, false), "outline"); want(o.includes("left:16.667%;width:16.667%") && o.includes("left:66.667%;width:33.333%"), "outline: the bar is not on the scale of its ticks"); }
 { const d = clone(D0); d.history = [{ title: "Gate ① Concept", date: "2026-03-04", quotes: [{ label: "", text: "Use A." }], notes: [], desk: false }];
   d.ledger = [{ what: "concept", who: "own", status: "A", where: "REVIEW.md gate 1" }];
-  const row = (draw(host(d, false), "ledger").match(/<tr[^>]*>(?:(?!<\/tr>)[\s\S])*?>concept<[\s\S]*?<\/tr>/) || [""])[0];
-  want(row.includes("2026-03-04") && row.includes("Use A."), "ledger in English: the decision's row has gate 1's date and words"); }
-{ const s0 = draw(host(clone(D0), false), "sound"), d = clone(D0);   // no curve: said, with its command; with one, on the film's own time
+  const r2 = host(d, false), h2 = draw(r2, "ledger"), li = (h2.match(/<li\b(?:(?!<\/li>)[\s\S])*?Use A\.[\s\S]*?<\/li>/) || [""])[0], cell = (h2.match(/<div class="wg"[^>]*>[\s\S]*?<\/div>/) || [""])[0];
+  want(li.includes(r2('shortDate("2026-03-04")')) && li.includes(r2('esc(gateName("1"))')) && cell.includes(r2('esc(whatName("concept"))')) && cell.includes(r2('esc(t("you_decide"))')),
+    "ledger from an English REVIEW.md: gate 1's words with its stop's name and day, the decision's cell with who decides it"); }
+{ const r0 = host(clone(D0), false), s0 = draw(r0, "sound"), d = clone(D0);   // no curve: said; with one, on the film's own time
   d.studio.peaks = { duration: 32, peaks: Array.from({ length: 64 }, (_, i) => [-(i % 7) / 10, (i % 5) / 10]) }; const s1 = draw(host(d, false), "sound");
-  want(!s0.includes('class="energy"') && s0.includes("bin/vh peaks &lt;项目&gt;") && s0.includes('class="secband"') && s1.includes('class="energy"'), "sound: an empty curve drawn, or a curve not drawn"); }
+  want(!s0.includes('class="energy"') && s0.includes(r0('esc(t("env_none"))')) && s0.includes('class="secband"') && s1.includes('class="energy"'), "sound: an empty curve drawn, a missing one not said, or a curve not drawn"); }
 // extreme and tainted data: every target and label a module makes is one tools/desk/feedback.py takes, and nothing reaches the page unescaped
 const P = '<img src=x onerror=1>"\'><svg onload=1>&amp;';
 const taint = (v) => (typeof v === "string" ? v + P : Array.isArray(v) ? v.map(taint) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, taint(x)])) : v);
@@ -3520,27 +3527,33 @@ try {
   want(J(run("stepPoint(SH, 10.7, 1, 32)")) === J({ shot: "S4", t: 15 }) && J(run("stepPoint(SH, 10.7, -1, 32)")) === J({ shot: "S3", t: 9 }) && J(run("stepPoint(SH, 25, 1, 32)")) === J({ t: 32 }), "← → by shot: " + J(run("stepPoint(SH, 10.7, 1, 32)")));
   // 11: status's lines in Chinese, the project's folder as <项目>, English counts
   run(`D.status = Object.assign({}, D.status, { project: { path: "/tmp/x/demo" } });`);
-  want(run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet").text`) === "反馈已经交给 agent，REVIEW.md 里还没写这一关定了什么", "a station's note stays English in a Chinese page");
+  { const w = run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet")`);
+    want(w.known && /[\u4e00-\u9fff]/.test(w.text) && !/REVIEW\.md|bin\/vh/.test(w.text), "a station's note stays English in a Chinese page, or names a file: " + w.text); }
   want(run(`statusWords("the engine's scaffold is not there: this makes it").known`) && run(`shortPath("bin/vh hf-init /tmp/x/demo landscape")`) === "bin/vh hf-init <项目> landscape", "the next step's words or the project's folder");
   want(!run(`statusWords("a line the page has not met").known`), "an unknown line of status is passed off as known");
-  want(run(`statusWords("fill BRIEF.md (7 {…} left); render the final").text`) === "把 BRIEF.md 填完（还有 7 处 {…}）；渲染成片", "a next step of two of status's lines, as older projects get it");
+  { const w = run(`statusWords("fill BRIEF.md (7 {…} left); render the final")`);
+    want(w.known && w.text.includes("7") && w.text.includes("；") && !/\.md|\{…\}/.test(w.text), "a next step of two of status's lines, as older projects get it, said without the file or the placeholder: " + w.text); }
   run(`LANG = "en"; L = STR.en;`);
   want(run(`t("round_sum", { n: 5, d: 1 })`) === "5 notes · 1 decision" && run(`t("round_sum", { n: 1, d: 2 })`) === "1 note · 2 decisions", "English counts: " + run(`t("round_sum", { n: 5, d: 1 })`));
+  { const w = run(`statusWords("fill BRIEF.md (7 {…} left); record the decision for gate 2 in REVIEW.md")`).text;
+    want(w.includes("7 blanks") && !/\.md|\{…\}|gate 2/.test(w), "status's lines in an English page still name files and stops by code: " + w); }
   run(`LANG = "zh"; L = STR.zh;`);
 } catch (e) { bad.push("core.js: " + e.message); }
 { const r = run("[Object.keys(STR.zh).concat(Object.keys(STR.en)), Object.keys(MSTR.zh).concat(Object.keys(MSTR.en))]"), S = new Set(r[0]), clash = [...new Set(r[1].filter((k) => S.has(k)))];
   want(!clash.length, "a module's word under a key the shell has too (the shell's word wins): " + clash.join(" ")); }
 // 9: every row the agent decides has Overturn, the DECISIONS.md table's (who: delegate) as well as the list's
 { const d = clone(D0); d.ledger = d.ledger.concat([{ what: "style 风格", who: "delegate", status: "已定：暗场蓝", where: "STYLE.md" }]);
-  const h = draw(host(d, false), "ledger"), rows = h.match(/<tr\b[\s\S]*?<\/tr>/g) || [], agent = rows.filter((r) => r.includes("chip agent"));
-  want(agent.length >= 2 && agent.every((r) => r.includes("data-overturn")), "a row the agent decided without Overturn: " + agent.filter((r) => !r.includes("data-overturn")).length + " of " + agent.length); }
+  const h = draw(host(d, false), "ledger"), cells = h.match(/<div class="wg"[^>]*>[\s\S]*?<\/div>/g) || [], agent = cells.filter((r) => r.includes("chip agent"));
+  const log = ((h.match(/<ul class="declog">[\s\S]*?<\/ul>/) || [""])[0].match(/<li\b[\s\S]*?<\/li>/g)) || [];
+  want(agent.length >= 1 && agent.every((r) => r.includes("data-overturn")) && log.length >= 1 && log.every((r) => r.includes("data-overturn")),
+    "a decision the agent made without Overturn: " + agent.filter((r) => !r.includes("data-overturn")).length + " of " + agent.length + " in the grid, " + log.filter((r) => !r.includes("data-overturn")).length + " of " + log.length + " in the log"); }
 // 5: no ledger: the older table in NOTES.md read only, and no filters over nothing
 { const d = clone(D0); d.mods.assets = null; d.mods.refs = []; d.mods.digests = [];
   d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "自己拍的", license: "自有", there: false }, { file: "https://example.org/y.png", source: "某馆", license: "", there: null }] };
-  const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const h0 = draw(host(e, false), "assets");
-  want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes("还没有素材台账"), "the NOTES.md table, or filters over nothing");
+  const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const e0 = host(e, false), h0 = draw(e0, "assets");
+  want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes(e0('esc(t("assets_none"))')), "the NOTES.md table, or filters over nothing");
   want((h.match(/<th>/g) || []).length === 3 && (h.match(/class="chip wait" title=/g) || []).length === 1, "the NOTES.md table: three columns, a tag beside the file not here and none beside the link");
-  want(!h0.includes('class="pgtabs"') && h0.includes("还没有素材台账"), "no ledger and no table: filters, or nothing said"); }
+  want(!h0.includes('class="pgtabs"') && h0.includes(e0('esc(t("assets_none"))')), "no ledger and no table: filters, or nothing said"); }
 // 6: a command, a path or a file name is never inside a label the themes set in capitals (text-transform is inherited)
 const CAPS = ["kick", "pn-h", "mat-h", "g-eyebrow", "g-h", "blk-h", "lgroup", "grp"], KEEP = ["pn-sub", "quiet"], VOID = /^(img|br|hr|input|meta|link|source|wbr|path|line|circle|rect)$/i;
 const capsText = (html) => {
@@ -3592,15 +3605,24 @@ for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss)):
         if re.search(r"text-transform:\s*(uppercase|var\(--label-case\))", rule):
             caps += [f"{f}: {s.strip()}" for s in sel.split(",")]
 allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2",
-           "studio.css: .ask .kick", "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
+           "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
 want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
 want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")
+# a module's element never matches a rule of the shell's written for something else that takes the pointer away (the ledger's
+# overturn button once had the timeline overlay's class: a tall capsule nobody could press)
+mjs = open("tools/desk/static/modules.js", encoding="utf-8").read()
+used = {c for v in re.findall(r'class="([^"]*)"', mjs) for c in re.sub(r"\$\{[^}]*\}", " ", v).split() if re.fullmatch(r"[\w-]+", c)}
+blocked = {m.group(1) for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css + ui, flags=re.S)) if "pointer-events:none" in rule.replace(" ", "")
+           for part in sel.split(",") for m in [re.fullmatch(r"\s*\.([\w-]+)\s*", part)] if m}
+want(not (used & blocked), f"a class the modules use is a shell rule that takes the pointer away: {sorted(used & blocked)}")
 h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
 want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
-want(re.search(r"\.cut\.layout-sound \.timeline\{max-height:min\(58vh,calc\(100vh - \d+px\)\)\}", css) and "min-height:min(200px,22vh)" in re.search(r"\.screen\{[^}]*\}", css).group(0),
-     "on a short window the tall lanes push the picture's controls under the timeline")
-want(all(x in css for x in (".app.is-cut .cut>.viewer{order:2}", ".app.is-cut>.col{order:3}", ".app.is-cut .cut>.lists{order:5")) and '$("#app").classList.toggle("is-cut", bench)' in st,
-     "on a phone the cut does not put the picture, then the decisions, then the lists")
+want(".cut.layout-sound{grid-template-rows:auto minmax(0,1fr)}" in css and re.search(r"\.cut\.layout-sound \.screen\{flex:none;height:clamp\(", css) and ".cut.layout-sound .timeline{max-height:none}" in css
+     and "min-height:min(200px,22vh)" in re.search(r"\.screen\{[^}]*\}", css).group(0),
+     "listening, the picture does not stay small with the lanes scrolling under it, or a short window pushes the picture's controls under the timeline")
+want(all(x in css for x in (".app.is-cut .cut>.viewer{order:2}", ".app.is-cut .cut>.timeline{order:3", ".app.is-cut>.col{order:4}", ".app.is-cut .cut>.lists{order:5")) and '$("#app").classList.toggle("is-cut", bench)' in st
+     and ".flow{display:none}" in css and re.search(r"\.col-round\{position:fixed;[^}]*bottom:0", css),
+     "on a phone the cut does not put the picture, the timeline, the decisions, then the lists; or the stops' bar takes a second row; or submitting scrolls away")
 # 5: no ledger: the table NOTES.md kept before bin/vh assets, read only; a ledger: that, not the table
 p = t / "oldnotes"; shutil.copytree("tools/desk/fixtures/zh", p)
 (p / "NOTES.md").write_text((p / "NOTES.md").read_text(encoding="utf-8") + "\n## 素材台账\n| 文件 | 来源 | 许可 |\n|---|---|---|\n| assets/harbor.jpg | 自己拍的 | 自有 |\n| https://example.org/t.png | 某馆 | 没写 |\n| {文件} | {来源} | {许可} |\n| | | |\n", encoding="utf-8")
@@ -6716,6 +6738,42 @@ PY
     && [ "$c" = "1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ] && [ "$d" = "1:in_progress 2:skipped 3:skipped deliver:not_started | person" ]
   then ok "status: quick skips the gates; a final film with a passing check record is delivered; a waiver skips the gates it names; a pause waits for the person"
   else bad "status: quick, waiver, pause: $a | $b | $c | $d"; fi
+  # a final film REVIEW.md records with its date (a film moved off this machine since, to another drive) is the delivery, on
+  # that day, in the terminal too; one inside a comment, or a draft, is not
+  OVH_PROJECTS="$t" vh new math rf --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-rf)
+  printf '\n## 交付\n<!-- - 成片（2026-10-20）：out/final.mp4 -->\n- 成片（2026-10-21）：out/draft.mp4\n' >> "$q/REVIEW.md"
+  a=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent")
+  printf -- '- 成片（2026-10-23）：out/final-4k.mp4、out/final-1080p.mp4（挪到外接盘）\n' >> "$q/REVIEW.md"
+  b=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:done | nobody" 'd["stations"][-1]["delivered"] == {"date": "2026-10-23", "films": ["out/final-4k.mp4", "out/final-1080p.mp4"]}' '"not on this machine now" in d["stations"][-1]["note"]')
+  c=$(vh status "$q")
+  if [ "$a" = "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$b" = "1:skipped 2:skipped 3:skipped deliver:done | nobody" ] \
+    && case "$c" in *"REVIEW.md records the final film (out/final-4k.mp4, out/final-1080p.mp4, 2026-10-23)"*"waiting on: nobody"*) true ;; *) false ;; esac
+  then ok "status: REVIEW.md's line for the final film with its date (moved off this machine) is the delivery, on that day, and the terminal says so; one in a comment, or a draft, is not"
+  else bad "status: a final film on record in REVIEW.md: $a | $b | $(printf '%s' "$c" | head -8)"; fi
+  # a stop decided in the person's own words is decided, also when a later waiver covers the stops after it; a film made
+  # before the delivery record (no render in its log) whose gate ③ is waived went out once its LESSONS.md was written, on the
+  # day NOTES.md finalised it; with LESSONS.md still the template, or with a render in its log (its own records then say), not
+  OVH_PROJECTS="$t" vh new math legacy >/dev/null 2>&1; q=$(ls -d "$t"/*-legacy)
+  python3 - "$q" <<'PY'
+import re, sys
+from pathlib import Path
+q = Path(sys.argv[1])
+r = (q / "REVIEW.md").read_text(encoding="utf-8")
+r = r.replace("## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 原话：“用 A”\n- 定了：立意 A\n", 1)
+r += "\n## 授权：之后不再停（2026-10-04）\n- 用户授权跳过（2026-10-04）。原话：“之后你自己做完”\n"
+(q / "REVIEW.md").write_text(r, encoding="utf-8")
+d = (q / "DECISIONS.md").read_text(encoding="utf-8")
+(q / "DECISIONS.md").write_text(re.sub(r"(\| concept 立意 \|[^|\n]*\|)[^|\n]*\|", r"\1 已定（关卡 ①） |", d, count=1), encoding="utf-8")
+(q / "NOTES.md").write_text((q / "NOTES.md").read_text(encoding="utf-8") + "\n[定稿 · out/final.mp4]（2026-10-04）\n- 正式画质渲完，检查通过\n", encoding="utf-8")
+PY
+  a=$(st "$q" "1:done 2:skipped 3:skipped deliver:in_progress | agent")
+  printf '\n## 这一支片子\n- 一个形状贯穿全片时，在两种轮廓之间插值，比叠化更像长出来。\n' >> "$q/LESSONS.md"
+  b=$(st "$q" "1:done 2:skipped 3:skipped deliver:done | nobody" 'd["stations"][-1]["delivered"] == {"date": "2026-10-04", "films": ["out/final.mp4"]}' '"LESSONS.md is written" in d["stations"][-1]["note"]' 'd["next_step"]["who"] == "nobody"')
+  printf '{"v":1,"event":"start","run":"1760000000-1","t":1760000000.0,"cmd":"render","args":[],"cwd":"/","pid":1}\n' >> "$q/.ovh/activity.jsonl"
+  c=$(st "$q" "1:done 2:skipped 3:skipped deliver:in_progress | agent")
+  if [ "$a" = "1:done 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$b" = "1:done 2:skipped 3:skipped deliver:done | nobody" ] && [ "$c" = "1:done 2:skipped 3:skipped deliver:in_progress | agent" ]
+  then ok "status: a stop decided in the person's words stays decided under a later waiver; a film from before the delivery record went out when its LESSONS.md was written, on the day NOTES.md finalised it, its film named; not with LESSONS.md still the template, nor once a render is in its log"
+  else bad "status: an older film's end: $a | $b | $c"; fi
   # a check record keeps the film's size and mtime_ns, and a film that differs from them in either is not the one checked:
   # a film put back with an old modification time (cp -p, rsync -a, bin/vh versions use) is older than the record all the
   # same, which the time alone calls current. A record without the two (made before) goes by the film's time, as it did
