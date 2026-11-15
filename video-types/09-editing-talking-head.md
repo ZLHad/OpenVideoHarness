@@ -49,7 +49,7 @@
 ## 审美要点
 
 - **剪的是有效内容**：每段要么增加观点、证据、例子、步骤，要么承担承接；只是换个说法原地重复的删掉。
-- **起点参数**（都是起点，不是规定；出处在 `engines/editing.md`）：
+- **起点参数**（都是起点，不是规定；依据和测法见 `engines/editing.md`）：
 
   | 项 | 起点 |
   |---|---|
@@ -64,7 +64,7 @@
 - **图解只用真实证据**：真实网页截图、真实录屏、真实数字；不用假 UI、假数据占位（和 03 篇一致，也是硬规则 5）。
 - **保持人味**：口头禅删大部分留少量，保留笑声和自然呼吸；剪完要让主讲人看了觉得"这是我实际说过的意思"。
 - **字幕**：沿用 02 篇（单行、一个强调色、每句强调 1–2 个词），加上避脸与中文切分；安全框取 `playbook/03-motion-design.md` §5 的表，和 `engines/editing.md` 里的实测值两边较大者。
-- **声音**：响度 −14 LUFS，配乐垫在人声之下，用 `bin/vh mix` 的 duck。音效按可见事件挂，不每次转场都来一个（video-use 的经验：18 秒里 20 个音效像素材库，8 个才像设计过）。
+- **声音**：响度 −14 LUFS，配乐垫在人声之下，用 `bin/vh mix` 的 duck。音效按可见事件挂，不每次转场都来一个（经验上，18 秒里 20 个音效像素材库，8 个才像设计过）。
 
 ## 禁止
 
@@ -114,9 +114,9 @@ Verify: re-transcribe the render and diff it against the EDL; every cut has meas
 
 ## 可参考的案例与源码
 
-- `engines/editing.md`：EDL、测量切点、口水词与重录规则、重转写对账、两两对比、重构图、避脸字幕、导出，以及借来的思路和出处（社区 skill 的许可证都在那里）。
+- `engines/editing.md`：EDL、测量切点、口水词与重录规则、重转写对账、两两对比、重构图、避脸字幕、导出。
 - `references/repos/hyperframes/skills/media-use/`：`scripts/transcript-cut.mjs`、`references/repos/hyperframes/skills/media-use/references/operations.md`（转写、剪切、响度）。
 - `references/repos/hyperframes/skills/talking-head-recut/`：在不改动素材的前提下叠图解卡片，本类包装阶段的现成流程；不剪片。
 - `references/repos/hyperframes/skills/embedded-captions/`：本地转写、主体抠像、字幕绕到人物身后、安全区；`references/` 下有 `aesthetic-principles.md`、`anti-patterns.md`、`caption-grouping.md`、`layout-heuristics.md`。
-- `references/repos/video-talkcraft/`（PolyForm NC，只读）：真人录音先预剪再做时间戳；以稿子为真值，ASR 听错的字不剪。
-- `cases/community-prompts.md`：@AxtonLiu 的口播图解做法。
+- `cases/community-prompts.md`：口播视频加图解的三条约束（人像缩成画中画、讲到哪画到哪、原声字幕和时长不变）。
+- 同类社区 skill（真人录音先预剪再做时间戳、以稿子为真值）的做法、本地路径和许可：`references/community-skills.md` 第 1 节"剪辑与口播（有现成素材时）"。

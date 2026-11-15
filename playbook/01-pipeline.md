@@ -252,10 +252,10 @@ animatic 是整片长度的灰盒预演，属于阶段 3，放进关卡 ② 的�
 
 每个子代理都要从头读一遍契约和文档，token 成倍地花。平时整支片子开 1–3 个就够（难做的一段、作曲、独立评审），不必每章一个；按章节铺开并行留给 `studio`，或者人点名要。子代理默认用便宜一档的模型（`LOCAL.md` 里指定了就照它），主 agent 留着做第一章和总装。
 
-这是 PDoom（9 个 chapter）和 Functional Emotions（7 个 subagent）实际用过的模式：
+这是 `cases/mv-pdoom.md`（9 个 chapter）和 `cases/mv-functional-emotions.md`（7 个 subagent）两支 MV 实际用过的模式：
 
 1. **主 agent（director）先写三份契约**：`STORYBOARD.md` 和 `ANIMATION_GUIDE.md`（画布、调色板、API、禁止项、安全区），加上共享库。
-2. **主 agent 亲手做第一个 chapter**，当作参考样板。Functional Emotions 就是先重做 chapter I，再派其余的。
+2. **主 agent 亲手做第一个 chapter**，当作参考样板。后一支 MV 就是先重做 chapter I，再派其余的。
 3. **每个 subagent 负责一个 chapter**，只改自己的文件。发现共享文件有 bug 时报告给主 agent，不自己改。
 4. **主 agent 看每个 chapter 的联系表**，写批注退回修改，满意才验收。
 5. **每个 chapter 的首尾各 0.5 秒**要和相邻 chapter 对齐：方向、颜色、转场都要衔接上。
@@ -307,9 +307,8 @@ REVIEW.md 逐字记着人说过的话。交付前照着它过一遍，人就不�
 
 没有一个优秀案例是一轮做完的：
 
-- **PDoom** 做了两轮：第一轮只给歌词和音频；第二轮提高 effort，要求用 p5 笔刷，每镜都要有趣，而且每镜都要衔接下一镜。
-- **Functional Emotions** 第一版是精致的排版歌词视频，被否掉了，理由是"还是歌词视频"。用户第二次要求"要真正的 MV，歌词不是主角"；第三次拿 PDoom 当节奏参考，推动"别让画面静止太久"。
-- **mexicat** 的版本也"调了几轮"。
+- **9 章的 p5.brush MV**（`cases/mv-pdoom.md`）做了两轮：第一轮只给歌词和音频；第二轮提高 effort，要求用 p5 笔刷，每镜都要有趣，而且每镜都要衔接下一镜。同一首歌另一个换成暗色示波器风格的版本，也"调了几轮"。
+- **自写笔触渲染器的那支 MV**（`cases/mv-functional-emotions.md`）第一版是精致的排版歌词视频，被否掉了，理由是"还是歌词视频"。用户第二次要求"要真正的 MV，歌词不是主角"；第三次拿上一支 MV 当节奏参考，推动"别让画面静止太久"。
 - **本仓库的介绍片**：v2 逐条过了 TASTE_CHECKLIST，也过了两轮独立评审，用户看完仍说"不够炫酷"，还听出音乐有几处像卡住。v3 先修音频、做 look-dev，再重构全片。这也是 TASTE_CHECKLIST 加了打分层的原因。
 
 给用户交付 draft 时，主动说出你自己最不满意的地方，比等用户来挑更高效。

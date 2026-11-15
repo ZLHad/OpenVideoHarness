@@ -391,7 +391,7 @@ bash install.sh --no-skill                       # 不注册全局 skill
 | [Code2Video](https://github.com/showlab/Code2Video) | 用 Manim 做教学视频的研究管线 | 把"代码即视频"推广到多类视频，交给通用的 coding agent 执行 |
 | [HyperFrames](https://github.com/heygen-com/hyperframes)、[Remotion](https://github.com/remotion-dev/skills) 的官方 skills | 单个引擎的用法 | 在引擎之上：选引擎、定流程、定审美、做自查 |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | 全套 agent 视频制作系统 | 更轻：主要是 markdown、模板和一个命令行，任何 coding agent 都读得懂、改得动 |
-| [归藏 product-video skill](https://github.com/op7418/guizang-product-video-skill) | 专做软件产品更新片 | 覆盖更多类型，有人工拍板的关卡、风格库和中英双语声音；配乐音效的思路受它启发，代码是独立写的 |
+| [归藏 product-video skill](https://github.com/op7418/guizang-product-video-skill) | 专做软件产品更新片 | 覆盖更多类型，有人工拍板的关卡、风格库和中英双语声音 |
 
 ## 参与贡献
 
@@ -399,7 +399,19 @@ bash install.sh --no-skill                       # 不注册全局 skill
 
 ## 致谢
 
-感谢 HyperFrames、Remotion、Manim、p5.brush、Three.js、Blender、Qwen3-TTS、mlx-audio、FFmpeg；Code2Video、Paper2Video、TheoremExplainAgent 等研究；ClaudeAnimationBase、PDoomVideo、functional-emotions-video、Battle-of-Austerlitz-Film、归藏 product-video skill、lemo-opuscar、OpenMontage、awesome-opus5-5-videos 等开源项目；以及在时间线上公开分享实验和提示词的创作者，包括 Movez 和 Eian。完整名单、许可证和用途见 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)。
+感谢做片子时用到的这些库和工具：
+
+- HyperFrames 和 GSAP：短视频、宣传片、数据片和梗片的 HTML 引擎；
+- Manim Community：数学、物理和论文讲解；Remotion：另一条 React 路线；
+- ClaudeAnimationBase 及其用的 p5.js、p5.brush：内置的手绘引擎；
+- Three.js：canvas 引擎里的 3D；Blender：路径追踪的镜头；
+- Chrome 和 Puppeteer：把网页画成帧；FFmpeg：编码、探测和混音；
+- Qwen3-TTS（经 mlx-audio）：默认的本地配音；mlx-whisper：词级时间戳；
+- NumPy、SciPy 和 librosa：代码作曲、音效和节拍表；Pillow：联系表；
+- yt-dlp：选题和拉片时读视频网站；uv：运行 Python 工具；
+- Inter Tight 和 JetBrains Mono：官网的两种字体。
+
+参考过的作品、相关论文，以及改编进本仓库的代码的许可，见 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)。
 
 本项目是独立项目，与 Anthropic、HeyGen、Remotion、Show Lab、阿里云均无隶属关系。
 

@@ -15,7 +15,7 @@ How long must text that nobody reads aloud (titles, labels, number cards) stay o
 
 ## Setup
 
-- **The rule** ([`tools/readcheck.py`](../../../tools/readcheck.py); the formula is adapted from lemo-opuscar's `core/render/readcheck.mjs`, MIT):
+- **The rule** ([`tools/readcheck.py`](../../../tools/readcheck.py); its header says where the formula comes from and under what licence):
   - on-screen text stays at least `max(2.5 s, CJK characters ÷ 4.5 + other non-space characters ÷ 15 + 1.5 s)`;
   - subtitle lines follow the voice: at most 9 CJK characters per second (half-width counts half) or 20 Latin characters per second, at least 1.8 s each (the Netflix ceilings for adult programmes);
   - time starts when the text is fully shown (decoding text counts from the moment it settles) and ends when it starts to leave; a line of 16 Chinese characters must stay about 5.1 s, a 4-character label 2.5 s. On-screen text is read more slowly than subtitles (4.5 against 9 Chinese characters per second, 15 against 20 Latin characters) because a subtitle arrives with the sound and the viewer is checking what they just heard, while silent text must first be found on the screen and then read from the start; hence the extra 1.5 s.
@@ -64,7 +64,7 @@ Sources: [the description of #25](https://github.com/ZLHad/OpenVideoHarness/pull
 
 - **The windows are reconstructed by hand from the JS formulas, not measured from rendered frames**, and there is no per-frame OCR. "63 texts" is itself a modelling choice (for example, a two-beat sentence counts as one).
 - **0/24 is optimistic**: the model counts only show and hide times, not opacity, so a label pushed to a third of full opacity still counts as readable, and `readcheck` cannot see text cropped out of the frame. Both need the contact sheet.
-- **The constants are not calibrated.** 4.5 characters/s, 15 characters/s, 1.5 s and 2.5 s come from lemo-opuscar and our own floor; we have not tested them on our audience, and we do not know what unread text costs in watch-through.
+- **The constants are not calibrated.** 4.5 characters/s, 15 characters/s, 1.5 s and 2.5 s are the formula's starting values and our own floor; we have not tested them on our audience, and we do not know what unread text costs in watch-through.
 - **The revision plan's 34.67–49.33 s** is slightly off from where these 24 texts start (the first label becomes readable at 33.6 s); the count is unaffected.
 - v4 is not built; the blue diamonds in Figure 1 are planned durations, not rendered ones.
 

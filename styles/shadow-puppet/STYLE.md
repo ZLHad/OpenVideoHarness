@@ -15,7 +15,7 @@
 | 《猪八戒吃瓜》（常被称作《猪八戒吃西瓜》） | 1958 · 上海美术电影制片厂，导演万古蟾 | 中国第一部剪纸片，筹备时专门收集各派皮影研究：给角色加关节、侧面走位、平移表演 |
 | 《阿赫迈德王子历险记》（Die Abenteuer des Prinzen Achmed） | 1926 · Lotte Reiniger | 侧面表演的节奏：动作全靠轮廓读懂；蕾丝般镂空的布景 |
 
-**不照搬**：不复刻任何现存传统影人的造型（具体戏出的人物、头茬图样），不用传统唱段原曲，也不照搬 lemo 样片里的"后羿射日"。
+**不照搬**：不复刻任何现存传统影人的造型（具体戏出的人物、头茬图样），不用传统唱段原曲，也不照搬现成样片里的"后羿射日"。
 
 ## 视觉语法
 
@@ -109,7 +109,7 @@ Sound: gong-and-drum patterns drive every action, the drums pull back to a low h
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/shadow-puppet/STYLE.md`（LemoLab，CC BY 4.0，https://creativecommons.org/licenses/by/4.0/）。本文为重写：透射光合成公式、灯的闪烁参数、贴幕离幕和幕后镜像的思路改编自该文。原文说皮偶用驴皮，同时以陕西华阴皮影为参照；按中国非物质文化遗产网的资料，驴皮是唐山一路的做法，陕西多用牛皮，本文把两者分开写。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/shadow-puppet/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：全文重写；原文说皮偶用驴皮，同时以陕西华阴皮影为参照，本文按中国非物质文化遗产网的资料，把唐山的驴皮和陕西的牛皮分开写。
 - 中国非物质文化遗产网"皮影戏（唐山皮影戏）"条目：https://www.ihchina.cn/project_details/13392.html
 - `video-types/07-hand-drawn.md`（剪纸风一节）、`playbook/03-motion-design.md`、`playbook/04-audio.md`。
 - 相近预设：`styles/silhouette-papercut/`（正面光、不透光的剪纸与剪影，和皮影要分清）。

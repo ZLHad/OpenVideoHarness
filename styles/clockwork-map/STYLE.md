@@ -100,7 +100,7 @@ Visual style: clockwork map. The film is one continuous low flight over a parchm
 
 ## 相关资源
 
-- lemo-opuscar 没有对应风格。最接近的是 `references/repos/lemo-opuscar/styles/blueprint/STYLE.md`（LemoLab，CC BY 4.0）：齿轮按八分音符擒纵步进、零件按顺序展开归位的做法来自它，本文改写了数值和用途；`iso-infographic` 的"一个立体模型一镜讲完"也可对照。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/blueprint/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：重定了数值，换了用途。
 - `playbook/08-vfx-and-motion-sources.md` 的"一镜到底（3D 世界）"和"声画联动"两节；`playbook/03-motion-design.md` §6。
 - `video-types/02-knowledge-short.md`、`video-types/05-data-story.md`、`video-types/03-product-promo.md`。
 - 外部：Art of the Title 的 GoT 片头页（<https://www.artofthetitle.com/title/game-of-thrones/>），只看语法，不取素材。

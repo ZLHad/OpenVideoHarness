@@ -2,17 +2,16 @@
 
 **类型**：歌词 MV，手绘水彩风格；长 156.6 秒，1080p，24fps
 **源码**：`references/repos/PDoomVideo/`。仓库**没有 license**，只能阅读参考，不要复用其中的代码或资源。
-**来源**：[repo](https://github.com/JohnHeibel/PDoomVideo)、[NotinReality 的原帖](https://x.com/other__reality/status/2102514581684052169)
 
 ## 来龙去脉
 
-1. deckard 发了一首 AI 生成的歌《Claude-Pop - I'm Upping My P(Doom)》。
-2. NotinReality（John Heibel）用 Claude Opus 5.5 在 Claude Code 里给这首歌做了 MV，并开源了代码。之后他又整理出一个通用的起步模板 ClaudeAnimationBase，也就是本工作台的 `engines/ClaudeAnimationBase/`。
-3. 有人在这个基础上继续创作：
-   - donald jewkes 写了一个超长 prompt，做了升级版，见 `mv-claude-pop.md`；
-   - pleometric 照 donald 的流程做了一版；
-   - mexicat 换成暗色示波器、终端、表格文档的风格，"调了几轮"；
-   - YC 做了中文版：重新填中文词，用 Suno 翻唱，再让 Claude Code 把动画重新对齐到新音轨。他称之为 "Video-as-code：视频可以像代码一样 Fork & Remix"。
+1. 起点是一首 AI 生成的歌《Claude-Pop - I'm Upping My P(Doom)》。
+2. 这支 MV 是用 Claude Opus 5.5 在 Claude Code 里做的，代码开源。同一套代码后来整理成通用的起步模板 ClaudeAnimationBase，也就是本工作台的 `engines/ClaudeAnimationBase/`。
+3. 之后又有几版在它的基础上继续做：
+   - 一个超长 prompt 做出的升级版，见 `mv-claude-pop.md`；
+   - 照升级版的流程重做的一版；
+   - 换成暗色示波器、终端、表格文档风格的一版，"调了几轮"；
+   - 中文版：重新填中文词，用 Suno 翻唱，再让 Claude Code 把动画重新对齐到新音轨。制作者称之为 "Video-as-code：视频可以像代码一样 Fork & Remix"。
 
 ## 怎么做的
 
@@ -53,4 +52,4 @@
 - 长片的"契约文件 + 按章节并行 subagent"结构：`playbook/01-pipeline.md`。
 - STORYBOARD 的表格格式：每镜一行，列为"时间 | 歌词 | 画面 | 出场"。
 - 副歌回到同一布景并逐次升级；配色弧线；首尾呼应。
-- 视频就是代码，所以换歌、换语言、换风格都是 fork 一份再改（YC 的中文版）。
+- 视频就是代码，所以换歌、换语言、换风格都是 fork 一份再改（例如上面的中文版）。

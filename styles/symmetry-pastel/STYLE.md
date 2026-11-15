@@ -119,6 +119,5 @@ Visual style: symmetrical pastel storybook. Every frame is centred on the vertic
 
 ## 相关资源
 
-- lemo-opuscar 里最接近的是 `paper-popup`（立体书舞台）和 `art-deco`（中轴构图、沿中轴开合的转场），见 `references/repos/lemo-opuscar/styles/<slug>/STYLE.md`（LemoLab，CC BY 4.0）。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Velvet Standard（对称、居中、长停留）可以对照，但它慢悠悠的滑行节奏不适合本风格。
 - `video-types/02-knowledge-short.md`、`video-types/07-hand-drawn.md`、`playbook/03-motion-design.md` §6。

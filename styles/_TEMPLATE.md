@@ -68,5 +68,5 @@
 
 ## 相关资源
 
-- 参考库里对应的风格文档（例如 `references/repos/lemo-opuscar/styles/<slug>/STYLE.md`，MIT，改写时署名 LemoLab）；
 - 相关的类型文档、playbook 章节和 showcase。
+- 只是参考过的作品、风格库和社区片子不在这里署名，统一在根目录的 `ACKNOWLEDGMENTS.md` 致谢。只有按许可要求改写了别人的文字（例如 CC BY 4.0）时，写一行许可说明：作者、改写自哪个文件（附出处链接）、哪个版本、许可名和许可链接、改了什么。

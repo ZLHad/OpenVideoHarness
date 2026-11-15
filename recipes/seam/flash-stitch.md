@@ -17,8 +17,7 @@ pitfalls: [flash-rate, overuse, sound-dependent]
 qa: {seam: 0}
 status: draft
 pairs_with: [accelerando-cuts]
-derived_from:
-  - {repo: x.com/tkm_hmng8, path: status/2105255710531674358, license: none, note: 本仓库 2026-10-01 对这支 showreel 的逐帧测量；只取手法}
+derived_from: []
 sketch_sha: "d782dace1f9c"
 ---
 
@@ -100,4 +99,4 @@ canvas 的 `filter: grayscale(1) contrast(1000%)` 近似二值化，再用 `mult
 
 ## 来源
 
-本仓库对一支公开 showreel 的拆解（@tkm_hmng8 的 FUNTECH SHOWREEL 2026，X，2026-09-30；49.7 s、60 fps、174 BPM）：在内存里逐帧解码测到切点处的 2 帧高反差闪帧（黄黑二值、红黑双色、负片各一处）和 3–4 帧的像素拖影。只取手法，没有使用它的任何画面、声音或文字。
+本仓库对一支公开 showreel 的逐帧拆解（2026-09-30 发布，49.7 s、60 fps、174 BPM，见 [`cases/oneshot-five.md`](../../cases/oneshot-five.md) 第 4 节）：在内存里逐帧解码测到切点处的 2 帧高反差闪帧（黄黑二值、红黑双色、负片各一处）和 3–4 帧的像素拖影。只取手法，没有使用它的任何画面、声音或文字。

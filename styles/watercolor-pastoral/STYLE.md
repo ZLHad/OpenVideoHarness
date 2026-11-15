@@ -99,7 +99,7 @@ Music: warm pad, soft plucked arpeggio, a simple flute line, a bell or two; F ma
   - 每层先 `boilSeed('far')`、`boilSeed('mid')`……静止的山不能 boil；草叶位置用 `hash(i)`；
   - 转场用 `brushWipe(p, [天色, 草色])`、`glow()` 做光晕过曝。
 - **现成样板**：`showcase/01-handdrawn-clawd-leaf/`（12 秒成片：秋天调色、叶子被风吹走的动作、iris 和 brush wipe 转场，附 20 条自评修复记录）。它是暖秋版本；做夏日田园时把色板换成本文的，风和叶子的写法直接参考。
-- 不用 ClaudeAnimationBase 时，可以参考 lemo `watercolor` 的 Canvas2D 笔触引擎：可变宽度的带状笔触 + 3–9 条会断开的鬃毛轨迹，画完的植物缓存成 sprite，只做摇摆。
+- 不用 ClaudeAnimationBase 时，可以自写 Canvas2D 笔触引擎：可变宽度的带状笔触 + 3–9 条会断开的鬃毛轨迹，画完的植物缓存成 sprite，只做摇摆。
 
 ## 自查重点
 
@@ -111,7 +111,7 @@ Music: warm pad, soft plucked arpeggio, a simple flute line, a bell or two; F ma
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/watercolor/STYLE.md`（LemoLab，CC BY 4.0，https://creativecommons.org/licenses/by/4.0/）。本文借鉴了它的空气透视分层、湿边的多遍渲染和"画完即缓存成 sprite 只摇摆"的做法，风格方向从自然笔记改成田园氛围。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/watercolor/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：风格方向从自然笔记改成田园氛围。
 - `engines/ClaudeAnimationBase/ANIMATION_GUIDE.md`（`paint`、`glow`、`boilSeed`、`brushWipe` 的用法）、`showcase/01-handdrawn-clawd-leaf/`。
 - `video-types/07-hand-drawn.md`、`video-types/04-lyric-music-video.md`、`playbook/03-motion-design.md`、`playbook/04-audio.md`。
 - 相近预设：`styles/ink-wash/`（同一引擎的水墨用法）。

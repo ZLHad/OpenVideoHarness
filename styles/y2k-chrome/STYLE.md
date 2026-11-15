@@ -10,17 +10,16 @@
 
 | 作品 | 年份 · 作者 / 工作室 | 从它身上学什么 |
 |---|---|---|
-| FunTech Showreel 2026（[X 帖子](https://x.com/tkm_hmng8/status/2105255710531674358)，拆解见 `cases/oneshot-five.md` 第 4 节） | 2026-09-30 · ハシモトタクマ（FunTech） | 一个铬面角色和一个充气铬字标贯穿十几个风格世界，贴纸和游戏 HUD 当点缀：画面怎么换，观众都知道看的是同一个主角 |
 | *Wipeout* | 1995 · Psygnosis（PlayStation）；封面、说明书、游戏内字体和各虚构车队的品牌由谢菲尔德的 The Designers Republic 设计 | 锐舞年代的未来主义品牌：logo 当图标用，游戏界面本身就是平面设计 |
 | Mac OS X 的 Aqua 界面 | 2000-01-05 在旧金山 Macworld Expo 发布 · Apple | 水滴一样的组件：反光、半透明；Jobs 说过设计目标之一是让人看了想舔一口。样片的果冻砖就学这个 |
 
-核实：事实以协调方 2026-10-02 核过的为准；Jobs 那句话是转述。**不照搬**：不用 FunTech 的头盔吉祥物和字标、*Wipeout* 的车队 logo 和字体、Aqua 的窗口按钮和 Dock；FunTech 片尾前约 1 s 的真静音也不学（本仓库底线：片中不出现数字静音）。
+核实：事实以协调方 2026-10-02 核过的为准；Jobs 那句话是转述。**不照搬**：不用 `cases/oneshot-five.md` 第 4 节那支 showreel 的头盔吉祥物和字标，不用 *Wipeout* 的车队 logo 和字体、Aqua 的窗口按钮和 Dock；那支 showreel 片尾前约 1 s 的真静音也不学（本仓库底线：片中不出现数字静音）。
 
 ## 视觉语法
 
 下面是样片的做法和理由。数字是样片的值，换题材时按理由调。
 
-- **一个铬角色贯穿全片**（从 FunTech 学的那一条）：样片的铬团砸地、吐字、跳关、被卷走、再变成片尾的字。换成铬字标或吉祥物也行，要从头跟到尾。
+- **一个铬角色贯穿全片**：样片的铬团砸地、吐字、跳关、被卷走、再变成片尾的字。换成铬字标或吉祥物也行，要从头跟到尾。
 - **三种材质，一个比一个亮**：哑光的地、半透明果冻、全反射的铬。样片拿它讲进度：大纲、分镜是塑料，初版是铬。
 - **色板**（样片）：
 
@@ -98,6 +97,5 @@ Visual style: millennium pop-tech (1999–2001) carried by one character, a blob
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/` 里的 `game-show`（踩拍的玩具感和贴纸横幅，全是平涂矢量）和 `glass-product`（自发光条状面拼的摄影棚当反射环境），LemoLab，MIT。
 - 本库里容易混的：`synthwave-outrun`、`halftone-comic`、`pixel-16bit`。
 - `cases/oneshot-five.md` 第 4 节；`video-types/03-product-promo.md`、`08-brutalist-meme.md`、`04-lyric-music-video.md`；`playbook/03-motion-design.md` 第 4 节（字号分档）；`playbook/04-audio.md`。

@@ -123,6 +123,5 @@ Visual style: monumental, minimal science fiction. Vast unadorned forms (slabs, 
 ## 相关资源
 
 - 本仓库的介绍片：`showcase/04-intro-film/` 的 STYLE.md、`js/fx.js` 效果预设和 NOTES.md 里的取舍；`playbook/08-vfx-and-motion-sources.md` 的预设栈和"光效不能把字烧掉"底线。
-- lemo-opuscar 里没有直接对应的风格。`dark-keynote` 的扫光揭示、`glass-product` 的"慢爆炸图、静默之后落拍"可以借用（`references/repos/lemo-opuscar/styles/<slug>/STYLE.md`，LemoLab，CC BY 4.0）。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Shadow Cut（从黑暗中浮现、慢推）。
 - `video-types/03-product-promo.md`、`cases/explainer-interstellar-blackhole.md`。

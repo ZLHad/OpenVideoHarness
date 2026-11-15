@@ -5,7 +5,7 @@
 ## Canvas
 - 1920x1080, 30 fps. Manim frame = 14.222 x 8 units → 135 px/unit.
 - Safe box (EBU 90%): 96 px left/right, 54 px top/bottom → x ∈ [-6.40, 6.40], y ∈ [-3.60, 3.60] units.
-- **Anchor grid** (Code2Video style, but over the whole safe box because there is no lecture column): 6 cols × 6 rows, rows A–F top→bottom, cols 1–6 left→right. Cell = 2.133 × 1.20 units (288 × 162 px).
+- **Anchor grid** (over the whole safe box, because there is no lecture column): 6 cols × 6 rows, rows A–F top→bottom, cols 1–6 left→right. Cell = 2.133 × 1.20 units (288 × 162 px).
   Cell centres: cols x = -5.33, -3.20, -1.07, 1.07, 3.20, 5.33; rows y = 3.0, 1.8, 0.6, -0.6, -1.8, -3.0.
 - Placement only through `grid.at(mob, "B2")` / `grid.area(mob, "B1", "F6", fit=…)` in `scenes/style.py`. Exceptions (derived, not free-hand): labels via `next_to(object, …)` within one cell, and points computed from axes coordinates (curves, braces, magnifier box).
 - Zones: row A = equation (A1–A5) + counter (A6). Rows B–F = graph. Final layout: parent graph shrinks into C1–E3 (≈ 39% frame width), zoom panel fills B4–F6.

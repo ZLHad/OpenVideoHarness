@@ -94,6 +94,6 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 来源
 
-改写自 gongnyang/awesome-ai-motion（MIT）的卡片 answer-stream。文字重写；参数沿用卡片的默认值和范围，按 30 fps 换算；草图是本仓库写的，问答内容是占位。卡片注明的概念来源（GSAP、HyperFrames）只是手法出处，没有代码进来。和 `doc-self-writing` 的区别：那一张是整页排版好的文档在光标后面一块块写出来、侧栏跟着铺开，这一张只是一段对话式的回答按词组流出。
+改写自 gongnyang/awesome-ai-motion（MIT）的卡片 answer-stream。文字重写；参数沿用卡片的默认值和范围，按 30 fps 换算；草图是本仓库写的，问答内容是占位。和 `doc-self-writing` 的区别：那一张是整页排版好的文档在光标后面一块块写出来、侧栏跟着铺开，这一张只是一段对话式的回答按词组流出。
 
 **许可**：本文件修改自 [awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion) 在 commit `1e3c249` 时的 `effects/answer-stream/README.md`（Copyright (c) 2026 gongnyang，MIT），改了什么见上一段。来自上游的部分仍按 MIT 授权，许可全文见 [`LICENSES/MIT-awesome-ai-motion.txt`](../LICENSES/MIT-awesome-ai-motion.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

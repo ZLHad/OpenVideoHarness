@@ -111,7 +111,4 @@ The swatch's settings, to try or to depart from: China red #C21F1F with deep red
 
 ## 相关资源
 
-- lemo-opuscar 没有直接对应的风格；相近的是 `references/repos/lemo-opuscar/styles/papercut-red/STYLE.md`（红色剪纸，CC BY 4.0，LemoLab）和 `game-show`（卡在 BPM 网格上的扁平图形）。
-- `references/repos/remotion-guofeng-starter/style/design.md` 与 `palette.md`（代码 MIT；`public/` 素材不授权）：朱红只点一下、印章当重音、宋楷苹方三种系统字的分工，本预设借了这套分工，把配色推向更饱和的节日红。
-- `references/repos/story-to-handdrawn-video/references/handdrawn-style-library.json` 的 `hs-132`、`hs-189`（国潮插画、新国潮工笔，MIT）。
 - `video-types/03-product-promo.md`、`video-types/02-knowledge-short.md`、`playbook/03-motion-design.md`、`playbook/04-audio.md`。

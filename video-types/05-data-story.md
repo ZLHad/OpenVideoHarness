@@ -68,13 +68,9 @@ Every on-screen number traced to its source in NOTES.md; the treatment never cha
 ## 可参考的案例与源码
 
 - `references/repos/hyperframes/skills/hyperframes-creative/references/data-in-motion.md`（**必读**）。
-- `references/repos/3brown1blue/src/three_b1b/skill/rules/graphs-plots.md`：用 Manim 画图表的做法。
 - `playbook/03-motion-design.md`：计数和 stagger 的数值参数。
 - `recipes/sequences/data-along-time.md`：沿时间轴讲的数据片的全片骨架：一份时间映射管画面和声音、定位环和引线、字卡的读时、换视图时把线带过去。
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **data-animation-skills / chart-animation**（MIT）：每个值都由当前帧计算，关掉图表库自带的动画；计数先取整再格式化，用 tabular-nums；排名也插值，超车时滑过去而不是跳过去。见 `references/repos/data-animation-skills/skills/chart-animation/SKILL.md`、`references/repos/data-animation-skills/skills/chart-animation/references/bar-chart-race.md`。
-- **lemo-opuscar 的 `dataviz` 风格**（MIT）：图表本身就是镜头和节奏，手写批注钉在具体数字上。见 `references/repos/lemo-opuscar/styles/dataviz/STYLE.md`。
+同类社区 skill（每个值由当前帧算出的图表动画、把图表本身当镜头的数据风格、用 Manim 画图表）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"05 数据叙事 / 动画图表"。只读参考；复用代码前先确认许可。

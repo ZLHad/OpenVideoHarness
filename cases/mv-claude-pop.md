@@ -1,29 +1,28 @@
-# 案例：Claude Pop（donald jewkes）
+# 案例：Claude Pop
 
 **类型**：MV，混合管线（生成式视频打底 + JS 转描）
 **源码**：未公开
-**来源**：[原帖](https://x.com/donaldjewkes/status/2102801274173587569)、[完整 prompt](https://x.com/donaldjewkes/status/2102801469976248500)、[工具说明](https://x.com/donaldjewkes/status/2102801906573935057)
 
-## 他怎么说
+## 制作者的说法
 
-他对着电脑口述了约 5 分钟的 prompt（语音转文字，所以原文把 fal 写成了 "foul"），Claude 连续工作了 12 小时，他醒来看到成片。他说 Claude 可用的资源有：Seedance 2.5（原文写作 "SD2.5"）、ElevenLabs、他整理的参考素材库，以及 NotinReality 的 PDoomVideo 仓库。
+prompt 是对着电脑口述的，约 5 分钟（语音转文字，所以原文把 fal 写成了 "foul"）；Claude 连续工作了 12 小时，制作者醒来时成片已经出来了。按制作者的说法，Claude 可用的资源有：Seedance 2.5（原文写作 "SD2.5"）、ElevenLabs、一个自己整理的参考素材库，以及 PDoomVideo 仓库。
 
 **成片是否真的完整实现了"转描"，没有源码，无法确认（UNVERIFIED）。**
 
 ## prompt 的结构
 
-以下是摘要，原文见上方链接。
+以下是摘要，不复述原文；正文基本一致的一份收在 `opus55-gallery.md` 第 3 节"04 歌词视频、MV"里 Claude Pop 那一条。
 
 1. **任务**：用同一条音轨，端到端地重做《Claude Pop》MV。要"深入思考怎样最好地把每句歌词视觉化"，不必沿用原作风格。
 2. **资源**：
    - 可以自由上网找参考、研究动效设计；
-   - 他的项目目录，以及两个 skill：一个是参考素材汇编，一个是把参考做成 JS 歌曲；
+   - 制作者的项目目录，以及两个 skill：一个是参考素材汇编，一个是把参考做成 JS 歌曲；
    - ElevenLabs API，用来做音效；
    - fal API：生成角色设定图，以 Claude 的向日葵形象为基础，设计一个更拟人化的流行歌手主角，再加上伴舞和配角；
-   - 他写的 Seedance 2.5 文档。
+   - 一份自写的 Seedance 2.5 文档。
 3. **审美立场**：
    - 不要 "GPT slop"；
-   - 别太像 Pixar（他认为那也是 slop）；
+   - 别太像 Pixar（prompt 里认为那也是 slop）；
    - 可以借鉴 K-pop，但不要被它束缚；
    - 要形成一套能和 fal 上的生图模型配合好的统一风格。
 4. **世界观**：要营造"加速"的感觉；梳理 Navier-Stokes 问题被攻克、数学被 AI "吃掉"这些时间线上的热点；融入 Shinji 梗等当下的梗；可以用 internet brutalism 的方式直接插入素材；目标受众是旧金山科技推特圈。

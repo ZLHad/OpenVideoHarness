@@ -101,7 +101,7 @@ The swatch's settings, to try or to depart from: warm newsprint #FAF8F3 and ink 
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/dataviz/STYLE.md`（LemoLab，CC BY 4.0）：注释钉在数据坐标里、坐标轴随故事长出来、出界后再定标。本文借了这三条，改成新闻纸、衬线标题和"先猜后揭示"的顺序，去掉了铅笔和声音化。
-- `references/repos/hyperframes/skills/hyperframes-creative/references/data-in-motion.md`；`references/repos/data-animation-skills/skills/chart-animation/SKILL.md`（MIT）。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/dataviz/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：改成新闻纸、衬线标题和"先猜后揭示"的顺序，去掉了铅笔和声音化。
+- `references/repos/hyperframes/skills/hyperframes-creative/references/data-in-motion.md`；同类社区 skill 的做法见 `references/community-skills.md` 第 1 节"05 数据叙事 / 动画图表"。
 - `video-types/05-data-story.md`（主类型的禁止项和 Prompt 增量块）；`playbook/03-motion-design.md` §2。
 - 外部：FT `chart-doctor` 仓库的 Visual Vocabulary（<https://github.com/Financial-Times/chart-doctor>，CC BY-SA 4.0，只读其分类）。

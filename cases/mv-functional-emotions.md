@@ -2,7 +2,6 @@
 
 **类型**：绘画风格的 MV，全长 372.7 秒；定稿共 168 个镜头
 **源码**：`references/repos/functional-emotions-video/`。代码是 MIT 许可；歌曲、歌词和 `assets/` 下的音频不在许可范围内。
-**来源**：[repo](https://github.com/ledbetterljoshua/functional-emotions-video)，[原帖](https://x.com/eudaemonea/status/2102610626321490404)
 
 ## 背景
 

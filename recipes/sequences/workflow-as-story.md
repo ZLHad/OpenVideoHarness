@@ -71,4 +71,4 @@ derived_from: []
 
 ## 来源
 
-立意来自 Mirage 的 Tesseract for design 发布片（X，2026-09-30），拆解见 `cases/oneshot-five.md` 第 5 节。段位和帧数是本仓库按那支片子的取样排的，还没有在本仓库的成片里验证过。
+立意来自一支 AI 设计工具的发布片（2026-09-30），拆解见 `cases/oneshot-five.md` 第 5 节。段位和帧数是本仓库按那支片子的取样排的，还没有在本仓库的成片里验证过。

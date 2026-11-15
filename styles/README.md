@@ -1,6 +1,6 @@
 # 风格库：从名作里学来的 33 种口味
 
-社区里用 Opus 5.5 做的视频，很大一部分长得差不多：暗底、发光、玻璃卡片、动态 UI。athemeroy 的主题 × 风格图谱里，"广告/发布片"这一行有 154 个文件落在"动态图形/界面"一格，是这一行最大的一格，是第二大的"三维渲染"（25）的 6 倍多（见 `references/repos/opus55-guide-athemeroy/docs/domain-style-atlas.zh-CN.md`）。agent 默认会走向最常见的那一种，所以这里给它一个明确的选择空间。
+社区里用 Opus 5.5 做的视频，很大一部分长得差不多：暗底、发光、玻璃卡片、动态 UI，广告和发布片里尤其明显。agent 默认会走向最常见的那一种，所以这里给它一个明确的选择空间。
 
 这里的每个风格都从名作里提炼出一套语法：色板、字体、构图、运动、转场、声音。每个风格都**用本仓库的工具真渲了一段 5 秒样片**。33 段样片的内容完全一样，都是标题"每一帧，都是代码。"加上"大纲 → 分镜 → 初版"三元素，差别只来自风格。
 
@@ -43,7 +43,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | [档案推拉](archival-pan-zoom/) `archival-pan-zoom` | 《黄金之城》（1957）、《南北战争》（1990） | 在静止照片上极慢地推拉，衬线小字 | 历史、人物传记、项目来历 |
 | [机械钟表地图](clockwork-map/) `clockwork-map` | 《权力的游戏》片头（2011）、布拉格天文钟 | 地点是被齿轮顶出地面的黄铜机械 | 路线、版图、多地点关系 |
 | [桌面微缩剧场](tabletop-miniature/) `tabletop-miniature` | Aardman 的 *A Grand Day Out*（1989）、Laika 的《鬼妈妈》（2009）、Olivo Barbieri 的移轴摄影 | 真实尺寸的桌面当舞台，几何体小角色一拍二地演，光的颜色和方向就是时间；样片用 Blender 渲染 | 角色小短片、产品小剧场、原声小品 |
-| [走进去的世界](walk-in-world/) `walk-in-world` | 社区里用 Claude Fable 5.2 做的四支世界旅程短片（2026-11）、《风之旅人》（2012）、《俄罗斯方舟》（2002） | 题目做成一个能走进去的地方，镜头一路往前不剪；每一站一套很窄的配色、一种光、一种天气，转场长在世界里 | 意境短片、主题旅程、片头、长片的章节骨架 |
+| [走进去的世界](walk-in-world/) `walk-in-world` | 《风之旅人》（2012）、《俄罗斯方舟》（2002） | 题目做成一个能走进去的地方，镜头一路往前不剪；每一站一套很窄的配色、一种光、一种天气，转场长在世界里 | 意境短片、主题旅程、片头、长片的章节骨架 |
 
 ### 品牌与发布
 
@@ -62,8 +62,8 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | [气泡图现场讲](bubble-chart-story/) `bubble-chart-story` | Hans Rosling《200 个国家，200 年，4 分钟》（2010） | 一张气泡图就是舞台，时间可以快进倒回 | 群体随时间的变化 |
 | [电影界面 HUD](fui-hud/) `fui-hud` | 《火星救援》《遗落战境》《银翼杀手 2049》的屏幕设计 | 点阵、发丝线、等宽读数，每个读数都是真数据 | 系统、监测、agent 的内部视角 |
 | [图形统计](isotype/) `isotype` | 维也纳图形统计法（Isotype）：《社会与经济》图集（1930）、Gerd Arntz 的符号 | 一个符号代表固定数量，多就多排几个，在拍点上加一个、减一个 | 人口、资源、比例这类计数（类型 05） |
-| [等轴解剖](iso-anatomy/) `iso-anatomy` | Anatomy 和 anatomy-reveal 两个 agent skill（2026，MIT）；文艺复兴工程师笔记里的爆炸图、Farish 的等轴测（1822） | 把概念做成一台能拆开的小机器：实心零件、四阶明暗、只点亮一个部件，读数来自驱动零件的同一个模型 | 机制、系统和方法、产品构造、拆解 |
-| [浅色界面讲解](pastel-ui/) `pastel-ui` | 《你问 AI 一句话之后的 3 秒钟》（2026）、Material You（2021） | 粉彩墙纸上的白色圆角卡片，一个概念一个颜色从头带到尾，东西被打出来、发出去、打上勾 | 过程讲解、App 和 SaaS 的上手引导、轻量的数据 |
+| [等轴解剖](iso-anatomy/) `iso-anatomy` | 文艺复兴工程师笔记里的爆炸图、Farish 的等轴测（1822）、Macaulay《The Way Things Work》（1988） | 把概念做成一台能拆开的小机器：实心零件、四阶明暗、只点亮一个部件，读数来自驱动零件的同一个模型 | 机制、系统和方法、产品构造、拆解 |
+| [浅色界面讲解](pastel-ui/) `pastel-ui` | Material You（2021） | 粉彩墙纸上的白色圆角卡片，一个概念一个颜色从头带到尾，东西被打出来、发出去、打上勾 | 过程讲解、App 和 SaaS 的上手引导、轻量的数据 |
 
 ### 插画与印刷
 
@@ -172,9 +172,6 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 | 来源 | 规模 | 关系 |
 |---|---|---|
-| [lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar) 的 `styles/` | 43 种，每种有 STYLE.md 和纯代码样片 | 2026-09-29 起整仓 MIT（更早的快照里 STYLE.md 为 CC BY 4.0，按旧快照改写的预设照旧注明 CC BY 4.0）；有对应项的预设，在"相关资源"里写明参考并署名。没收进来的（浮世绘、木刻、彩色玻璃、装饰艺术等）可以直接读它的文档 |
 | HyperFrames `hyperframes-creative/references/` | 8 种设计师风格 | 偏 UI 和品牌，本库的"产品发布片""瑞士网格"与它相近 |
-| OpenMontage `styles/*.yaml` | 6 种 | 偏讲解和商务 |
-| story-to-handdrawn-video 的风格资产 | 327 种手绘画风和配色 | 需要生图模型，本库只借它"同一场景横向比较"的展示方法 |
 
-以上都在 `references/repos/` 下，只读，许可证结论见 `references/community-skills.md`。
+它在 `references/repos/hyperframes/` 下，只读。别的风格库，包括本库没收的浮世绘、木刻、彩色玻璃、装饰艺术等风格，见 `references/community-skills.md` 第 1、2 节；有几个预设按 CC BY 4.0 改写过别的风格库的 STYLE.md，许可说明写在各自的"相关资源"里。

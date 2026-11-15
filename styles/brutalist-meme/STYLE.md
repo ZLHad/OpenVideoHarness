@@ -107,6 +107,5 @@ Sound: 120 BPM E-minor phonk / trap: a distorted 808 with glides, a Memphis cowb
 
 - `video-types/08-brutalist-meme.md`：本预设的上位规则，配色、字体、节奏、笑点时序都从这里来。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 第 3 节 Deconstructed、第 4 节 Maximalist Type（Apache-2.0）。
-- lemo-opuscar 没有直接对应的风格；相近的是 `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`（半调档案风）、`microgame/`（越来越快的微游戏快闪）、`swiss-motion/`（网格与信号红），均为 CC BY 4.0（LemoLab）。
-- `references/repos/viral-video-decomposer/skill/SKILL.md`（MIT）：拆爆款机制，只借结构。
+- 同类社区 skill 和风格库的对照见 `references/community-skills.md` 第 1 节"08 野兽派 / 网络梗 / 快剪"。
 - `cases/mv-claude-pop.md`、`playbook/03-motion-design.md`、`playbook/04-audio.md`。

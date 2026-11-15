@@ -90,7 +90,7 @@ Music: 118 BPM A minor, i–VI–III–VII, four-on-the-floor kick, a big gated-
 - **网格**：第 k 条横线的深度 `z_k(t) = z0 + k·S − ((v·t) mod S)`，屏幕 `y = y_h + f·h_cam / z_k`；纵线 `x = x_v + f·X_j / z`。线宽和透明度随 `1/z` 衰减。
 - **太阳**：先画整圆的纵向渐变，再用 `destination-out` 挖掉 7 条横缝，最后用地平线裁掉下缘。
 - **铬字**：`fillText` 用五段线性渐变（`#5EC8FF 0`、`#F2ECFF .48`、`#3A1E4A .5`、`#8B4BC2 .72`、`#FF9B5E 1`），外描 3px `#1A0B2E`；高光带是裁剪在字形内的一条白色斜矩形，x 由 `seg(t, a, b)` 决定。
-- **录像带 pass**：片段着色器里做 Y/C 分离、色度横向模糊、红色差右移、扫描线（按输出像素）、噪声（以帧号为种子）。可以参考 lemo `cel-anime-80s` 的 `demo/post.js` 思路，但参数按本文。
+- **录像带 pass**：片段着色器里做 Y/C 分离、色度横向模糊、红色差右移、扫描线（按输出像素）、噪声（以帧号为种子）。
 - 颗粒另在 ffmpeg 里加：`noise=c0s=2:allf=t`，GIF 从无颗粒版本生成。
 
 ## 自查重点
@@ -103,6 +103,5 @@ Music: 118 BPM A minor, i–VI–III–VII, four-on-the-floor kick, a big gated-
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/cel-anime-80s/STYLE.md`（LemoLab，CC BY 4.0，https://creativecommons.org/licenses/by/4.0/）：同一时代的另一条路，录像带 + CRT 播放层、铬字渐变的片名卡、Y/C 色度模糊和扫描线的参数思路来自该文，本文按合成器浪潮重定。
-- `references/repos/lemo-opuscar/styles/ascii-crt/STYLE.md`（单色 CRT 终端，CC BY 4.0）。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/cel-anime-80s/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：参数按合成器浪潮重定。
 - `video-types/03-product-promo.md`、`video-types/04-lyric-music-video.md`、`playbook/08-vfx-and-motion-sources.md`（bloom、扫描线的强度档）、`playbook/04-audio.md`。

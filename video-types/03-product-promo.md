@@ -14,7 +14,7 @@
 
 ## 工作流
 
-1. **先有素材清单，再做动画**：产品截图或录屏、logo、真实文案、品牌色和字体、网址、架构图和流程图。**不要用占位 UI，也不要凭印象重画界面。** viggo 的 Applore 宣传片之所以可信，就是因为用了自家库里 17,550 个真实 app 图标。
+1. **先有素材清单，再做动画**：产品截图或录屏、logo、真实文案、品牌色和字体、网址、架构图和流程图。**不要用占位 UI，也不要凭印象重画界面。** Applore 宣传片之所以可信（`cases/promo-applore.md`），就是因为用了自家库里 17,550 个真实 app 图标。
    - 网页和 Web App 用 Playwright（或浏览器工具）按成片分辨率截图，例如 `npx playwright screenshot --viewport-size=1920,1080 <url> assets/ui/home.png`；终端、编辑器等本地界面用录屏或系统截图。
    - 要演示操作（点哪里、点了以后怎样）时，改用 1280×720 的视口、3 倍截，每个状态一张，再量出要点的元素的框；光标和镜头怎么动见 `recipes/interaction/browser-walkthrough.md`。
    - 全部存进项目的 `assets/`，逐条用 `bin/vh assets add` 登记进素材台账（来源、许可，sha256 由它算）。开始写场景代码前，把清单过一遍：片子里要出现的每块界面都要在清单里有对应的文件，清单里没有的就先去截，而不是自己造。
@@ -24,7 +24,7 @@
 
    这两种也是发布片最常见的长相，Linear 系尤其是社区里最常见的外观【综合】，和"AI 味"只差在克制和真实 UI（见下文"警惕"一条）。
    
-   **同一个产品的每支片子共用一条品牌管线**：第二支片子从上一支的 STYLE.md 起步，沿用色板、字体、强调色、转场和音色，审阅意见也回写进去。本仓库的介绍片就沿用了 showcase 00 的近黑底、发丝线和唯一的琥珀强调色。product-film-skill 用 `videos/BRAND.md` 做同一件事（见文末）。
+   **同一个产品的每支片子共用一条品牌管线**：第二支片子从上一支的 STYLE.md 起步，沿用色板、字体、强调色、转场和音色，审阅意见也回写进去。本仓库的介绍片就沿用了 showcase 00 的近黑底、发丝线和唯一的琥珀强调色。品牌规则多的，可以单独整理成一份 `BRAND.md`：从产品的规则文件、design token、组件和落地页收集，每条注明出处。
 3. **look-dev**：brief 里只说"炫酷""高级""大片感"，却没有说具体是什么样时，先做一轮 look-dev 再定：出 3 张 style frame，或者 2–3 段 10–20 s 的短变体，放在关卡 ② 之前或并进关卡 ②，让人挑。
    - 变体只换强度预设、不换内容，人比较的才是风格本身。介绍片 v3 用同一份代码、按 `fx` = A / B / C 渲了三段 22.7 s 的变体，每段都带一节产品信息图，另附一张 3 行 × 11 个时刻的对比图。预设栈的写法见 `playbook/08-vfx-and-motion-sources.md`。
    - 选定的预设写进 STYLE.md。
@@ -39,7 +39,7 @@
    60–90 秒的介绍片，把这六拍套进 `playbook/09-narrative.md` 模板 A 的比例【综合】：hook 和问题是"起"（约前 18%），功能拍是"承"，证据放在"转"的位置、做成全片最大的视觉事件，静止和定版是"合"，回扣开头。要发平台的，开头钩子、标题和封面见 `playbook/10-hooks-and-packaging.md`。
 5. **镜头**：
    - 一台连续的虚拟摄像机，推、拉、摇各 1.5–3s，easeInOutCubic；
-   - 速度"按你默认速度的一半"（@jake11moran 的写法）；
+   - 速度"按你默认速度的一半"；
    - 快速运动加运动模糊，整体加轻微胶片颗粒。颗粒会让 GIF 体积暴涨（showcase 00：24MB 对比无颗粒时的 4.5MB），所以给 README 用的 GIF 预览要单独渲染一个无颗粒版本（例如用 `--variables '{"grain":0}'`）。
 6. **声音**（可选；静音版的节奏由分镜的 reads 决定，TASTE_CHECKLIST #18 里的拍点检查不适用）：
    - 音乐驱动，关键点落在拍子上，配音效：先用 `bin/vh music` 按镜头分段写配乐（段落就是镜头边界，冲击点就是揭示时刻），再把光标点击、弹出、完成提示写进 `audio/events.json`，最后用 `bin/vh mix … profile=promo events=audio/events.json lib=audio/sfx` 混音：以音乐为锚点，每个音效按类（hero、detail…）往各自的电平走一半，hero 命中处音乐让 2.5 dB，音乐不会被每个音效压一下（见 `playbook/04-audio.md` 的"混音"）。介绍片和较长的发布片要一个贯穿的主题动机：问题段用它的暗色版本，揭晓时第一次完整出现，做法和一支 58.5 s 的示例见 `playbook/11-composition.md`；
@@ -61,8 +61,9 @@
 - **运动只走这几条路**：分阶段揭示、有意图的镜头运动、UI 自己在运作、光标点击触发下一拍。平滑优先于弹跳。
 - **警惕 Linear 风和 AI slop 撞车**：Inter + 暗底 + 紫色光球同时也是"AI slop"的头号特征。区别在于克制，以及用的是不是真实 UI。
 - **两种 prompt 路线**：
-  - **"一句话 + 让它自由发挥"**：比如 @achxvi 的 "make a 15-second motion graphics video ... like it's your showreel for a résumé. go all out"。模型自己选风格，炫技效果好，但品牌控制力弱。
-  - **"逐拍规定"**：比如 @jake11moran 的 7 个编号节拍。控制力强。
+  - **"一句话 + 让它自由发挥"**：比如只说"做一段 15 秒的动态图形，当成你简历里的作品集，全力发挥"。模型自己选风格，炫技效果好，但品牌控制力弱。
+  - **"逐拍规定"**：比如把片子写成 7 个编号节拍。控制力强。
+  - 两种的原话和拆解见 `cases/community-prompts.md`、`cases/promo-applore.md`。
   - 先用前者探索方向，再用后者定稿【综合】。
 
 ## 禁止
@@ -108,7 +109,7 @@ Show the product itself: {architecture | workflow | features | case studies} as 
 - `showcase/04-intro-film/`：本仓库的介绍片（Blender 星河开场 + 一镜到底 3D + 代码作曲），每轮评审的分数和改法记在 NOTES。
 - `cases/promo-applore.md`：一句话 prompt 做出的 15 秒宣传片拆解。
 - `cases/promo-hyperframes-launches.md`：HeyGen 20 支发布片的源码，以及其中值得看的几支。
-- `recipes/sequences/product-film-60s.md`、`launch-15s.md`：发布片的全片骨架（能量弧、先划 hold、按能量落差选接缝、限额）；镜头配方在 `recipes/`，拿不准怎么动时按意图和能量挑（`bin/vh recipes list --type promo …`）。它们改写自 video-shotcraft，拆解见 `cases/promo-video-shotcraft.md`。
+- `recipes/sequences/product-film-60s.md`、`launch-15s.md`：发布片的全片骨架（能量弧、先划 hold、按能量落差选接缝、限额）；镜头配方在 `recipes/`，拿不准怎么动时按意图和能量挑（`bin/vh recipes list --type promo …`）。另见 `cases/promo-video-shotcraft.md` 的拆解。
 - `references/repos/hyperframes/skills/product-launch-video/`：`SKILL.md`，以及 `references/` 下的 `story-design.md`、`visual-design.md`、`motion-language.md`、`cut-catalog.md`。
 - `references/repos/hyperframes/_upstream_claude/skills/`：
   - `motion-doctrine/`：运动总纲，涉及动画时先读；
@@ -120,12 +121,4 @@ Show the product itself: {architecture | workflow | features | case studies} as 
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **video-shotcraft**（Apache-2.0）：150 多张镜头配方卡（SKILL.md 写 157 张）；视觉 tokens 从产品自己的设计系统提取；复刻页面必须用真实截图；每个镜头只讲一个动效。见 `references/repos/video-shotcraft/SKILL.md`、`references/repos/video-shotcraft/references/shots/`。
-- **guizang-product-video**（AGPL，只读）：先写 `DIRECTION.md`，列出"因为产品有 X，所以用 Y"的专属手法；同一工作区不复用上一支的开场。见 `references/repos/guizang-product-video/references/direction.md`。
-- **product-film**（[Rieranthony/product-film-skill](https://github.com/Rieranthony/product-film-skill)，MIT）：在产品自己的代码库里用 Remotion 做宣传片。
-  - 先 discovery：从产品的规则文件、design token、组件和落地页收集设计规则，写成 `videos/BRAND.md`，每条注明出处；审阅意见也回写进去，下一支片子从它起步。
-  - 写完故事先交节拍表和 3 张 style frame。
-  - 成片用 240 fps 母版加 `tmix` 做真正的运动模糊，再降到 60 fps。
-  - 质量底线里明确禁止产品自己不用的特效（光晕、粒子、点击波纹、着色器），和本篇"说不出理由就删"的规则一致。
+同类社区 skill（镜头配方卡、"因为产品有 X，所以用 Y"的方向文档、在产品自己的代码库里做片子的品牌文件和高帧率运动模糊）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"03 产品宣传 / 发布片"。只读参考；复用代码前先确认许可。
