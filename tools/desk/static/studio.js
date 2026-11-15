@@ -524,7 +524,7 @@ function roundState() { const s = stations().find((x) => (x.pages || []).include
 function gateMarks() { return (GV && GV.current && roundWaits() && GV.marks) || []; }
 function renderMarks() {
   const M = gateMarks(), least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
-  const li = (m) => `<li data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${m.t}"` : ""}${m.t1 != null ? ` data-t1="${m.t1}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(m.id)}</b> ` : ""}${esc(m.note)}</span></li>`;
+  const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${m.t}"` : ""}${m.t1 != null ? ` data-t1="${m.t1}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(m.id)}</b> ` : ""}${esc(m.note)}</span></li>`;
   $("#cMarks").innerHTML = (least.length ? `<h3 class="blk-h"><b>${esc(t("c_least"))}</b><span class="n mono">${least.length}</span></h3><ul class="note-list marks">${least.map(li).join("")}</ul>` : "")
     + (listen.length ? `<h3 class="blk-h" style="margin-top:12px"><b>${esc(t("c_listen"))}</b><span class="n mono">${listen.length}</span></h3><ul class="note-list marks">${listen.map(li).join("")}</ul>` : "");
 }
@@ -532,7 +532,7 @@ function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.st
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const row = ([k, v]) => `<li data-goto="${esc(k)}"${v.t != null ? ` data-t="${v.t}"` : ""}${v.t1 != null ? ` data-t1="${v.t1}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
+  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${v.t}"` : ""}${v.t1 != null ? ` data-t1="${v.t1}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
   $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + (FB.general ? 1 : 0)}</span></h3>`
     + (items.length || gen ? `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>` : `<p class="next">${esc(t("c_none_mine"))}</p>`);
@@ -556,20 +556,29 @@ $("#colBody").addEventListener("click", (e) => {
   const x = e.target.closest("[data-del]");
   if (x) { e.stopPropagation(); if (x.dataset.del === "#general") FB.general = ""; else delete FB.items[x.dataset.del]; save(); return; }
   const li = e.target.closest("[data-goto]");
-  if (li && !e.target.closest("button:not([data-goto]),a,input,textarea")) gotoTarget(li.dataset.goto, li.dataset.t != null ? +li.dataset.t : null, li.dataset.t1 != null ? +li.dataset.t1 : null);
+  if (li && !e.target.closest("button:not([data-goto]),a,input,textarea")) {
+    const tg = li.dataset.goto, k = tg.split(":")[0], words = cut(((li.querySelector("span:last-of-type") || li).textContent || "").trim(), 28);
+    const label = (FB.items[tg] && FB.items[tg].label) || (k === "least" ? t("l_least", { x: words }) : k === "atime" ? t("sound_label", { t: fmt(+li.dataset.t) }) : "");
+    gotoTarget(tg, li.dataset.t != null ? +li.dataset.t : null, li.dataset.t1 != null ? +li.dataset.t1 : null, label);
+  }
+});
+$("#colBody").addEventListener("keydown", (e) => {   // a mark or a note in the column answers Enter like a click
+  const li = e.target.closest && e.target.closest("li[data-goto]");
+  if (li && e.target === li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); li.click(); }
 });
 const KIND_MOD = { concept: "idea", card: "idea", seg: "outline", cap: "outline", fact: "outline", led: "ledger", doc: "ledger", deleg: "ledger", atime: "sound", asset: "assets",
   time: "cut", range: "cut", chapter: "cut", line: "cut" };
-function gotoTarget(target, tt, t1) {   // a note or a mark in the column: go to its place
+function gotoTarget(target, tt, t1, label) {   // a note or a mark in the column: go to its place
   const kind = target.split(":")[0];
   let mod = KIND_MOD[kind];
   if (kind === "shot") mod = filmPath() || cutShots().length ? "cut" : "board";
   if (kind === "least" || kind === "dec") mod = ROUND.gate ? gateMod(ROUND.id) : MOD;
-  if (tt != null && (kind === "least" || kind === "atime") && (filmPath() || cutShots().length)) mod = "cut";
+  if (tt != null && kind !== "cap" && (filmPath() || cutShots().length)) mod = "cut";   // a place with a time is on the cut's timeline
   const after = () => {
     if (mod === "cut" && CUT) { CUT.goto(target, tt, t1); return; }
     const el = kind === "dec" ? document.getElementById("d-" + target.slice(4)) : $(`#stage [data-mark="${CSS.escape(target)}"], #stage [data-target="${CSS.escape(target)}"]`);
     if (el) { el.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1200); }
+    else if (label && kind !== "dec") setScope({ target, label, t: tt, t1 });   // a place the page does not draw (the agent's doubt on the concept): the note box writes against it
   };
   if (mod && mod !== MOD) { go(projHash(PKEY, mod + (kind === "cap" ? "/script" : kind === "fact" ? "/facts" : kind === "doc" ? "/docs" : ""))); setTimeout(after, 260); }
   else after();
@@ -1289,7 +1298,9 @@ function CutModule(area) {
       setScope(scope);
       if (play) { stopAt = s.t1; start(); }
     } else setScope(null);
+    const a = document.activeElement, keep = a && a.dataset && a.dataset.pick && area.contains(a) ? [a.closest("#lbody") ? "#lbody" : "#tl", a.dataset.pick] : null;
     draw(); renderList();
+    if (keep) { const n = $(`${keep[0]} [data-pick="${CSS.escape(keep[1])}"]`, area); if (n) n.focus({ preventScroll: true }); }   // the keyboard stays where it was
   }
   function pickThing(p, el) {
     const [kind, ...rest] = p.split(":"), id = rest.join(":");
@@ -1392,7 +1403,7 @@ function CutModule(area) {
   screen.addEventListener("click", (e) => { if (!e.target.closest(".wipe-line")) toggle(); });
 
   const keys = (e) => {
-    if (MOD !== "cut" || typing() || e.metaKey || e.ctrlKey || e.altKey || !$("#search").hidden || !$("#confirm").hidden) return;
+    if (e.defaultPrevented || MOD !== "cut" || typing() || e.metaKey || e.ctrlKey || e.altKey || !$("#search").hidden || !$("#confirm").hidden) return;
     const k = e.key;
     if (k === " ") { if (document.activeElement && /^(BUTTON|A|SUMMARY)$/.test(document.activeElement.tagName) && !document.activeElement.closest(".transport,.tl,.lists")) return; e.preventDefault(); spaceDown = true; toggle(); }
     else if (k === "ArrowLeft" || k === "ArrowRight") { if ((document.activeElement || {}).type === "radio") return; e.preventDefault(); if (e.shiftKey) seek(now() + (k === "ArrowRight" ? 1 : -1)); else jumpShot(k === "ArrowRight" ? 1 : -1); }
