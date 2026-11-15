@@ -364,6 +364,9 @@ async function showHome(quiet) {
     leaveProject(); D = null; PKEY = ""; MOD = ""; GV = null;
     setLang(pickLang(LANG)); crumbs([{ text: t("m_space") }]); renderFlow(); renderRail(); spaceColumn();
   }
+  if (quiet && document.activeElement && document.activeElement.id === "oneLine") {   // someone is typing the sentence: the cards wait
+    clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000); return;
+  }
   const r = await listing();
   if (parse().view !== "home") return;
   if (!r.ok || !LIST) { $("#stage").innerHTML = `<p class="void module">${esc(t("noServer"))}</p>`; return; }
