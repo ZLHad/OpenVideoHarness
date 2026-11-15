@@ -364,10 +364,21 @@ function renderColumn() {
     const lines = $$(".pc>span", o).map((x) => { const k = $(".k", x), all = x.textContent.trim(); return k ? `${k.textContent.trim()} ${all.slice(k.textContent.length).trim()}` : all; });
     if (lines.length) o.title = lines.join("\n");
   });
-  renderMarks(); renderMine(); renderNext(); renderRound();
+  renderMarks(); renderMine(); renderNext(); renderRound(); syncPhoneDec();
   if (!$("#composer").dataset.ready) buildComposer();
   $("#composer").hidden = false;
 }
+function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then the column: a bar above the picture goes to the decisions
+  const pd = $("#phoneDec"); if (!pd || !D) return;
+  const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = GATE_MOD[gateBase(ROUND.id)] || "cut";
+  pd.hidden = !(g && n && MOD === home);
+  pd.textContent = pd.hidden ? "" : `${t("away_decide", { s: gateName(ROUND.id), n })} ↓`;
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#phoneDec")) return;
+  e.preventDefault();
+  const d = $(".c-decs", $("#colBody")); if (d) d.scrollIntoView({ block: "start", behavior: "smooth" });
+});
 function pick(dec, val) {
   FB.decisions[dec] = val; save();
   $$(`.g-dec[data-dec="${CSS.escape(dec)}"] input[type=radio]`).forEach((x) => { x.checked = x.value === val; });   // its twin in the module
@@ -941,6 +952,7 @@ function CutModule(area) {
   const allMarks = () => agentMarks().concat(checkMarks(), notesOf()).sort((a, b) => a.t - b.t);
 
   area.innerHTML = `<div class="cut layout-${layout}" id="cut">
+    <a class="phone-dec" id="phoneDec" href="#colBody" hidden></a>
     <aside class="lists" aria-label="${esc(t("m_cut"))}"><div class="ltabs" role="tablist" id="ltabs"></div><div class="lbody" id="lbody"></div></aside>
     <section class="viewer">
       <div class="readout" id="readout"></div>
@@ -1306,7 +1318,8 @@ function CutModule(area) {
   function nextPlace() {
     const { P, i } = nextIdx(), m = P[i];
     if (!m) { flash(t("no_next")); return; }
-    pickThing("mark:" + m.target, { dataset: { t: String(m.t) } });
+    if (SEL && SEL.kind === "range") seek(m.t);   // a span you chose stays until Esc or a click: N only takes the playhead there
+    else pickThing("mark:" + m.target, { dataset: { t: String(m.t) } });
     flash(t("next_q", { x: `${fmt(m.t)} ${cut(m.note || m.label, 40)}` }));
   }
   function flash(msg) { nextq.textContent = msg; nextq.hidden = false; clearTimeout(nextq._h); nextq._h = setTimeout(() => { nextq.hidden = true; }, 2600); }
@@ -1380,7 +1393,7 @@ function CutModule(area) {
   document.addEventListener("keyup", spaceUp);
   area.addEventListener("click", eatClick, true);
 
-  renderTabs(); renderList(); draw(); fit();
+  renderTabs(); renderList(); draw(); fit(); syncPhoneDec();
   if (!thumbs && film) $(".tl-bar span", area).title = t("no_thumbs");
   return {
     refresh() { renderTabs(); renderList(); draw(); },

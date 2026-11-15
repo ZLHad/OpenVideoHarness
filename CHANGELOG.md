@@ -48,7 +48,12 @@
     - on another module, the line to a stop's decisions is a quiet link, with no "下一步" under it saying the same;
     - an option's pros and costs show whole on hover where the column cuts them to a line;
     - takes that are not on this machine are said once, not on every card;
-    - the film's sound shows its length before it plays.
+    - the film's sound shows its length before it plays;
+    - on a phone, a bar above the picture says what waits ("初版等你定 2 件 ↓") and goes to the decisions, which come after the picture and the timeline;
+    - N keeps a span you chose and only moves the playhead, until Esc or a click;
+    - a place to listen is marked with a play triangle, not a second ring beside the agent's ○;
+    - an option's pros and costs in the column are as bright as on the static page; on 棱镜's amber card they had read at under 4:1;
+    - the ⌘↩ badge beside 记下 is readable.
   - The waiting film's card and a static page's main picture prefer a picture of the film to a contact sheet.
   - A static page made after its stop settled is a record ("已定", nothing to pick).
   - A static page writes a shot one way, S4 as the console does; its anchor and the reply keep the id as given. In English, the reason for the recommended option reads "Why: …". `bin/vh gate --init` titles the reviewer's scores "评审打的分" on a Chinese page.
