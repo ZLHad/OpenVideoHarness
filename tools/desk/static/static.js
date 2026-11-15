@@ -10,7 +10,7 @@ let D = null, PKEY = "", SUB = "", MOD = "", REL = "", VIEWS = [];
 let FB = { decisions: {}, items: {}, general: "" }, ROUND = { id: "", data: {} };
 const src = (p) => (/^https?:\/\//.test(p || "") ? p : REL + String(p || "").split("/").map(enc).join("/"));   // the project's files, from the page's folder
 const setScope = () => {}, gotoTarget = () => {};
-const roundOpen = () => true;   // a static page's own decisions are always open: picking builds the reply to copy
+const roundOpen = () => { const r = gateRoot(); return !(r && r.hasAttribute("data-settled")); };   // open, picking builds the reply to copy; a page of a stop settled since, a record
 const gateMarks = () => (D && D.marks) || [];
 const gateRoot = () => document.querySelector(".gate[data-static]");
 function follow(dec, val) { FB.decisions[dec] = val; VIEWS.forEach((m) => { const V = MODVIEW[m]; if (V.sync) V.sync(dec, val); }); }

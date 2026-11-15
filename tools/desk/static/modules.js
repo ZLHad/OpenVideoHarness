@@ -142,7 +142,7 @@ function mIdea2() {
   let right, title, sub = t("idea_sub");
   if (cr) {   // the cards: to pick while the stop is open; once it is decided, what was picked, the rest faint, nothing to press
     const dec = cr.dec, cols = Array.isArray(dec.columns) ? dec.columns : [], chosen = chosenOf(cr), pick = dec.options.find((o) => o && o.id === chosen);
-    if (!cr.open) { title = pick ? t("idea_done", { x: `${pick.id}：${String(pick.label || "").replace(/\*\*|`/g, "")}` }) : t("idea_done0"); sub = day ? t("idea_done_d", { d: day }) : t("idea_done_d0"); }
+    if (!cr.open) { title = pick ? t("idea_done", { x: `${pick.id}：${cut(String(pick.label || "").replace(/\*\*|`/g, "").split(/[：:（(，,。；;]/)[0].trim(), 16)}` }) : t("idea_done0"); sub = day ? t("idea_done_d", { d: day }) : t("idea_done_d0"); }
     else title = t("idea_title");
     right = `<div class="cards2${cr.open ? "" : " settled"}">${dec.options.filter((o) => o && o.id).map((o) => {
       const on = chosen === o.id, rec = o.id === dec.recommend, dim = !cr.open && chosen && !on;
@@ -243,7 +243,7 @@ function briefRows() {
 }
 function unsureIn(o) {   // the shots in a part the agent is unsure of, and this round's least-sure places in its span
   const S = (D.shots.items || []).filter((s) => s.unsure && (s.seg === o.id || (o.t0 != null && s.start != null && s.start >= o.t0 && s.start < o.t1)));
-  const M = gateMarks().filter((x) => x.kind === "least" && x.t != null && o.t0 != null && x.t >= o.t0 && x.t < o.t1);
+  const M = gateMarks().filter((x) => x.kind === "least" && x.t != null && o.t0 != null && x.t >= o.t0 && x.t < o.t1 && !S.some((s) => sameId(s.id, x.id)));
   return S.length + M.length;
 }
 function mOutline2() {
@@ -284,6 +284,7 @@ moduleWords({
   board_none: "还没有镜头表。", avg_s: "平均一镜 {s} 秒", plan_k: "打算改", bar_board: "分镜 · {s}", bar_said: "分镜 · {s}。你当时说：「{q}」", to_sound: "去声音",
   pass_done: "已通过",
   page_seconds: "这一页的 {a}–{b}",
+  skip_sub: "这一站没停下来给你看（你说了不用停）。只能看；要改就写一条意见。",
 }, {
   board_title: "Page {i} · {x}", board_sub2: "Amber shots are the ones the agent is unsure about. Leave the rest alone if they're fine.",
   page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Rough cut", grey_note: "Rhythm and framing first; colour comes later",
@@ -291,6 +292,7 @@ moduleWords({
   board_none: "No shot list yet.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Storyboard · {s}", bar_said: "Storyboard · {s}. You said: “{q}”", to_sound: "To the sound",
   pass_done: "approved",
   page_seconds: "this page, {a}–{b}",
+  skip_sub: "This stop was skipped (you said not to stop). To look at only; to change it, write a note.",
 });
 const shotName = (id) => String(id || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1");   // one way to write a shot: S4, never S04 or S004
 const sameId = (a, b) => String(a || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase() === String(b || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase();   // S04 is S4
@@ -338,14 +340,14 @@ function mBoard2() {
     : first ? `<div class="bplay"><div class="well"><img src="${esc(src(first.frame))}" alt=""></div><p class="note-line">${esc(t(gone ? "anim_gone" : "no_anim"))}${gone && !readOnly() && !filmDelivered() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : ""}</p></div>`
     : `<p class="note-line wide" title="${esc(gone || "")}">${esc(t(gone ? "anim_gone" : "no_anim"))}${gone && !readOnly() && !filmDelivered() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : ""}</p>`;
   const info = panel(t("this_page"), "", `<dl class="kv2"><div><dt>${esc(t("shots_k"))}</dt><dd>${esc(t("shots_n", { n: S.length }))}</dd></div>
-    <div><dt>${esc(t("unsure_k"))}</dt><dd>${unsure.length ? unsure.map((s) => `<span class="chip wait">${esc(s.id)}</span>`).join(" ") : esc(t("none"))}</dd></div>
-    ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd class="mono">${esc(fmt(t0) + "–" + fmt(t1))}${durs.length ? esc(" · " + t("avg_s", { s: (durs.reduce((a, b) => a + b, 0) / durs.length).toFixed(1) })) : ""}</dd></div>` : ""}${rough ? `<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div>` : ""}</dl>`);
+    <div><dt>${esc(t("unsure_k"))}</dt><dd>${unsure.length ? unsure.map((s) => `<span class="chip wait">${esc(shotName(s.id))}</span>`).join(" ") : esc(t("none"))}</dd></div>
+    ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd><span class="mono nw">${esc(fmt(t0) + "–" + fmt(t1))}</span>${durs.length ? `<br><span class="nw">${esc(t("avg_s", { s: (durs.reduce((a, b) => a + b, 0) / durs.length).toFixed(1) }))}</span>` : ""}</dd></div>` : ""}${rough ? `<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div>` : ""}</dl>`);
   const extra = (pg.assets || []).map((a) => /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(a.path) ? `<figure class="segpic"${dattr({ mark: "asset:" + a.path, label: a.caption || a.path })}><span class="well"><img src="${esc(src(a.path))}" alt="" loading="lazy"></span>${a.caption ? `<figcaption class="meta">${esc(a.caption)}</figcaption>` : ""}</figure>`
     : `<a class="meta" href="${esc(src(a.path))}" target="_blank" rel="noopener">${esc(a.caption || a.path)} ↗</a>`).join("");
-  const pics = S.some((s) => s.frame), done = ["done", "skipped"].includes(stationState("2")) || filmDelivered();
+  const pics = S.some((s) => s.frame), skipped = stationState("2") === "skipped", done = stationState("2") === "done" || filmDelivered();
   const cards = S.map((s) => {   // with pictures: a card a shot; with none anywhere on the page: a row a shot, no empty frames
     const said = FB.items["shot:" + s.id] && FB.items["shot:" + s.id].status, u = unsureShot(s);
-    const chip = u ? `<span class="chip wait">${esc(t("unsure_k"))}</span>` : said ? `<span class="chip">${esc(t("you_said"))}</span>` : `<span class="chip ok">${esc(t(done ? "pass_done" : "default_pass"))}</span>`;
+    const chip = u ? `<span class="chip wait">${esc(t("unsure_k"))}</span>` : said ? `<span class="chip">${esc(t("you_said"))}</span>` : skipped ? "" : `<span class="chip ok">${esc(t(done ? "pass_done" : "default_pass"))}</span>`;
     const why = typeof s.unsure === "string" ? s.unsure : (gateMarks().find((m) => m.kind === "least" && sameId(m.id, s.id)) || {}).note || "";
     const gate = s.see != null;   // a shot of the gate page: what it shows, its line, what will change by default
     const reads = (s.reads || []).length > 1 ? `<ol>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ol>` : (s.reads || []).length ? `<p class="see">${esc(s.reads[0])}</p>` : s.caption ? `<p class="capline">${esc(s.caption)}</p>` : "";
@@ -357,9 +359,9 @@ function mBoard2() {
       ${s.plan ? `<p class="plan">→ ${esc(t("plan_k"))}${esc(COLON())}${esc(s.plan)}</p>` : ""}</div></article>`;
   }).join("");
   const st = stationState("2"), q = D.history.filter((h) => gateKey(h.title) === "2").flatMap((h) => h.quotes || []).map((x) => x.text).pop();
-  const of = pg.of ? `<span class="meta mono">${esc(pg.n + " / " + pg.of)}</span>` : "";
+  const of = "";   // the page tabs say which page
   const settled = ["done", "skipped"].includes(stationState("2")) || filmDelivered(), day = shortDate(stopDate(stations().filter((x) => x.id === "2")));
-  return headM("board", t("board_title", { i: i + 1, x: pg.title || t("m_board") }), settled ? (day ? t("idea_done_d", { d: day }) : t("idea_done_d0")) : t("board_sub2"), tabs)   // decided: said as such, nothing asked
+  return headM("board", t("board_title", { i: i + 1, x: pg.title || t("m_board") }), stationState("2") === "skipped" ? t("skip_sub") : settled ? (day ? t("idea_done_d", { d: day }) : t("idea_done_d0")) : t("board_sub2"), tabs)   // decided: said as such, nothing asked
     + (pg.note || of ? `<p class="segnote">${of}${pg.note ? `<span>${esc(pg.note)}</span>` : ""}</p>` : "")
     + `<div class="mgrid board">${player}${info}</div><div class="shots3${pics ? "" : " rows"}">${cards}</div>${extra ? `<div class="segpics">${extra}</div>` : ""}`
     + barM(q ? t("bar_said", { s: t("st_" + (st || "not_started")), q: cut(q, 40) }) : t("bar_board", { s: t("st_" + (st || "not_started")) }), "sound", t("to_sound"));
@@ -427,6 +429,8 @@ moduleWords({
   hits_n: "{x} ×{n} · {a}–{b}",
   sound_unchecked: "还没检查过声音。",
   sound_unchecked_done: "这支片子的声音没有检查记录。",
+  misread_as: "「{a}」读成了「{b}」",
+  take_gone: "录音不在本机",
 }, {
   sound_title: "Sound", sound_sub2: "The agent can't hear; it only sees these numbers. Anything off? Write a line.", sound_sub_s: "The agent can't hear. The places to listen to are below.",
   u_loud: "target {x}", u_peak: "limit −1", u_speech: "{u}, pauses left out", u_speech2: "{u}, pauses in", u_silence: "digital silences",
@@ -452,6 +456,8 @@ moduleWords({
   hits_n: "{x} ×{n} · {a}–{b}",
   sound_unchecked: "The sound isn't checked yet.",
   sound_unchecked_done: "This film's sound has no check on record.",
+  misread_as: "“{a}” read as “{b}”",
+  take_gone: "The take isn't on this computer",
 });
 const unitsOf = (s) => (/[㐀-鿿]/.test(s) ? (s.match(/[㐀-鿿]/g) || []).length : s.trim().split(/\s+/).filter(Boolean).length);
 function narrLines() {   // each line's rate: bin/vh pace's (voice only) when it has run, else first word to last
@@ -496,13 +502,13 @@ function mSound2() {
   const A = X.audition, film = (D.studio && D.studio.film) || "";
   const voices = A && A.voices.length ? `<div class="voices">${A.voices.map((v) => `<article class="vcard${inUse(v.voice) ? " on" : ""}"${dattr(v.file ? { mark: "asset:" + v.file, label: `${t("audition")} · ${v.voice}` } : { scope: `${t("audition")} · ${v.voice}` })}>
       <h3><b>${esc(v.voice)}</b>${inUse(v.voice) ? `<span class="chip ok">${esc(t("in_use"))}</span>` : readOnly() ? "" : `<button type="button" class="btn btn-quiet" data-use="${esc(v.voice)}">${esc(t("use_this"))}</button>`}</h3>
-      ${v.file ? `<audio src="${esc(src(v.file))}" controls preload="none"></audio>` : ""}${v.error ? `<p class="meta">${esc(v.error)}</p>` : ""}
+      ${v.file ? `<audio src="${esc(src(v.file))}" controls preload="none"></audio>` : `<p class="meta">${esc(t("take_gone"))}</p>`}${v.error ? `<p class="meta">${esc(v.error)}</p>` : ""}
       <dl class="vm"><div><dt>${esc(t("pitch"))}</dt><dd class="mono">${v.pitch_hz != null ? esc(Math.round(v.pitch_hz) + " Hz") : "—"}</dd></div><div><dt>${esc(t("rate"))}</dt><dd class="mono">${v.speech_rate != null ? esc((+v.speech_rate).toFixed(1)) : "—"}</dd></div>
-      <div><dt>${esc(t("misread"))}</dt><dd${Array.isArray(v.misread) && v.misread.length ? ' class="warn"' : ""}>${esc(Array.isArray(v.misread) ? (v.misread.length ? v.misread.join("、") : t("no_misread")) : "—")}</dd></div></dl></article>`).join("")}</div>` : "";
+      <div><dt>${esc(t("misread"))}</dt><dd${Array.isArray(v.misread) && v.misread.length ? ' class="warn"' : ""}>${esc(Array.isArray(v.misread) ? (v.misread.length ? v.misread.map((m) => { const [a, b] = String(m).split(/\s*(?:→|->)\s*/); return b ? t("misread_as", { a, b }) : String(m); }).join("、") : t("no_misread")) : "—")}</dd></div></dl></article>`).join("")}</div>` : "";
   const lines = nl.rows.length ? `<div class="tscroll"><table class="t lines"><thead><tr>${film ? "<th></th>" : ""}<th>${esc(t("line_k"))}</th><th>${esc(t("text_k"))}</th><th>${esc(nl.unit)}</th><th>${esc(t("pause_k"))}</th><th></th></tr></thead><tbody>${nl.rows.map((r) => {
       const f = nl.med && r.rate ? r.rate / nl.med : 1, flag = f < 0.8 ? t("slower") : f > 1.25 ? t("faster") : "";
       const mark = r.t1 - r.t0 >= 0.01 ? `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}` : `atime:${r.t0.toFixed(1)}`;   // a range must run forward (feedback.py)
-      return `<tr${dattr({ mark, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}>${film ? `<td><button type="button" class="pl" data-seek-film="${r.t0}" aria-label="${esc(t("play_at", { t: fmt(r.t0) }))}">▶</button></td>` : ""}<td class="mono">${esc(r.id)}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
+      return `<tr${dattr({ mark, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}>${film ? `<td><button type="button" class="pl" data-seek-film="${r.t0}" aria-label="${esc(t("play_at", { t: fmt(r.t0) }))}">▶</button></td>` : ""}<td class="mono">${esc(String(r.id).replace(/^L(?=\d)/i, ""))}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
   // two clocks, never mixed: the film's (its loudness, the places to listen to, what the check found in the sound), played from the
   // film; the music's (its sections, the beats to cut on, the planned sounds), played from the music
   const W = 600, H = 90, M = D.music || {}, env = envelope(W, H);
@@ -525,7 +531,7 @@ function mSound2() {
   const hasMusic = secs.length && mdur;
   const mpanel = !hasMusic && !mmarks.length && done ? `<p class="note-line">${esc(t("music_unused"))}</p>`   // done, and never had music: said in a line
     : panel(t("music"), t("music_cmd"), (hasMusic ? `<div class="secband">${secs.map((s, i) => `<span class="s${i % 2}" style="left:${mp(s.start)}%;width:${(mp(s.end) - mp(s.start)).toFixed(2)}%" title="${esc([s.name, s.label].filter(Boolean).join(" · "))}">${mp(s.end) - mp(s.start) >= 7 ? esc([s.name, s.label].filter(Boolean).join(" · ")) : ""}</span>`).join("")}${mmarks.map((k) => `<i class="tick ${k.cls}" style="left:${mp(k.t)}%"></i>`).join("")}</div>` : voidLine(t("music_none")))
-      + listFold(mmarks, mrow) + partErr("lifts") + (M.audio && mmarks.length ? `<audio id="mau" src="${esc(src(M.audio))}" preload="none" controls></audio>` : ""));
+      + listFold(mmarks, mrow) + partErr("lifts") + (M.audio && mmarks.length ? `<audio id="mau" src="${esc(src(M.audio))}" preload="metadata" controls></audio>` : ""));
   // no narration: a film that is done never had any (a line, the narration's parts folded away); one in the making has none yet
   const noVoice = !nl.rows.length;
   const voicePart = noVoice ? `<p class="note-line wide">${esc(t(done ? "lines_unused" : "lines_none"))}</p>`
@@ -560,7 +566,12 @@ moduleWords({
   recap_stops: "停下来给你看过 {n} 次",
   recap_words: "你说过的话",
   recap_film_gone: "成片不在本机，可能挪到了别的盘。",
-  cover_used: "用的这张",
+  cover_used: "用的",
+  o_film: "成片 · {d} 交付",
+  o_film_gone: "成片 · {d} 交付，现在不在本机",
+  o_film0: "成片已交付",
+  o_film_gone0: "成片已交付，现在不在本机",
+  covers_more: "另外 {n} 张",
 }, {
   sub_deliver: "Delivery", ship_title: "Delivery", ship_sub: "Click any cover or line of copy to comment on it alone.",
   covers: "Covers", covers_sub: "vertical and horizontal", vertical: "vertical", horizontal: "horizontal", square: "square", covers_none: "No covers yet.",
@@ -579,6 +590,11 @@ moduleWords({
   recap_words: "What you said",
   recap_film_gone: "The film isn't on this computer; it may be on another drive.",
   cover_used: "used",
+  o_film: "The film · delivered {d}",
+  o_film_gone: "The film · delivered {d}, not on this computer now",
+  o_film0: "The film is delivered",
+  o_film_gone0: "The film is delivered, not on this computer now",
+  covers_more: "{n} more",
 });
 const CHECK_GROUPS = [["g_safe", /safe|read|scale|subtitle|caption|size/i], ["g_text", /textcheck|^text/i], ["g_loud", /loud|peak|lufs/i],   // check's kinds (tools/desk/README.md, 检查记录)
   ["g_av", /silence|flash|black|freeze|static|fade|\.iso|periodic|\.cut|blind/i], ["g_assets", /asset|licen/i], ["g_pack", /packag|cover|title/i]];
@@ -588,6 +604,9 @@ function srcWords(x) {   // where a file came from; one a command made ("bin/vh 
   const m = String(x || "").match(/^\s*bin\/vh\s+([\w-]+)/), w = m && CMD_WORDS[m[1]];
   return w ? t("made_by", { x: w[LANG === "zh" ? 0 : 1] }) : String(x || "");
 }
+function secName(h) {   // a REVIEW.md section by its stop's name, else its own title without the date it carries (the date is said beside it)
+  return gateName(gateKey(h.title)) || cut(String(h.title || "").replace(/[（(][^）)]*\d{4}-\d{2}-\d{2}[^）)]*[）)]/g, "").replace(/\s+/g, " ").trim(), 16);
+}
 function replyWords(text, h) {   // "1 A · 2 S1" → the options' own words, from the page the section names (else the stop's last page); "" when it is not codes
   const codes = String(text || "").trim().split(/\s*[·,，、;；]\s*|\s{2,}/).filter(Boolean);
   if (!codes.length || !codes.every((c) => /^\d+\s*[A-Za-z][\w-]*$/.test(c))) return "";
@@ -595,7 +614,9 @@ function replyWords(text, h) {   // "1 A · 2 S1" → the options' own words, fr
   if (!R) return "";
   const decs = (R.data || {}).decisions || [];
   const said = codes.map((c) => { const [, n, id] = c.match(/^(\d+)\s*([\w-]+)$/), d = decs[+n - 1], o = d && (d.options || []).find((x) => String(x.id).toLowerCase() === id.toLowerCase());
-    return o ? cut(String(o.label || o.id).replace(/\*\*|`/g, "").split(/[：:。]/)[0].trim(), 24) : ""; });
+    if (!o) return "";
+    const w = cut(String(o.label || o.id).replace(/\*\*|`/g, "").split(/[：:。]/)[0].trim(), 24), e = w.match(/^(quick|standard|studio)\b/i);
+    return e ? t("eff_" + e[1].toLowerCase()) : w; });
   return said.every(Boolean) ? said.join("；") : "";
 }
 function quoteHtml(text, h) {   // a quote as said (two lines, a click opens a longer one), and what codes in it meant
@@ -605,19 +626,22 @@ function quoteHtml(text, h) {   // a quote as said (two lines, a click opens a l
 function recapHtml(covers) {   // a film that went out, looked back on: its cover, the day, how often it stopped for you, what you said
   const dl = stations().find((x) => x.id === "deliver") || {}, day = shortDate((dl.delivered || {}).date || "");
   const cover = covers.find((c) => c.ratio && c.ratio >= 1) || covers[0];
-  const Q = (D.history || []).flatMap((h) => (h.quotes || []).map((q) => ({ q: q.text, h, where: gateName(gateKey(h.title)) || cut(h.title, 16), d: shortDate(h.date) }))).filter((x) => x.q).slice(-4).reverse();
+  const Q = (D.history || []).flatMap((h) => (h.quotes || []).map((q) => ({ q: q.text, h, where: secName(h), d: shortDate(h.date) }))).filter((x) => x.q).slice(-4).reverse();
   const film = D.studio && D.studio.film;
   return `<section class="pn recap"${dattr({ scope: t("recap") })}>${cover ? `<span class="well"><img src="${esc(src(cover.path))}" alt="" loading="lazy"></span>` : ""}<div class="rc-b">
-    <h2 class="rc-h">${esc(day ? t("recap_on", { d: day }) : t("f_delivered"))}</h2><p class="meta">${esc(t("recap_stops", { n: (D.rounds || []).length }))}${film ? "" : " · " + esc(t("recap_film_gone"))}</p>
+    <h2 class="rc-h">${esc(day ? t("recap_on", { d: day }) : t("f_delivered"))}</h2><p class="meta">${esc(t("recap_stops", { n: (D.rounds || []).length }))}</p>${film ? "" : `<p class="note-line gone">${esc(t("recap_film_gone"))}${readOnly() ? "" : ` <button type="button" class="xs" data-tell="${esc((dl.delivered && (dl.delivered.films || [])[0]) || "out/final.mp4")}">${esc(t("tell_where"))}</button>`}</p>`}
     ${Q.length ? `<h3 class="mat-h">${esc(t("recap_words"))}</h3><ul class="quotes">${Q.map((x) => `<li>${quoteHtml(x.q, x.h)}<span class="meta">${esc([x.where, x.d].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>` : ""}</div></section>`;
 }
 function mShip2() {
   const X = D.mods || {}, pk = D.packaging, covers = X.covers || [], st = D.status || {}, done = filmDelivered();
+  const said = (c, i) => { const x = String(c.text || "").trim(); if (!/^同上[。.]?$|^ditto$/i.test(x)) return x; for (let j = i - 1; j >= 0; j--) { const y = String(covers[j].text || "").trim(); if (y && !/^同上/.test(y)) return y; } return ""; };   // "同上" said again: in a grid there is no row above
   const fig = (c) => `<figure class="cov${c.ratio && c.ratio < 1 ? " v" : ""}"${dattr({ mark: "asset:" + c.path, label: `${t("covers")} ${c.id || c.path.split("/").pop()}` })}>
       <span class="well"><img src="${esc(src(c.path))}" alt="${esc(c.text || c.id || "")}" loading="lazy"></span>
-      <figcaption class="meta">${esc([c.id, c.text].filter(Boolean).join(" · "))}</figcaption></figure>`;
-  const V = covers.filter((c) => c.ratio && c.ratio < 0.95), Hz = covers.filter((c) => !(c.ratio && c.ratio < 0.95));   // vertical, then the rest: a grid each
-  const cov = covers.length ? [[V, "vertical"], [Hz, "horizontal"]].filter(([g]) => g.length).map(([g, k]) => `${V.length && Hz.length ? `<h3 class="mat-h">${esc(t(k))}<span class="n">${g.length}</span></h3>` : ""}<div class="covers grid">${g.map(fig).join("")}</div>`).join("") : voidLine(t("covers_none"));
+      <figcaption class="meta">${c.id ? `<span class="chip ok">${esc(t("cover_used"))}</span> ` : ""}${esc([c.id, said(c, covers.indexOf(c))].filter(Boolean).join(" · "))}</figcaption></figure>`;
+  const used = covers.filter((c) => c.id), rest = covers.filter((c) => !c.id), main = used.length ? used : rest, more = used.length ? rest : [];   // PACKAGING.md's covers are the ones used; the others folded
+  const V = main.filter((c) => c.ratio && c.ratio < 0.95), Hz = main.filter((c) => !(c.ratio && c.ratio < 0.95));   // vertical, then the rest: a grid each
+  const cov = covers.length ? [[V, "vertical"], [Hz, "horizontal"]].filter(([g]) => g.length).map(([g, k]) => `${V.length && Hz.length ? `<h3 class="mat-h">${esc(t(k))}<span class="n">${g.length}</span></h3>` : ""}<div class="covers grid">${g.map(fig).join("")}</div>`).join("")
+    + (more.length ? `<details class="more"><summary>${esc(t("covers_more", { n: more.length }))}</summary><div class="covers grid">${more.map(fig).join("")}</div></details>` : "") : voidLine(t("covers_none"));
   let copy = voidLine(t("copy_none"));
   if (pk) {
     const P = pk.platforms || [], i = Math.min(shipPlat, Math.max(0, P.length - 1)), p = P[i], chap = (pk.copy.find((c) => /章节|chapter/i.test(c.k)) || {}).v;
@@ -633,9 +657,11 @@ function mShip2() {
   const outs = [["o_master", chk && chk.verdict === "pass" && !chk.stale ? chk.video : ""], ["o_upload", dl.length ? dl[dl.length - 1].output : ""],
     ["o_srt", (X.subs || [])[0] || ""], ["o_covers", covers.length ? " " : ""], ["o_copy", pk && (pk.platforms || []).length ? " " : ""]];
   // a film that went out: what is still here, and "已交付" for the rest (moved off this machine), never "还没出"
-  const outputs = `<ul class="outl">${outs.filter(([, v]) => v || !done).map(([k, v]) => `<li${v.trim() ? ` title="${esc(v)}"` : ""}><span class="chip ${v ? "ok" : "quiet"}">${esc(t(v ? "made" : "pending"))}</span><span>${esc(t(k, { n: k === "o_covers" ? covers.length : ((pk && pk.platforms) || []).length }))}</span></li>`).join("")}${done ? `<li><span class="chip ok">${esc(t("f_delivered"))}</span><span>${esc(day ? t("bar_shipped", { d: day }) : t("f_delivered"))}${D.studio && D.studio.film ? "" : esc(LANG === "zh" ? "（成片不在本机）" : " (the film isn't on this computer)")}</span></li>` : ""}</ul>`;
+  const outputs = `<ul class="outl">${outs.filter(([, v]) => v || !done).map(([k, v]) => `<li${v.trim() ? ` title="${esc(v)}"` : ""}><span class="chip ${v ? "ok" : "quiet"}">${esc(t(v ? "made" : "pending"))}</span><span>${esc(t(k, { n: k === "o_covers" ? covers.length : ((pk && pk.platforms) || []).length }))}</span></li>`).join("")}${done ? `<li><span class="chip ok">${esc(t("f_delivered"))}</span><span>${esc(day ? t(D.studio && D.studio.film ? "o_film" : "o_film_gone", { d: day }) : t(D.studio && D.studio.film ? "o_film0" : "o_film_gone0"))}</span></li>` : ""}</ul>`;
   const C = X.checks || [];
-  const groups = CHECK_GROUPS.map(([k, re]) => [k, C.filter((f) => re.test(f.kind || ""))]).concat([["g_other", C.filter((f) => !CHECK_GROUPS.some(([, re]) => re.test(f.kind || "")))]]).filter(([k, fs]) => k !== "g_other" || fs.length);
+  const T2 = (pk && pk.titles) || [], unchecked = T2.filter((x) => x.fact && !/^[—–-]$/.test(x.fact) && !/已核实|核实过|verified|^yes$|^✓$/i.test(x.checked || "")).length;
+  const groups = CHECK_GROUPS.map(([k, re]) => [k, C.filter((f) => re.test(f.kind || ""))]).concat([["g_other", C.filter((f) => !CHECK_GROUPS.some(([, re]) => re.test(f.kind || "")))]]).filter(([k, fs]) => k !== "g_other" || fs.length)
+    .map(([k, fs]) => [k, k === "g_pack" && unchecked ? fs.concat([{ severity: "warn", kind: "packaging.unchecked", message: t("checked_todo", { b: unchecked }) }]) : fs]);   // one count with the titles' own
   const pre = chk ? `${chk.stale ? `<p class="notice">${esc(t("stale2"))}</p>` : ""}<ul class="checkl">${groups.map(([k, fs]) => {
       const fail = fs.filter((f) => f.severity === "fail").length, warn = fs.filter((f) => f.severity === "warn").length;
       const chip = fail ? `<span class="chip live">${esc(t("to_fix", { n: fail }))}</span>` : warn ? `<span class="chip wait">${esc(t("to_mind", { n: warn }))}</span>` : `<span class="chip ok">${esc(t("passed"))}</span>`;
@@ -644,9 +670,10 @@ function mShip2() {
       return `<li${dattr(first && first.t != null ? { mark: "time:" + (+first.t).toFixed(1), label: `${t("precheck")} · ${t(k)}`, t: first.t } : { scope: `${t("precheck")} · ${t(k)}` })}><span><b>${esc(t(k))}</b>${first ? `<span class="meta">${esc(cut(first.message, 60))}</span>` : ""}</span>${chip}${go}</li>`; }).join("")}</ul>` : voidLine(t("precheck_none"));
   return headM("ship", t("ship_title"), t("ship_sub")) + tabs("ship") + (done ? recapHtml(covers) : "")
     + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov + partErr("covers"))}${panel(t("copy"), "", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs + partErr("subs"))}${panel(t("precheck"), "", pre + partErr("check"))}</aside></div>`
-    + barM(done ? (day ? t("bar_shipped", { d: day }) : t("f_delivered")) : t("bar_ship"), "cut", t("to_cut"));
+    + barM(done ? (day ? t("bar_shipped", { d: day }) : t("f_delivered")) : flowWord(flowState(FLOW.find((f) => f.mod === "ship"))), "cut", t("to_cut"));
 }
 function wireShip2() {
+  $$("#stage [data-tell]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); tellWhere(b.dataset.tell); }));
   $$(".pgtabs.plat [data-plat]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); shipPlat = +b.dataset.plat; redraw(); }));
   $$("[data-goto-t]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); const x = +b.dataset.gotoT; if (typeof gotoTarget === "function") gotoTarget("time:" + x.toFixed(1), x, null, ""); }));
 }
@@ -662,6 +689,7 @@ moduleWords({
   licenses_ok: "{n} 件许可清楚", licenses_todo: "{n} 件许可不明，出片前会提醒你", licenses_rec: "{n} 件许可不明，出片前会提醒你", outside: "在项目外面", ledger_at: "", assets_none: "还没有登记过素材。",
   l_system: "系统自带",
   refs_n: "{n} 件参考",
+  licenses_idle: "{n} 件许可不明，没用进片子",
 }, {
   assets_title: "Assets", assets_sub2: "Where each came from, its licence, and the shot it is in.",
   f_image: "Images", f_video: "Video", f_audio: "Sound", f_font: "Fonts", f_ref: "References", k_file: "File",
@@ -671,12 +699,13 @@ moduleWords({
   licenses_ok: "{n} {n|licence|licences} clear", licenses_todo: "{n} unclear: you'll be reminded before delivery", licenses_rec: "{n} unclear: you'll be reminded before delivery", outside: "outside the project", ledger_at: "", assets_none: "No assets on record yet.",
   l_system: "system font",
   refs_n: "{n} {n|reference|references}",
+  licenses_idle: "{n} unclear, not in the film",
 });
 moduleWords({
-  notes_ledger: "早期的素材记录", notes_ledger_sub: "只能看",
+  notes_ledger: "早期的素材记录", notes_ledger_sub: "",
   notes_ledger_note: "这里只能看。要正式登记，在对话里让 agent 登记。", nl_file: "文件", nl_src: "来源", nl_lic: "许可", nl_gone: "不在", nl_gone_tip: "项目里没有这个文件",
 }, {
-  notes_ledger: "Earlier asset notes", notes_ledger_sub: "read only",
+  notes_ledger: "Earlier asset notes", notes_ledger_sub: "",
   notes_ledger_note: "Read only. To put an item on record, ask the agent in the chat.", nl_file: "File", nl_src: "Source", nl_lic: "Licence", nl_gone: "not here", nl_gone_tip: "No such file in the project",
 });
 let assetFilter = "all";
@@ -700,26 +729,30 @@ function mAssets2() {
     return `<article class="acard${CLEARED.includes(a.license) ? "" : " flag"}"${dattr({ mark: a.path ? "asset:" + a.path : "", scope: a.path ? "" : `${t("m_assets")} · ${a.id}`, label: `${t("m_assets")} ${a.id}` })}>
       <div class="well"><span class="ph">${esc(x.k === "audio" ? "♪" : x.k === "video" ? "▶" : x.k === "font" ? "" : String(a.id || "·").slice(0, 1))}</span>${pic}</div>
       <div class="ac-b"><h3>${esc(a.id)}</h3><p><span class="chip ${licLamp(a.license)}"${a.license_name ? ` title="${esc(a.license_name)}"` : ""}>${esc(licText(a))}</span><span class="meta">${esc(t(x.k === "file" ? "k_file" : "f_" + x.k))}</span>${a.system ? `<span class="chip quiet">${esc(t("l_system"))}</span>` : ""}${a.aigc && a.license !== "generated" ? `<span class="meta">${esc(t("l_generated"))}</span>` : ""}</p>
-      <p class="meta">${esc(uses ? t("used_in", { x: uses }) : t("not_used"))}${a.source ? " · " + `<span title="${esc(a.source)}">${esc(t("from", { x: srcWords(a.source) }))}</span>` : ""}</p>${a.note ? `<p class="meta">${esc(a.note)}</p>` : ""}${a.system ? "" : a.outside ? `<p class="meta warn" title="${esc(a.outside)}">${esc(t("outside"))}</p>` : a.path && !a.there ? `<p class="meta warn" title="${esc(a.path)}">${esc(t("gone_file"))}</p>` : ""}</div></article>`;
+      <p class="meta">${esc(uses ? t("used_in", { x: uses }) : t("not_used"))}</p>${a.source ? `<p class="meta" title="${esc(a.source)}">${esc(t("from", { x: srcWords(a.source) }))}</p>` : ""}${a.note ? `<p class="meta">${esc(a.note)}</p>` : ""}${a.system ? "" : a.outside ? `<p class="meta warn" title="${esc(a.outside)}">${esc(t("outside"))}</p>` : a.path && !a.there ? `<p class="meta warn" title="${esc(a.path)}">${esc(t("gone_file"))}${readOnly() ? "" : ` <button type="button" class="xs" data-tell="${esc(a.path)}">${esc(t("tell_where"))}</button>`}</p>` : ""}</div></article>`;
   };
   const counts = { all: items.length }; items.forEach((x) => { counts[x.k] = (counts[x.k] || 0) + 1; });
   const filters = items.length ? `<nav class="pgtabs" aria-label="${esc(t("m_assets"))}">${["all", "image", "video", "audio", "font", "ref"].map((k) => `<button type="button" data-af="${k}" aria-current="${assetFilter === k}">${esc(t("f_" + k))}${counts[k] ? ` <span class="mono">${counts[k]}</span>` : ""}</button>`).join("")}</nav>` : "";   // nothing to filter: no filters
   const N = A == null && X.assets_notes && (X.assets_notes.rows || []).length ? X.assets_notes : null;   // no ledger: the older table in NOTES.md, read only
   const notesTable = N ? panel(t("notes_ledger"), t("notes_ledger_sub"), `<div class="tscroll"><table class="t nl"><thead><tr><th>${esc(t("nl_file"))}</th><th>${esc(t("nl_src"))}</th><th>${esc(t("nl_lic"))}</th></tr></thead><tbody>${N.rows.map((r) =>   // a file not in the project: a tag beside its name (a link has none)
-      `<tr${dattr({ mark: r.file ? "asset:" + r.file : "", scope: r.file ? "" : `${t("notes_ledger")} · ${cut(r.source || r.license, 30)}`, label: `${t("notes_ledger")} · ${cut(r.file, 60)}` })}><td><span class="fold" tabindex="0">${esc(r.file || "—")}</span>${r.there === false ? ` <span class="chip wait" title="${esc(t("nl_gone_tip"))}">${esc(t("nl_gone"))}</span>` : ""}</td><td><span class="fold" tabindex="0">${esc(r.source || "—")}</span></td><td><span class="fold" tabindex="0">${esc(r.license || "—")}</span></td></tr>`).join("")}</tbody></table></div><p class="meta">${esc(t("notes_ledger_note"))}</p>`, "nl-pn") : "";
-  const ok = (A || []).filter((a) => CLEARED.includes(a.license)).length, todo = (A || []).length - ok, refs = R.length;
+      `<tr${dattr({ mark: r.file ? "asset:" + r.file : "", scope: r.file ? "" : `${t("notes_ledger")} · ${cut(r.source || r.license, 30)}`, label: `${t("notes_ledger")} · ${cut(r.file, 60)}` })}><td><span class="fold" tabindex="0">${esc(r.file || "—")}</span>${r.there === false ? ` <span class="chip wait" title="${esc(t("nl_gone_tip"))}">${esc(t("nl_gone"))}</span>` : ""}</td><td><span class="fold" tabindex="0">${esc(r.source || "—")}</span></td><td><span class="fold" tabindex="0">${esc(r.license || "—")}</span></td></tr>`).join("")}</tbody></table></div>`, "nl-pn") : "";   // read only: the line at the top says how to add
+  const ok = (A || []).filter((a) => CLEARED.includes(a.license)).length, unclear = (A || []).filter((a) => !CLEARED.includes(a.license)), refs = R.length;
+  const todo = unclear.filter((a) => (Array.isArray(a.used_by) ? a.used_by : []).length).length, idle = unclear.length - todo;   // as the check counts: an unclear licence matters once the file is in the film
   const digests = G.length ? panel(t("digest"), "", `<ul class="copyl">${G.map((g) => `<li${dattr({ mark: "asset:" + g.path, label: `${t("digest")} ${g.id}` })}><span class="mono">${esc(g.id)}</span><a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a><span class="meta mono">${esc(Math.max(1, Math.round(g.bytes / 1024)) + " kB")}</span></li>`).join("")}</ul>`) : "";
   return headM("assets", t("assets_title"), t("assets_sub2"), filters)
     + (readOnly() ? "" : `<p class="note-line add-line">${esc(t("drop_note"))}</p>`)
     + partErr("assets") + partErr("refs") + (A == null && !R.length ? (N ? "" : voidLine(t("assets_none"))) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + notesTable + digests + partErr("digests")
-    + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t(((D.status || {}).assets || {}).policy === "record" ? "licenses_rec" : "licenses_todo", { n: todo }))}` : ""}${refs ? `　<i class="dotw quiet" aria-hidden="true">●</i> ${esc(t("refs_n", { n: refs }))}` : ""}</span></footer>` : "");
+    + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t(((D.status || {}).assets || {}).policy === "record" ? "licenses_rec" : "licenses_todo", { n: todo }))}` : ""}${idle ? `　<i class="dotw quiet" aria-hidden="true">●</i> ${esc(t("licenses_idle", { n: idle }))}` : ""}${refs ? `　<i class="dotw quiet" aria-hidden="true">●</i> ${esc(t("refs_n", { n: refs }))}` : ""}</span></footer>` : "");
 }
-function wireAssets2() { $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; redraw(); })); }
+function wireAssets2() {
+  $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; redraw(); }));
+  $$("#stage [data-tell]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); tellWhere(b.dataset.tell); }));
+}
 MODVIEW.assets = { main: mAssets2, wire: wireAssets2 };
 
 /* ---------- 账本: the decisions, your words, the versions ---------- */
 moduleWords({
-  ledger_title: "决定记录", ledger_sub2: "agent 替你定的事都在这儿，不同意就点「改」。",
+  ledger_title: "决定记录", ledger_sub2: "agent 替你定的事都在这儿。不同意，点那一条的「改」。",
   decisions: "决定", what: "什么事", decided: "定成什么", who: "谁定的", when: "日期", reason: "理由", you_decide: "你定", show_you: "给你过目", agent_decides: "agent 定", waits: "等你",
   overturn_say: "我不同意：", your_words: "你的原话", your_words_sub: "一字不改记下的", versions: "版本", ver_cmd: "每一版改了什么", v_n: "第 {n} 版",
   changed_n: "改了 {n} 段", changed_s: "改了 {x}", whole_film2: "整片", words_none: "还没有记下你的原话。", versions_none: "还没出过版本。",
@@ -727,7 +760,7 @@ moduleWords({
   who_grid: "谁来定",
   log_h: "定下的事",
 }, {
-  ledger_title: "Decisions", ledger_sub2: "What the agent decided for you is here; disagree, and click “Change”.",
+  ledger_title: "Decisions", ledger_sub2: "What the agent decided for you is here. To disagree, click “Change” on that row.",
   decisions: "Decisions", what: "What", decided: "Decided", who: "By", when: "When", reason: "Why", you_decide: "you", show_you: "shown to you", agent_decides: "the agent", waits: "waiting for you",
   overturn_say: "I disagree: ", your_words: "Your words", your_words_sub: "word for word", versions: "Versions", ver_cmd: "what each changed", v_n: "v{n}",
   changed_n: "{n} {n|stretch|stretches} changed", changed_s: "changed {x}", whole_film2: "the whole film", words_none: "No words of yours recorded yet.", versions_none: "No versions yet.",
@@ -742,19 +775,24 @@ function whatName(w) {   // "concept 立意" → 立意, "spec" → 规格: the 
   if (m && /[㐀-鿿]/.test(m[2])) return LANG === "zh" ? m[2] : m[1];
   return LANG === "zh" && DIR_WHAT[x.toLowerCase()] ? DIR_WHAT[x.toLowerCase()] : x;
 }
+function ledStatus(s, name) {   // a cell's status in words: no "（可翻）", no stop codes, nothing when it only repeats the cell's name
+  const x = stopWords(String(s || "")).replace(/[（(]\s*可翻\s*[）)]/g, "").replace(/^[\s：:·]+|[\s：:·]+$/g, "").trim();
+  return x === name ? "" : x;
+}
 function mLedger2() {
   const who = (w, s) => (/等|wait/i.test(s || "") ? ["waits", "wait"] : /^own|你|person/i.test(w || "") ? ["you_decide", ""] : /^review|看/i.test(w || "") ? ["show_you", "quiet"] : ["agent_decides", "agent"]);
   const keyOf = (w) => String(w || "").trim().split(/\s+/)[0].toLowerCase();
   const stale = (l) => { const st = LED_STOP[keyOf(l.what)]; return (filmDelivered() || (st && ["done", "skipped"].includes(stationState(st)))) && /进行中|待|等|in progress|pending|waiting/i.test(l.status || ""); };
-  const over = (i) => (readOnly() ? "" : `<button type="button" class="xs ovt" data-overturn="${esc(i)}">${esc(t("overturn"))}</button>`);   // on every row, quiet (CSS)
+  const over = (i) => (readOnly() ? "" : `<button type="button" class="xs ovt" data-overturn="${esc(i)}">${esc(t("overturn"))}</button>`);   // shown where the pointer is (CSS)
   // who decides what: a cell a decision; a status written before the film went out is said as decided, the words kept in the tooltip
   const grid = D.ledger.length ? `<div class="whogrid">${D.ledger.map((l, i) => { const [k, c] = who(l.who, l.status), old = stale(l);
-      return `<div class="wg"${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${whatName(l.what)}` })}><b>${esc(whatName(l.what))}</b><span class="chip ${c}">${esc(t(k))}</span><span class="meta"${old ? ` title="${esc(l.status)}"` : ""}>${esc(old ? t("f_done") : stopWords(l.status))}</span>${k === "agent_decides" ? over("t" + i) : ""}</div>`; }).join("")}</div>` : voidLine(t("dec_none"));
+      return `<div class="wg"${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${whatName(l.what)}` })}><b>${esc(whatName(l.what))}</b><span class="chip ${c}">${esc(t(k))}</span><span class="meta"${old ? ` title="${esc(l.status)}"` : ""}>${esc(old ? t("f_done") : ledStatus(l.status, whatName(l.what)))}</span>${k === "agent_decides" ? over("t" + i) : ""}</div>`; }).join("")}</div>` : voidLine(t("dec_none"));
   // what was decided, newest first: the agent's decisions with their day and their reason
   const A = D.agent_decided.filter((a) => !a.superseded).map((a) => ({ a, i: D.agent_decided.indexOf(a) })).sort((x, y) => String(y.a.date || "").localeCompare(String(x.a.date || "")));
-  const log = A.length ? `<ul class="declog">${A.map(({ a, i }) => `<li${dattr({ mark: "led:" + i, label: t("l_led", { x: (a.topic ? whatName(a.topic) + COLON() : "") + cut(a.what, 20) }) })}><span class="mono tc">${esc(shortDate(a.date) || "")}</span><div><b>${esc(a.topic ? whatName(a.topic) : "")}</b><span class="fold" tabindex="0">${esc(a.what)}</span>${a.why ? `<span class="meta fold" tabindex="0">${esc(t("reason"))}${esc(COLON())}${esc(a.why)}</span>` : ""}</div>${over(i)}</li>`).join("")}</ul>` : "";
+  const logRow = ({ a, i }) => `<li${dattr({ mark: "led:" + i, label: t("l_led", { x: (a.topic ? whatName(a.topic) + COLON() : "") + cut(a.what, 20) }) })}><span class="mono tc">${esc(shortDate(a.date) || "")}</span><div><b>${esc(a.topic ? whatName(a.topic) : "")}</b><span class="fold" tabindex="0">${esc(a.what)}</span>${a.why ? `<span class="meta fold" tabindex="0">${esc(t("reason"))}${esc(COLON())}${esc(a.why)}</span>` : ""}</div>${over(i)}</li>`;
+  const log = A.length ? `<ul class="declog">${A.slice(0, 5).map(logRow).join("")}</ul>${A.length > 5 ? `<details class="more"><summary>${esc(t("more_n", { n: A.length - 5 }))}</summary><ul class="declog">${A.slice(5).map(logRow).join("")}</ul></details>` : ""}` : "";   // the newest five, the rest folded
   const Q = D.history.flatMap((h) => (h.quotes || []).map((q) => ({ h, q })));
-  const words = Q.length ? `<ul class="quotes">${Q.map(({ h, q }) => `<li${dattr({ scope: `${t("your_words")} · ${cut(h.title, 24)}` })}>${quoteHtml(q.text, h)}<span class="meta">${esc([gateName(gateKey(h.title)) || cut(h.title, 30), q.label, shortDate(dateOf(h))].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>` : voidLine(t("words_none"));
+  const words = Q.length ? `<ul class="quotes">${Q.map(({ h, q }) => `<li${dattr({ scope: `${t("your_words")} · ${cut(h.title, 24)}` })}>${quoteHtml(q.text, h)}<span class="meta">${esc([secName(h), q.label, shortDate(dateOf(h))].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>` : voidLine(t("words_none"));
   const V = ((D.status || {}).versions || {}).list || [];
   const vers = V.length ? `<ul class="copyl vers">${V.slice().reverse().map((v) => { const n = v.n != null ? v.n : (String(v.id).match(/\d+/) || [""])[0], ch = v.changed || {};
       const what = ch.whole || !Object.keys(ch).length ? t("whole_film2") : (ch.shots || []).length ? t("changed_s", { x: ch.shots.slice(0, 4).join("、") }) : t("changed_n", { n: (ch.seconds || ch.frames || []).length });

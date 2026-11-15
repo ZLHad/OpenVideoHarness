@@ -2914,6 +2914,7 @@ PY
     vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
   else bad "new --lang: Review language not written"; fi
   cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
+  for x in rz re; do printf '# REVIEW\n' > "$t/$x/REVIEW.md"; done   # gate ① still open (the fixture's is decided): a page that asks, with its reply
   sed 's/^{/{"lang": "en",/' tools/desk/fixtures/zh/out/review/gate-1.json > "$t/rz/out/review/gate-1b.json"
   if vh review "$t/rz" 1 >/dev/null 2>&1 && vh review "$t/re" 1 >/dev/null 2>&1 && vh review "$t/rz" 1b >/dev/null 2>&1 \
     && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html" \
@@ -3119,7 +3120,11 @@ want("over its budget" not in err and "! " not in err, f"the demo pages warn: {e
 for g, h in list(pages.items()) + [("zh", zh)]:
     want(css in h and js in h, f"gate {g}: ui.css and ui.js are not inlined whole")
     want(not re.search(r"<(script|link)[^>]+(src|href)=", h) and "https://" not in h and "http://" not in h, f"gate {g}: loads something from outside the page")
-want('<input type="radio" name="dec-look" value="L1" checked data-rec="1" aria-label="L1 浅色清新 · 推荐" aria-describedby="o-look-L1">' in zh and '<code class="g-reply-v">1 L1</code>' in zh, "zh gate 1: the recommended card is not picked, or no reply")
+art = lambda h: (re.search(r'<article class="gate"[^>]*>', h) or [""])[0]   # the page's own tag (the inlined ui.css names the same attributes)
+want('<input type="radio" name="dec-draft" value="FIX" checked data-rec="1"' in pages["3"] and '<code class="g-reply-v">1 FIX · 2 V1</code>' in pages["3"] and "data-settled" not in art(pages["3"]),
+     "demo gate 3 (still open): the recommended option is not picked, or no reply")
+want('data-settled="done"' in art(zh) and 'value="L1" disabled data-rec="1"' in zh and '<code class="g-reply-v">' not in zh and 'data-settled="done"' in art(pages["1"]),
+     "zh gate 1 and demo gate 1 (decided since): not a record (said as decided, nothing picked or to pick, no reply)")
 want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
 want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
 import json
@@ -6739,12 +6744,36 @@ PY
   printf '\n## 交付\n<!-- - 成片（2026-10-20）：out/final.mp4 -->\n- 成片（2026-10-21）：out/draft.mp4\n' >> "$q/REVIEW.md"
   a=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent")
   printf -- '- 成片（2026-10-23）：out/final-4k.mp4、out/final-1080p.mp4（挪到外接盘）\n' >> "$q/REVIEW.md"
-  b=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:done | nobody" 'd["stations"][-1]["delivered"] == {"date": "2026-10-23"}' '"not on this machine now" in d["stations"][-1]["note"]')
+  b=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:done | nobody" 'd["stations"][-1]["delivered"] == {"date": "2026-10-23", "films": ["out/final-4k.mp4", "out/final-1080p.mp4"]}' '"not on this machine now" in d["stations"][-1]["note"]')
   c=$(vh status "$q")
   if [ "$a" = "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$b" = "1:skipped 2:skipped 3:skipped deliver:done | nobody" ] \
     && case "$c" in *"REVIEW.md records the final film (out/final-4k.mp4, out/final-1080p.mp4, 2026-10-23)"*"waiting on: nobody"*) true ;; *) false ;; esac
   then ok "status: REVIEW.md's line for the final film with its date (moved off this machine) is the delivery, on that day, and the terminal says so; one in a comment, or a draft, is not"
   else bad "status: a final film on record in REVIEW.md: $a | $b | $(printf '%s' "$c" | head -8)"; fi
+  # a stop decided in the person's own words is decided, also when a later waiver covers the stops after it; a film made
+  # before the delivery record (no render in its log) whose gate ③ is waived went out once its LESSONS.md was written, on the
+  # day NOTES.md finalised it; with LESSONS.md still the template, or with a render in its log (its own records then say), not
+  OVH_PROJECTS="$t" vh new math legacy >/dev/null 2>&1; q=$(ls -d "$t"/*-legacy)
+  python3 - "$q" <<'PY'
+import re, sys
+from pathlib import Path
+q = Path(sys.argv[1])
+r = (q / "REVIEW.md").read_text(encoding="utf-8")
+r = r.replace("## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 原话：“用 A”\n- 定了：立意 A\n", 1)
+r += "\n## 授权：之后不再停（2026-10-04）\n- 用户授权跳过（2026-10-04）。原话：“之后你自己做完”\n"
+(q / "REVIEW.md").write_text(r, encoding="utf-8")
+d = (q / "DECISIONS.md").read_text(encoding="utf-8")
+(q / "DECISIONS.md").write_text(re.sub(r"(\| concept 立意 \|[^|\n]*\|)[^|\n]*\|", r"\1 已定（关卡 ①） |", d, count=1), encoding="utf-8")
+(q / "NOTES.md").write_text((q / "NOTES.md").read_text(encoding="utf-8") + "\n[定稿 · out/final.mp4]（2026-10-04）\n- 正式画质渲完，检查通过\n", encoding="utf-8")
+PY
+  a=$(st "$q" "1:done 2:skipped 3:skipped deliver:in_progress | agent")
+  printf '\n## 这一支片子\n- 一个形状贯穿全片时，在两种轮廓之间插值，比叠化更像长出来。\n' >> "$q/LESSONS.md"
+  b=$(st "$q" "1:done 2:skipped 3:skipped deliver:done | nobody" 'd["stations"][-1]["delivered"] == {"date": "2026-10-04", "films": ["out/final.mp4"]}' '"LESSONS.md is written" in d["stations"][-1]["note"]' 'd["next_step"]["who"] == "nobody"')
+  printf '{"v":1,"event":"start","run":"1760000000-1","t":1760000000.0,"cmd":"render","args":[],"cwd":"/","pid":1}\n' >> "$q/.ovh/activity.jsonl"
+  c=$(st "$q" "1:done 2:skipped 3:skipped deliver:in_progress | agent")
+  if [ "$a" = "1:done 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$b" = "1:done 2:skipped 3:skipped deliver:done | nobody" ] && [ "$c" = "1:done 2:skipped 3:skipped deliver:in_progress | agent" ]
+  then ok "status: a stop decided in the person's words stays decided under a later waiver; a film from before the delivery record went out when its LESSONS.md was written, on the day NOTES.md finalised it, its film named; not with LESSONS.md still the template, nor once a render is in its log"
+  else bad "status: an older film's end: $a | $b | $c"; fi
   # a check record keeps the film's size and mtime_ns, and a film that differs from them in either is not the one checked:
   # a film put back with an old modification time (cp -p, rsync -a, bin/vh versions use) is older than the record all the
   # same, which the time alone calls current. A record without the two (made before) goes by the film's time, as it did

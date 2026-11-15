@@ -8,7 +8,7 @@ const STR = {
     brand: "片场", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
-    f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_skip: "跳过", f_off: "不单独看", f_norec: "没有记录",
+    f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
     search: "搜片子", search_ph: "片名、文件夹或类型，回车打开", no_match: "没有对上的片子", lang: "EN", lang_tip: "Switch to English", themes: "主题",
     th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥", skip: "跳到内容", rail: "模块", flow: "这支片子的几站",
     ask_h: "想做一支什么样的片子？", ask_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次",
@@ -20,22 +20,22 @@ const STR = {
     st_no_record: "没有审阅记录", st_not_started: "没开始", st_skipped: "跳过", st_done: "已定",
     agent_list: "agent 在做",
     col_round: "这一轮", col_notes: "随手点评", live_on: "agent 在等你交", live_off: "agent 没在等",
-    live_on_tip: "交上去以后 agent 会接着做", live_off_tip: "提交后回到对话里说一声“看审阅台”",
+    live_on_tip: "交给 agent 以后它会接着做", live_off_tip: "交给 agent 以后，回到对话里说一声“看审阅台”",
     c_decide: "要你定", c_rec: "不选就按推荐", c_least: "agent 没把握的", c_listen: "请你听", c_mine: "我的意见", c_next: "下一步", c_running: "正在做", c_spend: "花费",
     c_spent: "已花 {s}", c_of: "预算 {l}", c_none_mine: "还没写。点一下时间轴或一个镜头，在下面写一句。", who_agent: "agent", who_person: "你", who_nobody: "已交付",
     round_sum: "{n} 条点评 · {d} 个决定", submit_round: "交给 agent", c_whole_note: "整体", round_quiet: "现在没有要你定的事。", static_page: "单独打开审阅页", recent: "最近定下的", agent_decided_k: "agent 定的 · {x}",
-    at: "对着", whole: "整个{m}", whole_film: "整片", to_whole: "取消选中", say_agent: "说给 agent", say_agent_tip: "以后能直接和 agent 说；现在先写成意见，交的时候一起给它",
+    at: "对着", whole: "这一页", whole_film: "整片", to_whole: "取消选中", say_agent: "说给 agent", say_agent_tip: "以后能直接和 agent 说；现在先写成意见，交的时候一起给它",
     as_note: "写成意见", c_ph: "写下你对{x}的意见…", note_add: "记下", note_keys: "⌘↩", noted: "记下了：{x}", del: "删",
-    d_dropped: "这 {n} 条写不进去，不会交出去（对着的东西认不出，或者字太长）",
-    d_title: "交出去之前看一眼", d_decisions: "决定", d_items: "意见", by_rec: "（你没改，按推荐）", d_none: "你没写具体意见。",
-    general: "整体意见（可选）", general_ph: "比如：整体节奏偏慢；开场很好……", submit: "交出去", cancel: "再看看", preview: "会交出去的内容",
-    submit_hint: "交上去以后，agent 下次开工会先看你的意见。",
-    sent_live: "交上去了，agent 已经在接着做", sent: "交上去了",
-    hint_live: "交上去了。agent 正等着，已经接着做了。",
-    hint_idle: "交上去了。agent 下次开工会先看你的意见；想让它马上看，在对话里说一声。",
-    offline: "没有连上本地服务：回复已复制，粘贴到对话里即可", offline2: "没有连上本地服务：请复制下面的内容", refused: "没有提交成功：{e}", moved: "没有提交：这个地址现在指的已经不是你打开的那支片子了。重新载入页面，再交一次（草稿还在）。",
+    d_dropped: "这 {n} 条写不进去，不会交给 agent（对着的东西认不出，或者字太长）",
+    d_title: "交给 agent 之前看一眼", d_decisions: "决定", d_items: "意见", by_rec: "（你没改，按推荐）", d_none: "你没写具体意见。",
+    general: "整体意见（可选）", general_ph: "比如：整体节奏偏慢；开场很好……", submit: "交给 agent", cancel: "再看看", preview: "会交给 agent 的原文",
+    submit_hint: "交给 agent 以后，它下次开工会先看你的意见。",
+    sent_live: "交给 agent 了，它已经在接着做", sent: "交给 agent 了",
+    hint_live: "交给 agent 了。它正等着，已经接着做了。",
+    hint_idle: "交给 agent 了。它下次开工会先看你的意见；想让它马上看，在对话里说一声。",
+    offline: "没有连上本地服务：回复已复制，粘贴到对话里即可", offline2: "没有连上本地服务：请复制下面的内容", refused: "没有交成功：{e}", moved: "没有交成功：这个地址现在指的已经不是你打开的那支片子了。重新载入页面，再交一次（草稿还在）。",
     reply_head: "《{p}》{r} 的回复", rest: "其余没标的都算通过。", round_name: "关卡 {r}", notes_round: "随手点评", overall: "整体",
-    submitted: "这一轮已经提交过（{at}）。再提交会另存一份，REVIEW.md 里也会多一节。", new_round: "agent 发来了新的一页：{g}",
+    submitted: "这一轮已经交过（{at}）。再交一次会另存一份，记录里也会多一节。", new_round: "agent 发来了新的一页：{g}",
     sent_n: "已交 {n} 条意见、{d} 件决定（{at}）。之后再交，只发新写的。", proj_ph: "<项目>", ns_raw: "agent 那边的原话",
     past: "这是之前的审阅页（{g}），只能看。", to_round: "回到这一轮 →", page_of: "看当时的审阅页 →", st_ok: "可以", st_change: "要改", st_ask: "疑问",
     fb_ok: "✓ 可以", fb_change: "✎ 要改", fb_ask: "? 疑问", fb_def: "不点就算通过", ph_change: "哪里要改、为什么", ph_ask: "哪里没看懂？",
@@ -59,7 +59,7 @@ const STR = {
     sev_fail: "没过", sev_warn: "注意", no_thumbs: "还没做缩略图：拖动时看不到每一秒的画面",
     // the other modules (the desk's views, moved in)
     sub_outline: "大纲", sub_script: "字幕 / 旁白", sub_facts: "事实", sub_check: "检查", sub_versions: "版本", sub_decisions: "决定", sub_history: "历史", sub_docs: "文档",
-    concept: "立意", spine: "故事线", motif: "贯穿全片的", end: "看完以后", spec: "规格", outline_tip: "点色块跳到那一段",
+    concept: "立意", spine: "故事线", motif: "贯穿全片的", end: "看完能记住", spec: "规格", outline_tip: "点色块跳到那一段",
     seg_n: "第 {i} 段", know: "看完知道 / 感到", visual: "关键画面", seg_caps: "这一段的 {n} 条", to_script: "去逐条看 →", bars: "第 {b} 小节",
     no_outline: "大纲还没写成表格，下面是原文。", no_brief: "还没有 BRIEF.md。",
     script_sub: "{n} 条，按大纲分段。标黄、标红的读得偏快。",
@@ -123,12 +123,20 @@ const STR = {
     c_none_mine_m: "还没写。点页面上任意一处，在下面写一句。",
     subs_waiting: "{n} 份反馈还没交给 agent",
     blanks_n: "{n} 处没填",
+    f_past: "",
+    away_decide: "{s}等你定 {n} 件",
+    away_look: "{s}等你看",
+    next_you: "看{s}，定好以后交给 agent。",
+    next_you0: "看一眼，定好以后交给 agent。",
+    next_agent: "接着做。",
+    fps_n: "{n} 帧/秒",
+    no_play: "只有一张画面，没什么可播",
   },
   en: {
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, then copy it to your agent",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",
-    f_done: "decided", f_wait: "waiting for you", f_agent: "agent working", f_todo: "not started", f_skip: "skipped", f_off: "not a stop", f_norec: "no record",
+    f_done: "decided", f_wait: "waiting for you", f_agent: "agent working", f_todo: "not started", f_skip: "skipped", f_off: "with the draft", f_norec: "no record",
     search: "Find a film", search_ph: "Title, folder or type; Enter opens it", no_match: "No film matches", lang: "中", lang_tip: "切换到中文", themes: "Theme",
     th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge", skip: "Skip to content", rail: "Modules", flow: "This film's stops",
     ask_h: "What film do you want to make?", ask_ph: "e.g. a one-minute explainer on why the tide comes in twice a day",
@@ -140,22 +148,22 @@ const STR = {
     st_paused: "paused", st_no_record: "no review record", st_not_started: "not started", st_skipped: "skipped", st_done: "decided",
     agent_list: "The agent is on",
     col_round: "This round", col_notes: "Notes", live_on: "the agent is waiting for you", live_off: "the agent isn't waiting",
-    live_on_tip: "Once you send it, the agent carries on", live_off_tip: "After submitting, tell the agent in the chat: “check the desk”",
-    c_decide: "To decide", c_rec: "Left alone: recommended", c_least: "Where the agent is unsure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Working on", c_spend: "Spent",
+    live_on_tip: "Once you send it, the agent carries on", live_off_tip: "After sending, tell the agent in the chat: “check the desk”",
+    c_decide: "To decide", c_rec: "Default: recommended", c_least: "Where the agent is unsure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Working on", c_spend: "Spent",
     c_spent: "{s} spent", c_of: "of {l}", c_none_mine: "None yet. Click the timeline or a shot, then write a line below.", who_agent: "agent", who_person: "you", who_nobody: "delivered",
     round_sum: "{n} {n|note|notes} · {d} {d|decision|decisions}", submit_round: "Send to the agent", c_whole_note: "Overall", round_quiet: "Nothing to decide now.", static_page: "Open the review page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}",
-    at: "On", whole: "the whole {m}", whole_film: "the whole film", to_whole: "Deselect", say_agent: "Tell the agent", say_agent_tip: "Talking to the agent comes later; for now write a note, and it goes with what you send",
+    at: "On", whole: "this page", whole_film: "the whole film", to_whole: "Deselect", say_agent: "Tell the agent", say_agent_tip: "Talking to the agent comes later; for now write a note, and it goes with what you send",
     as_note: "Write a note", c_ph: "Add a note on {x}…", note_add: "Add note", note_keys: "⌘↩", noted: "Noted: {x}", del: "Delete",
     d_dropped: "{n} can't be sent: what they are on can't be read, or they are too long",
     d_title: "Before you send it", d_decisions: "Decisions", d_items: "Notes", by_rec: " (you didn't change it: the recommendation)", d_none: "You wrote no notes.",
-    general: "Overall (optional)", general_ph: "e.g. the pace drags overall; the opening works…", submit: "Send", cancel: "Keep looking", preview: "What will be sent",
+    general: "Overall (optional)", general_ph: "e.g. the pace drags overall; the opening works…", submit: "Send to the agent", cancel: "Keep looking", preview: "The text that will be sent",
     submit_hint: "Once it is sent, the agent reads your notes first the next time it works.",
     sent_live: "Sent; the agent is on it", sent: "Sent",
     hint_live: "Sent. The agent was waiting and has carried on.",
     hint_idle: "Sent. The agent reads your notes the next time it works; to have it read them now, tell it in the chat.",
-    offline: "Couldn't reach the local server: the reply is copied, paste it into the chat", offline2: "Couldn't reach the local server: copy the text below", refused: "Not submitted: {e}", moved: "Not submitted: this address no longer names the film you opened. Reload the page and submit again (your draft is kept).",
+    offline: "Couldn't reach the local server: the reply is copied, paste it into the chat", offline2: "Couldn't reach the local server: copy the text below", refused: "Not sent: {e}", moved: "Not sent: this address no longer names the film you opened. Reload the page and send again (your draft is kept).",
     reply_head: "Reply to {r} of “{p}”", rest: "Everything not marked passes.", round_name: "gate {r}", notes_round: "notes", overall: "Overall",
-    submitted: "Already submitted this round ({at}). Submitting again saves another copy and adds another section to REVIEW.md.", new_round: "The agent sent a new page: {g}",
+    submitted: "Already sent this round ({at}). Sending again saves another copy and adds another section to the record.", new_round: "The agent sent a new page: {g}",
     sent_n: "Sent {n} {n|note|notes} and {d} {d|decision|decisions} ({at}). Sending again sends only what is new.", proj_ph: "<project>", ns_raw: "the agent's own words",
     past: "An earlier review page ({g}), to look at only.", to_round: "Back to this round →", page_of: "See the review page of then →", st_ok: "ok", st_change: "change", st_ask: "question",
     fb_ok: "✓ OK", fb_change: "✎ Change", fb_ask: "? Question", fb_def: "untouched = approved", ph_change: "What to change, and why", ph_ask: "What's unclear?",
@@ -177,7 +185,7 @@ const STR = {
     diff_label: "{v} changed this", next_q: "Next · {x}", no_next: "Nothing more after here", k_least: "agent unsure", k_listen: "listen", k_check: "found by the check", k_mine: "my note",
     sev_fail: "failed", sev_warn: "warning", no_thumbs: "No thumbnails yet: dragging won't show each second",
     sub_outline: "Outline", sub_script: "Captions / narration", sub_facts: "Facts", sub_check: "Check", sub_versions: "Versions", sub_decisions: "Decisions", sub_history: "History", sub_docs: "Documents",
-    concept: "Concept", spine: "Spine", motif: "Recurring motif", end: "At the end", spec: "Spec", outline_tip: "click a block to jump to it",
+    concept: "Concept", spine: "Spine", motif: "Recurring motif", end: "Remembered after", spec: "Spec", outline_tip: "click a block to jump to it",
     seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} {n|line|lines} in this part", to_script: "go through them →", bars: "bars {b}",
     no_outline: "The outline isn't a table yet; here it is as written.", no_brief: "No BRIEF.md yet.",
     script_sub: "{n} {n|line|lines} by outline part. Amber and red ones read fast.",
@@ -242,6 +250,14 @@ const STR = {
     c_none_mine_m: "Nothing yet. Click anything on the page and write a line below.",
     subs_waiting: "{n} {n|submission|submissions} not handed to the agent yet",
     blanks_n: "{n} {n|blank|blanks}",
+    f_past: "",
+    away_decide: "{s}: {n} to decide",
+    away_look: "{s} is waiting for you",
+    next_you: "look at the {s}, decide, and send it to the agent.",
+    next_you0: "take a look, decide, and send it to the agent.",
+    next_agent: "carries on.",
+    fps_n: "{n} fps",
+    no_play: "One picture only: nothing to play",
   },
 };
 
@@ -404,13 +420,14 @@ function flowState(f) {   // a flow item's lamp: from the film's own stops; none
   const S = stations().filter((s) => f.st.includes(s.id));
   if (!S.length) return { state: "off", S };
   if (S.some((s) => s.state === "waiting_person")) return { state: "wait", S };
+  if (filmDelivered() && !S.some((s) => s.id === "deliver") && !S.every((s) => s.state === "done" || s.state === "skipped")) return { state: "past", S };   // it went out: a gap an older stop left waits for no one
   if (S.some((s) => s.state === "waiting_agent" || s.state === "in_progress")) return { state: "agent", S };
   if (S.every((s) => s.state === "skipped")) return { state: "skip", S };
   if (S.every((s) => s.state === "done" || s.state === "skipped")) return { state: "done", S };
   if (S.some((s) => s.state === "no_record")) return { state: "norec", S };
   return { state: "todo", S };
 }
-const STATE_WORD = { done: "f_done", wait: "f_wait", agent: "f_agent", todo: "f_todo", skip: "f_skip", off: "f_off", norec: "f_norec" };
+const STATE_WORD = { done: "f_done", wait: "f_wait", agent: "f_agent", todo: "f_todo", skip: "f_skip", off: "f_off", norec: "f_norec", past: "f_past" };
 function gateKey(s) {   // the stop a title or a "where" names, in either language: 关卡 ②, Gate ②, gate 2, E2, 检查点 E2 → "2", "E2"
   const x = String(s || ""), c = x.match(/[①②③④⑤]/), e = x.match(/(?:^|[^A-Za-z0-9])(E\d)(?![0-9])/), g = x.match(/(?:gate|关卡)\s*(\d)(?![0-9])/i);
   return c ? String("①②③④⑤".indexOf(c[0]) + 1) : e ? e[1] : g ? g[1] : "";
@@ -421,10 +438,10 @@ const STOP_RE = new RegExp(`(?:关卡|检查点|Gate|Checkpoint)\\s*([①②③�
 function stopWords(s) {   // a stop written as a code inside a short status ("已定（关卡 ①）", "Gate ③ first draft") → its name ("已定（立意）", "初版"), once
   return String(s || "").replace(STOP_RE, (m, k) => { const g = gateKey("关卡 " + k) || k; return L.stn[g] || m; });
 }
-function gateName(g) {   // a stop by its name ("初版"); a later page of it by its number ("初版 · 第 3 页"), never a code
+function gateName(g, pages) {   // a stop by its name ("初版"); a later page of it by its number only when asked ("初版 · 第 3 页"), never a code
   const b = gateBase(g); if (!b) return g;
   const rest = String(g).slice(b.length), letter = rest.match(/^([b-z])$/);
-  const more = letter ? t("page_k", { n: letter[1].charCodeAt(0) - 96 }) : rest.replace(/^[-_·\s]+/, "");
+  const more = !pages ? "" : letter ? t("page_k", { n: letter[1].charCodeAt(0) - 96 }) : rest.replace(/^[-_·\s]+/, "");
   return `${L.stn[b] || b}${more ? " · " + more : ""}`;
 }
 function shortDate(d) {   // one way to write a day: "11-14" this year, "2025-11-14" another year
@@ -443,7 +460,8 @@ function flowWord(fs) {   // a flow item's state in words: 已定 11-14, 已交�
 }
 function kickOf(mod) {
   const f = FLOW.find((x) => x.mod === mod); if (!f) return t("m_" + mod);
-  return `${t("m_" + mod)} · ${flowWord(flowState(f))}`;
+  const w = flowWord(flowState(f));
+  return w ? `${t("m_" + mod)} · ${w}` : t("m_" + mod);
 }
 function subtabs(mod) {
   const S = SUBS[mod]; if (!S) return "";

@@ -112,10 +112,12 @@ def overall(st):
             break
     if st["paused"]:
         return "paused", at
+    if at and at["state"] == "waiting_person":   # a page waits for the person, even after the film went out
+        return at["state"], at
+    if stops and stops[-1]["state"] == "done":   # it went out: what an older stop still says does not make it unfinished
+        return "delivered", stops[-1]
     if at:
         return at["state"], at
-    if stops and stops[-1]["state"] == "done":
-        return "delivered", stops[-1]
     if any(s["state"] == "no_record" for s in stops):
         return "no_record", None
     return "not_started", None

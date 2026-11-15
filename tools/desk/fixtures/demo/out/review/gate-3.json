@@ -1,5 +1,5 @@
 {
- "summary": "初版 32 s：放行，还是改完再看？约 3 分钟",
+ "summary": "初版 32 秒：放行，还是改完再看？约 3 分钟",
  "decisions": [
   {"id": "draft", "question": "这版放行吗？",
    "options": [{"id": "OK", "label": "放行，出正式画质", "pro": "今天能交", "con": "S04 的鼓包还偏小"},

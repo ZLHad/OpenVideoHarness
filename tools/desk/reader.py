@@ -604,6 +604,8 @@ def _music(project, rounds, warnings):
         (f"audio/{n}" for n in (f"{stem}_mix.wav", f"{stem}.wav") if stem and (project / "audio" / n).is_file()), "")
     roll = g.get("roll") if isinstance(g.get("roll"), str) else (
         f"audio/{stem}.roll/overview.png" if stem and (project / "audio" / f"{stem}.roll" / "overview.png").is_file() else "")
+    if audio and not (project / audio).is_file():   # a mix a page names and that has moved since: no player for a file not here
+        audio = ""
     labels = g.get("labels") if isinstance(g.get("labels"), dict) else {}
     if not beats and not audio:
         return {}, None
@@ -710,7 +712,7 @@ def read_project(project):
     ideas = _ideas(notes)
     ledger, agent = _decisions(dec)
     history, paused = _history(review_md)
-    title = (re.search(r"^#\s+BRIEF\s*[：:]\s*(.+)$", brief, re.M) or [None, ""])[1].strip() or project.name
+    title = (re.search(r"^#\s+BRIEF\s*[：:—–·|-]+\s*(.+)$", brief, re.M) or [None, ""])[1].strip().strip("\"“”'「」") or project.name   # as bin/vh status reads it
     effort = next((re.split(r"\s", s["v"])[0] for s in spec if s["k"].lower() == "effort"), "")
     cur = rounds[-1] if rounds else None
     # one rule with bin/vh review: this round's gate JSON lang, else the BRIEF's Review language, else zh

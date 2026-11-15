@@ -15,6 +15,21 @@
 - Words: the console, the static page (`tools/review.py`) and the lines of `bin/vh status` the console shows were rewritten: no command or file name in the text (a tooltip at most), no codes or inside terms (圈号, 过了, 档位, 灰盒, 翻案, reads), one thing a sentence, short names for titles; the English completed. The static page names its stop ("初版"); the chat message and the terminal keep their codes.
 - 暗场 takes 棱镜's buttons (framed, a solid primary, small filled badges); the theme switch is a menu. On a phone: one row of navigation, the timeline right after the picture, submitting fixed at the bottom, no key hints on a touch screen.
 - Checks that held old wording now hold behaviour: what a module shows from the data, that a status line names no file or placeholder in either language, that every decision the agent made can be overturned, the listen layout and the phone's order as they are now; and a check for REVIEW.md's delivery line.
+- After an acceptance review on screenshots, older films read right too. `bin/vh status`:
+  - A stop decided in the person's own words stays decided, also under a later waiver.
+  - A film made before the activity log and the delivery record went out once its LESSONS.md was written past the template, the playbook's last step. This needs gate ③ passed or skipped, or no REVIEW.md, and no render in its log. Its day comes from a NOTES.md or REVIEW.md line that finalised it (定稿, 最终版).
+  - The delivery stop names the film (`delivered.films`).
+  - A delivered film waits for no one, whatever an older stop still says. `bin/vh projects` calls it delivered unless a page waits for the person.
+  - An older BRIEF's "# BRIEF — 片名" is read as the film's name.
+- The console:
+  - A film that went out shows the stops it left open as past.
+  - The right column holds a stop's decisions only on that stop's module; elsewhere it is one line ("初版等你定 2 件 →"). Its cards are compact.
+  - "下一步" says whose turn it is in a sentence. The agent's own line is in the tooltip.
+  - The timeline's shots are cells of a strip: the picture fills each one and its number sits on the picture.
+  - The waiting film's card and a static page's main picture prefer a picture of the film to a contact sheet.
+  - A static page made after its stop settled is a record ("已定", nothing to pick).
+  - Covers named in PACKAGING.md are marked as the ones used; the rest are folded. The check, the titles and the licences count one way.
+  - A film no longer here offers to say where it went, on its cut, its look back and its assets.
 
 **`bin/vh desk` becomes Studio without the agent: modules, the film's stops, a right column, and the cut on one timeline**
 - Why: at a stop the person met a document to read. The first thing on the page was a paragraph in bold (one gate ③ opened with more than 150 characters), the film came several screens later, the same choice was said three times, the options were text with a "reply N1 / N2" to type into the chat, the places the agent was least sure of sat in one box with no way to get to that second, and nothing showed where the film stood or led to another film. A person comes to a stop to look, point, say a line and decide; Studio (`docs/proposals/02-studio-client.md`) had already drawn where each of those goes.

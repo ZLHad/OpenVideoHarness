@@ -307,3 +307,7 @@ details.fold{border-bottom:1px solid var(--rule)}   /* a fold of the page; a lon
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 @media print{.top,.g-act,.p-bar{display:none}}
+.btn[disabled],.btn-primary[disabled],:root[data-theme=prism] .btn-primary[disabled],:root[data-theme=bridge] .btn-primary[disabled]{background:var(--panel-3);border-color:var(--rule);color:var(--ink-3);box-shadow:none;filter:none;opacity:1;cursor:default}   /* nothing to send: it does not look pressable in any theme */
+.gate[data-static] .g-opt .id{position:absolute;top:-8px;left:8px;font:10px/1.4 var(--mono);color:var(--ink-3);background:var(--bg);padding:0 5px;border:1px solid var(--rule-2);border-radius:var(--r-pill);min-width:0}   /* the reply's code on the option's edge: the label keeps its width */
+.gate[data-settled] .g-opt{cursor:default}.gate[data-settled] .g-opt .dot{display:none}
+.g-then{margin:6px 0 0;font-size:var(--fs-small);color:var(--ink-3)}

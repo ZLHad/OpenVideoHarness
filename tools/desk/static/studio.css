@@ -26,6 +26,7 @@ body{overflow:hidden}
 .stn.agent{color:var(--ink-2)}.stn.agent i{background:var(--agent);box-shadow:0 0 8px var(--agent)}
 .stn.wait{color:var(--ink)}.stn.wait i{background:var(--wait);box-shadow:0 0 8px var(--wait)}.stn.wait em{color:var(--wait)}
 .stn.off i{background:none;border:1px dashed var(--rule-2)}
+.stn.past i{background:var(--ok);opacity:.45}.stn.past small{display:none}   /* a film that went out: a stop it left open, past, with no word */
 .stn.wait small{color:var(--wait)}.stn.agent small{color:var(--agent)}
 .stn.wait{background:var(--wait-soft);box-shadow:inset 0 0 0 1px var(--wait-line)}   /* where it waits for you, at a glance (舰桥's solid block, softer) */
 .stn[aria-current=true]{color:var(--ink-hi);background:var(--panel-3)}
@@ -219,7 +220,7 @@ body{overflow:hidden}
 .frame .wipe-l,.frame .wipe-r{position:absolute;top:10px;font:11px var(--mono);color:var(--on-pic);background:var(--scrim);padding:1px 6px;pointer-events:none}
 .frame .wipe-l{left:10px}.frame .wipe-r{right:10px}
 .screen .none{position:absolute;color:var(--on-pic);opacity:.6;font-size:var(--fs-small);text-align:center;padding:20px}
-.screen-note{position:absolute;left:12px;bottom:10px;margin:0;font:11.5px var(--mono);color:var(--on-pic);opacity:.7;pointer-events:none;max-width:calc(100% - 24px)}
+.screen-note{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);margin:0;font:500 var(--fs-small)/1.45 var(--sans);color:var(--on-pic);background:var(--scrim);padding:7px 12px;border-radius:var(--r-card);pointer-events:none;max-width:calc(100% - 32px);text-align:center}   /* why the film is not playing: on the picture, where the eye is */
 .transport{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 16px 12px}
 .transport .p-btn{width:30px;height:30px}
 .transport .play{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--bg)}
@@ -442,8 +443,8 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .lane-empty{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink-3);white-space:nowrap;opacity:.8}
 .bl.down{border-left-color:var(--rule-2)}
 .lane.wave .trk{height:34px}
-.cut.layout-sound .lane.wave .trk{height:120px}   /* listen: the sound lanes tall, the waveform tallest */
-.cut.layout-sound .wav path{opacity:.75}
+.cut.layout-sound .lane.wave .trk{height:96px}   /* listen: the sound lanes tall, the waveform tallest */
+.cut.layout-sound .wav path{opacity:.45}
 .cut.layout-review .screen{margin:0 16px}
 .span-mark.mine{color:var(--you)}.span-mark.least,.span-mark.listen{color:var(--wait)}.span-mark.check{color:var(--live)}
 .transport .p-btn svg{width:16px;height:16px}
@@ -489,7 +490,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .tl-bar .lg .pin{position:relative;top:auto;left:auto;margin:0;width:10px;height:10px;cursor:default;flex:0 0 auto}
 .tl-bar .help{min-width:26px;padding:0 8px;font-family:var(--mono)}
 .timeline{position:relative}
-.tl-help{position:absolute;right:12px;top:38px;z-index:7;max-width:min(440px,calc(100% - 24px));margin:0;padding:10px 12px;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r-card);box-shadow:0 14px 30px -14px var(--shadow);font-size:var(--fs-small);color:var(--ink-2)}
+.tl-help{position:absolute;right:12px;bottom:calc(100% + 6px);z-index:7;max-width:min(440px,calc(100% - 24px));margin:0;padding:10px 12px;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r-card);box-shadow:0 14px 30px -14px var(--shadow);font-size:var(--fs-small);color:var(--ink-2)}
 .tl-help p{margin:0}.tl-help p+p{margin-top:6px;color:var(--ink-3)}
 @media (hover:none) and (pointer:coarse){.kbd,.keys-only{display:none!important}}
 .pin.least{background:none;border:2px solid var(--wait)}
@@ -513,3 +514,32 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .tl-help dt{margin:0;text-align:right}.tl-help dd{margin:0;color:var(--ink-2)}
 .blk.shot.thin,:root[data-theme=darkfield] .blk.shot.thin{border-left:1px solid var(--rule-2);padding:0}   /* too narrow for its number: the shot as a divided stretch */
 .blk.shot:not(.thin){padding-left:4px}
+.col-body .away{display:block;padding:9px 11px;border:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);text-decoration:none;border-radius:var(--r-card);font-size:var(--fs-small)}   /* the round's decisions, from another module: one line */
+.col-body .away:hover{border-color:var(--wait)}
+/* the column's decision cards, compact: an option a line and its good and its cost on one more, so what is under them is in view */
+.col .g-dec{padding:9px 10px}
+.col .g-q{margin:0 0 2px}
+.col .g-cost{display:block;margin:0 0 6px}
+.col .g-opts{gap:6px}
+.col .g-opt{padding:6px 8px 7px}
+.col .g-opt .pc{display:block;margin-top:2px;font-size:var(--fs-label);line-height:1.45;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.col .g-opt .pc>span{display:inline!important;-webkit-line-clamp:unset!important;white-space:nowrap!important}
+.col .g-opt .pc>span+span::before{content:" · "}
+.col .g-opt .pc .k{margin-right:3px}
+.col .g-why{margin-top:5px;-webkit-line-clamp:2}
+/* a shot on the timeline: a cell of the strip, its picture filling it, its number on the picture's corner, a divider between */
+.blk.shot{flex-direction:column;align-items:flex-start;justify-content:space-between;gap:0;padding:0!important;border:0;border-left:1px solid var(--rule-2);border-radius:0}
+:root[data-theme=darkfield] .blk.shot{border-left:1px solid var(--rule-2)}
+.blk.shot img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover}
+.blk.shot .sid{position:relative;z-index:1;margin:2px 0 0 2px;font:500 10.5px/1.35 var(--mono);color:var(--on-pic);background:var(--scrim);padding:0 4px;border-radius:2px}
+.blk.shot .sid.flag{box-shadow:inset 0 -2px 0 var(--wait)}.blk.shot .sid.note{box-shadow:inset 0 -2px 0 var(--you)}
+.blk.shot .slab{position:relative;z-index:1;margin:0 0 2px 2px;max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis;font-size:10.5px;color:var(--on-pic);background:var(--scrim);padding:0 4px;border-radius:2px}
+.blk.shot.sel{box-shadow:inset 0 0 0 2px var(--you)}
+.wav path{fill:var(--ink-3);opacity:.3;stroke:var(--ink-2);stroke-width:1;vector-effect:non-scaling-stroke}   /* the sound's outline, not a block */
+.transport .p-btn[disabled]{opacity:.35;cursor:default}
+.ask textarea{min-height:56px}
+.col-round>span:first-child{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* the count in one line, whatever the language */
+.col-body .blk-h{text-transform:none;letter-spacing:normal}   /* a label with "agent" in it is not set in capitals (舰桥) */
+@media (max-width:900px){.rail .mod{width:36px;min-height:40px}.rail .mod span{display:none}.rail{justify-content:space-between}}   /* a phone: the modules as icons, all in one row */
+
+:root[data-theme=darkfield] .mod[aria-current=page]{background:var(--panel-3)}   /* where you are, more than an underline */

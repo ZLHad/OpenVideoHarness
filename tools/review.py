@@ -52,13 +52,13 @@ GATES = {"1": ("关卡 ① 立意和大纲", "Gate ① concept and outline"), "2
          "E5": ("检查点 E5 锁画面", "Checkpoint E5 picture lock")}
 
 T = {
-    "zh": dict(html_lang="zh-CN", for_dec="关于第 {n} 件", for_dec_s="第 {n} 件", n_decide="等你定 {n} 件", look="这一页只给你看", wait="等你看",
+    "zh": dict(html_lang="zh-CN", settled_done="已定", settled_skipped="跳过了（你说了不用停）", settled_delivered="已交付", settled_note="这一页已经定了，现在只是记录。要改，在对话里说。", asked_then="当时问的：", for_dec="关于第 {n} 件", for_dec_s="第 {n} 件", n_decide="等你定 {n} 件", look="这一页只给你看", wait="等你看",
                nothing="这一页没有要你定的事。看完回“通过”，或写要改的。",
                rec="推荐", why_rec="为什么推荐：{w}", reply="回", take_all="照推荐回复", yours="你的回复", copy="复制", copied="已复制",
                rest="其余没意见就不用写；要改哪一镜，写“{shot} 改：……”。", rest_plain="其余没意见就不用写，只写要改的。",
-               unanswered="没回的决定按推荐走；", submit="交出去", live_note="不选就按推荐；没意见的地方不用写。",
+               unanswered="没回的决定按推荐走；", submit="交给 agent", live_note="不选就按推荐；没意见的地方不用写。",
                changed="改了：{x}", least="agent 没把握的", listen="请你听这几处", decided="已经定了", delegated="agent 替你定了",
-               not_reviewed="这一页不看：{x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
+               not_reviewed="<b>没看的</b> {x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
                pro="好处", con="代价", seg="{i} / {n}", shots="{n} 镜", avg="平均一镜 {s} 秒", unsure="没把握", n_unsure="{n} 镜没把握",
                plan="打算改", pass_all="没意见的镜头不用写，只写要改的，比如“{shot} 改：……”。", no_frame="没有关键帧",
                gone="找不到这个文件（挪走或改了名）", gone_n="这一页发出以后，有 {n} 个文件找不到了（挪走或改了名）",
@@ -69,7 +69,7 @@ T = {
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
-    "en": dict(html_lang="en", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
+    "en": dict(html_lang="en", settled_done="Decided", settled_skipped="Skipped (you said not to stop)", settled_delivered="Delivered", settled_note="This page is settled; it is a record now. To change something, say it in the chat.", asked_then="Asked then: ", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
                nothing="Nothing to decide on this page. Take a look, then reply “ok” or say what to change.",
                rec="recommended", why_rec="Why it's recommended: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
                copy="Copy", copied="Copied",
@@ -78,7 +78,7 @@ T = {
                unanswered="A decision left unanswered goes by its recommendation. ", submit="Send",
                live_note="Left alone, a decision goes with the recommendation; write only what to change.",
                changed="changed: {x}", least="Where the agent is unsure", listen="Please listen to these", decided="Already decided",
-               delegated="Decided for you", not_reviewed="Not on this page: {x}", material="Material", appendix="Appendix",
+               delegated="Decided for you", not_reviewed="<b>Not looked at</b> {x}", material="Material", appendix="Appendix",
                board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", seg="{i} / {n}", shots="{n} shots",
                avg="{s} s a shot", unsure="unsure", n_unsure="{n} unsure", plan="will change",
                pass_all="A shot you don't mention is fine; only write what to change, e.g. “{shot} change: …”.", no_frame="no key frame",
@@ -265,6 +265,22 @@ def gate_title(g, lang):
     return name
 
 
+def stop_settled(project, gate):
+    """How the stop a page is for stands now, by bin/vh status: "delivered" (the film went out), "done", "skipped", or None
+    (still open, or the project does not read). A static page made after that is said as a record, nothing to pick."""
+    try:
+        import status as S   # noqa: E402  (imported here: it imports this file)
+        st = S.collect(Path(project), light=True)
+    except (Exception, SystemExit):
+        return None
+    base = (re.match(r"E\d|\d", gate or "") or [""])[0]
+    s = next((x for x in st["stations"] if x["id"] == base), None)
+    if s is None or s["state"] not in ("done", "skipped"):
+        return None
+    dl = next((x for x in st["stations"] if x["id"] == "deliver"), None)
+    return "delivered" if dl and dl["state"] == "done" else s["state"]
+
+
 def gate_name(g, lang):
     """A stop by its name, for a person to read (the page's header, the links between pages): 关卡 ③ 初版 → 初版, 检查点 E1 脚本 →
     脚本, 2b → 分镜（第 2 页）. gate_title's code (①, E1) stays in the chat, the terminal and the records."""
@@ -331,6 +347,7 @@ class Page:
         self.project, self.src, self.d, self.gate = project, src, data, gate
         self.link, self.live, self._extra, self._normal = link, live, None, False
         self.past = False   # the console showing a page that is no longer this round: what no longer matches is said quietly
+        self.settled = None   # the static page of a stop settled since (stop_settled): a record, nothing to pick
         self.out = project / "out" / "review"
         lang = data.get("lang")
         # the same rule as the review desk: this page's lang, else the BRIEF's Review language, else zh
@@ -720,7 +737,10 @@ class Page:
                 items.append((a, u))
         if not items:
             return ""
+        items.sort(key=lambda x: "sheet" in Path(x[0]["path"]).name.lower())   # the film's own picture first, a contact sheet after it
         a0, u0 = items[0]
+        if len({a["for"] for a, _ in items if a["for"]}) < 2:   # all about one decision (or none): saying so on each says nothing
+            dec_n = {}
 
         def tag(a):
             return f'<span class="for">{self.t["for_dec"].format(n=dec_n[a["for"]])}</span>' if a["for"] in dec_n else ""   # which decision the picture is for, in words
@@ -758,7 +778,7 @@ class Page:
             full = re.sub(r"[`*]", "", " · ".join(x for x in (o["label"], o["pro"], o["con"]) if x))
             name = re.sub(r"[`*]", "", f'{o["id"]} {o["label"]}'.strip()) + (f' · {t["rec"]}' if pick else "")
             opts.append(f'<label class="g-opt" title="{esc(full)}"><input type="radio" name="dec-{esc(dec["id"])}" value="{esc(o["id"])}"'
-                        f'{" checked" if pick else ""} data-rec="{"1" if pick else ""}" aria-label="{esc(name)}"'
+                        f'{" checked" if pick and not self.settled else ""}{" disabled" if self.settled else ""} data-rec="{"1" if pick else ""}" aria-label="{esc(name)}"'
                         + (f' aria-describedby="{oid}"' if pc else "") + f'>{pic}'
                         f'<span class="row"><span class="dot" aria-hidden="true"></span><span class="id">{esc(o["id"])}</span><span class="lab">{self.text(o["label"]) or esc(o["id"])}</span>'
                         + (f'<span class="rec">{t["rec"]}</span>' if pick else "") + f"</span>{pc}</label>")
@@ -780,6 +800,8 @@ class Page:
                     f'<p class="note">{t["live_note"]}</p></div>')
         shot = self.example_shot()
         rest = t["rest"].format(shot=esc(shot)) if shot else t["rest_plain"]
+        if self.settled:
+            return f'<div class="g-act"><p class="note">{t["settled_note"]}</p></div>'
         if not decs:
             return f'<div class="g-act"><p class="note">{t["nothing"]}</p></div>'
         allr = esc(self.take_all())
@@ -922,8 +944,9 @@ class Page:
             m = re.match(r"(.+?[。！？!?]|.+?[.;；:：](?=\s|$)|.+?：)(\s*\S.*)$", s, re.S)
             if m and len(m.group(1)) < len(s):
                 first, rest = m.group(1).strip(), m.group(2).strip()
-        eyebrow = (f'<span class="g-gate">{esc(self.name())}</span>'
-                   + (f'<span class="g-wait">{t["n_decide"].format(n=n)}</span>' if n else f'<span>{t["look"]}</span>') + self.spend())
+        now = (f'<span>{t["settled_" + self.settled]}</span>' if self.settled
+               else f'<span class="g-wait">{t["n_decide"].format(n=n)}</span>' if n else f'<span>{t["look"]}</span>')
+        eyebrow = f'<span class="g-gate">{esc(self.name())}</span>' + now + self.spend()
         lead = f'<p class="g-lead" data-long>{self.text(rest)}</p>' if rest else ""
         long = " long" if over_budget(first, "summary") else ""   # still long: a smaller heading, so the picture stays in view
         warn = ""
@@ -932,6 +955,8 @@ class Page:
                     f'<ul>{"".join(f"<li>{esc(e)}</li>" for e in self.errors)}</ul></details>')
         elif self.errors:
             warn = f'<div class="g-warn">{esc(t["warn"].format(n=len(self.errors)))}<ul>{"".join(f"<li>{esc(e)}</li>" for e in self.errors)}</ul></div>'
+        if self.settled:   # a record: what the page asked then, small; the stop's module says what was decided
+            return f'<header class="g-head"><div class="g-eyebrow">{eyebrow}</div><p class="g-then">{t["asked_then"]}{self.text(s)}</p>{warn}</header>'
         return f'<header class="g-head"><div class="g-eyebrow">{eyebrow}</div><h1 class="g-summary{long}">{self.text(first)}</h1>{lead}{warn}</header>'
 
     # ---- the gate view ----------------------------------------------------------------------------------------
@@ -998,7 +1023,7 @@ class Page:
         src = os.path.relpath(self.src, self.project).replace(os.sep, "/")
         foot.append(f'<span title="bin/vh review · {esc(src)}">{t["src"]}</span>')   # where it was made: for whoever keeps the files, not in the text
         attrs = (f'data-gate="{esc(self.gate)}" data-lang="{self.lang}" data-takeall="{esc(self.take_all())}"'
-                 + (" data-live" if self.live else " data-static"))
+                 + (" data-live" if self.live else " data-static") + (f' data-settled="{self.settled}"' if self.settled else ""))
         more = self.more(files)   # before the head: every missing file is in its warning
         return (f'<article class="gate" {attrs}>{self.head()}{grid}{more}'
                 f'<footer class="g-foot">{"".join(x for x in foot if x)}</footer></article>')
@@ -1006,6 +1031,7 @@ class Page:
     def render(self):
         """The static page: the gate view with ui.css and ui.js inlined, so it opens from disk with no server; with its stop's
         module above it (module_payload) when the stop has one and the project reads."""
+        self.settled = stop_settled(self.project, self.gate)   # a page of a stop settled since: a record
         body = self.body()   # normalizes first: the title may come from the gate's name
         t, title, film = self.t, self.name(), brief_title(self.project) or self.project.name
         try:
@@ -1158,7 +1184,7 @@ def brief_title(project):
         head = (Path(project) / "BRIEF.md").read_text(encoding="utf-8-sig", errors="replace")[:4000]
     except OSError:
         return None
-    m = re.search(r"^#\s+BRIEF\s*[：:]\s*(.+?)\s*$", head, re.M)
+    m = re.search(r"^#\s+BRIEF\s*[：:—–·|-]+\s*(.+?)\s*$", head, re.M)   # "# BRIEF：片名", or an older "# BRIEF — 片名"
     return m.group(1).strip() if m and "{" not in m.group(1) else None
 
 

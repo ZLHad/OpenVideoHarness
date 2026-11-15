@@ -143,7 +143,7 @@ function picture(r, cls) {   // the film's letter is always under the picture: a
   return `<span class="well ${cls || ""}">${ph}</span>`;
 }
 function card(r) {   // its picture, its name, where it is, its kind, its day
-  const day = r.last_activity ? dayOf(r.last_activity.t) : "", kind = typeWords(r.type);
+  const day = r.last_activity && r.state !== "delivered" ? dayOf(r.last_activity.t) : "", kind = typeWords(r.type);   // a film that went out: its day is in "已交付 10-23"
   return `<a class="pcard" href="${projHash(r.key)}" data-state="${esc(r.state || "")}" data-key="${esc(r.key)}" title="${esc(r.name)}">${picture(r)}
     <span class="pcard-name">${esc(filmName(r))}</span>
     <span class="pcard-meta"><span class="st ${lampOf(r)}"><i aria-hidden="true"></i>${esc(stateWords(r))}</span>${kind ? `<span>${esc(kind)}</span>` : ""}${day ? `<span>${esc(day)}</span>` : ""}</span>
@@ -185,7 +185,7 @@ async function showHome(quiet) {
   const sect = (k, list, body) => (list.length ? `<section class="sect"><h2>${esc(t(k))}<span class="n">${list.length}</span></h2>${body}</section>` : "");
   const roots = LIST.roots || [];
   const html = `<section class="module space">
-    <div class="mh"><h1>${esc(t("films"))}</h1><span class="meta">${esc(meta)}</span><button type="button" class="btn right" id="newFilm">${svg("new")}${esc(t("new_film"))}</button></div>
+    <div class="mh"><h1>${esc(t("films"))}</h1><span class="meta">${esc(meta)}</span></div>
     ${rows.length ? "" : `<p class="void">${esc(t("no_projects"))}</p>`}
     ${sect("g_wait", wait, `<div class="heroes">${wait.map(heroCard).join("")}</div>`)}
     ${sect("g_doing", doing, `<div class="cards">${doing.map(card).join("")}</div>`)}
@@ -194,7 +194,6 @@ async function showHome(quiet) {
   const area = $("#stage"), y = area.scrollTop;
   area.innerHTML = html;
   if (quiet) area.scrollTop = y;
-  $("#newFilm").addEventListener("click", () => { const x = $("#oneLine"); if (x) { x.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); x.focus({ preventScroll: true }); } });
   midFrames(area); hoverClips(area); spaceRunning();
   clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000);
 }
@@ -226,7 +225,7 @@ function spaceColumn() {   // the column is where you talk to the agent: on the 
   $("#colRound").hidden = true; $("#composer").hidden = true; $("#confirm").hidden = true;
   $("#colHead").innerHTML = `<b>${esc(t("new_film"))}</b>`;
   $("#colBody").innerHTML = `<section class="ask"><label class="blk-h" for="oneLine"><b>${esc(t("ask_h"))}</b></label>
-      <textarea id="oneLine" rows="4" placeholder="${esc(t("ask_ph"))}">${esc(store.get("desk:oneLine") || "")}</textarea>
+      <textarea id="oneLine" rows="2" placeholder="${esc(t("ask_ph"))}">${esc(store.get("desk:oneLine") || "")}</textarea>
       <div class="row"><span>${esc(t("ask_note"))}</span><button type="button" class="btn btn-primary" id="copyAsk">${esc(t("ask_copy"))}</button></div></section>
     <section id="spaceRun"></section>`;
   $("#oneLine").addEventListener("input", (e) => store.set("desk:oneLine", e.target.value));
@@ -330,12 +329,13 @@ function defaultMod() {
 }
 async function showProject(r) {
   clearTimeout(homeTimer);
-  const switching = PKEY !== r.key || !D;
+  const switching = PKEY !== r.key || !D, was = MOD;
   if (switching) { leaveProject(); D = null; renderShellLoading(); if (!(await loadProject(r.key))) return; }
   MOD = r.mod || defaultMod(); SUB = r.sub || ""; DOC = r.doc || DOC; GATE = r.gate || "";
   crumbs([{ text: t("m_space"), href: "#/" }, { text: D.project.title }]);
   renderFlow(); renderRail();
   if (switching) { renderColumn(); clearInterval(liveTimer); pollLive(); liveTimer = setInterval(pollLive, 4000); }
+  else if (was !== MOD) renderColumn();   // the column says what this module is for: the stop's decisions on its own module, one line elsewhere
   renderModule();
   updateComposer();
 }
@@ -345,12 +345,14 @@ function renderShellLoading() { $("#stage").innerHTML = `<p class="loading">${es
 function renderColumn() {
   const live = $("#colHead .state"); const on = live && live.classList.contains("agent");
   const dl = filmDelivered(), day = dl ? shortDate(stopDate(stations().filter((x) => x.id === "deliver"))) : "";
-  const roundName = dl ? (day ? t("f_delivered_d", { d: day }) : t("f_delivered")) : ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);
+  const roundName = dl ? (day ? t("f_delivered_d", { d: day }) : t("f_delivered")) : ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);   // the stop, not its page
   // the agent's being there is said when it waits (a desk wait); its absence is not news, so nothing is shown then
   $("#colHead").innerHTML = `<b>${esc(t(dl ? "col_film" : "col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on"))}</span></span>`;
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
+  const home = GATE_MOD[gateBase(ROUND.id)] || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
-  const decs = g && (ROUND.data.decisions || []).length ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${ROUND.data.decisions.length}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
+  const decs = g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t("away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
+    : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
   const sent = FB.sent ? t("sent_n", { n: FB.sent.n, d: FB.sent.d, at: FB.sent.at }) : FB.submittedAt ? t("submitted", { at: FB.submittedAt }) : "";   // what went, and that it does not go again
@@ -381,9 +383,9 @@ function recentHtml() {   // what was decided last, when nothing is open: REVIEW
   const R = hist.concat(agent);
   return R.length ? `<h3 class="blk-h" style="margin-top:14px"><b>${esc(t("recent"))}</b></h3><ul class="note-list recent">${R.map((x) => `<li><span class="mono tc">·</span><span class="fold" tabindex="0"><b>${esc(cut(x.k, 40))}</b> ${esc(x.v)}</span></li>`).join("")}</ul>` : "";   // two lines each; a click opens one
 }
-function renderMarks() {
-  const M = gateMarks(), least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
-  const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${+(m.t)}"` : ""}${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(m.id)}</b> ` : ""}${esc(m.note)}</span></li>`;
+function renderMarks() {   // the round's places in the film: on the round's own module (elsewhere its one line goes there)
+  const home = GATE_MOD[gateBase(ROUND.id)] || "cut", M = MOD === home ? gateMarks() : [], least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
+  const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${+(m.t)}"` : ""}${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(shotName(m.id))}</b> ` : ""}${esc(m.note)}</span></li>`;
   $("#cMarks").innerHTML = (least.length ? `<h3 class="blk-h"><b>${esc(t("c_least"))}</b><span class="n mono">${least.length}</span></h3><ul class="note-list marks">${least.map(li).join("")}</ul>` : "")
     + (listen.length ? `<h3 class="blk-h" style="margin-top:12px"><b>${esc(t("c_listen"))}</b><span class="n mono">${listen.length}</span></h3><ul class="note-list marks">${listen.map(li).join("")}</ul>` : "");
 }
@@ -402,7 +404,8 @@ function renderNext() {   // what happens next, in a line: who, and what (status
   const b = ((st.assets || {}).budget) || {}, money = (o) => Object.entries(o || {}).map(([c, v]) => `${v} ${c}`).join(", ");
   const spent = money(b.spent), limit = b.unlimited ? "∞" : money(b.limit);
   const said = statusWords(ns.do || ""), cmds = [shortPath(ns.do || "")].concat((ns.commands || []).map(shortPath)).filter(Boolean).join("\n");   // the tooltip: status's own line and its commands
-  const next = ns.do && who !== "nobody" ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next"${cmds ? ` title="${esc(cmds)}"` : ""}><span class="who ${who}">${esc(t("who_" + who))}</span>${said.known ? `<span>${esc(said.text)}</span>` : `<span class="raw">${esc(said.text)}</span>`}</p>` : "";
+  const wait = stations().find((s) => s.state === "waiting_person"), words = who === "person" ? (wait ? t("next_you", { s: gateName(wait.id) }) : t("next_you0")) : t("next_agent");
+  const next = ns.do && who !== "nobody" ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next" title="${esc([said.text].concat(cmds ? [cmds] : []).join("\n"))}"><span class="who ${who}">${esc(t("who_" + who))}</span><span>${esc(words)}</span></p>` : "";
   $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li title="${esc(shortPath(x.cmd || x))}"><span class="mono tc" style="color:var(--agent)">●</span><span>${esc(cmdWords(x.cmd || x))}</span></li>`).join("")}</ul>` : "")
     + next + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
@@ -472,7 +475,7 @@ function updateComposer() {
   const x = scopeLabel();
   $("#scope").textContent = x; $("#scope").className = "chip" + (SCOPE ? "" : " quiet");
   $("#toWhole").hidden = !SCOPE;
-  $("#say").placeholder = t("c_ph", { x });
+  $("#say").placeholder = t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : x });
 }
 function setScope(s) {
   SCOPE = s; updateComposer();
@@ -546,7 +549,7 @@ function openConfirm() {
   c.innerHTML = `<div class="c-body"><h3>${esc(t("d_title"))}</h3><ul class="sum">${decs ? `<h4>${esc(t("d_decisions"))}</h4>${decs}` : ""}${leastHtml}<h4>${esc(t("d_items"))}</h4>${items || `<li class="meta">${esc(t("d_none"))}</li>`}${FB.general ? `<li><span class="q">${esc(t("overall"))}</span><span>${esc(FB.general)}</span></li>` : ""}</ul>
       <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" maxlength="4000" placeholder="${esc(t("general_ph"))}"></textarea>
       <p class="meta" id="submitHint">${esc(t("submit_hint"))}</p>
-      <details class="fold" open><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
+      <details class="fold"><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
     <div class="c-act"><button type="button" class="btn btn-primary" id="doSubmit">${esc(t("submit"))}</button><button type="button" class="btn" id="noSubmit">${esc(t("cancel"))}</button></div>`;
   c.hidden = false;
   const pv = () => { $("#preview").textContent = summaryText(payload()); };
@@ -639,20 +642,20 @@ function pastPageLink(mod) {
   const s = stations().filter((x) => f.st.includes(x.id) && x.pages && x.pages.length && /^\d$/.test(x.id) && GATE_MOD[x.id] === mod).pop();
   if (!s) return "";
   const pg = s.pages[s.pages.length - 1];
-  return `<a class="meta" style="margin-left:auto" href="${projHash(PKEY, "gate/" + enc(pg))}">${esc(t("page_of", { g: gateName(pg) }))}</a>`;
+  return `<a class="meta" style="margin-left:auto" href="${projHash(PKEY, "gate/" + enc(pg))}">${esc(t("page_of", { g: gateName(pg, true) }))}</a>`;
 }
 async function loadGatePart(gid, V) {   // V: the module draws the page's picture itself; the rest of the page comes after it
   const r = await getJSON(`/api/p/${enc(PKEY)}/gate/${enc(gid)}?lang=${LANG}`);
   const host = $("#gatePart"); if (!host) return;
   if (!r.ok || !r.data) { host.innerHTML = `<p class="void">${esc((r.data && r.data.error) || "")}</p>`; return; }
   const g = r.data, past = !g.current;
-  host.innerHTML = (past ? `<p class="notice">${esc(t("past", { g: gateName(g.gate) }))}${D.current ? ` <a href="${projHash(PKEY, gateMod(D.current))}">${esc(t("to_round"))}</a>` : ""}</p>` : "") + g.html;
+  host.innerHTML = (past ? `<p class="notice">${esc(t("past", { g: gateName(g.gate, true) }))}${D.current ? ` <a href="${projHash(PKEY, gateMod(D.current))}">${esc(t("to_round"))}</a>` : ""}</p>` : "") + g.html;
   const root = $(".gate", host);
   if (V) {   // its heading is the module's; a missing file's warning stays
     const head = $(".g-head", root);
     if (head) { $$(".g-warn, .g-gone", head).forEach((w) => root.prepend(w)); head.remove(); }
     if (V.drawn) V.drawn(root);
-    root.insertAdjacentHTML("afterbegin", `<h2 class="pn-h"><span>${esc(t("page_rest", { g: gateName(g.gate) }))}</span></h2>`);
+    root.insertAdjacentHTML("afterbegin", `<h2 class="pn-h"><span>${esc(t("page_rest", { g: gateName(g.gate, true) }))}</span></h2>`);
   }
   // the decisions live in the right column; a decision drawn with pictures stays here as the picture, its pick kept in step with the column's
   $$(".g-side, .g-act, .g-decs", root).forEach((x) => x.remove());
@@ -962,12 +965,14 @@ function CutModule(area) {
     // no film to play: the storyboard's key frames as the picture, else the contact sheet; the line under it says which, and
     // names the file that was asked for when it is not there (moved, renamed, on another drive)
     const cover = ((D.mods || {}).covers || []).find((c) => c.ratio && c.ratio >= 1) || ((D.mods || {}).covers || [])[0];
-    const gone = (ST.film_missing) || "", pics = shots.some(shotPic) ? "frames" : ST.sheet ? "sheet" : gone && cover ? "cover" : "";
+    const dl = (stations().find((x) => x.id === "deliver") || {}).delivered, shipped = filmDelivered();
+    const gone = ST.film_missing || (shipped ? ((dl && (dl.films || [])[0]) || "out/final.mp4") : ""), pics = shots.some(shotPic) ? "frames" : gone && cover ? "cover" : ST.sheet ? "sheet" : "";   // a film gone: its cover stands for it better than a contact sheet
     const say = pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics) : gone ? t("film_gone0") : t("no_film0");
     const tell = gone && !readOnly() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : "";
     frame.innerHTML = `<img id="cimg" alt=""${pics === "sheet" ? ` src="${esc(src(ST.sheet))}"` : pics === "cover" ? ` src="${esc(src(cover.path))}"` : ""}>${pics ? "" : `<p class="none" title="${esc(gone)}">${esc(say)}${tell}</p>`}<div class="safe" hidden></div>`;
     if (pics) screen.insertAdjacentHTML("beforeend", `<p class="screen-note" title="${esc(gone)}">${esc(say)}${tell}</p>`);
     $$("[data-tell]", screen).forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); tellWhere(b.dataset.tell); }));
+    if (pics !== "frames") setTimeout(() => ["#cPlay", "#cPrev", "#cNext"].forEach((q) => { const b = $(q, area); if (b) { b.disabled = true; b.title = t("no_play"); } }), 0);   // a cover or a sheet is one picture: nothing to play
   }
   const nextq = document.createElement("div"); nextq.className = "nextq"; nextq.hidden = true; screen.appendChild(nextq);
 
@@ -1040,8 +1045,9 @@ function CutModule(area) {
 
   /* the lists on the left */
   function renderTabs() {
-    const n = { shots: shots.length, notes: allMarks().filter((m) => m.kind !== "check").length + (FB.general ? 1 : 0), checks: findings.length };
-    const T2 = [["shots", t("l_shots"), n.shots], ["script", linesAreCaptions ? t("l_captions") : t("l_script"), lines.length || ""], ["notes", t("l_notes"), n.notes], ["checks", t("l_checks"), n.checks]];
+    const nl = allMarks().filter((m) => m.kind === "listen").length;
+    const n = { shots: shots.length, notes: allMarks().filter((m) => m.kind !== "check" && m.kind !== "listen").length + (FB.general ? 1 : 0), checks: findings.length };
+    const T2 = [["shots", t("l_shots"), n.shots], ["script", linesAreCaptions ? t("l_captions") : t("l_script"), lines.length || ""]].concat(nl ? [["listen", t("c_listen"), nl]] : [], [["notes", t("l_notes"), n.notes], ["checks", t("l_checks"), n.checks]]);
     $("#ltabs", area).innerHTML = T2.map(([k, name, c]) => `<button type="button" role="tab" aria-selected="${k === tab}" data-tab="${k}">${esc(name)}${c !== "" && c != null ? `<b>${c}</b>` : ""}</button>`).join("");
   }
   function shotStatus(s) {
@@ -1060,13 +1066,15 @@ function CutModule(area) {
           const c = chapterAt(s.t0 + 0.01);
           if (c && c !== last) { h += `<div class="lgroup">${esc(c.title)}</div>`; last = c; }
           const pic = shotPic(s), on = SEL && SEL.kind === "shot" && SEL.id === s.id;
-          h += `<button type="button" class="lrow${on ? " sel" : ""}" data-pick="shot:${esc(s.id)}"><span class="lthumb">${pic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}</span><span class="lt"><b>${esc(s.id)} ${esc(s.label)}</b><span>${esc(fmt(s.t0))}–${esc(fmt(s.t1))}</span>${shotStatus(s) ? `<span>${shotStatus(s)}</span>` : ""}</span></button>`;
+          h += `<button type="button" class="lrow${on ? " sel" : ""}" data-pick="shot:${esc(s.id)}"><span class="lthumb">${pic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}</span><span class="lt"><b>${esc(shotName(s.id))} ${esc(s.label)}</b><span>${esc(fmt(s.t0))}–${esc(fmt(s.t1))}</span>${shotStatus(s) ? `<span>${shotStatus(s)}</span>` : ""}</span></button>`;
         });
       }
     } else if (tab === "script") {
       h = lines.length ? lines.map((l, i) => `<button type="button" class="lrow text${SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""}" data-pick="line:${i}"><span class="tc">${esc(fmt(l.t0))}</span><span class="tx">${esc(l.text)}</span></button>`).join("") : `<p class="void">${esc(t("no_narr"))}</p>`;
+    } else if (tab === "listen") {
+      h = allMarks().filter((m) => m.kind === "listen").map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="tc">▶ ${esc(fmt(m.t))}</span><span class="tx">${esc(m.note || m.label)}</span></button>`).join("");
     } else if (tab === "notes") {
-      const R = allMarks().filter((m) => m.kind !== "check");
+      const R = allMarks().filter((m) => m.kind !== "check" && m.kind !== "listen");
       const who = (m) => (m.kind === "mine" ? `<em style="color:var(--you)">${esc(t("k_mine"))}</em>` : m.kind === "least" ? `<em style="color:var(--wait)">${esc(t("k_least"))}</em>` : `<em style="color:var(--wait)">${esc(t("k_listen"))}</em>`);
       h = R.map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="tc">${esc(fmt(m.t))}</span><span class="tx">${who(m)} ${esc(m.kind === "mine" ? (m.note || m.label) : m.note)}</span></button>`).join("")
         + (FB.general ? `<div class="lrow text"><span class="tc">·</span><span class="tx"><em style="color:var(--you)">${esc(t("c_whole_note"))}</em> ${esc(FB.general)}</span></div>` : "");
@@ -1114,8 +1122,8 @@ function CutModule(area) {
     const chapH = chapters.map((c) => blk("chap" + (SEL && (SEL.kind === "chapter" || SEL.kind === "seg" || SEL.kind === "part") && SEL.id === c.id ? " sel" : ""), c.t0, c.t1, esc(c.title), (c.kind === "chapter" ? "chapter:" : c.kind === "seg" ? "seg:" : "part:") + c.id, c.title)).join("");
     const AM = allMarks(), pxPerS = trackW() / dur;
     const shotH = shots.map((s) => { const pic = shotPic(s), st = s.unsure || AM.some((m) => m.kind === "least" && m.t >= s.t0 && m.t < s.t1) ? "flag" : AM.some((m) => m.kind === "mine" && m.t >= s.t0 && m.t < s.t1) ? "note" : "";
-      const w = (s.t1 - s.t0) * pxPerS, showPic = pic && w >= 130, showName = w >= (showPic ? 230 : 120), showId = w >= 28, showDot = w >= 44;   // narrow: its number alone; narrower: a divider, the number in its tooltip
-      return blk("shot" + (showId ? "" : " thin") + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showDot ? `<i class="s ${st}"></i>` : ""}${showId ? `<b>${esc(s.id)}</b>` : ""}${showName ? esc(s.label) : ""}`, "shot:" + s.id, `${s.id} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
+      const w = (s.t1 - s.t0) * pxPerS, showPic = pic && w >= 20, showId = w >= 28, showName = w >= 150;   // narrow: its picture and number; narrower: the picture alone, the number in its tooltip
+      return blk("shot" + (showId ? "" : " thin") + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showId ? `<b class="sid${st ? " " + st : ""}">${esc(shotName(s.id))}</b>` : ""}${showName && s.label ? `<span class="slab">${esc(s.label)}</span>` : ""}`, "shot:" + s.id, `${shotName(s.id)} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
     // a line of the narration: ▶ plays just that line
     const lineH = lines.map((l, i) => blk("line" + (SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""), l.t0, l.t1, `<i class="pl" data-pick="play:${i}" role="button" aria-label="${esc(t("play_line"))}">▶</i>${esc(l.text)}`, "line:" + i, `${l.id} · ${l.text}`)).join("");
     const beatH = beats.filter((b) => b.downbeat || pxPerS * (60 / (+T.bpm || 120)) > 10).map((b) => `<i class="bl${b.downbeat ? " down" : ""}" style="left:${pct(+b.t)}%"></i>`).join("");
@@ -1132,7 +1140,7 @@ function CutModule(area) {
       + (hitsL.length ? lane("thin extra", t("ln_hits"), hitH, "sound") : "") + lane("wave extra", t("ln_wave"), wave(), "sound", t("e_wave"))
       + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + (diffH ? lane("thin extra", t("ln_diff"), diffH, "review") : "")   // what changed: a lane only when it is on record
       + `<div class="over" aria-hidden="true"><div class="selr" hidden><span class="cap"></span></div><div class="tl-ph"><span class="cap"></span></div></div><div class="hover-tip" hidden></div>`;
-    const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => AM.some((m) => m.kind === k));
+    const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => k === "mine" || AM.some((m) => m.kind === k));
     $("#tlLegend", area).innerHTML = kinds.map(([, cls, w]) => `<span class="lg"><i class="pin ${cls}" aria-hidden="true"></i>${esc(t(w))}</span>`).join("");
     if (layout !== "review") closed.forEach((g) => { const el = $(`.grp[data-grp="${g}"]`, tl); if (el) el.classList.add("closed"); $$(`.lane[data-g="${g}"]`, tl).forEach((x) => { x.hidden = true; }); });
     paintSel(); tick();
@@ -1161,8 +1169,8 @@ function CutModule(area) {
       const size = video && video.videoWidth ? `${video.videoWidth}×${video.videoHeight}` : (String(specGet("output")).match(/\d{3,5}\s*[x×]\s*\d{3,5}/) || [""])[0].replace(/\s/g, "").replace("x", "×");
       const ver = curV ? vnum(curV.id) : (D.status && D.status.media && D.status.media.version) ? vnum(D.status.media.version) : "";
       const isProxy = film && D.status && D.status.media && film === D.status.media.proxy && film !== D.status.media.film;
-      $("#readout", area).innerHTML = (s ? `<span><b>${esc(s.id)}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
-        + `<span class="ver">${esc([size, fps + " FPS", ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
+      $("#readout", area).innerHTML = (s ? `<span><b>${esc(shotName(s.id))}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
+        + `<span class="ver">${esc([size, t("fps_n", { n: fps }), ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
       if (!video) { const img = $("#cimg", frame); const pic = s ? shotPic(s) : ""; if (img && shots.some(shotPic)) { if (pic) { if (img.getAttribute("src") !== pic) img.src = pic; img.hidden = false; } else img.hidden = true; } }
       if (tab === "shots") $$("#lbody .lrow", area).forEach((r) => r.classList.toggle("now", !!s && r.dataset.pick === "shot:" + s.id));
     }
@@ -1283,7 +1291,7 @@ function CutModule(area) {
     layout = l; store.set("desk:cut-layout", l);
     root.className = "cut layout-" + l;
     $$("[data-lay]", area).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lay === l)));
-    if (l === "sound" && tab === "shots") { tab = "script"; renderTabs(); renderList(); }
+    if (l === "sound" && (tab === "shots" || tab === "notes")) { tab = allMarks().some((m) => m.kind === "listen") ? "listen" : "script"; renderTabs(); renderList(); }
     setTimeout(() => { fit(); draw(); }, 0);
   }
   $("#cPlay", area).addEventListener("click", toggle);

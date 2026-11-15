@@ -136,15 +136,18 @@ def picture_of(project, row, gate):
             p = _inside(project, p)
             if p and p.lower().endswith(VID):
                 return {"path": p, "kind": "video", "from": "gate"}
-        for a in assets:
-            p = _inside(project, a.get("path"))
-            if p and p.lower().endswith(IMG):
-                return {"path": p, "kind": "image", "from": "gate"}
+        imgs = [p for p in (_inside(project, a.get("path")) for a in assets) if p and p.lower().endswith(IMG)]
+        for p in [p for p in imgs if "sheet" not in Path(p).name.lower()]:   # a picture of the film, not a contact sheet
+            return {"path": p, "kind": "image", "from": "gate"}
         for s in gate.get("segments") or []:
             for sh in (s.get("shots") or []) if isinstance(s, dict) else []:
                 p = _inside(project, sh.get("frame")) if isinstance(sh, dict) else None
                 if p:
                     return {"path": p, "kind": "image", "from": "gate"}
+        if imgs:   # only a contact sheet: the cover or the film come first, the sheet when there is nothing else
+            sheet = imgs[0]
+            pic = picture_of(project, dict(row, state=None), None)
+            return pic if pic and pic.get("from") != "sheet" else {"path": sheet, "kind": "image", "from": "gate"}
     cover = _newest(project, [f"{d}/*{e}" for d in ("out/covers", "out/final/covers") for e in IMG]
                     + [f"{d}/cover*{e}" for d in ("out/final", "out/review", "out") for e in IMG])
     if cover:
@@ -419,7 +422,8 @@ def module_extras(project, data):
             if f or s or li:
                 if "{" not in f + s + li:   # the template's empty row, or one not filled in yet
                     link = bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", f))   # a link has no file to be there or not
-                    rows.append({"file": f, "source": s, "license": li, "there": None if link or not f else bool(_inside(project, f))})
+                    path = bool(re.fullmatch(r"[\w./~-]+\.\w{1,5}", f.strip("` ")))   # one file by its path; "字体", "屏幕壁纸" or a list with * says what, not where
+                    rows.append({"file": f, "source": s, "license": li, "there": bool(_inside(project, f.strip("` "))) if path and not link else None})
         if rows:
             out["assets_notes"] = {"file": r, "rows": rows[:200]}
 

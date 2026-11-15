@@ -274,10 +274,16 @@ table.t.ledger tr:hover td{background:var(--panel-3)}
 .declog{list-style:none;margin:0;padding:0}
 .declog li{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--rule);cursor:pointer}.declog li:first-child{border-top:0}
 .declog li>div{display:grid;gap:2px;min-width:0}.declog b{font-weight:500;color:var(--ink)}
-.xs.ovt{opacity:.45;border:1px solid var(--rule-2);background:none;color:var(--ink-2);border-radius:var(--r-pill);padding:1px 9px;font-size:var(--fs-label);cursor:pointer}
+.xs.ovt{visibility:hidden;border:1px solid var(--rule-2);background:none;color:var(--ink-2);border-radius:var(--r-pill);padding:1px 9px;font-size:var(--fs-label);cursor:pointer}
 .wg .xs.ovt{position:absolute;top:8px;right:8px}
 .declog li>.xs.ovt{align-self:start}
-.wg:hover .xs.ovt,.declog li:hover .xs.ovt,.xs.ovt:focus-visible{opacity:1;color:var(--ink)}   /* "改" on every row, quiet; plain where the pointer is */
+.wg:hover .xs.ovt,.declog li:hover .xs.ovt,.xs.ovt:focus-visible{visibility:visible}   /* "改" where the pointer is, small, over nothing */
+@media (hover:none){.xs.ovt{visibility:visible}}
 .quotes q.fold{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .quotes q.fold.open{display:block}
 .quotes .means{display:block;margin-top:3px;font-size:var(--fs-small);color:var(--ink-2)}
+.nw{white-space:nowrap}
+.note-line.gone{margin:8px 0 0}
+.wg{padding-right:44px}   /* room for "改" at the cell's top right */
+.mgrid>.pn+.pn{margin-top:0}   /* side by side in a grid: the same top */
+.checkl .meta{white-space:normal}

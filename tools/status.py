@@ -35,9 +35,13 @@ media/, Manim's render at 1080p or more; not its 480p15 and 720p30 drafts, and n
 bin/vh check record of that very film (the size and mtime_ns it kept are the film's now; a record from before those: newer
 than the film), or REVIEW.md records the final film with its date ("- 成片（2026-10-23）：out/final.mp4", for a film moved
 off this machine since), and gate ③ is done or skipped (a delivery before it is said in the note); in progress once every
-stop is done or skipped. The delivery station says the day it went out (delivered.date).
+stop is done or skipped. A film made before the activity log and the delivery record (no render in .ovh/activity.jsonl), whose
+gate ③ is passed or skipped (or that keeps no REVIEW.md), went out when its LESSONS.md was written past the template (the
+playbook's last step), on the latest date a line of NOTES.md or REVIEW.md gives it (定稿, 最终版 …). The delivery station says the day it went out and the film (delivered.date, .films).
+A stop decided in the person's own words is done, also when a later waiver covers the stops after it.
 waiting_on: person (a stop waits for them, or REVIEW.md says the project is paused), agent (one waits for the agent,
-the agent works towards one, or a command is running), nobody (delivered), or unknown (no REVIEW.md).
+the agent works towards one, or a command is running), nobody (delivered, whatever an older stop still says), or unknown
+(no REVIEW.md).
 Also: the versions of the project's films (out/versions/versions.json, bin/vh versions; out/versions and out/proxy are not
 listed as renders), the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
 still open (a desk submission's change and ask items whose REVIEW.md section has no 定了 / 改了 yet), the facts NOTES.md
@@ -108,7 +112,7 @@ def basics(project):
     raw = reader._read(project / "BRIEF.md", [])
     brief = reader.strip_comments(raw)
     spec = {k: reader.plain(v) for k, v, _ in reader.bullets(reader.section(brief, r"^Spec", r"^规格"))}
-    title = (re.search(r"^#\s+BRIEF\s*[：:]\s*(.+)$", brief, re.M) or [None, ""])[1].strip() or project.name
+    title = (re.search(r"^#\s+BRIEF\s*[：:—–·|-]+\s*(.+)$", brief, re.M) or [None, ""])[1].strip().strip("\"“”'「」") or project.name   # "# BRIEF：片名", or an older "# BRIEF — 片名"
     m = re.search(r"video-types/(\d\d-[\w-]+)\.md", brief) or re.search(r"<!-- from (\d\d-[\w-]+)\.md -->", raw)
     effort, src = G.effort_of(project)
     return {"id": identity.id_of(project), "path": str(project), "slug": project.name, "title": title, "type": m.group(1) if m else None, "effort": effort,
@@ -217,6 +221,10 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
         stub = f"out/review/gate-{pid or key}.html"
         if no_review and effort != "quick":
             st["state"] = "no_record"
+        elif decided and said and not missing:   # decided in the person's own words: settled, whatever a later waiver says
+            st["state"] = "done"
+            if how == "stop_by_date":
+                st["note"] = f"decided in its REVIEW.md section, read by date: the section names no page (its 页面 line: {stub})"
         elif waived or (effort == "quick" and not plist and key not in asked):
             st["state"] = "skipped"
             st["note"] = f"waived in the user's words ({waived})" if waived else "Effort quick: no gates"
@@ -314,6 +322,42 @@ def final_on_record(review_text):
         if d and films:
             out.append((d.group(1), films))
     return out
+
+
+def legacy_lessons(project):
+    """Is LESSONS.md written past its template (a line of its own, not a heading, a code fence or a {placeholder})?"""
+    f = Path(project) / "LESSONS.md"
+    text = G.strip_comments(G.read(f)) if f.is_file() else ""
+    return any(ln.strip() and not re.match(r"\s*(#|```)", ln) and "{" not in ln for ln in text.splitlines())
+
+
+FINAL_WORDS = re.compile(r"定稿|最终版|交付版|交付检查|成片定了|final cut|delivered", re.I)
+
+
+def legacy_end(project):
+    """A film made before the activity log and the delivery record (no render in .ovh/activity.jsonl; a command run on it
+    later, a scout, does not count): it ended when its LESSONS.md was written past the template, the playbook's last step
+    ("项目结束时写"). The caller asks only once gate ③ is passed or skipped, or the project keeps no REVIEW.md.
+    → {"date", "films"} or None. The day: the latest date on a line of NOTES.md or REVIEW.md that says the film was finalised
+    (定稿, 最终版, 交付版 …), else the latest in LESSONS.md; the films: the final films those lines and PACKAGING.md's 成片 line name."""
+    project = Path(project)
+    log = project / ".ovh" / "activity.jsonl"
+    if log.is_file() and any(r.get("cmd") == "render" for r in activity.read(project)):   # made with the log on: its own records say
+        return None
+    lessons = G.strip_comments(G.read(project / "LESSONS.md")) if (project / "LESSONS.md").is_file() else ""
+    own = [ln for ln in lessons.splitlines() if ln.strip() and not re.match(r"\s*(#|```)", ln) and "{" not in ln]
+    if not own:
+        return None
+    dates, films = [], []
+    for name in ("NOTES.md", "REVIEW.md", "PACKAGING.md"):
+        f = project / name
+        text = G.strip_comments(G.read(f)) if f.is_file() else ""
+        for ln in text.splitlines():
+            if FINAL_WORDS.search(ln) or (name == "PACKAGING.md" and re.search(r"成片|final film", ln, re.I)):
+                dates += re.findall(r"\b(20\d\d-\d\d-\d\d)\b", ln) if name != "PACKAGING.md" else []
+                films += [x for x in FILM_PATH.findall(ln) if G.is_final(x) and x not in films]
+    dates = dates or re.findall(r"\b(20\d\d-\d\d-\d\d)\b", lessons)   # its own sections' days ("## 2026-10-02 …")
+    return {"date": max(dates) if dates else None, "films": films}
 
 
 def film_changed(r, st):
@@ -561,8 +605,6 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return {"who": who, "do": do, "commands": [c for c in commands if c], "read": list(dict.fromkeys(x for x in read if x)),
                 "unfilled": {} if who == "nobody" else left}   # a delivered film has nothing left to fill
     busy = f"{working[0]['cmd']} is running (bin/vh activity {p}); when it ends: " if working else ""
-    if no_record:
-        return out("agent" if working else "unknown", busy + "no REVIEW.md: this project keeps no review record (made before the templates had one), so carry on from its files")
     if paused:
         return out("person", "paused (REVIEW.md): the person resumes it")
     wait = next((s for s in st if s["state"] == "waiting_person"), None)
@@ -570,6 +612,11 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         where = f"the desk {desk['url']}" if desk else wait["page"] or "the chat"
         return out("person", f"the person reviews {wait['name']} on {where}: stop here, and write their words into REVIEW.md when they answer",
                    [f"bin/vh desk wait {p}"] if desk and not desk.get("listening") else [], [R_DESK] if desk else [])
+    if st and st[-1]["state"] == "done":   # it went out: what is left of the stops before it no longer waits for anyone
+        lessons = (project / "LESSONS.md").is_file() and legacy_lessons(project)
+        return out("agent" if working else "nobody", busy + ("delivered" if lessons else "delivered: what this film taught goes into LESSONS.md"))
+    if no_record:
+        return out("agent" if working else "unknown", busy + "no REVIEW.md: this project keeps no review record (made before the templates had one), so carry on from its files")
     s = next((x for x in st if x["state"] in ("waiting_agent", "in_progress")), None)
     if s is None:
         delivered = st[-1]["state"] == "done"
@@ -766,20 +813,26 @@ def collect(project, now=None, light=False):
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
     g3 = next((s for s in st if s["id"] == "3"), None)
     g3_through = g3 is not None and g3["state"] in ("done", "skipped")   # delivered: the person has seen the draft (or waived it)
-    shipped = bool(deliveries or final_ok or recorded)
+    ended = None if (deliveries or final_ok or recorded) or not (g3_through or no_record) else legacy_end(project)   # a film from before the delivery record
+    shipped = bool(deliveries or final_ok or recorded or ended)
     deliver = {"id": "deliver", "name": "交付" if proj["lang"] == "zh" else "Delivery", "kind": "deliver", "pages": [], "page": None,
                "current": False, "record": None, "feedback": None, "note": None,
-               "state": "no_record" if no_record else "done" if shipped and g3_through else "in_progress" if gates_through else "not_started"}
+               "state": "done" if (shipped and g3_through) or ended else "no_record" if no_record else "in_progress" if gates_through else "not_started"}
     if shipped:
+        films = []
         if deliveries:
             what, when = f"bin/vh deliver: {deliveries[-1]['output']}", deliveries[-1]["time"]
         elif final_ok:
             what, when = "the final film passed bin/vh check", text(passing[-1].get("at"))
-        else:
+        elif recorded:
             when, films = recorded[-1]
             gone = not any((project / f).exists() for f in films)
             what = f"REVIEW.md records the final film ({', '.join(films)}, {when})" + ("; it is not on this machine now" if gone else "")
-        deliver["delivered"] = {"date": (when or "")[:10] or None}   # the day it went out, for a page to say (bin/vh desk)
+        else:
+            when, films = ended["date"], ended["films"]
+            what = "LESSONS.md is written: the film ended (made before the delivery record" + (f"; finalised {when}" if when else "") + ")" \
+                + (f"; its final film ({', '.join(films)}) is not on this machine now" if films and not any((project / f).exists() for f in films) else "")
+        deliver["delivered"] = {"date": (when or "")[:10] or None, "films": films}   # the day it went out and the film, for a page to say (bin/vh desk)
         deliver["note"] = what if deliver["state"] == "done" else f"{what} (no REVIEW.md says whether gate ③ was passed)" if no_record \
             else f"{what}, but gate ③ is not decided yet: the delivery counts once it is"
     st.append(deliver)
@@ -819,14 +872,16 @@ def collect(project, now=None, light=False):
     # who is waited on, and the next step in one line
     waiting = [s for s in st if s["state"] == "waiting_person"]
     agent = [s for s in st if s["state"] in ("waiting_agent", "in_progress")]
-    if no_record:
-        waiting_on, nxt = ("agent", f"the agent: {working[0]['cmd']} is running") if working else \
-            ("unknown", "no REVIEW.md: this project keeps no review record (made before the templates had one)")
-    elif paused:
+    if paused:
         waiting_on, nxt = "person", "paused (REVIEW.md): the person resumes it"
     elif waiting:
         s = waiting[0]
         waiting_on, nxt = "person", f"the person: review {s['name']} on " + (f"the desk {desk['url']}" if desk else s["page"] or "the chat")
+    elif deliver["state"] == "done" and not working:   # it went out: an older stop's gap waits for no one
+        waiting_on, nxt = "nobody", "delivered"
+    elif no_record:
+        waiting_on, nxt = ("agent", f"the agent: {working[0]['cmd']} is running") if working else \
+            ("unknown", "no REVIEW.md: this project keeps no review record (made before the templates had one)")
     elif agent or working:
         waiting_on = "agent"
         s = agent[0] if agent else None
