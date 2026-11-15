@@ -119,11 +119,12 @@
     },
     {
       "name": "install-skill",
-      "summary": "Register the skills in skills/ for Claude Code, Codex or both, pointing at this clone.",
-      "when": "once, so that a video request in any folder finds this repo",
+      "summary": "Register the skills in skills/ for Claude Code, Codex or both: short stubs that read skills/<skill>/SKILL.md in this clone, so a git pull updates them.",
+      "when": "once, so that a video request in any folder finds this repo; again only when bin/vh doctor's skills line says so",
       "stages": ["env"],
       "reads": [
-        "skills/*/SKILL.md"
+        "skills/*/SKILL.md",
+        "tools/skill_stub.md"
       ],
       "writes": [
         "~/.claude/skills/<skill>/SKILL.md",
@@ -133,7 +134,7 @@
         {
           "synopsis": "install-skill [claude|codex|all]",
           "text": [
-            "register every skill in skills/ (~/.claude/skills, ~/.agents/skills)"
+            "register every skill in skills/ (~/.claude/skills, ~/.agents/skills): its frontmatter and a stub (tools/skill_stub.md) that sends the agent to this clone's copy"
           ]
         }
       ]
@@ -1366,6 +1367,28 @@
           "synopsis": "rhythm <project> [--shots JSON|page.html] [--segment NAME | --from s --to s] [--max s]",
           "text": [
             "rhythm map: shots, narration and captions, music; too-long shots and failed reads in red"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "words",
+      "summary": "Where a script uses the sentence shapes model drafts reach for (不是 A 而是 B, a colon that hands over the verdict, 顿号 lists, 排比 in threes, long modifiers, paragraphs chained end to start): a report, never an edit.",
+      "when": "once the narration or caption script is written, before the person reads it; again after a rewrite",
+      "stages": ["3"],
+      "reads": [
+        "<project>/SCRIPT.md (every table with a 旁白 / Narration column, else with a 字幕 / Caption one), else <project>/audio/script.txt as tts reads it; or any .md / .txt",
+        "<project>/STYLE.md (its 允许的句式 section), and --style files"
+      ],
+      "writes": [],
+      "usage": [
+        {
+          "synopsis": "words <project|SCRIPT.md|file.md|file.txt|audio/script.txt> [--col 旁白|字幕|<header>] [--style FILE] [--all] [--json]",
+          "text": [
+            "each check's hits (line, the words hit, the sentence), per 1000 characters, and how to read the count: the ratios come from one",
+            "paired experiment on other writing, not re-measured here. Exit 0 whatever it finds; not part of bin/vh check. Chinese only:",
+            "English text gets no counts. STYLE.md's 允许的句式 section (a check's name, or a quoted sentence) stops counting what the",
+            "project chose on purpose; --all lists those too"
           ]
         }
       ]
