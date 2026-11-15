@@ -33,7 +33,11 @@ function paint(x, mode, cam) {
   for (const L of [...LAMPS].sort((a, b) => b.z - a.z)) {
     const [px, py, s] = project(L.x, 0, L.z, cam), top = py - 4.2 * s;
     x.fillStyle = depth ? g(L.z) : "#2a313c"; x.fillRect(px - 0.06 * s, top, 0.12 * s, 4.2 * s);
-    if (!depth) { const pool = x.createRadialGradient(px, py, 0, px, py, 2.4 * s); pool.addColorStop(0, "rgba(255,196,120,0.30)"); pool.addColorStop(1, "rgba(255,196,120,0)"); x.fillStyle = pool; x.fillRect(px - 2.4 * s, py - 0.6 * s, 4.8 * s, 1.2 * s); }
+    if (!depth) {   // a pool of light on the ground: a radial gradient squashed into an ellipse, soft to its edge
+      x.save(); x.translate(px, py); x.scale(1, 0.22);
+      const pool = x.createRadialGradient(0, 0, 0, 0, 0, 2.4 * s); pool.addColorStop(0, "rgba(255,196,120,0.30)"); pool.addColorStop(1, "rgba(255,196,120,0)");
+      x.fillStyle = pool; x.beginPath(); x.arc(0, 0, 2.4 * s, 0, Math.PI * 2); x.fill(); x.restore();
+    }
     x.fillStyle = depth ? g(L.z) : "#fff6e2"; x.beginPath(); x.ellipse(px, top, 0.42 * s, 0.18 * s, 0, 0, Math.PI * 2); x.fill();
   }
   // a near post at the right, cut by the frame
@@ -46,7 +50,7 @@ function paint(x, mode, cam) {
 const ON = { air: 1.0, lens: 1.8, light: 2.6, grain: 3.1 }, SPLIT = 3.6;
 const ramp = (t, a) => Math.min(1, Math.max(0, (t - a) / 0.5));
 // the sample turns the defaults up a little, so a contact sheet at 480 px still shows each layer
-const P = { ...defaults, haze: 0.4, hazeColor: "#3a4a62", aberration: 0.0022, vignette: 0.32, bloom: 0.3, halation: 0.32, grain: 0.06 };
+const P = { ...defaults, haze: 0.4, hazeColor: "#3a4a62", aberration: 0.0022, vignette: 0.32, bloom: 0.3, halation: 0.36, threshold: 0.7, grain: 0.04 };
 const ZOOM = 4.3;   // from 4.3 s: a 3x crop round the nearest lamp head, clean left, finished right
 
 export function renderAt(t, ctx, tokens, lib) {
