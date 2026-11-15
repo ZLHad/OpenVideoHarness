@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "name": "film-finish",
+ "summary": "The last pass over a picture drawn by code, which comes out too clean: far things into the air, red and blue a little apart toward the corners and the corners darker, then the light still above a threshold spills (bloom and a red-orange halation), then grain new every frame; in that order, each kept small.",
+ "tags": ["收尾", "后期", "质感", "颗粒", "光晕", "暗角", "色散", "雾", "空气透视", "finish", "grain", "halation", "bloom", "vignette", "aberration", "haze"],
+ "painters": ["canvas"],
+ "use": "st = state(params, t); canvas(ctx, st, src, { depth }) with src the finished picture (a full-frame 2D canvas, or a Three.js renderer's canvas right after renderer.render) and depth an optional full-frame canvas, white = far. Draw the text that must be read after it. In Three.js the air is better as scene.fog (true distance); haze is for pictures with a depth canvas. playbook/08 成片的收尾.",
+ "slots": [
+  {"name": "amount", "type": "number", "default": 1, "min": 0, "max": 2, "text": "the whole pass: 0 off, 1 as set; above 1 every defect scales up together (a look-dev 'harder' preset, playbook/08 预设栈)"},
+  {"name": "haze", "type": "number", "default": 0, "min": 0, "max": 1, "text": "air: how far the farthest things (depth 1) go toward hazeColor; 0 = off. Needs a depth canvas"},
+  {"name": "hazeColor", "type": "string", "default": "#9aa7b4", "text": "air: the colour of the air, the sky's at the horizon"},
+  {"name": "hazeDesat", "type": "number", "default": 0.5, "min": 0, "max": 1, "text": "air: how much colour the farthest things lose"},
+  {"name": "aberration", "type": "number", "default": 0.0012, "min": 0, "max": 0.01, "text": "lens: red and blue apart at the corners, a fraction of the frame's width (0.0012 ≈ 2 px at 1080p); none at the centre"},
+  {"name": "vignette", "type": "number", "default": 0.16, "min": 0, "max": 1, "text": "lens: how much the corners darken"},
+  {"name": "bloom", "type": "number", "default": 0.1, "min": 0, "text": "light: neutral glow round what is brighter than threshold"},
+  {"name": "halation", "type": "number", "default": 0.08, "min": 0, "text": "light: a red-orange halo round the same light (film's)"},
+  {"name": "threshold", "type": "number", "default": 0.8, "min": 0, "max": 0.99, "text": "light: the luma above which light spills; text that must be read stays under it or is drawn after the pass"},
+  {"name": "radius", "type": "number", "default": 0.012, "min": 0, "max": 0.05, "unit": "frame width", "text": "light: how far it spills (about two standard deviations of the Gaussian)"},
+  {"name": "grain", "type": "number", "default": 0.02, "min": 0, "text": "medium: the grain's standard deviation in the mid-tones, 0..1 of full scale (0.02 is about 5 levels of 255); less in the blacks and whites"},
+  {"name": "grainSize", "type": "number", "default": 1.3, "min": 0.5, "unit": "px", "text": "medium: a grain's size in CSS px (follows the frame's dpr)"},
+  {"name": "grainFps", "type": "number", "default": 0, "min": 0, "text": "medium: new grain this many times a second; 0 = every frame. A rate that does not divide the timeline's holds some grain for two frames: 24 on a 30 fps film repeats one frame in five, a 6 Hz stutter in the grain. 24 fits a 24 fps film; on 30 fps use 0, 15 or 30"},
+  {"name": "seed", "type": "number", "default": 11, "text": "medium: a new seed, a new grain pattern (the frame, or the grain step, picks it: the same frame, the same grain)"}
+ ],
+ "sample": {"at": [0.3, 1.5, 2.3, 3.9, 4.7], "text": "the contact sheet's moments: clean, then with air, with the lens, clean and finished side by side, and a 3x crop of a lamp clean and finished (the grain and the halation show there)"},
+ "provenance": [
+  {"repo": "this repository", "path": "components/film-finish/component.js", "license": "MIT", "note": "own code; the five kinds of defect and their order follow a compositor's habit of finishing a CG shot (idea only)"}
+ ]
+}

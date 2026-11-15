@@ -14,7 +14,7 @@
 | 需要什么 | HyperFrames（HTML + GSAP） | p5 / ClaudeAnimationBase | Manim | 通用 |
 |---|---|---|---|---|
 | 转场 | `npx hyperframes add <block>` 注册表里有着色器转场（例如 `flash-through-white`）；速度匹配的切法见 `references/repos/hyperframes/_upstream_claude/skills/cut-the-curve/` | `brushWipe`、`iris`、`irisShape`（见 ANIMATION_GUIDE） | `Transform`、`FadeTransform`、摄像机移动 | 跟着动作切、形状匹配切 |
-| 背景和氛围 | Three.js 或 canvas 层；`hyperframes-creative/references/audio-reactive.md` | 水彩 fill、纸纹、`glow()` | `NumberPlane`、渐变背景 | 颗粒、暗角（成片后处理，见下） |
+| 背景和氛围 | Three.js 或 canvas 层；`hyperframes-creative/references/audio-reactive.md` | 水彩 fill、纸纹、`glow()` | `NumberPlane`、渐变背景 | 颗粒、暗角、光晕、色散、空气（"成片的收尾"，见下；组件 `film-finish`） |
 | 粒子、汇聚、流线场 | canvas 或 Three.js 自己写，用 `hash(i)` 定初始状态 | `hash` + `jit` | `VMobject` 点阵 | 思路参考 guizang 的 `assets/fx-lab/`（AGPL，只看思路不复用代码） |
 | 文字动效 | 逐词 stagger、`steps()` 打字、`clip-path` 揭示（数值见 03 篇） | `letter()`、`sfx()` | `Write`、`TransformMatchingTex` | — |
 | 数据图表动画 | `npx hyperframes add data-chart`；`hyperframes-creative/references/data-in-motion.md` | — | `Axes`、`BarChart` | `references/repos/data-animation-skills/` |
@@ -146,6 +146,41 @@ const x = keyX(from.midi) + (keyX(to.midi) - keyX(from.midi)) * u;           // 
 
 **声像也跟着画面走。** 发声的物体在画面左边，声音就从左边来：事件的 pan 取发声物体在那一帧投影到屏幕上的 x（NDC，−1 到 1），出画的物体夹在 ±1；距离再决定衰减，例如距离每翻一倍降 6 dB。摄像机和物体都是 t 的纯函数，所以 pan 和衰减都由同一份相机代码按事件的 t 算出来，不要手填。`events.json` 里的声像字段，以及混音要保留立体声，见 `04-audio.md`。
 
+## 成片的收尾：给太干净的画面加一点缺陷
+<!-- know: finish, film look, halation, chromatic aberration, vignette, haze, 收尾, 去 CG 感, 光晕, 色散, 暗角, 空气透视, 胶片颗粒 -->
+
+用代码渲出来的画面，3D 尤其如此，看着假，多半不是因为粗糙，而是因为每样东西都对得太准：画面平滑得没有一点颗粒，灯的亮光到灯罩边上就断了，画框四个角和正中一样亮，红绿蓝三层严丝合缝，五十米外的楼和眼前的桌子一样锐、一样艳。真摄影机拍不出这样的画面，观众说不出哪里不对，但会觉得是电脑做的。视效合成给 CG 镜头收尾，干的就是反过来的事：把摄影机和胶片本来会留下的毛病，少量地、按顺序补回去。按毛病出在哪一环，分五类：
+
+| 出在哪一环 | 在真实画面里 | 收尾补什么 |
+|---|---|---|
+| 空气 | 隔着的空气越厚，东西越发灰、越淡，颜色向天色靠；尺度感很大一部分来自这里 | 按距离往雾色和灰里推（`film-finish` 的 `haze`；Three.js 用 `scene.fog`） |
+| 镜头 | 画框边上比中间暗；越靠边，不同颜色的光折射得越不齐，中间几乎对齐 | 暗角、由中心向外加大的色散 |
+| 光 | 很亮的地方会向四周晕开，胶片的乳剂层还会在亮处外面泛出一圈偏红的光 | 过了阈值的亮处外溢：中性的 bloom，加一圈偏红橙的 halation |
+| 底片或传感器 | 有颗粒，每一帧的颗粒都不一样，中间调最显 | 逐帧更换的颗粒 |
+| 对焦 | 清楚的只有离镜头某个距离上薄薄的一层 | 景深，交给 3D 引擎（Three.js 的景深后期、Blender 相机的光圈），不在这一遍里 |
+
+**什么时候加**：画面要让人当成"拍出来的"时：3D 产品片、Blender 出的片、走进去的世界、要和生成片段剪在一起的代码画面（`05-hybrid-genvideo.md` 的"与代码画面匹配"）。平面图形、排版、像素和矢量风格、3b1b 式的讲解图、真实 UI 演示，本来就不假装是摄影机拍的，一般不加；加了只会让截图发糊、细线发脏。
+
+**加多少**：以观众指不出来为度。试法：缩到目标屏的大小看，能一眼说出"这里有色散""四角压暗了"，就是多了；全部关掉再看，画面又像回到了电脑里，就是够了。`film-finish` 的默认值按这个量取；`amount`（0–2）一把调整体，可以像上面的预设栈那样做两三档给人选，选定的写进 STYLE.md。
+
+**顺序**：
+1. **光先定好，毛病最后补。** 这几类毛病大多跟着光来：画面里没有看得见的光源，外溢、眩光、焦外光斑都无从谈起，补了也不像。所以先在场景里把灯摆好，而且少摆：一两盏主光加几个看得见的小光源，让大片画面待在暗处，比四面打亮更有电影感（Blender 那条路线也是这个经验，见 `engines/blender.md`）。
+2. 收尾按"空气 → 镜头 → 光的外溢 → 颗粒"走，也就是光从场景出发、穿过空气和镜头、落到底片上的顺序。`film-finish` 就照这个顺序做：外溢取的是已经过了空气和镜头的画面，所以被雾吃掉一层的远灯晕得更弱，四角被暗角压过的亮处也晕得更弱。
+3. **颗粒最后加**：调色、放大、和生成片段对齐之后，一次加在整个画面上（`05-hybrid-genvideo.md` (b)：先放大再加颗粒，颗粒才不会被放大糊掉）。
+4. **要读的字在这一遍之后画**，不吃颗粒，也不被外溢的光烧白（上面"光效不能把字烧掉"那条底线）；字非留在画面层不可时，把 `threshold` 设在字的亮度之上。
+
+**颗粒怎么换、为什么仍是 t 的纯函数**：种子取自帧号，同一帧永远是同一片颗粒，乱序渲也一样。默认每一帧换一次（`grainFps: 0`）。想要胶片那样 24 次每秒，只在 24 fps 的片子上这样设：在 30 fps 的时间轴上设 24，每 5 帧就有一帧沿用上一帧的颗粒，颗粒会有每秒 6 次的顿挫；30 fps 的片子要放慢就设 15（两帧换一次）。`grain` 是中间调里颗粒的标准差，0.02 约是 255 级里的 5 级。
+
+**外溢不会漏掉小灯**：外溢先在四分之一分辨率上把原图的像素逐个读一遍，过阈值的才留下，再做两遍可分离的高斯模糊。省事的做法是在每个点周围的圆盘上取几十个采样点，可采样点之间的空隙放得下一盏小灯：一个 2 像素宽、每帧挪 3 像素的光点，用 40 个采样点时光晕的能量在几帧之间起伏 136%，忽有忽无；逐个读像素后是 7%（`tools/ci.sh` 里有这一项）【实测】。
+
+**确定性**：`film-finish` 的样片在 1 个和 3 个 worker 下渲出的 150 帧逐像素相同（`styles/_swatch/determinism.sh`，2026-11-15 改版后重跑）【实测】。
+
+**怎么接**：
+- **canvas、HyperFrames 的 canvas 层、canvas-film**：`bin/vh components add <项目> film-finish`，每帧先把画面画进一张离屏 canvas，再 `canvas(ctx, state(params, t), src, { depth })` 画到屏上；`depth` 是同尺寸的一张灰度图，白 = 远，没有就不开空气。参数表在 `components/film-finish/slots.json`，样子看 `components/film-finish/sample/media/sheet.jpg`（最后一格是 3 倍放大的左右对比，颗粒和光晕在那里看得清）。
+- **Three.js**：空气用 `scene.fog`（`FogExp2`，雾色取地平线的天色），按真实距离算，比深度图准；渲完把渲染器的 canvas 当 `src` 交给 `film-finish`，`haze` 留 0。
+- **Blender**：空气交给体积或雾，景深交给相机；镜头、光的外溢和颗粒可以在 Cycles 里干净地出片，再用下面那条 ffmpeg 加在成片上。
+- **生成的图和视频**：提示词里写光源和要的缺陷（`05-hybrid-genvideo.md` 的"镜头卡"），颗粒和光晕却不交给模型画：它画出的颗粒往往是一层固定的糊斑，不随画面换，光晕也时常成了一团。这两样留到后期，按帧加。
+
 ## 成片后处理（ffmpeg，可选）
 
 本机的 ffmpeg 可能没有编译文字绘制功能，但这几种滤镜可以直接用：
@@ -154,4 +189,19 @@ const x = keyX(from.midi) + (keyX(to.midi) - keyX(from.midi)) * u;           // 
 ffmpeg -i in.mp4 -vf "noise=alls=6:allf=t,vignette=PI/5" -c:a copy out.mp4     # 轻颗粒 + 暗角
 ```
 
-颗粒会让 GIF 体积暴涨，给 README 用的 GIF 要从无颗粒版本生成（见 `video-types/03-product-promo.md`）。
+已经渲好的成片（任何引擎）要整套收尾时，用这一条，顺序和上一节一样（镜头 → 光的外溢 → 颗粒；空气没有深度图，做不了）：
+
+<!-- finish-chain: tools/ci.sh runs this command on a test clip -->
+```bash
+ffmpeg -i in.mp4 -filter_complex "[0:v]format=gbrp,rgbashift=rh=1:bh=-1,vignette=angle=PI/6,split[base][hi];\
+[hi]colorchannelmixer=rr=.2126:rg=.7152:rb=.0722:gr=.2126:gg=.7152:gb=.0722:br=.2126:bg=.7152:bb=.0722,\
+lutrgb=r='clip((val-204)*5,0,255)':g='clip((val-204)*5,0,255)':b='clip((val-204)*5,0,255)',\
+colorchannelmixer=rr=1:gg=0.45:bb=0.2,gblur=sigma=12[glow];\
+[base][glow]blend=all_mode=screen:all_opacity=0.3,noise=alls=5:allf=t:all_seed=11,format=yuv420p[v]" \
+  -map "[v]" -map "0:a?" -c:a copy -c:v libx264 -crf 16 out.mp4
+```
+
+- `rgbashift` 把整幅画一样地错开（中心也错），不是镜头那样越往边缘越多，所以只给 1 px；要径向的色散用 `film-finish`。
+- 外溢按亮度取：先把三个通道混成亮度（第一个 `colorchannelmixer`），过 0.8（204）的部分染成暖色、模糊、按 screen 叠回。直接在 RGB 上取阈值，饱和的红和蓝也会发光。高光那一支不能用 `format=gray`：`split` 两路的格式要一致，ffmpeg 会把主画面也变成灰的【实测】。
+- `all_seed` 固定，同一个输入两次输出逐字节相同【实测，ffmpeg 8.0.1】；颗粒用的是按帧变化的 `allf=t`，σ 和编码的关系见 `05-hybrid-genvideo.md` (b)。
+- 加了颗粒的片子更难压：交付编码给高一点的码率（或 `-tune grain`），给 README 用的 GIF 要从无颗粒版本生成（见 `video-types/03-product-promo.md`）。整片加颗粒还会让逐帧截图变慢，所以长片常常让画面层保持干净，颗粒放到这一步统一加。

@@ -6,6 +6,7 @@ usage: bin/vh cast add <project> <id> [--kind character|costume|prop|set] [--nam
                        [--ref picture[=view] …] [--source TEXT] [--license TEXT] [--final | --draft] [--force] [--json]
        bin/vh cast list <project> [--json]
        bin/vh cast check <project> [--json]
+       bin/vh cast frames <project> <video> [--id a,b] [--n 16] [--out F] [--json]
 <project> as bin/vh assets takes it.
 
 cast/<id>/cast.json ("version": 1; written by add, read by every tool, edited by hand too):
@@ -43,6 +44,12 @@ cast/<id>/cast.json ("version": 1; written by add, read by every tool, edited by
            bin/vh assets add it first); a final character, costume or prop without all four views (a 3D model from four
            views needs them); a picture on record in the ledger as made from an older version of one of its pictures, or
            from one it no longer has (make it again from the settled one, or keep it knowingly)
+  frames   the settled cast against a film: the pictures of the entries (--id, else every character, costume and prop),
+           a row on top, and --n frames (16) spread evenly over <video> below, each at the middle of its share, with its
+           time; one picture, by default <project>/out/check/cast-<video>-<HHMMSS>.png, to look at side by side: a face,
+           a costume, a count of fingers, the one fixed flaw, a prop that melts or doubles, a colour that drifts inside a
+           shot (playbook/05 角色跨片段一致性). Needs uv (pillow, through tools/sheet.py) and ffprobe. A change at a cut
+           of the film's own is no drift
 The pictures image gen --ref cast:<id> sends (cast:<id>:<view> sends that one) go to the vendor like any --ref: ask
 first when one shows a real person or something confidential. Change a settled picture and every shot made from it
 may need making again: check says which entry changed, and which pictures on record were made from it before.
@@ -51,7 +58,7 @@ may need making again: check says which entry changed, and which pictures on rec
 2 usage (no project, an id or a picture that is not there, a field that does not fit) · 3 an error in this tool itself,
 not in the cast (said with its traceback).
 """
-import argparse, hashlib, json, os, re, shutil, sys, traceback
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, time, traceback
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -542,10 +549,66 @@ def cmd_list(a, check=False):
     return 1 if check and any(p["severity"] == "fail" for p in probs) else 0
 
 
+def cmd_frames(a):
+    project = project_of(a.project)
+    video = Path(a.video).expanduser()
+    if not video.is_file() and (Path(project) / a.video).is_file():
+        video = Path(project) / a.video
+    if not video.is_file():
+        raise Usage(f"no such video: {a.video}")
+    video = video.resolve()
+    if not 1 <= a.n <= 64:
+        raise Usage(f"--n {a.n}: 1 to 64 frames")
+    have = ids(project)
+    want = [x for x in (a.id or "").split(",") if x] if a.id else None
+    if want:
+        missing = [x for x in want if x not in have]
+        if missing:
+            raise Usage(f"no cast entry {', '.join(missing)} (bin/vh cast list {a.project})")
+    refs = []
+    for cid in want or have:
+        d = read(project, cid)
+        if d is None or (not want and d.get("kind") not in ("character", "costume", "prop")):
+            continue
+        for r in d.get("refs") or [] if isinstance(d.get("refs"), list) else []:
+            if isinstance(r, dict) and isinstance(r.get("file"), str) and NAME.match(r["file"]) and (folder(project, cid) / r["file"]).is_file():
+                refs.append((str(folder(project, cid) / r["file"]), f"{cid} · {r.get('view') or Path(r['file']).stem}"))
+    if not refs:
+        raise Usage("no cast pictures to set the film against: " + (f"{', '.join(want)} {'has' if len(want) == 1 else 'have'} none"
+                    if want else "no character, costume or prop has one (bin/vh cast add <project> <id> --ref a.png=front)"))
+    for tool in ("uv", "ffprobe"):
+        if not shutil.which(tool):
+            raise Usage(f"frames needs {tool} on the PATH")
+    pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)],
+                        capture_output=True, text=True)
+    try:
+        dur = float(pr.stdout.strip().splitlines()[0])
+    except (ValueError, IndexError):
+        raise Usage(f"{video}: ffprobe found no duration ({pr.stderr.strip()[-200:]})")
+    times = [round((k + 0.5) * dur / a.n, 3) for k in range(a.n)]
+    out = (Path(a.out).expanduser().resolve() if a.out else Path(project).resolve() / "out" / "check" / f"cast-{video.stem}-{time.strftime('%H%M%S')}.png")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    cols = 4 if a.n >= 4 else a.n
+    env = dict(os.environ, VH_SHEET_AT=",".join(str(t) for t in times), VH_SHEET_REFS=json.dumps(refs, ensure_ascii=False), VH_SHEET_GRAY="")
+    r = subprocess.run(["uv", "run", "-q", "--no-project", "--with", "pillow", "python", str(HERE / "sheet.py"), str(video), str(out), str(cols), "1", "400"],
+                       env=env, capture_output=True, text=True)
+    if r.returncode != 0 or not out.is_file():
+        print(f"{PROG} frames: tools/sheet.py failed: {(r.stderr or r.stdout).strip()[-400:]}", file=sys.stderr)
+        return 1
+    if a.json:
+        print(json.dumps({"version": 1, "tool": f"{PROG} frames", "project": str(Path(project).resolve()), "video": str(video), "out": str(out),
+                          "refs": [{"file": f, "label": lab} for f, lab in refs], "times": times}, ensure_ascii=False, indent=1))
+    else:
+        print(out)
+        print(f"  top: {len(refs)} cast picture{'' if len(refs) == 1 else 's'}; below: {a.n} frames spread over {dur:.1f} s. Look for a face, a "
+              "costume, fingers, the fixed flaw, a prop that melts or doubles, a colour that drifts inside a shot; a change at the film's own cut is none")
+    return 0
+
+
 def parser():
     ap = argparse.ArgumentParser(prog=PROG, description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog="\n\n".join(__doc__.split("\n\n")[1:]))
-    sp = ap.add_subparsers(dest="cmd", metavar="{add,list,check}")
+    sp = ap.add_subparsers(dest="cmd", metavar="{add,list,check,frames}")
     p = sp.add_parser("add", prog=f"{PROG} add", help="make an entry, or add pictures and fields to one")
     p.add_argument("project")
     p.add_argument("id")
@@ -565,6 +628,13 @@ def parser():
         q = sp.add_parser(name, prog=f"{PROG} {name}", help=what)
         q.add_argument("project")
         q.add_argument("--json", action="store_true")
+    q = sp.add_parser("frames", prog=f"{PROG} frames", help="the settled cast over frames spread evenly through a film")
+    q.add_argument("project")
+    q.add_argument("video")
+    q.add_argument("--id", help="these entries, comma-separated (default: every character, costume and prop)")
+    q.add_argument("--n", type=int, default=16, help="how many frames (1 to 64; default 16)")
+    q.add_argument("--out", help="the picture to write (default <project>/out/check/cast-<video>-<HHMMSS>.png)")
+    q.add_argument("--json", action="store_true")
     return ap
 
 
@@ -580,6 +650,8 @@ def main(argv):
     try:
         if a.cmd == "add":
             return cmd_add(a)
+        if a.cmd == "frames":
+            return cmd_frames(a)
         return cmd_list(a, check=a.cmd == "check")
     except Usage as e:
         print(f"{PROG} {a.cmd}: {e}", file=sys.stderr)

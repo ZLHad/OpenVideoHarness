@@ -570,7 +570,8 @@
           "text": [
             "one picture a call into assets/genimg/<id>/, on record (aigc, model, prompt, seed, cost, inputs); gemini (default):",
             "draft = Nano Banana 2.1, final = Nano Banana Pro, each call held against the budget (none, or over it: not called,",
-            "the shortfall said); --provider codex: image_gen on the ChatGPT plan; --alpha: cut out of chroma green; --dry-run: the estimate"
+            "the shortfall said); --provider codex: image_gen on the ChatGPT plan; --alpha: cut out of chroma green; --dry-run: the estimate",
+            "a picture meant to look photographed: the prompt as a shot card (who is in it, the light, its flaws, camera and action; playbook/05 镜头卡)"
           ]
         },
         {
@@ -833,14 +834,16 @@
     {
       "name": "cast",
       "summary": "The project's cast: the settled references of its characters, costumes, props and sets, one folder each in cast/<id>/ with its pictures and cast.json, which image gen --ref cast:<id> sends and a 3D model made from four views will read.",
-      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), and whenever a picture of it is made from references",
+      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), whenever a picture of it is made from references, and on a draft made of generated shots (frames)",
       "stages": ["2", "3", "6"],
       "reads": [
         "<project>/cast/<id>/cast.json and its pictures",
-        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)"
+        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)",
+        "<video> (frames: a draft or the film, through ffprobe and tools/sheet.py)"
       ],
       "writes": [
-        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)"
+        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)",
+        "<project>/out/check/cast-<video>-<HHMMSS>.png (frames: the cast over the film's frames)"
       ],
       "usage": [
         {
@@ -858,6 +861,13 @@
             "changed since it was recorded fails: what was made from it may need making again; a picture whose terms are on",
             "record nowhere is said)"
           ]
+        },
+        {
+          "synopsis": "cast frames <project> <video> [--id a,b] [--n 16] [--out F] [--json]",
+          "text": [
+            "the settled cast against a film: the entries' pictures in a row on top, --n frames spread evenly below, each with",
+            "its time, in one picture (<project>/out/check/cast-<video>-<HHMMSS>.png) to look at side by side for drift"
+          ]
         }
       ],
       "subcommands": [
@@ -872,6 +882,10 @@
         {
           "name": "check",
           "summary": "each cast.json against its folder"
+        },
+        {
+          "name": "frames",
+          "summary": "the cast over frames spread evenly through a film"
         }
       ]
     },
@@ -1311,10 +1325,11 @@
       ],
       "usage": [
         {
-          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar [size,angle,axis,move] | check [file…] | sample <id> [--style S] [--draft] [--force]",
+          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar [size,angle,axis,move] | list --sequences [--type T --aspect A --seconds S] | check [file…] | sample <id> [--style S] [--draft] [--force]",
           "text": [
             "shot recipes (recipes/): filter by frontmatter, validate it",
             "--grammar: the shot-grammar cards (recipes/shot/): shot sizes, angles, the axis and camera moves, what each does to the viewer, when to take it or not, and the code a shot table's camera writes",
+            "--sequences: the whole-film skeletons (recipes/sequences/): a film's energy arc, holds, seams and limits; filtered by --type, --aspect, --seconds",
             "sample: the recipe's sketch rendered, its contact sheet kept beside it and the sketch's sha in its frontmatter (list --json gives the path); unchanged, it is not rendered again"
           ]
         }
@@ -1869,7 +1884,7 @@
     },
     {
       "name": "components",
-      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
+      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up, film finish) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
       "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar, pieces that build a whole one after another) before writing one by hand",
       "stages": ["6", "5"],
       "reads": [
@@ -2109,13 +2124,14 @@
       ],
       "usage": [
         {
-          "synopsis": "sheet <video> [cols] [fps] [out]",
+          "synopsis": "sheet <video> [cols] [fps] [out] [--gray]",
           "text": [
-            "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)"
+            "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)",
+            "--gray: every tile in luma only (<name>-sheet-gray-<HHMMSS>.png): do subject and ground part by light and dark alone? (TASTE_CHECKLIST #1)"
           ]
         },
         {
-          "synopsis": "sheet <folder> [cols] [-] [out]",
+          "synopsis": "sheet <folder> [cols] [-] [out] [--gray]",
           "text": [
             "a folder's pictures in the order of their names, each in a 16:9 cell, its caption from captions.json",
             "({\"file name\": \"caption\"}) under it, else its name (bin/vh scout topic --covers makes one)"

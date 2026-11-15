@@ -37,6 +37,10 @@ usage: bin/vh image gen <project> (--prompt TEXT | --prompt-file F) [--provider 
            model in config.toml).
            --alpha: a transparent background. Gemini has none of its own: the picture is asked for on flat chroma green
            and cut out (cutout below) into cutout.png beside it; codex is asked for a transparent PNG.
+           A picture meant to look photographed (a keyframe, a plate, a cover's ground): write the prompt as a shot card,
+           in order who is in it (a cast entry's prompt, word for word), where the light comes from, two or three flaws
+           that light makes, the camera and action; leave out words that only ask for a sharper, cleaner picture, and
+           grain and halation, which go on in post (playbook/05 镜头卡).
            --dry-run: the estimate and the budget's verdict, nothing called. Pictures that go on screen are AI-generated
            content (bin/vh assets credits says so for the upload); no real people, and nothing passed off as a news photo
            or a record of what happened

@@ -4,6 +4,7 @@ usage: bin/vh recipes list [--intent X[,Y]] [--energy N|A-B] [--engine E] [--fam
                            [--have N[,M]] [--seconds S|A-B] [--aspect A] [--jump J] [--status S] [--pitfall P]
                            [--sound S] [--ids | --json | --md]
        bin/vh recipes list --grammar [size|angle|axis|move[,…]] [--ids | --json | --md]
+       bin/vh recipes list --sequences [--type T] [--aspect A] [--seconds S|A-B] [--ids | --json | --md]
        bin/vh recipes check [file.md …]
        bin/vh recipes sample <id> [--style PRESET] [--draft] [--force]
        (no subcommand = list; python3 tools/recipes.py … is the same thing)
@@ -16,6 +17,8 @@ list   Every filter is optional. Values inside one flag are alternatives (`--int
        --grammar: the shot-grammar cards instead (recipes/shot/, kind grammar): shot sizes, angles, the axis and camera
        moves, each with what it does to the viewer and when to take it or not; its code is what a shot table writes
        in its camera field (bin/vh storyboard prints it). Alone, every grammar; it takes no recipe filter.
+       --sequences: the whole-film skeletons instead (recipes/sequences/, kind sequence): energy arc, holds, seams and
+       limits for a whole film; of the filters only --type, --aspect and --seconds, the fields a skeleton has.
 check  No file: every recipe, sequence and shot-grammar card under recipes/, plus the library-wide checks (unique ids,
        file and folder names, a card's code once in its grammar, conflicts listed both ways, every file linked from
        recipes/README.md (a recipe with the row its card makes: link, one-liner, energy, length and status, as list
@@ -823,8 +826,52 @@ def cmd_grammar(classes, out):
     return 0
 
 
+SEQ_FILTERS = ("--type", "--aspect", "--seconds")   # the fields a skeleton has of the recipes' filters
+
+
+def cmd_sequences(want, out):
+    """list --sequences: the whole-film skeletons (recipes/sequences/), filtered by --type, --aspect and --seconds."""
+    rows = []
+    for p in library_files():
+        try:
+            fm, _ = read(p)
+        except (FMError, OSError, UnicodeDecodeError):
+            continue
+        if fm.get("kind") != "sequence" or frontmatter_problems(fm):
+            continue
+        ok = True
+        for flag, cond in want.items():
+            field = FILTERS[flag][0]
+            if flag == "--seconds":
+                lo, hi = span(fm["duration_f"], 0, 10 ** 9, "duration_f")
+                ok = cond[0] <= hi / FPS and lo / FPS <= cond[1]
+            else:
+                ok = bool(cond & set(fm.get(field) or []))
+            if not ok:
+                break
+        if ok:
+            rows.append((fm["id"], p, fm))
+    rows.sort(key=lambda r: r[0])
+    if out == "ids":
+        print("\n".join(r[0] for r in rows))
+    elif out == "json":
+        print(json.dumps([dict(fm, path=rel(p)) for _, p, fm in rows], ensure_ascii=False, indent=1))
+    elif out == "md":
+        print("\n".join(f"| [{rid}]({rel(p)[len('recipes/'):]}) | {span_text(fm['duration_f'], FPS)} s | {fm['name']} | {fm['one_liner']} |" for rid, p, fm in rows))
+    else:
+        head = ("id", "seconds", "types", "name")
+        table = [head] + [(rid, span_text(fm["duration_f"], FPS), ",".join(fm["types"]), fm["name"]) for rid, _, fm in rows]
+        cols = lambda s: sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in s)   # noqa: E731  a terminal's columns
+        widths = [max(cols(r[c]) for r in table) for c in range(len(head) - 1)]
+        for r in table:
+            print("  " + "  ".join(x + " " * (w - cols(x)) for x, w in zip(r, widths)) + "  " + r[-1])
+        print(f"{len(rows)} whole-film skeleton{'' if len(rows) == 1 else 's'}: recipes/sequences/<id>.md (the rules and the seam table: "
+              "recipes/sequences/README.md)")
+    return 0
+
+
 def cmd_list(args):
-    want, out, grammar = {}, None, None
+    want, out, grammar, seqs = {}, None, None, False
     i = 0
     while i < len(args):
         a = args[i]
@@ -833,6 +880,9 @@ def cmd_list(args):
                 return usage(f"--{out} and {a} are two output formats: pick one")
             out = a[2:]
             i += 1
+            continue
+        if a == "--sequences":   # the whole-film skeletons instead of the recipes
+            seqs, i = True, i + 1
             continue
         if a == "--grammar" or a.startswith("--grammar="):   # the shot-grammar cards instead of the recipes
             if "=" in a:
@@ -878,6 +928,13 @@ def cmd_list(args):
                 print(f"bin/vh recipes: --type {val}: also the cards for {', '.join(also)} (few are tagged {val} yet; recipes/README.md, 词表)", file=sys.stderr)
                 want[a] |= set(also)
     out = out or "table"
+    if seqs:
+        if grammar is not None:
+            return usage("--sequences and --grammar list two different things: pick one")
+        if set(want) - set(SEQ_FILTERS):
+            return usage(f"--sequences lists the whole-film skeletons, which {', '.join(sorted(set(want) - set(SEQ_FILTERS)))} do not filter "
+                         f"(they take {', '.join(SEQ_FILTERS)})")
+        return cmd_sequences(want, out)
     if grammar is not None:
         if want:
             return usage(f"--grammar lists the shot-grammar cards, which {', '.join(want)} do not filter (those are for recipes)")
@@ -938,7 +995,7 @@ def cmd_list(args):
     for r in table:
         print("  " + "  ".join(x.ljust(w) for x, w in zip(r, widths)).rstrip())
     print(f"{len(rows)} of {len(recipes)} recipes. Read the whole recipe before using it: recipes/<family>/<id>.md;"
-          " pacing skeletons: recipes/sequences/")
+          " pacing skeletons: bin/vh recipes list --sequences")
     return 0
 
 
