@@ -961,17 +961,20 @@
     },
     {
       "name": "ref",
-      "summary": "A project's references (a video, a post, an image, a page it learns from), one asset record each in research/refs.json: where it came from, its licence (not cleared unless it says so), why it is a reference, its numbers at the time; studied, not shown, so out of assets check and credits.",
-      "when": "a reference comes up while the concept, the style or a shot is worked out (gate ①, the storyboard)",
+      "summary": "A project's references (a video, a post, an image, a page it learns from), one asset record each in research/refs.json: where it came from, its licence (not cleared unless it says so), why it is a reference, its numbers at the time; studied, not shown, so out of assets check and credits. A long video is read as a timed transcript (digest), then looked at where the transcript says to look (look).",
+      "when": "a reference comes up while the concept, the style or a shot is worked out (gate ①, the storyboard); digest when the material is a long video (an interview, a lecture, a documentary) or a long reference film is taken apart: read it all, then look",
       "stages": ["1", "2", "3"],
       "reads": [
         "a URL: YouTube (yt-dlp), api.fxtwitter.com, api.bilibili.com, as scout post reads one (--offline DIR: recorded)",
         "a file in or outside the project",
-        "<project>/research/refs.json (list)"
+        "<project>/research/refs.json (list)",
+        "digest: the video's subtitles (--subs FILE; beside or inside a file; a URL's through yt-dlp), else its audio through a local Whisper (mlx-whisper; its model only when already on this machine, unless --fetch-model)",
+        "look: the file, research/digest/<id>/media/video.*, or that span alone through yt-dlp"
       ],
       "writes": [
         "<project>/research/refs.json",
-        "<project>/research/refs/<id>/meta.json, thumb.jpg (--thumb)"
+        "<project>/research/refs/<id>/meta.json, thumb.jpg (--thumb)",
+        "<project>/research/digest/<id>/ (transcript.md, said.json, plan.json; chunks/: a cache a chunk, .err for one that failed; subs/; media/: a URL's audio, --video its video; look/<a>-<b>/: frames named by their source second, sheet.jpg)"
       ],
       "usage": [
         {
@@ -986,6 +989,20 @@
           "text": [
             "the references, with why each is one"
           ]
+        },
+        {
+          "synopsis": "ref digest <project> <id|url|file> [--subs FILE] [--from auto|subs|asr] [--lang L] [--chunk 600] [--redo N,…|all] [--video] [--fetch-model] [--labels zh|en] [--json]",
+          "text": [
+            "a long video as research/digest/<id>/transcript.md: the speech as timed lines linking back to the second, subtitles",
+            "first, else a local Whisper; cached a chunk at a time, so a run again goes on and redoes only a chunk that failed.",
+            "Lines you add under a time (画面, 屏幕字, 动作, 注) are kept. A URL or a file not on record is recorded first"
+          ]
+        },
+        {
+          "synopsis": "ref look <project> <id> <a-b>[,<a-b>…] [--every S] [--cols 6] [--json]",
+          "text": [
+            "frames and a contact sheet of the spans picked from the transcript, at their source times; a URL fetches only those"
+          ]
         }
       ],
       "subcommands": [
@@ -996,6 +1013,14 @@
         {
           "name": "list",
           "summary": "the references"
+        },
+        {
+          "name": "digest",
+          "summary": "a long video as a timed transcript"
+        },
+        {
+          "name": "look",
+          "summary": "frames of the spans picked from a transcript"
         }
       ]
     },

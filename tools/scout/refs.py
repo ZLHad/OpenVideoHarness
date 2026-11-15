@@ -6,6 +6,9 @@ it with bin/vh assets add (its derived_from can name the reference's id).
 usage: bin/vh ref add <project> <url|file> [--why TEXT] [--type video|post|image|page] [--title T] [--author A]
                   [--license TEXT] [--class C] [--tags a,b] [--id ID] [--thumb] [--offline DIR] [--sleep S] [--json]
        bin/vh ref list <project> [--json]
+       bin/vh ref digest <project> <id|url|file> [--subs FILE] [--from auto|subs|asr] [--lang L] [--chunk 600] [--redo N,…|all]
+                  [--video] [--fetch-model] [--labels zh|en] [--json]
+       bin/vh ref look <project> <id> <a-b>[,<a-b>…] [--every S] [--cols 6] [--json]
        bin/vh ref fetch …   not built: the name is kept for the command form of references/fetch.sh (the repo's own
                             read-only reference repos, references/repos/); meanwhile bash references/fetch.sh [<dir>]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
@@ -22,7 +25,10 @@ usage: bin/vh ref add <project> <url|file> [--why TEXT] [--type video|post|image
         false, and ref: {type, why, platform, followers, metrics, date, method}. --why: what it is a reference for
         (its opening, the cover, how it moves). An id is <platform>-<its id> (yt-, bili-, x-, dy-, xhs-) or the
         title's slug; ids are never reused, and a URL or a file on record already is refused
-  list  the references: id, type, platform, the counts at the time, title, why
+  list  the references: id, type, platform, the counts at the time, title, why; a transcript when digest made one
+  digest  a long video read as research/digest/<id>/transcript.md: the speech as timed lines (subtitles first, else a
+        local Whisper), chunked and cached so a run goes on where it stopped; look: frames of the spans picked from
+        it, the lines of what is seen written in by the agent. tools/scout/digest.py says all of it
 
 --json: {"version": 1, "project", "file", "refs": [record…]} on stdout (add: "ref": the record), the lines on stderr.
 --offline DIR: the look and the cover from DIR/responses.json (tools/assets/fetch.py), no network. Exit: 0 · 1 a look
@@ -256,6 +262,9 @@ def cmd_list(a):
             + (f"  · {sources_line(ref)}" if ref.get("metrics") else ""))
         if ref.get("why"):
             say(f"  {'':<24} why: {cut(ref['why'], 80)}")
+        t = project / "research" / "digest" / str(r.get("id")) / "transcript.md"
+        if t.is_file():
+            say(f"  {'':<24} transcript: {t.relative_to(project).as_posix()}")
     if a.json:
         print(json.dumps({"version": 1, "project": str(project), "file": str(project / FILE), "refs": recs}, ensure_ascii=False, indent=1))
     return 0
@@ -264,7 +273,7 @@ def cmd_list(a):
 def parser():
     ap = argparse.ArgumentParser(prog=PROG, description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog="\n\n".join(__doc__.split("\n\n")[1:]))
-    sp = ap.add_subparsers(dest="cmd", metavar="{add,list}")
+    sp = ap.add_subparsers(dest="cmd", metavar="{add,list,digest,look}")
     p = sp.add_parser("add", prog=f"{PROG} add", help="record a reference")
     p.add_argument("project")
     p.add_argument("target", metavar="url|file")
@@ -284,6 +293,8 @@ def parser():
     p = sp.add_parser("list", prog=f"{PROG} list", help="the references")
     p.add_argument("project")
     p.add_argument("--json", action="store_true")
+    import digest
+    digest.add_parsers(sp, PROG)
     return ap
 
 
@@ -291,7 +302,7 @@ def main(argv):
     global out
     if not argv:
         parser().print_usage(sys.stderr)
-        print(f"{PROG}: a subcommand (add, list)", file=sys.stderr)
+        print(f"{PROG}: a subcommand (add, list, digest, look)", file=sys.stderr)
         return 2
     if argv[0] == "fetch":
         print(f"{PROG} fetch: not built yet. The name is kept for the command form of references/fetch.sh, which fetches "
@@ -304,6 +315,15 @@ def main(argv):
     if a.json:
         out = sys.stderr
     try:
+        if a.cmd in ("digest", "look"):
+            import digest
+            try:
+                return digest.main(a, find(a.project))
+            except digest.Usage as e:
+                raise Usage(str(e))
+            except digest.Fail as e:
+                print(f"{PROG} {a.cmd}: {e}", file=sys.stderr)
+                return 1
         return {"add": cmd_add, "list": cmd_list}[a.cmd](a)
     except Usage as e:
         print(f"{PROG} {a.cmd}: {e}", file=sys.stderr)
