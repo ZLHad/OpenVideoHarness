@@ -169,3 +169,167 @@ function wireOutline2() {
   }));
 }
 MODVIEW.outline = { main: mOutline2, wire: wireOutline2 };
+
+/* ---------- 分镜: a page a part, the grey box, each shot with what it should get across ---------- */
+moduleWords({
+  board_title: "第 {i} 页 · {x}", board_sub2: "每镜写着观众要依次看懂什么。没把握的镜头标出来了，其余默认通过；先看灰盒的节奏。",
+  page_n: "第 {i} 页", this_page: "这一页", shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "灰盒", grey_note: "只看节奏和构图，颜色到成片才上",
+  no_anim: "还没有灰盒 animatic：有了就在这里播这一页（shots.json 的 video，或 out/animatic.mp4）。", default_pass: "默认通过", you_said: "你说了", trans_k: "转场",
+  board_none: "还没有镜头表：shots.json 写好后（bin/vh storyboard 读它），镜头按段落分页排在这里。", bar_board: "关卡 ② · {s}", bar_said: "关卡 ② · {s}：你当时说「{q}」", to_sound: "去声音",
+}, {
+  board_title: "Page {i} · {x}", board_sub2: "Each shot says what the viewer should get, in order. The shots the agent is unsure of are marked; the rest pass unless you say. Watch the grey box for the pace first.",
+  page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} shots", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Grey box", grey_note: "pace and framing only; colour comes with the film",
+  no_anim: "No grey-box animatic yet: once there is one (shots.json's video, or out/animatic.mp4), this page plays here.", default_pass: "passes", you_said: "you said", trans_k: "Transition",
+  board_none: "No shot table yet: once shots.json is written (bin/vh storyboard reads it), the shots are laid out here, a page a part.", bar_board: "Gate ② · {s}", bar_said: "Gate ② · {s}: you said “{q}”", to_sound: "To the sound",
+});
+const sameId = (a, b) => String(a || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase() === String(b || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase();   // S04 is S4
+function boardPages() {   // shots.json's shots, a page a part of the outline; without it, the gate ② page's own shots
+  const S = (D.shots.items || []).filter((s) => s && s.id);
+  if (S.length) {
+    const pages = [];
+    S.forEach((s) => {
+      const o = D.outline.find((x) => x.id === s.seg) || null, key = o ? o.id : s.segment || "";
+      const last = pages[pages.length - 1];
+      if (last && last.key === key) last.shots.push(s); else pages.push({ key, title: o ? o.title : s.segment || "", shots: [s] });
+    });
+    return pages;
+  }
+  const r = D.rounds.filter((x) => gateBase(x.id) === "2").pop();
+  return (r && Array.isArray(r.data.segments) ? r.data.segments : []).map((g) => ({ key: g.id, title: g.title || g.id || "",
+    shots: (g.shots || []).filter((x) => x && x.id).map((x) => ({ id: x.id, label: x.see || "", start: x.t0 != null ? +x.t0 : null, end: x.t1 != null ? +x.t1 : null,
+      frame: x.frame || "", reads: x.see ? [x.see] : [], caption: x.vo || "", transition: x.transition || "", unsure: x.unsure || null })) })).filter((p) => p.shots.length);
+}
+function unsureShot(s) { return !!s.unsure || gateMarks().some((m) => m.kind === "least" && sameId(m.id, s.id)); }
+function mBoard2() {
+  const pages = boardPages();
+  if (!pages.length) return headM("board", t("m_board"), t("board_sub2")) + voidLine(t("board_none")) + (docOf("STORYBOARD.md") ? `<div class="pn">${docHtml(docOf("STORYBOARD.md"))}</div>` : "");
+  const i = Math.max(0, Math.min(pages.length - 1, (parseInt(SUB, 10) || 1) - 1)), pg = pages[i], S = pg.shots;
+  const T0 = S.map((s) => s.start).filter((x) => x != null), T1 = S.map((s) => s.end).filter((x) => x != null);
+  const t0 = T0.length ? Math.min(...T0) : null, t1 = T1.length ? Math.max(...T1) : null, unsure = S.filter(unsureShot), vid = D.shots.video;
+  const tabs = pages.length > 1 ? `<nav class="pgtabs" aria-label="${esc(t("m_board"))}">${pages.map((p, j) => readOnly() ? `<button type="button" data-page="${j + 1}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</button>`
+    : `<a href="${projHash(PKEY, "board/" + (j + 1))}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</a>`).join("")}</nav>` : "";
+  const first = S.find((s) => s.frame);
+  const player = vid ? `<div class="bplay"><div class="well"><video id="bv2" src="${esc(src(vid))}" preload="metadata" playsinline controls${t0 != null ? ` data-t0="${t0}"` : ""}${t1 != null ? ` data-t1="${t1}"` : ""}></video></div></div>`
+    : `<div class="bplay"><div class="well">${first ? `<span class="ph">${esc(first.id)}</span><img src="${esc(src(first.frame))}" alt="">` : ""}</div><p class="void">${esc(t("no_anim"))}</p></div>`;
+  const info = panel(t("this_page"), "", `<dl class="kv2"><div><dt>${esc(t("shots_k"))}</dt><dd>${esc(t("shots_n", { n: S.length }))}</dd></div>
+    <div><dt>${esc(t("unsure_k"))}</dt><dd>${unsure.length ? unsure.map((s) => `<span class="chip wait">${esc(s.id)}</span>`).join(" ") : esc(t("none"))}</dd></div>
+    ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd class="mono">${esc(fmt(t0) + "–" + fmt(t1))}</dd></div>` : ""}<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div></dl>`);
+  const cards = S.map((s) => {
+    const said = FB.items["shot:" + s.id] && FB.items["shot:" + s.id].status, u = unsureShot(s);
+    const chip = u ? `<span class="chip wait">${esc(t("unsure_k"))}</span>` : said ? `<span class="chip">${esc(t("you_said"))}</span>` : `<span class="chip ok">${esc(t("default_pass"))}</span>`;
+    const why = typeof s.unsure === "string" ? s.unsure : (gateMarks().find((m) => m.kind === "least" && sameId(m.id, s.id)) || {}).note || "";
+    return `<article class="shotc${u ? " unsure" : ""}"${dattr({ mark: "shot:" + s.id, label: t("l_shot", { x: s.id }) + (s.label ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
+      <div class="well"${s.start != null && vid ? dattr({ play: s.start, stop: s.end }) : ""}><span class="ph">${esc(s.id)}</span>${s.frame ? `<img src="${esc(src(s.frame))}" alt="${esc(s.id)}" loading="lazy">` : ""}</div>
+      <div class="sc-b"><h3><b>${esc(s.id)}</b><span class="lab">${esc(s.label || "")}</span>${chip}</h3>${s.start != null && s.end != null ? `<p class="mono tc">${esc(fmt(s.start) + "–" + fmt(s.end))}</p>` : ""}
+      ${(s.reads || []).length ? `<ol>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ol>` : s.caption ? `<p class="capline">${esc(s.caption)}</p>` : ""}
+      ${s.transition ? `<p class="meta">${esc(t("trans_k"))}${esc(COLON())}${esc(s.transition)}</p>` : ""}${u && why ? `<p class="unsure-note">${esc(why)}</p>` : ""}</div></article>`;
+  }).join("");
+  const st = stationState("2"), q = D.history.filter((h) => /②|gate ?2\b/i.test(h.title)).flatMap((h) => h.quotes || []).map((x) => x.text).pop();
+  return headM("board", t("board_title", { i: i + 1, x: pg.title || t("m_board") }), t("board_sub2"), tabs)
+    + `<div class="mgrid board">${player}${info}</div><div class="shots3">${cards}</div>`
+    + barM(q ? t("bar_said", { s: t("st_" + (st || "not_started")), q: cut(q, 40) }) : t("bar_board", { s: t("st_" + (st || "not_started")) }), "sound", t("to_sound"));
+}
+function wireBoard2() {
+  $$(".pgtabs button[data-page]").forEach((b) => b.addEventListener("click", () => { SUB = b.dataset.page; renderModule(); }));   // a static page has no routes
+  const v = $("#bv2"); if (!v) return;
+  const t0 = v.dataset.t0 != null ? +v.dataset.t0 : null, t1 = v.dataset.t1 != null ? +v.dataset.t1 : null;
+  let stopAt = null;
+  v.addEventListener("loadedmetadata", () => { if (t0 != null && v.currentTime < t0) v.currentTime = t0; }, { once: true });
+  v.addEventListener("timeupdate", () => {   // this page's stretch: playing stops where the page ends, or where the shot clicked ends
+    const end = stopAt != null ? stopAt : t1;
+    if (end != null && !v.paused && v.currentTime >= end - 0.03) { v.pause(); stopAt = null; }
+    $$(".shotc").forEach((c) => c.classList.toggle("active", c.dataset.t != null && v.currentTime >= +c.dataset.t && v.currentTime < +c.dataset.t1));
+  });
+  $$(".shotc .well[data-play]").forEach((w) => w.addEventListener("click", (e) => { e.stopPropagation(); v.currentTime = +w.dataset.play + 0.01; stopAt = w.dataset.stop != null ? +w.dataset.stop : null; v.play().catch(() => {}); }));
+}
+MODVIEW.board = { main: mBoard2, wire: wireBoard2, drawn(root) { if (boardPages().length) $$(".g-board", root).forEach((x) => x.remove()); } };
+
+/* ---------- 声音: the readouts, the voices, the lines, the music ---------- */
+moduleWords({
+  sound_title: "音色、旁白、配乐和混音", sound_sub2: "agent 听不见，读的是这些数。换音色、重念要 agent：这一版写成点评，随这一轮交给它。",
+  u_loud: "LUFS · 目标 {x}", u_peak: "dBTP · 上限 −1", u_speech: "{u} · 不算停顿", u_speech2: "{u} · 含句中停顿", u_silence: "处数字静音",
+  no_check_val: "bin/vh check", no_narr_val: "bin/vh tts",
+  audition: "试听音色", audition_cmd: "bin/vh voices audition · 同一段话，几个音色各念一遍", in_use: "在用", use_this: "换成它", use_say: "换成 {x}：",
+  pitch: "音高中位", rate: "语速", misread: "误读", no_misread: "没有误读", audition_none: "还没试听过音色：bin/vh voices audition <文本> --voices A,B,C。",
+  lines: "旁白逐句", lines_pace: "bin/vh pace：只算有声的部分", lines_raw: "按句首到句尾算，含句中停顿 · bin/vh pace --dry-run 给只算有声的", line_k: "句", text_k: "文字", per_s2: "字/秒", pause_k: "句后停顿",
+  slower: "比中位数慢 ×{x}", faster: "比中位数快 ×{x}", lines_none: "还没有旁白的时间：bin/vh tts 出了配音才有。", unit_zh: "字/秒",
+  music: "配乐", music_cmd: "段落和候选落点 · bin/vh beats", env_cmd: "响度包络 · bin/vh peaks", lift: "换气之后的重拍", lift_src: "bin/vh beats 的 lifts 候选", hit_src: "计划的音效",
+  listen_src: "请你听", play_at: "从 {t} 播", music_none: "还没有配乐的段落：bin/vh beats <音乐>；波形：bin/vh peaks <项目>。", sound_checks: "bin/vh check 里和声音有关的",
+}, {
+  sound_title: "Voice, narration, music and mix", sound_sub2: "The agent can't hear; it reads these numbers. Recasting and rereading need the agent: write them as notes for now, and they go with this round.",
+  u_loud: "LUFS · target {x}", u_peak: "dBTP · limit −1", u_speech: "{u} · pauses left out", u_speech2: "{u} · pauses inside lines in", u_silence: "digital silences",
+  no_check_val: "bin/vh check", no_narr_val: "bin/vh tts",
+  audition: "Voice audition", audition_cmd: "bin/vh voices audition · the same text, read in each voice", in_use: "in use", use_this: "Use this", use_say: "Use {x}: ",
+  pitch: "Pitch", rate: "Rate", misread: "Misreads", no_misread: "none", audition_none: "No audition yet: bin/vh voices audition <text> --voices A,B,C.",
+  lines: "Narration, line by line", lines_pace: "bin/vh pace: voice only", lines_raw: "first word to last, pauses inside the line in · bin/vh pace --dry-run gives voice only", line_k: "Line", text_k: "Text", per_s2: "rate", pause_k: "Pause after",
+  slower: "×{x} slower than the median", faster: "×{x} faster than the median", lines_none: "No narration timing yet: bin/vh tts makes it.", unit_zh: "chars/s",
+  music: "Music", music_cmd: "sections and candidate lifts · bin/vh beats", env_cmd: "loudness · bin/vh peaks", lift: "the hit after a breath", lift_src: "a bin/vh beats lift", hit_src: "a planned sound",
+  listen_src: "please listen", play_at: "Play from {t}", music_none: "No music sections yet: bin/vh beats <music>; the waveform: bin/vh peaks <project>.", sound_checks: "bin/vh check, on the sound",
+});
+const unitsOf = (s) => (/[㐀-鿿]/.test(s) ? (s.match(/[㐀-鿿]/g) || []).length : s.trim().split(/\s+/).filter(Boolean).length);
+function narrLines() {   // each line's rate: bin/vh pace's (voice only) when it has run, else first word to last
+  const X = D.mods || {}, P = X.pace, by = {};
+  ((P && P.lines) || []).forEach((x) => { if (x.id) by[x.id] = x; });
+  const N = (TL().narration || []).filter((x) => x.start != null && x.end != null);
+  const rows = N.map((x, i) => { const p = by[x.id], next = N[i + 1];
+    const rate = p ? (p.after != null ? p.after : p.pace) : unitsOf(x.text || "") / Math.max(0.1, x.end - x.start);
+    return { id: x.id || "L" + (i + 1), text: x.text || "", t0: +x.start, t1: +x.end, rate: rate != null ? +rate : null, pause: next ? Math.max(0, next.start - x.end) : null }; });
+  const R = rows.map((r) => r.rate).filter((x) => x != null).sort((a, b) => a - b);
+  const med = P && P.reference != null ? +P.reference : R.length ? R[Math.floor(R.length / 2)] : null;
+  const take = P && Array.isArray(P.speech) ? +(P.speech[1] != null ? P.speech[1] : P.speech[0]) : med;
+  return { rows, med, take, paced: !!P, unit: (P && P.unit) || t("unit_zh") };
+}
+function envelope(w, h) {   // the film's loudness as an area: bin/vh peaks' bins, a column the louder of |min| and |max|
+  const P = D.studio && D.studio.peaks && D.studio.peaks.peaks; if (!Array.isArray(P) || !P.length) return "";
+  const n = P.length, k = Math.max(1, Math.floor(n / 240)), pts = [];
+  for (let i = 0; i < n; i += k) { let a = 0; for (let j = i; j < Math.min(n, i + k); j++) { const b = P[j]; a = Math.max(a, Math.abs(+(Array.isArray(b) ? b[0] : b) || 0), Math.abs(+(Array.isArray(b) ? b[1] : 0) || 0)); } pts.push(a); }
+  const top = Math.max(0.05, ...pts);
+  return pts.map((a, i) => `${i ? "L" : "M"}${((i / (pts.length - 1 || 1)) * w).toFixed(1)} ${(h - (a / top) * (h - 10)).toFixed(1)}`).join("") + `L${w} ${h}L0 ${h}Z`;
+}
+function soundSource() { return (D.music && D.music.audio) || (D.studio && D.studio.film) || ""; }
+function mSound2() {
+  const X = D.mods || {}, ld = X.loudness, nl = narrLines();
+  const sev = (s) => (s === "fail" ? "live" : s === "warn" ? "wait" : s ? "ok" : "");
+  const tile = (k, v, unit, cls, empty) => `<div class="tile ${v == null ? "" : cls}"${dattr({ scope: `${t("m_sound")} · ${k}` })}><span class="tk mono">${esc(k)}</span><b class="mono">${esc(v == null ? "—" : v)}</b><span class="tu">${esc(v == null ? empty : unit)}</span></div>`;
+  const peakCls = ld && ld.true_peak != null ? (+ld.true_peak > -1 ? "live" : sev(ld.severity)) : "";
+  const tiles = `<div class="tiles">${tile("LOUDNESS", ld && ld.integrated != null ? (+ld.integrated).toFixed(1) : null, t("u_loud", { x: ld && ld.target != null ? ld.target : "−14" }), sev(ld && ld.severity), t("no_check_val"))}`
+    + tile("TRUE PEAK", ld && ld.true_peak != null ? (+ld.true_peak).toFixed(1) : null, t("u_peak"), peakCls, t("no_check_val"))
+    + tile("SPEECH", nl.take != null ? (+nl.take).toFixed(1) : null, t(nl.paced ? "u_speech" : "u_speech2", { u: nl.unit }), "", t("no_narr_val"))
+    + tile("SILENCE", X.silences != null ? String(X.silences) : null, t("u_silence"), X.silences ? "live" : "ok", t("no_check_val")) + `</div>`;
+  const inUse = (v) => !!X.voice && String(X.voice).toLowerCase() === String(v).toLowerCase();
+  const A = X.audition;
+  const voices = A && A.voices.length ? `<div class="voices">${A.voices.map((v) => `<article class="vcard${inUse(v.voice) ? " on" : ""}"${dattr(v.file ? { mark: "asset:" + v.file, label: `${t("audition")} · ${v.voice}` } : { scope: `${t("audition")} · ${v.voice}` })}>
+      <h3><b>${esc(v.voice)}</b>${inUse(v.voice) ? `<span class="chip ok">${esc(t("in_use"))}</span>` : readOnly() ? "" : `<button type="button" class="btn btn-quiet" data-use="${esc(v.voice)}">${esc(t("use_this"))}</button>`}</h3>
+      ${v.file ? `<audio src="${esc(src(v.file))}" controls preload="none"></audio>` : ""}${v.error ? `<p class="meta">${esc(v.error)}</p>` : ""}
+      <dl class="vm"><div><dt>${esc(t("pitch"))}</dt><dd class="mono">${v.pitch_hz != null ? esc(Math.round(v.pitch_hz) + " Hz") : "—"}</dd></div><div><dt>${esc(t("rate"))}</dt><dd class="mono">${v.speech_rate != null ? esc((+v.speech_rate).toFixed(1)) : "—"}</dd></div>
+      <div><dt>${esc(t("misread"))}</dt><dd${Array.isArray(v.misread) && v.misread.length ? ' class="warn"' : ""}>${esc(Array.isArray(v.misread) ? (v.misread.length ? v.misread.join("、") : t("no_misread")) : "—")}</dd></div></dl></article>`).join("")}</div>` : voidLine(t("audition_none"));
+  const lines = nl.rows.length ? `<div class="tscroll"><table class="t lines"><thead><tr><th>${esc(t("line_k"))}</th><th>${esc(t("text_k"))}</th><th>${esc(nl.unit)}</th><th>${esc(t("pause_k"))}</th><th></th></tr></thead><tbody>${nl.rows.map((r) => {
+      const f = nl.med && r.rate ? r.rate / nl.med : 1, flag = f < 0.8 ? t("slower", { x: (1 / f).toFixed(1) }) : f > 1.25 ? t("faster", { x: f.toFixed(1) }) : "";
+      return `<tr${dattr({ mark: `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}`, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}><td class="mono">${esc(r.id)}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : voidLine(t("lines_none"));
+  const W = 600, H = 110, M = D.music || {}, dur = +(M.duration || (D.studio && D.studio.peaks && D.studio.peaks.duration) || TL().duration || 0) || 1;
+  const x = (s) => Math.max(0, Math.min(W, (s / dur) * W)), env = envelope(W, H), secs = Array.isArray(M.sections) ? M.sections : [];
+  const marks = gateMarks().filter((m) => m.kind === "listen" && m.t != null).map((m) => ({ t: +m.t, what: m.note, src: t("listen_src"), cls: "you" }))
+    .concat((X.lifts || []).filter((l) => l.t != null).map((l) => ({ t: +l.t, what: t("lift"), src: t("lift_src"), cls: "wait" })))
+    .concat((Array.isArray(M.hits) ? M.hits : []).filter((h) => h && h.t != null).map((h) => ({ t: +h.t, what: h.part || h.what || "", src: t("hit_src"), cls: "quiet" })))
+    .sort((a, b) => a.t - b.t);
+  const chart = env || secs.length ? `<svg class="energy" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${secs.map((s, i) => `<rect x="${x(s.start).toFixed(1)}" y="0" width="${Math.max(1, x(s.end) - x(s.start)).toFixed(1)}" height="${H}" class="sec s${i % 2}"/>`).join("")}
+      ${env ? `<path d="${env}" class="env"/>` : ""}${marks.map((k) => `<line x1="${x(k.t).toFixed(1)}" x2="${x(k.t).toFixed(1)}" y1="0" y2="${H}" class="mk ${k.cls}"/>`).join("")}</svg>
+      <div class="secnames">${secs.map((s) => `<span style="left:${((s.start / dur) * 100).toFixed(2)}%;width:${(((s.end - s.start) / dur) * 100).toFixed(2)}%">${esc([s.name, s.label].filter(Boolean).join(" · "))}</span>`).join("")}</div>` : "";
+  const can = !!soundSource() || !!(D.studio && D.studio.film);
+  const list = marks.length ? `<ul class="hits2">${marks.map((k) => `<li${dattr({ mark: "atime:" + k.t.toFixed(1), label: t("sound_label", { t: fmt(k.t) }), t: k.t })}><i class="dotw ${k.cls}" aria-hidden="true">●</i><span class="mono">${esc(fmt(k.t))}</span><span>${esc(k.what)}</span><span class="meta">${esc(k.src)}</span>${can && !readOnly() ? `<button type="button" class="xs" data-seek="${k.t}">${esc(t("play_at", { t: fmt(k.t) }))}</button>` : ""}</li>`).join("")}</ul>` : "";
+  const SC = (X.checks || []).filter((f) => f.severity !== "info" && /loud|peak|silence|click|clip|audio|sound|voice/i.test(`${f.kind} ${f.message}`));
+  const checks = SC.length ? `<p class="mat-h">${esc(t("sound_checks"))}</p><ul class="hits2">${SC.map((f) => `<li${dattr(f.t != null ? { mark: "atime:" + (+f.t).toFixed(1), label: t("sound_label", { t: fmt(f.t) }), t: f.t } : { scope: `${t("m_sound")} · ${f.kind}` })}><i class="dotw ${f.severity === "fail" ? "live" : "wait"}" aria-hidden="true">●</i><span class="mono">${f.t != null ? esc(fmt(f.t)) : ""}</span><span>${esc(f.message)}</span></li>`).join("")}</ul>` : "";
+  const music = chart || list ? `${chart}${list}${checks}` : voidLine(t("music_none")) + checks;
+  const src2 = soundSource();
+  return headM("sound", t("sound_title"), t("sound_sub2")) + tiles + panel(t("audition"), t("audition_cmd"), voices)
+    + `<div class="mgrid sound">${panel(t("lines"), t(nl.paced ? "lines_pace" : "lines_raw"), lines)}${panel(t("music"), env ? `${t("music_cmd")} · ${t("env_cmd")}` : t("music_cmd"), music + (src2 ? `<audio id="mau" src="${esc(src(src2))}" preload="none" controls></audio>` : ""))}</div>`;
+}
+function wireSound2() {
+  const a = $("#mau");
+  $$("[data-seek]").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation(); const s = +b.dataset.seek;
+    if (a) { a.currentTime = s; a.play().catch(() => {}); } else gotoTarget("time:" + s.toFixed(1), s);   // no sound file of its own: the cut, at that second
+  }));
+  $$("[data-use]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest(".vcard"), t("use_say", { x: b.dataset.use })); }));
+}
+MODVIEW.sound = { main: mSound2, wire: wireSound2 };
