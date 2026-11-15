@@ -8,8 +8,8 @@
 #      node_modules; npm also writes its own cache, ~/.npm); unless --no-refs, fetch the read-only reference repos references/fetch.sh lists
 #      into references/repos/ (about 250 MB, git-ignored; references/fetch.sh <name> fetches one later)
 #   3. copy LOCAL.example.md to LOCAL.md (git-ignored) if there is no LOCAL.md
-#   4. unless --no-skill, write the skill files (skills/*: open-video-harness, open-video-harness-web) to ~/.claude/skills and
-#      ~/.agents/skills (--skill claude|codex: only one)
+#   4. unless --no-skill, write the skills (skills/*: open-video-harness, open-video-harness-web) to ~/.claude/skills and
+#      ~/.agents/skills (--skill claude|codex: only one): short stubs that read skills/ in --dir, so a re-run or git pull updates them
 #   4b. with --obscura, bin/vh web install: the pinned Obscura release (a headless browser, about 70 MB from its GitHub releases)
 #      into ~/.local/share/ovh/obscura, linked from ~/.local/bin; bin/vh web checks facts against web pages with it
 #   5. run bin/vh doctor --fill-local as a final check: it also writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎)

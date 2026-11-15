@@ -119,11 +119,12 @@
     },
     {
       "name": "install-skill",
-      "summary": "Register the skills in skills/ for Claude Code, Codex or both, pointing at this clone.",
-      "when": "once, so that a video request in any folder finds this repo",
+      "summary": "Register the skills in skills/ for Claude Code, Codex or both: short stubs that read skills/<skill>/SKILL.md in this clone, so a git pull updates them.",
+      "when": "once, so that a video request in any folder finds this repo; again only when bin/vh doctor's skills line says so",
       "stages": ["env"],
       "reads": [
-        "skills/*/SKILL.md"
+        "skills/*/SKILL.md",
+        "tools/skill_stub.md"
       ],
       "writes": [
         "~/.claude/skills/<skill>/SKILL.md",
@@ -133,7 +134,7 @@
         {
           "synopsis": "install-skill [claude|codex|all]",
           "text": [
-            "register every skill in skills/ (~/.claude/skills, ~/.agents/skills)"
+            "register every skill in skills/ (~/.claude/skills, ~/.agents/skills): its frontmatter and a stub (tools/skill_stub.md) that sends the agent to this clone's copy"
           ]
         }
       ]

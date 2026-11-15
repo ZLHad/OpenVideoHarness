@@ -9,8 +9,9 @@ Harness path (set by install.sh): ~/OpenVideoHarness
 
 The harness's hard rule 5 (CLAUDE.md, 硬规则): papers' metadata, numbers and quotes are copied from the source; what
 is not certain goes into NOTES.md, never into the video, and the publish copy is checked the same way. This skill is
-how a web source is read and kept for that. Locate the harness as the `open-video-harness` skill says (`$OVH_DIR`, the
-path above, `~/OpenVideoHarness`, the current directory), and read `<harness>/CLAUDE.md` for everything else.
+how a web source is read and kept for that. Sent here by the stub `bin/vh install-skill` writes, the harness is the
+clone this file is in; otherwise locate it as the `open-video-harness` skill says (`$OVH_DIR`, the path above,
+`~/OpenVideoHarness`, the current directory). Read `<harness>/CLAUDE.md` for everything else.
 
 ## 1. Is the browser there
 

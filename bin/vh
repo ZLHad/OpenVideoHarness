@@ -140,20 +140,24 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
   return 1
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
-cmd_install_skill() { # writes the thin pointer skills (skills/*/SKILL.md) with this clone as their harness path
-  local which=${1:-all} dests=() d r s n
+cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter (what a host triggers on), this clone as the harness
+  # path, and a few lines that send the agent to <clone>/skills/<name>/SKILL.md, so a git pull updates what every host reads.
+  # tools/skill_stub.md is the stub's text; tools/doctor.py (skills_check) renders the same to compare with what is installed
+  local which=${1:-all} dests=() d s n t body
   case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; all) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;;
     *) echo "usage: bin/vh install-skill [claude|codex|all]   (unknown target: $which)" >&2; exit 2 ;; esac
-  r=$(printf '%s\n' "$ROOT" | sed 's/[\\&#]/\\&/g')   # the clone path, escaped for the sed replacement below
+  t=$(cat "$ROOT/tools/skill_stub.md")
   for d in "${dests[@]}"; do
     for s in "$ROOT"/skills/*/SKILL.md; do
       n=$(basename "$(dirname "$s")")
+      body=${t//@NAME@/"$n"}; body=${body//@HARNESS@/"$ROOT"}   # quoted replacements: an & in the path stays an &
       mkdir -p "$d/$n"
-      sed "s#^Harness path (set by install.sh): .*#Harness path (set by install.sh): $r#" "$s" > "$d/$n/SKILL.md"
-      echo "$c_ok skill → $d/$n/SKILL.md (harness: $ROOT)"
+      { awk 'NR == 1 && $0 == "---" { f = 1; print; next } f { print; if ($0 == "---") exit }' "$s"; printf '%s\n' "$body"; } > "$d/$n/SKILL.md"
+      echo "$c_ok skill → $d/$n/SKILL.md (a stub that reads $ROOT/skills/$n/SKILL.md)"
     done
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
+  echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
 }
 cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first, then AGENTS.md from CLAUDE.md
   local m; m=$(python3 "$ROOT/tools/commands.py" claude-line --write "$ROOT/CLAUDE.md") || exit 1
