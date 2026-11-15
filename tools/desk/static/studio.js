@@ -31,6 +31,7 @@ const LEGACY = { round: "", concept: "idea", script: "outline/script", board: "b
   versions: "ship/versions", assets: "assets", ledger: "ledger", history: "ledger/history", docs: "ledger/docs" };
 const ICON = {
   space: '<path d="M4 11l8-6 8 6v8.5a.5.5 0 0 1-.5.5H15v-5H9v5H4.5a.5.5 0 0 1-.5-.5z"/>',
+  new: '<path d="M12 5v14M5 12h14"/>',
   idea: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>',
   outline: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/>',
   board: '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
@@ -106,8 +107,10 @@ function renderRail() {
     return href ? `<a class="mod" href="${href}" aria-current="${proj && MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`
       : `<span class="mod" aria-disabled="true" title="${esc(t("pick_film"))}" style="opacity:.35">${svg(m)}<span>${esc(t("m_" + m))}</span></span>`;
   };
-  $("#rail").innerHTML = item("space") + "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("");
+  const fresh = `<a class="mod" href="#/" data-new title="${esc(t("new_tip"))}">${svg("new")}<span>${esc(t("m_new"))}</span></a>`;   // its place kept: it needs the agent
+  $("#rail").innerHTML = item("space") + fresh + "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("");
 }
+$("#rail").addEventListener("click", (e) => { if (e.target.closest("[data-new]")) setTimeout(() => { const x = $("#oneLine"); if (x) x.focus(); }, 300); });   // 新建: the space's sentence box
 $("#flow").addEventListener("click", (e) => { const b = e.target.closest("[data-go-mod]"); if (b && PKEY) go(projHash(PKEY, b.dataset.goMod)); });
 
 /* ---------- the space: a card a film ---------- */

@@ -34,7 +34,7 @@
 - 交付 (its first tab; 检查 and 版本 stay beside it): the covers, vertical and horizontal; each platform's title, description and tags, a tab a platform, with the chapters and the title candidates and whether their facts were checked; what comes out (the checked master, the copy to upload, captions, covers, copy), made or to come; the check before delivery in groups (safe area and type, type burnt out by light, loudness, silence, flashes, black and freezes, licences, copy), with the command that comes next.
 - 素材: every item of the asset ledger with its licence (what `Assets: strict` takes in green, generated violet, the rest amber and "not cleared"), its source, its shot and whether its file is there; the references of `research/refs.json`, and the transcripts `bin/vh ref digest` wrote, opened where they are; filters by kind. Adding one is `bin/vh assets add` or `bin/vh ref add` for now.
 - 账本: DECISIONS.md's table and what the agent decided: who, when and why (a decision of yours quotes your words at that gate); each of the agent's has "Overturn", which puts the start of a note in the note box; your words, verbatim from REVIEW.md; the versions `bin/vh versions` keeps and what each changed.
-- 新建 needs the agent and keeps its place (the sentence box on the space page).
+- 新建 needs the agent and keeps its place: a 新建 in the rail, as the prototype has it, opens the space's sentence box (put together there, copied to your own agent).
 - Docs: `tools/desk/README.md` (控制台) says what each module shows and what it reads.
 - Checked: in the browser as above, with the platform tabs, the asset filters and an overturn.
 

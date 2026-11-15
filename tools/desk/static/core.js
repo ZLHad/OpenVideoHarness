@@ -6,6 +6,7 @@
 const STR = {
   zh: {
     brand: "片场", noServer: "读不到数据：请用 bin/vh desk 打开这一页。", loading: "…", gate: "关卡",
+    m_new: "新建", new_tip: "从一句话新建要接上 agent（第二期）；这一版在空间页把这句话拼好，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "账本",
     f_done: "过了", f_wait: "等你", f_agent: "轮到 agent", f_todo: "还没到", f_skip: "跳过", f_off: "这支片子这一站不停", f_norec: "没有审阅记录",
     pick_film: "先在空间里选一支片子", search: "搜片子", search_ph: "片名、文件夹或类型，回车打开", no_match: "没有对上的片子", lang: "EN", lang_tip: "Switch to English", themes: "主题",
@@ -89,6 +90,7 @@ const STR = {
   },
   en: {
     brand: "Studio", noServer: "Can't read the data: open this page with bin/vh desk.", loading: "…", gate: "Gate",
+    m_new: "New", new_tip: "Starting a film from a sentence needs the agent (phase two); for now the space puts the sentence together for you to copy to your agent",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Material", m_ledger: "Ledger",
     f_done: "passed", f_wait: "waiting for you", f_agent: "the agent's turn", f_todo: "not yet", f_skip: "skipped", f_off: "not a stop in this film", f_norec: "no review record",
     pick_film: "Pick a film in the space first", search: "Find a film", search_ph: "Title, folder or type; Enter opens it", no_match: "No film matches", lang: "中", lang_tip: "切换到中文", themes: "Theme",
