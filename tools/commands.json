@@ -1816,7 +1816,7 @@
     },
     {
       "name": "components",
-      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
+      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up, film finish) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
       "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar, pieces that build a whole one after another) before writing one by hand",
       "stages": ["6", "5"],
       "reads": [

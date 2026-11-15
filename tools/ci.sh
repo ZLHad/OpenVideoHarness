@@ -4854,6 +4854,10 @@ const T = await import("./components/page-turn/component.js"); await run("page-t
 const F = await import("./components/paper-transition/component.js"); await run("fold", (t) => F.state({}, t / 5)); await run("blot", (t) => F.state({ variant: "blot" }, t / 5));
 const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
 const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
+const FF = await import("./components/film-finish/component.js"); await run("film-finish", (t) => FF.state({ haze: 0.3 }, t));
+// film-finish: the grain follows the grain step (24 a second on the 30 fps timeline): the same within a step, new across one
+const g = (t, p = {}) => FF.state(p, t).grainSeed;
+if (g(0) !== g(1 / 30) || g(0) === g(2 / 30) || g(0, { grainFps: 30 }) === g(1 / 30, { grainFps: 30 }) || g(0) === g(0, { seed: 12 }) || FF.state({ amount: 0 }, 1).amount !== 0) bad.push("film-finish: its grain step");
 const B = await import("./components/build-up/component.js"), cube = (x, y, z) => ({ x, y, z, w: 1, h: 1, d: 1 });
 const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1, 1.5, 1)], order: "height", bucket: 1, stagger: 0.7, jitter: 0.3, appear: "rise" },
   { pieces: [cube(0, 0.5, 0), cube(2, 0.5, 0), cube(4, 0.5, 0)], order: "distance", from: [4, 0, 0], appear: "grow", stagger: 1 },
@@ -4875,7 +4879,7 @@ if (!(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box.y > 0.5) || one({ ease:
   bad.push(`build-up: overshoot ${j(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box)}`);
 [[{ ease: "outBak" }, "ease is a name"], [{ pieces: [{ x: 0, y: 0, z: 0, w: 1, d: 1 }] }, "pieces[0].h is a number"], [{ stagger: -1 }, "stagger is a number, 0 or more"], [{ from: [1, 2] }, "from is [x, y, z]"]].forEach(([o, want]) => {
   try { B.state({ pieces: [cube(0, 0.5, 0)], ...o }, 1); bad.push(`build-up: ${j(o)} passed`); } catch (e) { if (!String(e.message).includes(want)) bad.push(`build-up: ${j(o)}: ${e.message}`); } });
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar, film-finish and build-up (by height, distance, seed), the same forwards, backwards and alone; film-finish's grain the same within a grain step and new across one; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
@@ -4992,6 +4996,45 @@ HTML
   b=$(vh determinism "$p/dom.html" --samples 3 2>&1); rc2=$?
   case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: paper-transition's fold and blot, spring-scene's canvas and DOM painters and the chapter bar's DOM painter are each a function of t (bin/vh determinism)" ;;
     *) bad "components' other painters, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
+  # film-finish through the page contract in software WebGL: a still scene finished with a depth picture; the grain is the
+  # same within a grain step (0 and 1/30 s, 24 a second on 30 fps) and new across one (2/30 s), and the page holds under
+  # determinism
+  vh components add "$p" film-finish > /dev/null
+  cat > "$p/finish.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as F from "./components/film-finish/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+const scene = (x, depth) => { x.fillStyle = depth ? "#fff" : "#1d2a3c"; x.fillRect(0, 0, 640, 360); x.fillStyle = depth ? "#333" : "#555"; x.fillRect(60, 200, 520, 160);
+  x.fillStyle = depth ? "#888" : "#fff6e0"; x.beginPath(); x.arc(320, 120, 18, 0, Math.PI * 2); x.fill(); };
+window.film = { duration: 1,
+  frame(t) { X.reset();
+    const src = L.offscreen("s", (x) => scene(x, false)), depth = L.offscreen("d", (x) => scene(x, true));
+    F.canvas(X, F.state({ haze: 0.4, grain: 0.08 }, t), src, { depth }); } };
+</script></body></html>
+HTML
+  a=$(vh frames "$p/finish.html" --at 0,0.0333,0.0667 --soft-gl --out "$t/ff" 2>&1); rc=$?
+  b=$(vh determinism "$p/finish.html" --samples 3 --soft-gl 2>&1); rc2=$?
+  f0="$t/ff/finish-t0000.000.png"; f1="$t/ff/finish-t0000.033.png"; f2="$t/ff/finish-t0000.067.png"
+  if [ "$rc:$rc2" = "0:0" ] && grep -q "determinism: holds" <<<"$b" && [ -s "$f0" ] && [ -s "$f2" ] \
+     && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" = "$(ffmpeg -nostdin -v error -i "$f1" -pix_fmt rgba -f md5 - 2>&1)" ] \
+     && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" != "$(ffmpeg -nostdin -v error -i "$f2" -pix_fmt rgba -f md5 - 2>&1)" ]
+  then ok "components: film-finish on a page (software WebGL) keeps its grain within a grain step, changes it across one, and holds under bin/vh determinism"
+  else bad "components: film-finish on a page (frames $rc, determinism $rc2): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # the finishing chain playbook/08 gives for a finished film runs as written, and gives the same bytes twice
+  python3 - "$ROOT/playbook/08-vfx-and-motion-sources.md" "$t/chain.sh" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<!-- finish-chain:[^>]*-->\n```bash\n(.*?)```", s, re.S)
+open(sys.argv[2], "w").write(m.group(1) if m else "exit 9\n")
+PY
+  ffmpeg -nostdin -v error -y -f lavfi -i "testsrc2=s=320x180:d=0.5:r=24" -c:v libx264 -pix_fmt yuv420p "$t/in.mp4"
+  (cd "$t" && sed 's/ffmpeg -i/ffmpeg -nostdin -v error -y -i/' chain.sh > c1.sh && sed 's/out\.mp4/out2.mp4/' c1.sh > c2.sh && bash c1.sh && bash c2.sh) 2>"$t/chain.err"; rc=$?
+  if [ $rc = 0 ] && [ -s "$t/out.mp4" ] && [ "$(ffmpeg -nostdin -v error -i "$t/out.mp4" -f md5 - 2>&1)" = "$(ffmpeg -nostdin -v error -i "$t/out2.mp4" -f md5 - 2>&1)" ]
+  then ok "playbook/08's finishing chain (ffmpeg) runs as written and gives the same frames twice"
+  else bad "playbook/08's finishing chain ($rc): $(tail -c 300 "$t/chain.err")"; fi
   rm -rf "$t"
 }
 
