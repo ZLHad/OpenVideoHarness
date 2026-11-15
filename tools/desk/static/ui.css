@@ -60,8 +60,9 @@ a{color:inherit;text-decoration:underline;text-decoration-color:var(--rule-2);te
 a:hover{text-decoration-color:var(--ink)}
 :focus-visible{outline:1px solid var(--you);outline-offset:2px}
 code{font:.9em var(--mono);color:var(--ink-hi);background:var(--panel-3);padding:1px 5px;border-radius:var(--r-ctl)}
+code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none;letter-spacing:normal}   /* a command or a path is written as it runs, in every theme */
 .mono,.num,time,.t{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.meta{font-size:var(--fs-label);color:var(--ink-3);letter-spacing:var(--label-track);text-transform:var(--label-case)}
+.meta{font-size:var(--fs-label);color:var(--ink-3)}   /* secondary text holds commands and paths: never set in capitals (the themes' capitals are for short labels) */
 .serif,.display{font-family:var(--display)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .hidden,[hidden]{display:none!important}

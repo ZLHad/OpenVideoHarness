@@ -74,7 +74,7 @@ moduleWords({
   cards_none: "还没有立意卡：关卡 ① 的页（bin/vh gate <项目> 1）写好后，卡在这里。下面是 BRIEF 写下的立意。",
   bar_idea_wait: "关卡 ① 等你选：选好以后，在右边一列提交这一轮", bar_idea_wait_s: "关卡 ① 等你选：在卡上或下面选好，把下面那行回复发给 agent", bar_idea_done: "立意定了：再改它，大纲和分镜都要跟着重做", to_outline: "看大纲",
 }, {
-  idea_title: "{n} concept cards: pick one", idea_sub: "Pick a card and the concept, the look and the hook are settled together. On the left: what only this subject has.",
+  idea_title: "{n} concept {n|card|cards}: pick one", idea_sub: "Pick a card and the concept, the look and the hook are settled together. On the left: what only this subject has.",
   mat_h: "What only this subject has", k_number: "Numbers", k_object: "Objects", k_quote: "Words", k_conflict: "Contradictions", k_surprise: "Surprises", k_other: "Other",
   same_topic: "What videos on it usually look like", same_none: "NOTES.md's ideas don't say yet what other videos on this subject look like (playbook/12-ideation.md, 3).",
   mat_none: "NOTES.md has no material list yet: first list the numbers, objects and words only this material has (playbook/12-ideation.md, 2).",
@@ -156,7 +156,7 @@ moduleWords({
   b_concept: "立意", b_spine: "主线", b_end: "看完以后", b_hook: "钩子", b_audience: "观众", b_watch: "在哪看", b_output: "规格", b_pace: "节奏", b_effort: "档位", b_director: "谁拍板",
   outline_none: "BRIEF 的大纲还没写成表格（列名见 tools/desk/README.md 的读取约定）。", bar_outline: "大纲属于关卡 ①（{s}）：改它，分镜要跟着重做", to_board: "去分镜",
 }, {
-  outline_title: "An outline in {n} parts", outline_sub: "Each part is named by what it says. Click one to say something about it alone.", outline_sub_s: "Each part is named by what it says.", seg_know: "Reads", seg_pic: "Picture", unsure_n: "{n} unsure",
+  outline_title: "An outline in {n} {n|part|parts}", outline_sub: "Each part is named by what it says. Click one to say something about it alone.", outline_sub_s: "Each part is named by what it says.", seg_know: "Reads", seg_pic: "Picture", unsure_n: "{n} unsure",
   brief_h: "BRIEF", engine_cost: "Engine and cost", engine: "Engine", voice: "Voice", budget: "Budget", spent: "Spent", stops: "Stops", free: "no paid calls",
   b_concept: "Concept", b_spine: "Spine", b_end: "At the end", b_hook: "Hook", b_audience: "Audience", b_watch: "Watch on", b_output: "Output", b_pace: "Pace", b_effort: "Effort", b_director: "Director",
   outline_none: "The BRIEF's outline isn't a table yet (its columns are in tools/desk/README.md, the reading contract).", bar_outline: "The outline belongs to gate ① ({s}): change it, and the storyboard follows", to_board: "To the storyboard",
@@ -209,7 +209,7 @@ moduleWords({
   board_none: "还没有镜头表：shots.json 写好后（bin/vh storyboard 读它），镜头按段落分页排在这里。", avg_s: "平均一镜 {s} s", plan_k: "默认改", bar_board: "关卡 ② · {s}", bar_said: "关卡 ② · {s}：你当时说「{q}」", to_sound: "去声音",
 }, {
   board_title: "Page {i} · {x}", board_sub2: "Each shot says what the viewer should get, in order. The shots the agent is unsure of are marked; the rest pass unless you say. Watch the grey box for the pace first.",
-  page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} shots", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Grey box", grey_note: "pace and framing only; colour comes with the film",
+  page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Grey box", grey_note: "pace and framing only; colour comes with the film",
   no_anim: "No grey-box animatic yet: once there is one (shots.json's video, or out/animatic.mp4), this page plays here.", anim_gone: "The grey-box animatic is gone: {x} (moved or renamed).", default_pass: "passes", you_said: "you said", trans_k: "Transition",
   board_none: "No shot table yet: once shots.json is written (bin/vh storyboard reads it), the shots are laid out here, a page a part.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Gate ② · {s}", bar_said: "Gate ② · {s}: you said “{q}”", to_sound: "To the sound",
 });
@@ -401,7 +401,7 @@ moduleWords({
   covers: "Covers", covers_sub: "vertical 9:16, horizontal 4:3 or 16:9, a big title", vertical: "vertical", horizontal: "horizontal", square: "square", covers_none: "No covers yet: PACKAGING.md's cover table, or out/covers/.",
   copy: "Copy", titles: "Title candidates", t_title: "Title", t_desc: "Description", t_tags: "Tags", t_chapters: "Chapters", copy_none: "No PACKAGING.md yet: the titles, the covers and each platform's copy go there (templates/PACKAGING.md).",
   plat_none: "PACKAGING.md's 发布文案 has no platform yet (### Bilibili …); bin/vh check measures them.", checked_n: "The numbers and claims in the titles: {a} checked, {b} not yet (hard rule 5)",
-  outputs: "What comes out", o_master: "The master (bin/vh render, checked)", o_upload: "The copy to upload (bin/vh deliver)", o_srt: "Captions (SRT)", o_covers: "{n} covers", o_copy: "Copy for {n} platforms", pending: "to come", made: "made",
+  outputs: "What comes out", o_master: "The master (bin/vh render, checked)", o_upload: "The copy to upload (bin/vh deliver)", o_srt: "Captions (SRT)", o_covers: "{n} {n|cover|covers}", o_copy: "Copy for {n} {n|platform|platforms}", pending: "to come", made: "made",
   precheck: "Before delivery", to_fix: "{n} to fix", to_mind: "{n} to mind", passed: "passed", stale2: "The film changed after this check: run bin/vh check again",
   precheck_none: "No check before delivery yet: bin/vh check <film>.", next_cmd: "Once the cut has passed:", bar_ship: "The film is delivered once the cut's stop has passed", to_cut: "To the cut",
   g_safe: "Safe area, type size, read time", g_text: "Type not burnt out by light", g_loud: "Loudness and true peak", g_av: "Digital silence, flashes, black, freezes", g_assets: "Licences", g_pack: "Titles and copy", g_other: "Other",
@@ -459,7 +459,14 @@ moduleWords({
   drop: "Drop a file here, or paste a link", drop_note: "No agent in this console yet: bin/vh assets add <project> <file> records an item, bin/vh ref add a reference",
   l_cc0: "CC0", l_pd: "public domain", l_own: "made here", l_generated: "generated", l_unknown: "no licence given", l_free: "free to use", l_managed: "licensed", l_ref: "reference only",
   used_in: "in {x}", from: "from {x}", not_used: "not used yet", gone_file: "the file is gone", read_transcript: "Read the transcript", open_src: "The source", digest: "Long videos read as transcripts", none_kind: "None of these yet.",
-  licenses_ok: "{n} licences on record", licenses_todo: "{n} not cleared: reference only, not in the film", licenses_rec: "{n} not cleared (Assets: record: kept on record; bin/vh deliver reminds you)", outside: "outside the project: {x}", ledger_at: "in assets/ledger.json (bin/vh assets)", assets_none: "No asset ledger yet: bin/vh assets add <project> <file>.",
+  licenses_ok: "{n} {n|licence|licences} on record", licenses_todo: "{n} not cleared: reference only, not in the film", licenses_rec: "{n} not cleared (Assets: record: kept on record; bin/vh deliver reminds you)", outside: "outside the project: {x}", ledger_at: "in assets/ledger.json (bin/vh assets)", assets_none: "No asset ledger yet: bin/vh assets add <project> <file>.",
+});
+moduleWords({
+  notes_ledger: "素材台账（旧记法）", notes_ledger_sub: "NOTES.md 里的表，只读：bin/vh assets 之前的记法",
+  notes_ledger_note: "这里只读。登记进 assets/ledger.json 才会查许可、出署名：bin/vh assets add <项目> <文件>。", nl_file: "文件", nl_src: "来源", nl_lic: "许可", nl_there: "文件在不在", there_y: "在", there_n: "不在",
+}, {
+  notes_ledger: "Asset table (the older way)", notes_ledger_sub: "the table in NOTES.md, read only: how assets were noted before bin/vh assets",
+  notes_ledger_note: "Read only. Recorded in assets/ledger.json, an item gets its licence checked and its credit line: bin/vh assets add <project> <file>.", nl_file: "File", nl_src: "Source", nl_lic: "Licence", nl_there: "On disk", there_y: "yes", there_n: "no",
 });
 let assetFilter = "all";
 const LIC_WORD = { pd: "l_pd", cc0: "l_cc0", own: "l_own", generated: "l_generated", free: "l_free", managed: "l_managed", unknown: "l_unknown" };
@@ -485,12 +492,15 @@ function mAssets2() {
       <p class="meta">${esc(uses ? t("used_in", { x: uses }) : t("not_used"))}${a.source ? " · " + esc(t("from", { x: a.source })) : ""}</p>${a.note ? `<p class="meta">${esc(a.note)}</p>` : ""}${a.outside ? `<p class="meta warn">${esc(t("outside", { x: a.outside }))}</p>` : a.path && !a.there ? `<p class="meta warn">${esc(t("gone_file"))}</p>` : ""}</div></article>`;
   };
   const counts = { all: items.length }; items.forEach((x) => { counts[x.k] = (counts[x.k] || 0) + 1; });
-  const filters = `<nav class="pgtabs" aria-label="${esc(t("m_assets"))}">${["all", "image", "video", "audio", "font", "ref"].map((k) => `<button type="button" data-af="${k}" aria-current="${assetFilter === k}">${esc(t("f_" + k))}${counts[k] ? ` <span class="mono">${counts[k]}</span>` : ""}</button>`).join("")}</nav>`;
+  const filters = items.length ? `<nav class="pgtabs" aria-label="${esc(t("m_assets"))}">${["all", "image", "video", "audio", "font", "ref"].map((k) => `<button type="button" data-af="${k}" aria-current="${assetFilter === k}">${esc(t("f_" + k))}${counts[k] ? ` <span class="mono">${counts[k]}</span>` : ""}</button>`).join("")}</nav>` : "";   // nothing to filter: no filters
+  const N = A == null && X.assets_notes && (X.assets_notes.rows || []).length ? X.assets_notes : null;   // no ledger: the older table in NOTES.md, read only
+  const notesTable = N ? panel(t("notes_ledger"), t("notes_ledger_sub"), `<div class="tscroll"><table class="t"><thead><tr><th>${esc(t("nl_file"))}</th><th>${esc(t("nl_src"))}</th><th>${esc(t("nl_lic"))}</th><th>${esc(t("nl_there"))}</th></tr></thead><tbody>${N.rows.map((r) =>
+      `<tr${dattr({ mark: r.file ? "asset:" + r.file : "", scope: r.file ? "" : `${t("notes_ledger")} · ${cut(r.source || r.license, 30)}`, label: `${t("notes_ledger")} · ${cut(r.file, 60)}` })}><td class="mono">${esc(r.file || "—")}</td><td>${esc(r.source || "—")}</td><td>${esc(r.license || "—")}</td><td>${esc(r.there == null ? "—" : t(r.there ? "there_y" : "there_n"))}</td></tr>`).join("")}</tbody></table></div><p class="meta">${esc(t("notes_ledger_note"))}</p>`) : "";
   const ok = (A || []).filter((a) => CLEARED.includes(a.license)).length, todo = (A || []).length - ok;
   const digests = G.length ? panel(t("digest"), "bin/vh ref digest", `<ul class="copyl">${G.map((g) => `<li${dattr({ mark: "asset:" + g.path, label: `${t("digest")} ${g.id}` })}><span class="mono">${esc(g.id)}</span><a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a><span class="meta mono">${esc(Math.max(1, Math.round(g.bytes / 1024)) + " kB")}</span></li>`).join("")}</ul>`) : "";
   return headM("assets", t("assets_title"), t("assets_sub2"), filters)
     + (readOnly() ? "" : `<div class="drop"><b>${esc(t("drop"))}</b><span class="meta">${esc(t("drop_note"))}</span></div>`)
-    + partErr("assets") + partErr("refs") + (A == null && !R.length ? voidLine(t("assets_none")) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + digests + partErr("digests")
+    + partErr("assets") + partErr("refs") + (A == null && !R.length ? (N ? "" : voidLine(t("assets_none"))) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + notesTable + digests + partErr("digests")
     + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t(((D.status || {}).assets || {}).policy === "record" ? "licenses_rec" : "licenses_todo", { n: todo }))}` : ""}</span><span class="meta">${esc(t("ledger_at"))}</span></footer>` : "");
 }
 function wireAssets2() { $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; redraw(); })); }
@@ -507,7 +517,7 @@ moduleWords({
   ledger_title: "Who decided, why, and when", ledger_sub2: "DECISIONS.md and REVIEW.md side by side. Anything the agent decided can be overturned: write it as a note for now, and it goes with this round.",
   decisions: "Decisions", what: "What", decided: "Decided", who: "By", when: "When", reason: "Why", you_decide: "you", show_you: "shown to you", agent_decides: "the agent", waits: "waiting for you",
   overturn_say: "Overturn: ", your_words: "Your words", your_words_sub: "verbatim in REVIEW.md", versions: "Versions", ver_cmd: "bin/vh versions", v_n: "v{n}",
-  changed_n: "{n} stretches changed", changed_s: "changed {x}", whole_film2: "the whole film", words_none: "No words of yours in REVIEW.md yet.", versions_none: "No versions recorded yet: the first bin/vh render or patch makes one.",
+  changed_n: "{n} {n|stretch|stretches} changed", changed_s: "changed {x}", whole_film2: "the whole film", words_none: "No words of yours in REVIEW.md yet.", versions_none: "No versions recorded yet: the first bin/vh render or patch makes one.",
   dec_none: "No decisions in DECISIONS.md yet.", you_said2: "you said: {q}",
 });
 const dateOf = (h) => h.date || "";
@@ -515,10 +525,11 @@ function mLedger2() {
   const who = (w, s) => (/等|wait/i.test(s || "") ? ["waits", "wait"] : /^own|你|person/i.test(w || "") ? ["you_decide", ""] : /^review|看/i.test(w || "") ? ["show_you", "quiet"] : ["agent_decides", "agent"]);
   const histOf = (where) => { const g = gateKey(where); return g ? D.history.filter((x) => gateKey(x.title) === g && !x.desk).pop() || null : null; };   // the stop's own section
   const quoteFor = (h) => (h && h.quotes && h.quotes.length ? h.quotes[h.quotes.length - 1].text : "");
-  const rows = D.ledger.map((l) => { const [k, c] = who(l.who, l.status), h = histOf(l.where), q = quoteFor(h);
-      return `<tr${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${l.what}` })}><td>${esc(l.what)}</td><td>${esc(l.status)}</td><td><span class="chip ${c}">${esc(t(k))}</span></td><td class="mono">${esc(h ? dateOf(h) : "")}</td><td class="muted">${esc(q ? t("you_said2", { q }) : l.where || "")}</td><td></td></tr>`; })
+  const over = (i) => (readOnly() ? "" : `<button type="button" class="xs" data-overturn="${esc(i)}">${esc(t("overturn"))}</button>`);   // every row the agent decides
+  const rows = D.ledger.map((l, i) => { const [k, c] = who(l.who, l.status), h = histOf(l.where), q = quoteFor(h);
+      return `<tr${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${l.what}` })}><td>${esc(l.what)}</td><td>${esc(l.status)}</td><td><span class="chip ${c}">${esc(t(k))}</span></td><td class="mono">${esc(h ? dateOf(h) : "")}</td><td class="muted">${esc(q ? t("you_said2", { q }) : l.where || "")}</td><td>${k === "agent_decides" ? over("t" + i) : ""}</td></tr>`; })
     .concat(D.agent_decided.filter((a) => !a.superseded).map((a) => { const i = D.agent_decided.indexOf(a);
-      return `<tr${dattr({ mark: "led:" + i, label: t("l_led", { x: (a.topic ? a.topic + COLON() : "") + cut(a.what, 20) }) })}><td>${esc(a.topic || "—")}</td><td>${esc(a.what)}</td><td><span class="chip agent">${esc(t("agent_decides"))}</span></td><td class="mono">${esc(a.date || "")}</td><td class="muted">${esc(a.why || "")}</td><td>${readOnly() ? "" : `<button type="button" class="xs" data-overturn="${i}">${esc(t("overturn"))}</button>`}</td></tr>`; })).join("");
+      return `<tr${dattr({ mark: "led:" + i, label: t("l_led", { x: (a.topic ? a.topic + COLON() : "") + cut(a.what, 20) }) })}><td>${esc(a.topic || "—")}</td><td>${esc(a.what)}</td><td><span class="chip agent">${esc(t("agent_decides"))}</span></td><td class="mono">${esc(a.date || "")}</td><td class="muted">${esc(a.why || "")}</td><td>${over(i)}</td></tr>`; })).join("");
   const dec = rows ? `<div class="tscroll"><table class="t ledger"><thead><tr><th>${esc(t("what"))}</th><th>${esc(t("decided"))}</th><th>${esc(t("who"))}</th><th>${esc(t("when"))}</th><th>${esc(t("reason"))}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : voidLine(t("dec_none"));
   const Q = D.history.flatMap((h) => (h.quotes || []).map((q) => ({ h, q })));
   const words = Q.length ? `<ul class="quotes">${Q.map(({ h, q }) => `<li${dattr({ scope: `${t("your_words")} · ${cut(h.title, 24)}` })}><q>${esc(q.text)}</q><span class="meta">${esc([cut(h.title, 30), q.label, dateOf(h)].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>` : voidLine(t("words_none"));
@@ -529,5 +540,5 @@ function mLedger2() {
   return headM("ledger", t("ledger_title"), t("ledger_sub2")) + tabs("ledger") + panel(t("decisions"), "DECISIONS.md · REVIEW.md", dec)
     + `<div class="mgrid ledger">${panel(t("your_words"), t("your_words_sub"), words)}${panel(t("versions"), t("ver_cmd"), vers)}</div>`;
 }
-function wireLedger2() { $$("[data-overturn]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest("[data-mark]"), t("overturn_say")); })); }
+function wireLedger2() { $$("[data-overturn]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest("[data-mark],[data-scope]"), t("overturn_say")); })); }
 MODVIEW.ledger = { main: mLedger2, wire: wireLedger2 };

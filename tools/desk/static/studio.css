@@ -190,7 +190,7 @@ body{overflow:hidden}
 .readout{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:baseline;padding:10px 16px 8px;font:11.5px/1.4 var(--mono);color:var(--ink-3)}
 .readout b{font-weight:500;color:var(--ink-2)}
 .readout .ver{margin-left:auto;color:var(--ink-2)}
-.screen{position:relative;flex:1;min-height:200px;margin:0 16px;background:var(--pic);display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:var(--r-card);cursor:pointer}
+.screen{position:relative;flex:1;min-height:min(200px,22vh);margin:0 16px;background:var(--pic);display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:var(--r-card);cursor:pointer}
 .frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%}
 .frame video,.frame img{display:block;width:100%;height:100%;object-fit:contain}
 .frame .vb{position:absolute;inset:0}
@@ -215,9 +215,12 @@ body{overflow:hidden}
 .seg button[aria-pressed=true]{color:var(--ink);background:var(--panel-3)}
 .toggle[aria-pressed=true]{color:var(--you);border-color:var(--you-line)}
 .timeline{grid-row:2;grid-column:1/-1;border-top:1px solid var(--rule);display:flex;flex-direction:column;min-height:0;max-height:46vh}
-.tl-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 12px;font-size:var(--fs-label);color:var(--ink-3);border-bottom:1px solid var(--rule)}
+.tl-bar{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;padding:6px 12px;font-size:var(--fs-label);color:var(--ink-3);border-bottom:1px solid var(--rule)}
+.tl-bar>span:first-child{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* the hint gives way; the controls keep one line in every theme */
 .tl-bar .push{margin-left:auto}
-.tl-bar .btn{min-height:26px;font-size:var(--fs-label)}
+.tl-bar .btn,.tl-bar .zoom{flex:none}
+.tl-bar .zoom{display:inline-flex;gap:2px}
+.tl-bar .btn{min-height:26px;font-size:var(--fs-label);white-space:nowrap}
 .tl-scroll{overflow:auto;position:relative}
 .tl{position:relative;min-width:100%;padding:0 12px 10px 0}
 .tl .grp{display:flex;align-items:center;gap:6px;padding:4px 0 2px 10px;font-size:11px;color:var(--ink-3);cursor:pointer;user-select:none;letter-spacing:var(--label-track);text-transform:var(--label-case)}
@@ -421,8 +424,10 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .lane-empty{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink-3);white-space:nowrap;opacity:.8}
 .bl.down{border-left-color:var(--rule-2)}
 .lane.wave .trk{height:34px}
-.cut.layout-sound .lane.wave .trk{height:72px}
-.cut.layout-sound .timeline{max-height:58vh}
+.cut.layout-sound .lane.wave .trk{height:120px}   /* listen: the sound lanes tall, the waveform tallest */
+.cut.layout-sound .wav path{opacity:.75}
+.cut.layout-sound .timeline{max-height:min(58vh,calc(100vh - 380px))}   /* the tall lanes scroll before they push the picture's controls under them */
+.cut.layout-sound .screen{min-height:120px}
 .cut.layout-review .screen{margin:0 16px}
 .span-mark.mine{color:var(--you)}.span-mark.least,.span-mark.listen{color:var(--wait)}.span-mark.check{color:var(--live)}
 .transport .p-btn svg{width:16px;height:16px}
@@ -450,5 +455,11 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
   .timeline{max-height:none}
   .capr{grid-template-columns:1fr}.g2{grid-template-columns:1fr}.led{grid-template-columns:1fr}
   .topbar .tools .meta,.topbar select{display:none}
+  /* the cut on a phone: the picture first, then what waits for you to decide (the right column), then the timeline, the lists last */
+  .app.is-cut{display:flex;flex-direction:column}
+  .app.is-cut>.stage-area,.app.is-cut .cut{display:contents}
+  .app.is-cut>.topbar{order:0}.app.is-cut>.rail{order:1}
+  .app.is-cut .cut>.viewer{order:2}.app.is-cut>.col{order:3}.app.is-cut .cut>.timeline{order:4;border-top:1px solid var(--rule)}.app.is-cut .cut>.lists{order:5;border-top:1px solid var(--rule)}
+  .col-round{position:sticky;bottom:0;z-index:6;background:var(--bg)}   /* submitting stays in reach while the column is on screen */
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}

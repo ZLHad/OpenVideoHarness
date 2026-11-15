@@ -93,7 +93,7 @@ function renderFlow() {
   if (!D) { el.innerHTML = ""; return; }
   el.innerHTML = FLOW.map((f) => {
     const fs = flowState(f), g = fs.state === "off" ? "" : glyphOf(fs.S);
-    const tip = [t("m_" + f.mod), t(STATE_WORD[fs.state])].concat(fs.S.map((s) => s.note).filter(Boolean)).join(" · ");
+    const tip = [t("m_" + f.mod), t(STATE_WORD[fs.state])].concat(fs.S.map((s) => s.note).filter(Boolean).map((n) => { const w = statusWords(n); return w.known ? w.text : `${t("ns_raw")}${COLON()}${w.text}`; })).join(" · ");
     return `<li><button type="button" class="stn ${fs.state}" data-go-mod="${f.mod}" title="${esc(tip)}" aria-current="${MOD === f.mod}"><i aria-hidden="true"></i>${esc(t("m_" + f.mod))}${g ? `<small>${esc(g)}</small>` : ""}${fs.state === "wait" ? `<em>${esc(t("f_wait"))}</em>` : ""}<span class="sr">${esc(t(STATE_WORD[fs.state]))}</span></button></li>`;
   }).join("");
 }
@@ -155,6 +155,7 @@ function leaveProject() {
   if (CUT) { CUT.destroy(); CUT = null; }
   clearInterval(liveTimer);
   SCOPE = null;
+  $("#app").classList.remove("is-cut"); $("#stage").classList.remove("is-cut");   // the space and other films lay out as pages again
 }
 async function showHome(quiet) {
   if (!quiet) {
@@ -248,23 +249,52 @@ $("#q").addEventListener("keydown", (e) => {
 $("#searchBtn").addEventListener("click", () => ($("#search").hidden ? openSearch() : closeSearch()));
 document.addEventListener("keydown", (e) => {
   if (e.key === "/" && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openSearch(); }
-  else if (e.key === "Escape") { if (!$("#search").hidden) closeSearch(); else if (!$("#confirm").hidden) closeConfirm(); }
+  else if (e.key === "Escape") {
+    if (!$("#search").hidden) closeSearch(); else if (!$("#confirm").hidden) closeConfirm();
+    else if (typing()) { e.preventDefault(); document.activeElement.blur(); }   // out of the box, so the keys work again (what was typed stays)
+  }
 });
 document.addEventListener("click", (e) => { if (!$("#search").hidden && !e.target.closest("#search,#searchBtn")) closeSearch(); });
 
 /* ---------- a project ---------- */
-async function loadProject(key) {
+async function fetchProject(key) {   // a project's data and its round's gate view, read before anything on screen changes
   const r = await getJSON(`/api/p/${enc(key)}/data`);
-  if (!r.ok || !r.data) { $("#stage").innerHTML = `<p class="void module">${esc(r.data && r.data.error ? r.data.error : t("noServer"))}</p>`; return false; }
-  D = r.data; PKEY = key; LAST = key; store.set("desk:last", key);
+  if (!r.ok || !r.data) return { error: r.data && r.data.error ? r.data.error : t("noServer") };
+  let gv = null;
+  if (r.data.current) { const g = await getJSON(`/api/p/${enc(key)}/gate/${enc(r.data.current)}?lang=${pickLang(r.data.lang)}`); if (g.ok && g.data) gv = g.data; }
+  return { data: r.data, gv };
+}
+function applyProject(key, x) {
+  D = x.data; PKEY = key; LAST = key; store.set("desk:last", key);
   ROUND = D.rounds[D.rounds.length - 1] || { id: "notes", gate: "", data: { decisions: [], least_sure: [], decided: [], delegated: [], assets: [], appendix: [], listen: [] } };
   KEY = `desk:${PKEY}:${ROUND.id}`;   // the draft goes with the folder (its key), never with a folder of the same name
   FB = store.get(KEY) || { decisions: {}, items: {}, general: "" };
   FB.items = FB.items || {}; FB.decisions = FB.decisions || {};
   setLang(pickLang(D.lang));
-  GV = null;
-  if (D.current) { const g = await getJSON(`/api/p/${enc(key)}/gate/${enc(D.current)}?lang=${LANG}`); if (g.ok && g.data) GV = g.data; }
+  GV = x.gv;
+}
+async function loadProject(key) {
+  const x = await fetchProject(key);
+  if (x.error) { $("#stage").innerHTML = `<p class="void module">${esc(x.error)}</p>`; return false; }
+  applyProject(key, x);
   return true;
+}
+let RELOADING = false;
+async function reloadProject(follow) {   // the same film read again (a submission went, the agent sent a page): what is on screen stays until the new data is in
+  const key = PKEY; if (!key || RELOADING) return;
+  RELOADING = true;
+  let x; try { x = await fetchProject(key); } finally { RELOADING = false; }
+  if (PKEY !== key) return;   // the person went elsewhere meanwhile
+  if (x.error) { toast(x.error); return; }
+  const at = CUT && !follow ? CUT.time() : null, y = window.scrollY, s = $("#stage").scrollTop;
+  leaveProject(); applyProject(key, x);
+  const r = follow ? { view: "project", key } : Object.assign(parse(), { key });   // follow: a new page opens on its own stop's module
+  MOD = r.mod || defaultMod(); SUB = r.sub || ""; DOC = r.doc || DOC; GATE = r.gate || "";
+  crumbs([{ text: t("m_space"), href: "#/" }, { text: D.project.title }]);
+  renderFlow(); renderRail(); renderColumn(); renderModule(); updateComposer();
+  liveTimer = setInterval(pollLive, 4000);
+  if (at != null && CUT) CUT.seekTo(at);   // the playhead where it was
+  $("#stage").scrollTop = s; window.scrollTo(0, y);
 }
 function waitingGate() {   // this round's page, when its stop waits for the person
   if (!D.current) return null;
@@ -309,7 +339,8 @@ function renderColumn() {
   const decs = g && (ROUND.data.decisions || []).length ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${ROUND.data.decisions.length}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : ROUND.id !== "notes" ? `<section><p class="next">${esc(t("round_quiet", { g: roundName, s: t("st_" + (roundState() || "done")) }))}${page}</p>${recentHtml()}</section>` : recentHtml();
-  $("#colBody").innerHTML = `${FB.submittedAt ? `<p class="notice">${esc(t("submitted", { at: FB.submittedAt }))}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="cNext"></section>`;
+  const sent = FB.sent ? t("sent_n", { n: FB.sent.n, d: FB.sent.d, at: FB.sent.at }) : FB.submittedAt ? t("submitted", { at: FB.submittedAt }) : "";   // what went, and that it does not go again
+  $("#colBody").innerHTML = `${sent ? `<p class="notice">${esc(sent)}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="colNext"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
@@ -356,12 +387,14 @@ function renderNext() {
   const who = ns.who === "person" ? "person" : ns.who === "nobody" ? "nobody" : "agent";
   const b = ((st.assets || {}).budget) || {}, money = (o) => Object.entries(o || {}).map(([c, v]) => `${v} ${c}`).join(", ");
   const spent = money(b.spent), limit = b.unlimited ? "∞" : money(b.limit);
-  $("#cNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li><span class="mono tc" style="color:var(--agent)">●</span><span class="mono">${esc(cut(x.cmd || x, 80))}</span></li>`).join("")}</ul>` : "")
-    + (ns.do ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b><span class="tag quiet">${esc(t("ns_from"))}</span></h3><p class="next"><span class="who ${who}">${esc(t("who_" + who))}</span><code class="hint">${esc(ns.do)}</code></p>${(ns.commands || []).slice(0, 2).map((c) => `<p class="next"><code class="cmd">${esc(c)}</code></p>`).join("")}` : "")
+  const said = statusWords(ns.do || "");   // status's words in this page's language when known; the project's folder as <项目>
+  $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li><span class="mono tc" style="color:var(--agent)">●</span><span class="mono">${esc(cut(shortPath(x.cmd || x), 80))}</span></li>`).join("")}</ul>` : "")
+    + (ns.do ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b>${said.known ? "" : `<span class="tag quiet">${esc(t("ns_raw"))}</span>`}</h3><p class="next"><span class="who ${who}">${esc(t("who_" + who))}</span>${said.known ? `<span>${esc(said.text)}</span>` : `<code class="hint">${esc(said.text)}</code>`}</p>${(ns.commands || []).slice(0, 2).map((c) => `<p class="next"><code class="cmd" title="${esc(c)}">${esc(shortPath(c))}</code></p>`).join("")}` : "")
     + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next mono">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
-function renderRound() {
-  const n = myItems().length + (FB.general ? 1 : 0), d = roundOpen() ? Object.keys(FB.decisions).length : 0;
+function renderRound() {   // what the next submission would send: notes not sent yet, decisions picked and not sent yet (or changed)
+  const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
+  const n = myItems().length + (FB.general ? 1 : 0), d = Object.keys(ts.decisions).filter((k) => !ts.defaulted.includes(k)).length;
   $("#colRound").hidden = false;
   $("#colRound").innerHTML = `<span>${esc(t("round_sum", { n, d }))}</span><button type="button" class="btn btn-primary" id="openConfirm">${esc(t("submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
@@ -435,6 +468,7 @@ function addNote() {
       SCOPE.t != null ? { t: SCOPE.t } : {}, SCOPE.t1 != null ? { t1: SCOPE.t1 } : {});
   }
   ta.value = ""; save(); toast(t("noted", { x: scopeLabel() }));
+  ta.blur();   // noted: the next key (N, ← →, Space) goes to the film, not into the box
 }
 $("#stage").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.hidden = true; }, true);   // a picture not there: the letter under it shows
 const unfold = (e) => { const f = e.target.closest(".fold"); if (f && (e.type === "click" || e.key === "Enter")) f.classList.toggle("open"); };   // a long line folded to two: open it
@@ -455,11 +489,8 @@ $("#stage").addEventListener("click", (e) => {   // a place in a module: the not
 
 /* submitting: everything this round holds, then one button (the desk's channel; bin/vh desk wait wakes on it) */
 function payload() {
-  const g = ROUND.data, decisions = {}, defaulted = [];
-  (roundOpen() ? g.decisions || [] : []).forEach((d) => {   // a stop already settled is not decided again by a later note
-    const v = FB.decisions[d.id] || d.recommend;
-    if (v && (d.options || []).some((o) => o.id === v)) { decisions[d.id] = v; if (!FB.decisions[d.id]) defaulted.push(d.id); }
-  });
+  // a stop already settled is not decided again by a later note; a decision sent before goes again only when picked differently
+  const { decisions, defaulted } = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
   const all = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: fitLabel(v.label || k), text: v.text || "" },
     v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}, v.t1 != null ? { t1: v.t1 } : {}));
   // an item feedback.py would refuse costs only itself, said before sending, never the round (its limits: tools/desk/feedback.py)
@@ -505,10 +536,12 @@ async function submit() {
   try { r = await fetch(`/api/p/${enc(PKEY)}/feedback`, { method: "POST", headers: { "Content-Type": "application/json", "X-Desk-Token": TOKEN }, body: JSON.stringify(p) }); } catch (e) { r = null; }
   if (r && r.ok) {
     const j = await r.json();
-    FB.submittedAt = new Date().toLocaleString(); FB.general = p.general; store.set(KEY, FB);
+    const box = $("#cGeneral"); if (box) box.value = "";
+    FB = afterSent(FB, p, new Date().toLocaleString()); store.set(KEY, FB);   // what went leaves the draft: it is not sent twice
     toast(j.listening ? t("sent_live") : t("sent", { f: j.saved }));
     $("#submitHint").textContent = t(j.listening ? "hint_live" : "hint_idle", { f: j.saved });
-    setTimeout(async () => { $("#confirm").hidden = true; const key = PKEY; leaveProject(); D = null; PKEY = ""; await showProject(Object.assign(parse(), { key })); }, 1400);
+    renderMine(); renderRound();
+    setTimeout(async () => { $("#confirm").hidden = true; await reloadProject(); }, 1400);
     return;
   }
   if (r && r.status === 409) { toast(t("moved")); $("#submitHint").textContent = t("moved"); return; }   // the address names another folder now
@@ -524,13 +557,13 @@ function save() {
   $$("#stage [data-mark]").forEach(markHost);
 }
 async function pollLive() {
-  if (!PKEY) return;
+  if (!PKEY || RELOADING) return;
   const r = await getJSON(`/api/p/${enc(PKEY)}/status`);
   const on = !!(r.ok && r.data && r.data.listening), el = $("#colHead .state");
   if (el) { el.classList.toggle("agent", on); el.title = t(on ? "live_on_tip" : "live_off_tip"); $("span", el).textContent = t(on ? "live_on" : "live_off"); }
   if (r.ok && r.data && D && r.data.round !== undefined && r.data.round !== (D.current || null) && r.data.key === PKEY) {   // the agent sent a new page
     toast(t("new_round", { g: r.data.round || "" }));
-    const key = PKEY; leaveProject(); D = null; PKEY = ""; await showProject({ view: "project", key });
+    await reloadProject(true);
   }
 }
 
@@ -544,7 +577,7 @@ function renderModule() {
   if (CUT && !bench) { CUT.destroy(); CUT = null; }
   if (SCOPE && SCOPE.el) setScope(null); else if (SCOPE && !bench) setScope(null);
   const area = $("#stage");
-  area.classList.toggle("is-cut", bench);
+  area.classList.toggle("is-cut", bench); $("#app").classList.toggle("is-cut", bench);   // narrow: the picture, then what to decide, then the lists
   if (bench) { if (CUT && !GATE) { CUT.refresh(); return; } if (CUT) CUT.destroy(); CUT = CutModule(area); return; }
   const cur = SUB && (SUBS[MOD] || []).includes(SUB) ? SUB : (SUBS[MOD] || [""])[0];
   const V = typeof MODVIEW !== "undefined" && MODVIEW[MOD], page0 = stopPage(MOD);
@@ -886,7 +919,7 @@ function CutModule(area) {
       <div class="tl-bar"><span>${esc(t("tl_hint"))}</span><span class="push"></span>
         <button type="button" class="btn" id="cN">${esc(t("next_place"))} <span class="kbd">N</span></button>
         <button type="button" class="btn toggle" id="cSnap" aria-pressed="${snapOn}">${esc(t("snap"))}</button>
-        <button type="button" class="p-btn" id="zOut" title="${esc(t("zoom_out"))}" aria-label="${esc(t("zoom_out"))}">−</button><button type="button" class="p-btn" id="zIn" title="${esc(t("zoom_in"))}" aria-label="${esc(t("zoom_in"))}">+</button></div>
+        <span class="zoom"><button type="button" class="p-btn" id="zOut" title="${esc(t("zoom_out"))}" aria-label="${esc(t("zoom_out"))}">−</button><button type="button" class="p-btn" id="zIn" title="${esc(t("zoom_in"))}" aria-label="${esc(t("zoom_in"))}">+</button></span></div>
       <div class="tl-scroll" id="tlScroll"><div class="tl" id="tl"></div></div>
     </section></div>`;
   const root = $("#cut", area), tl = $("#tl", area), scroll = $("#tlScroll", area), screen = $("#screen", area), frame = $("#frame", area);
@@ -1034,8 +1067,11 @@ function CutModule(area) {
   function wave() {
     if (!peaks) return "";
     const P = peaks.peaks, n = P.length, d = +peaks.duration || dur, sc = d && dur ? d / dur : 1;
+    // drawn to the loudest peak, so the shape fills the lane (where it is loud, quiet, silent); the level itself is 声音's readout.
+    // A film that is all but silent stays a line: the gain is capped at ×20
+    const g = 1 / P.reduce((m, p) => Math.max(m, Math.abs(+p[0] || 0), Math.abs(+p[1] || 0)), 0.05);
     let top = "", bot = "";
-    P.forEach((p, i) => { const x = ((i / n) * 1000 * sc).toFixed(1), a = Math.max(-1, Math.min(1, +p[1] || 0)), b2 = Math.max(-1, Math.min(1, +p[0] || 0)); top += `${i ? "L" : "M"}${x} ${(50 - a * 48).toFixed(1)}`; bot = `L${x} ${(50 - b2 * 48).toFixed(1)}` + bot; });
+    P.forEach((p, i) => { const x = ((i / n) * 1000 * sc).toFixed(1), a = Math.max(-1, Math.min(1, (+p[1] || 0) * g)), b2 = Math.max(-1, Math.min(1, (+p[0] || 0) * g)); top += `${i ? "L" : "M"}${x} ${(50 - a * 48).toFixed(1)}`; bot = `L${x} ${(50 - b2 * 48).toFixed(1)}` + bot; });
     return `<svg class="wav" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path d="${top}${bot}Z"/></svg>`;
   }
   function draw() {
@@ -1190,12 +1226,14 @@ function CutModule(area) {
     flash(t("next_q", { x: `${fmt(m.t)} ${cut(m.note || m.label, 40)}` }));
   }
   function flash(msg) { nextq.textContent = msg; nextq.hidden = false; clearTimeout(nextq._h); nextq._h = setTimeout(() => { nextq.hidden = true; }, 2600); }
-  function jumpShot(dir) {
-    const x = now(); let P = shots.map((s) => s.t0).concat(shots.length ? [shots[shots.length - 1].t1] : []);
-    if (!P.length) return seek(x + dir * 5);
-    P = [0].concat(P).sort((a, b) => a - b);
-    const n = dir > 0 ? P.find((p) => p > x + 0.05) : P.slice().reverse().find((p) => p < x - 0.3);
-    seek(n != null ? n : dir > 0 ? dur : 0, playing());
+  function jumpShot(dir) {   // ← →: the next or previous shot, selected as a click on it would, so the note box names what is on screen
+    const p = stepPoint(shots, now(), dir, dur);
+    if (p.shot) return pickThing("shot:" + p.shot);
+    if (SEL) select({ kind: "time", t: p.t, label: fmt(p.t) }); else seek(p.t, playing());   // past the last shot: that second
+  }
+  function nudge(by) {   // a second or a frame along; a selected second goes along with it (a span or a shot stays as it is)
+    seek(now() + by);
+    if (SEL && SEL.kind === "time") select({ kind: "time", t: now(), label: fmt(now()) });
   }
   function setLayout(l) {
     layout = l; store.set("desk:cut-layout", l);
@@ -1233,8 +1271,8 @@ function CutModule(area) {
     if (e.defaultPrevented || MOD !== "cut" || typing() || e.metaKey || e.ctrlKey || e.altKey || !$("#search").hidden || !$("#confirm").hidden) return;
     const k = e.key;
     if (k === " ") { if (document.activeElement && /^(BUTTON|A|SUMMARY)$/.test(document.activeElement.tagName) && !document.activeElement.closest(".transport,.tl,.lists")) return; e.preventDefault(); spaceDown = true; toggle(); }
-    else if (k === "ArrowLeft" || k === "ArrowRight") { if ((document.activeElement || {}).type === "radio") return; e.preventDefault(); if (e.shiftKey) seek(now() + (k === "ArrowRight" ? 1 : -1)); else jumpShot(k === "ArrowRight" ? 1 : -1); }
-    else if (k === "," || k === ".") { e.preventDefault(); stop(); seek(now() + (k === "." ? 1 : -1) / fps); }
+    else if (k === "ArrowLeft" || k === "ArrowRight") { if ((document.activeElement || {}).type === "radio") return; e.preventDefault(); if (e.shiftKey) nudge(k === "ArrowRight" ? 1 : -1); else jumpShot(k === "ArrowRight" ? 1 : -1); }
+    else if (k === "," || k === ".") { e.preventDefault(); stop(); nudge((k === "." ? 1 : -1) / fps); }
     else if (k === "i" || k === "I") { e.preventDefault(); inPt = now(); select({ kind: "time", t: inPt, label: fmt(inPt) }); }
     else if (k === "o" || k === "O") { e.preventDefault(); const x = now(), a = inPt != null ? Math.min(inPt, x) : SEL ? Math.min(SEL.t, x) : 0, b = inPt != null ? Math.max(inPt, x) : x; if (b - a >= 0.1) select({ kind: "range", t: a, t1: b, label: `${fmt(a)}–${fmt(b)}` }); inPt = null; }
     else if (k === "n" || k === "N") { e.preventDefault(); nextPlace(); }
@@ -1253,6 +1291,8 @@ function CutModule(area) {
   if (!thumbs && film) $(".tl-bar span", area).title = t("no_thumbs");
   return {
     refresh() { renderTabs(); renderList(); draw(); },
+    time: () => now(),
+    seekTo(x) { seek(x); },
     goto(target, tt, t1) {
       const m = allMarks().find((x) => x.target === target);
       if (m) return pickThing("mark:" + target, { dataset: { t: String(m.t) } });

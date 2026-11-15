@@ -3488,6 +3488,129 @@ print("; ".join(bad))
 PY
 ) && [ -z "$a" ]; then ok "module data: a part whose file does not read (voices or lifts not a list, a take outside the project, a broken link) is empty and named with its file while the others show; a ledger, refs or check record that links out of the project is not read"
   else bad "module data a part at a time: $a"; fi
+  # after a trial run (a person using it, two rounds): a submission goes once, ← → selects the shot, Esc and ⌘↩ hand the keys
+  # back, a reload keeps the page on screen, commands and paths are never set in capitals, the old asset table is read, every
+  # row the agent decides can be overturned, status's lines in Chinese with the project's folder as <项目>, English counts
+  cat > "$t/trial.js" <<'JS'
+const vm = require("vm"), fs = require("fs");
+const [dataFile] = process.argv.slice(2), bad = [];
+const want = (c, m) => { if (!c) bad.push(m); };
+function host(D, readOnly) {
+  const g = vm.createContext({ console, __D: D });
+  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
+  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
+    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
+  return (code) => vm.runInContext(code, g);
+}
+const draw = (run, m) => { try { return run("MODVIEW." + m + ".main()"); } catch (e) { bad.push(m + ": " + e.message); return ""; } };
+const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x)), J = JSON.stringify;
+const run = host(clone(D0), false);
+try {
+  // 1: what the server took leaves the draft; a decision sent goes again only when picked differently
+  run(`var DECS = [{ id: "draft", recommend: "FIX", options: [{ id: "OK" }, { id: "FIX" }] }, { id: "voice", recommend: "V1", options: [{ id: "V1" }, { id: "V2" }] }];
+       var FB1 = { decisions: { draft: "OK" }, items: { "time:10.7": { status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }, "asset:/x": { status: "change", label: "x", text: "y" } }, general: "整体偏慢" };
+       var P1 = { decisions: toSend(DECS, FB1.decisions, FB1.sentDec, true).decisions, items: [{ target: "time:10.7", status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }], general: "整体偏慢" };
+       var FB2 = afterSent(FB1, P1, "19:51");`);
+  want(J(run("P1.decisions")) === J({ draft: "OK", voice: "V1" }), "the first submission: the picked decision and the recommended one");
+  want(J(run("Object.keys(FB2.items)")) === J(["asset:/x"]) && run("FB2.general") === "" && J(run("FB2.sent")) === J({ at: "19:51", n: 2, d: 2 }), "after a submission the sent note and the overall words stay in the draft: " + J(run("FB2")));
+  want(J(run("toSend(DECS, FB2.decisions, FB2.sentDec, true).decisions")) === "{}", "a second submission sends the decisions again");
+  want(J(run("toSend(DECS, Object.assign({}, FB2.decisions, { voice: 'V2' }), FB2.sentDec, true).decisions")) === J({ voice: "V2" }), "a decision changed after sending does not go");
+  // 2: ← → from 0:10.7 lands on S4 and S3, as shots
+  run(`var SH = [{ id: "S1", t0: 0, t1: 4 }, { id: "S2", t0: 4, t1: 9 }, { id: "S3", t0: 9, t1: 15 }, { id: "S4", t0: 15, t1: 21 }, { id: "S5", t0: 21, t1: 32 }];`);
+  want(J(run("stepPoint(SH, 10.7, 1, 32)")) === J({ shot: "S4", t: 15 }) && J(run("stepPoint(SH, 10.7, -1, 32)")) === J({ shot: "S3", t: 9 }) && J(run("stepPoint(SH, 25, 1, 32)")) === J({ t: 32 }), "← → by shot: " + J(run("stepPoint(SH, 10.7, 1, 32)")));
+  // 11: status's lines in Chinese, the project's folder as <项目>, English counts
+  run(`D.status = Object.assign({}, D.status, { project: { path: "/tmp/x/demo" } });`);
+  want(run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet").text`) === "反馈已经交给 agent，REVIEW.md 里还没写这一关定了什么", "a station's note stays English in a Chinese page");
+  want(run(`statusWords("the engine's scaffold is not there: this makes it").known`) && run(`shortPath("bin/vh hf-init /tmp/x/demo landscape")`) === "bin/vh hf-init <项目> landscape", "the next step's words or the project's folder");
+  want(!run(`statusWords("a line the page has not met").known`), "an unknown line of status is passed off as known");
+  run(`LANG = "en"; L = STR.en;`);
+  want(run(`t("round_sum", { n: 5, d: 1 })`) === "5 notes · 1 decision" && run(`t("round_sum", { n: 1, d: 2 })`) === "1 note · 2 decisions", "English counts: " + run(`t("round_sum", { n: 5, d: 1 })`));
+  run(`LANG = "zh"; L = STR.zh;`);
+} catch (e) { bad.push("core.js: " + e.message); }
+{ const r = run("[Object.keys(STR.zh).concat(Object.keys(STR.en)), Object.keys(MSTR.zh).concat(Object.keys(MSTR.en))]"), S = new Set(r[0]), clash = [...new Set(r[1].filter((k) => S.has(k)))];
+  want(!clash.length, "a module's word under a key the shell has too (the shell's word wins): " + clash.join(" ")); }
+// 9: every row the agent decides has Overturn, the DECISIONS.md table's (who: delegate) as well as the list's
+{ const d = clone(D0); d.ledger = d.ledger.concat([{ what: "style 风格", who: "delegate", status: "已定：暗场蓝", where: "STYLE.md" }]);
+  const h = draw(host(d, false), "ledger"), rows = h.match(/<tr\b[\s\S]*?<\/tr>/g) || [], agent = rows.filter((r) => r.includes("chip agent"));
+  want(agent.length >= 2 && agent.every((r) => r.includes("data-overturn")), "a row the agent decided without Overturn: " + agent.filter((r) => !r.includes("data-overturn")).length + " of " + agent.length); }
+// 5: no ledger: the older table in NOTES.md read only, and no filters over nothing
+{ const d = clone(D0); d.mods.assets = null; d.mods.refs = []; d.mods.digests = [];
+  d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "自己拍的", license: "自有", there: false }, { file: "https://example.org/y.png", source: "某馆", license: "", there: null }] };
+  const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const h0 = draw(host(e, false), "assets");
+  want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes("还没有素材台账"), "the NOTES.md table, or filters over nothing");
+  want(!h0.includes('class="pgtabs"') && h0.includes("还没有素材台账"), "no ledger and no table: filters, or nothing said"); }
+// 6: a command, a path or a file name is never inside a label the themes set in capitals (text-transform is inherited)
+const CAPS = ["kick", "pn-h", "mat-h", "g-eyebrow", "g-h", "blk-h", "lgroup", "grp"], KEEP = ["pn-sub", "quiet"], VOID = /^(img|br|hr|input|meta|link|source|wbr|path|line|circle|rect)$/i;
+const capsText = (html) => {
+  const out = [], stack = [];
+  for (const m of html.matchAll(/<(\/?)([a-zA-Z0-9]+)([^>]*?)(\/?)>|([^<]+)/g)) {
+    if (m[5] != null) { const top = stack[stack.length - 1]; if (top && top.caps && /bin\/vh|&lt;项目&gt;|&lt;project&gt;|[\w.-]+\.(md|json|mp4|wav|png|jpe?g)\b|\w\/\w/.test(m[5])) out.push(m[5].trim().slice(0, 60)); continue; }
+    if (m[1]) { stack.pop(); continue; }
+    if (m[4] || VOID.test(m[2])) continue;
+    const cls = ((m[3].match(/\sclass="([^"]*)"/) || [])[1] || "").split(/\s+/), up = stack[stack.length - 1] || { caps: false };
+    stack.push({ caps: m[2] === "code" || cls.some((c) => KEEP.includes(c)) ? false : up.caps || cls.some((c) => CAPS.includes(c)) });
+  }
+  return out;
+};
+for (const ro of [false, true]) for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
+  const d = clone(D0); if (m === "assets") { d.mods.assets = null; d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "s", license: "l", there: true }] }; }
+  const c = capsText(draw(host(d, ro), m)); want(!c.length, `${m}${ro ? " (static)" : ""}: a command or a path in capitals: ${c.join(" | ")}`);
+}
+console.log(bad.join("\n"));
+JS
+  if a=$(node "$t/trial.js" "$t/demo-data.json" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the modules and core.js: a submission goes once (what the server took leaves the draft; a decision goes again only when picked differently); ← → lands on the next shot as a shot; status's lines in Chinese with the project's folder as <项目>, and English counts; every row the agent decides has Overturn; with no ledger the older table in NOTES.md, read only, and no filters over nothing; no command, path or file name inside a label set in capitals; no module word under a key the shell has too"
+  else bad "after a trial run, in the modules and core.js: $a"; fi
+  cat > "$t/trial.py" <<'PY'
+import json, re, shutil, sys
+from pathlib import Path
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import server
+t = Path(sys.argv[1])
+bad = []
+def want(c, m):
+    if not c: bad.append(m)
+st, ui, css, mcss = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("studio.js", "ui.css", "studio.css", "modules.css"))
+html = open("tools/desk/static/index.html", encoding="utf-8").read()
+def body(name):   # a function's text in studio.js, up to the next top-level one
+    m = re.search(r"\n(?:async )?function " + name + r"\([\s\S]*?\n}", st)
+    return m.group(0) if m else ""
+rl, sub, poll = body("reloadProject"), body("submit"), body("pollLive")
+want(rl and rl.index("fetchProject(") < rl.index("leaveProject(") and "renderShellLoading" not in rl and ".innerHTML" not in rl,
+     "a reload clears the page before the new data is in")
+want("afterSent(" in sub and "reloadProject(" in sub and "leaveProject(" not in sub and "reloadProject(" in poll and "leaveProject(" not in poll, "a submission or a new page blanks the page, or keeps what it sent")
+want(re.search(r'e\.key === "Escape"[\s\S]{0,240}typing\(\)\) \{ e\.preventDefault\(\); document\.activeElement\.blur\(\);', st) and re.search(r"function addNote\(\)[\s\S]*?ta\.blur\(\);\s*//[^\n]*\n}", st),
+     "Esc does not leave a text box, or ⌘↩ keeps the keys in it")
+want(re.search(r"function jumpShot\(dir\)[\s\S]{0,200}stepPoint\([\s\S]{0,80}pickThing\(\"shot:\"", st), "← → moves the playhead without selecting the shot")
+ids = re.findall(r'\sid="([A-Za-z][\w-]*)"', html + st + open("tools/desk/static/modules.js", encoding="utf-8").read())
+dup = sorted({i for i in ids if ids.count(i) > 1} - {"gatePart"})   # gatePart: one of two exclusive layouts
+want(not dup, f"an id written twice in the console (a reload keeps the old module on screen while the column is drawn): {dup}")
+caps = []
+for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss)):
+    for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)):
+        if re.search(r"text-transform:\s*(uppercase|var\(--label-case\))", rule):
+            caps += [f"{f}: {s.strip()}" for s in sel.split(",")]
+allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2",
+           "studio.css: .ask .kick", "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
+want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
+want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")
+h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
+want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
+want(re.search(r"\.cut\.layout-sound \.timeline\{max-height:min\(58vh,calc\(100vh - \d+px\)\)\}", css) and "min-height:min(200px,22vh)" in re.search(r"\.screen\{[^}]*\}", css).group(0),
+     "on a short window the tall lanes push the picture's controls under the timeline")
+want(all(x in css for x in (".app.is-cut .cut>.viewer{order:2}", ".app.is-cut>.col{order:3}", ".app.is-cut .cut>.lists{order:5")) and '$("#app").classList.toggle("is-cut", bench)' in st,
+     "on a phone the cut does not put the picture, then the decisions, then the lists")
+# 5: no ledger: the table NOTES.md kept before bin/vh assets, read only; a ledger: that, not the table
+p = t / "oldnotes"; shutil.copytree("tools/desk/fixtures/zh", p)
+(p / "NOTES.md").write_text((p / "NOTES.md").read_text(encoding="utf-8") + "\n## 素材台账\n| 文件 | 来源 | 许可 |\n|---|---|---|\n| assets/harbor.jpg | 自己拍的 | 自有 |\n| https://example.org/t.png | 某馆 | 没写 |\n| {文件} | {来源} | {许可} |\n| | | |\n", encoding="utf-8")
+m = server.project_data(p)["mods"]
+rows = (m.get("assets_notes") or {}).get("rows") or []
+want([r["file"] for r in rows] == ["assets/harbor.jpg", "https://example.org/t.png"] and rows[1]["there"] is None and rows[0]["there"] is False and not m["errors"], f"the NOTES.md asset table: {m.get('assets_notes')} {m['errors']}")
+(p / "assets").mkdir(); (p / "assets" / "ledger.json").write_text(json.dumps({"v": 1, "assets": []}))
+want(server.project_data(p)["mods"].get("assets_notes") is None, "the NOTES.md table read beside a ledger")
+print("; ".join(bad))
+PY
+  if a=$(python3 "$t/trial.py" "$t" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the console's code: a reload reads before it changes the screen, a submission and a new page keep the page on screen and never resend; Esc leaves a text box and ⌘↩ hands the keys back; ← → selects the shot; no id twice; capitals only on short labels, never on code; one-line timeline bar; a tall waveform drawn to its loudest peak in the listen layout; the cut on a phone puts the picture, the decisions, then the lists; the asset table of NOTES.md when there is no ledger"
+  else bad "after a trial run, in the console's code: $a"; fi
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
   # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
   if desk_start "$t/root/zh" "$t/zh.log"; then

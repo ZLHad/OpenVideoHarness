@@ -314,7 +314,7 @@ def module_extras(project, data):
     its file and why, while the others show. Only files inside the project are read (a link that leads out is not)."""
     project = Path(project)
     out = {"loudness": None, "silences": None, "checks": [], "pace": None, "voice": None, "audition": None, "lifts": [], "covers": [],
-           "subs": [], "assets": None, "refs": [], "digests": [], "errors": {}}
+           "subs": [], "assets": None, "assets_notes": None, "refs": [], "digests": [], "errors": {}}
     where = {}
 
     def part(name, fn):
@@ -402,10 +402,28 @@ def module_extras(project, data):
         out["subs"] = [r for d in ("out/final", "out", "audio") if (project / d).is_dir() for f in sorted((project / d).glob("*.srt"))
                        if (r := _inside(project, f.relative_to(project).as_posix()))][:20]
 
+    def notes_ledger():   # no assets/ledger.json: the table NOTES.md kept before bin/vh assets (templates/NOTES.md until 2026-10-26), read only
+        r = _inside(project, "NOTES.md")
+        if not r:
+            return
+        where["assets"] = r
+        body = reader.section(reader.strip_comments((Path(project) / r).read_text(encoding="utf-8", errors="replace")), r"素材台账", r"^assets?\b", r"asset (ledger|log)")
+        tb = reader.first_table(body, "文件", "file")
+        rows = []
+        for row in tb.rows if tb else []:
+            f, s, li = (reader.plain(tb.get(row, *k)) for k in (("文件", "file"), ("来源", "source"), ("许可", "licen")))
+            if f or s or li:
+                if "{" not in f + s + li:   # the template's empty row, or one not filled in yet
+                    link = bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", f))   # a link has no file to be there or not
+                    rows.append({"file": f, "source": s, "license": li, "there": None if link or not f else bool(_inside(project, f))})
+        if rows:
+            out["assets_notes"] = {"file": r, "rows": rows[:200]}
+
     def assets():
         led, where["assets"] = _json_in(project, "assets/ledger.json")
         _not_out(project, "assets/ledger.json", where["assets"])
         if not isinstance(led, dict):
+            notes_ledger()
             return
         rows = []
         for r in _list(led.get("assets"), "assets"):

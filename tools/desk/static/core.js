@@ -24,7 +24,7 @@ const STR = {
     live_on_tip: "提交后 agent 会自动接着做，不用回对话", live_off_tip: "提交后回到对话里说一声“看审阅台”",
     c_decide: "要你定", c_rec: "没动的按推荐", c_least: "它最没把握的", c_listen: "请你听", c_mine: "我的点评", c_next: "下一步", c_running: "正在跑", c_spend: "花费",
     c_spent: "已花 {s}", c_of: "预算 {l}", c_none_mine: "还没有。选中一处（一秒、一段、一个镜头），在下面写一句。", who_agent: "agent", who_person: "你", who_nobody: "交付了",
-    round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体", round_quiet: "{g} · {s}：现在没有要你定的事。", static_page: "静态页", recent: "最近定下的", agent_decided_k: "agent 定的 · {x}", ns_from: "bin/vh status 说",
+    round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体", round_quiet: "{g} · {s}：现在没有要你定的事。", static_page: "静态页", recent: "最近定下的", agent_decided_k: "agent 定的 · {x}",
     at: "对着", whole: "整个{m}", whole_film: "整片", to_whole: "换成整个模块", say_agent: "说给 agent", say_agent_tip: "这一版控制台不连 agent：写成点评，提交这一轮时交给它",
     as_note: "记成点评", c_ph: "对「{x}」说一句", note_add: "记下", note_keys: "⌘↩ 记下", noted: "记下了：{x}", del: "删",
     d_dropped: "这 {n} 条写不进反馈文件，不会提交（对着的东西认不出，或者字太长）",
@@ -37,6 +37,7 @@ const STR = {
     offline: "没有连上本地服务：回复已复制，粘贴到对话里即可", offline2: "没有连上本地服务：请复制下面的内容", refused: "没有提交成功：{e}", moved: "没有提交：这个地址现在指的已经不是你打开的那支片子了。重新载入页面，再交一次（草稿还在）。",
     reply_head: "《{p}》{r} 的回复", rest: "其余没标的都算通过。", round_name: "关卡 {r}", notes_round: "随手点评", overall: "整体",
     submitted: "这一轮已经提交过（{at}）。再提交会另存一份，REVIEW.md 里也会多一节。", new_round: "agent 发来了新的一页：{g}",
+    sent_n: "已交 {n} 条点评、{d} 个决定（{at}）。再交只发新写的点评和改过的决定。", proj_ph: "<项目>", ns_raw: "bin/vh status 的原话",
     past: "这是之前的一页（{g}），看看就好。", to_round: "回到这一轮 →", page_of: "看{g}那一页 →", st_ok: "可以", st_change: "要改", st_ask: "疑问",
     fb_ok: "✓ 可以", fb_change: "✎ 要改", fb_ask: "? 疑问", fb_def: "不点就算通过", ph_change: "哪里要改、为什么", ph_ask: "哪里没看懂？",
     ph_suggest: "直接改成……（可选）", agree: "✓ 同意", overturn: "✎ 翻案", def_agree: "不点就算同意",
@@ -103,13 +104,13 @@ const STR = {
     no_projects: "No films here yet. Make one with bin/vh new, or tell me where to look: bin/vh desk --root <folder>.",
     st_waiting_person: "waiting for you", st_waiting_agent: "the agent's turn", st_in_progress: "in progress", st_delivered: "delivered",
     st_paused: "paused", st_no_record: "no review record", st_not_started: "not started", st_skipped: "skipped", st_done: "passed",
-    ask_n: "{n} to decide: {q}", ask_0: "To look at: {q}", just_now: "just now", ago_m: "{n} min ago", ago_h: "{n} h ago", ago_d: "{n} days ago",
+    ask_n: "{n} to decide: {q}", ask_0: "To look at: {q}", just_now: "just now", ago_m: "{n} min ago", ago_h: "{n} h ago", ago_d: "{n} {n|day|days} ago",
     col_space: "Space", col_space_note: "Pick a film: notes and decisions go into that film.", waiting_list: "Waiting for you", agent_list: "Running now", none_waiting: "No film is waiting for you.",
     col_round: "This round", col_notes: "Notes", live_on: "the agent is waiting", live_off: "the agent isn't waiting",
     live_on_tip: "Submit and the agent carries on by itself; no need to go back to the chat", live_off_tip: "After submitting, tell the agent in the chat: “check the desk”",
     c_decide: "To decide", c_rec: "untouched = recommended", c_least: "Least sure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Running", c_spend: "Spent",
     c_spent: "{s} spent", c_of: "of {l}", c_none_mine: "None yet. Select a place (a second, a span, a shot) and write a line below.", who_agent: "agent", who_person: "you", who_nobody: "delivered",
-    round_sum: "{n} notes · {d} decisions", submit_round: "Submit this round", c_whole_note: "Overall", round_quiet: "{g} · {s}: nothing waits for you to decide now.", static_page: "Static page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}", ns_from: "bin/vh status says",
+    round_sum: "{n} {n|note|notes} · {d} {d|decision|decisions}", submit_round: "Submit this round", c_whole_note: "Overall", round_quiet: "{g} · {s}: nothing waits for you to decide now.", static_page: "Static page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}",
     at: "On", whole: "the whole {m}", whole_film: "the whole film", to_whole: "the whole module", say_agent: "Tell the agent", say_agent_tip: "This console doesn't talk to the agent yet: write a note, and it goes with this round",
     as_note: "Note it", c_ph: "A line on “{x}”", note_add: "Add", note_keys: "⌘↩ adds", noted: "Noted: {x}", del: "Delete",
     d_dropped: "{n} not sent: the feedback file cannot take what they are on, or they are too long",
@@ -122,6 +123,7 @@ const STR = {
     offline: "Couldn't reach the local server: the reply is copied, paste it into the chat", offline2: "Couldn't reach the local server: copy the text below", refused: "Not submitted: {e}", moved: "Not submitted: this address no longer names the film you opened. Reload the page and submit again (your draft is kept).",
     reply_head: "Reply to {r} of “{p}”", rest: "Everything not marked passes.", round_name: "gate {r}", notes_round: "notes", overall: "Overall",
     submitted: "Already submitted this round ({at}). Submitting again saves another copy and adds another section to REVIEW.md.", new_round: "The agent sent a new page: {g}",
+    sent_n: "Sent {n} {n|note|notes} and {d} {d|decision|decisions} ({at}). Submitting again sends only new notes and changed decisions.", proj_ph: "<project>", ns_raw: "bin/vh status's words",
     past: "An earlier page ({g}), to look at only.", to_round: "Back to this round →", page_of: "See the page of {g} →", st_ok: "ok", st_change: "change", st_ask: "question",
     fb_ok: "✓ OK", fb_change: "✎ Change", fb_ask: "? Question", fb_def: "untouched = approved", ph_change: "What to change, and why", ph_ask: "What's unclear?",
     ph_suggest: "Change it to… (optional)", agree: "✓ Agree", overturn: "✎ Overturn", def_agree: "untouched = agreed",
@@ -131,7 +133,7 @@ const STR = {
     l_shots: "Shots", l_script: "Narration", l_captions: "Captions", l_notes: "Notes", l_checks: "Checks",
     no_shots: "No shot table yet. Once shots.json is written (or bin/vh storyboard), the shots line up here.", no_narr: "No narration timing yet. Once bin/vh tts has voiced it, the lines and their times come here.",
     no_checks: "No check yet: bin/vh check <film>.", check_stale: "The film changed after this check: run bin/vh check again", verdict: "Verdict",
-    n_notes: "{n} notes", unsure: "unsure", n_checks: "{n} checks", reads: "Reads", ver_n: "v{n}", proxy: "proxy",
+    n_notes: "{n} {n|note|notes}", unsure: "unsure", n_checks: "{n} {n|check|checks}", reads: "Reads", ver_n: "v{n}", proxy: "proxy",
     no_film_frames: "No film yet: it plays here after bin/vh render. These are the storyboard's key frames.", no_film_sheet: "No film yet: it plays here after bin/vh render. This is the contact sheet.", no_film0: "No film yet, and no storyboard key frames or contact sheet.", film_gone_frames: "Not there any more: {p} (moved or renamed). These are the storyboard's key frames.", film_gone_sheet: "Not there any more: {p} (moved or renamed). This is the contact sheet.", film_gone0: "Not there any more: {p} (moved or renamed), and no storyboard key frames or contact sheet.",
     safe: "Safe area", compare: "Compare with {v}", ver_now: "{v} · now", lay_review: "Review", lay_fine: "Fine cut", lay_sound: "Listen", layout: "Layout",
     tl_hint: "Click a second, drag a span, click a shot or chapter to select it · I/O in and out · Space plays · ←→ shot by shot · N next place",
@@ -143,12 +145,12 @@ const STR = {
     sev_fail: "failed", sev_warn: "warning", no_thumbs: "bin/vh thumbs <project> makes thumbnails: then dragging shows every second",
     sub_outline: "Outline", sub_script: "Captions / narration", sub_facts: "Facts", sub_check: "Check", sub_versions: "Versions", sub_decisions: "Decisions", sub_history: "History", sub_docs: "Documents",
     concept: "Concept", spine: "Spine", motif: "Recurring motif", end: "At the end", spec: "Spec", outline_tip: "click a block to jump to it",
-    seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} lines in this part", to_script: "go through them →", bars: "bars {b}",
+    seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} {n|line|lines} in this part", to_script: "go through them →", bars: "bars {b}",
     no_outline: "The outline isn't a table yet (BRIEF's Outline section; columns in tools/desk/README.md). Here is the BRIEF as written.", no_brief: "No BRIEF.md yet.",
-    script_sub: "{n} lines by outline part. Reading speed, roughly, from each line's span: Chinese up to {g} chars/s green, {y} yellow; English {eg} / {ey}.",
+    script_sub: "{n} {n|line|lines} by outline part. Reading speed, roughly, from each line's span: Chinese up to {g} chars/s green, {y} yellow; English {eg} / {ey}.",
     f_all: "All", f_mine: "Marked by me", f_terms: "With a term", f_facts: "With a source #", f_fast: "Maybe too fast",
     no_script: "SCRIPT.md has no caption or narration table (columns in tools/desk/README.md). Here it is as written.", no_script_file: "No captions or narration yet (SCRIPT.md).",
-    other_seg: "Not matched to the outline", per_s: "/s", chars: "{n} chars · {s} s", none_match: "Nothing matches.", l_cap: "Caption {x}", l_vo: "Narration {x}", term: "Term",
+    other_seg: "Not matched to the outline", per_s: "/s", chars: "{n} {n|char|chars} · {s} s", none_match: "Nothing matches.", l_cap: "Caption {x}", l_vo: "Narration {x}", term: "Term",
     board_sub: "Click a frame to play that shot; the current shot lights up while playing; amber frames are shots I'm unsure about.", no_shot_caption: "(no caption in this shot)",
     transition: "Transition: ", unsure_x: "Unsure: ", no_board: "No shot table yet (shots.json or edit.json). Here is STORYBOARD.md.", no_board_file: "No storyboard yet.",
     no_video: "(no video to play; keyframes only)",
@@ -182,7 +184,8 @@ const word = (k) => {   // the shell's words first, then the modules' (modules.j
   const M = typeof MSTR !== "undefined" ? MSTR : { zh: {}, en: {} };
   return [L[k], M[LANG][k], STR.en[k], M.en[k]].find((x) => x != null);
 };
-const t = (k, vars) => String(word(k) != null ? word(k) : k).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : ""));
+const t = (k, vars) => String(word(k) != null ? word(k) : k).replace(/\{(\w+)(?:\|([^|{}]*)\|([^|{}]*))?\}/g,   // {n|note|notes}: the word for that count
+  (_, v, one, many) => (one != null ? (vars && +vars[v] === 1 ? one : many) : vars && vars[v] != null ? vars[v] : ""));
 const fmt = (x) => { if (x == null || isNaN(x)) return "–"; x = Math.max(0, +x); const m = Math.floor(x / 60), s = x - m * 60; return `${m}:${s.toFixed(1).padStart(4, "0")}`; };
 const pad = (n) => String(n).padStart(2, "0");
 const tcode = (x, fps) => { const f = Math.floor(Math.max(0, x || 0) * fps + 0.01), s = Math.floor(f / fps); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}:${pad(f % fps)}`; };
@@ -214,6 +217,77 @@ function fitTarget(tg) {   // a target feedback.py takes, or "": control charact
   return targetOk(kind + ":" + keep) ? kind + ":" + keep : "";
 }
 const fitLabel = (s) => { const c = cps(String(s == null ? "" : s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "")); return c.length > 200 ? c.slice(0, 199).join("") + "…" : c.join(""); };
+
+/* a submission goes once. Each is its own feedback file and its own section of REVIEW.md, so what the server took leaves the
+   draft (counted in fb.sent), and a decision already sent goes again only when it is picked differently */
+function toSend(decs, picked, sent, open) {   // {decisions, defaulted}: this round's decisions not sent yet, or changed since
+  const decisions = {}, defaulted = [], P = picked || {}, S = sent || {};
+  (open ? decs || [] : []).forEach((d) => {
+    const v = P[d.id] || d.recommend;
+    if (!v || !(d.options || []).some((o) => (o && o.id != null ? o.id : o) === v) || S[d.id] === v) return;
+    decisions[d.id] = v; if (!P[d.id]) defaulted.push(d.id);
+  });
+  return { decisions, defaulted };
+}
+function afterSent(fb, p, at) {   // the draft once the server has taken p: its notes out (one reworded since stays), its decisions remembered
+  const items = Object.assign({}, fb.items), was = fb.sent || { n: 0, d: 0 };
+  (p.items || []).forEach((i) => { const v = items[i.target]; if (v && (v.text || "") === (i.text || "") && v.status === i.status) delete items[i.target]; });
+  const general = fb.general && !String(p.general || "").includes(fb.general.trim()) ? fb.general : "";
+  return Object.assign({}, fb, { items, general, submittedAt: at, sentDec: Object.assign({}, fb.sentDec, p.decisions),
+    sent: { at, n: was.n + (p.items || []).length + (p.general ? 1 : 0), d: was.d + Object.keys(p.decisions || {}).length } });
+}
+
+/* bin/vh status speaks English to the agent. A Chinese page says its known lines in Chinese; one it does not know stays as
+   status wrote it (the page says whose words they are). The project's own folder is written <项目> / <project> */
+const ZH_MISSING = { "the person's words (原话) in REVIEW.md": "REVIEW.md 里人的原话", "the concept row in DECISIONS.md": "DECISIONS.md 里立意那一行" };
+const STATUS_ZH = [
+  [/^(.+?) is running \(bin\/vh activity [^)]*\); when it ends: ([\s\S]*)$/, (m, f) => `${m[1]} 正在跑；跑完以后：${f(m[2])}`],
+  [/^the submission was handed over; REVIEW\.md has no decision for it yet$/, () => "反馈已经交给 agent，REVIEW.md 里还没写这一关定了什么"],
+  [/^(\d+) submission\(s\) not handed to the agent yet \(bin\/vh desk feedback\)$/, (m) => `${m[1]} 份反馈还没交给 agent（bin/vh desk feedback）`],
+  [/^this round moved on to (.+?); REVIEW\.md has no decision for (.+)$/, (m) => `这一轮已经换到 ${m[1]}，REVIEW.md 里没有 ${m[2]} 的决定`],
+  [/^waived in the user's words \(([\s\S]*)\)$/, (m) => `用户说了不用审（${m[1]}）`],
+  [/^Effort quick: no gates$/, () => "quick 档：不设关卡"],
+  [/^decided, but the person's words are not in REVIEW\.md$/, () => "定了，但 REVIEW.md 里没有人的原话"],
+  [/^decided, but without (.+?): bin\/vh render and check refuse the whole film$/, (m) => `定了，但还缺 ${m[1].split(" and ").map((x) => ZH_MISSING[x] || x).join("、")}：bin/vh render 和 check 不放整片`],
+  [/^decided, but without (.+?): bin\/vh gate does not send gate ③'s page, and bin\/vh check fails the film$/, (m) => `定了，但还缺 ${m[1].split(" and ").map((x) => ZH_MISSING[x] || x).join("、")}：bin/vh gate 不发关卡 ③ 的页，bin/vh check 也不放这支片子`],
+  [/^decided in its REVIEW\.md section, read by date: [\s\S]*$/, () => "定了：按日期认出的 REVIEW.md 小节（那一节没写页面）"],
+  [/^its REVIEW\.md section has a decision, but names no page and is older than the page: not counted \(its 页面 line: (.+)\)$/, (m) => `REVIEW.md 那一节有决定，但没写页面、又比这一页旧，不算（页面一行该写 ${m[1]}）`],
+  [/^bin\/vh gate refused this page, so that run sent the person nothing: fix it and send it again$/, () => "bin/vh gate 没发这一页，人什么也没收到：改好再发"],
+  [/^the person reviews (.+?) on (?:the desk (\S+)|the chat|(.+?)): stop here, and write their words into REVIEW\.md when they answer$/,
+    (m) => `等人看 ${m[1]}${m[2] ? "（审阅台）" : m[3] ? `（${m[3]}）` : "（在对话里）"}：停在这里，人回了以后把原话写进 REVIEW.md`],
+  [/^read the person's submission for (.+?), then write what was decided into REVIEW\.md$/, (m) => `读人对 ${m[1]} 交的反馈，把定下的写进 REVIEW.md`],
+  [/^write what was decided and changed under the desk's section for (.+?) in REVIEW\.md \(定了 \/ 改了\)$/, (m) => `在 REVIEW.md 里 ${m[1]} 那一节写下定了什么、改了什么`],
+  [/^record the decision for (.+?) in REVIEW\.md$/, (m) => `把 ${m[1]} 的决定记进 REVIEW.md`],
+  [/^paused \(REVIEW\.md\): the person resumes it$/, () => "暂停中（REVIEW.md）：等人恢复"],
+  [/^delivered: what this film taught goes into LESSONS\.md$/, () => "已交付：这支片子学到的写进 LESSONS.md"],
+  [/^carry on$/, () => "接着做"],
+  [/^the engine's scaffold is not there: this makes it$/, () => "引擎的脚手架还没有：下面这条命令搭起来"],
+  [/^check (.+?) and look at its contact sheet$/, (m) => `检查 ${m[1]}，看它的联系表`],
+  [/^fix what bin\/vh check failed on (\S+)(?:: ([\s\S]*))?$/, (m) => `修 bin/vh check 在 ${m[1]} 上没过的地方${m[2] ? "：" + m[2] : ""}`],
+  [/^render the final at delivery quality$/, () => "按交付画质渲染成片"],
+  [/^bin\/vh gate refused the page for (.+?), so the person got nothing: fix it \(([\s\S]*)\), then send it again$/, (m) => `bin/vh gate 没发 ${m[1]} 的页，人什么也没收到：先修（${m[2]}），再发一次`],
+];
+function stepPoint(shots, x, dir, dur) {   // ← → in the cut, from second x: {shot, t} the next or previous shot's start, else {t}
+  const S = (shots || []).filter((s) => s && isFinite(+s.t0)).slice().sort((a, b) => a.t0 - b.t0);
+  if (!S.length) return { t: x + dir * 5 };
+  const P = [0].concat(S.map((s) => +s.t0), [+S[S.length - 1].t1]).filter((p) => isFinite(p)).sort((a, b) => a - b);
+  const n = dir > 0 ? P.find((p) => p > x + 0.05) : P.slice().reverse().find((p) => p < x - 0.3);   // back: this shot's start first
+  if (n == null) return { t: dir > 0 ? dur : 0 };
+  const at = S.find((s) => Math.abs(s.t0 - n) < 0.01);
+  return at ? { shot: at.id, t: +at.t0 } : { t: n };
+}
+function shortPath(s) {   // the project's own folder as <项目>: a command stays short, and says which folder goes there
+  const p = (typeof D !== "undefined" && D && D.status && D.status.project && D.status.project.path) || "";
+  return p && p.length > 1 ? String(s == null ? "" : s).split(p).join(t("proj_ph")) : String(s == null ? "" : s);
+}
+function statusWords(s) {   // {text, known}: one of bin/vh status's lines in this page's language, when the page knows it
+  const x = shortPath(s).trim();
+  if (!x || LANG !== "zh") return { text: x, known: true };
+  const one = (y) => { for (const [re, f] of STATUS_ZH) { const m = y.match(re); if (m) return f(m, (z) => statusWords(z).text); } return null; };
+  const whole = one(x); if (whole != null) return { text: whole, known: true };
+  const parts = x.split("; ").map((y) => one(y));   // notes joined by "; "
+  return parts.length > 1 && parts.every((y) => y != null) ? { text: parts.join("；"), known: true } : { text: x, known: false };
+}
 
 const SUBS = { outline: ["outline", "script", "facts"], ship: ["deliver", "check", "versions"], ledger: ["decisions", "history", "docs"] };
 const FLOW = [   // the flow bar: a fixed six, each the film's stops that belong to it
