@@ -2,14 +2,14 @@
 /* The console's modules besides the cut (docs/proposals/02-studio-client.md, 3), laid out as the prototype draws them
    (docs/proposals/figs/02-studio-prototype.html): 立意, 大纲, 分镜, 声音, 交付, 素材, 账本. A section a module: its words,
    its page and its wiring, registered in MODVIEW; studio.js draws a module's first tab from it. Loaded before studio.js
-   (and before a static page's static.js): nothing here runs until the host calls it, and then it uses the host's helpers
-   and state (esc, t, src, D, FB, ROUND, setScope, pick …).
+   (and before a static page's static.js): nothing here runs until the host calls it, and then it uses core.js's helpers
+   (esc, t, kickOf …) and the host's state and hooks (D, FB, ROUND, src, setScope, pick …).
    Everything a person can select says what it is: data-mark names a feedback target (tools/desk/README.md, 反馈文件),
    data-scope a place with no target of its own, whose note goes into the round's overall words with its name in front;
    data-label is the name a note carries. Every part reads a file bin/vh has already made; a part that is not there says
    so and names the command that makes it. */
 
-const MSTR = { zh: {}, en: {} };   // the modules' words; t() (studio.js) looks here after the shell's own
+const MSTR = { zh: {}, en: {} };   // the modules' words; t() (core.js) looks here after the shell's own
 const moduleWords = (zh, en) => { Object.assign(MSTR.zh, zh); Object.assign(MSTR.en, en); };
 const MODVIEW = {};   // module → { main(): html, wire(), sync(decision, option), drawn(gate view): what the module draws itself }
 const readOnly = () => typeof STATIC_PAGE !== "undefined";   // a static page (bin/vh review): nothing to note, nothing to send
@@ -28,6 +28,10 @@ function barM(text, mod, label) {   // the bar under a module: where its stop st
   return `<footer class="mbar"><span>${esc(text)}</span>${mod && !readOnly() ? `<a class="btn" href="${projHash(PKEY, mod)}">${esc(label)} →</a>` : ""}</footer>`;
 }
 const tabs = (mod) => (readOnly() ? "" : subtabs(mod));   // a module's sub-tabs are the console's routes
+function redraw() {   // the same module again (a tab, a filter, a page): where the page was scrolled to stays
+  const el = document.getElementById("stage"), sc = el && getComputedStyle(el).overflowY !== "visible" ? el : document.scrollingElement;
+  const y = sc ? sc.scrollTop : 0; renderModule(); if (sc) sc.scrollTop = y;
+}
 const stationState = (id) => (stations().find((x) => x.id === id) || {}).state || "";
 function prefill(card, words) {   // a note shortcut: select the thing, put the start of the sentence in the note box
   setScope(card.dataset.mark ? { target: card.dataset.mark, label: card.dataset.label, el: card } : { label: card.dataset.scope, el: card });
@@ -55,13 +59,13 @@ moduleWords({
   cards_none: "No concept cards yet: once gate ①'s page is written (bin/vh gate <project> 1), they are here. Below is the concept the BRIEF has.",
   bar_idea_wait: "Gate ① waits for you: once you have picked, submit this round in the right column", bar_idea_wait_s: "Gate ① waits for you: pick on a card or below, then send the reply line below to the agent", bar_idea_done: "The concept is settled: change it now, and the outline and the storyboard follow", to_outline: "See the outline",
 });
-const KINDS = [["number", /数字|数据|number/i], ["object", /物件|物|object|thing/i], ["quote", /原话|引文|引语|quote|words/i], ["conflict", /矛盾|冲突|contradict|conflict/i], ["surprise", /意外|反常|surpris/i]];
+const KINDS = [["number", /数字|数据|number/i], ["object", /物件|实物|object|thing/i], ["quote", /原话|引文|引语|quote|words/i], ["conflict", /矛盾|冲突|contradict|conflict/i], ["surprise", /意外|反常|surpris/i]];
 const kindOf = (k) => (KINDS.find(([, re]) => re.test(k || "")) || ["other"])[0];
 function conceptRound() {   // the newest gate ① page and its concept decision: the one drawn with pictures, else one named for it
   const r = D.rounds.filter((x) => gateBase(x.id) === "1").pop();
   if (!r) return null;
   const decs = (r.data.decisions || []).filter((d) => d && Array.isArray(d.options) && d.options.length);
-  const dec = decs.find((d) => d.options.some((o) => o && o.frame)) || decs.find((d) => /concept|立意|idea/i.test(`${d.id} ${d.question || ""}`));
+  const dec = decs.find((d) => d.options.some((o) => o && (o.frame || o.frame_missing))) || decs.find((d) => /concept|立意|idea/i.test(`${d.id} ${d.question || ""}`));
   return dec ? { round: r, dec, open: r.id === D.current && roundOpen() } : null;
 }
 function chosenOf(cr) {   // the card picked: this round's choice while it is open, else what REVIEW.md or DECISIONS.md says was decided
@@ -232,7 +236,7 @@ function mBoard2() {
     + barM(q ? t("bar_said", { s: t("st_" + (st || "not_started")), q: cut(q, 40) }) : t("bar_board", { s: t("st_" + (st || "not_started")) }), "sound", t("to_sound"));
 }
 function wireBoard2() {
-  $$(".pgtabs button[data-page]").forEach((b) => b.addEventListener("click", () => { SUB = b.dataset.page; renderModule(); }));   // a static page has no routes
+  $$(".pgtabs button[data-page]").forEach((b) => b.addEventListener("click", () => { SUB = b.dataset.page; redraw(); }));   // a static page has no routes
   const v = $("#bv2"); if (!v) return;
   const t0 = v.dataset.t0 != null ? +v.dataset.t0 : null, t1 = v.dataset.t1 != null ? +v.dataset.t1 : null;
   let stopAt = null;
@@ -253,7 +257,7 @@ moduleWords({
   no_check_val: "bin/vh check", no_narr_val: "bin/vh tts",
   audition: "试听音色", audition_cmd: "bin/vh voices audition · 同一段话，几个音色各念一遍", in_use: "在用", use_this: "换成它", use_say: "换成 {x}：",
   pitch: "音高中位", rate: "语速", misread: "误读", no_misread: "没有误读", audition_none: "还没试听过音色：bin/vh voices audition <文本> --voices A,B,C。",
-  lines: "旁白逐句", lines_pace: "bin/vh pace：只算有声的部分", lines_raw: "按句首到句尾算，含句中停顿 · bin/vh pace --dry-run 给只算有声的", line_k: "句", text_k: "文字", per_s2: "字/秒", pause_k: "句后停顿",
+  lines: "旁白逐句", lines_pace: "bin/vh pace：只算有声的部分", lines_raw: "按句首到句尾算，含句中停顿 · bin/vh pace --dry-run 给只算有声的", line_k: "句", text_k: "文字", pause_k: "句后停顿",
   slower: "比中位数慢 ×{x}", faster: "比中位数快 ×{x}", lines_none: "还没有旁白的时间：bin/vh tts 出了配音才有。", unit_zh: "字/秒", unit_syll: "音节/秒",
   music: "配乐", music_cmd: "段落和候选落点 · bin/vh beats", env_cmd: "响度包络 · bin/vh peaks", lift: "换气之后的重拍", lift_src: "bin/vh beats 的 lifts 候选", hit_src: "计划的音效",
   listen_src: "请你听", play_at: "从 {t} 播", music_none: "还没有配乐的段落：bin/vh beats <音乐>；波形：bin/vh peaks <项目>。", sound_checks: "bin/vh check 里和声音有关的",
@@ -263,7 +267,7 @@ moduleWords({
   no_check_val: "bin/vh check", no_narr_val: "bin/vh tts",
   audition: "Voice audition", audition_cmd: "bin/vh voices audition · the same text, read in each voice", in_use: "in use", use_this: "Use this", use_say: "Use {x}: ",
   pitch: "Pitch", rate: "Rate", misread: "Misreads", no_misread: "none", audition_none: "No audition yet: bin/vh voices audition <text> --voices A,B,C.",
-  lines: "Narration, line by line", lines_pace: "bin/vh pace: voice only", lines_raw: "first word to last, pauses inside the line in · bin/vh pace --dry-run gives voice only", line_k: "Line", text_k: "Text", per_s2: "rate", pause_k: "Pause after",
+  lines: "Narration, line by line", lines_pace: "bin/vh pace: voice only", lines_raw: "first word to last, pauses inside the line in · bin/vh pace --dry-run gives voice only", line_k: "Line", text_k: "Text", pause_k: "Pause after",
   slower: "×{x} slower than the median", faster: "×{x} faster than the median", lines_none: "No narration timing yet: bin/vh tts makes it.", unit_zh: "chars/s", unit_syll: "syllables/s",
   music: "Music", music_cmd: "sections and candidate lifts · bin/vh beats", env_cmd: "loudness · bin/vh peaks", lift: "the hit after a breath", lift_src: "a bin/vh beats lift", hit_src: "a planned sound",
   listen_src: "please listen", play_at: "Play from {t}", music_none: "No music sections yet: bin/vh beats <music>; the waveform: bin/vh peaks <project>.", sound_checks: "bin/vh check, on the sound",
@@ -307,7 +311,8 @@ function mSound2() {
       <div><dt>${esc(t("misread"))}</dt><dd${Array.isArray(v.misread) && v.misread.length ? ' class="warn"' : ""}>${esc(Array.isArray(v.misread) ? (v.misread.length ? v.misread.join("、") : t("no_misread")) : "—")}</dd></div></dl></article>`).join("")}</div>` : voidLine(t("audition_none"));
   const lines = nl.rows.length ? `<div class="tscroll"><table class="t lines"><thead><tr><th>${esc(t("line_k"))}</th><th>${esc(t("text_k"))}</th><th>${esc(nl.unit)}</th><th>${esc(t("pause_k"))}</th><th></th></tr></thead><tbody>${nl.rows.map((r) => {
       const f = nl.med && r.rate ? r.rate / nl.med : 1, flag = f < 0.8 ? t("slower", { x: (1 / f).toFixed(1) }) : f > 1.25 ? t("faster", { x: f.toFixed(1) }) : "";
-      return `<tr${dattr({ mark: `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}`, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}><td class="mono">${esc(r.id)}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : voidLine(t("lines_none"));
+      const mark = r.t1 - r.t0 >= 0.01 ? `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}` : `atime:${r.t0.toFixed(1)}`;   // a range must run forward (feedback.py)
+      return `<tr${dattr({ mark, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}><td class="mono">${esc(r.id)}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : voidLine(t("lines_none"));
   const W = 600, H = 110, M = D.music || {}, dur = +(M.duration || (D.studio && D.studio.peaks && D.studio.peaks.duration) || TL().duration || 0) || 1;
   const x = (s) => Math.max(0, Math.min(W, (s / dur) * W)), env = envelope(W, H), secs = Array.isArray(M.sections) ? M.sections : [];
   const marks = gateMarks().filter((m) => m.kind === "listen" && m.t != null).map((m) => ({ t: +m.t, what: m.note, src: t("listen_src"), cls: "you" }))
@@ -392,7 +397,7 @@ function mShip2() {
     + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov)}${panel(t("copy"), "PACKAGING.md", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs)}${panel(t("precheck"), "bin/vh check", pre + next)}</aside></div>`
     + barM(t("bar_ship"), "cut", t("to_cut"));
 }
-function wireShip2() { $$(".pgtabs.plat [data-plat]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); shipPlat = +b.dataset.plat; renderModule(); })); }
+function wireShip2() { $$(".pgtabs.plat [data-plat]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); shipPlat = +b.dataset.plat; redraw(); })); }
 MODVIEW.ship = { main: mShip2, wire: wireShip2 };
 
 /* ---------- 素材: every item with its licence, its source and its shot; the references and their transcripts ---------- */
@@ -443,7 +448,7 @@ function mAssets2() {
     + (A == null && !R.length ? voidLine(t("assets_none")) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + digests
     + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t("licenses_todo", { n: todo }))}` : ""}</span><span class="meta">${esc(t("ledger_at"))}</span></footer>` : "");
 }
-function wireAssets2() { $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; renderModule(); })); }
+function wireAssets2() { $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; redraw(); })); }
 MODVIEW.assets = { main: mAssets2, wire: wireAssets2 };
 
 /* ---------- 账本: the decisions, your words, the versions ---------- */
