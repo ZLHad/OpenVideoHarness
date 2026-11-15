@@ -15,14 +15,34 @@ const MODVIEW = {};   // module → { main(): html, wire(), sync(decision, optio
 const readOnly = () => typeof STATIC_PAGE !== "undefined";   // a static page (bin/vh review): nothing to note, nothing to send
 
 /* ---------- shared pieces ---------- */
-moduleWords({ page_rest: "{g} 的页里还有这些", file_gone: "文件不在了" }, { page_rest: "Also on {g}'s page", file_gone: "the file is gone" });
-const dattr = (o) => Object.entries(o).filter(([, v]) => v != null && v !== "").map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
+moduleWords({ page_rest: "{g} 的页里还有这些", file_gone: "文件不在了", part_err: "读不出：{x}" }, { page_rest: "Also on {g}'s page", file_gone: "the file is gone", part_err: "Could not read: {x}" });
+const partErr = (k) => { const e = ((D.mods || {}).errors || {})[k]; return e ? `<p class="void warn">${esc(t("part_err", { x: e }))}</p>` : ""; };   // a part whose file did not read: which, and why
+const dattr = (o) => {   // data-* attributes, escaped; a mark feedback.py would refuse becomes a place with no target, named
+  const a = Object.assign({}, o);
+  if (a.mark) { a.mark = fitTarget(a.mark); if (!a.mark && !a.scope) a.scope = a.label; }
+  if (a.label) a.label = fitLabel(a.label);
+  if (a.scope) a.scope = fitLabel(a.scope);
+  return Object.entries(a).filter(([, v]) => v != null && v !== "").map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
+};
 const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");   // a gate page's own marks
 const panel = (title, sub, body, cls) => `<section class="pn${cls ? " " + cls : ""}">${title ? `<h2 class="pn-h"><span>${esc(title)}</span>${sub ? `<span class="pn-sub">${esc(sub)}</span>` : ""}</h2>` : ""}${body}</section>`;
 const voidLine = (s) => `<p class="void">${esc(s)}</p>`;
+const budgetLen = (s) => {   // tools/review.py's budget_len: a CJK character 1, any other visible one ½; text without CJK its characters
+  const x = String(s || "").replace(/[`*]/g, "").replace(/\s+/g, " ").trim(), cjk = (x.match(/[　-鿿豈-﫿＀-￯]/g) || []).length;
+  return cjk ? { n: cjk + 0.5 * x.replace(/[\s　-鿿豈-﫿＀-￯]/g, "").length, lim: 40 } : { n: x.length, lim: 100 };
+};
+function headLine(s) {   // a heading gets one line (playbook/01's budget: 40, or 100 in English): the first sentence of a longer one, the rest under it
+  s = String(s || "");
+  if (budgetLen(s).n <= budgetLen(s).lim) return { head: s, rest: "", long: false };
+  const m = s.match(/^(.+?[。！？!?]|.+?[.;；:：](?=\s|$)|.+?：)(\s*\S[\s\S]*)$/), head = m ? m[1].trim() : s, rest = m ? m[2].trim() : "";
+  return { head, rest, long: budgetLen(head).n > budgetLen(head).lim };
+}
+function fitHeads(root) {   // after drawing: a heading the display face wraps to a second line (wide Latin words) drops to the text face
+  root.querySelectorAll(".mh2 h1, .mh2 h2").forEach((h) => { const lh = parseFloat(getComputedStyle(h).lineHeight) || 0; if (lh && h.offsetHeight > lh * 1.5) h.classList.add("long"); });
+}
 function headM(mod, title, sub, extra) {   // on a static page the stop's own heading is above: a title that repeats it goes
-  const H = readOnly() ? "h2" : "h1", same = readOnly() && title === String((ROUND.data || {}).summary || "");
-  return `<header class="mh2"><div class="mh2-t"><span class="kick">${esc(kickOf(mod))}</span>${same ? "" : `<${H}>${esc(title)}</${H}>`}${sub ? `<p>${esc(sub)}</p>` : ""}</div>${extra || ""}</header>`;
+  const H = readOnly() ? "h2" : "h1", same = readOnly() && title === String((ROUND.data || {}).summary || ""), h = headLine(title);
+  return `<header class="mh2"><div class="mh2-t"><span class="kick">${esc(kickOf(mod))}</span>${same ? "" : `<${H}${h.long ? ' class="long"' : ""}>${esc(h.head)}</${H}>${h.rest ? `<p class="lead fold" tabindex="0">${esc(h.rest)}</p>` : ""}`}${sub ? `<p>${esc(sub)}</p>` : ""}</div>${extra || ""}</header>`;
 }
 function barM(text, mod, label) {   // the bar under a module: where its stop stands, and the next module
   return `<footer class="mbar"><span>${esc(text)}</span>${mod && !readOnly() ? `<a class="btn" href="${projHash(PKEY, mod)}">${esc(label)} →</a>` : ""}</footer>`;
@@ -31,6 +51,10 @@ const tabs = (mod) => (readOnly() ? "" : subtabs(mod));   // a module's sub-tabs
 function redraw() {   // the same module again (a tab, a filter, a page): where the page was scrolled to stays
   const el = document.getElementById("stage"), sc = el && getComputedStyle(el).overflowY !== "visible" ? el : document.scrollingElement;
   const y = sc ? sc.scrollTop : 0; renderModule(); if (sc) sc.scrollTop = y;
+}
+function gateKey(s) {   // the stop a title or a "where" names, in either language: 关卡 ②, Gate ②, gate 2, E2, 检查点 E2 → "2", "E2"
+  const x = String(s || ""), c = x.match(/[①②③④⑤]/), e = x.match(/(?:^|[^A-Za-z0-9])(E\d)(?![0-9])/), g = x.match(/(?:gate|关卡)\s*(\d)(?![0-9])/i);
+  return c ? String("①②③④⑤".indexOf(c[0]) + 1) : e ? e[1] : g ? g[1] : "";
 }
 const stationState = (id) => (stations().find((x) => x.id === id) || {}).state || "";
 function prefill(card, words) {   // a note shortcut: select the thing, put the start of the sentence in the note box
@@ -70,7 +94,7 @@ function conceptRound() {   // the newest gate ① page and its concept decision
 }
 function chosenOf(cr) {   // the card picked: this round's choice while it is open, else what REVIEW.md or DECISIONS.md says was decided
   if (cr.open) return FB.decisions[cr.dec.id] || "";
-  const said = D.history.filter((h) => /①|gate ?1\b/i.test(h.title)).flatMap((h) => h.notes.filter((n) => /^(定了|Decided)/.test(n.k)).map((n) => n.v))
+  const said = D.history.filter((h) => gateKey(h.title) === "1").flatMap((h) => h.notes.filter((n) => /^(定了|Decided)/.test(n.k)).map((n) => n.v))
     .concat(D.ledger.filter((l) => /concept|立意/i.test(l.what)).map((l) => l.status)).join(" ");
   const hit = cr.dec.options.find((o) => o && o.id && new RegExp(`(^|[^A-Za-z0-9])${String(o.id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Za-z0-9]|$)`).test(said));
   return hit ? hit.id : "";
@@ -97,9 +121,9 @@ function mIdea2() {
       const on = chosen === o.id, rec = o.id === dec.recommend;
       return `<article class="ccard${on ? " on" : ""}"${dattr({ mark: "card:" + o.id, label: t("l_card", { x: o.id }) + (o.label ? " · " + o.label : ""), opt: o.id })}>
         <div class="well"><span class="ph">${esc(o.id)}</span>${o.frame ? `<img src="${esc(src(o.frame))}" alt="${esc(o.id)}" loading="lazy">` : o.frame_missing ? `<span class="miss" title="${esc(o.frame_missing)}">${esc(t("file_gone"))}</span>` : ""}</div>
-        <div class="cc-b"><h3><span class="cid">${esc(o.id)}</span><span class="cl">${rich(o.label || o.id)}</span>${rec ? `<span class="chip quiet">${esc(t("rec"))}</span>` : ""}<span class="chip you-pick"${on ? "" : " hidden"}>${esc(t("picked"))}</span></h3>
+        <div class="cc-b"><h3><span class="cid">${esc(o.id)}</span><span class="cl fold" tabindex="0">${rich(o.label || o.id)}</span>${rec ? `<span class="chip quiet">${esc(t("rec"))}</span>` : ""}<span class="chip you-pick"${on ? "" : " hidden"}>${esc(t("picked"))}</span></h3>
         <dl>${o.pro ? `<dt>${esc(cols[0] || t("pro"))}</dt><dd>${rich(o.pro)}</dd>` : ""}${o.con ? `<dt>${esc(cols[1] || t("con"))}</dt><dd>${rich(o.con)}</dd>` : ""}</dl>
-        <div class="cc-act">${cr.open || readOnly() ? `<button type="button" class="btn${on ? "" : " btn-primary"}" data-pick-card="${esc(o.id)}" aria-pressed="${on}">${esc(t(on ? "picked_btn" : "pick_this"))}</button>` : ""}${readOnly() ? "" : `<button type="button" class="btn btn-quiet" data-like="${esc(o.id)}">${esc(t("like_this"))}</button>`}</div></div></article>`;
+        <div class="cc-act">${cr.open ? `<button type="button" class="btn${on ? "" : " btn-primary"}" data-pick-card="${esc(o.id)}" aria-pressed="${on}">${esc(t(on ? "picked_btn" : "pick_this"))}</button>` : ""}${readOnly() ? "" : `<button type="button" class="btn btn-quiet" data-like="${esc(o.id)}">${esc(t("like_this"))}</button>`}</div></div></article>`;
     }).join("")}</div>`;
   } else {
     title = t("m_idea");
@@ -150,7 +174,8 @@ function unsureIn(o) {   // the shots in a part the agent is unsure of, and this
 }
 function mOutline2() {
   const O = D.outline, timed = O.filter((o) => o.t0 != null && o.t1 != null && o.t1 > o.t0), end = timed.length ? Math.max(...timed.map((o) => o.t1)) : 0;
-  const bar = timed.length ? `<div class="segbar" role="list">${timed.map((o) => `<button type="button" role="listitem" style="flex:${(o.t1 - o.t0).toFixed(2)}" data-seg="${esc(o.id)}"><b>${esc(o.title)}</b><span class="mono">${esc((o.t1 - o.t0).toFixed(0))} s</span></button>`).join("")}</div>
+  const pc = (x) => ((Math.max(0, x) / (end || 1)) * 100).toFixed(3);   // one scale from 0 to the last end: a gap, a late start or an overlap shows where it is
+  const bar = timed.length ? `<div class="segbar" role="list">${timed.map((o) => `<button type="button" role="listitem" style="left:${pc(o.t0)}%;width:${(((Math.max(0, o.t1) - Math.max(0, o.t0)) / (end || 1)) * 100).toFixed(3)}%" data-seg="${esc(o.id)}" title="${esc(`${o.title} · ${fmt(o.t0)}–${fmt(o.t1)}`)}"><b>${esc(o.title)}</b><span class="mono">${esc((o.t1 - o.t0).toFixed(0))} s</span></button>`).join("")}</div>
     <div class="segticks mono">${[0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${esc(fmt(end * f))}</span>`).join("")}</div>` : "";
   const cards = O.map((o, i) => { const u = unsureIn(o);
     return `<article class="segc" id="seg-${esc(o.id)}"${dattr({ mark: "seg:" + o.id, label: t("l_seg", { i: o.id, x: o.title }), t: o.t0 })}>
@@ -181,37 +206,48 @@ moduleWords({
   board_title: "第 {i} 页 · {x}", board_sub2: "每镜写着观众要依次看懂什么。没把握的镜头标出来了，其余默认通过；先看灰盒的节奏。",
   page_n: "第 {i} 页", this_page: "这一页", shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "灰盒", grey_note: "只看节奏和构图，颜色到成片才上",
   no_anim: "还没有灰盒 animatic：有了就在这里播这一页（shots.json 的 video，或 out/animatic.mp4）。", anim_gone: "灰盒 animatic 不在了：{x}（移走或改名了）。", default_pass: "默认通过", you_said: "你说了", trans_k: "转场",
-  board_none: "还没有镜头表：shots.json 写好后（bin/vh storyboard 读它），镜头按段落分页排在这里。", bar_board: "关卡 ② · {s}", bar_said: "关卡 ② · {s}：你当时说「{q}」", to_sound: "去声音",
+  board_none: "还没有镜头表：shots.json 写好后（bin/vh storyboard 读它），镜头按段落分页排在这里。", avg_s: "平均一镜 {s} s", plan_k: "默认改", bar_board: "关卡 ② · {s}", bar_said: "关卡 ② · {s}：你当时说「{q}」", to_sound: "去声音",
 }, {
   board_title: "Page {i} · {x}", board_sub2: "Each shot says what the viewer should get, in order. The shots the agent is unsure of are marked; the rest pass unless you say. Watch the grey box for the pace first.",
   page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} shots", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Grey box", grey_note: "pace and framing only; colour comes with the film",
   no_anim: "No grey-box animatic yet: once there is one (shots.json's video, or out/animatic.mp4), this page plays here.", anim_gone: "The grey-box animatic is gone: {x} (moved or renamed).", default_pass: "passes", you_said: "you said", trans_k: "Transition",
-  board_none: "No shot table yet: once shots.json is written (bin/vh storyboard reads it), the shots are laid out here, a page a part.", bar_board: "Gate ② · {s}", bar_said: "Gate ② · {s}: you said “{q}”", to_sound: "To the sound",
+  board_none: "No shot table yet: once shots.json is written (bin/vh storyboard reads it), the shots are laid out here, a page a part.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Gate ② · {s}", bar_said: "Gate ② · {s}: you said “{q}”", to_sound: "To the sound",
 });
 const sameId = (a, b) => String(a || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase() === String(b || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase();   // S04 is S4
-function boardPages() {   // shots.json's shots, a page a part of the outline; without it, the gate ② page's own shots
-  const S = (D.shots.items || []).filter((s) => s && s.id);
-  if (S.length) {
-    const pages = [];
-    S.forEach((s) => {
-      const o = D.outline.find((x) => x.id === s.seg) || null, key = o ? o.id : s.segment || "";
-      const last = pages[pages.length - 1];
-      if (last && last.key === key) last.shots.push(s); else pages.push({ key, title: o ? o.title : s.segment || "", shots: [s] });
-    });
-    return pages;
+const sec = (...xs) => { const x = xs.find((v) => v != null && v !== "" && isFinite(+v)); return x == null ? null : +x; };
+function boardRound() {   // the gate ② page the module shows: this page on a static page, else the newest
+  const R = D.rounds.filter((x) => gateBase(x.id) === "2");
+  return R.find((x) => x.id === D.current) || R.pop() || null;
+}
+function boardPages() {   // { round, pages }: the gate ② page's parts and shots when there is one, else shots.json's shots a page a part
+  const S = (D.shots.items || []).filter((s) => s && s.id), gr = boardRound();
+  const segs = gr && Array.isArray(gr.data.segments) ? gr.data.segments.filter((g) => g && Array.isArray(g.shots) && g.shots.some((x) => x && x.id)) : [];
+  if (segs.length) {   // what the person reviews is the page the agent sent: all of it is here; shots.json only fills in a picture or a time
+    const least = (Array.isArray(gr.data.least_sure) ? gr.data.least_sure : []).filter((x) => x && x.id);
+    const flag = (id) => { const m = least.find((x) => sameId(x.id, id)); return m ? m.note || true : null; };
+    const extra = (Array.isArray(gr.data.assets) ? gr.data.assets : []).filter((a) => a && a.path && a.for);
+    return { round: gr.id, pages: segs.map((g, i) => ({ key: String(g.id || i + 1), title: String(g.title || g.id || ""), note: String(g.note || ""), n: i + 1, of: segs.length,
+      t0: sec(g.t0), t1: sec(g.t1), assets: extra.filter((a) => a.for === g.id),
+      shots: g.shots.filter((x) => x && x.id).map((x) => { const j = S.find((s) => sameId(s.id, x.id)) || {};
+        return { id: String(x.id), label: String(x.see || ""), see: String(x.see || ""), vo: String(x.vo || ""), plan: String(x.note || ""), start: sec(x.t0, j.start), end: sec(x.t1, j.end),
+          frame: x.frame || j.frame || "", frame_missing: x.frame || j.frame ? "" : x.frame_missing || "", reads: [], transition: "", unsure: flag(x.id) }; }) })) };
   }
-  const r = D.rounds.filter((x) => gateBase(x.id) === "2").pop();
-  return (r && Array.isArray(r.data.segments) ? r.data.segments : []).map((g) => ({ key: g.id, title: g.title || g.id || "",
-    shots: (g.shots || []).filter((x) => x && x.id).map((x) => ({ id: x.id, label: x.see || "", start: x.t0 != null ? +x.t0 : null, end: x.t1 != null ? +x.t1 : null,
-      frame: x.frame || "", reads: x.see ? [x.see] : [], caption: x.vo || "", transition: x.transition || "", unsure: x.unsure || null })) })).filter((p) => p.shots.length);
+  const pages = [];
+  S.forEach((s) => {
+    const o = D.outline.find((x) => x.id === s.seg) || null, key = o ? o.id : s.segment || "";
+    const last = pages[pages.length - 1];
+    if (last && last.key === key) last.shots.push(s); else pages.push({ key, title: o ? o.title : s.segment || "", note: "", shots: [s] });
+  });
+  return { round: null, pages };
 }
 function unsureShot(s) { return !!s.unsure || gateMarks().some((m) => m.kind === "least" && sameId(m.id, s.id)); }
 function mBoard2() {
-  const pages = boardPages();
+  const { pages } = boardPages();
   if (!pages.length) return headM("board", t("m_board"), t("board_sub2")) + voidLine(t("board_none")) + (docOf("STORYBOARD.md") ? `<div class="pn">${docHtml(docOf("STORYBOARD.md"))}</div>` : "");
   const i = Math.max(0, Math.min(pages.length - 1, (parseInt(SUB, 10) || 1) - 1)), pg = pages[i], S = pg.shots;
   const T0 = S.map((s) => s.start).filter((x) => x != null), T1 = S.map((s) => s.end).filter((x) => x != null);
-  const t0 = T0.length ? Math.min(...T0) : null, t1 = T1.length ? Math.max(...T1) : null, unsure = S.filter(unsureShot), vid = D.shots.video;
+  const t0 = pg.t0 != null ? pg.t0 : T0.length ? Math.min(...T0) : null, t1 = pg.t1 != null ? pg.t1 : T1.length ? Math.max(...T1) : null, unsure = S.filter(unsureShot), vid = D.shots.video;
+  const durs = S.filter((s) => s.start != null && s.end != null).map((s) => s.end - s.start);
   const tabs = pages.length > 1 ? `<nav class="pgtabs" aria-label="${esc(t("m_board"))}">${pages.map((p, j) => readOnly() ? `<button type="button" data-page="${j + 1}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</button>`
     : `<a href="${projHash(PKEY, "board/" + (j + 1))}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</a>`).join("")}</nav>` : "";
   const first = S.find((s) => s.frame);
@@ -219,20 +255,27 @@ function mBoard2() {
     : `<div class="bplay"><div class="well">${first ? `<span class="ph">${esc(first.id)}</span><img src="${esc(src(first.frame))}" alt="">` : ""}</div><p class="void">${esc(D.shots.video_missing ? t("anim_gone", { x: D.shots.video_missing }) : t("no_anim"))}</p></div>`;
   const info = panel(t("this_page"), "", `<dl class="kv2"><div><dt>${esc(t("shots_k"))}</dt><dd>${esc(t("shots_n", { n: S.length }))}</dd></div>
     <div><dt>${esc(t("unsure_k"))}</dt><dd>${unsure.length ? unsure.map((s) => `<span class="chip wait">${esc(s.id)}</span>`).join(" ") : esc(t("none"))}</dd></div>
-    ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd class="mono">${esc(fmt(t0) + "–" + fmt(t1))}</dd></div>` : ""}<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div></dl>`);
+    ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd class="mono">${esc(fmt(t0) + "–" + fmt(t1))}${durs.length ? esc(" · " + t("avg_s", { s: (durs.reduce((a, b) => a + b, 0) / durs.length).toFixed(1) })) : ""}</dd></div>` : ""}<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div></dl>`);
+  const extra = (pg.assets || []).map((a) => /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(a.path) ? `<figure class="segpic"${dattr({ mark: "asset:" + a.path, label: a.caption || a.path })}><span class="well"><img src="${esc(src(a.path))}" alt="" loading="lazy"></span>${a.caption ? `<figcaption class="meta">${esc(a.caption)}</figcaption>` : ""}</figure>`
+    : `<a class="meta" href="${esc(src(a.path))}" target="_blank" rel="noopener">${esc(a.caption || a.path)} ↗</a>`).join("");
   const cards = S.map((s) => {
     const said = FB.items["shot:" + s.id] && FB.items["shot:" + s.id].status, u = unsureShot(s);
     const chip = u ? `<span class="chip wait">${esc(t("unsure_k"))}</span>` : said ? `<span class="chip">${esc(t("you_said"))}</span>` : `<span class="chip ok">${esc(t("default_pass"))}</span>`;
     const why = typeof s.unsure === "string" ? s.unsure : (gateMarks().find((m) => m.kind === "least" && sameId(m.id, s.id)) || {}).note || "";
-    return `<article class="shotc${u ? " unsure" : ""}"${dattr({ mark: "shot:" + s.id, label: t("l_shot", { x: s.id }) + (s.label ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
-      <div class="well"${s.start != null && vid ? dattr({ play: s.start, stop: s.end }) : ""}><span class="ph">${esc(s.id)}</span>${s.frame ? `<img src="${esc(src(s.frame))}" alt="${esc(s.id)}" loading="lazy">` : ""}</div>
-      <div class="sc-b"><h3><b>${esc(s.id)}</b><span class="lab">${esc(s.label || "")}</span>${chip}</h3>${s.start != null && s.end != null ? `<p class="mono tc">${esc(fmt(s.start) + "–" + fmt(s.end))}</p>` : ""}
-      ${(s.reads || []).length ? `<ol>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ol>` : s.caption ? `<p class="capline">${esc(s.caption)}</p>` : ""}
-      ${s.transition ? `<p class="meta">${esc(t("trans_k"))}${esc(COLON())}${esc(s.transition)}</p>` : ""}${u && why ? `<p class="unsure-note">${esc(why)}</p>` : ""}</div></article>`;
+    const gate = s.see != null;   // a shot of the gate page: what it shows, its line, what will change by default
+    return `<article class="shotc${u ? " unsure" : ""}" id="shot-${esc(s.id)}"${dattr({ mark: "shot:" + s.id, label: t("l_shot", { x: s.id }) + (s.label ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
+      <div class="well"${s.start != null && vid ? dattr({ play: s.start, stop: s.end }) : ""}><span class="ph">${esc(s.id)}</span>${s.frame ? `<img src="${esc(src(s.frame))}" alt="${esc(s.id)}" loading="lazy">` : s.frame_missing ? `<span class="miss" title="${esc(s.frame_missing)}">${esc(t("file_gone"))}</span>` : ""}</div>
+      <div class="sc-b"><h3><b>${esc(s.id)}</b>${gate ? "" : `<span class="lab">${esc(s.label || "")}</span>`}${chip}</h3>${s.start != null && s.end != null ? `<p class="mono tc">${esc(fmt(s.start) + "–" + fmt(s.end))}</p>` : ""}
+      ${gate ? `${s.see ? `<p class="see">${esc(s.see)}</p>` : ""}${s.vo ? `<p class="capline">${esc(s.vo)}</p>` : ""}`
+        : (s.reads || []).length ? `<ol>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ol>` : s.caption ? `<p class="capline">${esc(s.caption)}</p>` : ""}
+      ${s.transition ? `<p class="meta">${esc(t("trans_k"))}${esc(COLON())}${esc(s.transition)}</p>` : ""}${u && why ? `<p class="unsure-note">${esc(why)}</p>` : ""}
+      ${s.plan ? `<p class="plan">→ ${esc(t("plan_k"))}${esc(COLON())}${esc(s.plan)}</p>` : ""}</div></article>`;
   }).join("");
-  const st = stationState("2"), q = D.history.filter((h) => /②|gate ?2\b/i.test(h.title)).flatMap((h) => h.quotes || []).map((x) => x.text).pop();
+  const st = stationState("2"), q = D.history.filter((h) => gateKey(h.title) === "2").flatMap((h) => h.quotes || []).map((x) => x.text).pop();
+  const of = pg.of ? `<span class="meta mono">${esc(pg.n + " / " + pg.of)}</span>` : "";
   return headM("board", t("board_title", { i: i + 1, x: pg.title || t("m_board") }), t("board_sub2"), tabs)
-    + `<div class="mgrid board">${player}${info}</div><div class="shots3">${cards}</div>`
+    + (pg.note || of ? `<p class="segnote">${of}${pg.note ? `<span>${esc(pg.note)}</span>` : ""}</p>` : "")
+    + `<div class="mgrid board">${player}${info}</div><div class="shots3">${cards}</div>${extra ? `<div class="segpics">${extra}</div>` : ""}`
     + barM(q ? t("bar_said", { s: t("st_" + (st || "not_started")), q: cut(q, 40) }) : t("bar_board", { s: t("st_" + (st || "not_started")) }), "sound", t("to_sound"));
 }
 function wireBoard2() {
@@ -248,7 +291,8 @@ function wireBoard2() {
   });
   $$(".shotc .well[data-play]").forEach((w) => w.addEventListener("click", (e) => { e.stopPropagation(); v.currentTime = +w.dataset.play + 0.01; stopAt = w.dataset.stop != null ? +w.dataset.stop : null; v.play().catch(() => {}); }));
 }
-MODVIEW.board = { main: mBoard2, wire: wireBoard2, drawn(root, gone = (x) => x.remove()) { if (boardPages().length) $$(".g-board", root).forEach(gone); } };
+MODVIEW.board = { main: mBoard2, wire: wireBoard2,   // the gate view's storyboard goes only when the module drew that same page (all of it)
+  drawn(root, gone = (x) => x.remove()) { const b = boardPages(); if (b.round && b.round === root.dataset.gate) $$(".g-board", root).forEach(gone); } };
 
 /* ---------- 声音: the readouts, the voices, the lines, the music ---------- */
 moduleWords({
@@ -258,9 +302,9 @@ moduleWords({
   audition: "试听音色", audition_cmd: "bin/vh voices audition · 同一段话，几个音色各念一遍", in_use: "在用", use_this: "换成它", use_say: "换成 {x}：",
   pitch: "音高中位", rate: "语速", misread: "误读", no_misread: "没有误读", audition_none: "还没试听过音色：bin/vh voices audition <文本> --voices A,B,C。",
   lines: "旁白逐句", lines_pace: "bin/vh pace：只算有声的部分", lines_raw: "按句首到句尾算，含句中停顿 · bin/vh pace --dry-run 给只算有声的", line_k: "句", text_k: "文字", pause_k: "句后停顿",
-  slower: "比中位数慢 ×{x}", faster: "比中位数快 ×{x}", lines_none: "还没有旁白的时间：bin/vh tts 出了配音才有。", unit_zh: "字/秒", unit_syll: "音节/秒",
+  slower: "比中位数慢 ×{x}", faster: "比中位数快 ×{x}", lines_none: "还没有旁白的时间：bin/vh tts 出了配音才有。", unit_zh: "字/秒", unit_syll: "音节/秒", unit_words: "词/秒",
   music: "配乐", music_cmd: "段落和候选落点 · bin/vh beats", env_cmd: "响度包络 · bin/vh peaks", lift: "换气之后的重拍", lift_src: "bin/vh beats 的 lifts 候选", hit_src: "计划的音效",
-  listen_src: "请你听", play_at: "从 {t} 播", music_none: "还没有配乐的段落：bin/vh beats <音乐>；波形：bin/vh peaks <项目>。", sound_checks: "bin/vh check 里和声音有关的",
+  listen_src: "请你听", play_at: "从 {t} 播", music_none: "还没有配乐的段落：bin/vh beats <音乐>。", env_none: "还没有成片的响度曲线：bin/vh peaks <项目>。", film_sound: "成片的声音", sound_checks: "bin/vh check 里和声音有关的",
 }, {
   sound_title: "Voice, narration, music and mix", sound_sub2: "The agent can't hear; it reads these numbers. Recasting and rereading need the agent: write them as notes for now, and they go with this round.", sound_sub_s: "The agent can't hear; it reads these numbers. The places to listen to are below.",
   u_loud: "LUFS · target {x}", u_peak: "dBTP · limit −1", u_speech: "{u} · pauses left out", u_speech2: "{u} · pauses inside lines in", u_silence: "digital silences",
@@ -268,9 +312,9 @@ moduleWords({
   audition: "Voice audition", audition_cmd: "bin/vh voices audition · the same text, read in each voice", in_use: "in use", use_this: "Use this", use_say: "Use {x}: ",
   pitch: "Pitch", rate: "Rate", misread: "Misreads", no_misread: "none", audition_none: "No audition yet: bin/vh voices audition <text> --voices A,B,C.",
   lines: "Narration, line by line", lines_pace: "bin/vh pace: voice only", lines_raw: "first word to last, pauses inside the line in · bin/vh pace --dry-run gives voice only", line_k: "Line", text_k: "Text", pause_k: "Pause after",
-  slower: "×{x} slower than the median", faster: "×{x} faster than the median", lines_none: "No narration timing yet: bin/vh tts makes it.", unit_zh: "chars/s", unit_syll: "syllables/s",
+  slower: "×{x} slower than the median", faster: "×{x} faster than the median", lines_none: "No narration timing yet: bin/vh tts makes it.", unit_zh: "chars/s", unit_syll: "syllables/s", unit_words: "words/s",
   music: "Music", music_cmd: "sections and candidate lifts · bin/vh beats", env_cmd: "loudness · bin/vh peaks", lift: "the hit after a breath", lift_src: "a bin/vh beats lift", hit_src: "a planned sound",
-  listen_src: "please listen", play_at: "Play from {t}", music_none: "No music sections yet: bin/vh beats <music>; the waveform: bin/vh peaks <project>.", sound_checks: "bin/vh check, on the sound",
+  listen_src: "please listen", play_at: "Play from {t}", music_none: "No music sections yet: bin/vh beats <music>.", env_none: "No loudness curve of the film yet: bin/vh peaks <project>.", film_sound: "The film's sound", sound_checks: "bin/vh check, on the sound",
 });
 const unitsOf = (s) => (/[㐀-鿿]/.test(s) ? (s.match(/[㐀-鿿]/g) || []).length : s.trim().split(/\s+/).filter(Boolean).length);
 function narrLines() {   // each line's rate: bin/vh pace's (voice only) when it has run, else first word to last
@@ -283,7 +327,8 @@ function narrLines() {   // each line's rate: bin/vh pace's (voice only) when it
   const R = rows.map((r) => r.rate).filter((x) => x != null).sort((a, b) => a - b);
   const med = P && P.reference != null ? +P.reference : R.length ? R[Math.floor(R.length / 2)] : null;
   const take = P && Array.isArray(P.speech) ? +(P.speech[1] != null ? P.speech[1] : P.speech[0]) : med;
-  return { rows, med, take, paced: !!P, unit: t(P && P.unit === "syll/s" ? "unit_syll" : "unit_zh") };   // pace says chars/s (zh) or syll/s (en)
+  const cjk = N.some((x) => /[㐀-鿿]/.test(x.text || ""));
+  return { rows, med, take, paced: !!P, unit: t(P ? (P.unit === "syll/s" ? "unit_syll" : "unit_zh") : cjk ? "unit_zh" : "unit_words") };   // pace says chars/s (zh) or syll/s (en)
 }
 function envelope(w, h) {   // the film's loudness as an area: bin/vh peaks' bins, a column the louder of |min| and |max|
   const P = D.studio && D.studio.peaks && D.studio.peaks.peaks; if (!Array.isArray(P) || !P.length) return "";
@@ -292,7 +337,6 @@ function envelope(w, h) {   // the film's loudness as an area: bin/vh peaks' bin
   const top = Math.max(0.05, ...pts);
   return pts.map((a, i) => `${i ? "L" : "M"}${((i / (pts.length - 1 || 1)) * w).toFixed(1)} ${(h - (a / top) * (h - 10)).toFixed(1)}`).join("") + `L${w} ${h}L0 ${h}Z`;
 }
-function soundSource() { return (D.music && D.music.audio) || (D.studio && D.studio.film) || ""; }
 function mSound2() {
   const X = D.mods || {}, ld = X.loudness, nl = narrLines();
   const sev = (s) => (s === "fail" ? "live" : s === "warn" ? "wait" : s ? "ok" : "");
@@ -313,30 +357,31 @@ function mSound2() {
       const f = nl.med && r.rate ? r.rate / nl.med : 1, flag = f < 0.8 ? t("slower", { x: (1 / f).toFixed(1) }) : f > 1.25 ? t("faster", { x: f.toFixed(1) }) : "";
       const mark = r.t1 - r.t0 >= 0.01 ? `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}` : `atime:${r.t0.toFixed(1)}`;   // a range must run forward (feedback.py)
       return `<tr${dattr({ mark, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}><td class="mono">${esc(r.id)}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : voidLine(t("lines_none"));
-  const W = 600, H = 110, M = D.music || {}, dur = +(M.duration || (D.studio && D.studio.peaks && D.studio.peaks.duration) || TL().duration || 0) || 1;
-  const x = (s) => Math.max(0, Math.min(W, (s / dur) * W)), env = envelope(W, H), secs = Array.isArray(M.sections) ? M.sections : [];
-  const marks = gateMarks().filter((m) => m.kind === "listen" && m.t != null).map((m) => ({ t: +m.t, what: m.note, src: t("listen_src"), cls: "you" }))
-    .concat((X.lifts || []).filter((l) => l.t != null).map((l) => ({ t: +l.t, what: t("lift"), src: t("lift_src"), cls: "wait" })))
-    .concat((Array.isArray(M.hits) ? M.hits : []).filter((h) => h && h.t != null).map((h) => ({ t: +h.t, what: h.part || h.what || "", src: t("hit_src"), cls: "quiet" })))
-    .sort((a, b) => a.t - b.t);
-  const chart = env || secs.length ? `<svg class="energy" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${secs.map((s, i) => `<rect x="${x(s.start).toFixed(1)}" y="0" width="${Math.max(1, x(s.end) - x(s.start)).toFixed(1)}" height="${H}" class="sec s${i % 2}"/>`).join("")}
-      ${env ? `<path d="${env}" class="env"/>` : ""}${marks.map((k) => `<line x1="${x(k.t).toFixed(1)}" x2="${x(k.t).toFixed(1)}" y1="0" y2="${H}" class="mk ${k.cls}"/>`).join("")}</svg>
-      <div class="secnames">${secs.map((s) => `<span style="left:${((s.start / dur) * 100).toFixed(2)}%;width:${(((s.end - s.start) / dur) * 100).toFixed(2)}%">${esc([s.name, s.label].filter(Boolean).join(" · "))}</span>`).join("")}</div>` : "";
-  const can = !!soundSource() || (!readOnly() && !!(D.studio && D.studio.film));   // a sound file plays here; else the console's cut has the film
-  const list = marks.length ? `<ul class="hits2">${marks.map((k) => `<li${dattr({ mark: "atime:" + k.t.toFixed(1), label: t("sound_label", { t: fmt(k.t) }), t: k.t })}><i class="dotw ${k.cls}" aria-hidden="true">●</i><span class="mono">${esc(fmt(k.t))}</span><span>${esc(k.what)}</span><span class="meta">${esc(k.src)}</span>${can ? `<button type="button" class="xs" data-seek="${k.t}">${esc(t("play_at", { t: fmt(k.t) }))}</button>` : ""}</li>`).join("")}</ul>` : "";
+  // two clocks, never mixed: the film's (its loudness from bin/vh peaks, the places to listen to, the check's findings on the sound),
+  // played from the film; the music's (its sections, candidate lifts and planned sounds from bin/vh beats), played from the music
+  const W = 600, H = 90, M = D.music || {}, film = (D.studio && D.studio.film) || "", env = envelope(W, H);
+  const fdur = +((D.studio && D.studio.peaks && D.studio.peaks.duration) || TL().duration || 0) || 0, fx = (s) => (fdur ? Math.max(0, Math.min(W, (s / fdur) * W)) : 0).toFixed(1);
   const SC = (X.checks || []).filter((f) => f.severity !== "info" && /loud|peak|silence|click|clip|audio|sound|voice/i.test(`${f.kind} ${f.message}`));
-  const checks = SC.length ? `<p class="mat-h">${esc(t("sound_checks"))}</p><ul class="hits2">${SC.map((f) => `<li${dattr(f.t != null ? { mark: "atime:" + (+f.t).toFixed(1), label: t("sound_label", { t: fmt(f.t) }), t: f.t } : { scope: `${t("m_sound")} · ${f.kind}` })}><i class="dotw ${f.severity === "fail" ? "live" : "wait"}" aria-hidden="true">●</i><span class="mono">${f.t != null ? esc(fmt(f.t)) : ""}</span><span>${esc(f.message)}</span></li>`).join("")}</ul>` : "";
-  const music = chart || list ? `${chart}${list}${checks}` : voidLine(t("music_none")) + checks;
-  const src2 = soundSource();
-  return headM("sound", t("sound_title"), t(readOnly() ? "sound_sub_s" : "sound_sub2")) + tiles + panel(t("audition"), t("audition_cmd"), voices)
-    + `<div class="mgrid sound">${panel(t("lines"), t(nl.paced ? "lines_pace" : "lines_raw"), lines)}${panel(t("music"), env ? `${t("music_cmd")} · ${t("env_cmd")}` : t("music_cmd"), music + (src2 ? `<audio id="mau" src="${esc(src(src2))}" preload="none" controls></audio>` : ""))}</div>`;
+  const fmarks = gateMarks().filter((m) => m.kind === "listen" && m.t != null).map((m) => ({ t: +m.t, what: m.note || "", src: t("listen_src"), cls: "you" }))
+    .concat(SC.filter((f) => f.t != null).map((f) => ({ t: +f.t, what: f.message || f.kind || "", src: "bin/vh check", cls: f.severity === "fail" ? "live" : "wait" }))).sort((a, b) => a.t - b.t);
+  const secs = (Array.isArray(M.sections) ? M.sections : []).filter((s) => s && isFinite(+s.start) && isFinite(+s.end) && +s.end > +s.start);
+  const mdur = +(M.duration || 0) || (secs.length ? Math.max(...secs.map((s) => +s.end)) : 0), mp = (s) => (mdur ? Math.max(0, Math.min(100, (s / mdur) * 100)) : 0).toFixed(2);
+  const mmarks = (X.lifts || []).filter((l) => l.t != null).map((l) => ({ t: +l.t, what: t("lift"), src: t("lift_src"), cls: "wait" }))
+    .concat((Array.isArray(M.hits) ? M.hits : []).filter((h) => h && h.t != null).map((h) => ({ t: +h.t, what: h.part || h.what || "", src: t("hit_src"), cls: "quiet" }))).sort((a, b) => a.t - b.t);
+  const play = (k, which) => ((which === "film" ? film : M.audio) ? `<button type="button" class="xs" data-seek-${which}="${k.t}">${esc(t("play_at", { t: fmt(k.t) }))}</button>` : "");
+  const frow = (k) => `<li${dattr({ mark: "atime:" + k.t.toFixed(1), label: t("sound_label", { t: fmt(k.t) }), t: k.t })}><i class="dotw ${k.cls}" aria-hidden="true">●</i><span class="mono">${esc(fmt(k.t))}</span><span>${esc(k.what)}</span><span class="meta">${esc(k.src)}</span>${play(k, "film")}</li>`;
+  const mrow = (k) => `<li${dattr({ scope: `${t("music")} ${fmt(k.t)} · ${k.what}` })}><i class="dotw ${k.cls}" aria-hidden="true">●</i><span class="mono">${esc(fmt(k.t))}</span><span>${esc(k.what)}</span><span class="meta">${esc(k.src)}</span>${play(k, "music")}</li>`;
+  const fpanel = panel(t("film_sound"), "bin/vh peaks · bin/vh check", (env && fdur ? `<svg class="energy" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${env}" class="env"/>${fmarks.map((k) => `<line x1="${fx(k.t)}" x2="${fx(k.t)}" y1="0" y2="${H}" class="mk ${k.cls}"/>`).join("")}</svg>` : voidLine(t("env_none")))
+    + (fmarks.length ? `<ul class="hits2">${fmarks.map(frow).join("")}</ul>` : "") + partErr("check") + (film && fmarks.length ? `<audio id="fau" src="${esc(src(film))}" preload="none" controls></audio>` : ""));
+  const mpanel = panel(t("music"), t("music_cmd"), (secs.length && mdur ? `<div class="secband">${secs.map((s, i) => `<span class="s${i % 2}" style="left:${mp(s.start)}%;width:${(mp(s.end) - mp(s.start)).toFixed(2)}%">${esc([s.name, s.label].filter(Boolean).join(" · "))}</span>`).join("")}${mmarks.map((k) => `<i class="tick ${k.cls}" style="left:${mp(k.t)}%"></i>`).join("")}</div>` : voidLine(t("music_none")))
+    + (mmarks.length ? `<ul class="hits2">${mmarks.map(mrow).join("")}</ul>` : "") + partErr("lifts") + (M.audio && mmarks.length ? `<audio id="mau" src="${esc(src(M.audio))}" preload="none" controls></audio>` : ""));
+  return headM("sound", t("sound_title"), t(readOnly() ? "sound_sub_s" : "sound_sub2")) + tiles + panel(t("audition"), t("audition_cmd"), voices + partErr("audition"))
+    + `<div class="mgrid sound">${panel(t("lines"), t(nl.paced ? "lines_pace" : "lines_raw"), lines + partErr("pace"))}<div>${fpanel}${mpanel}</div></div>`;
 }
 function wireSound2() {
-  const a = $("#mau");
-  $$("[data-seek]").forEach((b) => b.addEventListener("click", (e) => {
-    e.stopPropagation(); const s = +b.dataset.seek;
-    if (a) { a.currentTime = s; a.play().catch(() => {}); } else gotoTarget("time:" + s.toFixed(1), s);   // no sound file of its own: the cut, at that second
-  }));
+  const fa = $("#fau"), ma = $("#mau"), seek = (a, other, s) => { if (other) other.pause(); if (a) { a.currentTime = s; a.play().catch(() => {}); } };
+  $$("[data-seek-film]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); seek(fa, ma, +b.dataset.seekFilm); }));   // the film's own sound, the mix
+  $$("[data-seek-music]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); seek(ma, fa, +b.dataset.seekMusic); }));
   $$("[data-use]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prefill(b.closest(".vcard"), t("use_say", { x: b.dataset.use })); }));
 }
 MODVIEW.sound = { main: mSound2, wire: wireSound2 };
@@ -394,7 +439,7 @@ function mShip2() {
       return `<li${dattr(first && first.t != null ? { mark: "time:" + (+first.t).toFixed(1), label: `${t("precheck")} · ${t(k)}`, t: first.t } : { scope: `${t("precheck")} · ${t(k)}` })}><span><b>${esc(t(k))}</b>${first ? `<span class="meta">${esc(cut(first.message, 60))}</span>` : ""}</span>${chip}</li>`; }).join("")}</ul>` : voidLine(t("precheck_none"));
   const next = `<p class="meta fine">${esc(t("next_cmd"))} <code>bin/vh deliver ${esc((chk && chk.video) || "<master>")}</code></p>`;
   return headM("ship", t("ship_title"), t("ship_sub")) + tabs("ship")
-    + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov)}${panel(t("copy"), "PACKAGING.md", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs)}${panel(t("precheck"), "bin/vh check", pre + next)}</aside></div>`
+    + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov + partErr("covers"))}${panel(t("copy"), "PACKAGING.md", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs + partErr("subs"))}${panel(t("precheck"), "bin/vh check", pre + partErr("check") + next)}</aside></div>`
     + barM(t("bar_ship"), "cut", t("to_cut"));
 }
 function wireShip2() { $$(".pgtabs.plat [data-plat]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); shipPlat = +b.dataset.plat; redraw(); })); }
@@ -407,14 +452,14 @@ moduleWords({
   drop: "把文件拖进来，或者贴一个链接", drop_note: "这一版不接 agent：登记用 bin/vh assets add <项目> <文件>，参考用 bin/vh ref add",
   l_cc0: "CC0", l_pd: "公有领域", l_own: "自己做的", l_generated: "自己生成", l_unknown: "来源没写许可", l_free: "免费可用", l_managed: "平台授权", l_ref: "只做参考",
   used_in: "用在 {x}", from: "来自 {x}", not_used: "还没用上", gone_file: "文件不在了", read_transcript: "读文稿", open_src: "原始链接", digest: "长视频读成的文稿", none_kind: "这一类还没有。",
-  licenses_ok: "{n} 件许可记清了", licenses_todo: "{n} 件许可没清：只能当参考，不能放进片子", ledger_at: "记在 assets/ledger.json（bin/vh assets）", assets_none: "还没有素材台账：bin/vh assets add <项目> <文件>。",
+  licenses_ok: "{n} 件许可记清了", licenses_todo: "{n} 件许可没清：只能当参考，不能放进片子", licenses_rec: "{n} 件许可没清（Assets: record：照样记着，交付时 bin/vh deliver 会提醒）", outside: "在项目外：{x}", ledger_at: "记在 assets/ledger.json（bin/vh assets）", assets_none: "还没有素材台账：bin/vh assets add <项目> <文件>。",
 }, {
   assets_title: "Material", assets_sub2: "Each item says where it came from, its licence and the shot it is in. Anything whose licence isn't clear is stopped before delivery.",
   f_image: "Images", f_video: "Video", f_audio: "Sound", f_font: "Fonts", f_ref: "References", k_file: "File",
   drop: "Drop a file here, or paste a link", drop_note: "No agent in this console yet: bin/vh assets add <project> <file> records an item, bin/vh ref add a reference",
   l_cc0: "CC0", l_pd: "public domain", l_own: "made here", l_generated: "generated", l_unknown: "no licence given", l_free: "free to use", l_managed: "licensed", l_ref: "reference only",
   used_in: "in {x}", from: "from {x}", not_used: "not used yet", gone_file: "the file is gone", read_transcript: "Read the transcript", open_src: "The source", digest: "Long videos read as transcripts", none_kind: "None of these yet.",
-  licenses_ok: "{n} licences on record", licenses_todo: "{n} not cleared: reference only, not in the film", ledger_at: "in assets/ledger.json (bin/vh assets)", assets_none: "No asset ledger yet: bin/vh assets add <project> <file>.",
+  licenses_ok: "{n} licences on record", licenses_todo: "{n} not cleared: reference only, not in the film", licenses_rec: "{n} not cleared (Assets: record: kept on record; bin/vh deliver reminds you)", outside: "outside the project: {x}", ledger_at: "in assets/ledger.json (bin/vh assets)", assets_none: "No asset ledger yet: bin/vh assets add <project> <file>.",
 });
 let assetFilter = "all";
 const LIC_WORD = { pd: "l_pd", cc0: "l_cc0", own: "l_own", generated: "l_generated", free: "l_free", managed: "l_managed", unknown: "l_unknown" };
@@ -432,12 +477,12 @@ function mAssets2() {
         <div class="ac-b"><h3>${esc(r.title || r.id)}</h3><p><span class="chip quiet">${esc(t("l_ref"))}</span><span class="meta">${esc(["image", "video", "audio", "font"].includes(r.kind) ? t("f_" + r.kind) : r.kind || "")}</span></p>
         <p class="meta">${esc(t("from", { x: r.author || r.url || "—" }))}</p>${r.note ? `<p class="meta">${esc(r.note)}</p>` : ""}
         <p class="links">${g ? `<a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a>` : ""}${safe ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(t("open_src"))} ↗</a>` : ""}</p></div></article>`; }
-    const a = x.a, uses = (a.used_by || []).join("、");
+    const a = x.a, uses = (Array.isArray(a.used_by) ? a.used_by : []).join("、");
     const pic = x.k === "image" && a.there ? `<img src="${esc(src(a.path))}" alt="" loading="lazy">` : x.k === "font" ? `<span class="glyph">字 Aa</span>` : "";
     return `<article class="acard${CLEARED.includes(a.license) ? "" : " flag"}"${dattr({ mark: a.path ? "asset:" + a.path : "", scope: a.path ? "" : `${t("m_assets")} · ${a.id}`, label: `${t("m_assets")} ${a.id}` })}>
       <div class="well"><span class="ph">${esc(x.k === "audio" ? "♪" : x.k === "video" ? "▶" : x.k === "font" ? "" : String(a.id || "·").slice(0, 1))}</span>${pic}</div>
       <div class="ac-b"><h3>${esc(a.id)}</h3><p><span class="chip ${licLamp(a.license)}"${a.license_name ? ` title="${esc(a.license_name)}"` : ""}>${esc(licText(a))}</span><span class="meta">${esc(t(x.k === "file" ? "k_file" : "f_" + x.k))}</span>${a.aigc ? `<span class="meta">AIGC</span>` : ""}</p>
-      <p class="meta">${esc(uses ? t("used_in", { x: uses }) : t("not_used"))}${a.source ? " · " + esc(t("from", { x: a.source })) : ""}</p>${a.note ? `<p class="meta">${esc(a.note)}</p>` : ""}${a.path && !a.there ? `<p class="meta warn">${esc(t("gone_file"))}</p>` : ""}</div></article>`;
+      <p class="meta">${esc(uses ? t("used_in", { x: uses }) : t("not_used"))}${a.source ? " · " + esc(t("from", { x: a.source })) : ""}</p>${a.note ? `<p class="meta">${esc(a.note)}</p>` : ""}${a.outside ? `<p class="meta warn">${esc(t("outside", { x: a.outside }))}</p>` : a.path && !a.there ? `<p class="meta warn">${esc(t("gone_file"))}</p>` : ""}</div></article>`;
   };
   const counts = { all: items.length }; items.forEach((x) => { counts[x.k] = (counts[x.k] || 0) + 1; });
   const filters = `<nav class="pgtabs" aria-label="${esc(t("m_assets"))}">${["all", "image", "video", "audio", "font", "ref"].map((k) => `<button type="button" data-af="${k}" aria-current="${assetFilter === k}">${esc(t("f_" + k))}${counts[k] ? ` <span class="mono">${counts[k]}</span>` : ""}</button>`).join("")}</nav>`;
@@ -445,8 +490,8 @@ function mAssets2() {
   const digests = G.length ? panel(t("digest"), "bin/vh ref digest", `<ul class="copyl">${G.map((g) => `<li${dattr({ mark: "asset:" + g.path, label: `${t("digest")} ${g.id}` })}><span class="mono">${esc(g.id)}</span><a href="${esc(src(g.path))}" target="_blank" rel="noopener">${esc(t("read_transcript"))} ↗</a><span class="meta mono">${esc(Math.max(1, Math.round(g.bytes / 1024)) + " kB")}</span></li>`).join("")}</ul>`) : "";
   return headM("assets", t("assets_title"), t("assets_sub2"), filters)
     + (readOnly() ? "" : `<div class="drop"><b>${esc(t("drop"))}</b><span class="meta">${esc(t("drop_note"))}</span></div>`)
-    + (A == null && !R.length ? voidLine(t("assets_none")) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + digests
-    + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t("licenses_todo", { n: todo }))}` : ""}</span><span class="meta">${esc(t("ledger_at"))}</span></footer>` : "");
+    + partErr("assets") + partErr("refs") + (A == null && !R.length ? voidLine(t("assets_none")) : `<div class="acards">${shown.map(card).join("") || voidLine(t("none_kind"))}</div>`) + digests + partErr("digests")
+    + (A ? `<footer class="mbar"><span><i class="dotw ok" aria-hidden="true">●</i> ${esc(t("licenses_ok", { n: ok }))}${todo ? `　<i class="dotw wait" aria-hidden="true">●</i> ${esc(t(((D.status || {}).assets || {}).policy === "record" ? "licenses_rec" : "licenses_todo", { n: todo }))}` : ""}</span><span class="meta">${esc(t("ledger_at"))}</span></footer>` : "");
 }
 function wireAssets2() { $$("[data-af]").forEach((b) => b.addEventListener("click", () => { assetFilter = b.dataset.af; redraw(); })); }
 MODVIEW.assets = { main: mAssets2, wire: wireAssets2 };
@@ -468,8 +513,9 @@ moduleWords({
 const dateOf = (h) => h.date || "";
 function mLedger2() {
   const who = (w, s) => (/等|wait/i.test(s || "") ? ["waits", "wait"] : /^own|你|person/i.test(w || "") ? ["you_decide", ""] : /^review|看/i.test(w || "") ? ["show_you", "quiet"] : ["agent_decides", "agent"]);
-  const quoteFor = (where) => { const g = (String(where || "").match(/[①②③]|E\d/) || [""])[0]; const h = g ? D.history.find((x) => x.title.includes(g)) : null; return h && h.quotes && h.quotes.length ? h.quotes[h.quotes.length - 1].text : ""; };
-  const rows = D.ledger.map((l) => { const [k, c] = who(l.who, l.status), q = quoteFor(l.where), h = D.history.find((x) => /[①②③]|E\d/.test(l.where || "") && x.title.includes((String(l.where).match(/[①②③]|E\d/) || [""])[0]));
+  const histOf = (where) => { const g = gateKey(where); return g ? D.history.filter((x) => gateKey(x.title) === g && !x.desk).pop() || null : null; };   // the stop's own section
+  const quoteFor = (h) => (h && h.quotes && h.quotes.length ? h.quotes[h.quotes.length - 1].text : "");
+  const rows = D.ledger.map((l) => { const [k, c] = who(l.who, l.status), h = histOf(l.where), q = quoteFor(h);
       return `<tr${dattr({ mark: `doc:DECISIONS.md#${l.what}`, label: `${t("decisions")} · ${l.what}` })}><td>${esc(l.what)}</td><td>${esc(l.status)}</td><td><span class="chip ${c}">${esc(t(k))}</span></td><td class="mono">${esc(h ? dateOf(h) : "")}</td><td class="muted">${esc(q ? t("you_said2", { q }) : l.where || "")}</td><td></td></tr>`; })
     .concat(D.agent_decided.filter((a) => !a.superseded).map((a) => { const i = D.agent_decided.indexOf(a);
       return `<tr${dattr({ mark: "led:" + i, label: t("l_led", { x: (a.topic ? a.topic + COLON() : "") + cut(a.what, 20) }) })}><td>${esc(a.topic || "—")}</td><td>${esc(a.what)}</td><td><span class="chip agent">${esc(t("agent_decides"))}</span></td><td class="mono">${esc(a.date || "")}</td><td class="muted">${esc(a.why || "")}</td><td>${readOnly() ? "" : `<button type="button" class="xs" data-overturn="${i}">${esc(t("overturn"))}</button>`}</td></tr>`; })).join("");

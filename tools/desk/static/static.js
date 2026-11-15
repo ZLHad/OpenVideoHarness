@@ -23,6 +23,7 @@ function renderModule() {
   const host = document.getElementById("spMod"); if (!host) return;
   host.innerHTML = VIEWS.map((m) => { MOD = m; return `<section class="m2" data-mod="${m}">${MODVIEW[m].main()}</section>`; }).join("");
   VIEWS.forEach((m) => { MOD = m; const V = MODVIEW[m]; if (V.wire) V.wire(); });
+  fitHeads(host);
 }
 (function boot() {
   const el = document.getElementById("ovh-data"), root = gateRoot();
@@ -42,7 +43,9 @@ function renderModule() {
   try { renderModule(); } catch (e) {   // a module that cannot draw this project: the gate view alone, as before
     host.remove(); if (head) root.prepend(head); return;
   }
-  VIEWS.forEach((m) => { const V = MODVIEW[m]; if (V.drawn) V.drawn(root, (y) => { y.hidden = true; }); });   // drawn once, in the module; the hidden one still picks
+  VIEWS.forEach((m) => { const V = MODVIEW[m]; if (V.drawn) V.drawn(root, (y) => { y.hidden = true; y.querySelectorAll("[id]").forEach((z) => z.removeAttribute("id")); }); });   // drawn once, in the module (whose cards take the ids the page's links go to); the hidden one still picks
+  const unfold = (e) => { const f = e.target.closest(".fold"); if (f && (e.type === "click" || e.key === "Enter")) f.classList.toggle("open"); };
+  document.addEventListener("click", unfold); document.addEventListener("keydown", unfold);
   const main = root.querySelector(".g-main");
   if (main && ![...main.children].some((c) => !c.hidden)) {   // nothing of the picture part is left: the decisions and the reply take the width
     main.hidden = true; const b = main.closest(".g-body"); if (b) b.classList.remove("has-side");

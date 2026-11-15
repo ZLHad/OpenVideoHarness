@@ -334,7 +334,7 @@ function recentHtml() {   // what was decided last, when nothing is open: REVIEW
   const hist = D.history.slice().reverse().flatMap((h) => h.notes.filter((n) => /^(定了|Decided)/.test(n.k) && n.v && !/^[—–-]?$/.test(n.v.trim())).map((n) => ({ k: h.title, v: n.v }))).slice(0, 3);
   const agent = D.agent_decided.filter((a) => !a.superseded).slice(-3).reverse().map((a) => ({ k: t("agent_decided_k", { x: a.topic || "" }), v: a.what }));
   const R = hist.concat(agent);
-  return R.length ? `<h3 class="blk-h" style="margin-top:14px"><b>${esc(t("recent"))}</b></h3><ul class="note-list recent">${R.map((x) => `<li><span class="mono tc">·</span><span><b>${esc(cut(x.k, 40))}</b> ${esc(x.v)}</span></li>`).join("")}</ul>` : "";
+  return R.length ? `<h3 class="blk-h" style="margin-top:14px"><b>${esc(t("recent"))}</b></h3><ul class="note-list recent">${R.map((x) => `<li><span class="mono tc">·</span><span class="fold" tabindex="0"><b>${esc(cut(x.k, 40))}</b> ${esc(x.v)}</span></li>`).join("")}</ul>` : "";   // two lines each; a click opens one
 }
 function renderMarks() {
   const M = gateMarks(), least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
@@ -404,7 +404,7 @@ function buildComposer() {
   c.dataset.ready = "1";
   c.innerHTML = `<div class="crow"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button></div>
     <div class="crow"><span class="modes" role="group"><button type="button" disabled title="${esc(t("say_agent_tip"))}">${esc(t("say_agent"))}</button><button type="button" aria-pressed="true">${esc(t("as_note"))}</button></span><span class="meta">${esc(t("note_keys"))}</span></div>
-    <textarea id="say" rows="3"></textarea>
+    <textarea id="say" rows="3" maxlength="4000"></textarea>
     <div class="send"><span class="meta" id="sayHint"></span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>`;
   $("#toWhole").addEventListener("click", () => setScope(null));
   $("#sayAdd").addEventListener("click", addNote);
@@ -437,6 +437,8 @@ function addNote() {
   ta.value = ""; save(); toast(t("noted", { x: scopeLabel() }));
 }
 $("#stage").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.hidden = true; }, true);   // a picture not there: the letter under it shows
+const unfold = (e) => { const f = e.target.closest(".fold"); if (f && (e.type === "click" || e.key === "Enter")) f.classList.toggle("open"); };   // a long line folded to two: open it
+document.addEventListener("click", unfold); document.addEventListener("keydown", unfold);
 $("#stage").addEventListener("click", (e) => {   // a place in a module: the note box writes against it
   if (MOD === "cut" || e.target.closest("button,a,input,textarea,select,label,.fb,summary,video,audio")) return;
   const el = e.target.closest("[data-mark],[data-target],[data-scope]");
@@ -447,7 +449,8 @@ $("#stage").addEventListener("click", (e) => {   // a place in a module: the not
   const fb = $(".fb", el), kind = target.split(":")[0], x = target.slice(kind.length + 1);
   let label = el.dataset.label || (fb ? fb.dataset.label : "");
   if (!label) label = kind === "least" ? t("l_least", { x: x || cut(el.textContent.trim(), 24) }) : kind === "shot" ? t("l_shot", { x }) : kind === "deleg" ? t("l_deleg", { x: cut(el.textContent.trim(), 28) }) : kind === "atime" ? t("sound_label", { t: fmt(+x) }) : target;
-  setScope({ target, label, el, t: el.dataset.t != null ? +el.dataset.t : null, t1: el.dataset.t1 != null ? +el.dataset.t1 : null });
+  if (!targetOk(target)) { setScope({ label: fitLabel(label), el }); return; }   // a target feedback.py would refuse: the overall words, named
+  setScope({ target, label: fitLabel(label), el, t: el.dataset.t != null ? +el.dataset.t : null, t1: el.dataset.t1 != null ? +el.dataset.t1 : null });
 });
 
 /* submitting: everything this round holds, then one button (the desk's channel; bin/vh desk wait wakes on it) */
@@ -457,10 +460,15 @@ function payload() {
     const v = FB.decisions[d.id] || d.recommend;
     if (v && (d.options || []).some((o) => o.id === v)) { decisions[d.id] = v; if (!FB.decisions[d.id]) defaulted.push(d.id); }
   });
-  const items = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: v.label || k, text: v.text || "" },
+  const all = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: fitLabel(v.label || k), text: v.text || "" },
     v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}, v.t1 != null ? { t1: v.t1 } : {}));
-  const general = [FB.general || "", ($("#cGeneral") || {}).value || ""].map((x) => x.trim()).filter(Boolean).join("\n");
-  return { round: ROUND.id, lang: LANG, decisions, defaulted, items, general, pid: D.pid };
+  // an item feedback.py would refuse costs only itself, said before sending, never the round (its limits: tools/desk/feedback.py)
+  const fits = (i) => targetOk(i.target) && cps(i.text).length <= 4000 && cps(i.suggest || "").length <= 2000 && cps(i.orig || "").length <= 2000;
+  const items = all.filter(fits), dropped = all.filter((i) => !fits(i));
+  const general = cps([FB.general || "", ($("#cGeneral") || {}).value || ""].map((x) => x.trim()).filter(Boolean).join("\n")).slice(0, 8000).join("");
+  const p = { round: ROUND.id, lang: LANG, decisions, defaulted, items, general, pid: D.pid };
+  Object.defineProperty(p, "dropped", { value: dropped, enumerable: false });   // shown in the sheet, not sent
+  return p;
 }
 function summaryText(p) {
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
@@ -476,10 +484,11 @@ function openConfirm() {
   const p = payload(), st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
   const decs = (ROUND.data.decisions || []).filter((d) => p.decisions[d.id]).map((d, i) => { const v = p.decisions[d.id], mine = !p.defaulted.includes(d.id), o = (d.options || []).find((x) => x.id === v) || {};
     return `<li><span class="q">${i + 1} · ${esc(d.question || d.id)}</span><span class="v ${mine ? "mine" : "rec"}">${esc(v || "–")}${o.label ? " · " + esc(cut(o.label, 40)) : ""}${mine ? "" : esc(t("by_rec"))}</span></li>`; }).join("");
-  const items = p.items.map((i) => `<li><span class="q">${esc(i.label)} · ${esc(st[i.status])}</span>${i.text ? `<span>${esc(i.text)}</span>` : ""}${i.suggest ? `<span class="serif">→ ${esc(i.suggest)}</span>` : ""}</li>`).join("");
+  const items = p.items.map((i) => `<li><span class="q">${esc(i.label)} · ${esc(st[i.status])}</span>${i.text ? `<span>${esc(i.text)}</span>` : ""}${i.suggest ? `<span class="serif">→ ${esc(i.suggest)}</span>` : ""}</li>`).join("")
+    + (p.dropped.length ? `<h4 class="dropped">${esc(t("d_dropped", { n: p.dropped.length }))}</h4>${p.dropped.map((i) => `<li class="dropped"><span class="q">${esc(cut(i.label, 60))}</span><span>${esc(cut(i.text, 120))}</span></li>`).join("")}` : "");
   const c = $("#confirm");
   c.innerHTML = `<div class="c-body"><h3>${esc(t("d_title"))}</h3><ul class="sum">${decs ? `<h4>${esc(t("d_decisions"))}</h4>${decs}` : ""}<h4>${esc(t("d_items"))}</h4>${items || `<li class="meta">${esc(t("d_none"))}</li>`}${FB.general ? `<li><span class="q">${esc(t("overall"))}</span><span>${esc(FB.general)}</span></li>` : ""}</ul>
-      <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" placeholder="${esc(t("general_ph"))}"></textarea>
+      <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" maxlength="4000" placeholder="${esc(t("general_ph"))}"></textarea>
       <p class="meta" id="submitHint">${esc(t("submit_hint"))}</p>
       <details class="fold"><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
     <div class="c-act"><button type="button" class="btn btn-primary" id="doSubmit">${esc(t("submit"))}</button><button type="button" class="btn" id="noSubmit">${esc(t("cancel"))}</button></div>`;
@@ -548,6 +557,7 @@ function renderModule() {
     } else { const link = pastPageLink(MOD); if (link) $(".mh2", area).insertAdjacentHTML("beforeend", link); }
     $$("[data-mark]", area).forEach(markHost);
     if (V.wire) V.wire();
+    fitHeads(area);
     area.scrollTop = 0;
     return;
   }
@@ -606,8 +616,8 @@ function fbCtl(target, label, opt = {}) {
     <span class="seg3"><button type="button" data-st="ok" class="${st === "ok" ? "on" : ""}">${esc(lab[0])}</button><button type="button" data-st="change" class="${st === "change" ? "on" : ""}">${esc(lab[1])}</button><button type="button" data-st="ask" class="${st === "ask" ? "on" : ""}">${esc(lab[2])}</button></span>
     ${st ? "" : `<span class="def">${esc(opt.def || t("fb_def"))}</span>`}
     <div class="fb-more" ${st === "change" || st === "ask" ? "" : "hidden"}>
-      <textarea rows="2" data-k="text" placeholder="${esc(st === "ask" ? t("ph_ask") : t("ph_change"))}">${esc(v.text || "")}</textarea>
-      ${opt.suggest != null && st === "change" ? `<input data-k="suggest" placeholder="${esc(t("ph_suggest"))}" value="${esc(v.suggest != null ? v.suggest : opt.suggest)}">` : ""}
+      <textarea rows="2" data-k="text" maxlength="4000" placeholder="${esc(st === "ask" ? t("ph_ask") : t("ph_change"))}">${esc(v.text || "")}</textarea>
+      ${opt.suggest != null && st === "change" ? `<input data-k="suggest" maxlength="2000" placeholder="${esc(t("ph_suggest"))}" value="${esc(v.suggest != null ? v.suggest : opt.suggest)}">` : ""}
     </div></div>`;
 }
 document.addEventListener("click", (e) => {

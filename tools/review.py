@@ -175,8 +175,9 @@ def module_payload(project, gate, out_dir, marks, lang):
     data["marks"] = marks
     if "sound" in mods:
         tl = (d.get("studio") or {}).get("timeline") or {}
-        data["studio"] = {"timeline": {"narration": tl.get("narration") or [], "duration": tl.get("duration")}, "peaks": (d.get("studio") or {}).get("peaks")}
-        data["mods"] = {k: (d.get("mods") or {}).get(k) for k in ("loudness", "silences", "checks", "pace", "voice", "audition", "lifts")}
+        data["studio"] = {"timeline": {"narration": tl.get("narration") or [], "duration": tl.get("duration")}, "peaks": (d.get("studio") or {}).get("peaks"),
+                          "film": (d.get("studio") or {}).get("film")}
+        data["mods"] = {k: (d.get("mods") or {}).get(k) for k in ("loudness", "silences", "checks", "pace", "voice", "audition", "lifts", "errors")}
     rel = os.path.relpath(project, out_dir).replace(os.sep, "/")
     body = json.dumps({"modules": list(mods), "lang": lang, "rel": "" if rel == "." else rel + "/", "data": data}, ensure_ascii=False, separators=(",", ":"))
     # nothing in it can close the script element or read as markup, and no address reads as one to load

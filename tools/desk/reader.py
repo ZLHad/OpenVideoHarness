@@ -503,8 +503,9 @@ def _history(review_md):
                     if v.strip(" \t　"):
                         notes.append({"k": k, "v": plain(v.strip(" \t　"))})
         if quotes or notes or desk:
-            day = re.search(r"\b\d{4}-\d{2}-\d{2}\b", body)   # the 页面 line's date (templates/REVIEW.md), when it has one
-            out.append({"title": title, "date": day.group(0) if day else "", "quotes": quotes, "notes": notes, "desk": desk, "html": render_md(body)})
+            page = re.search(r"^- (?:页面|Page)\s*[：:].*?\b(\d{4}-\d{2}-\d{2})\b", body, re.M)   # the 页面 line's date (templates/REVIEW.md)
+            day = page or re.search(r"\b(\d{4}-\d{2}-\d{2})\b", body)   # else the section's first date
+            out.append({"title": title, "date": day.group(1) if day else "", "quotes": quotes, "notes": notes, "desk": desk, "html": render_md(body)})
     return out, paused
 
 
@@ -677,9 +678,10 @@ def _packaging(text):
     t = first_table(section(text, r"^封面", r"^Covers?"), "封面字", "画面", "cover text", "picture")
     for r in (t.rows if t else []):
         img = plain(t.get(r, "原图", "image", "file")).strip("`")
-        if "{" in img:
+        pic, words = plain(t.get(r, "画面", "picture")), plain(t.get(r, "封面字", "cover text", "text"))
+        if "{" in img or ("{" in pic and "{" in words):   # the template's row, not filled in yet
             continue
-        out["covers"].append({"id": plain(t.get(r, "#", "id")), "picture": plain(t.get(r, "画面", "picture")), "text": plain(t.get(r, "封面字", "cover text", "text")),
+        out["covers"].append({"id": plain(t.get(r, "#", "id")), "picture": "" if "{" in pic else pic, "text": "" if "{" in words else words,
                               "image": img, "feed": plain(t.get(r, "信息流", "feed")).strip("`")})
     for title, body in sections(text):
         if re.match(r"^(简介|Description|署名|Credits)", title, re.I):
@@ -716,7 +718,7 @@ def read_project(project):
     return {"version": 1, "lang": lang,
             "project": {"slug": project.name, "title": title, "effort": effort, "paused": paused},
             "stage": stage, "spec": spec, "concept": _concept(brief), "outline": outline, "captions": captions,
-            "facts": facts, "fact_todo": todo, "ideas": ideas, "packaging": _packaging(_read(project / "PACKAGING.md", [])),
+            "facts": facts, "fact_todo": todo, "ideas": ideas, "packaging": _packaging(_read(project / "PACKAGING.md", []) if _inside(project, "PACKAGING.md") else ""),
             "ledger": ledger, "agent_decided": agent, "history": history,
             "rounds": rounds, "feedback": _feedback(project, warnings),
             "shots": _shots(project, outline, rounds, warnings), "music": music,

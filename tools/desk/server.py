@@ -258,22 +258,50 @@ def studio_extras(project, data):
     except (Exception, SystemExit) as e:   # one part's trouble is said, the rest is shown
         data["warnings"].append(f"bin/vh timeline --resolved: {type(e).__name__}: {e}")
     if media.get("thumbs"):
-        t = _load(Path(project) / media["thumbs"])
+        t = _json_in(project, media["thumbs"])[0]   # inside the project only, as /f/ serves
         if isinstance(t, dict) and all(_inside(project, sh.get("file")) for sh in t.get("sheets") or [] if isinstance(sh, dict)):
             out["thumbs"] = {k: t.get(k) for k in ("duration", "tile", "shot", "sheets", "tiles")}
             out["thumbs"]["shots"] = [x for x in t.get("shots") or [] if isinstance(x, dict) and _inside(project, x.get("file"))]
     if media.get("peaks"):
-        pk = _load(Path(project) / media["peaks"])
+        pk = _json_in(project, media["peaks"])[0]
         if isinstance(pk, dict) and isinstance(pk.get("peaks"), list):
             out["peaks"] = {"duration": pk.get("duration"), "peaks": pk["peaks"]}
     chk = st.get("check")
     if isinstance(chk, dict) and chk.get("record"):
-        rec = _load(Path(project) / chk["record"])
+        rec = _json_in(project, chk["record"])[0]
         if isinstance(rec, dict):
             out["check"] = {k: chk.get(k) for k in ("verdict", "video", "at", "stale", "counts")}
             out["findings"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in rec.get("findings") or []
                                if isinstance(f, dict) and f.get("severity") in ("fail", "warn")][:200]
     return out
+
+
+def _json_in(project, rel):
+    """(the JSON of a file of the project, its path), read only when it is a file inside the project: a link that leads out
+    is not followed, as /f/ does not serve one. (None, None) for anything else; raises nothing."""
+    r = _inside(project, rel) if isinstance(rel, str) else None
+    return (_load(Path(project) / r) if r else None), r
+
+
+def _not_out(project, name, rel):
+    """A file of a fixed name that is there but leads out of the project (a link): said, not read."""
+    if not rel and os.path.lexists(Path(project) / name):
+        raise ValueError(f"{name} is not a file inside the project (a link that leads out, or missing): not read")
+
+
+def _texts(x):
+    """A list of short texts from a list, or from one text written in place of one (a ledger's used_by by hand)."""
+    if isinstance(x, str):
+        return [x] if x.strip() else []
+    return [str(v) for v in x if isinstance(v, (str, int, float)) and not isinstance(v, bool)] if isinstance(x, list) else []
+
+
+def _list(x, what):
+    if x is None:
+        return []
+    if not isinstance(x, list):
+        raise ValueError(f"{what} is not a list")
+    return x
 
 
 def module_extras(project, data):
@@ -282,24 +310,39 @@ def module_extras(project, data):
     voice audition (bin/vh voices audition's audition.json) and the music's candidate lifts (bin/vh beats); the delivery
     module's covers, caption files and every finding of the check; the material module's asset ledger (bin/vh assets),
     references (bin/vh ref) and long-video transcripts (bin/vh ref digest). A part that is not there is empty, and the
-    page names the command that makes it."""
+    page names the command that makes it. Each part is read on its own: one that does not read is empty and `errors` names
+    its file and why, while the others show. Only files inside the project are read (a link that leads out is not)."""
     project = Path(project)
     out = {"loudness": None, "silences": None, "checks": [], "pace": None, "voice": None, "audition": None, "lifts": [], "covers": [],
-           "subs": [], "assets": None, "refs": [], "digests": []}
-    tl = (data.get("studio") or {}).get("timeline")
-    narr = (((tl.get("sources") or {}).get("narration") or {}).get("path") if isinstance(tl, dict) else None)
-    ntl = _load(project / narr) if _inside(project, narr) else None
-    pc = ntl.get("pace") if isinstance(ntl, dict) else None
-    if isinstance(ntl, dict) and isinstance(ntl.get("voice"), str):
-        out["voice"] = ntl["voice"]   # the voice the narration was read in (bin/vh tts)
-    if isinstance(pc, dict):   # bin/vh pace's numbers: voice only, every pause of 0.12 s or more inside a line left out
-        rates = pc.get("rates") if isinstance(pc.get("rates"), dict) else {}
-        out["pace"] = {"reference": pc.get("reference"), "unit": pc.get("unit"), "speech": rates.get("speech"), "with_pauses": rates.get("with_pauses"),
-                       "lines": [{k: x.get(k) for k in ("id", "units", "pace", "after", "tempo", "note")} for x in pc.get("lines") or [] if isinstance(x, dict)][:2000]}
-    chk = (data.get("status") or {}).get("check")
-    rec = _load(project / chk["record"]) if isinstance(chk, dict) and chk.get("record") else None
-    if isinstance(rec, dict):
-        F_ = [f for f in rec.get("findings") or [] if isinstance(f, dict)]
+           "subs": [], "assets": None, "refs": [], "digests": [], "errors": {}}
+    where = {}
+
+    def part(name, fn):
+        try:
+            fn()
+        except Exception as e:   # one file that does not read never empties the other parts
+            out["errors"][name] = f"{where.get(name) or name} · {type(e).__name__}: {e}"
+
+    def narration():
+        tl = (data.get("studio") or {}).get("timeline")
+        narr = ((tl.get("sources") or {}).get("narration") or {}).get("path") if isinstance(tl, dict) else None
+        ntl, where["pace"] = _json_in(project, narr)
+        if not isinstance(ntl, dict):
+            return
+        if isinstance(ntl.get("voice"), str):
+            out["voice"] = ntl["voice"]   # the voice the narration was read in (bin/vh tts)
+        pc = ntl.get("pace")
+        if isinstance(pc, dict):   # bin/vh pace's numbers: voice only, every pause of 0.12 s or more inside a line left out
+            rates = pc.get("rates") if isinstance(pc.get("rates"), dict) else {}
+            out["pace"] = {"reference": pc.get("reference"), "unit": pc.get("unit"), "speech": rates.get("speech"), "with_pauses": rates.get("with_pauses"),
+                           "lines": [{k: x.get(k) for k in ("id", "units", "pace", "after", "tempo", "note")} for x in _list(pc.get("lines"), "pace.lines") if isinstance(x, dict)][:2000]}
+
+    def check():
+        chk = (data.get("status") or {}).get("check")
+        rec, where["check"] = _json_in(project, chk.get("record")) if isinstance(chk, dict) else (None, None)
+        if not isinstance(rec, dict):
+            return
+        F_ = [f for f in _list(rec.get("findings"), "findings") if isinstance(f, dict)]
         out["checks"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in F_][:300]
         ld = next((f for f in F_ if f.get("kind") == "check.loudness"), None)
         if ld:
@@ -307,59 +350,99 @@ def module_extras(project, data):
             out["loudness"] = {k: ev.get(k) for k in ("integrated", "true_peak", "lra", "target")}
             out["loudness"]["severity"] = ld.get("severity")
         out["silences"] = sum(1 for f in F_ if "silence" in str(f.get("kind", "")) or str(f.get("message", "")).startswith("silence"))
-    cands = [p for d in ("audio", "out") if (project / d).is_dir() for p in (project / d).glob("**/audition.json")]
-    if cands:   # the newest audition: its voices, each with its take when the file is there
-        p = max(cands, key=lambda p: p.stat().st_mtime)
-        a = _load(p)
-        if isinstance(a, dict):
-            rows = []
-            for v in a.get("voices") or []:
-                if isinstance(v, dict) and v.get("voice"):
-                    f = (p.parent / str(v.get("file") or "")).relative_to(project).as_posix() if v.get("file") else None
-                    rows.append({"voice": v.get("voice"), "file": f if f and _inside(project, f) else None, "duration": v.get("duration"),
-                                 "pitch_hz": v.get("pitch_hz"), "speech_rate": v.get("speech_rate"), "misread": v.get("misread"), "error": v.get("error")})
-            out["audition"] = {"file": p.relative_to(project).as_posix(), "provider": a.get("provider"), "unit": a.get("unit"),
-                               "text": a.get("text"), "voices": rows}
-    beats = sorted((project / "audio").glob("*.beats.json"), key=lambda p: p.stat().st_mtime) if (project / "audio").is_dir() else []
-    if beats:
-        b = _load(beats[-1])
+
+    def audition():   # where bin/vh voices audition writes (audition-<text>/ beside the text, or --out): a few places, not a walk of out/
+        cands = []
+        for pat in ("audition.json", "audition-*/audition.json", "audio/audition.json", "audio/*/audition.json", "out/audition.json", "out/audition-*/audition.json"):
+            for f in sorted(project.glob(pat)):
+                r = _inside(project, f.relative_to(project).as_posix())
+                if r:
+                    cands.append((os.stat(project / r).st_mtime, r))
+        if not cands:
+            return
+        r = max(cands)[1]
+        a, where["audition"] = _json_in(project, r)
+        if not isinstance(a, dict):
+            raise ValueError("not a JSON object")
+        rows, base = [], os.path.dirname(r)
+        for v in _list(a.get("voices"), "voices"):
+            if isinstance(v, dict) and v.get("voice"):
+                f = v.get("file") if isinstance(v.get("file"), str) else ""
+                take = _inside(project, os.path.relpath(os.path.join(os.path.realpath(project / base), f), os.path.realpath(project))) if f else None
+                rows.append({"voice": str(v.get("voice")), "file": take, "duration": v.get("duration"), "pitch_hz": v.get("pitch_hz"),
+                             "speech_rate": v.get("speech_rate"), "misread": v.get("misread") if isinstance(v.get("misread"), list) else None,
+                             "error": v.get("error")})
+        out["audition"] = {"file": r, "provider": a.get("provider"), "unit": a.get("unit"), "text": a.get("text"), "voices": rows}
+
+    def lifts():
+        cands = [r for f in sorted((project / "audio").glob("*.beats.json")) if (r := _inside(project, f.relative_to(project).as_posix()))] \
+            if (project / "audio").is_dir() else []
+        if not cands:
+            return
+        b, where["lifts"] = _json_in(project, max(cands, key=lambda r: os.stat(project / r).st_mtime))
         if isinstance(b, dict):
-            out["lifts"] = [{k: x.get(k) for k in ("t", "strength", "depth_db", "rise_db", "on")} for x in b.get("lifts") or [] if isinstance(x, dict)][:40]
-    pk = data.get("packaging") or {}
-    seen = set()
-    folders = [p.relative_to(project).as_posix() for d in ("out/covers", "out/final/covers") if (project / d).is_dir()
-               for p in sorted((project / d).iterdir()) if p.suffix.lower() in IMG]
-    for c in [x.get("image") for x in pk.get("covers") or []] + folders:   # PACKAGING.md's covers first, then the cover folders'
-        p = _inside(project, c)
-        if p and p not in seen:
-            seen.add(p)
-            ratio = review.image_ratio(project / p)
-            out["covers"].append({"path": p, "ratio": round(ratio, 3) if ratio else None,
-                                  "id": next((x.get("id") for x in pk.get("covers") or [] if x.get("image") == c), ""),
-                                  "text": next((x.get("text") for x in pk.get("covers") or [] if x.get("image") == c), "")})
-    out["subs"] = [p.relative_to(project).as_posix() for d in ("out/final", "out", "audio") if (project / d).is_dir()
-                   for p in sorted((project / d).glob("*.srt"))][:20]
-    led = _load(project / "assets" / "ledger.json")
-    if isinstance(led, dict):
-        out["assets"] = []
-        for r in led.get("assets") or []:
+            out["lifts"] = [{k: x.get(k) for k in ("t", "strength", "depth_db", "rise_db", "on")} for x in _list(b.get("lifts"), "lifts") if isinstance(x, dict)][:40]
+
+    def covers():
+        pk = data.get("packaging") or {}
+        where["covers"] = "PACKAGING.md"
+        rows = [x for x in _list(pk.get("covers"), "covers") if isinstance(x, dict)]
+        folders = [f.relative_to(project).as_posix() for d in ("out/covers", "out/final/covers") if (project / d).is_dir()
+                   for f in sorted((project / d).iterdir()) if f.suffix.lower() in IMG]
+        seen = set()
+        for c in [x.get("image") for x in rows] + folders:   # PACKAGING.md's covers first, then the cover folders'
+            r = _inside(project, c)
+            if r and r not in seen:
+                seen.add(r)
+                ratio = review.image_ratio(project / r)
+                row = next((x for x in rows if x.get("image") == c), {})
+                out["covers"].append({"path": r, "ratio": round(ratio, 3) if ratio else None, "id": row.get("id", ""), "text": row.get("text", "")})
+
+    def subs():
+        out["subs"] = [r for d in ("out/final", "out", "audio") if (project / d).is_dir() for f in sorted((project / d).glob("*.srt"))
+                       if (r := _inside(project, f.relative_to(project).as_posix()))][:20]
+
+    def assets():
+        led, where["assets"] = _json_in(project, "assets/ledger.json")
+        _not_out(project, "assets/ledger.json", where["assets"])
+        if not isinstance(led, dict):
+            return
+        rows = []
+        for r in _list(led.get("assets"), "assets"):
             if not isinstance(r, dict) or r.get("removed"):
                 continue
             lic, src = r.get("license") if isinstance(r.get("license"), dict) else {}, r.get("source") if isinstance(r.get("source"), dict) else {}
-            out["assets"].append({"id": r.get("id"), "kind": r.get("kind"), "path": r.get("path"), "there": bool(_inside(project, r.get("path"))),
-                                  "license": lic.get("class") or "unknown", "license_name": lic.get("name") or lic.get("spdx") or "",
-                                  "source": src.get("title") or src.get("url") or src.get("tool") or src.get("kind") or "", "url": src.get("url") or "",
-                                  "aigc": bool(r.get("aigc")), "used_by": r.get("used_by") or [], "note": r.get("note") or ""})
-    refs = _load(project / "research" / "refs.json")
-    for r in (refs.get("refs") or refs.get("assets") or [] if isinstance(refs, dict) else refs if isinstance(refs, list) else []):
-        if isinstance(r, dict) and r.get("id"):
-            src = r.get("source") if isinstance(r.get("source"), dict) else {}
-            lic = r.get("license") if isinstance(r.get("license"), dict) else {}
-            out["refs"].append({"id": r.get("id"), "kind": r.get("kind"), "title": src.get("title") or r.get("note") or r.get("id"),
-                                "url": src.get("url") or "", "author": src.get("author") or "", "license": lic.get("class") or "unknown",
-                                "path": r.get("path") if _inside(project, r.get("path")) else None, "note": r.get("note") or ""})
-    for t in sorted((project / "research" / "digest").glob("*/transcript.md")) if (project / "research" / "digest").is_dir() else []:
-        out["digests"].append({"id": t.parent.name, "path": t.relative_to(project).as_posix(), "bytes": t.stat().st_size})
+            raw = r.get("path") if isinstance(r.get("path"), str) else ""
+            rel = _inside(project, raw)   # there, and inside; else a name in the project (missing now), or a path outside it (bin/vh assets add takes one)
+            named = bool(raw) and not raw.startswith(("/", "~", "\\")) and not re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", raw) and ".." not in re.split(r"[/\\]", raw)
+            rows.append({"id": str(r.get("id") or ""), "kind": r.get("kind"), "path": rel or (raw.strip() if named else None), "outside": "" if rel or named else raw, "there": bool(rel),
+                         "license": lic.get("class") if isinstance(lic.get("class"), str) else "unknown", "license_name": lic.get("name") or lic.get("spdx") or "",
+                         "source": src.get("title") or src.get("url") or src.get("tool") or src.get("kind") or "", "url": src.get("url") or "",
+                         "aigc": bool(r.get("aigc")), "used_by": _texts(r.get("used_by")), "note": r.get("note") or ""})
+        out["assets"] = rows
+
+    def refs():
+        rf, where["refs"] = _json_in(project, "research/refs.json")
+        _not_out(project, "research/refs.json", where["refs"])
+        items = (rf.get("refs") or rf.get("assets") or []) if isinstance(rf, dict) else rf if isinstance(rf, list) else []
+        for r in _list(items, "refs"):
+            if isinstance(r, dict) and r.get("id"):
+                src = r.get("source") if isinstance(r.get("source"), dict) else {}
+                lic = r.get("license") if isinstance(r.get("license"), dict) else {}
+                out["refs"].append({"id": str(r.get("id")), "kind": r.get("kind"), "title": src.get("title") or r.get("note") or str(r.get("id")),
+                                    "url": src.get("url") or "", "author": src.get("author") or "", "license": lic.get("class") or "unknown",
+                                    "path": _inside(project, r.get("path")), "note": r.get("note") or ""})
+
+    def digests():
+        d = project / "research" / "digest"
+        for f in sorted(d.glob("*/transcript.md")) if d.is_dir() else []:
+            r = _inside(project, f.relative_to(project).as_posix())
+            if r:
+                out["digests"].append({"id": f.parent.name, "path": r, "bytes": os.stat(project / r).st_size})
+
+    for name, fn in (("pace", narration), ("check", check), ("audition", audition), ("lifts", lifts), ("covers", covers), ("subs", subs),
+                     ("assets", assets), ("refs", refs), ("digests", digests)):
+        part(name, fn)
     return out
 
 

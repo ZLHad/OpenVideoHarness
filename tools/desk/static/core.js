@@ -27,6 +27,7 @@ const STR = {
     round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体", round_quiet: "{g} · {s}：现在没有要你定的事。", static_page: "静态页", recent: "最近定下的", agent_decided_k: "agent 定的 · {x}", ns_from: "bin/vh status 说",
     at: "对着", whole: "整个{m}", whole_film: "整片", to_whole: "换成整个模块", say_agent: "说给 agent", say_agent_tip: "这一版控制台不连 agent：写成点评，提交这一轮时交给它",
     as_note: "记成点评", c_ph: "对「{x}」说一句", note_add: "记下", note_keys: "⌘↩ 记下", noted: "记下了：{x}", del: "删",
+    d_dropped: "这 {n} 条写不进反馈文件，不会提交（对着的东西认不出，或者字太长）",
     d_title: "提交这一轮", d_decisions: "决定", d_items: "点评", by_rec: "（按推荐）", d_none: "没有逐条点评；没标的都算通过。",
     general: "整体意见（可选）", general_ph: "比如：整体节奏偏慢；开场很好……", submit: "提交", cancel: "再看看", preview: "会提交的内容",
     submit_hint: "提交后写进项目的 out/review/feedback/，你的原话同时抄进 REVIEW.md。没动的决定按推荐算。",
@@ -111,6 +112,7 @@ const STR = {
     round_sum: "{n} notes · {d} decisions", submit_round: "Submit this round", c_whole_note: "Overall", round_quiet: "{g} · {s}: nothing waits for you to decide now.", static_page: "Static page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}", ns_from: "bin/vh status says",
     at: "On", whole: "the whole {m}", whole_film: "the whole film", to_whole: "the whole module", say_agent: "Tell the agent", say_agent_tip: "This console doesn't talk to the agent yet: write a note, and it goes with this round",
     as_note: "Note it", c_ph: "A line on “{x}”", note_add: "Add", note_keys: "⌘↩ adds", noted: "Noted: {x}", del: "Delete",
+    d_dropped: "{n} not sent: the feedback file cannot take what they are on, or they are too long",
     d_title: "Submit this round", d_decisions: "Decisions", d_items: "Notes", by_rec: " (recommended)", d_none: "No item notes; anything not marked passes.",
     general: "Overall (optional)", general_ph: "e.g. the pace drags overall; the opening works…", submit: "Submit", cancel: "Keep looking", preview: "What will be submitted",
     submit_hint: "Submissions go to the project's out/review/feedback/, and your words into REVIEW.md. Untouched decisions go by the recommendation.",
@@ -189,6 +191,29 @@ const isVideo = (p) => /\.(mp4|webm|mov|m4v)$/i.test(p || ""), isImage = (p) => 
 const cut = (s, n) => (String(s).length > n ? String(s).slice(0, n) + "…" : String(s));
 const COLON = () => (LANG === "zh" ? "：" : ": ");
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* what a note can be made against: tools/desk/feedback.py's validate refuses a whole submission for one item it cannot take,
+   so the page makes only targets and labels it takes, and drops (and says) any other before sending */
+const TARGET_RE = /^(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset|range|chapter|card):([^\x00-\x1f\x7f]+)$/;
+const cps = (s) => Array.from(String(s));   // code points, as Python counts them
+function targetOk(tg) {
+  const m = typeof tg === "string" ? tg.match(TARGET_RE) : null;
+  if (!m || cps(m[2]).length > 180) return false;
+  const kind = m[1], rest = m[2];
+  if (kind === "range") {   // seconds, ASCII digits, a < b as kept (to the hundredth)
+    const m = tg.match(/^range:([0-9]+(?:\.[0-9]+)?)-([0-9]+(?:\.[0-9]+)?)$/), r2 = (x) => Math.round(+x * 100) / 100;
+    return !!m && r2(m[1]) < r2(m[2]) && r2(m[2]) < 1e6;
+  }
+  if (kind === "asset") return rest === rest.trim() && !/^[/~\\]/.test(rest) && !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(rest) && !rest.split(/[/\\]/).map((x) => x.trim()).includes("..");
+  return true;
+}
+function fitTarget(tg) {   // a target feedback.py takes, or "": control characters out; a long name cut (an asset's path or a span never is)
+  const s = String(tg == null ? "" : tg).replace(/[\x00-\x1f\x7f]+/g, " "), i = s.indexOf(":");
+  if (i < 1) return "";
+  const kind = s.slice(0, i), rest = s.slice(i + 1).trim(), keep = kind === "asset" || kind === "range" ? rest : cps(rest).slice(0, 180).join("").trim();
+  return targetOk(kind + ":" + keep) ? kind + ":" + keep : "";
+}
+const fitLabel = (s) => { const c = cps(String(s == null ? "" : s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "")); return c.length > 200 ? c.slice(0, 199).join("") + "…" : c.join(""); };
 
 const SUBS = { outline: ["outline", "script", "facts"], ship: ["deliver", "check", "versions"], ledger: ["decisions", "history", "docs"] };
 const FLOW = [   // the flow bar: a fixed six, each the film's stops that belong to it
