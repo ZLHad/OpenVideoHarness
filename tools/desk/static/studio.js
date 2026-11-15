@@ -28,7 +28,7 @@ const STR = {
     live_on_tip: "提交后 agent 会自动接着做，不用回对话", live_off_tip: "提交后回到对话里说一声“看审阅台”",
     c_decide: "要你定", c_rec: "没动的按推荐", c_least: "它最没把握的", c_listen: "请你听", c_mine: "我的点评", c_next: "下一步", c_running: "正在跑", c_spend: "花费",
     c_spent: "已花 {s}", c_of: "预算 {l}", c_none_mine: "还没有。选中一处（一秒、一段、一个镜头），在下面写一句。", who_agent: "agent", who_person: "你", who_nobody: "交付了",
-    round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体",
+    round_sum: "{n} 条点评 · {d} 个决定", submit_round: "提交这一轮", c_whole_note: "整体", round_quiet: "{g} · {s}：现在没有要你定的事。",
     at: "对着", whole: "整个{m}", whole_film: "整片", to_whole: "换成整个模块", say_agent: "说给 agent", say_agent_tip: "这一版控制台不连 agent：写成点评，提交这一轮时交给它",
     as_note: "记成点评", c_ph: "对「{x}」说一句", note_add: "记下", note_keys: "⌘↩ 记下", noted: "记下了：{x}", del: "删",
     d_title: "提交这一轮", d_decisions: "决定", d_items: "点评", by_rec: "（按推荐）", d_none: "没有逐条点评；没标的都算通过。",
@@ -112,7 +112,7 @@ const STR = {
     live_on_tip: "Submit and the agent carries on by itself; no need to go back to the chat", live_off_tip: "After submitting, tell the agent in the chat: “check the desk”",
     c_decide: "To decide", c_rec: "untouched = recommended", c_least: "Least sure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Running", c_spend: "Spent",
     c_spent: "{s} spent", c_of: "of {l}", c_none_mine: "None yet. Select a place (a second, a span, a shot) and write a line below.", who_agent: "agent", who_person: "you", who_nobody: "delivered",
-    round_sum: "{n} notes · {d} decisions", submit_round: "Submit this round", c_whole_note: "Overall",
+    round_sum: "{n} notes · {d} decisions", submit_round: "Submit this round", c_whole_note: "Overall", round_quiet: "{g} · {s}: nothing waits for you to decide now.",
     at: "On", whole: "the whole {m}", whole_film: "the whole film", to_whole: "the whole module", say_agent: "Tell the agent", say_agent_tip: "This console doesn't talk to the agent yet: write a note, and it goes with this round",
     as_note: "Note it", c_ph: "A line on “{x}”", note_add: "Add", note_keys: "⌘↩ adds", noted: "Noted: {x}", del: "Delete",
     d_title: "Submit this round", d_decisions: "Decisions", d_items: "Notes", by_rec: " (recommended)", d_none: "No item notes; anything not marked passes.",
@@ -366,7 +366,7 @@ async function showHome(quiet) {
   }
   const r = await listing();
   if (parse().view !== "home") return;
-  if (!r.ok || !LIST) { $("#stage").innerHTML = `<p class="empty module">${esc(t("noServer"))}</p>`; return; }
+  if (!r.ok || !LIST) { $("#stage").innerHTML = `<p class="void module">${esc(t("noServer"))}</p>`; return; }
   const rows = LIST.projects, wait = rows.filter((x) => x.state === "waiting_person"), rest = rows.filter((x) => x.state !== "waiting_person");
   const meta = LIST.waiting ? t("home_meta", { n: rows.length, w: LIST.waiting }) : t("home_meta0", { n: rows.length });
   const draft = ($("#oneLine") || {}).value || store.get("desk:oneLine") || "";
@@ -375,7 +375,7 @@ async function showHome(quiet) {
       <textarea id="oneLine" rows="2" placeholder="${esc(t("ask_ph"))}" aria-label="${esc(t("ask_h"))}">${esc(draft)}</textarea>
       <div class="row"><span>${esc(t("ask_note"))}</span><button type="button" class="btn btn-primary" id="copyAsk">${esc(t("ask_copy"))}</button></div></div>
     <div class="mh"><h1>${esc(t("films"))}</h1><span class="meta">${esc(meta)}</span></div>
-    ${rows.length ? "" : `<p class="empty">${esc(t("no_projects"))}</p>`}
+    ${rows.length ? "" : `<p class="void">${esc(t("no_projects"))}</p>`}
     ${wait.length ? `<section class="sect"><h2>${esc(t("g_wait"))}<span class="n">${wait.length}</span></h2><div class="cards">${wait.map(card).join("")}</div></section>` : ""}
     ${rest.length ? `<section class="sect">${wait.length ? `<h2>${esc(t("g_rest"))}<span class="n">${rest.length}</span></h2>` : ""}<div class="cards">${rest.map(card).join("")}</div></section>` : ""}
     ${LIST.roots && LIST.roots.length ? `<p class="roots">${esc(t("roots", { r: LIST.roots.map((x) => x.path || x).join(" · ") }))}</p>` : ""}</section>`;
@@ -454,7 +454,7 @@ document.addEventListener("click", (e) => { if (!$("#search").hidden && !e.targe
 /* ---------- a project ---------- */
 async function loadProject(key) {
   const r = await getJSON(`/api/p/${enc(key)}/data`);
-  if (!r.ok || !r.data) { $("#stage").innerHTML = `<p class="empty module">${esc(r.data && r.data.error ? r.data.error : t("noServer"))}</p>`; return false; }
+  if (!r.ok || !r.data) { $("#stage").innerHTML = `<p class="void module">${esc(r.data && r.data.error ? r.data.error : t("noServer"))}</p>`; return false; }
   D = r.data; PKEY = key; LAST = key; store.set("desk:last", key);
   ROUND = D.rounds[D.rounds.length - 1] || { id: "notes", gate: "", data: { decisions: [], least_sure: [], decided: [], delegated: [], assets: [], appendix: [], listen: [] } };
   KEY = `desk:${D.project.slug}:${ROUND.id}`;
@@ -503,9 +503,10 @@ function renderColumn() {
   const live = $("#colHead .state"); const on = live && live.classList.contains("agent");
   const roundName = ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);
   $("#colHead").innerHTML = `<b>${esc(t("col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t(on ? "live_on_tip" : "live_off_tip"))}"><i aria-hidden="true"></i><span>${esc(t(on ? "live_on" : "live_off"))}</span></span>`;
-  const g = GV && GV.current ? GV : null;
+  const g = GV && GV.current && roundWaits() ? GV : null;   // the cards only while this round's stop waits for the person
   const decs = g && (ROUND.data.decisions || []).length ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${ROUND.data.decisions.length}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
-    : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}</p></section>` : "";
+    : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}</p></section>`
+    : ROUND.id !== "notes" ? `<section><p class="next">${esc(t("round_quiet", { g: roundName, s: t("st_" + (roundState() || "done")) }))}</p></section>` : "";
   $("#colBody").innerHTML = `${FB.submittedAt ? `<p class="notice">${esc(t("submitted", { at: FB.submittedAt }))}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="cNext"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
@@ -518,7 +519,9 @@ function pick(dec, val) {
   FB.decisions[dec] = val; save();
   $$(`.g-dec[data-dec="${CSS.escape(dec)}"] input[type=radio]`).forEach((x) => { x.checked = x.value === val; });   // its twin in the module
 }
-function gateMarks() { return (GV && GV.current && GV.marks) || []; }
+function roundWaits() { return !!(D && D.current && ROUND.id === D.current && waitingGate() === D.current); }
+function roundState() { const s = stations().find((x) => (x.pages || []).includes(ROUND.id)); return s ? s.state : ""; }
+function gateMarks() { return (GV && GV.current && roundWaits() && GV.marks) || []; }
 function renderMarks() {
   const M = gateMarks(), least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
   const li = (m) => `<li data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${m.t}"` : ""}${m.t1 != null ? ` data-t1="${m.t1}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(m.id)}</b> ` : ""}${esc(m.note)}</span></li>`;
@@ -544,7 +547,7 @@ function renderNext() {
     + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next mono">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
 function renderRound() {
-  const n = myItems().length + (FB.general ? 1 : 0), d = Object.keys(FB.decisions).length;
+  const n = myItems().length + (FB.general ? 1 : 0), d = roundWaits() ? Object.keys(FB.decisions).length : 0;
   $("#colRound").hidden = false;
   $("#colRound").innerHTML = `<span>${esc(t("round_sum", { n, d }))}</span><button type="button" class="btn btn-primary" id="openConfirm">${esc(t("submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
@@ -625,7 +628,7 @@ $("#stage").addEventListener("click", (e) => {   // a place in a module: the not
 /* submitting: everything this round holds, then one button (the desk's channel; bin/vh desk wait wakes on it) */
 function payload() {
   const g = ROUND.data, decisions = {}, defaulted = [];
-  (g.decisions || []).forEach((d) => {
+  (roundWaits() ? g.decisions || [] : []).forEach((d) => {   // a stop already settled is not decided again by a later note
     const v = FB.decisions[d.id] || d.recommend;
     if (v && (d.options || []).some((o) => o.id === v)) { decisions[d.id] = v; if (!FB.decisions[d.id]) defaulted.push(d.id); }
   });
@@ -646,7 +649,7 @@ function summaryText(p) {
 function openConfirm() {
   if (!D) return;
   const p = payload(), st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const decs = (ROUND.data.decisions || []).map((d, i) => { const v = p.decisions[d.id], mine = !p.defaulted.includes(d.id), o = (d.options || []).find((x) => x.id === v) || {};
+  const decs = (ROUND.data.decisions || []).filter((d) => p.decisions[d.id]).map((d, i) => { const v = p.decisions[d.id], mine = !p.defaulted.includes(d.id), o = (d.options || []).find((x) => x.id === v) || {};
     return `<li><span class="q">${i + 1} · ${esc(d.question || d.id)}</span><span class="v ${mine ? "mine" : "rec"}">${esc(v || "–")}${o.label ? " · " + esc(cut(o.label, 40)) : ""}${mine ? "" : esc(t("by_rec"))}</span></li>`; }).join("");
   const items = p.items.map((i) => `<li><span class="q">${esc(i.label)} · ${esc(st[i.status])}</span>${i.text ? `<span>${esc(i.text)}</span>` : ""}${i.suggest ? `<span class="serif">→ ${esc(i.suggest)}</span>` : ""}</li>`).join("");
   const c = $("#confirm");
@@ -712,15 +715,16 @@ function subtabs(mod) {
 }
 function renderModule() {
   if (PARTCTL) { PARTCTL.destroy(); PARTCTL = null; if (COLCTL && COLCTL.own) COLCTL.own(); }
-  if (CUT && MOD !== "cut") { CUT.destroy(); CUT = null; }
-  if (SCOPE && SCOPE.el) setScope(null); else if (SCOPE && MOD !== "cut") setScope(null);
+  const bench = MOD === "cut" && !(GATE && GATE !== D.current);   // the cut's workbench; an earlier page of its stop is shown as a page
+  if (CUT && !bench) { CUT.destroy(); CUT = null; }
+  if (SCOPE && SCOPE.el) setScope(null); else if (SCOPE && !bench) setScope(null);
   const area = $("#stage");
-  area.classList.toggle("is-cut", MOD === "cut");
-  if (MOD === "cut") { if (CUT && !GATE) { CUT.refresh(); return; } if (CUT) CUT.destroy(); CUT = CutModule(area); return; }
+  area.classList.toggle("is-cut", bench);
+  if (bench) { if (CUT && !GATE) { CUT.refresh(); return; } if (CUT) CUT.destroy(); CUT = CutModule(area); return; }
   const cur = SUB && (SUBS[MOD] || []).includes(SUB) ? SUB : (SUBS[MOD] || [""])[0];
   const fn = { idea: mIdea, outline: () => ({ outline: vOutline, script: vScript, facts: vFacts }[cur] || vOutline)(), board: mBoard, sound: vSound,
-    ship: () => (cur === "versions" ? vVersions() : vCheck() + `<p class="empty">${esc(t("ship_none"))}</p>`), assets: vAssets,
-    ledger: () => ({ decisions: vLedger, history: vHistory, docs: vDocs }[cur] || vLedger)() }[MOD] || mIdea;
+    ship: () => (cur === "versions" ? vVersions() : vCheck() + `<p class="void">${esc(t("ship_none"))}</p>`), assets: vAssets,
+    ledger: () => ({ decisions: vLedger, history: vHistory, docs: vDocs }[cur] || vLedger)(), cut: () => "" }[MOD] || mIdea;
   const page = stopPage(MOD);
   area.innerHTML = `<section class="module" data-mod="${MOD}">${moduleHead(kickOf(MOD), "", "")}${page ? '<div id="gatePart"></div>' : ""}${subtabs(MOD)}<div id="modBody">${fn()}</div></section>`;
   if (page) loadGatePart(page);
@@ -744,7 +748,7 @@ function pastPageLink(mod) {
 async function loadGatePart(gid) {
   const r = await getJSON(`/api/p/${enc(PKEY)}/gate/${enc(gid)}?lang=${LANG}`);
   const host = $("#gatePart"); if (!host) return;
-  if (!r.ok || !r.data) { host.innerHTML = `<p class="empty">${esc((r.data && r.data.error) || "")}</p>`; return; }
+  if (!r.ok || !r.data) { host.innerHTML = `<p class="void">${esc((r.data && r.data.error) || "")}</p>`; return; }
   const g = r.data, past = !g.current;
   host.innerHTML = (past ? `<p class="notice">${esc(t("past", { g: gateName(g.gate) }))}${D.current ? ` <a href="${projHash(PKEY, gateMod(D.current))}">${esc(t("to_round"))}</a>` : ""}</p>` : "") + g.html;
   const root = $(".gate", host);
@@ -810,7 +814,7 @@ const specGet = (k) => (D.spec.find((s) => s.k.toLowerCase().startsWith(k)) || {
 
 function mIdea() {
   const c = D.concept;
-  if (!docOf("BRIEF.md")) return `<div class="empty">${esc(t("no_brief"))}</div>`;
+  if (!docOf("BRIEF.md")) return `<div class="void">${esc(t("no_brief"))}</div>`;
   return `<div class="card idea-card" data-mark="concept:line"><div class="meta">${esc(t("concept"))}</div><div class="idea-line">${esc(c.line || "—")}</div>
     <dl class="kv">${c.spine ? `<dt>${esc(t("spine"))}</dt><dd>${esc(c.spine)}</dd>` : ""}${c.motif ? `<dt>${esc(t("motif"))}</dt><dd>${esc(c.motif)}</dd>` : ""}${c.end ? `<dt>${esc(t("end"))}</dt><dd>${esc(c.end)}</dd>` : ""}
     <dt>${esc(t("spec"))}</dt><dd>${["output", "effort", "watch on", "review language"].map(specGet).filter(Boolean).map((x) => `<span class="chip quiet">${esc(x.split("（")[0].split("  ")[0])}</span>`).join(" ")}</dd></dl>
@@ -818,7 +822,7 @@ function mIdea() {
 }
 function vOutline() {
   const O = D.outline.filter((o) => o.t0 != null && o.t1 != null), total = O.length ? Math.max(...O.map((o) => o.t1)) : 0;
-  if (!D.outline.length) return docOf("BRIEF.md") ? fallback(t("no_outline"), "BRIEF.md", /^(Outline|大纲)/i) : `<div class="empty">${esc(t("no_brief"))}</div>`;
+  if (!D.outline.length) return docOf("BRIEF.md") ? fallback(t("no_outline"), "BRIEF.md", /^(Outline|大纲)/i) : `<div class="void">${esc(t("no_brief"))}</div>`;
   const bar = O.length ? `<div class="tbar">${O.map((o) => `<div data-seg="${esc(o.id)}" style="flex:${Math.max(0.1, o.t1 - o.t0).toFixed(2)}">${esc(o.title)}</div>`).join("")}</div><div class="tticks">${[0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${fmt(total * f)}</span>`).join("")}</div>` : "";
   const segs = D.outline.map((o, i) => {
     const caps = D.captions.rows.filter((x) => x.seg === o.id);
@@ -842,7 +846,7 @@ function speed(x) {
 }
 function vScript() {
   const C = D.captions;
-  if (!C.rows.length) return docOf("SCRIPT.md") ? fallback(t("no_script"), "SCRIPT.md") : `<div class="empty">${esc(t("no_script_file"))}</div>`;
+  if (!C.rows.length) return docOf("SCRIPT.md") ? fallback(t("no_script"), "SCRIPT.md") : `<div class="void">${esc(t("no_script_file"))}</div>`;
   const keep = (x) => capFilter === "all" || (capFilter === "mine" && FB.items["cap:" + x.id]) || (capFilter === "terms" && x.term) || (capFilter === "facts" && x.facts.length) || (capFilter === "fast" && speed(x).r > speed(x).lim[0]);
   const lab = C.kind === "narration" ? "l_vo" : "l_cap";
   const row = (x) => {
@@ -856,12 +860,12 @@ function vScript() {
   const html = groups.filter((g) => g.rows.length).map(({ o, rows }) => `<div class="capgroup"><div class="gh">${o ? `<span>${esc(t("seg_n", { i: o.id }))} · ${esc(o.title)}</span>${o.t0 != null ? `<span class="meta mono">${fmt(o.t0)}–${fmt(o.t1)}</span>` : ""}` : `<span>${esc(t("other_seg"))}</span>`}</div>${rows.map(row).join("")}</div>`).join("");
   const F = [["all", "f_all"], ["mine", "f_mine"], ["terms", "f_terms"], ["facts", "f_facts"], ["fast", "f_fast"]].filter(([k]) => k !== "terms" || C.rows.some((x) => x.term));
   return `<p class="sub">${esc(t("script_sub", { n: C.rows.length, g: SPEED.zh[0], y: SPEED.zh[1], eg: SPEED.en[0], ey: SPEED.en[1] }))}</p>
-    <div class="filters">${F.map(([k, n]) => `<button type="button" data-f="${k}" class="${capFilter === k ? "on" : ""}">${esc(t(n))}</button>`).join("")}</div>${html || `<div class="empty">${esc(t("none_match"))}</div>`}`;
+    <div class="filters">${F.map(([k, n]) => `<button type="button" data-f="${k}" class="${capFilter === k ? "on" : ""}">${esc(t(n))}</button>`).join("")}</div>${html || `<div class="void">${esc(t("none_match"))}</div>`}`;
 }
 function wireScript() { $$(".filters button").forEach((b) => b.addEventListener("click", () => { capFilter = b.dataset.f; $("#modBody").innerHTML = vScript(); $$("#modBody [data-mark]").forEach(markHost); wireScript(); })); }
 function mBoard() {
   const S = D.shots.items || [];
-  if (!S.length) return docOf("STORYBOARD.md") ? fallback(t("no_board"), "STORYBOARD.md") : `<div class="empty">${esc(t("no_board_file"))}</div>`;
+  if (!S.length) return docOf("STORYBOARD.md") ? fallback(t("no_board"), "STORYBOARD.md") : `<div class="void">${esc(t("no_board_file"))}</div>`;
   const timed = S.filter((s) => s.start != null && s.end != null);
   const track = timed.map((s) => `<div data-shot="${esc(s.id)}" class="${s.unsure ? "unsure" : ""}" style="flex:${Math.max(0.1, s.end - s.start).toFixed(2)}">${esc(s.id)}</div>`).join("");
   const cards = S.map((s) => `<div class="card bshot ${s.unsure ? "unsure" : ""}" id="bshot-${esc(s.id)}" data-id="${esc(s.id)}" data-mark="shot:${esc(s.id)}">
@@ -889,7 +893,7 @@ function wireBoard() {
 }
 function vSound() {
   const M = D.music;
-  if (!M || (!M.audio && !(M.sections || []).length)) return `<div class="empty">${esc(t("no_music"))}</div>`;
+  if (!M || (!M.audio && !(M.sections || []).length)) return `<div class="void">${esc(t("no_music"))}</div>`;
   const dur = M.duration || Math.max(1, ...(M.sections || []).map((s) => s.end));
   const secs = (M.sections || []).map((s) => `<div data-t="${s.start}" title="${esc(s.name)}" style="flex:${Math.max(0.05, s.end - s.start).toFixed(2)}">${esc(s.label || s.name)}</div>`).join("");
   const hits = (M.hits || []).map((h) => `<i style="left:${(h.t / dur) * 100}%" title="${esc(h.part)} ${fmt(h.t)}"></i>`).join("");
@@ -913,7 +917,7 @@ function wireSound() {
   $("#atc").addEventListener("click", () => { const x = +a.currentTime.toFixed(1); a.pause(); FB.items["atime:" + x] = { status: "change", label: t("sound_label", { t: fmt(x) }), t: x, text: "" }; save(); renderModule(); const ta = $(`[data-target="atime:${x}"] textarea`); if (ta) ta.focus(); });
 }
 function vFacts() {
-  if (!D.facts.length) return docOf("NOTES.md") ? fallback(t("no_facts"), "NOTES.md") : `<div class="empty">${esc(t("no_notes"))}</div>`;
+  if (!D.facts.length) return docOf("NOTES.md") ? fallback(t("no_facts"), "NOTES.md") : `<div class="void">${esc(t("no_notes"))}</div>`;
   const rows = D.facts.map((f) => `<tr class="${f.dropped ? "dropped" : ""}" id="fact-${esc(f.id.slice(1))}" data-mark="fact:${esc(f.id)}"><td><b>${esc(f.id)}</b><div class="meta">${esc(f.kind)}</div></td>
       <td>${esc(f.claim)}${f.dropped ? `<div class="meta">${esc(t("dropped"))}</div>` : ""}</td><td class="serif">${esc(f.onscreen)}</td><td class="small muted">${esc(f.source)}</td>
       <td style="min-width:230px">${f.dropped || !f.id ? "" : fbCtl("fact:" + f.id, t("l_fact", { x: f.id }), { labels: [t("fact_ok"), t("fact_bad"), t("fact_unsure")], def: t("fact_def") })}</td></tr>`).join("");
@@ -929,19 +933,19 @@ function vCheck() {
       <dt>${esc(t("th_file"))}</dt><dd>${esc(c.video || "")}</dd><dt>${esc(t("th_when"))}</dt><dd>${esc((c.at || "").replace("T", " ").slice(0, 16))}</dd>
       ${Object.keys(c.counts || {}).length ? `<dt>·</dt><dd>${Object.entries(c.counts).map(([k, v]) => `<span class="chip quiet">${esc(k)} ${esc(v)}</span>`).join(" ")}</dd>` : ""}</dl>
       ${c.stale ? `<p class="notice" style="margin:12px 0 0">${esc(t("check_stale"))}</p>` : ""}
-      ${(c.fails || []).length ? `<h3>${esc(t("fails"))}</h3><ul class="small">${c.fails.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}</div>` : `<div class="empty">${esc(t("no_check"))}</div>`;
+      ${(c.fails || []).length ? `<h3>${esc(t("fails"))}</h3><ul class="small">${c.fails.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}</div>` : `<div class="void">${esc(t("no_check"))}</div>`;
   const rows = R.map((r) => `<tr><td>${esc(r.path)}</td><td>${esc(size(r.size || 0))}</td><td>${esc((r.mtime || "").replace("T", " ").slice(0, 16))}</td><td class="${verdictCls(r.check && r.check.verdict)}">${esc(r.check ? r.check.verdict : "–")}</td></tr>`).join("");
   return `<p class="sub">${esc(t("check_sub"))}</p>${head}${rows ? `<div class="sect"><h2>${esc(t("renders"))}</h2><div style="overflow-x:auto"><table class="t"><thead><tr><th>${esc(t("th_file"))}</th><th>${esc(t("th_size"))}</th><th>${esc(t("th_when"))}</th><th>${esc(t("th_check"))}</th></tr></thead><tbody>${rows}</tbody></table></div></div>` : ""}`;
 }
 function vVersions() {
   const V = (D.status || {}).versions;
-  if (!V || !V.list) return `<div class="empty">${esc(V && V.error ? V.error : t("no_versions"))}</div>`;
+  if (!V || !V.list) return `<div class="void">${esc(V && V.error ? V.error : t("no_versions"))}</div>`;
   const rows = V.list.slice().reverse().map((x) => `<tr><td>${esc(x.id)}</td><td>${esc((x.at || "").replace("T", " ").slice(0, 16))}</td><td>${esc(x.film || "")}</td><td class="${x.state === "current" ? "ok" : ""}">${esc(x.state || "")}</td><td>${esc(x.made_by || "")}</td><td class="small muted">${esc(x.note || "")}</td><td>${esc(x.check && x.check.verdict ? x.check.verdict : "")}</td></tr>`).join("");
   return `<p class="sub">${esc(t("versions_sub"))}</p><div style="overflow-x:auto"><table class="t"><thead><tr><th>${esc(t("th_ver"))}</th><th>${esc(t("th_when"))}</th><th>${esc(t("th_file"))}</th><th>${esc(t("th_state"))}</th><th>${esc(t("th_made"))}</th><th>${esc(t("th_note"))}</th><th>${esc(t("th_check"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function vAssets() {
   const A = (D.status || {}).assets;
-  if (!A || A.error) return `<div class="empty">${esc(A && A.error ? A.error : t("no_assets"))}</div>`;
+  if (!A || A.error) return `<div class="void">${esc(A && A.error ? A.error : t("no_assets"))}</div>`;
   const b = A.budget || {}, money = (o) => Object.entries(o || {}).map(([c, v]) => `${v} ${c}`).join(", ") || "–";
   return `<p class="sub">${esc(t("assets_sub"))}</p><div class="card"><dl class="kv">
     <dt>${esc(t("a_records"))}</dt><dd>${esc(A.records)}</dd><dt>${esc(t("a_uncleared"))}</dt><dd class="${A.uncleared ? "bad" : ""}">${esc(A.uncleared)}</dd>
@@ -949,7 +953,7 @@ function vAssets() {
     <dt>${esc(t("a_spent"))}</dt><dd>${esc(money(b.spent))}</dd><dt>${esc(t("a_budget"))}</dt><dd>${esc(b.unlimited ? "∞" : money(b.limit))}</dd></dl></div>`;
 }
 function vLedger() {
-  if (!D.ledger.length && !D.agent_decided.length) return docOf("DECISIONS.md") ? fallback(t("no_ledger"), "DECISIONS.md") : `<div class="empty">${esc(t("no_dec"))}</div>`;
+  if (!D.ledger.length && !D.agent_decided.length) return docOf("DECISIONS.md") ? fallback(t("no_ledger"), "DECISIONS.md") : `<div class="void">${esc(t("no_dec"))}</div>`;
   const cur = D.agent_decided.filter((a) => !a.superseded), old = D.agent_decided.filter((a) => a.superseded);
   const item = (a, live) => { const i = D.agent_decided.indexOf(a); return `<div class="card led" data-mark="led:${i}"><div><div class="topic">${esc(a.topic || "—")}</div><div class="meta">${esc(a.date)}</div></div>
     <div><div>${esc(a.what)}</div>${a.group ? `<div class="meta">${esc(a.group)}</div>` : ""}${a.why ? `<div class="small muted" style="margin-top:4px"><span class="chip quiet">${esc(t("why"))}</span> ${esc(a.why)}</div>` : ""}${a.undo ? `<div class="small muted" style="margin-top:4px"><span class="chip wait">${esc(t("undo"))}</span> ${esc(a.undo)}</div>` : ""}${a.note ? `<div class="meta" style="margin-top:4px">${esc(a.note)}</div>` : ""}
@@ -961,12 +965,12 @@ function vLedger() {
 }
 function vHistory() {
   const H = D.history.slice().reverse(), F = D.feedback.slice().reverse();
-  if (!H.length && !F.length) return docOf("REVIEW.md") ? `<div class="card">${docHtml(docOf("REVIEW.md"))}</div>` : `<div class="empty">${esc(t("no_history"))}</div>`;
+  if (!H.length && !F.length) return docOf("REVIEW.md") ? `<div class="card">${docHtml(docOf("REVIEW.md"))}</div>` : `<div class="void">${esc(t("no_history"))}</div>`;
   return `<p class="sub">${esc(t("history_sub"))}</p>` + H.map((h) => `<details class="fold" ${h === H[0] ? "open" : ""}><summary>${esc(h.title)}</summary><div class="body md">${h.html}</div></details>`).join("")
     + (F.length ? `<div class="sect"><h2>${esc(t("desk_subs"))}</h2><ul class="small">${F.map((f) => `<li><a href="${esc(src(f.file.replace(/\.json$/, ".md")))}" target="_blank" rel="noopener">${esc(f.round)} · ${esc(f.submitted_at.replace("T", " "))}</a> · ${f.items.length} ✎</li>`).join("")}</ul></div>` : "");
 }
 function vDocs() {
-  if (!D.docs.length) return `<div class="empty">${esc(t("no_docs"))}</div>`;
+  if (!D.docs.length) return `<div class="void">${esc(t("no_docs"))}</div>`;
   const doc = docOf(DOC) || D.docs[0];
   const nav = `<div class="docnav">${D.docs.map((d) => `<a href="${projHash(PKEY, "ledger/docs/" + d.file)}" class="${d === doc ? "on" : ""}">${esc(d.file)}</a>`).join("")}</div>`;
   const warn = D.warnings.length ? `<div class="notice"><b>${esc(t("warnings"))}</b><ul style="margin:4px 0 0;padding-left:18px">${D.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : "";
@@ -1149,7 +1153,7 @@ function CutModule(area) {
   function renderList() {
     const b = $("#lbody", area); let h = ""; lastShot = undefined;
     if (tab === "shots") {
-      if (!shots.length) h = `<p class="empty">${esc(t("no_shots"))}</p>`;
+      if (!shots.length) h = `<p class="void">${esc(t("no_shots"))}</p>`;
       else {
         let last = null;
         shots.forEach((s) => {
@@ -1160,15 +1164,15 @@ function CutModule(area) {
         });
       }
     } else if (tab === "script") {
-      h = lines.length ? lines.map((l, i) => `<button type="button" class="lrow text${SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""}" data-pick="line:${i}"><span class="tc">${esc(fmt(l.t0))}</span><span class="tx">${esc(l.text)}</span></button>`).join("") : `<p class="empty">${esc(t("no_narr"))}</p>`;
+      h = lines.length ? lines.map((l, i) => `<button type="button" class="lrow text${SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""}" data-pick="line:${i}"><span class="tc">${esc(fmt(l.t0))}</span><span class="tx">${esc(l.text)}</span></button>`).join("") : `<p class="void">${esc(t("no_narr"))}</p>`;
     } else if (tab === "notes") {
       const R = allMarks().filter((m) => m.kind !== "check");
       const who = (m) => (m.kind === "mine" ? `<em style="color:var(--you)">${esc(t("k_mine"))}</em>` : m.kind === "least" ? `<em style="color:var(--wait)">${esc(t("k_least"))}</em>` : `<em style="color:var(--wait)">${esc(t("k_listen"))}</em>`);
       h = R.map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${m.t}"${m.t1 != null ? ` data-t1="${m.t1}"` : ""}><span class="tc">${esc(fmt(m.t))}</span><span class="tx">${who(m)} ${esc(m.kind === "mine" ? (m.note || m.label) : m.note)}</span></button>`).join("")
         + (FB.general ? `<div class="lrow text"><span class="tc">·</span><span class="tx"><em style="color:var(--you)">${esc(t("c_whole_note"))}</em> ${esc(FB.general)}</span></div>` : "");
-      if (!h) h = `<p class="empty">${esc(t("c_none_mine"))}</p>`;
+      if (!h) h = `<p class="void">${esc(t("c_none_mine"))}</p>`;
     } else {
-      if (!chk) h = `<p class="empty">${esc(t("no_checks"))}</p>`;
+      if (!chk) h = `<p class="void">${esc(t("no_checks"))}</p>`;
       else {
         h = `<p class="meta" style="margin:4px 6px 8px">${esc(t("verdict"))} <b class="${verdictCls(chk.verdict)}">${esc(chk.verdict || "–")}</b> · ${esc(chk.video || "")}</p>${chk.stale ? `<p class="notice">${esc(t("check_stale"))}</p>` : ""}`;
         h += findings.map((f) => `<button type="button" class="lrow text" data-pick="check:${findings.indexOf(f)}"><span class="tc">${esc(fmt(f.t))}</span><span class="tx"><em style="color:var(--live)">✕ ${esc(f.severity === "fail" ? t("sev_fail") : t("sev_warn"))}</em> ${esc(f.message || f.kind || "")}</span></button>`).join("");
