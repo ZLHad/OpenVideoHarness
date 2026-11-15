@@ -2,7 +2,7 @@
  "version": 1,
  "lang": "zh",
  "provider": "fixture",
- "voice": "fixture",
+ "voice": "Charon",
  "segments": [
   {
    "id": "L1",
@@ -40,5 +40,83 @@
    "end": 31.4,
    "text": "所以一天涨两次。"
   }
- ]
+ ],
+ "pace": {
+  "from": "audio/voiceover.zh.raw.wav",
+  "reference": 3.877,
+  "how": "median of 6 line(s)",
+  "unit": "chars/s",
+  "measure": "speech",
+  "strength": 0.7,
+  "clamp": [
+   0.8,
+   1.25
+  ],
+  "tolerance": 0.12,
+  "pause": 0.26,
+  "comma": 0.12,
+  "stop": 0.25,
+  "relative": null,
+  "extra": [],
+  "lengthened": [
+   0,
+   0.0
+  ],
+  "rates": {
+   "speech": [
+    4.085,
+    3.989
+   ],
+   "with_pauses": [
+    2.065,
+    2.065
+   ]
+  },
+  "align": "map",
+  "sha256": "fixture",
+  "lines": [
+   {
+    "id": "L1",
+    "units": 7,
+    "pace": 3.528,
+    "tempo": 1.0,
+    "after": 3.528
+   },
+   {
+    "id": "L2",
+    "units": 12,
+    "pace": 4.608,
+    "tempo": 0.8861,
+    "after": 4.083
+   },
+   {
+    "id": "L3",
+    "units": 13,
+    "pace": 4.032,
+    "tempo": 1.0,
+    "after": 4.032
+   },
+   {
+    "id": "L4",
+    "units": 13,
+    "pace": 6.048,
+    "tempo": 0.8,
+    "after": 4.838
+   },
+   {
+    "id": "L5",
+    "units": 12,
+    "pace": 3.722,
+    "tempo": 1.0,
+    "after": 3.722
+   },
+   {
+    "id": "L6",
+    "units": 7,
+    "pace": 2.823,
+    "tempo": 1.2487,
+    "after": 3.525
+   }
+  ]
+ }
 }

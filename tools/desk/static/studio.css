@@ -434,7 +434,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 @media (max-width:900px){
   body{overflow:auto}
   .app{display:block;height:auto;padding:0!important}
-  .topbar{position:sticky;top:0;z-index:20;flex-wrap:wrap;padding:6px 10px;gap:8px;border-radius:0!important}
+  .topbar{position:sticky;top:0;z-index:20;flex-wrap:wrap;padding:6px 10px;gap:8px;border-radius:0!important;background:var(--bg)!important}
   .topbar .mark{flex:0 0 auto}.topbar .crumbs{max-width:60%}
   .flow{order:5;flex-basis:100%;justify-content:flex-start}
   .rail{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--rule);padding:4px 6px;border-radius:0!important}

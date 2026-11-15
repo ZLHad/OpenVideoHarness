@@ -24,6 +24,22 @@
    "message": "结尾的峰值离 -1 dBTP 只差 0.2 dB",
    "t": 31.0,
    "t1": null
+  },
+  {
+   "kind": "check.loudness",
+   "severity": "info",
+   "message": "loudness: -14.2 LUFS integrated, true peak -1.2 dBTP, on the target",
+   "evidence": {
+    "integrated": -14.2,
+    "true_peak": -1.2,
+    "lra": 6.1,
+    "target": -14
+   }
+  },
+  {
+   "kind": "check.safe",
+   "severity": "info",
+   "message": "safe area: every caption inside"
   }
  ]
 }

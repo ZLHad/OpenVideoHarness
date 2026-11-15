@@ -3130,9 +3130,9 @@ t = sys.argv[1]
 bad = []
 def want(cond, what):
     if not cond: bad.append(what)
-ui, studio, rv = (open(f, encoding="utf-8").read() for f in ("tools/desk/static/ui.js", "tools/desk/static/studio.js", "tools/review.py"))
-want("innerHTML" not in ui, "ui.js puts markup in the page (innerHTML): a frame's address or a label is the project's words")
-want("url('" not in studio and "data-cap=" not in rv, "a project path in a CSS url('…') or a caption in an attribute")
+ui, studio, rv, mods = (open(f, encoding="utf-8").read() for f in ("tools/desk/static/ui.js", "tools/desk/static/studio.js", "tools/review.py", "tools/desk/static/modules.js"))
+want("innerHTML" not in ui + mods, "ui.js or modules.js puts markup in the page (innerHTML): a frame's address or a label is the project's words")
+want("url('" not in studio + mods and "data-cap=" not in rv and not re.search(r"\son[a-z]+=", mods), "a project path in a CSS url('…'), a caption in an attribute, or an inline handler in modules.js")
 calls, real = [], projects.listing
 projects.listing = lambda *a, **k: (calls.append(1), real(*a, **k))[1]
 srv = server.Desk(0, None, [t + "/root"])
@@ -3169,7 +3169,7 @@ want("gone.png" not in " ".join(re.findall(r'(?:src|href|data-src)="([^"]*)"', h
      "a gate page links a file that is not there")
 print("; ".join(bad))
 PY
-) && [ -z "$a" ]; then ok "console safety: no markup from project words in ui.js, no project path in a CSS url; an unknown key walks the roots once in FRESH_GAP; a console's info file only in this user's own closed folder, and a process it cannot signal is not its console; a card and a gate page ask for no missing file; the film's name from its gate page"
+) && [ -z "$a" ]; then ok "console safety: no markup from project words in ui.js or modules.js, no project path in a CSS url, no inline handler in modules.js; an unknown key walks the roots once in FRESH_GAP; a console's info file only in this user's own closed folder, and a process it cannot signal is not its console; a card and a gate page ask for no missing file; the film's name from its gate page"
   else bad "console safety: $a"; fi
   # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
   mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
@@ -3207,9 +3207,9 @@ page = page.decode()
 token = page.split('name="desk-token" content="')[1].split('"')[0]
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
 want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
-for f in ("ui.css", "ui.js", "studio.css", "studio.js"):
+for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js"):
     want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
-want(req("GET", "/static/console.js")[0] == 404, "/static/ serves only its four files")
+want(req("GET", "/static/console.js")[0] == 404, "/static/ serves only its six files")
 s, _, d = req("GET", "/api/projects"); d = json.loads(d)
 real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
 rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
@@ -3237,6 +3237,19 @@ tl = sd.get("timeline") or {}
 want(len(tl.get("shots") or []) == 6 and len(tl.get("narration") or []) == 6 and len(tl.get("beats") or []) > 40 and tl.get("bpm") == 90
      and [(f["severity"], f["t"]) for f in sd.get("findings") or []] == [("warn", 28.5), ("warn", 31.0)] and (sd.get("check") or {}).get("verdict") == "warn"
      and sd.get("thumbs") is None and sd.get("peaks") is None, f"demo's cut data: {sorted(tl)} {sd.get('findings')}")
+md = d.get("mods") or {}
+pc, au = md.get("pace") or {}, md.get("audition") or {}
+want((md.get("loudness") or {}).get("integrated") == -14.2 and md.get("silences") == 0 and pc.get("unit") == "chars/s" and len(pc.get("lines") or []) == 6
+     and md.get("voice") == "Charon" and [v["voice"] for v in au.get("voices") or []] == ["Charon", "Kore", "Puck"] and [x["t"] for x in md.get("lifts") or []] == [9.0, 21.3],
+     f"demo's sound data: {json.dumps({k: md.get(k) for k in ('loudness', 'silences', 'voice', 'lifts')}, ensure_ascii=False)[:300]}")
+want([(c["id"], c["ratio"] < 1) for c in md.get("covers") or [] if c.get("ratio")] == [("A", True), ("B", False)] and md.get("subs") == []
+     and [(a["id"], a["license"], a["there"]) for a in md.get("assets") or []] == [("tide-gauge", "cc0", True), ("card-a", "own", True), ("tide-clip", "unknown", False), ("vo", "generated", False)]
+     and [r["id"] for r in md.get("refs") or []] == ["tide-lecture"] and [x["path"] for x in md.get("digests") or []] == ["research/digest/tide-lecture/transcript.md"],
+     f"demo's delivery and material data: {json.dumps({k: md.get(k) for k in ('covers', 'assets', 'refs', 'digests')}, ensure_ascii=False)[:400]}")
+pk = d.get("packaging") or {}
+want("白板" in ((d.get("ideas") or {}).get("same_topic") or "") and [x["id"] for x in pk.get("titles") or []] == ["T1", "T2", "T3"]
+     and [(x["name"], len(x["tags"])) for x in pk.get("platforms") or []] == [("B站", 4), ("抖音", 2)] and [h.get("date") for h in d.get("history") or []] == ["2026-11-14", "2026-11-14"],
+     f"NOTES' ideas, PACKAGING's titles and platforms, REVIEW's dates: {json.dumps(pk.get('platforms'), ensure_ascii=False)[:200]}")
 s, _, g = req("GET", f"/api/p/{K}/gate/3"); g = json.loads(g)
 want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g["html"] and [x["id"] for x in g["decisions"]] == ["draft", "voice"]
      and f'src="/f/{K}/out/check/sheet.svg"' in g["html"] and not g["errors"], f"gate 3's view: {g.get('errors')}")
@@ -3274,7 +3287,7 @@ if bad:
     print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
+  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings) and what the other modules read (the check's loudness, bin/vh pace's rates and the voice, the audition, the lifts, covers, the asset ledger, references and transcripts; NOTES' same-topic line, PACKAGING's titles and copy for each platform, REVIEW's dates), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
   else bad "console"; fi
   a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
   kill $pid 2>/dev/null; wait $pid 2>/dev/null

@@ -183,7 +183,11 @@ const HOME = (document.querySelector('meta[name="desk-home"]') || {}).content ||
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let LANG = "zh", L = STR.zh;
-const t = (k, vars) => String(L[k] != null ? L[k] : STR.en[k] != null ? STR.en[k] : k).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : ""));
+const word = (k) => {   // the shell's words first, then the modules' (modules.js), in this language and then in English
+  const M = typeof MSTR !== "undefined" ? MSTR : { zh: {}, en: {} };
+  return [L[k], M[LANG][k], STR.en[k], M.en[k]].find((x) => x != null);
+};
+const t = (k, vars) => String(word(k) != null ? word(k) : k).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : ""));
 const fmt = (x) => { if (x == null || isNaN(x)) return "–"; x = Math.max(0, +x); const m = Math.floor(x / 60), s = x - m * 60; return `${m}:${s.toFixed(1).padStart(4, "0")}`; };
 const pad = (n) => String(n).padStart(2, "0");
 const tcode = (x, fps) => { const f = Math.floor(Math.max(0, x || 0) * fps + 0.01), s = Math.floor(f / fps); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}:${pad(f % fps)}`; };
@@ -525,6 +529,8 @@ function renderColumn() {
 function pick(dec, val) {
   FB.decisions[dec] = val; save();
   $$(`.g-dec[data-dec="${CSS.escape(dec)}"] input[type=radio]`).forEach((x) => { x.checked = x.value === val; });   // its twin in the module
+  const V = typeof MODVIEW !== "undefined" && MODVIEW[MOD];
+  if (V && V.sync) V.sync(dec, val);   // a module that draws the decision itself (立意's cards)
 }
 function roundOpen() {   // this round's stop is not settled yet (the server reads it from bin/vh status: not passed, not skipped)
   if (!D || !D.current || ROUND.id !== D.current) return false;
@@ -629,8 +635,8 @@ function setScope(s) {
 function addNote() {
   const ta = $("#say"), text = ta.value.trim();
   if (!text) { ta.focus(); return; }
-  if (!SCOPE) {   // the whole module: the round's overall words
-    const pre = MOD && MOD !== "cut" ? `〔${t("m_" + MOD)}〕` : "";
+  if (!SCOPE || !SCOPE.target) {   // the whole module, or a place with no target of its own: the round's overall words, named
+    const pre = SCOPE ? `〔${SCOPE.label}〕` : MOD && MOD !== "cut" ? `〔${t("m_" + MOD)}〕` : "";
     FB.general = (FB.general ? FB.general + "\n" : "") + pre + text;
   } else {
     const cur = FB.items[SCOPE.target];
@@ -639,14 +645,16 @@ function addNote() {
   }
   ta.value = ""; save(); toast(t("noted", { x: scopeLabel() }));
 }
+$("#stage").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.hidden = true; }, true);   // a picture not there: the letter under it shows
 $("#stage").addEventListener("click", (e) => {   // a place in a module: the note box writes against it
-  if (MOD === "cut" || e.target.closest("button,a,input,textarea,select,label,.fb,summary,video")) return;
-  const el = e.target.closest("[data-mark],[data-target]");
+  if (MOD === "cut" || e.target.closest("button,a,input,textarea,select,label,.fb,summary,video,audio")) return;
+  const el = e.target.closest("[data-mark],[data-target],[data-scope]");
   if (!el || !$("#stage").contains(el)) return;
   const target = el.dataset.mark || el.dataset.target;
+  if (!target) { setScope({ label: el.dataset.scope, el }); return; }   // no target of its own: a note on it goes into the overall words
   if (!/^[a-z]+:/.test(target) || target.startsWith("dec:")) return;
   const fb = $(".fb", el), kind = target.split(":")[0], x = target.slice(kind.length + 1);
-  let label = fb ? fb.dataset.label : "";
+  let label = el.dataset.label || (fb ? fb.dataset.label : "");
   if (!label) label = kind === "least" ? t("l_least", { x: x || cut(el.textContent.trim(), 24) }) : kind === "shot" ? t("l_shot", { x }) : kind === "deleg" ? t("l_deleg", { x: cut(el.textContent.trim(), 28) }) : kind === "atime" ? t("sound_label", { t: fmt(+x) }) : target;
   setScope({ target, label, el, t: el.dataset.t != null ? +el.dataset.t : null, t1: el.dataset.t1 != null ? +el.dataset.t1 : null });
 });
@@ -749,6 +757,19 @@ function renderModule() {
   area.classList.toggle("is-cut", bench);
   if (bench) { if (CUT && !GATE) { CUT.refresh(); return; } if (CUT) CUT.destroy(); CUT = CutModule(area); return; }
   const cur = SUB && (SUBS[MOD] || []).includes(SUB) ? SUB : (SUBS[MOD] || [""])[0];
+  const V = typeof MODVIEW !== "undefined" && MODVIEW[MOD], page0 = stopPage(MOD);
+  if (V && (!SUBS[MOD] || cur === SUBS[MOD][0]) && (!page0 || page0 === D.current)) {   // a module laid out as the prototype draws it (modules.js)
+    area.innerHTML = `<section class="module m2" data-mod="${MOD}">${V.main()}</section>`;
+    if (page0) {   // the rest of the stop's page: after the module, above its bar
+      const bar = $(".mbar", area), gp = '<div id="gatePart" class="after"></div>';
+      if (bar) bar.insertAdjacentHTML("beforebegin", gp); else $(".m2", area).insertAdjacentHTML("beforeend", gp);
+      loadGatePart(page0, V);
+    } else { const link = pastPageLink(MOD); if (link) $(".mh2", area).insertAdjacentHTML("beforeend", link); }
+    $$("[data-mark]", area).forEach(markHost);
+    if (V.wire) V.wire();
+    area.scrollTop = 0;
+    return;
+  }
   const fn = { idea: mIdea, outline: () => ({ outline: vOutline, script: vScript, facts: vFacts }[cur] || vOutline)(), board: mBoard, sound: vSound,
     ship: () => (cur === "versions" ? vVersions() : vCheck() + `<p class="void">${esc(t("ship_none"))}</p>`), assets: vAssets,
     ledger: () => ({ decisions: vLedger, history: vHistory, docs: vDocs }[cur] || vLedger)(), cut: () => "" }[MOD] || mIdea;
@@ -771,13 +792,19 @@ function pastPageLink(mod) {
   const pg = s.pages[s.pages.length - 1];
   return `<a class="meta" style="margin-left:auto" href="${projHash(PKEY, "gate/" + enc(pg))}">${esc(t("page_of", { g: gateName(pg) }))}</a>`;
 }
-async function loadGatePart(gid) {
+async function loadGatePart(gid, V) {   // V: the module draws the page's picture itself; the rest of the page comes after it
   const r = await getJSON(`/api/p/${enc(PKEY)}/gate/${enc(gid)}?lang=${LANG}`);
   const host = $("#gatePart"); if (!host) return;
   if (!r.ok || !r.data) { host.innerHTML = `<p class="void">${esc((r.data && r.data.error) || "")}</p>`; return; }
   const g = r.data, past = !g.current;
   host.innerHTML = (past ? `<p class="notice">${esc(t("past", { g: gateName(g.gate) }))}${D.current ? ` <a href="${projHash(PKEY, gateMod(D.current))}">${esc(t("to_round"))}</a>` : ""}</p>` : "") + g.html;
   const root = $(".gate", host);
+  if (V) {   // its heading is the module's; a missing file's warning stays
+    const head = $(".g-head", root);
+    if (head) { $$(".g-warn, .g-gone", head).forEach((w) => root.prepend(w)); head.remove(); }
+    if (V.drawn) V.drawn(root);
+    root.insertAdjacentHTML("afterbegin", `<h2 class="pn-h"><span>${esc(t("page_rest", { g: gateName(g.gate) }))}</span></h2>`);
+  }
   // the decisions live in the right column; a decision drawn with pictures stays here as the picture, its pick kept in step with the column's
   $$(".g-side, .g-act, .g-decs", root).forEach((x) => x.remove());
   $$(".g-dec:not(.wide)", root).forEach((x) => x.remove());
@@ -786,6 +813,7 @@ async function loadGatePart(gid) {
   $$("input[type=radio]", root).forEach((x) => { if (past) x.disabled = true; else x.name = "m-" + x.name; });
   PARTCTL = OVH.mount(root, past ? {} : { initial: FB.decisions, onPick: pick, advance: false });
   if (past) $$(".g-dec", root).forEach((d) => { d.classList.remove("active"); $$("input[type=radio]", d).forEach((x) => { x.checked = false; }); });   // what was picked then is in REVIEW.md, not here
+  if (V) { const main = $(".g-main", root); if (main && !main.children.length) main.closest(".g-body").remove(); }   // nothing left of the picture part
   $$("[data-mark]", root).forEach(markHost);
 }
 

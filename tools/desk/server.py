@@ -8,10 +8,13 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
 
   GET  /                          the page (static/index.html, with this run's token and the project it opens on)
   GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
-                                  studio.css and studio.js (the console's shell and modules)
+                                  studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
+                                  (the other modules)
   GET  /api/projects              every project: bin/vh projects' rows, each with its key, a picture, and what it waits for
   GET  /api/p/<key>/data          one project, read fresh: reader.read_project, plus bin/vh status (status), its key and
-                                  what the cut module lays out (studio: the resolved timeline, thumbnails, peaks, findings)
+                                  what the cut module lays out (studio: the resolved timeline, thumbnails, peaks, findings),
+                                  and what the other modules read besides (mods: loudness, voices, lifts, covers, the asset
+                                  ledger, references and their transcripts)
   GET  /api/p/<key>/gate/<id>     a gate page as the gate view's markup (tools/review.py: the static page's markup)
   GET  /api/p/<key>/stage         the project's film, or newest draft, as the same player markup, with its ruler
   GET  /api/p/<key>/status        is an agent waiting for this project's feedback (bin/vh desk wait)?
@@ -37,7 +40,8 @@ import reader          # noqa: E402
 import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
 
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
-          "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8"}
+          "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
+          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
@@ -272,6 +276,93 @@ def studio_extras(project, data):
     return out
 
 
+def module_extras(project, data):
+    """What the other modules lay out, from files bin/vh has already made (nothing is run here): the sound module's readouts
+    (the latest bin/vh check's loudness and its silences, bin/vh pace's speech rates from the narration's timeline), its
+    voice audition (bin/vh voices audition's audition.json) and the music's candidate lifts (bin/vh beats); the delivery
+    module's covers, caption files and every finding of the check; the material module's asset ledger (bin/vh assets),
+    references (bin/vh ref) and long-video transcripts (bin/vh ref digest). A part that is not there is empty, and the
+    page names the command that makes it."""
+    project = Path(project)
+    out = {"loudness": None, "silences": None, "checks": [], "pace": None, "voice": None, "audition": None, "lifts": [], "covers": [],
+           "subs": [], "assets": None, "refs": [], "digests": []}
+    tl = (data.get("studio") or {}).get("timeline")
+    narr = (((tl.get("sources") or {}).get("narration") or {}).get("path") if isinstance(tl, dict) else None)
+    ntl = _load(project / narr) if _inside(project, narr) else None
+    pc = ntl.get("pace") if isinstance(ntl, dict) else None
+    if isinstance(ntl, dict) and isinstance(ntl.get("voice"), str):
+        out["voice"] = ntl["voice"]   # the voice the narration was read in (bin/vh tts)
+    if isinstance(pc, dict):   # bin/vh pace's numbers: voice only, every pause of 0.12 s or more inside a line left out
+        rates = pc.get("rates") if isinstance(pc.get("rates"), dict) else {}
+        out["pace"] = {"reference": pc.get("reference"), "unit": pc.get("unit"), "speech": rates.get("speech"), "with_pauses": rates.get("with_pauses"),
+                       "lines": [{k: x.get(k) for k in ("id", "units", "pace", "after", "tempo", "note")} for x in pc.get("lines") or [] if isinstance(x, dict)][:2000]}
+    chk = (data.get("status") or {}).get("check")
+    rec = _load(project / chk["record"]) if isinstance(chk, dict) and chk.get("record") else None
+    if isinstance(rec, dict):
+        F_ = [f for f in rec.get("findings") or [] if isinstance(f, dict)]
+        out["checks"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in F_][:300]
+        ld = next((f for f in F_ if f.get("kind") == "check.loudness"), None)
+        if ld:
+            ev = ld.get("evidence") if isinstance(ld.get("evidence"), dict) else {}
+            out["loudness"] = {k: ev.get(k) for k in ("integrated", "true_peak", "lra", "target")}
+            out["loudness"]["severity"] = ld.get("severity")
+        out["silences"] = sum(1 for f in F_ if "silence" in str(f.get("kind", "")) or str(f.get("message", "")).startswith("silence"))
+    cands = [p for d in ("audio", "out") if (project / d).is_dir() for p in (project / d).glob("**/audition.json")]
+    if cands:   # the newest audition: its voices, each with its take when the file is there
+        p = max(cands, key=lambda p: p.stat().st_mtime)
+        a = _load(p)
+        if isinstance(a, dict):
+            rows = []
+            for v in a.get("voices") or []:
+                if isinstance(v, dict) and v.get("voice"):
+                    f = (p.parent / str(v.get("file") or "")).relative_to(project).as_posix() if v.get("file") else None
+                    rows.append({"voice": v.get("voice"), "file": f if f and _inside(project, f) else None, "duration": v.get("duration"),
+                                 "pitch_hz": v.get("pitch_hz"), "speech_rate": v.get("speech_rate"), "misread": v.get("misread"), "error": v.get("error")})
+            out["audition"] = {"file": p.relative_to(project).as_posix(), "provider": a.get("provider"), "unit": a.get("unit"),
+                               "text": a.get("text"), "voices": rows}
+    beats = sorted((project / "audio").glob("*.beats.json"), key=lambda p: p.stat().st_mtime) if (project / "audio").is_dir() else []
+    if beats:
+        b = _load(beats[-1])
+        if isinstance(b, dict):
+            out["lifts"] = [{k: x.get(k) for k in ("t", "strength", "depth_db", "rise_db", "on")} for x in b.get("lifts") or [] if isinstance(x, dict)][:40]
+    pk = data.get("packaging") or {}
+    seen = set()
+    folders = [p.relative_to(project).as_posix() for d in ("out/covers", "out/final/covers") if (project / d).is_dir()
+               for p in sorted((project / d).iterdir()) if p.suffix.lower() in IMG]
+    for c in [x.get("image") for x in pk.get("covers") or []] + folders:   # PACKAGING.md's covers first, then the cover folders'
+        p = _inside(project, c)
+        if p and p not in seen:
+            seen.add(p)
+            ratio = review.image_ratio(project / p)
+            out["covers"].append({"path": p, "ratio": round(ratio, 3) if ratio else None,
+                                  "id": next((x.get("id") for x in pk.get("covers") or [] if x.get("image") == c), ""),
+                                  "text": next((x.get("text") for x in pk.get("covers") or [] if x.get("image") == c), "")})
+    out["subs"] = [p.relative_to(project).as_posix() for d in ("out/final", "out", "audio") if (project / d).is_dir()
+                   for p in sorted((project / d).glob("*.srt"))][:20]
+    led = _load(project / "assets" / "ledger.json")
+    if isinstance(led, dict):
+        out["assets"] = []
+        for r in led.get("assets") or []:
+            if not isinstance(r, dict) or r.get("removed"):
+                continue
+            lic, src = r.get("license") if isinstance(r.get("license"), dict) else {}, r.get("source") if isinstance(r.get("source"), dict) else {}
+            out["assets"].append({"id": r.get("id"), "kind": r.get("kind"), "path": r.get("path"), "there": bool(_inside(project, r.get("path"))),
+                                  "license": lic.get("class") or "unknown", "license_name": lic.get("name") or lic.get("spdx") or "",
+                                  "source": src.get("title") or src.get("url") or src.get("tool") or src.get("kind") or "", "url": src.get("url") or "",
+                                  "aigc": bool(r.get("aigc")), "used_by": r.get("used_by") or [], "note": r.get("note") or ""})
+    refs = _load(project / "research" / "refs.json")
+    for r in (refs.get("refs") or refs.get("assets") or [] if isinstance(refs, dict) else refs if isinstance(refs, list) else []):
+        if isinstance(r, dict) and r.get("id"):
+            src = r.get("source") if isinstance(r.get("source"), dict) else {}
+            lic = r.get("license") if isinstance(r.get("license"), dict) else {}
+            out["refs"].append({"id": r.get("id"), "kind": r.get("kind"), "title": src.get("title") or r.get("note") or r.get("id"),
+                                "url": src.get("url") or "", "author": src.get("author") or "", "license": lic.get("class") or "unknown",
+                                "path": r.get("path") if _inside(project, r.get("path")) else None, "note": r.get("note") or ""})
+    for t in sorted((project / "research" / "digest").glob("*/transcript.md")) if (project / "research" / "digest").is_dir() else []:
+        out["digests"].append({"id": t.parent.name, "path": t.relative_to(project).as_posix(), "bytes": t.stat().st_size})
+    return out
+
+
 class Desk(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
@@ -477,6 +568,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         cur = next((x for x in (data.get("status") or {}).get("stations") or [] if data["current"] in (x.get("pages") or [])), None)
         data["round_open"] = bool(data["current"]) and not (cur and cur.get("state") in ("done", "skipped"))
         data["studio"] = studio_extras(project, data)
+        try:
+            data["mods"] = module_extras(project, data)
+        except (Exception, SystemExit) as e:   # the other modules show their empty states; the reason is said
+            data["mods"] = None
+            data["warnings"].append(f"modules: {type(e).__name__}: {e}")
         return self._json(data)
 
     def _gate(self, project, key, gid, lang=None):

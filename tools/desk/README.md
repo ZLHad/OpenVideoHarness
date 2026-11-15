@@ -29,7 +29,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 - **外壳**：左边一列模块（空间、立意、大纲、分镜、声音、成片、交付、素材、账本；有一站在等人时，它的模块亮一个琥珀点）。顶上一条流程：立意 ① · 大纲 ① · 分镜 ② · 声音 · 成片 ③ · 交付，每一站的灯取这支片子自己的停（`bin/vh status` 的 stations）：过了是绿，等你是琥珀，agent 在做是紫，还没到是灰，这支片子不在这一站停是一个空心的点。右边一整列见下面。
 - **空间**（`#/`）：上面一个写一句话的框，写好复制给自己的 agent（这一版不直接新建）；下面一张卡一支片，等人的在前，卡上写等人定什么；鼠标停在卡上，卡上的片子静音播 4 秒。卡上的画面按这个顺序取：等人时取这一轮要人看的（第一张立意卡的帧，没有就是它的片子、第一张图、第一个关键帧）；不等人时取封面（`out/final/covers/`、`out/final/cover*`、`out/review/cover*`），没有就是当前成片的中间一帧（浏览器自己从视频里取，服务不跑 ffmpeg），再没有是分镜关键帧，最后是 `out/review/`、`out/check/`、`out/frames/` 里最新的一张图。
-- **一支片子**（`#/p/<键>[/<模块>]`）：打开在等人的那一站的模块（关卡 ① 立意，② 分镜，③ 成片）；没人等时打开正在做的那一站，再没有就是成片。关卡不再是另一页：等人那一站的模块上方就是这一轮的关卡页（画面在前；带画面的决定留在那里，和右栏的同一件决定同步），要你定的事在右栏。`#/p/<键>/gate/<页>` 打开那一页所在的模块，之前的页只看不交。立意、大纲（含字幕或旁白、事实）、分镜、声音、交付（检查、版本）、素材、账本（决定、历史、文档）这一版沿用原来审阅台的视图，按原型重排在第二期。
+- **一支片子**（`#/p/<键>[/<模块>]`）：打开在等人的那一站的模块（关卡 ① 立意，② 分镜，③ 成片）；没人等时打开正在做的那一站，再没有就是成片。关卡不再是另一页：等人那一站的模块就是这一轮的关卡页，要你定的事在右栏。照原型排的模块自己画关卡页的画面（立意卡、镜头），关卡页里其余的东西（替你定的、附录、别的图）接在模块下面；成片模块把关卡页的画面放在它的时间线上。`#/p/<键>/gate/<页>` 打开那一页所在的模块，之前的页只看不交。
 - **成片模块**（提案第 4 节）：左边是列表（镜头、旁白稿、点评、检查），中间是画面：四周中性灰，上面一行等宽字的读数（哪一镜、要看懂什么、尺寸、帧率、第几版）；左边和中间的下面是时间线，三组轨道：画面（章节、带缩略图的镜头）、声音（旁白、音乐的段落和节拍、卡点、波形）、审阅（你的点评，agent 没把握和请你听的记号，检查查出的问题，这一版改了哪里）。点一下选这一秒，拖一下选一段，点镜头或章节选中它；`I` `O` 设入点出点，拖的时候吸附到镜头边界、节拍、旁白和记号，`N` 跳到下一处要看的，空格播放（选了一段就只播这一段），`←` `→` 逐镜，`,` `.` 逐帧，`C` 在这一秒写一条。三种布局：审片（画面最大，只留主轨道；关卡 ③ 打开就是它）、精修、听声音（旁白稿和声音轨道放大）。有留着的上一版时，可以和它擦着对比（只看）。数据都来自已有的命令：`bin/vh timeline --resolved`（镜头、章节、旁白、节拍）、`bin/vh thumbs`（拖动时每一秒的画面、镜头图）、`bin/vh peaks`（波形）、`bin/vh check`（问题和它们的时间）、`bin/vh versions`（第几版、改了哪里、上一版）；缺哪样，那条轨道就照实说空，写上做它的命令。没有成片时，画面是分镜的关键帧，没有关键帧就是联系表；要的那支片子不在了（移走、改名、在别的硬盘上），画面下写明是哪个文件。页面从不请求不在的文件：关卡页里引用的文件不在了，那里写"文件不在了"，不给链接；镜头的关键帧不在，就当没有。
 - **右边一列**：这一轮要你定的事（关卡页的选项卡，能点，推荐的预先选上，`1`–`9` 给当前这件选第几个），它最没把握的和请你听的（点一下到那一秒），你的点评（点一下回到那一处，× 删掉），下一步、正在跑的命令和花费，一个"提交这一轮"，和一个写点评的框：对着什么，就是模块里选中的那一处（一秒、一段、一个镜头、一章、一个记号、一张卡），没选就是整个模块（记进这一轮的整体意见）。"说给 agent"这一版是关着的。
 - **提交**：先列出每件决定选了什么（没动的标"按推荐"）和每条点评，可以再写一句整体意见；走的还是 `POST …/feedback` 这一条通道，`bin/vh desk wait` 照样被唤醒。服务没起来时，回复复制到剪贴板。
@@ -42,9 +42,9 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 | 地址 | 给什么 |
 |---|---|
 | `GET /` | 页面，带这一次启动的令牌，和打开在哪个项目上 |
-| `GET /static/<文件>` | `ui.css`、`ui.js`（关卡视图的，静态页内嵌的是同两份）、`studio.css`、`studio.js`（控制台的外壳和模块） |
+| `GET /static/<文件>` | `ui.css`、`ui.js`（关卡视图的，静态页内嵌的是同两份）、`studio.css`、`studio.js`（控制台的外壳和成片模块）、`modules.css`、`modules.js`（其余模块） |
 | `GET /api/projects` | `{version, home, roots, count, waiting, projects}`：`bin/vh projects` 的每一行，等人的在前，其余按最后一次动静从新到旧，交付了的在最后；加 `key`（地址里的项目键，见下面）、`picture`（`{path, kind: image \| video, from, href}`：封面，`bin/vh thumbs` 的镜头图，片子本身，联系表，关卡页里的图，分镜关键帧，最新的一张图，只取在的文件）、`ask`（等人时：`{gate, title, title_en, question, decisions}`）；`title` 在 BRIEF 没写片名时取最新一页关卡页的标题里关卡名之前的那一段 |
-| `GET /api/p/<键>/data` | `bin/vh desk data` 的内容，加 `status`（`bin/vh status --json`）、`key`、`home`、`pid`（这个项目文件夹的身份：真实路径的 SHA-1，提交要带上）、`only`、`current`（这一轮的页名）、`round_open`（这一轮那一站还没定：不是 done、skipped；这时提交带上它的决定），和 `studio`（`film` 是成片模块播的那一支，只取在的文件；要的那支不在时，`film_missing` 是它的路径；`sheet` 是最新的联系表；成片模块用的：`timeline` 是 `bin/vh timeline --resolved` 的内容；`thumbs`、`peaks` 是 `bin/vh thumbs`、`peaks` 做过才有的记录；`check` 和 `findings` 是最近一次检查的结论和带时间的问题，没过和要注意的；读不出来的那一样是 `null`，原因记在 `warnings`） |
+| `GET /api/p/<键>/data` | `bin/vh desk data` 的内容，加 `status`（`bin/vh status --json`）、`key`、`home`、`pid`（这个项目文件夹的身份：真实路径的 SHA-1，提交要带上）、`only`、`current`（这一轮的页名）、`round_open`（这一轮那一站还没定：不是 done、skipped；这时提交带上它的决定），和 `studio`（`film` 是成片模块播的那一支，只取在的文件；要的那支不在时，`film_missing` 是它的路径；`sheet` 是最新的联系表；成片模块用的：`timeline` 是 `bin/vh timeline --resolved` 的内容；`thumbs`、`peaks` 是 `bin/vh thumbs`、`peaks` 做过才有的记录；`check` 和 `findings` 是最近一次检查的结论和带时间的问题，没过和要注意的；读不出来的那一样是 `null`，原因记在 `warnings`），和 `mods`（其余模块读的，都是已有命令写下的文件：`loudness` `{integrated, true_peak, lra, target, severity}` 和 `silences`、`checks`（最近一次检查的每条 finding：`kind, severity, message, t, t1`）；`pace`（旁白时间轴里 `bin/vh pace` 写的 `reference, unit, speech, with_pauses` 和逐句的 `lines`）、`voice`（旁白用的音色）、`audition`（最新的 `audition.json`：`{file, provider, unit, text, voices: [{voice, file, duration, pitch_hz, speech_rate, misread, error}]}`）、`lifts`（最新的 `*.beats.json` 的候选落点）；`covers` `[{path, ratio, id, text}]`、`subs`（字幕文件）；`assets`（台账里没删的每一件：`{id, kind, path, there, license, license_name, source, url, aigc, used_by, note}`，没有台账是 `null`）、`refs`（`research/refs.json`）、`digests` `[{id, path, bytes}]`） |
 | `GET /api/p/<键>/gate/<页>[?lang=zh\|en]` | 那一页的关卡视图：`{version, gate, current, this_round, title, lang, takeall, html, errors, warnings, decisions: [{id, question, recommend, options}], summary, cards, marks, not_reviewed}`；`html` 和静态页同一份标记，文件地址换成 `/f/<键>/…`；`cards` 是所有决定的选项卡（右栏用，同一份标记），`marks` 是没把握和请你听的地方 `[{kind: least \| listen, t, t1, id, note, target}]` |
 | `GET /api/p/<键>/stage` | 不等人时的画面：`{kind: "video", path, html}`（同一个播放器和标尺），或 `{kind: "image", path, href}`，或 `{kind: null}` |
 | `GET /api/p/<键>/status` | 有没有 agent 在等这个项目的反馈，和这一轮的页名 `round` |
@@ -101,6 +101,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 - `## 素材清单` 里的表：`#`、`素材`、`类别`、`上屏说法`（可选）、`出处`。不再用的素材整格划掉 `~~…~~`（老写法"（关卡 ① 后不用）……"也认），事实核对页把它淡化、不给点评。英文：`## Material`，列 `#`、`Item`、`Kind`、`On screen`、`Source`。
 - `## 待核实的事实` 里的 `- [ ]` / `- [x]`。英文：`## To verify`。
+- `## 点子` 里的每条；其中写"同题的视频都长什么样：……"（或"常见的样子"）的那一条，立意模块放在素材清单下面。英文：`## Ideas`，`Videos on the same topic look like: …`。
 
 ### DECISIONS.md
 
@@ -109,7 +110,11 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 ### REVIEW.md
 
-每个 `## ` 小节是一轮：`- 原话（说明）："……"` 是人的原话，`- 定了：…`、`- 改了：…`（同一行写 `定了：A　改了：B` 也行）是之后的处理。只有空占位的小节（模板里还没填的关卡 ②③）和模板最后两节参考文字不算历史。标题以"暂停"开头、又没写"恢复"的小节，让顶栏显示"暂停"。英文：`- Verbatim: "…"`、`- Decided: …`、`- Changed: …`，`Paused`。
+每个 `## ` 小节是一轮（小节里第一个 `YYYY-MM-DD`，通常是"页面"那一行的日期，是这一关的日期，账本用它）：`- 原话（说明）："……"` 是人的原话，`- 定了：…`、`- 改了：…`（同一行写 `定了：A　改了：B` 也行）是之后的处理。只有空占位的小节（模板里还没填的关卡 ②③）和模板最后两节参考文字不算历史。标题以"暂停"开头、又没写"恢复"的小节，让顶栏显示"暂停"。英文：`- Verbatim: "…"`、`- Decided: …`、`- Changed: …`，`Paused`。
+
+### PACKAGING.md
+
+平台那一行、`## 标题` 的表（`#`、`标题`、`类型`、`里面的数字或事实`、`核实`）、`## 封面` 的表（`#`、`画面`、`封面字`、`原图`、`信息流大小`）、「简介和章节」「署名」小节的 `- 键：值`，和「发布文案」下每个 `### 平台` 的标题、简介、标签（`tools/packcheck.py` 怎么读，这里就怎么读）。占位的 `{…}` 不算。交付模块用它。
 
 ### 镜头表：shots.json 或 edit.json
 
