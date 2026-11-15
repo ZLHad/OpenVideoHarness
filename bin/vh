@@ -140,20 +140,35 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
   return 1
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
-cmd_install_skill() { # writes the thin pointer skills (skills/*/SKILL.md) with this clone as their harness path
-  local which=${1:-all} dests=() d r s n
+cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter (what a host triggers on), this clone as the harness
+  # path, and a few lines that send the agent to <clone>/skills/<name>/SKILL.md, so a git pull updates what every host reads.
+  # tools/skill_stub.md is the stub's text; tools/doctor.py (skills_check) renders the same to compare with what is installed.
+  # Line ends come out LF from a CRLF checkout too (tr -d '\r'). A stub this clone wrote for a skill skills/ no longer has is
+  # removed: one whose Harness path line names this clone, alone in its folder; anything else there is left as it is
+  local which=${1:-all} dests=() d s n t body f line
   case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; all) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;;
     *) echo "usage: bin/vh install-skill [claude|codex|all]   (unknown target: $which)" >&2; exit 2 ;; esac
-  r=$(printf '%s\n' "$ROOT" | sed 's/[\\&#]/\\&/g')   # the clone path, escaped for the sed replacement below
+  t=$(tr -d '\r' < "$ROOT/tools/skill_stub.md")
+  line="Harness path (set by install.sh): $ROOT"
   for d in "${dests[@]}"; do
     for s in "$ROOT"/skills/*/SKILL.md; do
       n=$(basename "$(dirname "$s")")
+      body=${t//@NAME@/"$n"}; body=${body//@HARNESS@/"$ROOT"}   # quoted replacements: an & in the path stays an &
       mkdir -p "$d/$n"
-      sed "s#^Harness path (set by install.sh): .*#Harness path (set by install.sh): $r#" "$s" > "$d/$n/SKILL.md"
-      echo "$c_ok skill → $d/$n/SKILL.md (harness: $ROOT)"
+      { tr -d '\r' < "$s" | awk 'NR == 1 && $0 == "---" { f = 1; print; next } f { print; if ($0 == "---") exit }'; printf '%s\n' "$body"; } > "$d/$n/SKILL.md"
+      echo "$c_ok skill → $d/$n/SKILL.md (a stub that reads $ROOT/skills/$n/SKILL.md)"
+    done
+    for f in "$d"/*/SKILL.md; do
+      [ -f "$f" ] || continue
+      n=$(basename "$(dirname "$f")")
+      [ -f "$ROOT/skills/$n/SKILL.md" ] && continue
+      tr -d '\r' < "$f" | grep -qxF "$line" || continue   # not this clone's: someone else's skill, or another clone's
+      [ "$(ls -A "$(dirname "$f")")" = SKILL.md ] || { echo "! $f was written for this clone, but skills/ has no $n now; other files are beside it, so it is left: remove it yourself" >&2; continue; }
+      rm "$f" && rmdir "$(dirname "$f")" && echo "$c_ok removed $d/$n (skills/ has no $n now)"
     done
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
+  echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
 }
 cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first, then AGENTS.md from CLAUDE.md
   local m; m=$(python3 "$ROOT/tools/commands.py" claude-line --write "$ROOT/CLAUDE.md") || exit 1
@@ -368,7 +383,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
   case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
-    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
   esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
@@ -894,8 +909,8 @@ cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser o
 cmd_peaks() { [ $# -gt 0 ] || { cmd_usage peaks >&2; exit 2; }; python3 "$ROOT/tools/peaks.py" "$@"; }       # ffmpeg only; a repeat none
 cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate >&2; exit 2; }   # exec: stopping a backgrounded gate --wait stops its watcher;
   export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
-cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk >&2; exit 2; }   # stdlib only: no uv, works offline; exec, so stopping
-  exec python3 "$ROOT/tools/desk/desk.py" "$@"; }            # a backgrounded bin/vh desk stops the server itself
+cmd_desk() { # stdlib only: no uv, works offline; exec, so stopping a backgrounded bin/vh desk stops the server itself.
+  exec python3 "$ROOT/tools/desk/desk.py" "$@"; }   # no project: the console (every project bin/vh projects finds)
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves);
   # $1 = the slug or scene folder: a Blender scene (swatch.py and no swatch.js) does not need it
@@ -1001,24 +1016,29 @@ project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else
 }
 cmd_sheet() {
   [ $# -gt 0 ] || { cmd_usage sheet >&2; exit 2; }
-  local a; for a in "$@"; do case $a in -?*) { echo "$c_no bin/vh sheet takes no options ($a): cols, fps and out go by position"; cmd_usage sheet; } >&2; exit 2 ;; esac; done
+  # --gray (anywhere): every tile in luma only, to see whether subject and ground part by light and dark alone
+  local a gray="" args=(); for a in "$@"; do case $a in --gray) gray=1 ;; -?*) { echo "$c_no bin/vh sheet takes one option, --gray ($a): cols, fps and out go by position"; cmd_usage sheet; } >&2; exit 2 ;; *) args+=("$a") ;; esac; done
+  [ ${#args[@]} -gt 0 ] || { cmd_usage sheet >&2; exit 2; }
+  set -- "${args[@]}"
   case ${2:-1} in *[!0123456789]*) { echo "$c_no bin/vh sheet: cols is a whole number, not $2"; cmd_usage sheet; } >&2; exit 2 ;; esac
-  local v=$1 cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
+  local v=$1 cols=${2:-6} fps=${3:-1} name base why="install uv" tag=sheet; name=$(basename "$v"); name=${name%.*}
+  [ -z "$gray" ] || tag=sheet-gray
+  export VH_SHEET_GRAY=$gray   # tools/sheet.py reads it
   if [ -d "$v" ]; then   # a folder of pictures (covers): pillow draws it, there is no ffmpeg fallback
     command -v uv >/dev/null 2>&1 || { echo "$c_no bin/vh sheet: a folder of pictures needs uv (pillow)" >&2; exit 2; }
     base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$v" && pwd)"
-    local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
+    local out=${4:-"$base/out/check/${name}-$tag-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
     on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "${2:-5}"; return
   fi
   [ -f "$v" ] || { echo "$c_no bin/vh sheet: no such video or folder: $v" >&2; exit 2; }
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
-  local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
+  local out=${4:-"$base/out/check/${name}-$tag-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
     on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
     why="tools/sheet.py failed, error above"
   fi
   local dur rows; dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); rows=$(python3 -c "import math;print(max(1,math.ceil($dur*$fps/$cols)))")
-  rm -f "$out"; ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=480:-1,tile=${cols}x${rows}" -frames:v 1 "$out" || true
+  rm -f "$out"; ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=480:-1${gray:+,format=gray},tile=${cols}x${rows}" -frames:v 1 "$out" || true
   [ -s "$out" ] || { echo "$c_no no contact sheet written: the ffmpeg fallback produced no frame ($why)" >&2; return 1; }
   echo "$out (no timestamps: $why)"
 }
@@ -1348,12 +1368,13 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
   case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel|peaks|history) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
+    words) cmd_usage words; echo; exec python3 "$ROOT/tools/words.py" -h ;;   # + what it reads, the checks and the --json fields
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
     frames|render|determinism|cues|patch) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new) ;;   # (new: once the project is made)
+  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words) ;;   # (new: once the project is made; words only reads)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
@@ -1368,7 +1389,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   timeline) case " $* " in *" --resolved "*) ;; *) act_start "$@" || true ;; esac ;;   # --resolved only reads
   history) case "${2:-}" in save|restore) act_start "$@" || true ;; esac ;;   # list and diff only read
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
-  cast) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list and check only read
+  cast) case "${2:-}" in add|frames) act_start "$@" || true ;; esac ;;   # list and check only read
   scout|ref) case "${2:-}" in list) ;; *) act_start "$@" || true ;; esac ;;   # list only reads
   web) case "${2:-}" in fetch|shot) act_start "$@" || true ;; esac ;;   # grep and list only read; install touches no project
   hf) [ "${2:-}" != add ] || act_start "$@" || true ;;   # catalog reads the registry, no project
@@ -1398,6 +1419,7 @@ case "${1:-help}" in
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only
+  words) shift; exec python3 "$ROOT/tools/words.py" "$@" ;;   # read-only, not logged; stdlib only
   status) shift; cmd_status "$@" ;; projects) shift; cmd_projects "$@" ;; cancel) shift; cmd_cancel "$@" ;; history) shift; cmd_history "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;; peaks) shift; cmd_peaks "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; edit) shift; cmd_edit "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;; looks) shift; cmd_looks "$@" ;; breakdown) shift; cmd_breakdown "$@" ;;

@@ -1,8 +1,17 @@
-"""bin/vh desk: the review desk, a local page where the reviewer ticks, comments and submits each stop.
+"""bin/vh desk: the console and review desk, a local page where the person looks at every film, and at a stop picks,
+comments and submits.
 
-  bin/vh desk <project> [--port N] [--idle s]   serve the desk (127.0.0.1; default: the first free port of 8780–8799;
-                                                --port 0: any free port). Already serving this project: print its URL.
-                                                --idle s: stop after s seconds without a request (bin/vh gate: 12 h)
+  bin/vh desk [--root DIR …] [--port N] [--idle s]   the console: every project bin/vh projects finds ($OVH_PROJECTS,
+                                                <repo>/projects, each --root), a card a film, waiting ones first; a project's
+                                                page (its stops, its film with the ruler, what to decide, its checks and
+                                                documents); a stop's gate view, where the options are cards to pick and
+                                                one button submits. Already running with these roots: print its URL
+  bin/vh desk <project> [--root DIR …] [--port N] [--idle s] [--only]   the same page, opened on that project, every
+                                                other film a click away in the space. Default port: the first free of
+                                                8780–8799 (--port 0: any free port). Already serving this project: print
+                                                its URL. --idle s: stop after s seconds without a request. --only: this
+                                                project and nothing else under the roots (bin/vh gate starts the desk of a
+                                                stop so, with --idle 43200: 12 h)
   bin/vh desk wait <project> [--timeout s]      block until the reviewer submits, print the feedback, exit 0 (3 on
                                                 timeout; default 7100 s). An agent runs it in the background after each
                                                 stop: its exit is the wake-up call. A submission for the current page that
@@ -11,8 +20,8 @@
                                                 counts as handed over (out/review/feedback/.consumed)
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
 
-The desk reads the same out/review/gate-<n>.json as bin/vh review, plus the project's markdown (the contract is in
-tools/desk/README.md). A submission goes to out/review/feedback/<round>-<time>.json and .md, and its text into
+The desk reads the same out/review/gate-<n>.json as bin/vh review, and shows a stop with the same markup (tools/review.py,
+tools/desk/static/ui.css and ui.js), plus the project's markdown and bin/vh status (the contract is in tools/desk/README.md). A submission goes to out/review/feedback/<round>-<time>.json and .md, and its text into
 REVIEW.md as a dated section. <project> is a folder, or a name under $OVH_PROJECTS / projects/ (date prefix optional).
 """
 import argparse, json, sys
@@ -38,11 +47,16 @@ def main(argv):
     rest = argv[1:] if sub != "serve" else argv
     ap = argparse.ArgumentParser(prog="bin/vh desk" + ("" if sub == "serve" else " " + sub),
                                  description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("project", help="project folder, or its name under projects/")
+    ap.add_argument("project", nargs="?" if sub == "serve" else None, help="project folder, or its name under projects/"
+                    + ("; left out: the console, every project" if sub == "serve" else ""))
     if sub == "serve":
+        ap.add_argument("--root", action="append", default=[], metavar="DIR",
+                        help="another folder to find projects in, as bin/vh projects --root (repeat it for more)")
         ap.add_argument("--port", type=int, help="port on 127.0.0.1 (default: the first free of 8780–8799; 0: any free)")
         ap.add_argument("--idle", type=float, help="stop after this many seconds without a request (an open desk page asks every "
                                                    "few seconds); default: never. bin/vh gate starts it with 43200 (12 h)")
+        ap.add_argument("--only", action="store_true", help="serve this project and nothing else under the roots (bin/vh gate's "
+                                                            "desk); without it the space has every film")
     elif sub == "wait":
         ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100, under Claude Code's 2 h)")
     elif sub == "feedback":
@@ -52,13 +66,24 @@ def main(argv):
         jsonerr.force()   # bin/vh desk data speaks JSON: a failure too
         ap.add_argument("--json", action="store_true", help="it always is (a client may say so)")
     a = ap.parse_args(rest)
+    if sub == "serve":
+        for r in a.root:   # bin/vh projects' rule: a --root is a folder that is there
+            if not r.strip() or not Path(r).expanduser().is_dir():
+                print(f"desk: --root {r!r}: no such folder", file=sys.stderr)
+                return 2
+        project = find(a.project) if a.project else None
+        if a.project and not project:
+            jsonerr.mark("no_project")
+            return 2
+        if a.only and not project:
+            print("desk: --only needs a project (it serves that project and nothing else)", file=sys.stderr)
+            return 2
+        import server
+        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only)
     project = find(a.project)
     if not project:
         jsonerr.mark("no_project")
         return 2
-    if sub == "serve":
-        import server
-        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None)
     import feedback as F
     if sub == "wait":
         return F.wait(project, a.timeout)

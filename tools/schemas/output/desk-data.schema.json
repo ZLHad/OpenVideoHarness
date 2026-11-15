@@ -4,7 +4,7 @@
  "title": "bin/vh desk data <project>",
  "description": "What the review desk shows of a project (tools/desk/reader.py; tools/desk/README.md). Rows hold the fields the page shows; a round's data is its gate JSON (tools/schemas/gate.schema.json).",
  "type": "object",
- "required": ["version", "lang", "project", "stage", "spec", "concept", "outline", "captions", "facts", "fact_todo", "ledger", "agent_decided", "history", "rounds", "feedback", "shots", "music", "docs", "warnings"],
+ "required": ["version", "lang", "project", "stage", "spec", "concept", "outline", "captions", "facts", "fact_todo", "ideas", "ledger", "agent_decided", "history", "rounds", "feedback", "shots", "music", "packaging", "docs", "warnings"],
  "properties": {
   "version": {"enum": [1]},
   "lang": {"type": "string"},
@@ -52,9 +52,10 @@
     }
    }
   },
+  "ideas": {"type": "object", "required": ["same_topic", "ideas"], "properties": {"same_topic": {"type": ["string", "null"]}, "ideas": {"type": "array", "items": {"type": "string"}}}},
   "ledger": {"type": "array", "items": {"type": "object", "required": ["what", "who", "status", "where"]}},
   "agent_decided": {"type": "array", "items": {"type": "object", "required": ["date", "topic", "what", "why", "undo", "superseded", "note", "group"]}},
-  "history": {"type": "array", "items": {"type": "object", "required": ["title", "quotes", "notes", "desk", "html"]}},
+  "history": {"type": "array", "items": {"type": "object", "required": ["title", "date", "quotes", "notes", "desk", "html"]}},
   "rounds": {
    "type": "array",
    "items": {
@@ -92,6 +93,17 @@
    }
   },
   "music": {"type": ["object", "null"]},
+  "packaging": {
+   "type": ["object", "null"],
+   "required": ["platform", "titles", "covers", "copy", "platforms"],
+   "properties": {
+    "platform": {"type": "string"},
+    "titles": {"type": "array", "items": {"type": "object", "required": ["id", "title", "type", "fact", "checked"]}},
+    "covers": {"type": "array", "items": {"type": "object", "required": ["id", "picture", "text", "image", "feed"]}},
+    "copy": {"type": "array", "items": {"type": "object", "required": ["k", "v"]}},
+    "platforms": {"type": "array", "items": {"type": "object", "required": ["name", "title", "desc", "tags"]}}
+   }
+  },
   "docs": {
    "type": "array",
    "items": {

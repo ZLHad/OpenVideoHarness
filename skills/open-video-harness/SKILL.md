@@ -11,7 +11,8 @@ This skill is a thin pointer. All workflows, rules and tools live in the OpenVid
 
 ## 1. Locate the harness
 
-Use the first of these that exists and contains `bin/vh`:
+Sent here by the stub `bin/vh install-skill` writes? Then you have found it already: it is the clone this file is in.
+Otherwise use the first of these that exists and contains `bin/vh`:
 
 1. `$OVH_DIR`
 2. the path on the "Harness path" line above
@@ -41,7 +42,7 @@ Audio tools:
 - `bin/vh sfx` — sound effects;
 - `bin/vh mix` and `bin/vh mux` — mixing and muxing.
 
-Run `bin/vh doctor` if anything looks missing.
+Run `bin/vh doctor` if anything looks missing, and before the first film in a host that only lets you write the workspace (a sandbox): its `caches` line names the download folders it cannot write and what to set, and its `skills` line says when the installed skill needs `bin/vh install-skill` again (a stub reads this file in the clone, so a `git pull` keeps it current; a whole copy does not).
 
 ## 3. When the user asks what this can do
 

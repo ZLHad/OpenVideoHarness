@@ -1,0 +1,26 @@
+{
+ "v": 1,
+ "note": "the project's references: studied, not shown",
+ "events": [],
+ "assets": [
+  {
+   "v": 1,
+   "id": "tide-lecture",
+   "kind": "video",
+   "path": null,
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+   "license": {
+    "class": "unknown"
+   },
+   "aigc": false,
+   "added_at": "2026-11-14T11:00:00+0800",
+   "source": {
+    "kind": "web",
+    "title": "一节讲潮汐的公开课（编的）",
+    "url": "https://example.org/tide-lecture",
+    "author": "示例讲者"
+   },
+   "note": "开头讲引潮力的那 3 分钟"
+  }
+ ]
+}

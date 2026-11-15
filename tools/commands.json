@@ -119,11 +119,12 @@
     },
     {
       "name": "install-skill",
-      "summary": "Register the skills in skills/ for Claude Code, Codex or both, pointing at this clone.",
-      "when": "once, so that a video request in any folder finds this repo",
+      "summary": "Register the skills in skills/ for Claude Code, Codex or both: short stubs that read skills/<skill>/SKILL.md in this clone, so a git pull updates them.",
+      "when": "once, so that a video request in any folder finds this repo; again only when bin/vh doctor's skills line says so",
       "stages": ["env"],
       "reads": [
-        "skills/*/SKILL.md"
+        "skills/*/SKILL.md",
+        "tools/skill_stub.md"
       ],
       "writes": [
         "~/.claude/skills/<skill>/SKILL.md",
@@ -133,7 +134,7 @@
         {
           "synopsis": "install-skill [claude|codex|all]",
           "text": [
-            "register every skill in skills/ (~/.claude/skills, ~/.agents/skills)"
+            "register every skill in skills/ (~/.claude/skills, ~/.agents/skills): its frontmatter and a stub (tools/skill_stub.md) that sends the agent to this clone's copy"
           ]
         }
       ]
@@ -569,7 +570,8 @@
           "text": [
             "one picture a call into assets/genimg/<id>/, on record (aigc, model, prompt, seed, cost, inputs); gemini (default):",
             "draft = Nano Banana 2.1, final = Nano Banana Pro, each call held against the budget (none, or over it: not called,",
-            "the shortfall said); --provider codex: image_gen on the ChatGPT plan; --alpha: cut out of chroma green; --dry-run: the estimate"
+            "the shortfall said); --provider codex: image_gen on the ChatGPT plan; --alpha: cut out of chroma green; --dry-run: the estimate",
+            "a picture meant to look photographed: the prompt as a shot card (who is in it, the light, its flaws, camera and action; playbook/05 镜头卡)"
           ]
         },
         {
@@ -832,14 +834,16 @@
     {
       "name": "cast",
       "summary": "The project's cast: the settled references of its characters, costumes, props and sets, one folder each in cast/<id>/ with its pictures and cast.json, which image gen --ref cast:<id> sends and a 3D model made from four views will read.",
-      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), and whenever a picture of it is made from references",
+      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), whenever a picture of it is made from references, and on a draft made of generated shots (frames)",
       "stages": ["2", "3", "6"],
       "reads": [
         "<project>/cast/<id>/cast.json and its pictures",
-        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)"
+        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)",
+        "<video> (frames: a draft or the film, through ffprobe and tools/sheet.py)"
       ],
       "writes": [
-        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)"
+        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)",
+        "<project>/out/check/cast-<video>-<HHMMSS>.png (frames: the cast over the film's frames)"
       ],
       "usage": [
         {
@@ -857,6 +861,13 @@
             "changed since it was recorded fails: what was made from it may need making again; a picture whose terms are on",
             "record nowhere is said)"
           ]
+        },
+        {
+          "synopsis": "cast frames <project> <video> [--id a,b] [--n 16] [--out F] [--json]",
+          "text": [
+            "the settled cast against a film: the entries' pictures in a row on top, --n frames spread evenly below, each with",
+            "its time, in one picture (<project>/out/check/cast-<video>-<HHMMSS>.png) to look at side by side for drift"
+          ]
         }
       ],
       "subcommands": [
@@ -871,6 +882,10 @@
         {
           "name": "check",
           "summary": "each cast.json against its folder"
+        },
+        {
+          "name": "frames",
+          "summary": "the cast over frames spread evenly through a film"
         }
       ]
     },
@@ -960,17 +975,20 @@
     },
     {
       "name": "ref",
-      "summary": "A project's references (a video, a post, an image, a page it learns from), one asset record each in research/refs.json: where it came from, its licence (not cleared unless it says so), why it is a reference, its numbers at the time; studied, not shown, so out of assets check and credits.",
-      "when": "a reference comes up while the concept, the style or a shot is worked out (gate ①, the storyboard)",
+      "summary": "A project's references (a video, a post, an image, a page it learns from), one asset record each in research/refs.json: where it came from, its licence (not cleared unless it says so), why it is a reference, its numbers at the time; studied, not shown, so out of assets check and credits. A long video is read as a timed transcript (digest), then looked at where the transcript says to look (look).",
+      "when": "a reference comes up while the concept, the style or a shot is worked out (gate ①, the storyboard); digest when the material is a long video (an interview, a lecture, a documentary) or a long reference film is taken apart: read it all, then look",
       "stages": ["1", "2", "3"],
       "reads": [
         "a URL: YouTube (yt-dlp), api.fxtwitter.com, api.bilibili.com, as scout post reads one (--offline DIR: recorded)",
         "a file in or outside the project",
-        "<project>/research/refs.json (list)"
+        "<project>/research/refs.json (list)",
+        "digest: the video's subtitles (--subs FILE; beside or inside a file; a URL's through yt-dlp), else its audio through a local Whisper (mlx-whisper; its model only when already on this machine, unless --fetch-model)",
+        "look: the file, research/digest/<id>/media/video.*, or that span alone through yt-dlp"
       ],
       "writes": [
         "<project>/research/refs.json",
-        "<project>/research/refs/<id>/meta.json, thumb.jpg (--thumb)"
+        "<project>/research/refs/<id>/meta.json, thumb.jpg (--thumb)",
+        "<project>/research/digest/<id>/ (transcript.md, said.json, plan.json; chunks/: a cache a chunk, .err for one that failed; subs/; media/: a URL's audio, --video its video; look/<a>-<b>/: frames named by their source second, sheet.jpg)"
       ],
       "usage": [
         {
@@ -985,6 +1003,20 @@
           "text": [
             "the references, with why each is one"
           ]
+        },
+        {
+          "synopsis": "ref digest <project> <id|url|file> [--subs FILE] [--from auto|subs|asr] [--lang L] [--chunk 600] [--redo N,…|all] [--video] [--fetch-model] [--labels zh|en] [--json]",
+          "text": [
+            "a long video as research/digest/<id>/transcript.md: the speech as timed lines linking back to the second, subtitles",
+            "first, else a local Whisper; cached a chunk at a time, so a run again goes on and redoes only a chunk that failed.",
+            "Lines you add under a time (画面, 屏幕字, 动作, 注) are kept. A URL or a file not on record is recorded first"
+          ]
+        },
+        {
+          "synopsis": "ref look <project> <id> <a-b>[,<a-b>…] [--every S] [--cols 6] [--json]",
+          "text": [
+            "frames and a contact sheet of the spans picked from the transcript, at their source times; a URL fetches only those"
+          ]
         }
       ],
       "subcommands": [
@@ -995,6 +1027,14 @@
         {
           "name": "list",
           "summary": "the references"
+        },
+        {
+          "name": "digest",
+          "summary": "a long video as a timed transcript"
+        },
+        {
+          "name": "look",
+          "summary": "frames of the spans picked from a transcript"
         }
       ]
     },
@@ -1135,12 +1175,14 @@
     },
     {
       "name": "desk",
-      "summary": "The review desk: a local page where the reviewer ticks, comments and submits; wait blocks until they submit, feedback prints the latest submission, data what the desk reads.",
-      "when": "studio's stops, or whenever the person wants to review item by item",
+      "summary": "The console and review desk, Studio without the agent: a rail of modules, the film's stops on top, and a right column with what waits for the person, their notes and one submit; with no project, the space of every film, waiting ones first; a project opens on the module of the stop that waits (the cut module lays the film, shots, narration, music, checks and notes on one timeline); wait blocks until the person submits, feedback prints the latest submission, data what the desk reads.",
+      "when": "whenever the person wants to see every film; studio's stops, or whenever the person wants to review item by item",
       "stages": ["1", "3", "8"],
       "reads": [
         "<project>/out/review/gate-<n>.json",
-        "<project>/BRIEF.md, SCRIPT.md, NOTES.md, DECISIONS.md, REVIEW.md, the shot table (shots.json or edit.json)"
+        "<project>/BRIEF.md, SCRIPT.md, NOTES.md, DECISIONS.md, REVIEW.md, the shot table (shots.json or edit.json)",
+        "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects, each --root), as bin/vh status reads it",
+        "for the cut module: what bin/vh timeline --resolved reads, out/proxy/<film>.thumbs and .peaks.json, the latest out/check record, out/versions/versions.json"
       ],
       "writes": [
         "<project>/out/review/feedback/<round>-<time>.json and .md",
@@ -1149,11 +1191,14 @@
       ],
       "usage": [
         {
-          "synopsis": "desk <project> [--port N] [--idle s] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
           "text": [
-            "the review desk (studio's review surface, tools/desk/README.md): a local page on 127.0.0.1 where the reviewer",
-            "ticks, comments and submits; wait: block until they submit, print it, exit 0 (an agent runs it in the background);",
-            "feedback: the latest submission; data: what the desk reads from the project, as JSON"
+            "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio without the agent: modules on",
+            "the left, the film's stops on top, what waits for the person and their notes on the right. No project: the space,",
+            "every project bin/vh projects finds (--root: more folders), a card a film, waiting ones first. A project: the page",
+            "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
+            "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
+            "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON"
           ]
         }
       ],
@@ -1280,10 +1325,11 @@
       ],
       "usage": [
         {
-          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar [size,angle,axis,move] | check [file…] | sample <id> [--style S] [--draft] [--force]",
+          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar [size,angle,axis,move] | list --sequences [--type T --aspect A --seconds S] | check [file…] | sample <id> [--style S] [--draft] [--force]",
           "text": [
             "shot recipes (recipes/): filter by frontmatter, validate it",
             "--grammar: the shot-grammar cards (recipes/shot/): shot sizes, angles, the axis and camera moves, what each does to the viewer, when to take it or not, and the code a shot table's camera writes",
+            "--sequences: the whole-film skeletons (recipes/sequences/): a film's energy arc, holds, seams and limits; filtered by --type, --aspect, --seconds",
             "sample: the recipe's sketch rendered, its contact sheet kept beside it and the sketch's sha in its frontmatter (list --json gives the path); unchanged, it is not rendered again"
           ]
         }
@@ -1366,6 +1412,28 @@
           "synopsis": "rhythm <project> [--shots JSON|page.html] [--segment NAME | --from s --to s] [--max s]",
           "text": [
             "rhythm map: shots, narration and captions, music; too-long shots and failed reads in red"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "words",
+      "summary": "Where a script uses the sentence shapes model drafts reach for (不是 A 而是 B, a colon that hands over the verdict, 顿号 lists, 排比 in threes, long modifiers, paragraphs chained end to start): a report, never an edit.",
+      "when": "once the narration or caption script is written, before the person reads it; again after a rewrite",
+      "stages": ["3"],
+      "reads": [
+        "<project>/SCRIPT.md (every table with a 旁白 / Narration column, else with a 字幕 / Caption one), else <project>/audio/script.txt as tts reads it; or any .md / .txt",
+        "<project>/STYLE.md (its 允许的句式 section), and --style files"
+      ],
+      "writes": [],
+      "usage": [
+        {
+          "synopsis": "words <project|SCRIPT.md|file.md|file.txt|audio/script.txt> [--col 旁白|字幕|<header>] [--style FILE] [--all] [--json]",
+          "text": [
+            "each check's hits (line, the words hit, the sentence), per 1000 characters, and how to read the count: the ratios come from one",
+            "paired experiment on other writing, not re-measured here. Exit 0 whatever it finds; not part of bin/vh check. Chinese only:",
+            "English text gets no counts. STYLE.md's 允许的句式 section (a check's name, or a quoted sentence) stops counting what the",
+            "project chose on purpose; --all lists those too"
           ]
         }
       ]
@@ -1816,7 +1884,7 @@
     },
     {
       "name": "components",
-      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
+      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up, film finish) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
       "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar, pieces that build a whole one after another) before writing one by hand",
       "stages": ["6", "5"],
       "reads": [
@@ -2056,13 +2124,14 @@
       ],
       "usage": [
         {
-          "synopsis": "sheet <video> [cols] [fps] [out]",
+          "synopsis": "sheet <video> [cols] [fps] [out] [--gray]",
           "text": [
-            "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)"
+            "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)",
+            "--gray: every tile in luma only (<name>-sheet-gray-<HHMMSS>.png): do subject and ground part by light and dark alone? (TASTE_CHECKLIST #1)"
           ]
         },
         {
-          "synopsis": "sheet <folder> [cols] [-] [out]",
+          "synopsis": "sheet <folder> [cols] [-] [out] [--gray]",
           "text": [
             "a folder's pictures in the order of their names, each in a 16:9 cell, its caption from captions.json",
             "({\"file name\": \"caption\"}) under it, else its name (bin/vh scout topic --covers makes one)"

@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import review as R   # noqa: E402  (tools/review.py: merge_includes, review_lang, the gate names)
+import packcheck as PC   # noqa: E402  (tools/packcheck.py: PACKAGING.md's copy for each platform, as bin/vh check reads it)
 import shot_source as SS   # noqa: E402  (tools/shot_source.py: where the project's shot table is)
 
 DOCS = ["BRIEF.md", "STORYBOARD.md", "SCRIPT.md", "STYLE.md", "NOTES.md", "DECISIONS.md", "REVIEW.md",
@@ -502,7 +503,9 @@ def _history(review_md):
                     if v.strip(" \t　"):
                         notes.append({"k": k, "v": plain(v.strip(" \t　"))})
         if quotes or notes or desk:
-            out.append({"title": title, "quotes": quotes, "notes": notes, "desk": desk, "html": render_md(body)})
+            page = re.search(r"^- (?:页面|Page)\s*[：:].*?\b(\d{4}-\d{2}-\d{2})\b", body, re.M)   # the 页面 line's date (templates/REVIEW.md)
+            day = page or re.search(r"\b(\d{4}-\d{2}-\d{2})\b", body)   # else the section's first date
+            out.append({"title": title, "date": day.group(1) if day else "", "quotes": quotes, "notes": notes, "desk": desk, "html": render_md(body)})
     return out, paused
 
 
@@ -640,6 +643,54 @@ def _docs(project, warnings):
     return out
 
 
+def _ideas(notes):
+    """NOTES.md's 点子 / Ideas: its bullets, and the one about the videos on the same topic (playbook/12-ideation.md:
+    "同题的视频都长什么样：…") apart, for the concept module's left column."""
+    body = section(notes, r"^点子", r"^Ideas")
+    items = [plain(x) for x in re.findall(r"^- (.+)$", body, re.M)]
+    same = None
+    for x in items:
+        m = re.match(r"^(?:同题的视频(?:都长什么样|常见的样子)|(?:What )?(?:other )?videos on the same topic(?: look like)?)\s*[：:]\s*(.+)$", x, re.I)
+        if m and "{" not in m.group(1):
+            same = m.group(1).strip()
+    ideas = [x for x in items if "{" not in x and not re.match(r"^(同题的视频|(?:What )?(?:other )?videos on the same topic)", x, re.I)]
+    return {"same_topic": same, "ideas": ideas}
+
+
+def _packaging(text):
+    """PACKAGING.md (templates/PACKAGING.md): the platform line, the titles and covers tables, the description and chapter
+    bullets, the credits and AI notes, and the copy for each platform (发布文案, read as bin/vh check reads it: a title, a
+    description and tags a platform). Placeholders ({…}) are left out; None without the file."""
+    if not text.strip():
+        return None
+    platforms = [{"name": name, "title": f.get("title", ""), "desc": f.get("desc", ""), "tags": PC.tags_of(f.get("tags", ""))}
+                 for name, f in PC.parse(text).items() if f]
+    text = strip_comments(text)
+    m = re.search(r"^(?:平台|Platform)\s*[：:]\s*(.+)$", text, re.M)
+    out = {"platform": plain(re.split(r"\s+·\s+", m.group(1))[0]) if m and "{" not in m.group(1) else "", "titles": [], "covers": [], "copy": [],
+           "platforms": platforms}
+    t = first_table(section(text, r"^标题", r"^Titles?"), "标题", "title")
+    for r in (t.rows if t else []):
+        title = plain(t.get(r, "标题", "title"))
+        if title and "{" not in title:
+            out["titles"].append({"id": plain(t.get(r, "#", "id")), "title": title, "type": plain(t.get(r, "类型", "type")),
+                                  "fact": plain(t.get(r, "里面的", "数字", "fact", "number")), "checked": plain(t.get(r, "核实", "checked", "verified"))})
+    t = first_table(section(text, r"^封面", r"^Covers?"), "封面字", "画面", "cover text", "picture")
+    for r in (t.rows if t else []):
+        img = plain(t.get(r, "原图", "image", "file")).strip("`")
+        pic, words = plain(t.get(r, "画面", "picture")), plain(t.get(r, "封面字", "cover text", "text"))
+        if "{" in img or ("{" in pic and "{" in words):   # the template's row, not filled in yet
+            continue
+        out["covers"].append({"id": plain(t.get(r, "#", "id")), "picture": "" if "{" in pic else pic, "text": "" if "{" in words else words,
+                              "image": img, "feed": plain(t.get(r, "信息流", "feed")).strip("`")})
+    for title, body in sections(text):
+        if re.match(r"^(简介|Description|署名|Credits)", title, re.I):
+            for k, v, _ in bullets(body):
+                if v and "{" not in v:
+                    out["copy"].append({"k": k, "v": plain(v)})
+    return out
+
+
 def read_project(project):
     """The whole desk data for a project folder (see tools/desk/README.md for every key)."""
     project = Path(project).resolve()
@@ -654,6 +705,7 @@ def read_project(project):
     outline = _outline(brief, clock, warnings)
     captions = _script(script, outline, clock, warnings)
     facts, todo = _facts(notes, warnings)
+    ideas = _ideas(notes)
     ledger, agent = _decisions(dec)
     history, paused = _history(review_md)
     title = (re.search(r"^#\s+BRIEF\s*[：:]\s*(.+)$", brief, re.M) or [None, ""])[1].strip() or project.name
@@ -666,7 +718,8 @@ def read_project(project):
     return {"version": 1, "lang": lang,
             "project": {"slug": project.name, "title": title, "effort": effort, "paused": paused},
             "stage": stage, "spec": spec, "concept": _concept(brief), "outline": outline, "captions": captions,
-            "facts": facts, "fact_todo": todo, "ledger": ledger, "agent_decided": agent, "history": history,
+            "facts": facts, "fact_todo": todo, "ideas": ideas, "packaging": _packaging(_read(project / "PACKAGING.md", []) if _inside(project, "PACKAGING.md") else ""),
+            "ledger": ledger, "agent_decided": agent, "history": history,
             "rounds": rounds, "feedback": _feedback(project, warnings),
             "shots": _shots(project, outline, rounds, warnings), "music": music,
             "docs": _docs(project, warnings), "warnings": warnings}

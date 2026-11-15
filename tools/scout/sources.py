@@ -1,5 +1,6 @@
 """Where bin/vh scout and bin/vh ref read a platform: its public, no-login interfaces only (CONTRIBUTING.md, 联网的命令).
-Stdlib only; yt-dlp is the one outside program (tools/modules.json).
+Stdlib only; yt-dlp is the one outside program (tools/modules.json), run with the user's config but never a cookie
+(--no-cookies, --no-cookies-from-browser win over a config that names one).
 
   youtube   yt-dlp, metadata only (-J; never a download): a search (ytsearchN:), a channel's videos tab, one video. Search
             and tab entries are flat, their dates approximate (youtubetab:approximate_date: "3 years ago" made a date)
@@ -101,7 +102,8 @@ class Net:
                 raise SourceError(str(e))
             return json.loads(r.read().decode("utf-8"))
         cmd = shlex.split(os.environ.get(YTDLP_ENV) or "yt-dlp")
-        argv = cmd + ["-J", "--flat-playlist", "--no-warnings", "--skip-download", "--extractor-args", "youtubetab:approximate_date",
+        argv = cmd + ["-J", "--flat-playlist", "--no-warnings", "--skip-download", "--no-cookies", "--no-cookies-from-browser",   # never a cookie, whatever the user's config says
+                      "--extractor-args", "youtubetab:approximate_date",
                       "--sleep-requests", "1", "--socket-timeout", "30"] + (["-I", f"1:{items}"] if items else []) + ["--", target]
         self._gate("yt-dlp:")
         try:

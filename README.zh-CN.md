@@ -212,13 +212,13 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 ## 工具一览
 
-工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 71 条命令，每条命令加 `-h` 看用法。
+工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 72 条命令，每条命令加 `-h` 看用法。
 
 | | 命令 | 做什么 |
 |---|---|---|
 | **想** | `know` | 仓库里关于几个词已经有什么（配方、组件、风格、playbook 的某一节、案例），不用先读文档 |
 | | `scout` | 选题前看一个题目在各平台上的样子（头部视频和其中的异类、热榜），片子发出去以后看它的数据；只用公开接口，不登录 |
-| | `ref` | 把参考的视频、帖子、图片、网页记下来：从哪来、什么许可、为什么参考它 |
+| | `ref` | 把参考的视频、帖子、图片、网页记下来：从哪来、什么许可、为什么参考它；长视频读成带时间码的文稿，再按文稿挑段看帧 |
 | | `web` | 保存网页及网址、日期、HTTP 状态以核对事实；默认复用已装的 Chrome/Chromium，Obscura 可选 |
 | | `breakdown` | 拆一支参考片：切点和转场落在节拍的哪里、关键帧、可以换掉什么 |
 | | `concept` | 立意卡的可选配件：按项目名抽取框架的"轮盘"，以及"六选三"页 |
@@ -231,8 +231,9 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | **做** | `new` | 按模板建项目，大多数类型会一起搭好引擎 |
 | | `style` · `recipes` · `components` | 风格预设、镜头配方和镜头语法卡、动效组件 |
 | | `edit` | 把片子写成剪辑表：页面、图片、实拍素材、别的片子和声音排成一列 |
+| | `words` | 查旁白稿和字幕稿里模型顺手的句式（"不是 A 而是 B"、三连排比、下结论的冒号这些）：在哪、多密，由你决定改不改；它不改稿 |
 | | `tts` · `music` · `captions` · `mix` | 配音、用代码写的配乐、字幕、混音（见[声音](#声音)） |
-| **查和交付** | `gate` · `desk` | 一条命令停下来等你拍板；审阅台可以逐条勾选、点评 |
+| **查和交付** | `gate` · `desk` | 一条命令停下来等你拍板；控制台里看所有片子，在成片的时间线上选中一处写一句、点卡片拍板 |
 | | `frames` · `sheet` · `determinism` | 无损取帧、联系表，以及查每一帧是不是真的只由 t 决定 |
 | | `check` | 对着 Brief 查成片：黑场、定格、静音、闪烁、字幕、色彩标记、响度 |
 | | `render` | 分块并行渲 MP4，中断了能续渲，每次渲染都留一个版本 |
@@ -287,9 +288,9 @@ AI 做的视频放着不管，很容易长成一个样子：暗底、发光、�
 
 ### 配方、镜头语法卡、组件
 
-- **[配方](recipes/README.md)**：75 张镜头配方（一个镜头或一个接缝怎么动：分几段、每段多少帧、哪些参数不能降、在哪容易翻车），另有 10 条全片骨架（整支片子的能量弧和停顿预算）。`bin/vh recipes list --intent … --energy …` 按意图和能量筛；写了代码草图的配方都带一张实渲的样片联系表。
+- **[配方](recipes/README.md)**：75 张镜头配方（一个镜头或一个接缝怎么动：分几段、每段多少帧、哪些参数不能降、在哪容易翻车），另有 11 条全片骨架（整支片子的能量弧和停顿预算）。`bin/vh recipes list --intent … --energy …` 按意图和能量筛；写了代码草图的配方都带一张实渲的样片联系表。
 - **镜头语法卡**：`recipes/shot/` 里有 24 张镜头语法卡，讲景别、角度、轴线和运镜，每张写它对观众起什么作用、什么时候用、什么时候别用。选定的写进镜头表的 `camera`，`bin/vh storyboard` 会印在镜头下面。
-- **[组件](components/README.md)**：5 个动效组件（弹簧场景、翻页、纸面转场、章节进度条、一块块搭起来的建筑），每个都由 t 算出状态，再用很薄的一层画进 canvas、DOM 或 Three.js。`bin/vh components add` 把它复制进项目。
+- **[组件](components/README.md)**：6 个动效组件（弹簧场景、翻页、纸面转场、章节进度条、一块块搭起来的建筑、给太干净的画面收尾），每个都由 t 算出状态，再用很薄的一层画进 canvas、DOM 或 Three.js。`bin/vh components add` 把它复制进项目。
 
 这些都是起步用的默认做法，不是规则：立意需要别的做法，直接做就行。
 
@@ -336,7 +337,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 
 哪一档都不放松的：事实不编、有声片里没有突然的静音、画面不频闪、字不小于目标屏幕的下限、素材许可记清楚、没有预算不调付费接口。
 
-想管得更细，可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面。点了名的，它出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来是一条命令（`bin/vh gate`），生成一个本地审阅页，第一屏只放要你定的事，图、动态分镜和配乐都能在浏览器里直接看、直接听。`studio` 档的停顿换成审阅台（`bin/vh desk`）：每一项都能标"可以 / 要改 / 有疑问"、写一句话，最后一次提交；agent 在后台等着，你一提交它就接着做，原话抄进 `REVIEW.md`。两种页面都有中英文，跟着你第一句话的语言走。
+想管得更细，可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面。点了名的，它出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来是一条命令（`bin/vh gate`），生成一个本地审阅页：画面在前，要你定的事是能点的卡片，没把握的地方标在播放器下面的标尺上，点一下跳到那一秒；图、动态分镜和配乐都能在浏览器里直接看、直接听。`studio` 档的停顿换成审阅台（`bin/vh desk`），样子是 Studio 去掉 agent 的那一半：左边一列模块，顶上这支片子走到哪一站，右边一列是要你定的卡片和你的点评。它打开在等你的那一站；到了成片，片子、镜头、旁白、音乐、检查和点评排在一条时间线上，选中一秒、一段或一个镜头写一句，就记成一条点评，最后一次提交；agent 在后台等着，你一提交它就接着做，原话抄进 `REVIEW.md`。`bin/vh desk` 不带项目打开是所有片子的空间，等你的排最前。界面三套深色主题（暗场、棱镜、舰桥）。两种页面都有中英文，跟着你第一句话的语言走。
 
 ## 要求、成本和限制
 
@@ -363,11 +364,11 @@ bash install.sh --no-skill                       # 不注册全局 skill
 ```
 
 - 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
-- 更新：用同样的参数再运行一次安装命令；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。
+- 更新：用同样的参数再运行一次安装命令（或者 `git pull`）；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。装出去的 skill 是指回克隆里 `skills/` 的短桩，跟着一起更新；少数要重装的时候（`bin/vh install-skill`），`bin/vh doctor` 会说。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。
 - 第一次渲染、第一次用声音工具时还会往 `~/.cache` 下载：Chrome 约 200 MB，Python 依赖最多约 1.5 GB，默认的本地配音模型约 2 GB（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。国内网络连不上 npm、PyPI、Hugging Face 或 Google Fonts 时，镜像设置见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 
-只装 skill：`npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。它只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。
+只装 skill：`npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。它只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。这样装的是整份副本，仓库更新了它不变；工作台装好以后跑一次 `bin/vh install-skill`，换成跟随克隆的短桩。
 
 ## 文档地图
 
@@ -378,7 +379,7 @@ bash install.sh --no-skill                       # 不注册全局 skill
 | 通用知识：流程、自查、运动设计、声音、特效、叙事、钩子、作曲、创意 | [playbook/](playbook/) |
 | 风格、配方和镜头语法卡、组件 | [styles/](styles/README.md)、[recipes/](recipes/README.md)、[components/](components/README.md) |
 | 引擎、页面合约、剪辑表 | [engines/](engines/README.md)、[CONTRACT.md](engines/CONTRACT.md)、[EDIT.md](engines/EDIT.md) |
-| 社区作品的 14 个案例拆解，以及本仓库自己做的片子和全部过程记录 | [cases/](cases/README.md)、[showcase/](showcase/) |
+| 社区作品的 15 个案例拆解，以及本仓库自己做的片子和全部过程记录 | [cases/](cases/README.md)、[showcase/](showcase/) |
 | 我们量过什么、因此改了什么 | [docs/research/](docs/research/README.md) |
 | 命令行 | `bin/vh commands`、`bin/vh help`，每条命令加 `-h` |
 | 新手教程、排错、常见问题 | [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
