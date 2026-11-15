@@ -353,7 +353,9 @@ sys.exit(1 if bad or not ctx else 0)
 PY
   ); then ok "$a"; else bad "workflow and ruleset: $a"; fi
   # engines/blender.md's crowd along a path: the sketch runs as written (numpy), and is a function of t: the same t gives
-  # the same positions, the head of the queue leaves before its tail, and nothing is NaN
+  # the same positions, the head of the queue is further along the route than its tail, nothing is NaN; and it is continuous through the
+  # route's end (u clipped at 1 once made the leaders jump and the crowd collapse there): no frame's step far above the
+  # others' for the leader over 40 s or for anyone round its arrival, and the crowd keeps its width past the end
   if ! command -v uv >/dev/null; then skip "engines/blender.md's queue sketch" "needs uv"
   elif a=$(uv run -q --no-project --with numpy python - engines/blender.md 2>&1 <<'PY'
 import re, sys
@@ -363,13 +365,18 @@ m = re.search(r"### 一大群东西沿路线飞.*?```python\n(.*?)```", s, re.S)
 ns = {}
 exec(m.group(1), ns)
 P = ns["positions"]
-a, b, c = P(4.0), P(4.0), P(0.0)
-moved = np.linalg.norm(P(6.0) - c, axis=1)
-ok = a.shape == (ns["N"], 3) and np.isfinite(a).all() and np.array_equal(a, b) and moved[0] > moved[-1]
-print("ok" if ok else f"shape {a.shape}, same {np.array_equal(a, b)}, head {moved[0]:.2f} tail {moved[-1]:.2f}")
+a, b = P(4.0), P(4.0)
+six = P(6.0)   # the route runs left to right: the head of the queue is further right than its tail
+lead = np.array([P(t)[0] for t in np.arange(0, 40, 1 / 30)])
+s1 = np.linalg.norm(np.diff(lead, axis=0), axis=1)
+near = np.stack([P(t) for t in np.arange(12.3, 12.8, 1 / 30)])   # the leader reaches u = 1 at 12.5 s
+s2 = np.linalg.norm(np.diff(near, axis=0), axis=2)
+jump, jump_all, width = s1.max() / np.median(s1), s2.max() / np.median(s2), P(40.0)[:, 1].std()
+ok = a.shape == (ns["N"], 3) and np.isfinite(a).all() and np.array_equal(a, b) and six[0, 0] > six[-1, 0] + 1 and jump < 1.5 and jump_all < 2 and width > 0.5
+print("ok" if ok else f"shape {a.shape}, same {np.array_equal(a, b)}, head x {six[0, 0]:.2f} tail x {six[-1, 0]:.2f}, step ratio {jump:.2f} / {jump_all:.2f}, width {width:.2f}")
 sys.exit(0 if ok else 1)
 PY
-  ); then ok "engines/blender.md: the crowd-along-a-path sketch runs as written and is a function of t (the same t, the same positions; the head leaves first)"
+  ); then ok "engines/blender.md: the crowd-along-a-path sketch runs as written, is a function of t (the same t, the same positions; the head ahead of the tail) and is continuous through the route's end"
   else bad "engines/blender.md's queue sketch: $a"; fi
 }
 
@@ -1171,7 +1178,7 @@ PY
   else bad "recipes list --type long, recap ($rc/$r2): $c"; fi
   vh recipes list --intent no-such-intent >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "recipes list rejects an unknown vocabulary value" || bad "recipes list --intent no-such-intent exited $rc"
   # --sequences: the whole-film skeletons, which list leaves out; filtered by the fields a skeleton has, the rest refused
-  a=$(vh recipes list --sequences --ids); b=$(vh recipes list --sequences --seconds 10 --type short --ids)
+  a=$(vh recipes list --sequences --ids); b=$(vh recipes list --sequences --seconds 17 --type short --ids)
   e=$(vh recipes list --sequences --intent hook 2>&1 >/dev/null); rc=$?; vh recipes list --sequences --grammar >/dev/null 2>&1; rc2=$?
   c=$(vh recipes list --ids); d=0; for x in recipes/sequences/*.md; do [ "${x##*/}" = README.md ] || d=$((d + 1)); done
   if [ "$rc:$rc2" = 2:2 ] && [ "$(printf '%s\n' "$a" | grep -c .)" = "$d" ] && grep -qx breakdown-reel <<<"$a" && grep -qx launch-15s <<<"$a" \
@@ -4573,6 +4580,21 @@ sys.exit(0 if ok else f"{d['refs']} {d['times']} {im.size} top {r} bottom {b}")
 PY
     then ok "cast frames: the cast's pictures on top (a set only when named), frames spread evenly below at the middle of each share, in the project's out/check; an unknown id or no cast picture is bad usage"
     else bad "cast frames ($rc:$rc2:$rc3:$rc4): $(printf '%s' "$a" | tail -c 300) | $b"; fi
+    # a cutout whose transparent pixels still hold the chroma green it was keyed from is laid on grey, not shown green;
+    # the video's path in --json is absolute, as project and out are
+    ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x00ff00@0.0:s=100x100,format=rgba" -frames:v 1 "$t/clear.png"
+    vh cast add "$q" ghost --kind prop --name g --ref "$t/clear.png=front" --source t --license own >/dev/null
+    a=$(cd "$q" && vh cast frames . film.mp4 --id ghost --n 4 --json 2>&1); rc=$?
+    if [ "$rc" = 0 ] && uv run -q --no-project --with pillow python - "$a" <<'PY'
+import json, sys
+from PIL import Image
+d = json.loads(sys.argv[1])
+px = Image.open(d["out"]).convert("RGB").getpixel((200, 90))   # the middle of the reference tile
+ok = d["video"].startswith("/") and d["project"].startswith("/") and max(px) - min(px) <= 6 and 100 <= px[1] <= 160
+sys.exit(0 if ok else f"video {d['video']}, reference tile {px}")
+PY
+    then ok "cast frames: a transparent reference laid on grey, not on the green kept in its clear pixels; --json's paths all absolute"
+    else bad "cast frames on a transparent reference ($rc): $(printf '%s' "$a" | tail -c 300)"; fi
   fi
   rm -rf "$t"
 }
@@ -4933,9 +4955,9 @@ const F = await import("./components/paper-transition/component.js"); await run(
 const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
 const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
 const FF = await import("./components/film-finish/component.js"); await run("film-finish", (t) => FF.state({ haze: 0.3 }, t));
-// film-finish: the grain follows the grain step (24 a second on the 30 fps timeline): the same within a step, new across one
-const g = (t, p = {}) => FF.state(p, t).grainSeed;
-if (g(0) !== g(1 / 30) || g(0) === g(2 / 30) || g(0, { grainFps: 30 }) === g(1 / 30, { grainFps: 30 }) || g(0) === g(0, { seed: 12 }) || FF.state({ amount: 0 }, 1).amount !== 0) bad.push("film-finish: its grain step");
+// film-finish: new grain every frame by default; with grainFps 15 on the 30 fps timeline, the same for two frames
+const g = (t, p = {}) => FF.state(p, t).grainSeed, h = { grainFps: 15 };
+if (g(0) === g(1 / 30) || g(0, h) !== g(1 / 30, h) || g(0, h) === g(2 / 30, h) || g(0) === g(0, { seed: 12 }) || FF.state({ amount: 0 }, 1).amount !== 0) bad.push("film-finish: its grain step");
 const B = await import("./components/build-up/component.js"), cube = (x, y, z) => ({ x, y, z, w: 1, h: 1, d: 1 });
 const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1, 1.5, 1)], order: "height", bucket: 1, stagger: 0.7, jitter: 0.3, appear: "rise" },
   { pieces: [cube(0, 0.5, 0), cube(2, 0.5, 0), cube(4, 0.5, 0)], order: "distance", from: [4, 0, 0], appear: "grow", stagger: 1 },
@@ -4957,7 +4979,7 @@ if (!(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box.y > 0.5) || one({ ease:
   bad.push(`build-up: overshoot ${j(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box)}`);
 [[{ ease: "outBak" }, "ease is a name"], [{ pieces: [{ x: 0, y: 0, z: 0, w: 1, d: 1 }] }, "pieces[0].h is a number"], [{ stagger: -1 }, "stagger is a number, 0 or more"], [{ from: [1, 2] }, "from is [x, y, z]"]].forEach(([o, want]) => {
   try { B.state({ pieces: [cube(0, 0.5, 0)], ...o }, 1); bad.push(`build-up: ${j(o)} passed`); } catch (e) { if (!String(e.message).includes(want)) bad.push(`build-up: ${j(o)}: ${e.message}`); } });
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar, film-finish and build-up (by height, distance, seed), the same forwards, backwards and alone; film-finish's grain the same within a grain step and new across one; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar, film-finish and build-up (by height, distance, seed), the same forwards, backwards and alone; film-finish's grain new every frame by default, the same within a grain step when one is set; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
@@ -5074,9 +5096,8 @@ HTML
   b=$(vh determinism "$p/dom.html" --samples 3 2>&1); rc2=$?
   case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: paper-transition's fold and blot, spring-scene's canvas and DOM painters and the chapter bar's DOM painter are each a function of t (bin/vh determinism)" ;;
     *) bad "components' other painters, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
-  # film-finish through the page contract in software WebGL: a still scene finished with a depth picture; the grain is the
-  # same within a grain step (0 and 1/30 s, 24 a second on 30 fps) and new across one (2/30 s), and the page holds under
-  # determinism
+  # film-finish through the page contract in software WebGL: a still scene finished with a depth picture; with a grain step
+  # of 15 a second the grain is the same at 0 and 1/30 s and new at 2/30 s, and the page holds under determinism
   vh components add "$p" film-finish > /dev/null
   cat > "$p/finish.html" <<'HTML'
 <!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
@@ -5090,7 +5111,7 @@ const scene = (x, depth) => { x.fillStyle = depth ? "#fff" : "#1d2a3c"; x.fillRe
 window.film = { duration: 1,
   frame(t) { X.reset();
     const src = L.offscreen("s", (x) => scene(x, false)), depth = L.offscreen("d", (x) => scene(x, true));
-    F.canvas(X, F.state({ haze: 0.4, grain: 0.08 }, t), src, { depth }); } };
+    F.canvas(X, F.state({ haze: 0.4, grain: 0.06, grainFps: 15 }, t), src, { depth }); } };
 </script></body></html>
 HTML
   a=$(vh frames "$p/finish.html" --at 0,0.0333,0.0667 --soft-gl --out "$t/ff" 2>&1); rc=$?
@@ -5101,6 +5122,37 @@ HTML
      && [ "$(ffmpeg -nostdin -v error -i "$f0" -pix_fmt rgba -f md5 - 2>&1)" != "$(ffmpeg -nostdin -v error -i "$f2" -pix_fmt rgba -f md5 - 2>&1)" ]
   then ok "components: film-finish on a page (software WebGL) keeps its grain within a grain step, changes it across one, and holds under bin/vh determinism"
   else bad "components: film-finish on a page (frames $rc, determinism $rc2): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # its spill does not miss a small light: a light 2 px wide moving 3 px a frame keeps a glow of the same energy (the
+  # first version gathered 40 taps on a spiral and swung 136 % across these frames; every source pixel is read now)
+  cat > "$p/spill.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as F from "./components/film-finish/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+window.film = { duration: 1,
+  frame(t) { X.reset(); const x = 200 + Math.round(t * 30) * 3;
+    const src = L.offscreen("s", (c) => { c.fillStyle = "#101418"; c.fillRect(0, 0, 640, 360); c.fillStyle = "#fff"; c.fillRect(x, 180, 2, 2); });
+    F.canvas(X, F.state({ grain: 0, vignette: 0, aberration: 0, bloom: 0.6, halation: 0, radius: 0.03 }, t), src); } };
+</script></body></html>
+HTML
+  if ! command -v uv >/dev/null; then skip "film-finish's spill on a small light" "needs uv"
+  elif a=$(vh frames "$p/spill.html" --at 0,0.0333,0.0667,0.1,0.1333,0.1667 --soft-gl --out "$t/sp" 2>&1) \
+     && a=$(uv run -q --no-project --with pillow python - "$t/sp" <<'PY'
+import glob, sys
+from PIL import Image
+e = []
+for f in sorted(glob.glob(sys.argv[1] + "/spill-t*.png")):
+    k = round(float(f.rsplit("-t", 1)[1][:-4]) * 30); x = 200 + 3 * k
+    im = Image.open(f).convert("L"); px = im.load(); bg = px[30, 30]
+    e.append(sum(max(0, px[i, j] - bg) for i in range(x - 40, x + 42) for j in range(140, 222) if not (x - 4 <= i <= x + 6 and 176 <= j <= 186)))
+spread = (max(e) - min(e)) / (sum(e) / len(e)) if e and min(e) > 0 else 9
+print(f"{len(e)} frames, glow {[round(v) for v in e]}, spread {spread:.0%}")
+sys.exit(0 if len(e) == 6 and spread < 0.2 else 1)
+PY
+  ); then ok "components: film-finish's spill keeps a small moving light's glow steady ($a)"
+  else bad "components: film-finish's spill on a small moving light: $a"; fi
   # the finishing chain playbook/08 gives for a finished film runs as written, and gives the same bytes twice
   python3 - "$ROOT/playbook/08-vfx-and-motion-sources.md" "$t/chain.sh" <<'PY'
 import re, sys

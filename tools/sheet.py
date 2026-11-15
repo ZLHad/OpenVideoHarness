@@ -20,6 +20,16 @@ LABEL = os.environ.get("VH_SHEET_LABEL", "#ffdc00")  # tile label colour; use a 
 GRAY = os.environ.get("VH_SHEET_GRAY", "") not in ("", "0")   # luma only: does the picture hold up in light and dark alone
 
 
+def flat(im):
+    """A picture as RGB, its transparent parts laid on neutral grey first: a cutout (image gen --alpha) keeps the chroma
+    green it was keyed from in its transparent pixels, and convert("RGB") alone would show it."""
+    if im.mode in ("RGBA", "LA", "PA") or (im.mode == "P" and "transparency" in im.info):
+        im = im.convert("RGBA")
+        ground = Image.new("RGBA", im.size, (128, 128, 128, 255))
+        return Image.alpha_composite(ground, im).convert("RGB")
+    return im.convert("RGB")
+
+
 def tone(im):
     """The tile as it goes on the sheet: in colour, or its luma (PIL's L, ITU-R 601 weights) back in RGB."""
     return im.convert("L").convert("RGB") if GRAY else im
@@ -65,7 +75,7 @@ def image_sheet(folder: str, out: str, cols: int, width: int):
     for i, p in enumerate(files):
         x, y = 8 + (i % cols) * (width + 8), 8 + (i // cols) * cell_h
         try:
-            im = tone(Image.open(p).convert("RGB"))
+            im = tone(flat(Image.open(p)))
         except OSError:
             draw.rectangle([x, y, x + width - 1, y + ch - 1], outline=(90, 90, 90))
             draw.text((x + 8, y + 8), "not a picture", fill=(160, 160, 160), font=f)
@@ -110,7 +120,7 @@ def main():
         x, y = (i % cols) * tw, (i // cols) * th
         draw.rectangle([x, y, x + tw - 1, y + th - 1], fill=(40, 40, 44))
         try:
-            im = tone(Image.open(path).convert("RGB"))
+            im = tone(flat(Image.open(path)))
             im.thumbnail((tw - 8, th - 8 - f.size - 8))
             sheet.paste(im, (x + (tw - im.width) // 2, y + 4))
         except OSError:

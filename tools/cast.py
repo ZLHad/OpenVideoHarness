@@ -556,6 +556,7 @@ def cmd_frames(a):
         video = Path(project) / a.video
     if not video.is_file():
         raise Usage(f"no such video: {a.video}")
+    video = video.resolve()
     if not 1 <= a.n <= 64:
         raise Usage(f"--n {a.n}: 1 to 64 frames")
     have = ids(project)
@@ -585,7 +586,7 @@ def cmd_frames(a):
     except (ValueError, IndexError):
         raise Usage(f"{video}: ffprobe found no duration ({pr.stderr.strip()[-200:]})")
     times = [round((k + 0.5) * dur / a.n, 3) for k in range(a.n)]
-    out = Path(a.out) if a.out else Path(project) / "out" / "check" / f"cast-{video.stem}-{time.strftime('%H%M%S')}.png"
+    out = (Path(a.out).expanduser().resolve() if a.out else Path(project).resolve() / "out" / "check" / f"cast-{video.stem}-{time.strftime('%H%M%S')}.png")
     out.parent.mkdir(parents=True, exist_ok=True)
     cols = 4 if a.n >= 4 else a.n
     env = dict(os.environ, VH_SHEET_AT=",".join(str(t) for t in times), VH_SHEET_REFS=json.dumps(refs, ensure_ascii=False), VH_SHEET_GRAY="")
@@ -595,7 +596,7 @@ def cmd_frames(a):
         print(f"{PROG} frames: tools/sheet.py failed: {(r.stderr or r.stdout).strip()[-400:]}", file=sys.stderr)
         return 1
     if a.json:
-        print(json.dumps({"version": 1, "tool": f"{PROG} frames", "project": str(project), "video": str(video), "out": str(out),
+        print(json.dumps({"version": 1, "tool": f"{PROG} frames", "project": str(Path(project).resolve()), "video": str(video), "out": str(out),
                           "refs": [{"file": f, "label": lab} for f, lab in refs], "times": times}, ensure_ascii=False, indent=1))
     else:
         print(out)
