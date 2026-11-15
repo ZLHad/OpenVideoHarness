@@ -33,8 +33,9 @@ plan and why (--json: stops). Each has a state:
 Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, a file directly in
 media/, Manim's render at 1080p or more; not its 480p15 and 720p30 drafts, and not a film a failed patch left) has a passing
 bin/vh check record of that very film (the size and mtime_ns it kept are the film's now; a record from before those: newer
-than the film), and gate ③ is done or skipped (a delivery before it is said in the note); in progress once every stop is
-done or skipped.
+than the film), or REVIEW.md records the final film with its date ("- 成片（2026-10-23）：out/final.mp4", for a film moved
+off this machine since), and gate ③ is done or skipped (a delivery before it is said in the note); in progress once every
+stop is done or skipped. The delivery station says the day it went out (delivered.date).
 waiting_on: person (a stop waits for them, or REVIEW.md says the project is paused), agent (one waits for the agent,
 the agent works towards one, or a command is running), nobody (delivered), or unknown (no REVIEW.md).
 Also: the versions of the project's films (out/versions/versions.json, bin/vh versions; out/versions and out/proxy are not
@@ -294,6 +295,25 @@ def check_records(project):
                          exit=r.get("exit") if isinstance(r.get("exit"), int) and not isinstance(r.get("exit"), bool) else None,
                          findings=[f for f in fs if isinstance(f, dict)], counts={k: v for k, v in counts.items() if num(v) is not None}), p))
     return sorted(out, key=lambda x: -(x[0]["t"] or 0))
+
+
+RECORD_LINE = re.compile(r"^\s*[-*]\s*\**\s*(成片|交付|Final film|Delivered)\b", re.I)
+FILM_PATH = re.compile(r"(?:out|media)/[^\s`'\"，、；;,）)]+\.(?:mp4|mov|m4v|webm)", re.I)
+
+
+def final_on_record(review_text):
+    """The final film REVIEW.md records, for a film delivered and then moved off this machine (an external drive): a line
+    "- 成片（2026-10-23）：out/final-4k.mp4…" (or 交付, Final film, Delivered) with a date and a film that counts as the
+    delivery (gatecheck's is_final). [(date, [films])], in the file's order."""
+    out = []
+    for line in (review_text or "").splitlines():
+        if not RECORD_LINE.match(line):
+            continue
+        d = re.search(r"\b(20\d\d-\d\d-\d\d)\b", line)
+        films = [f for f in FILM_PATH.findall(line) if G.is_final(f)]
+        if d and films:
+            out.append((d.group(1), films))
+    return out
 
 
 def film_changed(r, st):
@@ -740,16 +760,26 @@ def collect(project, now=None, light=False):
         if r["video"]:
             by_video.setdefault(r["video"], (r, p))
     finals = [(v, s) for v, s in vids if is_final(rel(project, v))]
-    final_ok = any((c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and not film_changed(c[0], s) for v, s in finals)
+    passing = [c[0] for v, s in finals if (c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and not film_changed(c[0], s)]
+    final_ok = bool(passing)
+    recorded = [] if no_record else final_on_record(review_text)   # a final film REVIEW.md records: delivered, then moved off this machine
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
     g3 = next((s for s in st if s["id"] == "3"), None)
     g3_through = g3 is not None and g3["state"] in ("done", "skipped")   # delivered: the person has seen the draft (or waived it)
-    shipped = bool(deliveries or final_ok)
+    shipped = bool(deliveries or final_ok or recorded)
     deliver = {"id": "deliver", "name": "交付" if proj["lang"] == "zh" else "Delivery", "kind": "deliver", "pages": [], "page": None,
                "current": False, "record": None, "feedback": None, "note": None,
                "state": "no_record" if no_record else "done" if shipped and g3_through else "in_progress" if gates_through else "not_started"}
     if shipped:
-        what = f"bin/vh deliver: {deliveries[-1]['output']}" if deliveries else "the final film passed bin/vh check"
+        if deliveries:
+            what, when = f"bin/vh deliver: {deliveries[-1]['output']}", deliveries[-1]["time"]
+        elif final_ok:
+            what, when = "the final film passed bin/vh check", text(passing[-1].get("at"))
+        else:
+            when, films = recorded[-1]
+            gone = not any((project / f).exists() for f in films)
+            what = f"REVIEW.md records the final film ({', '.join(films)}, {when})" + ("; it is not on this machine now" if gone else "")
+        deliver["delivered"] = {"date": (when or "")[:10] or None}   # the day it went out, for a page to say (bin/vh desk)
         deliver["note"] = what if deliver["state"] == "done" else f"{what} (no REVIEW.md says whether gate ③ was passed)" if no_record \
             else f"{what}, but gate ③ is not decided yet: the delivery counts once it is"
     st.append(deliver)

@@ -21,9 +21,11 @@
     <ol class="flow" id="flow" aria-label="这支片子的几站"></ol>
     <div class="tools">
       <button type="button" class="btn btn-quiet" id="searchBtn"><span id="searchLabel">搜片子</span> <span class="kbd">/</span></button>
-      <div class="themes" role="group" id="themes" aria-label="主题">
-        <button type="button" data-theme-set="darkfield" aria-pressed="false">暗场</button><button type="button" data-theme-set="prism" aria-pressed="false">棱镜</button><button type="button" data-theme-set="bridge" aria-pressed="false">舰桥</button>
-      </div>
+      <details class="tmenu"><summary class="btn btn-quiet" id="themeBtn">主题</summary>
+        <div class="themes" role="group" id="themes" aria-label="主题">
+          <button type="button" data-theme-set="darkfield" aria-pressed="false">暗场</button><button type="button" data-theme-set="prism" aria-pressed="false">棱镜</button><button type="button" data-theme-set="bridge" aria-pressed="false">舰桥</button>
+        </div>
+      </details>
       <button type="button" class="btn btn-quiet" id="lang">EN</button>
     </div>
   </header>
@@ -32,8 +34,8 @@
   <aside class="col" id="col" aria-label="这一轮">
     <div class="col-head" id="colHead"></div>
     <div class="col-body" id="colBody"></div>
-    <div class="col-round" id="colRound" hidden></div>
     <div class="composer" id="composer" hidden></div>
+    <div class="col-round" id="colRound" hidden></div>
     <div class="confirm" id="confirm" hidden></div>
   </aside>
 </div>

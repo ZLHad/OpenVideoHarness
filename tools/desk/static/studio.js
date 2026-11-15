@@ -24,7 +24,7 @@ const typing = () => { const a = document.activeElement; return !!a && (/^(INPUT
 /* ---------- state ---------- */
 let LIST = null, D = null, PKEY = "", ROUND = null, FB = null, KEY = "", GV = null;   // GV: this round's gate view (decisions, marks)
 let MOD = "", SUB = "", DOC = "", GATE = "", SCOPE = null, capFilter = "all";
-let COLCTL = null, PARTCTL = null, CUT = null, liveTimer = null, homeTimer = null, LAST = store.get("desk:last") || "";
+let COLCTL = null, PARTCTL = null, CUT = null, liveTimer = null, homeTimer = null;
 const src = (p) => (/^https?:\/\//.test(p || "") ? p : `/f/${enc(PKEY)}/` + String(p || "").split("/").map(enc).join("/"));
 const MODS = ["idea", "outline", "board", "sound", "cut", "ship", "assets", "ledger"];
 const LEGACY = { round: "", concept: "idea", script: "outline/script", board: "board", sound: "sound", facts: "outline/facts", film: "cut", check: "ship/check",
@@ -49,7 +49,7 @@ function setLang(l) {
   document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
   $("#lang").textContent = t("lang"); $("#lang").title = t("lang_tip");
   $("#searchLabel").textContent = t("search"); $("#q").placeholder = t("search_ph"); $("#skip").textContent = t("skip");
-  $("#rail").setAttribute("aria-label", t("rail")); $("#flow").setAttribute("aria-label", t("flow")); $("#themes").setAttribute("aria-label", t("themes"));
+  $("#rail").setAttribute("aria-label", t("rail")); $("#flow").setAttribute("aria-label", t("flow")); $("#themes").setAttribute("aria-label", t("themes")); $("#themeBtn").textContent = t("themes");
   $$("#themes [data-theme-set]").forEach((b) => { b.textContent = t("th_" + b.dataset.themeSet); });
 }
 function pickLang(fallback) {
@@ -91,62 +91,75 @@ function crumbs(parts) {
 function renderFlow() {
   const el = $("#flow");
   if (!D) { el.innerHTML = ""; return; }
-  el.innerHTML = FLOW.map((f) => {
-    const fs = flowState(f), g = fs.state === "off" ? "" : glyphOf(fs.S);
-    const tip = [t("m_" + f.mod), t(STATE_WORD[fs.state])].concat(fs.S.map((s) => s.note).filter(Boolean).map((n) => { const w = statusWords(n); return w.known ? w.text : `${t("ns_raw")}${COLON()}${w.text}`; })).join(" · ");
-    return `<li><button type="button" class="stn ${fs.state}" data-go-mod="${f.mod}" title="${esc(tip)}" aria-current="${MOD === f.mod}"><i aria-hidden="true"></i>${esc(t("m_" + f.mod))}${g ? `<small>${esc(g)}</small>` : ""}${fs.state === "wait" ? `<em>${esc(t("f_wait"))}</em>` : ""}<span class="sr">${esc(t(STATE_WORD[fs.state]))}</span></button></li>`;
+  el.innerHTML = FLOW.map((f) => {   // each stop by its name, its state in words under it (已定 11-14, 等你, 跳过): no numbers, no strikes
+    const fs = flowState(f), word = flowWord(fs);
+    const tip = [t("m_" + f.mod), word].concat(fs.S.map((s) => s.note).filter(Boolean).map((n) => { const w = statusWords(n); return w.known ? w.text : `${t("ns_raw")}${COLON()}${w.text}`; })).join(" · ");
+    return `<li><button type="button" class="stn ${fs.state}" data-go-mod="${f.mod}" title="${esc(tip)}" aria-current="${MOD === f.mod}"><span class="nm"><i aria-hidden="true"></i>${esc(t("m_" + f.mod))}</span><small>${esc(word)}</small></button></li>`;
   }).join("");
 }
 function waitsIn(mod) { const f = FLOW.find((x) => x.mod === mod); return !!f && flowState(f).state === "wait"; }
-function renderRail() {
-  const proj = !!D, key = PKEY || LAST;
+function renderRail() {   // the space and a new film; a film's modules only while a film is open (on the space they would point at nothing, or at the last film)
+  const proj = !!D;
   const item = (m) => {
     if (m === "space") return `<a class="mod" href="#/" aria-current="${!proj ? "page" : "false"}">${svg("space")}<span>${esc(t("m_space"))}</span></a>`;
-    const href = key ? projHash(key, m) : null;
-    const dot = proj && waitsIn(m) ? '<i class="dot" aria-hidden="true"></i>' : "";
-    return href ? `<a class="mod" href="${href}" aria-current="${proj && MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`
-      : `<span class="mod" aria-disabled="true" title="${esc(t("pick_film"))}" style="opacity:.35">${svg(m)}<span>${esc(t("m_" + m))}</span></span>`;
+    const dot = waitsIn(m) ? '<i class="dot" aria-hidden="true"></i>' : "";
+    return `<a class="mod" href="${projHash(PKEY, m)}" aria-current="${MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`;
   };
   const fresh = `<a class="mod" href="#/" data-new title="${esc(t("new_tip"))}">${svg("new")}<span>${esc(t("m_new"))}</span></a>`;   // its place kept: it needs the agent
-  $("#rail").innerHTML = item("space") + fresh + "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("");
+  $("#rail").innerHTML = item("space") + fresh + (proj ? "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("") : "");
 }
 $("#rail").addEventListener("click", (e) => { if (e.target.closest("[data-new]")) setTimeout(() => { const x = $("#oneLine"); if (x) x.focus(); }, 300); });   // 新建: the space's sentence box
 $("#flow").addEventListener("click", (e) => { const b = e.target.closest("[data-go-mod]"); if (b && PKEY) go(projHash(PKEY, b.dataset.goMod)); });
 
-/* ---------- the space: a card a film ---------- */
-function ago(sec) {
+/* ---------- the space: the films waiting for you first and biggest, then the ones in progress, then the ones done ---------- */
+function dayOf(sec) {   // one way to write a day everywhere on the space: 今天, 11-14, 2025-11-14
   if (!sec) return "";
-  const d = Date.now() / 1000 - sec;
-  if (d < 90) return t("just_now");
-  if (d < 3600) return t("ago_m", { n: Math.round(d / 60) });
-  if (d < 86400 * 1.5) return t("ago_h", { n: Math.round(d / 3600) });
-  if (d < 86400 * 14) return t("ago_d", { n: Math.round(d / 86400) });
-  return new Date(sec * 1000).toISOString().slice(0, 10);
+  const d = new Date(sec * 1000);
+  return d.toDateString() === new Date().toDateString() ? t("today") : shortDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+}
+const TYPE_WORDS = { "01": ["原理讲解", "Explainer"], "02": ["知识短视频", "Knowledge short"], "03": ["产品片", "Product film"], "04": ["MV", "Music video"],
+  "05": ["数据故事", "Data story"], "06": ["论文讲解", "Paper explainer"], "07": ["手绘短片", "Hand-drawn"], "08": ["快剪", "Fast cut"],
+  "09": ["口播剪辑", "Talking head"], "10": ["长讲解", "Long explainer"], "11": ["照片回顾", "Photo recap"] };
+const TYPE_KEYS = { math: "01", short: "02", promo: "03", mv: "04", data: "05", paper: "06", handdrawn: "07", meme: "08", edit: "09", long: "10", recap: "11" };
+function typeWords(ty) {   // a film's kind by its name in this page's language ("01-math-science-explainer", "math" → 原理讲解)
+  const x = String(ty || "").trim().toLowerCase(), m = x.match(/^(\d\d)\b/), k = m ? m[1] : TYPE_KEYS[x];
+  return k && TYPE_WORDS[k] ? TYPE_WORDS[k][LANG === "zh" ? 0 : 1] : "";
 }
 function lampOf(r) {   // violet only for what is running now (bin/vh status's activity), not for every film the agent could pick up
   return r.state === "waiting_person" ? "wait" : (r.running || []).length ? "agent" : r.state === "delivered" ? "done" : "";
 }
-function stateWords(r) {
-  const s = r.station ? (L.stn[r.station.id] || r.station.name || "") : "";
-  const g = r.station && /^\d$/.test(r.station.id) ? "①②③④⑤"[+r.station.id - 1] + " " : r.station && /^E\d$/.test(r.station.id) ? r.station.id + " " : "";
-  const st = t("st_" + (r.state || "not_started"));
-  return r.state === "waiting_person" || r.state === "waiting_agent" || r.state === "in_progress" ? `${g}${s} · ${st}` : st;
+function stopOf(r) { return r.station ? (L.stn[r.station.id] || r.station.name || "") : ""; }
+function filmName(r) { return r.title && r.title !== r.name ? r.title : String(r.name || "").replace(/^\d{4}-\d{2}-\d{2}-/, ""); }   // a film with no title of its own: its folder, without the date in front
+function stateWords(r) {   // where a film is, in words: 初版 · 等你看, 大纲 · 在做, 正在渲染, 已交付 10-23
+  if ((r.running || []).length && r.state !== "waiting_person") return cmdWords(r.running[0]);
+  if (r.state === "delivered") return r.delivered ? t("f_delivered_d", { d: shortDate(r.delivered) }) : t("st_delivered");
+  const s = stopOf(r), st = t("st_" + (r.state || "not_started"));
+  return ["waiting_person", "waiting_agent", "in_progress"].includes(r.state) && s ? `${s} · ${st}` : st;
 }
 function picture(r, cls) {   // the film's letter is always under the picture: a picture that does not come leaves the letter, not a void
-  const p = r.picture, ph = `<span class="ph">${esc(String(r.title || r.name || "·").trim().slice(0, 1))}</span>`;
+  const p = r.picture, ph = `<span class="ph">${esc(String(filmName(r) || "·").trim().slice(0, 1))}</span>`;
   if (p && p.kind === "image") return `<span class="well ${cls || ""}">${ph}<img src="${esc(p.href)}" alt="" loading="lazy"></span>`;
   if (p && p.kind === "video") return `<span class="well ${cls || ""}">${ph}<video muted playsinline preload="none" data-mid data-src="${esc(p.href)}"></video></span>`;
   return `<span class="well ${cls || ""}">${ph}</span>`;
 }
-function card(r) {
-  const a = r.ask, lamp = lampOf(r);
-  const ask = a ? `<span class="pcard-ask">${esc(a.decisions ? t("ask_n", { n: a.decisions, q: cut(a.question, 60) }) : t("ask_0", { q: cut(a.question, 60) }))}</span>` : "";
-  const when = r.last_activity ? ago(r.last_activity.t) : "";
-  const meta = [r.effort, r.type ? String(r.type).replace(/^\d+-/, "") : ""].filter(Boolean).join(" · ");
-  return `<a class="pcard" href="${projHash(r.key)}" data-state="${esc(r.state || "")}" data-key="${esc(r.key)}">${picture(r)}
-    <span class="pcard-name">${esc(r.title || r.name)}</span>
-    <span class="pcard-meta"><span class="st ${lamp}"><i aria-hidden="true"></i>${esc(stateWords(r))}</span>${meta ? `<span class="mono">${esc(meta)}</span>` : ""}${when ? `<span>${esc(when)}</span>` : ""}</span>
-    ${ask}${r.error ? `<span class="err">${esc(cut(r.error, 120))}</span>` : ""}</a>`;
+function card(r) {   // its picture, its name, where it is, its kind, its day
+  const day = r.last_activity ? dayOf(r.last_activity.t) : "", kind = typeWords(r.type);
+  return `<a class="pcard" href="${projHash(r.key)}" data-state="${esc(r.state || "")}" data-key="${esc(r.key)}" title="${esc(r.name)}">${picture(r)}
+    <span class="pcard-name">${esc(filmName(r))}</span>
+    <span class="pcard-meta"><span class="st ${lampOf(r)}"><i aria-hidden="true"></i>${esc(stateWords(r))}</span>${kind ? `<span>${esc(kind)}</span>` : ""}${day ? `<span>${esc(day)}</span>` : ""}</span>
+    ${r.error ? `<span class="err" title="${esc(r.error)}">${esc(t("card_err"))}</span>` : ""}</a>`;
+}
+function heroCard(r) {   // a film that waits for you: what it asks, every question, the agent's line about it, and one button
+  const a = r.ask || {}, qs = (a.questions || []).length ? a.questions : a.question ? [a.question] : [];
+  const head = [stopOf(r), a.decisions ? t("ask_count", { n: a.decisions }) : t("st_waiting_person")].filter(Boolean).join(" · ");
+  const sum = a.summary && !qs.includes(a.summary) ? a.summary : "";
+  const day = r.last_activity ? dayOf(r.last_activity.t) : "", kind = typeWords(r.type);
+  return `<a class="hero" href="${projHash(r.key)}" data-state="waiting_person" data-key="${esc(r.key)}" title="${esc(r.name)}">${picture(r)}
+    <span class="hero-txt"><span class="pcard-meta"><span class="st wait"><i aria-hidden="true"></i>${esc(head)}</span>${kind ? `<span>${esc(kind)}</span>` : ""}${day ? `<span>${esc(day)}</span>` : ""}</span>
+      <span class="hero-name">${esc(filmName(r))}</span>
+      ${sum ? `<span class="hero-sum">${esc(cut(sum, 120))}</span>` : ""}
+      ${qs.length ? `<span class="hero-q">${qs.map((q) => `<span>${esc(cut(q, 80))}</span>`).join("")}</span>` : ""}
+      <span class="btn btn-primary">${esc(t("go_look"))}</span></span></a>`;
 }
 async function listing() { const r = await getJSON("/api/projects"); if (r.ok && r.data) LIST = r.data; return r; }
 function leaveProject() {
@@ -162,35 +175,27 @@ async function showHome(quiet) {
     leaveProject(); D = null; PKEY = ""; MOD = ""; GV = null;
     setLang(pickLang(LANG)); crumbs([{ text: t("m_space") }]); renderFlow(); renderRail(); spaceColumn();
   }
-  if (quiet && document.activeElement && document.activeElement.id === "oneLine") {   // someone is typing the sentence: the cards wait
-    clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000); return;
-  }
   const r = await listing();
   if (parse().view !== "home") return;
   if (!r.ok || !LIST) { $("#stage").innerHTML = `<p class="void module">${esc(t("noServer"))}</p>`; return; }
-  const rows = LIST.projects, wait = rows.filter((x) => x.state === "waiting_person"), rest = rows.filter((x) => x.state !== "waiting_person");
+  const rows = LIST.projects, wait = rows.filter((x) => x.state === "waiting_person"), done = rows.filter((x) => x.state === "delivered");
+  const RANK = { waiting_agent: 0, in_progress: 1, paused: 2, not_started: 3, no_record: 4 };   // in progress: the ones moving first, the ones with no record last
+  const doing = rows.filter((x) => !wait.includes(x) && !done.includes(x)).map((x, i) => [x, i]).sort((a, b) => ((RANK[a[0].state] ?? 5) - (RANK[b[0].state] ?? 5)) || a[1] - b[1]).map((x) => x[0]);
   const meta = LIST.waiting ? t("home_meta", { n: rows.length, w: LIST.waiting }) : t("home_meta0", { n: rows.length });
-  const draft = ($("#oneLine") || {}).value || store.get("desk:oneLine") || "";
+  const sect = (k, list, body) => (list.length ? `<section class="sect"><h2>${esc(t(k))}<span class="n">${list.length}</span></h2>${body}</section>` : "");
+  const roots = LIST.roots || [];
   const html = `<section class="module space">
-    <div class="ask"><span class="kick">${esc(t("ask_kick"))}</span><h2>${esc(t("ask_h"))}</h2>
-      <textarea id="oneLine" rows="2" placeholder="${esc(t("ask_ph"))}" aria-label="${esc(t("ask_h"))}">${esc(draft)}</textarea>
-      <div class="row"><span>${esc(t("ask_note"))}</span><button type="button" class="btn btn-primary" id="copyAsk">${esc(t("ask_copy"))}</button></div></div>
-    <div class="mh"><h1>${esc(t("films"))}</h1><span class="meta">${esc(meta)}</span></div>
+    <div class="mh"><h1>${esc(t("films"))}</h1><span class="meta">${esc(meta)}</span><button type="button" class="btn right" id="newFilm">${svg("new")}${esc(t("new_film"))}</button></div>
     ${rows.length ? "" : `<p class="void">${esc(t("no_projects"))}</p>`}
-    ${wait.length ? `<section class="sect"><h2>${esc(t("g_wait"))}<span class="n">${wait.length}</span></h2><div class="cards">${wait.map(card).join("")}</div></section>` : ""}
-    ${rest.length ? `<section class="sect">${wait.length ? `<h2>${esc(t("g_rest"))}<span class="n">${rest.length}</span></h2>` : ""}<div class="cards">${rest.map(card).join("")}</div></section>` : ""}
-    ${LIST.roots && LIST.roots.length ? `<p class="roots">${esc(t("roots", { r: LIST.roots.map((x) => x.path || x).join(" · ") }))}</p>` : ""}</section>`;
-  const area = $("#stage"), y = area.scrollTop, focused = document.activeElement && document.activeElement.id === "oneLine";
+    ${sect("g_wait", wait, `<div class="heroes">${wait.map(heroCard).join("")}</div>`)}
+    ${sect("g_doing", doing, `<div class="cards">${doing.map(card).join("")}</div>`)}
+    ${sect("g_done", done, `<div class="cards">${done.map(card).join("")}</div>`)}
+    ${roots.length ? `<p class="roots" title="${esc(roots.map((x) => x.path || x).join("\n"))}">${esc(t("roots_n", { n: roots.length }))}</p>` : ""}</section>`;
+  const area = $("#stage"), y = area.scrollTop;
   area.innerHTML = html;
   if (quiet) area.scrollTop = y;
-  if (focused) $("#oneLine").focus();
-  $("#oneLine").addEventListener("input", (e) => store.set("desk:oneLine", e.target.value));
-  $("#copyAsk").addEventListener("click", () => {
-    const s = $("#oneLine").value.trim();
-    if (!s) { toast(t("ask_empty")); $("#oneLine").focus(); return; }
-    copyText(t("ask_prefix") + s).then(() => toast(t("ask_copied")));
-  });
-  midFrames(area); hoverClips(area); spaceColumn();
+  $("#newFilm").addEventListener("click", () => { const x = $("#oneLine"); if (x) { x.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); x.focus({ preventScroll: true }); } });
+  midFrames(area); hoverClips(area); spaceRunning();
   clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000);
 }
 function copyText(s) {
@@ -217,15 +222,27 @@ function hoverClips(root) {   // a film's card plays 4 s of it, muted, while the
     c.addEventListener("mouseleave", () => { clearTimeout(timer); v.pause(); try { v.currentTime = v.duration / 2; } catch (e) { /* not loaded */ } });
   });
 }
-function spaceColumn() {
+function spaceColumn() {   // the column is where you talk to the agent: on the space, the sentence that starts a new film
   $("#colRound").hidden = true; $("#composer").hidden = true; $("#confirm").hidden = true;
-  $("#colHead").innerHTML = `<b>${esc(t("col_space"))}</b>`;
-  const rows = (LIST && LIST.projects) || [], wait = rows.filter((x) => x.state === "waiting_person"), agent = rows.filter((x) => (x.running || []).length);
-  const li = (r) => `<li><a href="${projHash(r.key)}"><b>${esc(r.title || r.name)}</b><span class="meta">${esc(stateWords(r))}</span>${r.ask ? `<span class="q">${esc(cut(r.ask.question || "", 70))}</span>` : ""}</a></li>`;
-  $("#colBody").innerHTML = `<section><h3 class="blk-h"><b>${esc(t("waiting_list"))}</b><span class="n mono">${wait.length}</span></h3>
-      ${wait.length ? `<ul class="film-list">${wait.map(li).join("")}</ul>` : `<p class="next">${esc(t("none_waiting"))}</p>`}</section>
-    ${agent.length ? `<section><h3 class="blk-h"><b>${esc(t("agent_list"))}</b><span class="n mono">${agent.length}</span></h3><ul class="film-list agent">${agent.map((r) => `<li><a href="${projHash(r.key)}"><b>${esc(r.title || r.name)}</b><span class="q mono">${esc(cut(String(r.running[0] || ""), 70))}</span></a></li>`).join("")}</ul></section>` : ""}
-    <p class="next">${esc(t("col_space_note"))}</p>`;
+  $("#colHead").innerHTML = `<b>${esc(t("new_film"))}</b>`;
+  $("#colBody").innerHTML = `<section class="ask"><label class="blk-h" for="oneLine"><b>${esc(t("ask_h"))}</b></label>
+      <textarea id="oneLine" rows="4" placeholder="${esc(t("ask_ph"))}">${esc(store.get("desk:oneLine") || "")}</textarea>
+      <div class="row"><span>${esc(t("ask_note"))}</span><button type="button" class="btn btn-primary" id="copyAsk">${esc(t("ask_copy"))}</button></div></section>
+    <section id="spaceRun"></section>`;
+  $("#oneLine").addEventListener("input", (e) => store.set("desk:oneLine", e.target.value));
+  $("#copyAsk").addEventListener("click", () => {
+    const s = $("#oneLine").value.trim();
+    if (!s) { toast(t("ask_empty")); $("#oneLine").focus(); return; }
+    copyText(t("ask_prefix") + s).then(() => toast(t("ask_copied")));
+  });
+  spaceRunning();
+}
+function spaceRunning() {   // what the agent is doing now, a film a line, in words; nothing running: one quiet line
+  const el = $("#spaceRun"); if (!el) return;
+  const agent = ((LIST && LIST.projects) || []).filter((x) => (x.running || []).length);
+  el.innerHTML = `<h3 class="blk-h"><b>${esc(t("agent_list"))}</b>${agent.length ? `<span class="n mono">${agent.length}</span>` : ""}</h3>`
+    + (agent.length ? `<ul class="film-list agent">${agent.map((r) => `<li><a href="${projHash(r.key)}"><b>${esc(filmName(r))}</b><span class="q">${esc(cmdWords(r.running[0]))}</span></a></li>`).join("")}</ul>`
+      : `<p class="quiet-line">${esc(t("agent_idle"))}</p>`);
 }
 
 /* ---------- search: / anywhere ---------- */
@@ -265,7 +282,7 @@ async function fetchProject(key) {   // a project's data and its round's gate vi
   return { data: r.data, gv };
 }
 function applyProject(key, x) {
-  D = x.data; PKEY = key; LAST = key; store.set("desk:last", key);
+  D = x.data; PKEY = key;
   ROUND = D.rounds[D.rounds.length - 1] || { id: "notes", gate: "", data: { decisions: [], least_sure: [], decided: [], delegated: [], assets: [], appendix: [], listen: [] } };
   KEY = `desk:${PKEY}:${ROUND.id}`;   // the draft goes with the folder (its key), never with a folder of the same name
   FB = store.get(KEY) || { decisions: {}, items: {}, general: "" };
@@ -307,6 +324,7 @@ function defaultMod() {
   if (g) return gateMod(g);
   const cur = stations().find((s) => s.current && s.state !== "done" && s.state !== "skipped");
   if (cur && GATE_MOD[cur.id] && GATE_MOD[cur.id] !== "ship") return GATE_MOD[cur.id];
+  if (filmDelivered()) return "ship";
   if (filmPath() || cutShots().length) return "cut";
   return "idea";
 }
@@ -322,23 +340,19 @@ async function showProject(r) {
   updateComposer();
 }
 function renderShellLoading() { $("#stage").innerHTML = `<p class="loading">${esc(t("loading"))}</p>`; }
-function gateName(g) {
-  const b = gateBase(g); if (!b) return g;
-  const glyph = /^\d$/.test(b) ? t("gate") + " " + "①②③④⑤"[+b - 1] : b;
-  const rest = String(g).slice(b.length);
-  return `${glyph} ${L.stn[b] || ""}${rest ? " · " + rest : ""}`.trim();
-}
 
 /* ---------- the right column: what waits for you, this round, one note box ---------- */
 function renderColumn() {
   const live = $("#colHead .state"); const on = live && live.classList.contains("agent");
-  const roundName = ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);
-  $("#colHead").innerHTML = `<b>${esc(t("col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t(on ? "live_on_tip" : "live_off_tip"))}"><i aria-hidden="true"></i><span>${esc(t(on ? "live_on" : "live_off"))}</span></span>`;
+  const dl = filmDelivered(), day = dl ? shortDate(stopDate(stations().filter((x) => x.id === "deliver"))) : "";
+  const roundName = dl ? (day ? t("f_delivered_d", { d: day }) : t("f_delivered")) : ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);
+  // the agent's being there is said when it waits (a desk wait); its absence is not news, so nothing is shown then
+  $("#colHead").innerHTML = `<b>${esc(t(dl ? "col_film" : "col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on"))}</span></span>`;
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
-  const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener">${esc(t("static_page"))} ↗</a>` : "";
+  const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
   const decs = g && (ROUND.data.decisions || []).length ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${ROUND.data.decisions.length}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
-    : ROUND.id !== "notes" ? `<section><p class="next">${esc(t("round_quiet", { g: roundName, s: t("st_" + (roundState() || "done")) }))}${page}</p>${recentHtml()}</section>` : recentHtml();
+    : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
   const sent = FB.sent ? t("sent_n", { n: FB.sent.n, d: FB.sent.d, at: FB.sent.at }) : FB.submittedAt ? t("submitted", { at: FB.submittedAt }) : "";   // what went, and that it does not go again
   $("#colBody").innerHTML = `${sent ? `<p class="notice">${esc(sent)}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="colNext"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
@@ -380,25 +394,34 @@ function renderMine() {
   const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
   $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + (FB.general ? 1 : 0)}</span></h3>`
-    + (items.length || gen ? `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>` : `<p class="next">${esc(t("c_none_mine"))}</p>`);
+    + (items.length || gen ? `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>` : `<p class="next">${esc(t(MOD === "cut" ? "c_none_mine" : "c_none_mine_m"))}</p>`);
 }
-function renderNext() {
+function renderNext() {   // what happens next, in a line: who, and what (status's words in this page's language; its commands only in a tooltip)
   const st = (D && D.status) || {}, ns = st.next_step || {}, run = ((st.activity || {}).running || []);
   const who = ns.who === "person" ? "person" : ns.who === "nobody" ? "nobody" : "agent";
   const b = ((st.assets || {}).budget) || {}, money = (o) => Object.entries(o || {}).map(([c, v]) => `${v} ${c}`).join(", ");
   const spent = money(b.spent), limit = b.unlimited ? "∞" : money(b.limit);
-  const said = statusWords(ns.do || "");   // status's words in this page's language when known; the project's folder as <项目>
-  $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li><span class="mono tc" style="color:var(--agent)">●</span><span class="mono">${esc(cut(shortPath(x.cmd || x), 80))}</span></li>`).join("")}</ul>` : "")
-    + (ns.do ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b>${said.known ? "" : `<span class="tag quiet">${esc(t("ns_raw"))}</span>`}</h3><p class="next"><span class="who ${who}">${esc(t("who_" + who))}</span>${said.known ? `<span>${esc(said.text)}</span>` : `<code class="hint">${esc(said.text)}</code>`}</p>${(ns.commands || []).slice(0, 2).map((c) => `<p class="next"><code class="cmd" title="${esc(c)}">${esc(shortPath(c))}</code></p>`).join("")}` : "")
-    + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next mono">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
+  const said = statusWords(ns.do || ""), cmds = [shortPath(ns.do || "")].concat((ns.commands || []).map(shortPath)).filter(Boolean).join("\n");   // the tooltip: status's own line and its commands
+  const next = ns.do && who !== "nobody" ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next"${cmds ? ` title="${esc(cmds)}"` : ""}><span class="who ${who}">${esc(t("who_" + who))}</span>${said.known ? `<span>${esc(said.text)}</span>` : `<span class="raw">${esc(said.text)}</span>`}</p>` : "";
+  $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li title="${esc(shortPath(x.cmd || x))}"><span class="mono tc" style="color:var(--agent)">●</span><span>${esc(cmdWords(x.cmd || x))}</span></li>`).join("")}</ul>` : "")
+    + next + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
-function renderRound() {   // what the next submission would send: notes not sent yet, decisions picked and not sent yet (or changed)
+function roundCounts() {   // {n, d, r}: notes to send, decisions the person picked and not sent yet, decisions left to the recommendation
   const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
-  const n = myItems().length + (FB.general ? 1 : 0), d = Object.keys(ts.decisions).filter((k) => !ts.defaulted.includes(k)).length;
-  $("#colRound").hidden = false;
-  $("#colRound").innerHTML = `<span>${esc(t("round_sum", { n, d }))}</span><button type="button" class="btn btn-primary" id="openConfirm">${esc(t("submit_round"))}</button>`;
-  $("#openConfirm").addEventListener("click", openConfirm);
+  const d = Object.keys(ts.decisions).filter((k) => !ts.defaulted.includes(k)).length;
+  return { n: myItems().length + (FB.general ? 1 : 0), d, r: ts.defaulted.length };
 }
+function renderRound() {   // what the next submission would send, said plainly ("还没写意见 · 2 件按推荐"); nothing to send: the button rests
+  const { n, d, r } = roundCounts();
+  const words = [n ? t("rs_notes", { n }) : t("rs_none")].concat(d ? [t("rs_picked", { d })] : [], r ? [t("rs_rec", { r })] : []).join(" · ");
+  const idle = !n && !d && !r;
+  $("#colRound").hidden = false;
+  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(t("submit_round"))}</button>`;
+  $("#openConfirm").addEventListener("click", openConfirm);
+  requestAnimationFrame(fadeMore);
+}
+function fadeMore() { const b = $("#colBody"); if (b) b.classList.toggle("more", b.scrollHeight - b.scrollTop - b.clientHeight > 6); }   // more below: say so
+$("#colBody").addEventListener("scroll", fadeMore); window.addEventListener("resize", fadeMore);
 $("#colBody").addEventListener("click", (e) => {
   const x = e.target.closest("[data-del]");
   if (x) { e.stopPropagation(); if (x.dataset.del === "#general") FB.general = ""; else delete FB.items[x.dataset.del]; save(); return; }
@@ -436,9 +459,9 @@ function buildComposer() {
   const c = $("#composer");
   c.dataset.ready = "1";
   c.innerHTML = `<div class="crow"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button></div>
-    <div class="crow"><span class="modes" role="group"><button type="button" disabled title="${esc(t("say_agent_tip"))}">${esc(t("say_agent"))}</button><button type="button" aria-pressed="true">${esc(t("as_note"))}</button></span><span class="meta">${esc(t("note_keys"))}</span></div>
-    <textarea id="say" rows="3" maxlength="4000"></textarea>
-    <div class="send"><span class="meta" id="sayHint"></span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>`;
+    <div class="crow" hidden><span class="modes" role="group"><button type="button" disabled title="${esc(t("say_agent_tip"))}">${esc(t("say_agent"))}</button><button type="button" aria-pressed="true">${esc(t("as_note"))}</button></span></div>
+    <textarea id="say" rows="2" maxlength="4000"></textarea>
+    <div class="send"><span class="meta" id="sayHint"></span><span class="kbd" aria-hidden="true">${esc(t("note_keys"))}</span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>`;
   $("#toWhole").addEventListener("click", () => setScope(null));
   $("#sayAdd").addEventListener("click", addNote);
   $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } });
@@ -514,14 +537,16 @@ function openConfirm() {
   if (!D) return;
   const p = payload(), st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
   const decs = (ROUND.data.decisions || []).filter((d) => p.decisions[d.id]).map((d, i) => { const v = p.decisions[d.id], mine = !p.defaulted.includes(d.id), o = (d.options || []).find((x) => x.id === v) || {};
-    return `<li><span class="q">${i + 1} · ${esc(d.question || d.id)}</span><span class="v ${mine ? "mine" : "rec"}">${esc(v || "–")}${o.label ? " · " + esc(cut(o.label, 40)) : ""}${mine ? "" : esc(t("by_rec"))}</span></li>`; }).join("");
+    return `<li><span class="q">${i + 1} · ${esc(d.question || d.id)}</span><span class="v ${mine ? "mine" : "rec"}">${esc(o.label ? cut(String(o.label).replace(/\*\*|`/g, ""), 60) : v || "–")}${mine ? "" : esc(t("by_rec"))}</span></li>`; }).join("");   // an option by its words; the code only in the reply for the chat
+  const least = gateMarks().filter((m) => m.kind === "least");   // what "改完下面两处" points at, here in the sheet
+  const leastHtml = least.length ? `<h4>${esc(t("c_least"))}</h4>${least.map((m) => `<li><span class="q">${esc(m.t != null ? fmt(m.t) : "")}${m.id && !/^\s*\d/.test(m.id) ? " " + esc(m.id) : ""}</span><span>${esc(m.note)}</span></li>`).join("")}` : "";
   const items = p.items.map((i) => `<li><span class="q">${esc(i.label)} · ${esc(st[i.status])}</span>${i.text ? `<span>${esc(i.text)}</span>` : ""}${i.suggest ? `<span class="serif">→ ${esc(i.suggest)}</span>` : ""}</li>`).join("")
     + (p.dropped.length ? `<h4 class="dropped">${esc(t("d_dropped", { n: p.dropped.length }))}</h4>${p.dropped.map((i) => `<li class="dropped"><span class="q">${esc(cut(i.label, 60))}</span><span>${esc(cut(i.text, 120))}</span></li>`).join("")}` : "");
   const c = $("#confirm");
-  c.innerHTML = `<div class="c-body"><h3>${esc(t("d_title"))}</h3><ul class="sum">${decs ? `<h4>${esc(t("d_decisions"))}</h4>${decs}` : ""}<h4>${esc(t("d_items"))}</h4>${items || `<li class="meta">${esc(t("d_none"))}</li>`}${FB.general ? `<li><span class="q">${esc(t("overall"))}</span><span>${esc(FB.general)}</span></li>` : ""}</ul>
+  c.innerHTML = `<div class="c-body"><h3>${esc(t("d_title"))}</h3><ul class="sum">${decs ? `<h4>${esc(t("d_decisions"))}</h4>${decs}` : ""}${leastHtml}<h4>${esc(t("d_items"))}</h4>${items || `<li class="meta">${esc(t("d_none"))}</li>`}${FB.general ? `<li><span class="q">${esc(t("overall"))}</span><span>${esc(FB.general)}</span></li>` : ""}</ul>
       <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" maxlength="4000" placeholder="${esc(t("general_ph"))}"></textarea>
       <p class="meta" id="submitHint">${esc(t("submit_hint"))}</p>
-      <details class="fold"><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
+      <details class="fold" open><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
     <div class="c-act"><button type="button" class="btn btn-primary" id="doSubmit">${esc(t("submit"))}</button><button type="button" class="btn" id="noSubmit">${esc(t("cancel"))}</button></div>`;
   c.hidden = false;
   const pv = () => { $("#preview").textContent = summaryText(payload()); };
@@ -560,7 +585,7 @@ async function pollLive() {
   if (!PKEY || RELOADING) return;
   const r = await getJSON(`/api/p/${enc(PKEY)}/status`);
   const on = !!(r.ok && r.data && r.data.listening), el = $("#colHead .state");
-  if (el) { el.classList.toggle("agent", on); el.title = t(on ? "live_on_tip" : "live_off_tip"); $("span", el).textContent = t(on ? "live_on" : "live_off"); }
+  if (el) { el.classList.toggle("agent", on); el.hidden = !on; }
   if (r.ok && r.data && D && r.data.round !== undefined && r.data.round !== (D.current || null) && r.data.key === PKEY) {   // the agent sent a new page
     toast(t("new_round", { g: r.data.round || "" }));
     await reloadProject(true);
@@ -789,12 +814,16 @@ function wireSound() {
 }
 function vFacts() {
   if (!D.facts.length) return docOf("NOTES.md") ? fallback(t("no_facts"), "NOTES.md") : `<div class="void">${esc(t("no_notes"))}</div>`;
-  const rows = D.facts.map((f) => `<tr class="${f.dropped ? "dropped" : ""}" id="fact-${esc(f.id.slice(1))}" data-mark="fact:${esc(f.id)}"><td><b>${esc(f.id)}</b><div class="meta">${esc(f.kind)}</div></td>
+  const row = (f) => `<tr class="${f.dropped ? "dropped" : ""}" id="fact-${esc(f.id.slice(1))}" data-mark="fact:${esc(f.id)}"><td><b>${esc(f.id)}</b><div class="meta">${esc(f.kind)}</div></td>
       <td>${esc(f.claim)}${f.dropped ? `<div class="meta">${esc(t("dropped"))}</div>` : ""}</td><td class="serif">${esc(f.onscreen)}</td><td class="small muted">${esc(f.source)}</td>
-      <td style="min-width:230px">${f.dropped || !f.id ? "" : fbCtl("fact:" + f.id, t("l_fact", { x: f.id }), { labels: [t("fact_ok"), t("fact_bad"), t("fact_unsure")], def: t("fact_def") })}</td></tr>`).join("");
+      <td style="min-width:230px">${f.dropped || !f.id ? "" : fbCtl("fact:" + f.id, t("l_fact", { x: f.id }), { labels: [t("fact_ok"), t("fact_bad"), t("fact_unsure")], def: t("fact_def") })}</td></tr>`;
+  const kinds = [];
+  D.facts.forEach((f) => { const k = f.kind || t("fact_other"); let g = kinds.find((x) => x.k === k); if (!g) kinds.push((g = { k, list: [] })); g.list.push(f); });
+  const head = `<thead><tr><th>${esc(t("th_id"))}</th><th>${esc(t("th_claim"))}</th><th>${esc(t("th_screen"))}</th><th>${esc(t("th_src"))}</th><th>${esc(t("th_you"))}</th></tr></thead>`;
+  const shut = D.facts.length > 8;
   return `<p class="sub">${esc(t("facts_sub"))}</p>
     ${D.fact_todo.length ? `<div class="card" style="margin-bottom:16px"><b class="small">${esc(t("todo"))}</b><ul class="small" style="margin:6px 0 0;padding-left:18px">${D.fact_todo.map((x) => `<li>${x.done ? "✓ " : ""}${esc(x.text)}</li>`).join("")}</ul></div>` : ""}
-    <div style="overflow-x:auto"><table class="t"><thead><tr><th>${esc(t("th_id"))}</th><th>${esc(t("th_claim"))}</th><th>${esc(t("th_screen"))}</th><th>${esc(t("th_src"))}</th><th>${esc(t("th_you"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    ${kinds.map((g) => `<details class="fgrp"${shut ? "" : " open"}><summary><b>${esc(g.k)}</b><span class="n">${g.list.length}</span></summary><div style="overflow-x:auto"><table class="t">${head}<tbody>${g.list.map(row).join("")}</tbody></table></div></details>`).join("")}`;
 }
 const verdictCls = (v) => (/pass|ok/i.test(v || "") ? "ok" : /fail/i.test(v || "") ? "bad" : "");
 function vCheck() {
@@ -910,16 +939,18 @@ function CutModule(area) {
         <button type="button" class="p-btn play" id="cPlay" title="${esc(t("play"))}" aria-label="${esc(t("play"))}">${svg("play")}</button>
         <button type="button" class="p-btn" id="cNext" title="${esc(t("next_shot"))}" aria-label="${esc(t("next_shot"))}">${svg("next")}</button>
         <span class="tc" id="cTc"></span>
+        <button type="button" class="btn" id="cN" title="${esc(t("next_tip"))}" hidden></button>
         <button type="button" class="btn toggle" id="cSafe" aria-pressed="false">${esc(t("safe"))}</button>
         ${prevV ? `<button type="button" class="btn toggle" id="cCmp" aria-pressed="false">${esc(t("compare", { v: vnum(prevV.id) }))}</button>` : ""}
         <span class="seg push" role="group" aria-label="${esc(t("layout"))}">${layouts.map((l) => `<button type="button" data-lay="${l}" aria-pressed="${l === layout}">${esc(t("lay_" + l))}</button>`).join("")}</span>
       </div>
     </section>
     <section class="timeline" aria-label="timeline">
-      <div class="tl-bar"><span>${esc(t("tl_hint"))}</span><span class="push"></span>
-        <button type="button" class="btn" id="cN">${esc(t("next_place"))} <span class="kbd">N</span></button>
+      <div class="tl-bar"><span class="legend" id="tlLegend"></span><span class="push"></span>
         <button type="button" class="btn toggle" id="cSnap" aria-pressed="${snapOn}">${esc(t("snap"))}</button>
-        <span class="zoom"><button type="button" class="p-btn" id="zOut" title="${esc(t("zoom_out"))}" aria-label="${esc(t("zoom_out"))}">−</button><button type="button" class="p-btn" id="zIn" title="${esc(t("zoom_in"))}" aria-label="${esc(t("zoom_in"))}">+</button></span></div>
+        <span class="zoom"><button type="button" class="p-btn" id="zOut" title="${esc(t("zoom_out"))}" aria-label="${esc(t("zoom_out"))}">−</button><button type="button" class="p-btn" id="zIn" title="${esc(t("zoom_in"))}" aria-label="${esc(t("zoom_in"))}">+</button></span>
+        <button type="button" class="btn help" id="tlHelp" aria-expanded="false" aria-controls="tlHelpBox" title="${esc(t("help"))}" aria-label="${esc(t("help"))}">?</button></div>
+      <div class="tl-help" id="tlHelpBox" hidden><p>${esc(t("tl_hint"))}</p><dl class="keys-only">${t("keys_list").split("；").map((x) => { const [k, ...w] = x.split("："); return `<dt><span class="kbd">${esc(k)}</span></dt><dd>${esc(w.join("："))}</dd>`; }).join("")}</dl></div>
       <div class="tl-scroll" id="tlScroll"><div class="tl" id="tl"></div></div>
     </section></div>`;
   const root = $("#cut", area), tl = $("#tl", area), scroll = $("#tlScroll", area), screen = $("#screen", area), frame = $("#frame", area);
@@ -930,10 +961,13 @@ function CutModule(area) {
   } else {
     // no film to play: the storyboard's key frames as the picture, else the contact sheet; the line under it says which, and
     // names the file that was asked for when it is not there (moved, renamed, on another drive)
-    const gone = (ST.film_missing) || "", pics = shots.some(shotPic) ? "frames" : ST.sheet ? "sheet" : "";
-    const say = pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics, { p: gone }) : gone ? t("film_gone0", { p: gone }) : t("no_film0");
-    frame.innerHTML = `<img id="cimg" alt=""${pics === "sheet" ? ` src="${esc(src(ST.sheet))}"` : ""}>${pics ? "" : `<p class="none">${esc(say)}</p>`}<div class="safe" hidden></div>`;
-    if (pics) screen.insertAdjacentHTML("beforeend", `<p class="screen-note">${esc(say)}</p>`);
+    const cover = ((D.mods || {}).covers || []).find((c) => c.ratio && c.ratio >= 1) || ((D.mods || {}).covers || [])[0];
+    const gone = (ST.film_missing) || "", pics = shots.some(shotPic) ? "frames" : ST.sheet ? "sheet" : gone && cover ? "cover" : "";
+    const say = pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics) : gone ? t("film_gone0") : t("no_film0");
+    const tell = gone && !readOnly() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : "";
+    frame.innerHTML = `<img id="cimg" alt=""${pics === "sheet" ? ` src="${esc(src(ST.sheet))}"` : pics === "cover" ? ` src="${esc(src(cover.path))}"` : ""}>${pics ? "" : `<p class="none" title="${esc(gone)}">${esc(say)}${tell}</p>`}<div class="safe" hidden></div>`;
+    if (pics) screen.insertAdjacentHTML("beforeend", `<p class="screen-note" title="${esc(gone)}">${esc(say)}${tell}</p>`);
+    $$("[data-tell]", screen).forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); tellWhere(b.dataset.tell); }));
   }
   const nextq = document.createElement("div"); nextq.className = "nextq"; nextq.hidden = true; screen.appendChild(nextq);
 
@@ -1078,11 +1112,12 @@ function CutModule(area) {
     if (!dur) dur = 1;
     const blk = (cls, a, b, inner, data, title) => `<div class="blk ${cls}" style="left:${pct(a)}%;width:${Math.max(0.15, pct(b) - pct(a))}%"${data ? ` data-pick="${esc(data)}"` : ""}${title ? ` title="${esc(title)}"` : ""}>${inner}</div>`;
     const chapH = chapters.map((c) => blk("chap" + (SEL && (SEL.kind === "chapter" || SEL.kind === "seg" || SEL.kind === "part") && SEL.id === c.id ? " sel" : ""), c.t0, c.t1, esc(c.title), (c.kind === "chapter" ? "chapter:" : c.kind === "seg" ? "seg:" : "part:") + c.id, c.title)).join("");
-    const AM = allMarks();
+    const AM = allMarks(), pxPerS = trackW() / dur;
     const shotH = shots.map((s) => { const pic = shotPic(s), st = s.unsure || AM.some((m) => m.kind === "least" && m.t >= s.t0 && m.t < s.t1) ? "flag" : AM.some((m) => m.kind === "mine" && m.t >= s.t0 && m.t < s.t1) ? "note" : "";
-      return blk("shot" + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${pic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}<i class="s ${st}"></i><b>${esc(s.id)}</b>${esc(s.label)}`, "shot:" + s.id, `${s.id} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
-    const lineH = lines.map((l, i) => blk("line" + (SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""), l.t0, l.t1, esc(l.text), "line:" + i, `${l.id} · ${l.text}`)).join("");
-    const pxPerS = trackW() / dur;
+      const w = (s.t1 - s.t0) * pxPerS, showPic = pic && w >= 130, showName = w >= (showPic ? 230 : 120), showId = w >= 40;   // too narrow for its number: the block alone, the number in its tooltip
+      return blk("shot" + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showId ? `<i class="s ${st}"></i><b>${esc(s.id)}</b>` : ""}${showName ? esc(s.label) : ""}`, "shot:" + s.id, `${s.id} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
+    // a line of the narration: ▶ plays just that line
+    const lineH = lines.map((l, i) => blk("line" + (SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""), l.t0, l.t1, `<i class="pl" data-pick="play:${i}" role="button" aria-label="${esc(t("play_line"))}">▶</i>${esc(l.text)}`, "line:" + i, `${l.id} · ${l.text}`)).join("");
     const beatH = beats.filter((b) => b.downbeat || pxPerS * (60 / (+T.bpm || 120)) > 10).map((b) => `<i class="bl${b.downbeat ? " down" : ""}" style="left:${pct(+b.t)}%"></i>`).join("");
     const secH = sections.map((s) => `<span class="sec" style="left:${pct(s.start)}%;width:${pct(s.end) - pct(s.start)}%" title="${esc(s.name)}">${esc(s.label || s.name)}</span>`).join("");
     const hitH = hitsL.map((h) => `<i class="hit" style="left:${pct(+h.t)}%" title="${esc((h.part || "") + " " + fmt(h.t))}"></i>`).join("");
@@ -1095,8 +1130,10 @@ function CutModule(area) {
       + grp("pic", t("g_pic")) + lane("chap", t("ln_chap"), chapH, "pic", t("e_chap")) + lane("shots", t("ln_shots"), shotH, "pic", t("e_shots"))
       + grp("sound", t("g_sound")) + lane("voice extra", t("ln_voice"), lineH, "sound", t("e_voice")) + lane("music extra", t("ln_music"), beatH + secH, "sound", t("e_music"))
       + (hitsL.length ? lane("thin extra", t("ln_hits"), hitH, "sound") : "") + lane("wave extra", t("ln_wave"), wave(), "sound", t("e_wave"))
-      + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + lane("thin extra", t("ln_diff"), diffH, "review", t("e_diff"))
+      + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + (diffH ? lane("thin extra", t("ln_diff"), diffH, "review") : "")   // what changed: a lane only when it is on record
       + `<div class="over" aria-hidden="true"><div class="selr" hidden><span class="cap"></span></div><div class="tl-ph"><span class="cap"></span></div></div><div class="hover-tip" hidden></div>`;
+    const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => AM.some((m) => m.kind === k));
+    $("#tlLegend", area).innerHTML = kinds.map(([, cls, w]) => `<span class="lg"><i class="pin ${cls}" aria-hidden="true"></i>${esc(t(w))}</span>`).join("");
     if (layout !== "review") closed.forEach((g) => { const el = $(`.grp[data-grp="${g}"]`, tl); if (el) el.classList.add("closed"); $$(`.lane[data-g="${g}"]`, tl).forEach((x) => { x.hidden = true; }); });
     paintSel(); tick();
   }
@@ -1115,8 +1152,9 @@ function CutModule(area) {
   function tick() {
     const x = now(), ph = $(".tl-ph", tl);
     if (playing() !== lastPlaying) { lastPlaying = playing(); $("#cPlay", area).innerHTML = svg(lastPlaying ? "pause" : "play"); }
-    if (ph) { ph.style.left = pct(x) + "%"; $(".cap", ph).textContent = fmt(x); }
-    $("#cTc", area).innerHTML = `${esc(tcode(x, fps))} <i>/ ${esc(tcode(dur, fps))}</i>`;
+    if (ph) ph.style.left = pct(x) + "%";
+    $("#cTc", area).innerHTML = `${esc(fmt(x))} <i>/ ${esc(fmt(dur))}</i>`;
+    placeLabel();
     const s = shotAt(x);
     if (s !== lastShot || !$("#readout", area).innerHTML) {
       lastShot = s;
@@ -1134,7 +1172,7 @@ function CutModule(area) {
   function paintSel() {
     const r = $(".selr", tl); if (!r) return;
     if (!SEL || SEL.t1 == null) {
-      if (SEL && SEL.kind === "time") { r.hidden = false; r.style.left = pct(SEL.t) + "%"; r.style.width = "1px"; $(".cap", r).textContent = SEL.label; }
+      if (SEL && SEL.kind === "time") { r.hidden = false; r.style.left = pct(SEL.t) + "%"; r.style.width = "1px"; $(".cap", r).textContent = ""; }   // the second is in the note box's line already
       else r.hidden = true;
       return;
     }
@@ -1166,7 +1204,7 @@ function CutModule(area) {
     const [kind, ...rest] = p.split(":"), id = rest.join(":");
     if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, name: s.label, t: s.t0, t1: s.t1, label: `${s.id} ${s.label}` }); }
     else if (kind === "chapter" || kind === "seg" || kind === "part") { const c = chapters.find((x) => x.id === id); if (c) select({ kind: c.kind === "part" ? "range" : c.kind, id: c.id, name: c.title, t: c.t0, t1: c.t1, label: c.title }); }
-    else if (kind === "line") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }); }
+    else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }, kind === "play"); }
     else if (kind === "check") { const f = findings[+id]; if (f) select({ kind: f.t1 != null ? "range" : "time", t: +f.t, t1: f.t1 != null ? +f.t1 : null, name: `${t("k_check")} ${f.kind || ""}`.trim(), label: fmt(f.t) }); }
     else if (kind === "mark") {
       const m = allMarks().find((x) => x.target === id && (!el || el.dataset.t == null || Math.abs(x.t - +el.dataset.t) < 0.01)) || allMarks().find((x) => x.target === id);
@@ -1219,8 +1257,14 @@ function CutModule(area) {
   }
 
   /* N: the next place to look at */
+  function nextIdx() { const P = allMarks(), x = now() + 0.05, i = P.findIndex((q) => q.t > x); return { P, i: i < 0 ? 0 : i }; }
+  function placeLabel() {   // "下一处（2/4）": which place N goes to, of how many; no places, no button
+    const b = $("#cN", area); if (!b) return;
+    const { P, i } = nextIdx(), lab = P.length ? t("next_place_n", { k: i + 1, n: P.length }) : "";
+    b.hidden = !P.length; if (b.textContent !== lab) b.textContent = lab;
+  }
   function nextPlace() {
-    const x = now() + 0.05, m = allMarks().find((q) => q.t > x);
+    const { P, i } = nextIdx(), m = P[i];
     if (!m) { flash(t("no_next")); return; }
     pickThing("mark:" + m.target, { dataset: { t: String(m.t) } });
     flash(t("next_q", { x: `${fmt(m.t)} ${cut(m.note || m.label, 40)}` }));
@@ -1246,6 +1290,7 @@ function CutModule(area) {
   $("#cPrev", area).addEventListener("click", () => jumpShot(-1));
   $("#cNext", area).addEventListener("click", () => jumpShot(1));
   $("#cN", area).addEventListener("click", nextPlace);
+  $("#tlHelp", area).addEventListener("click", (e) => { const box = $("#tlHelpBox", area), open = box.hidden; box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); });
   $("#cSnap", area).addEventListener("click", (e) => { snapOn = !snapOn; store.set("desk:cut-snap", snapOn); e.currentTarget.setAttribute("aria-pressed", String(snapOn)); });
   $("#cSafe", area).addEventListener("click", (e) => { safe = !safe; e.currentTarget.setAttribute("aria-pressed", String(safe)); $(".safe", frame).hidden = !safe; });
   $("#zIn", area).addEventListener("click", () => { zoom = Math.min(16, zoom * 1.6); draw(); centerOn(now()); });

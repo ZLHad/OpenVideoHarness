@@ -28,7 +28,7 @@
    "type": "array",
    "items": {
     "type": "object",
-    "required": ["id", "name", "title", "path", "type", "effort", "state", "station", "waiting_on", "next_step", "running", "last_activity", "film", "same_id_as", "error"],
+    "required": ["id", "name", "title", "path", "type", "effort", "state", "station", "waiting_on", "next_step", "running", "last_activity", "film", "delivered", "same_id_as", "error"],
     "properties": {
      "id": {"type": ["string", "null"]},
      "name": {"type": "string"},
@@ -82,6 +82,7 @@
        "stale": {"type": ["boolean", "null"]}
       }
      },
+     "delivered": {"type": ["string", "null"], "description": "the day a delivered film went out (YYYY-MM-DD), else null"},
      "same_id_as": {"type": "array"},
      "error": {},
      "assigned": {"type": "boolean"},

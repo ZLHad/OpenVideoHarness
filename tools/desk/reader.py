@@ -505,7 +505,9 @@ def _history(review_md):
         if quotes or notes or desk:
             page = re.search(r"^- (?:页面|Page)\s*[：:].*?\b(\d{4}-\d{2}-\d{2})\b", body, re.M)   # the 页面 line's date (templates/REVIEW.md)
             day = page or re.search(r"\b(\d{4}-\d{2}-\d{2})\b", body)   # else the section's first date
-            out.append({"title": title, "date": day.group(1) if day else "", "quotes": quotes, "notes": notes, "desk": desk, "html": render_md(body)})
+            pg = re.search(r"^- (?:页面|Page)\s*[：:].*?gate-([A-Za-z0-9]+)\.(?:html|json)", body, re.M)
+            out.append({"title": title, "date": day.group(1) if day else "", "page": pg.group(1) if pg else "", "quotes": quotes, "notes": notes,
+                        "desk": desk, "html": render_md(body)})
     return out, paused
 
 

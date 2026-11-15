@@ -216,8 +216,9 @@ def ask_of(row, gid, gate):
     decs = [d for d in gate.get("decisions") or [] if isinstance(d, dict)]
     q = next((d.get("question") for d in decs if isinstance(d.get("question"), str) and d.get("question").strip()), None)
     s = gate.get("summary") if isinstance(gate.get("summary"), str) else ""
+    qs = [d["question"].strip()[:80] for d in decs if isinstance(d.get("question"), str) and d["question"].strip()][:4]
     return {"gate": gid, "title": review.gate_title(gid, "zh"), "title_en": review.gate_title(gid, "en"),
-            "question": (q or s or "").strip()[:160], "decisions": len(decs)}
+            "question": (q or s or "").strip()[:160], "questions": qs, "summary": s.strip()[:160], "decisions": len(decs)}
 
 
 def _load(p):
@@ -274,6 +275,9 @@ def studio_extras(project, data):
             out["findings"] = [{k: f.get(k) for k in ("kind", "severity", "message", "t", "t1")} for f in rec.get("findings") or []
                                if isinstance(f, dict) and f.get("severity") in ("fail", "warn")][:200]
     return out
+
+
+SYSTEM_FONTS = re.compile(r"^(/System/Library/.*Font|/Library/Fonts/|~/Library/Fonts/|/usr/share/fonts/|[A-Za-z]:[\\/]Windows[\\/]Fonts[\\/])", re.I)
 
 
 def _json_in(project, rel):
@@ -433,7 +437,9 @@ def module_extras(project, data):
             raw = r.get("path") if isinstance(r.get("path"), str) else ""
             rel = _inside(project, raw)   # there, and inside; else a name in the project (missing now), or a path outside it (bin/vh assets add takes one)
             named = bool(raw) and not raw.startswith(("/", "~", "\\")) and not re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", raw) and ".." not in re.split(r"[/\\]", raw)
-            rows.append({"id": str(r.get("id") or ""), "kind": r.get("kind"), "path": rel or (raw.strip() if named else None), "outside": "" if rel or named else raw, "there": bool(rel),
+            system = not rel and bool(SYSTEM_FONTS.match(raw.strip()))   # a font the system has (macOS, Windows, Linux): there, not "outside"
+            rows.append({"id": str(r.get("id") or ""), "kind": r.get("kind"), "path": rel or (raw.strip() if named else None), "outside": "" if rel or named or system else raw,
+                         "there": bool(rel) or system, "system": system,
                          "license": lic.get("class") if isinstance(lic.get("class"), str) else "unknown", "license_name": lic.get("name") or lic.get("spdx") or "",
                          "source": src.get("title") or src.get("url") or src.get("tool") or src.get("kind") or "", "url": src.get("url") or "",
                          "aigc": bool(r.get("aigc")), "used_by": _texts(r.get("used_by")), "note": r.get("note") or ""})

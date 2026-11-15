@@ -52,38 +52,38 @@ GATES = {"1": ("关卡 ① 立意和大纲", "Gate ① concept and outline"), "2
          "E5": ("检查点 E5 锁画面", "Checkpoint E5 picture lock")}
 
 T = {
-    "zh": dict(html_lang="zh-CN", n_decide="要你定 {n} 件", look="这一页只给你过目", wait="等你看",
-               nothing="这一页没有要你定的事：看一眼，回“通过”，或写要改的。",
-               rec="推荐", why_rec="推荐 {r}：{w}", reply="回", take_all="照推荐回复", yours="你的回复", copy="复制", copied="已复制",
-               rest="其余默认通过；要改哪一镜，写“{shot} 改：……”。", rest_plain="其余默认通过，只写要改的。",
-               unanswered="没回的决定按推荐走；", submit="提交", live_note="没动的决定按推荐算，其余默认通过。",
-               changed="改了：{x}", least="我最没把握的", listen="请你听这几处", decided="已经定了", delegated="我替你定了",
-               not_reviewed="这页不审：{x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
-               pro="好处", con="代价", seg="{i} / {n}", shots="{n} 镜", avg="平均 {s} s", unsure="没把握", n_unsure="{n} 镜没把握",
-               plan="默认改", pass_all="逐镜默认通过，只写要改的，例如“{shot} 改：……”。", no_frame="没有关键帧",
-               gone="文件不在了：{p}", gone_n="这一页发出以后，有 {n} 处对不上了（文件移走或改了名）",
-               others="其他审阅页", src="由 bin/vh review 从 {src} 生成", warn="这一页有 {n} 处没按规矩写，修好以前不会发给人：",
+    "zh": dict(html_lang="zh-CN", for_dec="关于第 {n} 件", for_dec_s="第 {n} 件", n_decide="等你定 {n} 件", look="这一页只给你看", wait="等你看",
+               nothing="这一页没有要你定的事。看完回“通过”，或写要改的。",
+               rec="推荐", why_rec="为什么推荐：{w}", reply="回", take_all="照推荐回复", yours="你的回复", copy="复制", copied="已复制",
+               rest="其余没意见就不用写；要改哪一镜，写“{shot} 改：……”。", rest_plain="其余没意见就不用写，只写要改的。",
+               unanswered="没回的决定按推荐走；", submit="交出去", live_note="不选就按推荐；没意见的地方不用写。",
+               changed="改了：{x}", least="agent 没把握的", listen="请你听这几处", decided="已经定了", delegated="agent 替你定了",
+               not_reviewed="这一页不看：{x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
+               pro="好处", con="代价", seg="{i} / {n}", shots="{n} 镜", avg="平均一镜 {s} 秒", unsure="没把握", n_unsure="{n} 镜没把握",
+               plan="打算改", pass_all="没意见的镜头不用写，只写要改的，比如“{shot} 改：……”。", no_frame="没有关键帧",
+               gone="找不到这个文件（挪走或改了名）", gone_n="这一页发出以后，有 {n} 个文件找不到了（挪走或改了名）",
+               others="其他审阅页", src="审阅页", warn="这一页有 {n} 处没按规矩写，修好以前不会发给人：",
                spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", unlimited="不限", over="超了：{cur}",
                theme="主题", themes=("暗场", "棱镜", "舰桥"), play="播放 / 暂停（空格）", mute="静音", full="全屏", keys="空格播放 · ← → 跳镜头 · 1 2 3 选选项",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
-    "en": dict(html_lang="en", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
-               nothing="Nothing to decide on this page: take a look, then reply “ok” or say what to change.",
-               rec="recommended", why_rec="Recommended {r}: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
+    "en": dict(html_lang="en", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
+               nothing="Nothing to decide on this page. Take a look, then reply “ok” or say what to change.",
+               rec="recommended", why_rec="Why it's recommended: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
                copy="Copy", copied="Copied",
-               rest="Everything else passes by default; to change a shot, write “{shot} change: …”.",
-               rest_plain="Everything else passes by default; only write what to change.",
-               unanswered="A decision left unanswered goes by its recommendation. ", submit="Submit",
-               live_note="Untouched decisions go by the recommendation; everything else passes.",
-               changed="changed: {x}", least="Least sure about", listen="Please listen to these", decided="Already decided",
-               delegated="Decided for you", not_reviewed="Not reviewed here: {x}", material="Material", appendix="Appendix",
+               rest="Leave the rest alone if it's fine; to change a shot, write “{shot} change: …”.",
+               rest_plain="Leave the rest alone if it's fine; only write what to change.",
+               unanswered="A decision left unanswered goes by its recommendation. ", submit="Send",
+               live_note="Left alone, a decision goes with the recommendation; write only what to change.",
+               changed="changed: {x}", least="Where the agent is unsure", listen="Please listen to these", decided="Already decided",
+               delegated="Decided for you", not_reviewed="Not on this page: {x}", material="Material", appendix="Appendix",
                board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", seg="{i} / {n}", shots="{n} shots",
                avg="{s} s a shot", unsure="unsure", n_unsure="{n} unsure", plan="will change",
-               pass_all="Every shot passes by default; only write what to change, e.g. “{shot} change: …”.", no_frame="no key frame",
-               gone="Not there any more: {p}", gone_n="Since this page went out, {n} thing(s) no longer match (files moved or renamed)",
-               others="Other review pages", src="Built by bin/vh review from {src}",
+               pass_all="A shot you don't mention is fine; only write what to change, e.g. “{shot} change: …”.", no_frame="no key frame",
+               gone="File not found (moved or renamed)", gone_n="Since this page went out, {n} file(s) can't be found (moved or renamed)",
+               others="Other review pages", src="Review page",
                warn="This page breaks {n} rule(s), and goes to nobody until they are fixed:",
                spend="Spent {spent} of {budget}", no_budget="no budget", unlimited="no cap", over="over: {cur}",
                theme="Theme", themes=("Darkfield", "Prism", "Bridge"), play="Play / pause (space)", mute="Mute", full="Full screen",
@@ -131,6 +131,25 @@ def time_of(label):
     t0 = float(m.group(2)) + 60 * int(m.group(1) or 0)
     t1 = float(m.group(4)) + 60 * int(m.group(3) or 0) if m.group(4) else None
     return t0, (t1 if t1 is not None and t1 > t0 else None)
+
+
+COST_ZH = {"低": "不贵", "中": "要花些工夫", "高": "很贵", "很高": "非常贵"}
+COST_EN = {"low": "cheap", "medium": "some work", "high": "costly", "very high": "very costly"}
+STAGE_ZH = {"锁画面": "定稿", "分镜": "分镜定了", "成片": "出了成片", "初版": "初版定了"}
+
+
+def cost_words(s, lang="zh"):
+    """What a change costs, as a sentence: "现在改：中 · 锁画面后改：高" → "现在改要花些工夫，定稿以后再改就很贵". The levels
+    gate --init writes (低 中 高, low medium high); any other wording stays as the agent wrote it. The words' own language
+    decides (a page in English over a gate written in Chinese keeps the Chinese, said as a sentence)."""
+    s = str(s or "")
+    if lang == "zh" or re.search(r"[\u3400-\u9fff]", s):
+        s = re.sub(r"现在改：(很高|低|中|高)", lambda m: "现在改" + COST_ZH[m.group(1)], s)
+        s = re.sub(r"(\S+?)后改：(很高|低|中|高)", lambda m: f"{STAGE_ZH.get(m.group(1), m.group(1))}以后再改就{COST_ZH[m.group(2)]}", s)
+        return s.replace(" · ", "，")
+    s = re.sub(r"\bnow: (very high|low|medium|high)", lambda m: f"{COST_EN[m.group(1)].capitalize()} to change now", s)
+    s = re.sub(r"\bafter (?:the )?(.+?): (very high|low|medium|high)", lambda m: f"{COST_EN[m.group(2)]} after the {m.group(1)}", s)
+    return s.replace(" · ", "; ")
 
 
 def clock(x):
@@ -246,6 +265,13 @@ def gate_title(g, lang):
     return name
 
 
+def gate_name(g, lang):
+    """A stop by its name, for a person to read (the page's header, the links between pages): 关卡 ③ 初版 → 初版, 检查点 E1 脚本 →
+    脚本, 2b → 分镜（第 2 页）. gate_title's code (①, E1) stays in the chat, the terminal and the records."""
+    n = re.sub(r"^(?:关卡|检查点|Gate|Checkpoint)\s*(?:[①②③④⑤]|E\d)\s*", "", gate_title(g, lang)) or gate_title(g, lang)
+    return n[:1].upper() + n[1:]
+
+
 def image_ratio(path):
     """width / height from the file's own header (PNG, GIF, JPEG, WebP, AVIF, SVG); None when unknown."""
     try:
@@ -327,6 +353,9 @@ class Page:
 
     def title(self):
         return self.d["title"] or gate_title(self.gate, self.lang)
+
+    def name(self):   # the page's title as a person reads it: the stop by its name, no code
+        return self.d["title"] or gate_name(self.gate, self.lang)
 
     # ---- the shape of the JSON: normalize every field, or raise TypeError / ValueError (exit 2) ----------
     def normalize(self):
@@ -664,7 +693,7 @@ class Page:
         if self.gone(a["path"]):
             self.url(a["path"], what)   # said as an error
             cap = f'<figcaption class="cap">{self.text(a["caption"])}</figcaption>' if a.get("caption") else ""
-            return f'<figure><div class="well blank"><span>{esc(self.t["gone"].format(p=a["path"]))}</span></div>{cap}</figure>'
+            return f'<figure><div class="well blank" title="{esc(a["path"])}"><span>{esc(self.t["gone"])}</span></div>{cap}</figure>'
         if kind == "video":
             return self.player(a, film=False)
         u = self.url(a["path"], what)
@@ -694,14 +723,14 @@ class Page:
         a0, u0 = items[0]
 
         def tag(a):
-            return f'<span class="for">→ {dec_n[a["for"]]}</span>' if a["for"] in dec_n else ""
+            return f'<span class="for">{self.t["for_dec"].format(n=dec_n[a["for"]])}</span>' if a["for"] in dec_n else ""   # which decision the picture is for, in words
         main = (f'<a class="well gal-main" href="{u0}" target="_blank" rel="noopener"><img src="{u0}" alt="{self.alt(a0["caption"], a0["path"])}"></a>'
                 f'<p class="cap gal-cap">{self.text(a0["caption"])}{tag(a0)}</p>')
         if len(items) == 1:
             return f'<div class="gallery">{main}</div>'
         strip = "".join(f'<button type="button" data-src="{u}" aria-current="{"true" if i == 0 else "false"}" '
                         f'title="{self.alt(a["caption"], a["path"])}"><img src="{u}" alt="" loading="lazy">'
-                        + (f'<span class="tag">→ {dec_n[a["for"]]}</span>' if a["for"] in dec_n else "")
+                        + (f'<span class="tag">{self.t["for_dec_s"].format(n=dec_n[a["for"]])}</span>' if a["for"] in dec_n else "")
                         + f'<span class="gal-cap-src" hidden>{self.text(a["caption"])}{tag(a)}</span></button>'   # the caption it swaps in, as markup
                         for i, (a, u) in enumerate(items))
         return f'<div class="gallery">{main}<div class="gal-strip">{strip}</div></div>'
@@ -731,15 +760,14 @@ class Page:
             opts.append(f'<label class="g-opt" title="{esc(full)}"><input type="radio" name="dec-{esc(dec["id"])}" value="{esc(o["id"])}"'
                         f'{" checked" if pick else ""} data-rec="{"1" if pick else ""}" aria-label="{esc(name)}"'
                         + (f' aria-describedby="{oid}"' if pc else "") + f'>{pic}'
-                        f'<span class="row"><span class="id">{esc(o["id"])}</span><span class="lab">{self.text(o["label"]) or esc(o["id"])}</span>'
+                        f'<span class="row"><span class="dot" aria-hidden="true"></span><span class="id">{esc(o["id"])}</span><span class="lab">{self.text(o["label"]) or esc(o["id"])}</span>'
                         + (f'<span class="rec">{t["rec"]}</span>' if pick else "") + f"</span>{pc}</label>")
         why = ""
         if dec["why"]:
-            r = esc(dec["recommend"])
-            why = f'<p class="g-why">{t["why_rec"].format(r=f"<b>{r}</b>", w=self.text(dec["why"]))}</p>'
+            why = f'<p class="g-why">{t["why_rec"].format(w=self.text(dec["why"]))}</p>'
         elif not dec["options"]:
             why = f'<p class="g-why">{t["reply"]} <code>{esc(dec["reply"])}</code></p>'
-        cost = f'<span class="g-cost">{self.text(dec["cost"])}</span>' if dec["cost"] else ""
+        cost = f'<span class="g-cost">{self.text(cost_words(dec["cost"], self.lang))}</span>' if dec["cost"] else ""
         body = f'<div class="g-opts{" wide" if wide else ""}" role="radiogroup" aria-label="{esc(re.sub(r"[`*]", "", dec["question"]))}">{"".join(opts)}</div>' if opts else ""
         return (f'<div class="g-dec{" wide" if wide else ""}{"" if opts else " free"}" id="d-{esc(dec["id"])}" data-dec="{esc(dec["id"])}" '
                 f'data-n="{i}" data-rec="{esc(dec["recommend"])}" tabindex="-1">'
@@ -865,7 +893,7 @@ class Page:
         pages = sorted(p for p in self.out.glob("gate-*.html") if p.name != f"gate-{self.gate}.html")
         if not pages:
             return ""
-        links = " · ".join(f'<a href="{quote(p.name)}">{esc(gate_title(p.stem[5:], self.lang))}</a>' for p in pages)
+        links = " · ".join(f'<a href="{quote(p.name)}">{esc(gate_name(p.stem[5:], self.lang))}</a>' for p in pages)
         return f'<span>{self.t["others"]}{self.t["colon"]}{links}</span>'
 
     def spend(self):
@@ -894,7 +922,7 @@ class Page:
             m = re.match(r"(.+?[。！？!?]|.+?[.;；:：](?=\s|$)|.+?：)(\s*\S.*)$", s, re.S)
             if m and len(m.group(1)) < len(s):
                 first, rest = m.group(1).strip(), m.group(2).strip()
-        eyebrow = (f'<span class="g-gate">{esc(self.title())}</span>'
+        eyebrow = (f'<span class="g-gate">{esc(self.name())}</span>'
                    + (f'<span class="g-wait">{t["n_decide"].format(n=n)}</span>' if n else f'<span>{t["look"]}</span>') + self.spend())
         lead = f'<p class="g-lead" data-long>{self.text(rest)}</p>' if rest else ""
         long = " long" if over_budget(first, "summary") else ""   # still long: a smaller heading, so the picture stays in view
@@ -932,7 +960,7 @@ class Page:
         main = []
         if film and not re.match(r"(?i)https?://", film["path"]) and not (self.project / film["path"]).is_file():
             self.url(film["path"], "film")   # said as an error; the picture says the file is gone
-            main.append(f'<section class="g-stage"><div class="well blank"><span>{esc(t["gone"].format(p=film["path"]))}</span></div></section>')
+            main.append(f'<section class="g-stage"><div class="well blank" title="{esc(film["path"])}"><span>{esc(t["gone"])}</span></div></section>')
             film = None
         elif film:
             main.append(f'<section class="g-stage">{self.player(film)}</section>')
@@ -968,7 +996,7 @@ class Page:
             foot.append(f'<span class="notseen">{t["not_reviewed"].format(x=self.text(d["not_reviewed"]))}</span>')
         foot.append(self.others())
         src = os.path.relpath(self.src, self.project).replace(os.sep, "/")
-        foot.append(f'<span>{t["src"].format(src=esc(src))}</span>')
+        foot.append(f'<span title="bin/vh review · {esc(src)}">{t["src"]}</span>')   # where it was made: for whoever keeps the files, not in the text
         attrs = (f'data-gate="{esc(self.gate)}" data-lang="{self.lang}" data-takeall="{esc(self.take_all())}"'
                  + (" data-live" if self.live else " data-static"))
         more = self.more(files)   # before the head: every missing file is in its warning
@@ -979,7 +1007,7 @@ class Page:
         """The static page: the gate view with ui.css and ui.js inlined, so it opens from disk with no server; with its stop's
         module above it (module_payload) when the stop has one and the project reads."""
         body = self.body()   # normalizes first: the title may come from the gate's name
-        t, title, film = self.t, self.title(), brief_title(self.project) or self.project.name
+        t, title, film = self.t, self.name(), brief_title(self.project) or self.project.name
         try:
             data = module_payload(self.project, self.gate, self.out, self.marks(), self.lang)
         except Exception as e:   # an old project, a file that does not read: the page is the gate view alone
@@ -994,9 +1022,9 @@ class Page:
                 f'<style>{static_file("ui.css")}</style>{mod_css}<script>{HEAD_JS}</script></head><body>'
                 f'<header class="top"><div class="wrap"><span class="mark">OVH</span><nav class="crumbs">'
                 f'<span class="cr"><b>{esc(film)}</b></span><span class="cr hide-s"><span class="sep">/</span><span>{esc(title)}</span></span></nav>'
-                f'<div class="top-tools"><div class="themes" role="group" aria-label="{t["theme"]}">'
+                f'<div class="top-tools"><details class="tmenu"><summary class="btn btn-quiet">{t["theme"]}</summary><div class="themes" role="group" aria-label="{t["theme"]}">'
                 + "".join(f'<button type="button" data-theme-set="{k}" aria-pressed="false">{n}</button>' for k, n in zip(("darkfield", "prism", "bridge"), t["themes"]))
-                + '</div></div></div></header>'
+                + '</div></details></div></div></header>'
                 f'<main class="wrap">{body}</main>'
                 f'<script>{static_file("ui.js")}</script>{mod_js}</body></html>\n')
 
