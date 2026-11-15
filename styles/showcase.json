@@ -1,0 +1,208 @@
+{
+  "about": "The style showcase on the homepage (docs/site/styles/): the groups, by what the picture looks like, and each style's words. tools/style_site.py (bin/vh style site) builds the pages from this file, tokens.json and the samples. A blank the reader fills in is written [like this] in English and 〔像这样〕 in Chinese.",
+  "groups": [
+    {
+      "id": "paper",
+      "name": { "en": "Paper and flat colour", "zh": "纸和平涂" },
+      "line": { "en": "Cut out or printed: a few flat colours, paper edges, halftone dots.", "zh": "像剪出来、印出来的：几块平涂的颜色、纸边和网点。" },
+      "styles": ["cutout-jazz", "risograph", "halftone-comic", "silhouette-papercut", "guochao-festive", "swiss-grid-type", "bouncy-flat-2d"]
+    },
+    {
+      "id": "hand",
+      "name": { "en": "Brush and handcraft", "zh": "笔墨与手作" },
+      "line": { "en": "Ink, paint and carved hide, with the marks of the hand left in.", "zh": "墨、颜料和皮影，看得见手留下的痕迹。" },
+      "styles": ["ink-wash", "watercolor-pastoral", "dunhuang-mural", "shadow-puppet", "symmetry-pastel"]
+    },
+    {
+      "id": "figure",
+      "name": { "en": "Charts and drawings", "zh": "图表与图纸" },
+      "line": { "en": "The picture is a figure: axes, symbols, line work and dimensions.", "zh": "画面就是一张图：坐标、符号、线稿和尺寸。" },
+      "styles": ["editorial-data", "bubble-chart-story", "isotype", "blueprint", "iso-anatomy", "dark-math"]
+    },
+    {
+      "id": "screen",
+      "name": { "en": "On a screen", "zh": "屏幕里" },
+      "line": { "en": "Things you would see on a screen: a terminal, an interface, a game, the web.", "zh": "像屏幕上的东西：终端、界面、游戏和网页。" },
+      "styles": ["crt-terminal", "fui-hud", "pastel-ui", "pixel-16bit", "brutalist-meme"]
+    },
+    {
+      "id": "night",
+      "name": { "en": "Light in the dark", "zh": "暗处的光" },
+      "line": { "en": "Mostly darkness, lit in a few places: neon, lamps in fog, type scratched into film.", "zh": "大片的黑里只亮几处：霓虹、雾里的灯、刮在胶片上的字。" },
+      "styles": ["monumental-scifi", "neon-step-print", "scratched-type", "synthwave-outrun"]
+    },
+    {
+      "id": "real",
+      "name": { "en": "Places and things", "zh": "场景与实物" },
+      "line": { "en": "Volume, material and light: props on a table, brass machines, a wall of photos, a landscape to walk into.", "zh": "有体积、有材质、有光：桌上的小道具、黄铜机械、照片墙、能走进去的风景。" },
+      "styles": ["tabletop-miniature", "clockwork-map", "product-keynote", "archival-pan-zoom", "walk-in-world", "y2k-chrome"]
+    }
+  ],
+  "styles": {
+    "cutout-jazz": {
+      "what": { "en": "Saul Bass's cut-paper titles: a few paper colours, scissor edges, a cut on every brass hit.", "zh": "Saul Bass 的剪纸片头：几种纸色、剪刀边，铜管每记重音就是一刀。" },
+      "for": { "en": "Title-sequence openings for an idea or a product.", "zh": "概念或产品的片头式开场。" },
+      "ask": { "en": "Make a 20-second title sequence for [your product] in the cut-paper jazz style (styles/cutout-jazz).", "zh": "用剪纸爵士片头风格（styles/cutout-jazz）给〔你的产品〕做一段 20 秒的片头。" }
+    },
+    "risograph": {
+      "what": { "en": "Two or three spot colours printed over each other and never quite in register, with a Risograph's grain.", "zh": "两三种专色叠在一起印，永远套不准，带着孔版印刷的颗粒。" },
+      "for": { "en": "Warm, independent stories that feel handmade.", "zh": "温暖、独立、有手作感的故事。" },
+      "ask": { "en": "Make a 40-second film about [a small shop] in the Risograph style (styles/risograph).", "zh": "用孔版印刷风格（styles/risograph）做一支 40 秒的短片，讲〔一家小店〕。" }
+    },
+    "halftone-comic": {
+      "what": { "en": "Halftone dots instead of gradients, colours printed off-register on purpose, drawn on twos, as in Spider-Verse.", "zh": "网点代替渐变，套色故意不准，一拍二地动，像《蜘蛛侠：平行宇宙》。" },
+      "for": { "en": "Fast pieces with a lot of action.", "zh": "动作感强、节奏快的内容。" },
+      "ask": { "en": "Make a fast 20-second film about [one moment] in the halftone comic style (styles/halftone-comic).", "zh": "用半调漫画风格（styles/halftone-comic）做一支 20 秒的快节奏短片，讲〔一个瞬间〕。" }
+    },
+    "silhouette-papercut": {
+      "what": { "en": "Layers of cut-paper silhouettes moving in parallax at 12 frames a second, as in The Adventures of Prince Achmed.", "zh": "几层剪纸剪影前后错开，每秒 12 格地动，像《阿赫迈德王子历险记》。" },
+      "for": { "en": "Fairy tales, fables, folk stories.", "zh": "童话、寓言、民间故事。" },
+      "ask": { "en": "Tell [a fairy tale] in 60 seconds in the silhouette papercut style (styles/silhouette-papercut).", "zh": "用剪影剪纸风格（styles/silhouette-papercut）讲〔一个童话〕，60 秒。" }
+    },
+    "guochao-festive": {
+      "what": { "en": "Gold line on red, big bold Song type, patterns unrolling beat by beat, with the cheer of a woodblock New Year print.", "zh": "红底金线、粗宋大字，纹样一拍一拍铺开，木版年画的喜气。" },
+      "for": { "en": "Festivals, launches with a Chinese look, the first seconds of a vertical video.", "zh": "节日、国风发布、竖屏的开头。" },
+      "ask": { "en": "Make a 15-second vertical film for [a festival event] in the guochao style (styles/guochao-festive).", "zh": "用国潮风格（styles/guochao-festive）给〔一个节日活动〕做一支 15 秒的竖屏短片。" }
+    },
+    "swiss-grid-type": {
+      "what": { "en": "A visible grid, one sans-serif family, red, black and white, set like a Swiss concert poster.", "zh": "看得见的网格、一套无衬线字、红黑白三色，像瑞士音乐会海报那样排。" },
+      "for": { "en": "Rules, processes, timelines, manifestos.", "zh": "规则、流程、时间线、宣言。" },
+      "ask": { "en": "Turn [a set of rules] into 30 seconds of moving type in the Swiss grid style (styles/swiss-grid-type).", "zh": "用瑞士网格动态字风格（styles/swiss-grid-type）把〔一套规则〕做成 30 秒的动态字。" }
+    },
+    "bouncy-flat-2d": {
+      "what": { "en": "Four colours on a bright ground; flat shapes act by squashing and stretching, in the UPA tradition.", "zh": "亮底四色，几何形状靠挤压拉伸来演戏，UPA 动画那一路。" },
+      "for": { "en": "Light-hearted explainers, little app skits.", "zh": "轻松的知识短片、App 小剧场。" },
+      "ask": { "en": "Make a light 30-second film about [a small fact] in the bouncy flat 2D style (styles/bouncy-flat-2d).", "zh": "用弹性扁平 2D 风格（styles/bouncy-flat-2d）做一支 30 秒的轻松短片，讲〔一个小知识〕。" }
+    },
+    "ink-wash": {
+      "what": { "en": "A drop of ink spreads into distant mountains on a page left mostly empty, in the brushwork of Shanghai's ink-wash animation.", "zh": "一滴墨晕开成远山，大片留白，上海美影水墨动画的笔墨。" },
+      "for": { "en": "Fables, quiet reflections, traditional culture.", "zh": "寓言、哲思、传统文化。" },
+      "ask": { "en": "Tell [a fable] in 40 seconds in the ink-wash style (styles/ink-wash).", "zh": "用水墨风格（styles/ink-wash）讲〔一个寓言〕，40 秒。" }
+    },
+    "watercolor-pastoral": {
+      "what": { "en": "Wet-on-wet skies and wind running through the grass in waves, countryside like a Ghibli background.", "zh": "湿画法的天空，风一波一波吹过草地，吉卜力背景那样的田园。" },
+      "for": { "en": "Gentle pieces, seasons and nature, slow music videos.", "zh": "治愈系、季节和自然、慢歌 MV。" },
+      "ask": { "en": "Make a 45-second film about [a season] in the watercolour pastoral style (styles/watercolor-pastoral).", "zh": "用水彩田园风格（styles/watercolor-pastoral）做一支 45 秒的短片，讲〔一个季节〕。" }
+    },
+    "dunhuang-mural": {
+      "what": { "en": "Mineral pigments, fine even line work and the long ribbons of flying apsaras, from the Mogao cave murals.", "zh": "矿物颜料的颜色、铁线描的线、飞天的长飘带，取自莫高窟壁画。" },
+      "for": { "en": "The Silk Road, history, stories told like a scroll.", "zh": "丝路、历史、横卷式的叙事。" },
+      "ask": { "en": "Tell [a Silk Road story] in 60 seconds in the Dunhuang mural style (styles/dunhuang-mural).", "zh": "用敦煌风格（styles/dunhuang-mural）讲〔一段丝路上的故事〕，60 秒。" }
+    },
+    "shadow-puppet": {
+      "what": { "en": "Jointed leather puppets on three rods, against a cloth screen lit by an oil lamp.", "zh": "油灯照亮的布幕上，带关节的皮影由三根签子操纵。" },
+      "for": { "en": "Folk tales, opera, what happens behind the screen.", "zh": "民间故事、戏曲、台前幕后。" },
+      "ask": { "en": "Tell [a folk tale] in 45 seconds in the shadow puppetry style (styles/shadow-puppet).", "zh": "用皮影风格（styles/shadow-puppet）讲〔一个民间故事〕，45 秒。" }
+    },
+    "symmetry-pastel": {
+      "what": { "en": "Pastel frames built on a centre line, a new colour for each chapter, chapter cards and whip pans, as in Wes Anderson's films.", "zh": "中轴对称的粉彩画面，每章换一种颜色，配章节字卡和甩镜，像韦斯·安德森的电影。" },
+      "for": { "en": "Lightly funny explainers, short portraits of a person.", "zh": "带点幽默的知识短片、人物小传。" },
+      "ask": { "en": "Make a 60-second portrait of [a person] in the symmetry pastel style (styles/symmetry-pastel).", "zh": "用对称粉彩绘本风格（styles/symmetry-pastel）做一支 60 秒的人物小传，讲〔一个人〕。" }
+    },
+    "editorial-data": {
+      "what": { "en": "The headline is the finding; the chart is grey with one accent colour, as in New York Times graphics.", "zh": "标题就是结论，图里只有灰和一个强调色，像《纽约时报》的数据图。" },
+      "for": { "en": "Data journalism, research findings.", "zh": "数据新闻、研究结果。" },
+      "ask": { "en": "Turn [a dataset] into a 45-second film in the editorial data style (styles/editorial-data), with the finding as the headline.", "zh": "用编辑部数据叙事风格（styles/editorial-data）把〔一组数据〕做成 45 秒的短片，标题就是结论。" }
+    },
+    "bubble-chart-story": {
+      "what": { "en": "One bubble chart is the stage and time can run forward or back, as when Hans Rosling told 200 countries in four minutes.", "zh": "一张气泡图就是舞台，时间能快进、能倒回，像汉斯·罗斯林四分钟讲完 200 个国家。" },
+      "for": { "en": "How a group of things changes over time.", "zh": "一群东西随时间怎么变。" },
+      "ask": { "en": "Show how [a set of countries or companies] changed over the decades, in 60 seconds, in the bubble chart story style (styles/bubble-chart-story).", "zh": "用气泡图现场讲风格（styles/bubble-chart-story）讲〔一组国家或公司〕这几十年怎么变，60 秒。" }
+    },
+    "isotype": {
+      "what": { "en": "One symbol stands for a fixed amount; more means more symbols, added or taken away on the beat.", "zh": "一个符号代表固定的数量，多就多排几个，在拍点上加一个、减一个。" },
+      "for": { "en": "Counting things: people, resources, proportions.", "zh": "人口、资源、比例这类计数。" },
+      "ask": { "en": "Turn [a set of numbers] into a 30-second film in the Isotype style (styles/isotype).", "zh": "用图形统计风格（styles/isotype）把〔一组数量〕做成 30 秒的短片。" }
+    },
+    "blueprint": {
+      "what": { "en": "White lines on blue, drawn in the order a draughtsman would, with dimensions that change as the parts move.", "zh": "蓝底白线，按制图的顺序一笔笔画出来，尺寸跟着零件实时变。" },
+      "for": { "en": "Structures, mechanisms, system architecture.", "zh": "结构、机制、系统架构。" },
+      "ask": { "en": "Draw the structure of [a system] in 45 seconds in the blueprint style (styles/blueprint).", "zh": "用工程蓝图风格（styles/blueprint）画出〔一个系统〕的结构，45 秒。" }
+    },
+    "iso-anatomy": {
+      "what": { "en": "The idea becomes a small isometric machine that comes apart: solid parts, four tones of shade, one part lit at a time.", "zh": "把概念做成一台能拆开的等轴小机器，零件实心、四阶明暗，一次只点亮一个部件。" },
+      "for": { "en": "Mechanisms, systems and methods, how a product is built, teardowns.", "zh": "机制、系统和方法、产品构造、拆解。" },
+      "ask": { "en": "Take [a system] apart in 45 seconds in the iso anatomy style (styles/iso-anatomy).", "zh": "用等轴解剖风格（styles/iso-anatomy）把〔一个系统〕拆开讲，45 秒。" }
+    },
+    "dark-math": {
+      "what": { "en": "Pure black, one colour for each mathematical object, the way 3Blue1Brown explains.", "zh": "纯黑底，每个数学对象一个颜色，3Blue1Brown 的讲法。" },
+      "for": { "en": "Principles, theorems, algorithms.", "zh": "原理、定理、算法讲解。" },
+      "ask": { "en": "Make a 60-second explainer in the dark math style (styles/dark-math): why [a theorem] is true.", "zh": "用暗底数学风格（styles/dark-math）做一支 60 秒的讲解：〔一个定理〕为什么成立。" }
+    },
+    "crt-terminal": {
+      "what": { "en": "A one-colour phosphor screen and monospaced text, typed out character by character with a glow that lingers.", "zh": "单色荧光屏、等宽字符，一个字一个字打出来，带余辉。" },
+      "for": { "en": "Code, hacking, system logs.", "zh": "代码、黑客、系统日志。" },
+      "ask": { "en": "Make a 30-second film about [what a piece of code does] in the CRT terminal style (styles/crt-terminal).", "zh": "用 CRT 终端风格（styles/crt-terminal）做一支 30 秒的短片，讲〔一段代码在做什么〕。" }
+    },
+    "fui-hud": {
+      "what": { "en": "Dot grids, hairlines and monospaced readouts, like the screens in films, and every readout is real data.", "zh": "点阵、发丝线、等宽读数，像电影里的屏幕界面，每个读数都是真数据。" },
+      "for": { "en": "Systems, monitoring, the view from inside an agent.", "zh": "系统、监测、agent 的内部视角。" },
+      "ask": { "en": "Make a 30-second film of [a system] at work in the film FUI / HUD style (styles/fui-hud).", "zh": "用电影界面 HUD 风格（styles/fui-hud）做一支 30 秒的短片，展示〔一个系统〕在运行。" }
+    },
+    "pastel-ui": {
+      "what": { "en": "White rounded cards on a pastel wash, one colour per idea from start to end; things get typed, sent and ticked.", "zh": "粉彩底上的白色圆角卡片，一个概念一个颜色从头带到尾，东西被打出来、发出去、打上勾。" },
+      "for": { "en": "Walking through a process, onboarding for an app or SaaS.", "zh": "过程讲解、App 和 SaaS 的上手引导。" },
+      "ask": { "en": "Explain [a process] in 45 seconds in the pastel UI style (styles/pastel-ui).", "zh": "用浅色界面讲解风格（styles/pastel-ui）讲〔一个流程〕，45 秒。" }
+    },
+    "pixel-16bit": {
+      "what": { "en": "A 320 × 180 frame scaled up in whole steps, a fixed 24-colour palette, dialogue typed out letter by letter, mosaic transitions.", "zh": "320 × 180 的画面整数倍放大，固定 24 色，对话框逐字打出，马赛克转场。" },
+      "for": { "en": "Telling something as a game: levels, an inventory, save points.", "zh": "把一件事讲成游戏系统：升级、背包、存档。" },
+      "ask": { "en": "Turn [learning something] into a 40-second game level in the 16-bit pixel style (styles/pixel-16bit).", "zh": "用 16 位像素风格（styles/pixel-16bit）把〔学一样东西〕讲成一关游戏，40 秒。" }
+    },
+    "brutalist-meme": {
+      "what": { "en": "System fonts, a bare grid and a hard cut on every beat: the internet's own rough look.", "zh": "系统字、裸网格，每一拍一刀硬切，网上野生审美那一路。" },
+      "for": { "en": "Meme videos, fast edits about tech.", "zh": "梗视频、科技圈的快剪。" },
+      "ask": { "en": "Cut [a tech story] into a 15-second edit in the brutalist meme style (styles/brutalist-meme).", "zh": "用野兽派梗风格（styles/brutalist-meme）把〔一条科技新闻〕剪成 15 秒的快剪。" }
+    },
+    "monumental-scifi": {
+      "what": { "en": "Huge forms standing in layers of fog, and very few words, at the scale of Blade Runner 2049 and Arrival.", "zh": "巨大的形体立在层层雾里，字极少，《银翼杀手 2049》《降临》那种尺度。" },
+      "for": { "en": "Teasers before a launch, stories about the future, title cards.", "zh": "发布前的 teaser、未来题材、片名。" },
+      "ask": { "en": "Make a 30-second teaser for [what you're launching] in the monumental sci-fi style (styles/monumental-scifi).", "zh": "用纪念碑科幻风格（styles/monumental-scifi）给〔你要发布的东西〕做一支 30 秒的 teaser。" }
+    },
+    "neon-step-print": {
+      "what": { "en": "Step-printing smears the lights into streaks, red against green, the camera handheld and close: Wong Kar-wai's nights.", "zh": "抽帧把灯拉成光带，红绿互补，镜头贴身手持，王家卫电影里的夜。" },
+      "for": { "en": "City nights, music videos built on a mood.", "zh": "城市夜景、情绪 MV。" },
+      "ask": { "en": "Make a 30-second music video for [a song] in the neon step-print style (styles/neon-step-print).", "zh": "用霓虹抽帧风格（styles/neon-step-print）给〔一首歌〕做一段 30 秒的 MV。" }
+    },
+    "scratched-type": {
+      "what": { "en": "Letters scratched into the film itself, jittering frame by frame, as in the Se7en titles.", "zh": "字像是刮在胶片上的，一格一格地抖，《七宗罪》片头那一路。" },
+      "for": { "en": "Thrillers, crime stories, industrial music videos.", "zh": "悬疑、犯罪题材、工业噪音类 MV。" },
+      "ask": { "en": "Make a 30-second opening for [a mystery story] in the scratched-type style (styles/scratched-type).", "zh": "用刮擦字片头风格（styles/scratched-type）给〔一个悬疑故事〕做一段 30 秒的片头。" }
+    },
+    "synthwave-outrun": {
+      "what": { "en": "A striped sunset, a neon perspective grid, chrome letters and the texture of videotape: an arcade night in the 1980s.", "zh": "条纹落日、霓虹透视网格、铬字，带录像带的质感，80 年代街机的夜。" },
+      "for": { "en": "Retro tech, games, openings with a strong beat.", "zh": "复古科技、游戏、节拍强的片头。" },
+      "ask": { "en": "Make a 20-second opening for [a game] in the synthwave outrun style (styles/synthwave-outrun).", "zh": "用合成器浪潮风格（styles/synthwave-outrun）给〔一款游戏〕做一段 20 秒的片头。" }
+    },
+    "tabletop-miniature": {
+      "what": { "en": "A real tabletop is the stage: little geometric characters act on twos, and the colour and angle of the light tell the time.", "zh": "一张真实的桌面当舞台，几何体小角色一拍二地演，光的颜色和方向就是时间。" },
+      "for": { "en": "Short character pieces, little product skits.", "zh": "角色小短片、产品小剧场。" },
+      "ask": { "en": "Make a 40-second short about [a small story] in the tabletop miniature style (styles/tabletop-miniature).", "zh": "用桌面微缩剧场风格（styles/tabletop-miniature）做一支 40 秒的小短片，讲〔一个小故事〕。" }
+    },
+    "clockwork-map": {
+      "what": { "en": "Every place on the map is a brass machine pushed up out of the ground by cogs, as in the Game of Thrones titles.", "zh": "地图上的每个地点都是被齿轮顶出地面的黄铜机械，像《权力的游戏》片头。" },
+      "for": { "en": "Routes, territories, how several places connect.", "zh": "路线、版图、几个地点之间的关系。" },
+      "ask": { "en": "Make a 45-second film about [a route] in the clockwork map style (styles/clockwork-map).", "zh": "用机械钟表地图风格（styles/clockwork-map）做一支 45 秒的短片，讲〔一条路线〕。" }
+    },
+    "product-keynote": {
+      "what": { "en": "A seamless backdrop; the product settles first, then the words arrive, at the pace of an Apple launch film.", "zh": "无缝背景前，产品先落稳，字再出来，苹果发布片的节奏。" },
+      "for": { "en": "Hardware and software launches, feature highlights.", "zh": "软硬件发布、功能亮点。" },
+      "ask": { "en": "Make a 30-second launch film for [your product] in the product keynote style (styles/product-keynote).", "zh": "用产品发布片风格（styles/product-keynote）给〔你的产品〕做一支 30 秒的发布片。" }
+    },
+    "archival-pan-zoom": {
+      "what": { "en": "Very slow moves across still photographs, with small serif captions, as in Ken Burns's documentaries.", "zh": "在老照片上极慢地推拉，配衬线小字，像肯·伯恩斯的纪录片。" },
+      "for": { "en": "History, biography, how a project came to be.", "zh": "历史、人物传记、一个项目的来历。" },
+      "ask": { "en": "Make a 90-second film about [a piece of history] in the archival pan-and-zoom style (styles/archival-pan-zoom).", "zh": "用档案推拉风格（styles/archival-pan-zoom）做一支 90 秒的短片，讲〔一段历史〕。" }
+    },
+    "walk-in-world": {
+      "what": { "en": "The subject becomes a place to walk into; the camera keeps moving forward without a cut, and each stop has its own light and weather.", "zh": "把题目做成一个能走进去的地方，镜头一路往前不剪，每一站一种光、一种天气。" },
+      "for": { "en": "Mood pieces, journeys through a theme, openings.", "zh": "意境短片、主题旅程、片头。" },
+      "ask": { "en": "Make a 60-second journey through [a theme] in the walk-in world style (styles/walk-in-world).", "zh": "用走进去的世界风格（styles/walk-in-world）做一支 60 秒的旅程短片，走过〔一个主题〕。" }
+    },
+    "y2k-chrome": {
+      "what": { "en": "Inflated liquid-chrome letters on acid yellow, die-cut stickers, everything springing in with a bounce.", "zh": "充了气的液态铬字，酸黄底、模切贴纸，进场带弹性。" },
+      "for": { "en": "The playful part of a brand film, tech-meme edits, pop videos, game trailers.", "zh": "品牌片里好玩的一段、科技梗快剪、流行 MV、游戏预告。" },
+      "ask": { "en": "Make a 15-second edit for [a new feature] in the Y2K chrome style (styles/y2k-chrome).", "zh": "用 Y2K 铬面风格（styles/y2k-chrome）给〔一个新功能〕做一段 15 秒的快剪。" }
+    }
+  }
+}
