@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # determinism.sh — prove a swatch is a pure function of t (CLAUDE.md hard rule 1).
 #
-#   styles/_swatch/determinism.sh <slug> [workers_b=3]
+#   styles/_swatch/determinism.sh <slug> [workers_b=3] [--aspect landscape|portrait]
 #
 # Renders the lossless PNG sequence twice: once with 1 worker (frames in order) and once with <workers_b>
 # workers, where every chunk after the first starts cold in a fresh Chrome (frames rendered out of order, no
-# history). Then compares all 150 frames. PASS = every frame pixel-identical (render.sh renders on the CPU, so it must be).
+# history). Then compares every frame (150 for a 5 s swatch, 240 for 8 s; the portrait version with --aspect portrait). PASS = every frame pixel-identical (render.sh renders on the CPU, so it must be).
 # render.sh renders on the CPU (--no-browser-gpu), so the frames should be byte-identical: a pass with differing
 # frames means Chrome got a GPU path again (check the `gl=` line in out/<slug>/render.log).
 #
@@ -17,25 +17,39 @@
 # on every run, so these must be identical too.
 set -euo pipefail
 SW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-slug=${1:?usage: styles/_swatch/determinism.sh <slug> [workers_b=3]}; wb=${2:-3}
+use="usage: styles/_swatch/determinism.sh <slug> [workers_b=3] [--aspect landscape|portrait]"
+slug=""; wb=3; aspect=landscape; pos=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --aspect) aspect=${2:?$use}; shift ;; --aspect=*) aspect=${1#*=} ;;
+    -*) echo "$use" >&2; exit 2 ;;
+    *) pos=$((pos + 1)); if [ $pos = 1 ]; then slug=$1; elif [ $pos = 2 ]; then wb=$1; else echo "$use" >&2; exit 2; fi ;;
+  esac; shift
+done
+[ -n "$slug" ] || { echo "$use" >&2; exit 2; }
 [ "$wb" -gt 1 ] || { echo "workers_b must be > 1 (the second run has to split the frames)"; exit 1; }
-name=$(basename "$slug"); OUT="$SW/out/$name"
+suf=""; [ "$aspect" = portrait ] && suf=-portrait
+name=$(basename "$slug"); OUT="$SW/out/$name$suf"
 case "$slug" in */*) SRC=$slug ;; *) SRC="$SW/../$slug" ;; esac
+case "$slug" in demo|catalog|fontprobe) SRC="$SW/$slug" ;; esac
+FRAMES=$(python3 "$SW/../../tools/styles.py" spec "$SRC" --aspect "$aspect" | python3 -c "import json, sys; print(json.load(sys.stdin)['frames'])") || exit 1
+R=("$SW/render.sh" "$slug" --aspect "$aspect")
 blender=0; [ ! -f "$SRC/swatch.js" ] && [ -f "$SRC/swatch.py" ] && blender=1
 if [ $blender = 1 ]; then
-  SAMPLE="149,137,120,104,90,75,61,45,30,12,3,0"
+  SAMPLE="149,137,120,104,90,75,61,45,30,12,3,0"      # the 5 s swatch's; a longer one gets 12 frames spread the same way
+  [ "$FRAMES" = 150 ] || SAMPLE=$(python3 -c "import sys; n = int(sys.argv[1]); print(','.join(str(round(k * (n - 1) / 149)) for k in (149, 137, 120, 104, 90, 75, 61, 45, 30, 12, 3, 0)))" "$FRAMES")
   A="$OUT/frames"; own_a=0
-  if [ ! -f "$A/inputs.txt" ] || [ "$(cat "$A/inputs.txt")" != "$("$SW/render.sh" "$slug" --stamp)" ]; then
+  if [ ! -f "$A/inputs.txt" ] || [ "$(cat "$A/inputs.txt")" != "$("${R[@]}" --stamp)" ]; then
     echo "→ no final frames for the scene as it is now: rendering all of them in order first (kept as out/<slug>/frames)"
-    st=$("$SW/render.sh" "$slug" --stamp)              # taken before rendering, as render.sh does
-    "$SW/render.sh" "$slug" --png --workers 1
+    st=$("${R[@]}" --stamp)              # taken before rendering, as render.sh does
+    "${R[@]}" --png --workers 1
     rm -rf "$A"; mv "$OUT/png-w1" "$A"; echo "$st" > "$A/inputs.txt"
   fi
-  "$SW/render.sh" "$slug" --png --workers "$wb" --frames "$SAMPLE"
+  "${R[@]}" --png --workers "$wb" --frames "$SAMPLE"
   B="$OUT/png-sample-w$wb"; LIST=$B
 else
-  "$SW/render.sh" "$slug" --png --workers 1
-  "$SW/render.sh" "$slug" --png --workers "$wb"
+  "${R[@]}" --png --workers 1
+  "${R[@]}" --png --workers "$wb"
   A="$OUT/png-w1"; B="$OUT/png-w$wb"; LIST=$A; own_a=1
 fi
 na=$(find "$A" -name '*.png' | wc -l | tr -d ' '); nb=$(find "$B" -name '*.png' | wc -l | tr -d ' ')

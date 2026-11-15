@@ -21,7 +21,7 @@ Every swatch frame is a pure function of `t`: no random numbers, no clock, no st
 - **Commands**:
 
 ```bash
-styles/_swatch/determinism.sh <slug>        # lossless PNGs, 1 worker against 3 workers, frame by frame; bin/vh style check <slug> is the same
+styles/_swatch/determinism.sh <slug>        # lossless PNGs, 1 worker against 3 workers, frame by frame; bin/vh style check <slug> --determinism is the same
 styles/_swatch/render.sh <slug> --workers 2 [--png]
 ffmpeg -i a.png -i b.png -lavfi "[0:v]format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr" -f null -
 ```

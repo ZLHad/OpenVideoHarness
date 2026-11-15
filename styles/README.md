@@ -2,7 +2,7 @@
 
 社区里用 Opus 5.5 做的视频，很大一部分长得差不多：暗底、发光、玻璃卡片、动态 UI。athemeroy 的主题 × 风格图谱里，"广告/发布片"这一行有 154 个文件落在"动态图形/界面"一格，是这一行最大的一格，是第二大的"三维渲染"（25）的 6 倍多（见 `references/repos/opus55-guide-athemeroy/docs/domain-style-atlas.zh-CN.md`）。agent 默认会走向最常见的那一种，所以这里给它一个明确的选择空间。
 
-这里的每个风格都从名作里提炼出一套语法：色板、字体、构图、运动、转场、声音。每个风格都**用本仓库的工具真渲了一段 5 秒样片**。33 段样片的内容完全一样，都是标题"每一帧，都是代码。"加上"大纲 → 分镜 → 初版"三元素，差别只来自风格。
+这里的每个风格都从名作里提炼出一套语法：色板、字体、构图、运动、转场、声音。每个风格都**用本仓库的工具真渲了一段样片**。2026-11 以前的 33 段都是 5 秒，内容完全一样，都是标题"每一帧，都是代码。"加上"大纲 → 分镜 → 初版"三元素，差别只来自风格。之后新加的风格按新的样片规格出：5–10 秒（默认 8 秒）四拍，立住世界、招牌动作、真实字号的字、收住并接回第一帧，适合竖屏的另出一个竖版（`_swatch/README.md` 的"样片规格"）。新样片的完整视频放在 GitHub Release `styles-media`，仓库里只留封面和一段 2 秒的小预览。
 
 https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
@@ -12,87 +12,156 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 ## 怎么用
 
-1. **在关卡 ① 借用**。风格从立意里推出来（`playbook/12-ideation.md`）；立意卡的"画面"一行可以参考这里的预设（一个或几个），附上样片（`<slug>/media/swatch.mp4`）。人想多看几种时，从这里挑 2–3 个彼此拉得开的，让人选或混搭。不要默认只给一种口味。
-2. **建项目时挂上参考**：
+1. **先按片子找**。风格按"画面像什么"分成十二个家族（`families.json`，下面的表也按它分节）；每个风格还写着它适合哪几类片子（`video-types/` 的编号）和四个标签：节奏（静 / 中 / 快）、画幅（横 / 竖 / 都行）、渲染成本（秒级 / 分钟级 / Blender 级）、来源（名作提炼 / 社区作品 / 本仓库的片子）。在关卡 ① 按片子的类型和要的感觉筛：
 
    ```bash
-   bin/vh style list                                  # 33 个风格、家族、有没有样片
+   bin/vh style list                                   # 全部，按家族分组：节奏、画幅、成本、适合的类型、样片在不在
+   bin/vh style list --type 06 --pace calm             # 适合论文讲解、节奏静的
+   bin/vh style list --aspect portrait                 # 竖屏也成立的（"都行"的也列出来）
+   bin/vh style list --family print-collage --json     # 一个家族，给工具读
+   ```
+2. **在关卡 ① 借用**。风格从立意里推出来（`playbook/12-ideation.md`）；立意卡的"画面"一行可以参考这里的预设（一个或几个），附上样片（`<slug>/media/swatch.mp4`；放在 Release 里的用 `tools/fetch_media.sh <slug>` 取回，或者先看封面和 `preview.mp4`）。人想多看几种时，从不同的家族挑 2–3 个彼此拉得开的，让人选或混搭。不要默认只给一种口味。
+3. **建项目时挂上参考**：
+
+   ```bash
    bin/vh new promo launch-film --style cutout-jazz   # 副本放进项目的 style-refs/，BRIEF 的 Style refs 记上它；可以 --style a,b 挂几个
    ```
-3. **预设是参考，不是模板**。项目的 `STYLE.md` 从立意写起；从预设里借了什么（色板、字体、转场、声音、质感），在 `DECISIONS.md` 记一行，和它不一样不用解释。预设里的数字是样片的值，换场景就按理由重新定。
-4. **可以混搭**：从几个预设里各借一样，例如这个的色板、那个的转场。叠两种质感（半调加水墨、扫描线加纸纹）很容易糊，真要叠，先渲一小段看。
-5. **自查**：按 `templates/TASTE_CHECKLIST.md`；借来的那部分，可以顺手看一眼原预设的"自查重点"。
+4. **预设是参考，不是模板**。项目的 `STYLE.md` 从立意写起；从预设里借了什么（色板、字体、转场、声音、质感），在 `DECISIONS.md` 记一行，和它不一样不用解释。预设里的数字是样片的值，换场景就按理由重新定；标签说的是这个风格本来的样子，不是片子的限制（"横"的风格也可以重新构图做竖屏，只是要多想一步）。
+5. **可以混搭**：从几个预设里各借一样，例如这个的色板、那个的转场。叠两种质感（半调加水墨、扫描线加纸纹）很容易糊，真要叠，先渲一小段看。
+6. **自查**：按 `templates/TASTE_CHECKLIST.md`；借来的那部分，可以顺手看一眼原预设的"自查重点"。
 
-## 33 个风格
+## 风格，按家族
 
 每个目录里有：
 - `STYLE.md`：学习对象、视觉语法、运动语法、声音语法、适合与不适合、禁止项（新写的叫"常见误用及原因"，见 `_TEMPLATE.md`）、prompt 块、引擎做法、自查重点；
-- `tokens.json`：机器可读的数值；
-- `swatch.js`（Blender 场景是 `swatch.py`）、`score.json`：样片的画面和配乐源码；
-- `media/`：样片和封面。
+- `tokens.json`：机器可读的数值，也是这个风格在库里的身份：家族（`family`）、适合的类型（`video_types`）、标签（`tags`）、样片规格（`swatch`）和下面表格里的文字（`card`）；
+- `swatch.js`（Blender 场景是 `swatch.py`）、`score.json`、`events.json`：样片的画面、配乐和拟音源码；
+- `media/`：封面 `poster.jpg`（竖版另有 `poster-portrait.jpg`）和 2 秒的 `preview.mp4` 在 git 里；完整样片 `swatch.mp4`（竖版 `swatch-portrait.mp4`）新规格的放在 Release，`tools/fetch_media.sh` 取回，2026-11 以前的 33 个 5 秒样片还在 git 里，下次重渲时一起挪走。
 
-### 电影与片头
+下面的表由 `python3 tools/styles.py readme`（`bin/vh style readme`）从 `families.json` 和各个 `tokens.json` 生成，`tools/readme.py check` 核对两边对得上：改表格里的字，改那个风格的 `tokens.json`，再重跑生成。
 
-| 风格 | 学习对象 | 一句话 | 适合 |
-|---|---|---|---|
-| [剪纸爵士片头](cutout-jazz/) `cutout-jazz` | Saul Bass 的片头（《金臂人》1955、《迷魂记》1958、《桃色血案》1959） | 几种纸色、剪刀边、铜管每记重音就是一刀 | 概念或产品的片头式开场 |
-| [刮擦字片头](scratched-type/) `scratched-type` | 《七宗罪》片头（1995）；McLaren、Len Lye 的直接电影 | 在片基上刮出来的字，一格一格地抖 | 悬疑、犯罪、工业噪音类 MV |
-| [纪念碑科幻](monumental-scifi/) `monumental-scifi` | 《银翼杀手 2049》《降临》《星际穿越》 | 巨大的形体、层层雾、极少的字 | 发布 teaser、未来题材、片名 |
-| [对称粉彩绘本](symmetry-pastel/) `symmetry-pastel` | 《布达佩斯大饭店》《月升王国》 | 中轴对称、每章换色、章节字卡、甩镜 | 轻幽默的知识短片、人物小传 |
-| [霓虹抽帧](neon-step-print/) `neon-step-print` | 《重庆森林》《堕落天使》《花样年华》 | 抽帧拉出光带，红绿互补，贴身手持 | 城市夜景、情绪 MV |
-| [档案推拉](archival-pan-zoom/) `archival-pan-zoom` | 《黄金之城》（1957）、《南北战争》（1990） | 在静止照片上极慢地推拉，衬线小字 | 历史、人物传记、项目来历 |
-| [机械钟表地图](clockwork-map/) `clockwork-map` | 《权力的游戏》片头（2011）、布拉格天文钟 | 地点是被齿轮顶出地面的黄铜机械 | 路线、版图、多地点关系 |
-| [桌面微缩剧场](tabletop-miniature/) `tabletop-miniature` | Aardman 的 *A Grand Day Out*（1989）、Laika 的《鬼妈妈》（2009）、Olivo Barbieri 的移轴摄影 | 真实尺寸的桌面当舞台，几何体小角色一拍二地演，光的颜色和方向就是时间；样片用 Blender 渲染 | 角色小短片、产品小剧场、原声小品 |
-| [走进去的世界](walk-in-world/) `walk-in-world` | 社区里用 Claude Fable 5.2 做的四支世界旅程短片（2026-11）、《风之旅人》（2012）、《俄罗斯方舟》（2002） | 题目做成一个能走进去的地方，镜头一路往前不剪；每一站一套很窄的配色、一种光、一种天气，转场长在世界里 | 意境短片、主题旅程、片头、长片的章节骨架 |
+<!-- generated: styles by family — python3 tools/styles.py readme; edit styles/families.json and styles/<slug>/tokens.json, not these tables -->
 
-### 品牌与发布
+标签一栏：节奏 · 画幅 · 渲染成本 · 来源，第二行是它适合的视频类型（`video-types/` 的编号）。按家族、类型或标签筛：`bin/vh style list --family <id> --type <NN> --pace calm`。
 
-| 风格 | 学习对象 | 一句话 | 适合 |
-|---|---|---|---|
-| [产品发布片](product-keynote/) `product-keynote` | Apple Watch 发布片（2014）、2007 年 iPhone 发布会 | 无缝背景，产品先落稳、字再出来 | 软硬件发布、功能亮点 |
-| [瑞士网格动态字](swiss-grid-type/) `swiss-grid-type` | Müller-Brockmann 的音乐会与展览海报 | 可见网格、一个无衬线家族、红黑白 | 规则、流程、时间线、宣言 |
-| [野兽派梗](brutalist-meme/) `brutalist-meme` | 《The Face》杂志、Internet Ugly、brutalistwebsites.com | 系统字、裸网格、每拍一刀的硬切 | 梗视频、科技推特快剪（类型 08） |
+### 讲解手绘
 
-### 数据与讲解
+`explainer-drawing` · 边讲边画出来的图：白板、黑板、线稿、图解、剖面。东西是一笔笔画出来、拆开来给人看懂的
 
-| 风格 | 学习对象 | 一句话 | 适合 |
-|---|---|---|---|
-| [暗底数学](dark-math/) `dark-math` | 3Blue1Brown《线性代数的本质》 | 纯黑底，每个数学对象一个颜色 | 原理、定理、算法（类型 01） |
-| [编辑部数据叙事](editorial-data/) `editorial-data` | NYT The Upshot、The Pudding | 标题就是结论句，灰加一个强调色 | 数据新闻、研究结果 |
-| [气泡图现场讲](bubble-chart-story/) `bubble-chart-story` | Hans Rosling《200 个国家，200 年，4 分钟》（2010） | 一张气泡图就是舞台，时间可以快进倒回 | 群体随时间的变化 |
-| [电影界面 HUD](fui-hud/) `fui-hud` | 《火星救援》《遗落战境》《银翼杀手 2049》的屏幕设计 | 点阵、发丝线、等宽读数，每个读数都是真数据 | 系统、监测、agent 的内部视角 |
-| [图形统计](isotype/) `isotype` | 维也纳图形统计法（Isotype）：《社会与经济》图集（1930）、Gerd Arntz 的符号 | 一个符号代表固定数量，多就多排几个，在拍点上加一个、减一个 | 人口、资源、比例这类计数（类型 05） |
-| [等轴解剖](iso-anatomy/) `iso-anatomy` | Anatomy 和 anatomy-reveal 两个 agent skill（2026，MIT）；文艺复兴工程师笔记里的爆炸图、Farish 的等轴测（1822） | 把概念做成一台能拆开的小机器：实心零件、四阶明暗、只点亮一个部件，读数来自驱动零件的同一个模型 | 机制、系统和方法、产品构造、拆解 |
-| [浅色界面讲解](pastel-ui/) `pastel-ui` | 《你问 AI 一句话之后的 3 秒钟》（2026）、Material You（2021） | 粉彩墙纸上的白色圆角卡片，一个概念一个颜色从头带到尾，东西被打出来、发出去、打上勾 | 过程讲解、App 和 SaaS 的上手引导、轻量的数据 |
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [工程蓝图](blueprint/) `blueprint` | 晒图（1842）、美国专利图规范 | 白线按制图顺序画出，尺寸随零件实时变化 | 结构、机制、系统架构 | 中 · 横 · 秒级 · 名作提炼<br>01 03 06 02 |
+| [暗底数学](dark-math/) `dark-math` | 3Blue1Brown《线性代数的本质》 | 纯黑底，每个数学对象一个颜色 | 原理、定理、算法（类型 01） | 静 · 横 · 秒级 · 名作提炼<br>01 06 02 |
+| [等轴解剖](iso-anatomy/) `iso-anatomy` | Anatomy 和 anatomy-reveal 两个 agent skill（2026，MIT）；文艺复兴工程师笔记里的爆炸图、Farish 的等轴测（1822） | 把概念做成一台能拆开的小机器：实心零件、四阶明暗、只点亮一个部件，读数来自驱动零件的同一个模型 | 机制、系统和方法、产品构造、拆解 | 中 · 横 · 秒级 · 社区作品<br>01 03 06 02 |
 
-### 插画与印刷
+### 绘画插画
 
-| 风格 | 学习对象 | 一句话 | 适合 |
-|---|---|---|---|
-| [弹性扁平 2D](bouncy-flat-2d/) `bouncy-flat-2d` | UPA《Gerald McBoing-Boing》（1950）、《生命的幻象》 | 亮底四色，几何形状靠挤压拉伸演戏 | 轻松知识短片、App 小剧场 |
-| [半调漫画](halftone-comic/) `halftone-comic` | 《蜘蛛侠：平行宇宙》（2018）、Ben-Day 网点 | 网点代替渐变，套色故意不准，一拍二动 | 动作感强、节奏快的内容 |
-| [孔版印刷](risograph/) `risograph` | Risograph 专色印刷 | 两三种专色叠印，永远套不准 | 温暖、独立、手作感的故事 |
-| [剪影剪纸](silhouette-papercut/) `silhouette-papercut` | 《阿赫迈德王子历险记》（1926）、《猪八戒吃瓜》（1958） | 多层剪纸视差，每秒 12 格 | 童话、寓言、民间故事 |
-| [水彩田园](watercolor-pastoral/) `watercolor-pastoral` | 《龙猫》《岁月的童话》的背景美术、《小鹿斑比》 | 湿画天空，风一波一波吹过草地 | 治愈系、季节自然、慢歌 MV |
+`painting` · 画出来的画面：水彩、油画、钢笔淡彩、扁平矢量插画，看得见颜料和笔触
 
-### 中国美学
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [水彩田园](watercolor-pastoral/) `watercolor-pastoral` | 《龙猫》《岁月的童话》的背景美术、《小鹿斑比》 | 湿画天空，风一波一波吹过草地 | 治愈系、季节自然、慢歌 MV | 静 · 横 · 秒级 · 名作提炼<br>07 04 02 03 |
 
-| 风格 | 学习对象 | 一句话 | 适合 |
-|---|---|---|---|
-| [水墨](ink-wash/) `ink-wash` | 《小蝌蚪找妈妈》（1960）、《牧笛》（1963）、《山水情》（1988） | 一滴墨晕开成远山，大片留白 | 寓言、哲思、传统文化 |
-| [敦煌](dunhuang-mural/) `dunhuang-mural` | 莫高窟第 257 窟《鹿王本生图》、第 320 窟飞天、《九色鹿》（1981） | 矿物色、铁线描、飞天长飘带 | 丝路、历史、横卷叙事 |
-| [皮影](shadow-puppet/) `shadow-puppet` | 中国皮影戏（2011 年列入人类非遗名录） | 油灯背光的布幕，关节皮影和三根签子 | 民间故事、戏曲、台前幕后 |
-| [国潮](guochao-festive/) `guochao-festive` | 桃花坞等木版年画、《大闹天宫》 | 红底金线、粗宋大字、纹样逐拍铺开 | 节日、国风发布、竖屏 hook |
+### 印刷与拼贴
 
-### 复古与科技
+`print-collage` · 印出来、剪出来的平面：网点、专色套印、木刻、铜版、丝印、剪纸拼贴，套不准和纸纹是味道
 
-| 风格 | 学习对象 | 一句话 | 适合 |
-|---|---|---|---|
-| [工程蓝图](blueprint/) `blueprint` | 晒图（1842）、美国专利图规范 | 白线按制图顺序画出，尺寸随零件实时变化 | 结构、机制、系统架构 |
-| [CRT 终端](crt-terminal/) `crt-terminal` | 《异形》飞船屏幕、《战争游戏》、VT100 | 单色荧光、等宽字符、打字和余辉 | 代码、黑客、系统日志 |
-| [合成器浪潮](synthwave-outrun/) `synthwave-outrun` | 《电子世界争霸战》（1982）、《Out Run》（1986） | 条纹落日、霓虹透视网格、铬字、录像带质感 | 复古科技、游戏、强节拍片头 |
-| [16 位像素](pixel-16bit/) `pixel-16bit` | 《Chrono Trigger》（1995）、《塞尔达传说 众神的三角力量》（1991）、超级任天堂的马赛克和调色板 | 320 × 180 整数倍放大、固定 24 色，对话窗逐字打出，马赛克转场 | 把事情讲成游戏系统：升级、背包、存档 |
-| [Y2K 铬面](y2k-chrome/) `y2k-chrome` | *Wipeout*（1995，The Designers Republic）、Mac OS X 的 Aqua 界面（2000） | 充了气的液态铬字映着一间看不见的摄影棚，酸黄底、模切贴纸，一团铬踩着拍子跳过三块关卡砖，进场带弹性 | 品牌片和 showreel 里好玩的一段、科技梗快剪、流行 MV、游戏预告 |
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [剪纸爵士片头](cutout-jazz/) `cutout-jazz` | Saul Bass 的片头（《金臂人》1955、《迷魂记》1958、《桃色血案》1959） | 几种纸色、剪刀边、铜管每记重音就是一刀 | 概念或产品的片头式开场 | 快 · 横 · 秒级 · 名作提炼<br>03 04 07 |
+| [半调漫画](halftone-comic/) `halftone-comic` | 《蜘蛛侠：平行宇宙》（2018）、Ben-Day 网点 | 网点代替渐变，套色故意不准，一拍二动 | 动作感强、节奏快的内容 | 快 · 都行 · 秒级 · 名作提炼<br>08 04 02 03 |
+| [孔版印刷](risograph/) `risograph` | Risograph 专色印刷 | 两三种专色叠印，永远套不准 | 温暖、独立、手作感的故事 | 静 · 都行 · 秒级 · 名作提炼<br>04 07 02 08 |
+
+### 传统工艺
+
+`traditional-craft` · 东方和西方的老手艺：水墨、壁画、皮影、剪纸、年画、浮世绘、彩色玻璃，材料和纹样都要考据
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [敦煌](dunhuang-mural/) `dunhuang-mural` | 莫高窟第 257 窟《鹿王本生图》、第 320 窟飞天、《九色鹿》（1981） | 矿物色、铁线描、飞天长飘带 | 丝路、历史、横卷叙事 | 中 · 横 · 秒级 · 名作提炼<br>07 02 04 06 |
+| [国潮](guochao-festive/) `guochao-festive` | 桃花坞等木版年画、《大闹天宫》 | 红底金线、粗宋大字、纹样逐拍铺开 | 节日、国风发布、竖屏 hook | 快 · 都行 · 秒级 · 名作提炼<br>03 02 04 05 |
+| [水墨](ink-wash/) `ink-wash` | 《小蝌蚪找妈妈》（1960）、《牧笛》（1963）、《山水情》（1988） | 一滴墨晕开成远山，大片留白 | 寓言、哲思、传统文化 | 静 · 横 · 秒级 · 名作提炼<br>07 04 06 03 |
+| [皮影](shadow-puppet/) `shadow-puppet` | 中国皮影戏（2011 年列入人类非遗名录） | 油灯背光的布幕，关节皮影和三根签子 | 民间故事、戏曲、台前幕后 | 中 · 横 · 秒级 · 名作提炼<br>07 04 02 03 |
+| [剪影剪纸](silhouette-papercut/) `silhouette-papercut` | 《阿赫迈德王子历险记》（1926）、《猪八戒吃瓜》（1958） | 多层剪纸视差，每秒 12 格 | 童话、寓言、民间故事 | 静 · 横 · 秒级 · 名作提炼<br>07 04 02 06 |
+
+### 手工质感
+
+`handmade` · 真实材料做的小世界：黏土、毛毡、折纸、积木、纸雕、桌面微缩，一拍二地动
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [桌面微缩剧场](tabletop-miniature/) `tabletop-miniature` | Aardman 的 *A Grand Day Out*（1989）、Laika 的《鬼妈妈》（2009）、Olivo Barbieri 的移轴摄影 | 真实尺寸的桌面当舞台，几何体小角色一拍二地演，光的颜色和方向就是时间；样片用 Blender 渲染 | 角色小短片、产品小剧场、原声小品 | 静 · 横 · Blender 级 · 名作提炼<br>02 03 04 07 |
+
+### 新闻纪实
+
+`news-documentary` · 真素材和证据当主角：档案照片、字幕新闻、调查复原、口播图解，每个标注都有出处
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [档案推拉](archival-pan-zoom/) `archival-pan-zoom` | 《黄金之城》（1957）、《南北战争》（1990） | 在静止照片上极慢地推拉，衬线小字 | 历史、人物传记、项目来历 | 静 · 横 · 秒级 · 名作提炼<br>06 05 02 |
+
+### 屏幕界面
+
+`screen-ui` · 画面就是一块屏幕：界面卡片、终端、HUD、桌面录屏、表格、代码编辑器
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [CRT 终端](crt-terminal/) `crt-terminal` | 《异形》飞船屏幕、《战争游戏》、VT100 | 单色荧光、等宽字符、打字和余辉 | 代码、黑客、系统日志 | 中 · 横 · 秒级 · 名作提炼<br>08 03 02 04 |
+| [电影界面 HUD](fui-hud/) `fui-hud` | 《火星救援》《遗落战境》《银翼杀手 2049》的屏幕设计 | 点阵、发丝线、等宽读数，每个读数都是真数据 | 系统、监测、agent 的内部视角 | 中 · 横 · 秒级 · 名作提炼<br>05 03 02 06 |
+| [浅色界面讲解](pastel-ui/) `pastel-ui` | 《你问 AI 一句话之后的 3 秒钟》（2026）、Material You（2021） | 粉彩墙纸上的白色圆角卡片，一个概念一个颜色从头带到尾，东西被打出来、发出去、打上勾 | 过程讲解、App 和 SaaS 的上手引导、轻量的数据 | 中 · 都行 · 秒级 · 社区作品<br>02 03 05 |
+
+### 影像质感
+
+`film-look` · 像某种摄影机、胶片或录像拍出来的：颗粒、色调、抽帧、构图和刮痕都来自那种影像和它的年代
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [霓虹抽帧](neon-step-print/) `neon-step-print` | 《重庆森林》《堕落天使》《花样年华》 | 抽帧拉出光带，红绿互补，贴身手持 | 城市夜景、情绪 MV | 中 · 横 · 秒级 · 名作提炼<br>04 02 03 |
+| [刮擦字片头](scratched-type/) `scratched-type` | 《七宗罪》片头（1995）；McLaren、Len Lye 的直接电影 | 在片基上刮出来的字，一格一格地抖 | 悬疑、犯罪、工业噪音类 MV | 快 · 横 · 秒级 · 名作提炼<br>04 08 03 |
+| [对称粉彩绘本](symmetry-pastel/) `symmetry-pastel` | 《布达佩斯大饭店》《月升王国》 | 中轴对称、每章换色、章节字卡、甩镜 | 轻幽默的知识短片、人物小传 | 中 · 横 · 秒级 · 名作提炼<br>02 03 07 |
+| [合成器浪潮](synthwave-outrun/) `synthwave-outrun` | 《电子世界争霸战》（1982）、《Out Run》（1986） | 条纹落日、霓虹透视网格、铬字、录像带质感 | 复古科技、游戏、强节拍片头 | 快 · 横 · 秒级 · 名作提炼<br>03 04 08 02 |
+
+### 卡通与游戏
+
+`cartoon-game` · 卡通和游戏的画法：扁平卡通、橡皮管、赛璐珞、像素、漫画分格，靠夸张的动作和游戏的规则讲事
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [弹性扁平 2D](bouncy-flat-2d/) `bouncy-flat-2d` | UPA《Gerald McBoing-Boing》（1950）、《生命的幻象》 | 亮底四色，几何形状靠挤压拉伸演戏 | 轻松知识短片、App 小剧场 | 中 · 都行 · 秒级 · 名作提炼<br>02 03 07 04 |
+| [16 位像素](pixel-16bit/) `pixel-16bit` | 《Chrono Trigger》（1995）、《塞尔达传说 众神的三角力量》（1991）、超级任天堂的马赛克和调色板 | 320 × 180 整数倍放大、固定 24 色，对话窗逐字打出，马赛克转场 | 把事情讲成游戏系统：升级、背包、存档 | 中 · 横 · 秒级 · 名作提炼<br>07 08 02 04 |
+
+### 3D 与光
+
+`3d-light` · 立体的形和真实的光：棚拍产品、体积光、玻璃、霓虹、巨大的形体和走进去的世界
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [纪念碑科幻](monumental-scifi/) `monumental-scifi` | 《银翼杀手 2049》《降临》《星际穿越》 | 巨大的形体、层层雾、极少的字 | 发布 teaser、未来题材、片名 | 静 · 横 · 秒级 · 名作提炼<br>03 02 06 |
+| [产品发布片](product-keynote/) `product-keynote` | Apple Watch 发布片（2014）、2007 年 iPhone 发布会 | 无缝背景，产品先落稳、字再出来 | 软硬件发布、功能亮点 | 静 · 都行 · 秒级 · 名作提炼<br>03 05 |
+| [走进去的世界](walk-in-world/) `walk-in-world` | 社区里用 Claude Fable 5.2 做的四支世界旅程短片（2026-11）、《风之旅人》（2012）、《俄罗斯方舟》（2002） | 题目做成一个能走进去的地方，镜头一路往前不剪；每一站一套很窄的配色、一种光、一种天气，转场长在世界里 | 意境短片、主题旅程、片头、长片的章节骨架 | 静 · 横 · 秒级 · 社区作品<br>02 03 04 10 |
+
+### 地图数据
+
+`map-data` · 画面在量一样东西：地图、图表、图形统计、仪器读数，数字和位置都是真的
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [气泡图现场讲](bubble-chart-story/) `bubble-chart-story` | Hans Rosling《200 个国家，200 年，4 分钟》（2010） | 一张气泡图就是舞台，时间可以快进倒回 | 群体随时间的变化 | 中 · 横 · 秒级 · 名作提炼<br>05 02 06 |
+| [机械钟表地图](clockwork-map/) `clockwork-map` | 《权力的游戏》片头（2011）、布拉格天文钟 | 地点是被齿轮顶出地面的黄铜机械 | 路线、版图、多地点关系 | 中 · 横 · 秒级 · 名作提炼<br>02 05 03 |
+| [编辑部数据叙事](editorial-data/) `editorial-data` | NYT The Upshot、The Pudding | 标题就是结论句，灰加一个强调色 | 数据新闻、研究结果 | 静 · 都行 · 秒级 · 名作提炼<br>05 06 02 |
+| [图形统计](isotype/) `isotype` | 维也纳图形统计法（Isotype）：《社会与经济》图集（1930）、Gerd Arntz 的符号 | 一个符号代表固定数量，多就多排几个，在拍点上加一个、减一个 | 人口、资源、比例这类计数（类型 05） | 中 · 都行 · 秒级 · 名作提炼<br>05 02 06 |
+
+### 字与平面
+
+`type-graphic` · 字和纯平面图形本身就是画面：网格排字、动态字、梗图排版、铬字贴纸、几何构成
+
+| 风格 | 学习对象 | 一句话 | 适合 | 标签 |
+|---|---|---|---|---|
+| [野兽派梗](brutalist-meme/) `brutalist-meme` | 《The Face》杂志、Internet Ugly、brutalistwebsites.com | 系统字、裸网格、每拍一刀的硬切 | 梗视频、科技推特快剪（类型 08） | 快 · 都行 · 秒级 · 名作提炼<br>08 02 03 |
+| [瑞士网格动态字](swiss-grid-type/) `swiss-grid-type` | Müller-Brockmann 的音乐会与展览海报 | 可见网格、一个无衬线家族、红黑白 | 规则、流程、时间线、宣言 | 中 · 都行 · 秒级 · 名作提炼<br>05 03 06 |
+| [Y2K 铬面](y2k-chrome/) `y2k-chrome` | *Wipeout*（1995，The Designers Republic）、Mac OS X 的 Aqua 界面（2000） | 充了气的液态铬字映着一间看不见的摄影棚，酸黄底、模切贴纸，一团铬踩着拍子跳过三块关卡砖，进场带弹性 | 品牌片和 showreel 里好玩的一段、科技梗快剪、流行 MV、游戏预告 | 快 · 都行 · 秒级 · 名作提炼<br>03 08 04 |
+
+<!-- end generated: styles by family -->
 
 本仓库自己的介绍片（[`showcase/04-intro-film/`](../showcase/04-intro-film/)）属于"纪念碑科幻"一族；showcase 01 和 03 分别接近"水彩田园"和"暗底数学"。
 
@@ -100,41 +169,45 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 每个样片都有自己的一段配乐（`score.json`），按这个风格的声音语法写，体裁、签名乐器、律动和空间各不相同，全部由 `bin/vh music` 的合成乐器声部生成，没有采样。拟音在 `events.json` 里，落点和画面用同一张时间表。`render.sh` 用 `profile=swatch` 把配乐和拟音混到 −14 LUFS：配乐是锚点，每个音效按类（hero、detail、ambience、signal）往各自的电平走一半，做法见 `playbook/04-audio.md` 的"混音"。混好的 WAV 要先过 `bin/vh qa`：有数字静音、抽吸、对不上的 cue，或者一个 cue 只是勉强对上、又被混音报告判为听不见，渲染就失败。
 
+<!-- generated: swatch sound — python3 tools/styles.py readme, from each tokens.json's card -->
+
 | 风格 | 配乐 | 签名乐器 | 听起来 |
 |---|---|---|---|
-| `cutout-jazz` | 摇摆大乐队（Saul Bass 片头里 Elmer Bernstein 那一路） | 弱音铜管、低音提琴、ride 和刷子、邦戈 | 铜管每记重音就是一刀，全是原声，干 |
-| `scratched-type` | 工业噪音（《七宗罪》片头、Nine Inch Nails） | 铁砧和管子、失真底鼓、噪声猝发、磁带声 | 干声，三全音的铁砧砸在每个插入镜头上 |
-| `monumental-scifi` | braam 加 CS-80（《银翼杀手 2049》） | braam、CS-80 铜管 pad、持续低音、远处的定音鼓 | 两记 braam 中间一次渐强，大教堂混响 |
-| `tabletop-miniature` | 小房间里的一台立式钢琴，角色的动作就是音符 | 立式钢琴（低音区带踏板铺底、高音区不带踏板是角色的落地）、房间底噪 | 很干；往上跳一级，音就往上走一级；灭灯时属七和弦悬着，天亮才解决 |
-| `walk-in-world` | 一个不断的长音当路，换站换调式 | D 上的持续低音、弦乐、竖琴、钢片琴、风 | 黄昏是 D dorian，起步去穿门的那一小节换成 D 大调；六格分镜是六个钢片琴音，光快到脚下时竖琴的三连音往上走 |
-| `symmetry-pastel` | 巴拉莱卡小进行曲（Desplat《布达佩斯大饭店》） | 巴拉莱卡轮指、拨弦、扬琴、羽管键琴、钟琴 | 每段多一件乐器，房间小而亮 |
-| `neon-step-print` | 弦乐华尔兹（王家卫《梦二》那一路） | 独奏小提琴（宽揉弦、滑音）、拨弦低音、弦乐、雨 | 三拍子的摇晃，暖色大厅 |
-| `archival-pan-zoom` | 纪录片式的提琴哀歌 | 独奏提琴和第二条空弦、毡锤钢琴 | 半速，旋律在人像入画时升到最高 |
-| `clockwork-map` | 大提琴固定音型（《权力的游戏》片头那一路） | marcato 大提琴、弦乐、定音鼓、钟琴 | 机芯一样的六音音型，锁止落在小节线上 |
-| `product-keynote` | 发布会式的钢琴揭示 | 毡锤钢琴、高处的弦乐 pad、竖琴、sub | 每段只一个和弦，留大量空气，揭示时一记深的 sub |
-| `swiss-grid-type` | motorik 电子乐（Kraftwerk） | 方波音序贝斯、干的电子鼓、正弦 bleep | 八分音符一直往前走，"打破规则"那一小节鼓全撤 |
-| `brutalist-meme` | phonk / trap 梗片节奏 | 808 滑音、牛铃 riff、trap 军鼓和 hats、clap | 硬切处 808 重打，包袱前屏息 |
+| `blueprint` | Steve Reich 式的极简 | 两台马林巴、正弦低音、颤音琴 | 两台马林巴错开几格，合出新的旋律，没有鼓 |
 | `dark-math` | 3Blue1Brown 式的安静钢琴 | 毡锤钢琴琶音、轻的弦乐 pad、钢片琴 | 没有鼓，垫在旁白下面 |
-| `editorial-data` | Glass / Richter 式的极简 | 钢琴三连音分解和弦、大提琴长音、秒表滴答 | 音型不变，只有和声在走，揭示前钢琴停下 |
-| `bubble-chart-story` | 统计科普片的俏皮计数 | 马林巴、沙锤、拨弦 | 乐队演的是年份计数器：时间走就敲，停就停 |
-| `fui-hud` | 冷电子（《创：战纪》那一路） | 带共振的滤波锯齿音序、sub 脉冲、失谐 drone | 十六分音符的音序，冷的 plate 混响 |
-| `isotype` | 事件即音符的节拍器 | 木鱼、玩具钢琴、拨弦、笙 | 加一个符号就是一个音，数量往上数，音也往上走 |
-| `bouncy-flat-2d` | 欢快的讲解片 | 尤克里里扫弦、口哨、钟琴、拍手 | 每个落地点"叮"一下 |
+| `iso-anatomy` | 台面上一台小仪器 | 闷音钢弦吉他、木琴、钟表擒纵器、吉他泛音 | 轴每走一步木琴往上敲一个音，3.6 s 只剩钟和泛音，拆开时木琴往下走一串、钟停 |
+| `watercolor-pastoral` | 吉卜力 / 久石让式的田园小品 | 明亮的钢琴、长笛、弦乐、风声 | 慢、暖，弦乐只做一次渐强 |
+| `cutout-jazz` | 摇摆大乐队（Saul Bass 片头里 Elmer Bernstein 那一路） | 弱音铜管、低音提琴、ride 和刷子、邦戈 | 铜管每记重音就是一刀，全是原声，干 |
 | `halftone-comic` | boom-bap（《蜘蛛侠：平行宇宙》） | 搓碟、铜管 stab、boom-bap 鼓、808 | 摇摆的十六分音符，分格切时全编制砸回来 |
 | `risograph` | lo-fi hip-hop | Rhodes、低音提琴、慵懒的鼓、颤音琴、黑胶噼啪 | 每加一版印色进一件乐器 |
-| `silhouette-papercut` | 八音盒摇篮曲（Lotte Reiniger 的童话） | 八音盒、竖琴、钢片琴 | 三拍子摇篮的晃，屏息时只留竖琴 |
-| `watercolor-pastoral` | 吉卜力 / 久石让式的田园小品 | 明亮的钢琴、长笛、弦乐、风声 | 慢、暖，弦乐只做一次渐强 |
-| `ink-wash` | 文人古琴加箫 | 古琴（滑音、吟猱、一个泛音）、箫 | 一个乐句一件事，大片留白，4 s 的大厅混响 |
 | `dunhuang-mural` | 丝路乐舞（E 商调） | 琵琶轮指、箜篌、笙、框鼓、编钟 | 明亮的调式，飞天相会时编钟和琵琶同落 |
-| `shadow-puppet` | 陕西皮影、秦腔 | 板胡、梆子、锣鼓经、板鼓、堂鼓 | 板胡叫板，梆子和锣鼓经推着走 |
 | `guochao-festive` | 国潮：唢呐加 trap / EDM | 唢呐、琵琶、808、trap 鼓、锣鼓、大鼓 | 响、亮、喜庆 |
-| `blueprint` | Steve Reich 式的极简 | 两台马林巴、正弦低音、颤音琴 | 两台马林巴错开几格，合出新的旋律，没有鼓 |
+| `ink-wash` | 文人古琴加箫 | 古琴（滑音、吟猱、一个泛音）、箫 | 一个乐句一件事，大片留白，4 s 的大厅混响 |
+| `shadow-puppet` | 陕西皮影、秦腔 | 板胡、梆子、锣鼓经、板鼓、堂鼓 | 板胡叫板，梆子和锣鼓经推着走 |
+| `silhouette-papercut` | 八音盒摇篮曲（Lotte Reiniger 的童话） | 八音盒、竖琴、钢片琴 | 三拍子摇篮的晃，屏息时只留竖琴 |
+| `tabletop-miniature` | 小房间里的一台立式钢琴，角色的动作就是音符 | 立式钢琴（低音区带踏板铺底、高音区不带踏板是角色的落地）、房间底噪 | 很干；往上跳一级，音就往上走一级；灭灯时属七和弦悬着，天亮才解决 |
+| `archival-pan-zoom` | 纪录片式的提琴哀歌 | 独奏提琴和第二条空弦、毡锤钢琴 | 半速，旋律在人像入画时升到最高 |
 | `crt-terminal` | 终端小喇叭的冷极简 | 60 Hz 电源嗡声、失谐方波琶音、调制解调器哔声 | 干声，很多段只有嗡声 |
-| `synthwave-outrun` | 合成器浪潮 | supersaw 和弦、门限混响军鼓、四拍底鼓、锯齿贝斯 | 80 年代的门限混响，贝斯跟着底鼓一拍一泵 |
-| `pixel-16bit` | 超任式的 JRPG | 带乒乓回声的方波主旋律、拨弦、铜管垫、三角波低音 | 16 位采样加硬件回声，不是 8 位芯片乐 |
-| `iso-anatomy` | 台面上一台小仪器 | 闷音钢弦吉他、木琴、钟表擒纵器、吉他泛音 | 轴每走一步木琴往上敲一个音，3.6 s 只剩钟和泛音，拆开时木琴往下走一串、钟停 |
+| `fui-hud` | 冷电子（《创：战纪》那一路） | 带共振的滤波锯齿音序、sub 脉冲、失谐 drone | 十六分音符的音序，冷的 plate 混响 |
 | `pastel-ui` | 界面提示音放大成的小曲 | 卡林巴、Rhodes、拨弦低音提琴、高处的弦乐 pad、沙锤 | 每个事件都是卡林巴的一个音，对勾一级比一级高，最响在 2–4 s |
+| `neon-step-print` | 弦乐华尔兹（王家卫《梦二》那一路） | 独奏小提琴（宽揉弦、滑音）、拨弦低音、弦乐、雨 | 三拍子的摇晃，暖色大厅 |
+| `scratched-type` | 工业噪音（《七宗罪》片头、Nine Inch Nails） | 铁砧和管子、失真底鼓、噪声猝发、磁带声 | 干声，三全音的铁砧砸在每个插入镜头上 |
+| `symmetry-pastel` | 巴拉莱卡小进行曲（Desplat《布达佩斯大饭店》） | 巴拉莱卡轮指、拨弦、扬琴、羽管键琴、钟琴 | 每段多一件乐器，房间小而亮 |
+| `synthwave-outrun` | 合成器浪潮 | supersaw 和弦、门限混响军鼓、四拍底鼓、锯齿贝斯 | 80 年代的门限混响，贝斯跟着底鼓一拍一泵 |
+| `bouncy-flat-2d` | 欢快的讲解片 | 尤克里里扫弦、口哨、钟琴、拍手 | 每个落地点"叮"一下 |
+| `pixel-16bit` | 超任式的 JRPG | 带乒乓回声的方波主旋律、拨弦、铜管垫、三角波低音 | 16 位采样加硬件回声，不是 8 位芯片乐 |
+| `monumental-scifi` | braam 加 CS-80（《银翼杀手 2049》） | braam、CS-80 铜管 pad、持续低音、远处的定音鼓 | 两记 braam 中间一次渐强，大教堂混响 |
+| `product-keynote` | 发布会式的钢琴揭示 | 毡锤钢琴、高处的弦乐 pad、竖琴、sub | 每段只一个和弦，留大量空气，揭示时一记深的 sub |
+| `walk-in-world` | 一个不断的长音当路，换站换调式 | D 上的持续低音、弦乐、竖琴、钢片琴、风 | 黄昏是 D dorian，起步去穿门的那一小节换成 D 大调；六格分镜是六个钢片琴音，光快到脚下时竖琴的三连音往上走 |
+| `bubble-chart-story` | 统计科普片的俏皮计数 | 马林巴、沙锤、拨弦 | 乐队演的是年份计数器：时间走就敲，停就停 |
+| `clockwork-map` | 大提琴固定音型（《权力的游戏》片头那一路） | marcato 大提琴、弦乐、定音鼓、钟琴 | 机芯一样的六音音型，锁止落在小节线上 |
+| `editorial-data` | Glass / Richter 式的极简 | 钢琴三连音分解和弦、大提琴长音、秒表滴答 | 音型不变，只有和声在走，揭示前钢琴停下 |
+| `isotype` | 事件即音符的节拍器 | 木鱼、玩具钢琴、拨弦、笙 | 加一个符号就是一个音，数量往上数，音也往上走 |
+| `brutalist-meme` | phonk / trap 梗片节奏 | 808 滑音、牛铃 riff、trap 军鼓和 hats、clap | 硬切处 808 重打，包袱前屏息 |
+| `swiss-grid-type` | motorik 电子乐（Kraftwerk） | 方波音序贝斯、干的电子鼓、正弦 bleep | 八分音符一直往前走，"打破规则"那一小节鼓全撤 |
 | `y2k-chrome` | 千禧年泡泡糖电子舞曲 | 四拍底鼓、拍手、方波贝斯、808 低音、风琴和弦、钟琴 | 几乎每拍一个动作一个声音，没有屏息段，"停"是高光还在滑、分数还在跳 |
+
+<!-- end generated: swatch sound -->
 
 **怎么知道它们听起来不一样**：agent 听不了，只能量。每段配乐取前 5 s，算 7 个特征：谱质心、起音率、低中高三段的能量占比、立体声宽度、打击乐占比；按旧配乐和引擎示范合在一起的均值和标准差换成 z 分数，再算两两之间的距离。旧配乐 28 份出自同一套减法合成器，全是单声道。重写以后，成对距离的中位数从 2.27 升到 3.71，最近的一对从 0.52（bubble-chart-story 和 risograph）拉开到 1.22（guochao-festive 和 scratched-type），378 对里没有一对小于 1.2；2026-10-01 在当时 28 个样片的新配乐上重量一遍，数字不变（之后加的 5 个样片没有重量）。这把尺子只有 7 个统计量，听不出旋律、和声，也分不出是不是同一种乐器；好不好听，还是要人听。
 
@@ -159,14 +232,18 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 ## 加一个新风格
 
-1. **拉片**：用 `playbook/07-reverse-engineer.md` 拆解 1–3 部作品，写下能执行的规律：hex、帧数、缓动曲线、字体、配器。
-2. **写文档**：复制 `_TEMPLATE.md` 写 `STYLE.md`，按其他预设的键写 `tokens.json`。
-3. **写样片**：从 `_swatch/demo/` 复制 `swatch.js`，按 `_swatch/README.md` 的内容规格写；想要声音就加 `score.json`。风格要路径追踪的光和真实景深时，写成 Blender 场景 `swatch.py`（见 `_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 是样板）。
-4. **渲染迭代**：用 `bin/vh style <slug> --draft --hud` 反复改，满意后跑 `bin/vh style <slug>` 出正式样片，渲染器会自动检查帧数、错误卡片、冻帧和音频。
-5. **检查确定性**：`bin/vh style check <slug>`，比较无损帧。
-6. **更新总览**：`bin/vh style gallery --readme` 一次重建 `gallery.jpg`、`gallery.mp4` 和本文件开头播放的 `gallery-readme.mp4`（只要前两个就用 `--mp4`），再在上面的表里加一行，改这份文件里的风格数，并在官网（`docs/site/index.html` 的 `STYLES`）里加上它和它的缩略图（`docs/site/img/styles/<slug>.jpg`，命令见 `docs/site/README.md`）。官网、两份 README 和 `docs/assets/overview.*.svg` 里的风格数，以及官网的风格列表，由 `tools/readme.py` 核对（`tools/ci.sh` 跑它，数字不对会说在哪一行），照它说的改。两个视频都不进 git，往 Release 里放文件是维护者的事（`CONTRIBUTING.md` 第 4 条）：
+一个风格就是一个目录：放进 `styles/<slug>/`，重跑生成，表格、`bin/vh style list` 和检查就都有它了。
+
+1. **拉片**：用 `playbook/07-reverse-engineer.md` 拆解 1–3 部作品，写下能执行的规律：hex、帧数、缓动曲线、字体、配器。学的是社区作品或本仓库自己的片子时，只借画面类型，学习对象另找公开的名作；从本仓库片子里提炼的起中性的名字，公开文件里不出现频道名、片名和个人信息。
+2. **写文档**：复制 `_TEMPLATE.md` 写 `STYLE.md`，按其他预设的键写 `tokens.json`。库里认的字段：`slug`、`name`、`family`（`families.json` 里的一个 id）、`video_types`、`tags`（`pace`、`aspect`、`cost`、`source`，可选的词在 `families.json`）、`study`、`swatch`（`{"spec": 2, "duration": 8}`，时长 5–10 秒）、`card`（表格的六格：`learned_from`、`line`、`fit`、`score`、`instruments`、`sounds_like`）。哪个家族都不合适时，先在 `families.json` 加一个家族，写清为什么。
+3. **写样片**：从 `_swatch/demo/` 复制 `swatch.js`、`tokens.json`、`score.json`，按 `_swatch/README.md` 的"样片规格"写四拍，拟音写在 `FOLEY` 里，用 `node styles/_swatch/foley.mjs <slug>` 生成 `events.json`。风格要路径追踪的光和真实景深时，写成 Blender 场景 `swatch.py`（见 `_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 是样板）。
+4. **渲染迭代**：用 `bin/vh style <slug> --draft --hud` 反复改，满意后跑 `bin/vh style <slug>` 出正式样片（适合竖屏的会接着渲竖版），渲染器会自动检查帧数、错误卡片、冻帧和音频，并写出封面和 2 秒预览。
+5. **检查**：`bin/vh style check <slug>` 查元数据和样片（时长、尺寸、响度、体积、封面、预览、竖版、循环接缝），加 `--text` 再查字在不在安全框里、能不能读完；`bin/vh style check <slug> --determinism` 比较无损帧。
+6. **完整样片移出 git**：`bin/vh style register <slug>` 把 `swatch.mp4`（和竖版）登记进 `tools/media.txt`，并打印上传到 Release `styles-media` 的命令。上传是维护者在合并时做的事（`CONTRIBUTING.md` 第 4 条）；`.gitignore` 已经挡住了这两个文件，提交的是封面、预览和源码。
+7. **更新总览**：`bin/vh style readme` 重写本文件的表格；在官网（`docs/site/index.html` 的 `STYLES`）里加上它和它的缩略图（`docs/site/img/styles/<slug>.jpg`，命令见 `docs/site/README.md`）。官网、两份 README 和 `docs/assets/overview.*.svg` 里的风格数，以及官网的风格列表，由 `tools/readme.py` 核对（`tools/ci.sh` 跑它，数字不对会说在哪一行），照它说的改。要重做集锦时，`bin/vh style gallery --readme` 一次重建 `gallery.jpg`、`gallery.mp4` 和本文件开头播放的 `gallery-readme.mp4`（只要前两个就用 `--mp4`；放在 Release 里的样片先 `tools/fetch_media.sh styles` 取回）。两个视频都不进 git，往 Release 里放文件是维护者的事（`CONTRIBUTING.md` 第 4 条）：
    - `gallery.mp4` 用一个新文件名上传到 Release `media`（例如 `styles-gallery-v3.mp4`），不覆盖 main 还在引用的旧文件；同一个 PR 里改 `tools/media.txt`（路径、文件名、sha256）和所有引用旧文件名的链接，`grep -rn styles-gallery` 查（目前在本文件、两份 README 和 `cases/oneshot-five.md`），合并以后再删旧文件，Release 里 `SHA256SUMS.txt` 的那一行也跟着换。
    - 两份 README 里的风格连播是一张缩略图（`docs/assets/films/styles.jpg`），点开的是 Release 里的那个文件，不嵌播放器，换文件名时跟着上一条改链接。本文件开头嵌的播放片段是另一份，就是 `gallery-readme.mp4`：右下角加了仓库名，压到 10 MB 以内（GitHub 附件的上限）。把它拖进任意一个 PR 的评论框，拿到 `https://github.com/user-attachments/assets/…` 链接后清空评论框、不发出去，再用这个链接替换本文件里的旧链接。
+   - 网页里放 Release 的视频，一律写成 `<video>` 里的 `<source src="…" type="video/mp4">`：Release 返回的是 `application/octet-stream`，Safari（WebKit）遇到直接写的 `src` 放不出来。`tools/readme.py check` 查所有入库的页面。
 
 ## 和其他风格库的关系
 

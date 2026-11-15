@@ -140,11 +140,12 @@ PY
   then ok "time-map solver example: its spec solves to a map timemap check takes; an edit between two pins moves that span's knots alone"
   else bad "time-map solver example (engines/canvas-film/examples/time-map-solve.py)"; fi
   rm -rf "$d"
-  # media: videos live in the GitHub release "media" (tools/media.txt, tools/fetch_media.sh), so a clone stays small;
-  # the style swatches (about 1 MB each, read by the tools) are the one exception. No file over 8 MB either.
+  # media: videos live in the GitHub releases "media" and "styles-media" (tools/media.txt, tools/fetch_media.sh), so a
+  # clone stays small; a style's 2 s preview.mp4 and the 33 older 5 s swatches are the exception (bin/vh style check, in
+  # style_checks, holds a spec-2 swatch.mp4 out of git). No file over 8 MB either.
   out=$(files | while IFS= read -r f; do
       lc=$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')   # [[ ]], not case: bash 3.2 can't parse case inside $( ); lower-cased: .GIF too
-      if [[ ! "$f" =~ ^styles/[^/]+/media/swatch\.mp4$ && "$lc" =~ \.(mp4|mov|webm|mkv|gif)$ ]]; then echo "$f: a video (put it in the media release, see tools/fetch_media.sh)"; continue; fi
+      if [[ ! "$f" =~ ^styles/[^/]+/media/(swatch|preview)\.mp4$ && "$lc" =~ \.(mp4|mov|webm|mkv|gif)$ ]]; then echo "$f: a video (put it in the media release, see tools/fetch_media.sh)"; continue; fi
       if [ -f "$f" ]; then s=$(wc -c < "$f"); [ "$s" -gt 8000000 ] && echo "$f: $((s / 1000000)) MB, over 8 MB"; fi
     done)
   if [ -n "$out" ]; then echo "$out"; bad "videos or large files in git"; else ok "no videos or files over 8 MB in git"; fi
@@ -5953,6 +5954,224 @@ print(res, recs); sys.exit(0 if ok else 1)
 PY
   ); then ok "hf add online: HyperFrames' own add runs in the project (its own CLI), its --json is read and what it wrote goes on the ledger"
   else bad "hf add online with a stand-in CLI: $a"; fi
+  rm -rf "$t"
+}
+
+style_checks() {   # the style library (tools/styles.py, styles/families.json, styles/_swatch): every style against the families,
+  # the video types, the tag words and its swatch spec; the list and its filters; the spec's numbers; the staged page and
+  # lib.js at both specs and aspects; and, on a made-up repo, what the check must refuse, the README tables, the videos
+  # out of git (tools/media.txt, register, the tracked-video rule) and fetch_media.sh's other release
+  local t a b rc fx v
+  # every style in the repo: metadata always; the swatch media where ffmpeg is here (CI has it)
+  if command -v ffprobe >/dev/null; then a=$(vh style check 2>&1); rc=$?; v="metadata and swatch media"
+  else a=$(vh style check --meta 2>&1); rc=$?; v="metadata (no ffmpeg here: the media not checked)"; fi
+  if [ $rc = 0 ]; then ok "style check, $v: $(printf '%s' "$a" | tail -1 | cut -c1-150)"; else echo "$a"; bad "style check ($v)"; fi
+  # the list: each style once, grouped in families.json's order, and the filters keep what they name
+  if a=$(python3 - <<'PY'
+import json, subprocess, sys
+def run(*a):
+    r = subprocess.run([sys.executable, "tools/styles.py", "list", *a], capture_output=True, text=True)
+    return r.returncode, r.stdout
+fams = [f["id"] for f in json.load(open("styles/families.json", encoding="utf-8"))["families"]]
+import pathlib
+dirs = sorted(p.parent.name for p in pathlib.Path("styles").glob("*/tokens.json") if not p.parent.name.startswith("_"))
+_, out = run("--json"); d = json.loads(out)
+got = [s["slug"] for s in d["styles"]]
+bad = []
+if sorted(got) != dirs: bad.append("--json does not list each style once")
+order = [fams.index(s["family"]) for s in d["styles"]]
+if order != sorted(order): bad.append("not grouped in families.json's order")
+_, o6 = run("--type", "06", "--json")
+if not all("06" in s["video_types"] for s in json.loads(o6)["styles"]) or not json.loads(o6)["styles"]: bad.append("--type 06")
+_, op = run("--aspect", "portrait", "--json")
+asp = {s["tags"]["aspect"] for s in json.loads(op)["styles"]}
+if not asp or "landscape" in asp: bad.append(f"--aspect portrait gave {asp}")
+want = sorted(s["slug"] for s in d["styles"] if s["tags"]["aspect"] in ("portrait", "both"))
+if sorted(s["slug"] for s in json.loads(op)["styles"]) != want: bad.append("--aspect portrait left out a style for both")
+rc, _ = run("--pace", "slow")
+if rc != 2: bad.append(f"--pace slow exited {rc}, not 2")
+_, txt = run()
+import re
+heads = [l for l in txt.splitlines() if re.fullmatch(r"\S.* · [a-z0-9-]+ \(\d+\)", l)]
+if len(heads) != len({s["family"] for s in d["styles"]}): bad.append("the text list has not one heading a family")
+print("; ".join(bad) or f"{len(got)} styles once each in {len(heads)} families, in order; --type, --aspect (portrait takes both) filter; a tag word it does not know exits 2")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "style list: $a"; else bad "style list: $a"; fi
+  # the swatch spec's numbers: spec 1 is the 5 s swatch render.sh always made, spec 2 the new one; a bad length or an
+  # aspect the style has not is refused
+  if a=$(python3 - <<'PY'
+import json, subprocess, sys, tempfile, pathlib
+def spec(folder, *a):
+    r = subprocess.run([sys.executable, "tools/styles.py", "spec", folder, *a], capture_output=True, text=True)
+    return r.returncode, r.stdout, r.stderr
+bad = []
+rc, out, _ = spec("styles/ink-wash", "--shell")
+for want in ("FRAMES='150'", "DUR='5'", "W='1920'", "H='1080'", "SAMPLES='12 51 90 138'", "MP4_LIMIT='1500000'", "JPG_LIMIT='200000'", "PREVIEW_T=''", "POSTER_FRAME='90'", "ASPECTS='landscape'"):
+    if want not in out: bad.append(f"spec 1: no {want}")
+rc, out, _ = spec("styles/_swatch/demo")
+d = json.loads(out)
+if (d["frames"], d["aspects"], d["mp4_bytes"], d["poster_bytes"], d["preview"], d["beats"]["type"]) != (240, ["landscape", "portrait"], 2400000, 150000, 2.0, [4.5, 7.0]):
+    bad.append(f"spec 2 (the demo): {d['frames']} {d['aspects']} {d['mp4_bytes']} {d['poster_bytes']} {d['preview']} {d['beats']}")
+rc, out, _ = spec("styles/_swatch/demo", "--aspect", "portrait")
+if json.loads(out)[ "w"] != 1080 or json.loads(out)["out_h"] != 1280: bad.append("the portrait spec")
+if spec("styles/ink-wash", "--aspect", "portrait")[0] != 1: bad.append("a portrait version of a landscape spec-1 style was not refused")
+t = pathlib.Path(tempfile.mkdtemp())
+tok = json.load(open("styles/_swatch/demo/tokens.json", encoding="utf-8"))
+for sw, what in (({"spec": 2, "duration": 11}, "11 s"), ({"spec": 2, "duration": 7.01}, "7.01 s (not whole frames)"), ({"spec": 1, "duration": 8}, "spec 1 at 8 s"),
+                 ({"spec": 3}, "spec 3"), ({"spec": 2, "beats": [1, 6, 5]}, "beats out of order")):
+    (t / "tokens.json").write_text(json.dumps({**tok, "swatch": sw}), encoding="utf-8")
+    if spec(str(t))[0] != 1: bad.append(f"{what} was not refused")
+print("; ".join(bad) or "spec 1: 150 frames, 1.5 MB, 200 KB, render.sh's four check frames, no preview, landscape only; spec 2: 240 frames, 2.4 MB, 150 KB, a 2 s preview, beats, a portrait version; a length outside 5–10 s or not in whole frames, an unknown spec and beats out of order are refused")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "style spec: $a"; else bad "style spec: $a"; fi
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  # the staged page: a spec-1 landscape page is the shell with one line added; spec 2 portrait has its size and length;
+  # lib.js reads the spec from the page (and is the 5 s 1920×1080 swatch without one)
+  if a=$(python3 - "$t" <<'PY'
+import json, subprocess, sys
+t = sys.argv[1]
+sys.path.insert(0, "tools"); import styles
+shell = open("styles/_swatch/index.html", encoding="utf-8").read()
+def page(folder, aspect):
+    sp = styles.spec_of(json.load(open(f"{folder}/tokens.json", encoding="utf-8")), aspect)
+    return json.loads(dict(l.split("=", 1) for l in styles.spec_shell(sp).splitlines())["PAGE_SPEC"].strip("'"))
+one = styles.stage_page(shell, "demo", page("styles/ink-wash", "landscape"))
+bad = []
+if [l for l in one.splitlines() if "__swatchSpec" not in l] != shell.splitlines(): bad.append("a spec-1 page differs from the shell by more than the spec line")
+two = styles.stage_page(shell, "demo", page("styles/_swatch/demo", "portrait"))
+for want in ('data-width="1080" data-height="1920"', 'data-duration="8"', "width: 1080px; height: 1920px", '<canvas id="c" width="1080" height="1920">', '"aspect":"portrait"'):
+    if want not in two: bad.append(f"the portrait page has no {want}")
+open(f"{t}/spec.json", "w").write(json.dumps(page("styles/_swatch/demo", "portrait")))
+print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  ) && mkdir -p "$t/lib" && cp styles/_swatch/lib.js "$t/lib/" && cp -R components "$t/lib/components" && b=$(cd "$t/lib" && node --input-type=module -e '
+import fs from "node:fs";
+const bad = [];
+let L = await import("./lib.js?a");
+if ([L.W, L.H, L.DUR, L.FRAMES, L.POSTER_T, L.SPEC_VERSION, L.BEATS, L.PORTRAIT].join() !== "1920,1080,5,150,3,1,,false") bad.push(`no spec: ${[L.W, L.H, L.DUR, L.FRAMES, L.SPEC_VERSION]}`);
+globalThis.window = { __swatchSpec: JSON.parse(fs.readFileSync("../spec.json", "utf8")) };
+L = await import("./lib.js?b");
+if ([L.W, L.H, L.DUR, L.FRAMES, L.SPEC_VERSION, L.PORTRAIT, L.TYPE.title, L.BEATS.type.join("-")].join() !== "1080,1920,8,240,2,true,130,4.5-7") bad.push(`portrait spec 2: ${[L.W, L.H, L.DUR, L.FRAMES, L.SPEC_VERSION, L.PORTRAIT, L.TYPE.title]}`);
+if (L.SAFE.action.x0 !== 54 || L.SAFE.action.y0 !== 96 || L.anchor("A1").x > 540) bad.push("SAFE and anchor() are not of the portrait frame");
+console.log(bad.join("; ")); process.exit(bad.length ? 1 : 0);' 2>&1); then
+    ok "style stage: a spec-1 page is the shell plus the spec line; a spec-2 portrait page has 1080×1920, 8 s and the spec; lib.js gives 1920×1080, 5 s without a spec and the portrait frame, beats and type sizes with one"
+  else bad "style stage: $a $b"; fi
+  # a made-up repo: one style copied from styles/, families.json, the type names, tools/media.txt and .gitignore
+  fx="$t/fx"; mkdir -p "$fx/styles/fx-one/media" "$fx/tools" "$fx/video-types"
+  ( cd "$fx" && git init -q . ) || bad "style fixture: git init"
+  cp styles/families.json styles/README.md "$fx/styles/"; cp tools/media.txt "$fx/tools/"; cp .gitignore "$fx/"
+  for v in video-types/[0-9][0-9]-*.md; do : > "$fx/$v"; done
+  cp styles/ink-wash/STYLE.md styles/ink-wash/swatch.js styles/ink-wash/score.json "$fx/styles/fx-one/"
+  cp styles/ink-wash/media/poster.jpg styles/ink-wash/media/swatch.mp4 "$fx/styles/fx-one/media/"
+  python3 - "$fx" <<'PY'
+import json, re, sys
+fx = sys.argv[1]; p = f"{fx}/styles/fx-one/tokens.json"
+t = json.load(open("styles/ink-wash/tokens.json", encoding="utf-8")); t["slug"] = "fx-one"
+json.dump(t, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+md = f"{fx}/styles/fx-one/STYLE.md"; s = open(md, encoding="utf-8").read().split("\n", 1)
+open(md, "w", encoding="utf-8").write(f"# {t['name']['zh']} · fx-one\n" + s[1])
+PY
+  # the old swatch in git, as the 33 spec-1 ones are (.gitignore now ignores new ones, so it is added by force)
+  ( cd "$fx" && git add -A && git add -f styles/fx-one/media/swatch.mp4 && git -c user.name=ci -c user.email=ci@example.invalid commit -qm fx ) || bad "style fixture: commit"
+  style_fx() { OVH_STYLES_ROOT="$fx" python3 "$ROOT/tools/styles.py" "$@"; }
+  # its README tables follow the data; a moved style shows as a difference
+  style_fx readme >/dev/null; a=$(style_fx readme --check 2>&1); rc=$?
+  python3 -c 'import json, sys; p = sys.argv[1]; t = json.load(open(p)); t["family"] = "handmade"; json.dump(t, open(p, "w"), ensure_ascii=False)' "$fx/styles/fx-one/tokens.json"
+  b=$(style_fx readme --check 2>&1); rc2=$?
+  case "$rc:$rc2:$b" in 0:1:*"not what styles/families.json and the tokens.json files say"*) ok "style readme: the tables are written from the data, and a style moved to another family shows until they are rewritten" ;;
+    *) bad "style readme ($rc, $rc2): $a | $b" ;; esac
+  style_fx readme >/dev/null
+  # what the check refuses in a style's metadata, each named
+  if a=$(python3 - "$fx" <<'PY'
+import json, os, subprocess, sys
+fx = sys.argv[1]; p = f"{fx}/styles/fx-one/tokens.json"
+good = json.load(open(p, encoding="utf-8"))
+env = {**os.environ, "OVH_STYLES_ROOT": fx}
+def check(**change):
+    t = json.loads(json.dumps(good));
+    for k, v in change.items():
+        if v is None: t.pop(k, None)
+        elif k == "tags_pace": t["tags"]["pace"] = v
+        elif k == "card_line": t["card"].pop("line")
+        else: t[k] = v
+    json.dump(t, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+    r = subprocess.run([sys.executable, "tools/styles.py", "check", "fx-one", "--meta"], capture_output=True, text=True, env=env)
+    return r.returncode, r.stdout
+bad = []
+for change, word in (({"family": "nope"}, "no family in styles/families.json"), ({"tags_pace": "slow"}, "tags.pace 'slow'"),
+                     ({"video_types": ["99"]}, "video_types ['99']"), ({"card_line": 1}, "card needs"), ({"tags": None}, "tags needs"),
+                     ({"swatch": {"spec": 2, "duration": 12}}, "duration 12"), ({"slug": "other"}, "slug 'other'")):
+    rc, out = check(**change)
+    if rc != 1 or word not in out: bad.append(f"{change}: {rc} {out.strip()[:160]}")
+rc, out = check()
+if rc != 0: bad.append(f"the good tokens failed: {out.strip()[:200]}")
+print("; ".join(bad) or "an unknown family, tag word or video type, a missing card cell or tags, a length outside the spec and a slug that is not the folder's are each refused and named")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "style check: $a"; else bad "style check: $a"; fi
+  # the videos out of git: a spec-2 swatch in git, unregistered, then registered; tools/media.txt's form
+  if command -v ffmpeg >/dev/null; then
+    python3 -c 'import json, sys; p = sys.argv[1]; t = json.load(open(p)); t["swatch"] = {"spec": 2, "duration": 8}; json.dump(t, open(p, "w"), ensure_ascii=False)' "$fx/styles/fx-one/tokens.json"
+    a=$(style_fx check fx-one 2>&1)
+    m="$fx/styles/fx-one/media"
+    # an 8 s swatch that keeps to spec 2: one grey picture (so it loops), a tone at about -14 LUFS, a poster and a preview
+    ffmpeg -v error -y -f lavfi -i "color=c=0x808080:s=1280x720:r=30:d=8" -f lavfi -i "sine=f=440:d=8:sample_rate=48000" \
+      -filter_complex "[1:a]volume=7.8dB,aformat=channel_layouts=stereo[a]" -map 0:v -map "[a]" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k -t 8 "$m/swatch.mp4"
+    ffmpeg -v error -y -f lavfi -i "color=c=0x808080:s=854x480:r=30:d=2" -c:v libx264 -pix_fmt yuv420p -t 2 "$m/preview.mp4"
+    ffmpeg -v error -y -f lavfi -i "color=c=0x808080:s=1280x720" -frames:v 1 "$m/poster.jpg"
+    b=$(style_fx check fx-one 2>&1)
+    ( cd "$fx" && git rm -q --cached styles/fx-one/media/swatch.mp4 && git add -A && git -c user.name=ci -c user.email=ci@example.invalid commit -qm spec2 ) >/dev/null 2>&1
+    c=$(style_fx check 2>&1); style_fx register fx-one > "$t/reg.out" 2>&1; d=$(style_fx check 2>&1); rc=$?
+    e=$(sed -n 's/^registered  styles\/fx-one\/media\/swatch.mp4  →  //p' "$t/reg.out")
+    v=""
+    case "$a" in *"5.00 s long, its tokens.json asks for 8 s"*"no media/preview.mp4"*) ;; *) v="$v [a spec-2 tokens.json over a 5 s video, no preview: $a]" ;; esac
+    case "$b" in *"is in git: spec-2 swatches live in the release"*) ;; *) v="$v [the video in git: $b]" ;; esac
+    case "$c" in *"is not in tools/media.txt: bin/vh style register fx-one"*) ;; *) v="$v [not registered: $c]" ;; esac
+    [ $rc = 0 ] || v="$v [after register: $d]"
+    case "$e" in styles-media/fx-one-????????.mp4) ;; *) v="$v [the asset name: $e]" ;; esac
+    grep -q "^styles/fx-one/media/swatch.mp4 styles-media/fx-one-[0-9a-f]\{8\}.mp4 [0-9a-f]\{64\}$" "$fx/tools/media.txt" || v="$v [no tools/media.txt line]"
+    grep -q "gh release upload styles-media" "$t/reg.out" || v="$v [no upload command]"
+    (cd "$fx" && git ls-files --error-unmatch styles/fx-one/media/swatch.mp4 >/dev/null 2>&1) && v="$v [the video is still in git]"
+    if [ -z "$v" ]; then ok "style media: a 5 s video under an 8 s spec-2 tokens.json and no preview are named; a spec-2 swatch in git and one not in tools/media.txt are refused; register writes styles-media/<slug>-<sha8>.mp4 and the upload commands; a fake 8 s swatch at -14 LUFS passes"
+    else bad "style media:$(printf '%s' "$v" | head -c 1200)"; fi
+    # tools/media.txt's own form
+    printf 'styles/fx-one/media/swatch.mp4 media/other.mp4 abc\n' >> "$fx/tools/media.txt"
+    a=$(style_fx check 2>&1)
+    case "$a" in *"twice"*"is no sha256"*|*"is no sha256"*"twice"*) ok "style media: a line of tools/media.txt that repeats a path or holds no sha256 is named" ;;
+      *) bad "style media: a bad tools/media.txt line: $(printf '%s' "$a" | head -c 400)" ;; esac
+  else skip "style media" "no ffmpeg here"; fi
+  # tools/fetch_media.sh: a bare asset from "media", <release>/<name> from that release
+  mkdir -p "$t/fm/tools" "$t/rel/media" "$t/rel/styles-media"
+  cp tools/fetch_media.sh "$t/fm/tools/"; printf 'one' > "$t/rel/media/a.mp4"; printf 'two' > "$t/rel/styles-media/b.mp4"
+  sha_of() { python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())' "$1"; }
+  { echo "x/a.mp4 a.mp4 $(sha_of one)"; echo "y/b.mp4 styles-media/b.mp4 $(sha_of two)"; } > "$t/fm/tools/media.txt"
+  a=$(VH_MEDIA_URL="file://$t/rel/media" "$t/fm/tools/fetch_media.sh" 2>&1); rc=$?
+  if [ $rc = 0 ] && [ "$(cat "$t/fm/x/a.mp4" 2>/dev/null)" = one ] && [ "$(cat "$t/fm/y/b.mp4" 2>/dev/null)" = two ]; then
+    ok "fetch_media.sh: a bare asset comes from the release media, <release>/<name> from that release"
+  else bad "fetch_media.sh with two releases ($rc): $a"; fi
+  # a GitHub release video on a page: <source type> passes; <video src>, a <source> without its type and a script's
+  # .src (directly, through a constant or a function) are each named
+  cat > "$t/page.html" <<'HTML'
+<video controls><source src="https://github.com/o/r/releases/download/media/ok.mp4" type="video/mp4"></video>
+<video src="https://github.com/o/r/releases/download/media/a.mp4"></video>
+<video><source src="https://github.com/o/r/releases/download/media/b.mp4"></video>
+<script>
+const BASE = 'https://github.com/o/r/releases/download/styles-media/';
+const clip = (s) => `https://github.com/o/r/releases/download/styles-media/${s}.mp4`;
+v.src = BASE + "c.mp4";
+w.src = clip("d");
+img.src = BASE + "e.gif"; // release-src-ok
+x.setAttribute("src", "https://github.com/o/r/releases/download/media/f.mp4");
+</script>
+HTML
+  a=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import readme; from pathlib import Path; print("\n".join(readme.release_video_problems([Path(sys.argv[1])])))' "$t/page.html" 2>&1)
+  if [ "$(printf '%s\n' "$a" | grep -c .)" = 5 ] && printf '%s' "$a" | grep -q ':2: <video src' && printf '%s' "$a" | grep -q ':3: <source>' \
+    && printf '%s' "$a" | grep -q ':7: a script' && printf '%s' "$a" | grep -q ':8: a script' && printf '%s' "$a" | grep -q ':10: a script'; then
+    ok "release videos: <source type=video/mp4> passes; <video src>, a <source> with no type and a script's .src (direct, through a constant or a function) are named; a line marked release-src-ok is left alone"
+  else bad "release videos: $a"; fi
   rm -rf "$t"
 }
 

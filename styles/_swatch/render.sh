@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# render.sh — render one style swatch (5 s, 30 fps, 1920×1080 canvas) with the pinned HyperFrames, then
-# write styles/<slug>/media/swatch.mp4 (1280×720 H.264, ≤ 1.5 MB) and media/poster.jpg (t = 3.0 s, ≤ 200 KB).
+# render.sh — render one style swatch with the pinned HyperFrames, at the spec its tokens.json asks for ("swatch";
+# tools/styles.py spec prints it): spec 1, the original 5 s, 30 fps, 1920×1080 canvas → styles/<slug>/media/swatch.mp4
+# (1280×720 H.264, ≤ 1.5 MB) and media/poster.jpg (t = 3.0 s, ≤ 200 KB); spec 2, 5–10 s (default 8) in four beats →
+# the same at ≤ 3 MB per 10 s, a poster ≤ 150 KB and media/preview.mp4 (2 s, 854×480, ≤ 200 KB, no sound), and for a
+# style that suits portrait (tags.aspect portrait or both) a second run with --aspect portrait: a 1080×1920 canvas →
+# media/swatch-portrait.mp4 (720×1280) and media/poster-portrait.jpg. `bin/vh style <slug>` runs every aspect it has.
 #
-#   styles/_swatch/render.sh <slug> [--draft] [--workers N] [--hud] [--png [--frames L]] [--stage-only] [--stamp] [--timeout S]
+#   styles/_swatch/render.sh <slug> [--aspect landscape|portrait] [--draft] [--workers N] [--hud] [--png [--frames L]]
+#                            [--stage-only] [--stamp] [--timeout S]
 #
 #   <slug>        a folder styles/<slug>/ with swatch.js + tokens.json, or a built-in: demo | catalog | fontprobe,
 #                 or a path containing "/" to a scene folder anywhere (slug = its basename; media/ goes inside it).
 #                 A folder with swatch.py instead of swatch.js is a Blender scene (README.md, "Blender 场景")
+#   --aspect A    landscape (default) or portrait (spec 2, for a style whose tags.aspect is portrait or both); its
+#                 intermediate files go to out/<slug>-portrait/ and its stage to out/stage/<slug>-portrait/
 #   --draft       HyperFrames --quality draft (faster, softer); outputs go to out/<slug>/media, never over styles/<slug>/media.
 #                 Blender scenes: Cycles on the GPU with fewer samples instead of the CPU
 #   --workers N   parallel Chrome workers (default 2; 1 when another `hyperframes render` is already running);
@@ -33,25 +40,27 @@ set -euo pipefail
 SW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SW/../.." && pwd)"
 HF="$SW/node_modules/.bin/hyperframes"
-FPS=30; DUR=5; FRAMES=150; POSTER_FRAME=90
-MP4_LIMIT=1500000; JPG_LIMIT=200000          # bytes (decimal MB/KB, so both readings of "1.5 MB" hold)
+# FPS DUR FRAMES W H OUT_W OUT_H POSTER_FRAME MP4_LIMIT JPG_LIMIT PREVIEW_* SAMPLES PAGE_SPEC SPEC ASPECTS: from the
+# style's tokens.json through tools/styles.py spec, below (bytes in decimal MB/KB, so both readings of "1.5 MB" hold)
 ok=$'\033[32m✓\033[0m'; no=$'\033[31m✗\033[0m'; wa=$'\033[33m!\033[0m'
 die() { echo "$no $*" >&2; exit 1; }
 fsize() { wc -c < "$1" | tr -d ' '; }         # bytes; `stat` flags differ between BSD and GNU
 
-slug=""; draft=0; workers=""; hud=false; png=0; stage_only=0; timeout=""; frames=""; stamp_only=0
+slug=""; draft=0; workers=""; hud=false; png=0; stage_only=0; timeout=""; frames=""; stamp_only=0; aspect=landscape
 while [ $# -gt 0 ]; do
   case "$1" in
     --draft) draft=1 ;; --hud) hud=true ;; --png) png=1 ;; --stage-only) stage_only=1 ;; --stamp) stamp_only=1 ;;
     --workers) workers=${2:?}; shift ;; --workers=*) workers=${1#*=} ;;
     --timeout) timeout=${2:?}; shift ;; --timeout=*) timeout=${1#*=} ;;
     --frames) frames=${2:?}; shift ;; --frames=*) frames=${1#*=} ;;
+    --aspect) aspect=${2:?}; shift ;; --aspect=*) aspect=${1#*=} ;;
     -h|--help) awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$slug" ] && slug=$1 || die "one slug at a time" ;;
   esac; shift
 done
-[ -n "$slug" ] || die "usage: styles/_swatch/render.sh <slug> [--draft] [--workers N] [--hud] [--png [--frames L]] [--stage-only] [--stamp] [--timeout S]"
+[ -n "$slug" ] || die "usage: styles/_swatch/render.sh <slug> [--aspect landscape|portrait] [--draft] [--workers N] [--hud] [--png [--frames L]] [--stage-only] [--stamp] [--timeout S]"
+case "$aspect" in landscape|portrait) ;; *) die "--aspect is landscape or portrait, not '$aspect'" ;; esac
 [ -z "$workers" ] || [[ "$workers" =~ ^[1-9][0-9]*$ ]] || die "--workers takes a whole number ≥ 1, not '$workers'"
 SRCDIR=""
 case "$slug" in */*) [ -d "$slug" ] || die "no such directory: $slug"; SRCDIR="$(cd "$slug" && pwd)"; slug=$(basename "$SRCDIR") ;; esac
@@ -68,6 +77,10 @@ else SRC="$ROOT/styles/$slug"; MEDIA="$SRC/media"; fi
 engine=hf; [ $builtin = 0 ] && [ ! -f "$SRC/swatch.js" ] && [ -f "$SRC/swatch.py" ] && engine=blender
 [ -f "$SRC/tokens.json" ] || die "missing $SRC/tokens.json"
 python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$SRC/tokens.json" 2>/dev/null || die "$SRC/tokens.json is not valid JSON"
+# the swatch spec this style asks for (tokens.json "swatch"; tools/styles.py, styles/_swatch/README.md "样片规格")
+specsh=$(python3 "$ROOT/tools/styles.py" spec "$SRC" --aspect "$aspect" --shell 2>&1) || die "${specsh#*: }"
+eval "$specsh"
+SUF=""; [ "$aspect" = portrait ] && SUF=-portrait   # the portrait run's media names and its own out/ and stage folders
 if [ $engine = hf ]; then
   [ -f "$SRC/swatch.js" ] || die "missing $SRC/swatch.js (or swatch.py for a Blender scene)"
   [ -x "$HF" ] || die "HyperFrames not installed: (cd styles/_swatch && npm ci)"
@@ -89,7 +102,7 @@ else
 fi
 export PYTHONDONTWRITEBYTECODE=1                    # importing swatch.py must not leave a __pycache__ in styles/<slug>/
 
-OUT="$SW/out/$slug"; STAGE="$SW/out/stage/$slug"; LOCK="$SW/out/stage/$slug.lock"
+OUT="$SW/out/$slug$SUF"; STAGE="$SW/out/stage/$slug$SUF"; LOCK="$SW/out/stage/$slug$SUF.lock"
 bl_stamp() { # a checksum of everything a Blender scene's frames depend on: the Blender build, the scene folder's files
   # (names and bytes; not its media, docs, audio or foley list) and the renderer. Not the machine's fonts: a font update
   # needs a fresh final render before determinism.sh means anything
@@ -100,7 +113,7 @@ bl_stamp() { # a checksum of everything a Blender scene's frames depend on: the 
 }
 if [ $stamp_only = 1 ]; then bl_stamp; exit 0; fi
 mkdir -p "$SW/out/stage" "$OUT" "$MEDIA"
-mkdir "$LOCK" 2>/dev/null || die "another render of '$slug' holds $LOCK (remove it if that render is dead)"
+mkdir "$LOCK" 2>/dev/null || die "another render of '$slug$SUF' holds $LOCK (remove it if that render is dead)"
 HFPID=""; SBX=""            # SBX: the sandbox profile bl_profile writes (macOS)
 cleanup() {
   [ -n "$HFPID" ] && kill -0 "$HFPID" 2>/dev/null && { kill -TERM -- "-$HFPID" 2>/dev/null || kill -TERM "$HFPID" 2>/dev/null || true; }
@@ -125,18 +138,13 @@ if [ $builtin = 0 ]; then
   rsync -a --exclude media --exclude '*.md' --exclude '.DS_Store' "$SRC/" "$STAGE/scenes/$slug/"
   if find "$STAGE/scenes/$slug" -name '*.html' | grep -q .; then die "styles/$slug/ must not contain .html files (one composition per root)"; fi
 fi
-python3 - "$STAGE/index.html" "$slug" <<'PY' || die "could not set the style default in the staged index.html"
-import html, json, re, sys
-p, slug = sys.argv[1], sys.argv[2]; s = open(p).read()
-m = re.search(r"data-composition-variables='([^']*)'", s)
-v = json.loads(html.unescape(m.group(1)))
-for d in v:
-    if d["id"] == "style": d["default"] = slug
-open(p, "w").write(s[:m.start(1)] + json.dumps(v, ensure_ascii=False, separators=(",", ":")) + s[m.end(1):])
-PY
+# the style variable's default (hyperframes snapshot | preview take no --variables), the spec's frame size and length, and
+# the spec itself as window.__swatchSpec for lib.js (tools/styles.py stage_page)
+python3 "$ROOT/tools/styles.py" page "$STAGE/index.html" "$slug" "$PAGE_SPEC" || die "could not set the style default and the spec in the staged index.html"
 if [ $stage_only = 1 ]; then
   echo "$ok stage ready: ${STAGE#$ROOT/}"
-  echo "   snapshot: HYPERFRAMES_SKIP_SKILLS=1 $HF snapshot ${STAGE#$ROOT/} --no-browser-gpu --at 0.4,1.7,3.0,4.6 --describe false --output ${OUT#$ROOT/}/snapshots"
+  at=$(python3 -c "import sys; print(','.join(f'{int(k) / 30:.1f}' for k in sys.argv[1:]))" $SAMPLES)
+  echo "   snapshot: HYPERFRAMES_SKIP_SKILLS=1 $HF snapshot ${STAGE#$ROOT/} --no-browser-gpu --at $at --describe false --output ${OUT#$ROOT/}/snapshots"
   echo "   preview : HYPERFRAMES_SKIP_SKILLS=1 $HF preview ${STAGE#$ROOT/}"
   echo "   (fonts: judge them on render.sh output, not snapshots)"
   exit 0
@@ -169,7 +177,7 @@ bl_render() { # $1 = frame folder, $2 = frame list ("0-149", "149,90,12"): the l
   mkdir -p "$dir"
   while IFS= read -r chunk; do
     bl_run -b --factory-startup --python-exit-code 1 --python "$SW/blender_render.py" -- "$SRC" "$dir" \
-      --frames "$chunk" --quality "$q" --fonts "$OUT/fonts.json" ${hudarg:+"$hudarg"} </dev/null &
+      --spec "$PAGE_SPEC" --frames "$chunk" --quality "$q" --fonts "$OUT/fonts.json" ${hudarg:+"$hudarg"} </dev/null &
     pids="$pids $!"
   done < <(python3 - "$2" "$workers" <<'PY'
 import sys
@@ -256,7 +264,7 @@ if [ $engine = blender ]; then  # the scene's fonts → files Blender can load (
 fi
 if [ $png = 1 ]; then       # lossless frames only (determinism checks); no mp4 / poster
   PNGDIR="$OUT/png-w$workers"; [ -n "$frames" ] && PNGDIR="$OUT/png-sample-w$workers"; rm -rf "$PNGDIR"
-  echo "→ PNG sequence '$slug' (${workers} worker(s)$([ -n "$frames" ] && echo ", frames $frames")) → ${PNGDIR#$ROOT/}"
+  echo "→ PNG sequence '$slug$SUF' (${workers} worker(s)$([ -n "$frames" ] && echo ", frames $frames")) → ${PNGDIR#$ROOT/}"
   rc=0
   if [ $engine = blender ]; then bl_profile; run_watched bl_render "$PNGDIR" "${frames:-0-$((FRAMES - 1))}" || rc=$?
   else run_hf --format png-sequence --output "$PNGDIR" || rc=$?; fi
@@ -276,7 +284,7 @@ if [ $engine = blender ]; then
   # HyperFrames path writes, near-lossless (CRF 8, one thread: the same bytes every run), so everything below is shared
   FR="$OUT/frames$([ $draft = 1 ] && echo -draft || true)"; rm -rf "$FR"
   stamp=""; [ $draft = 1 ] || [ "$hud" = true ] || stamp=$(bl_stamp)   # taken before rendering: an edit made meanwhile must not match
-  echo "→ rendering '$slug' in Blender ($([ $draft = 1 ] && echo "draft, GPU" || echo "final, CPU"), ${workers} process(es), timeout ${timeout}s)"
+  echo "→ rendering '$slug$SUF' in Blender ($([ $draft = 1 ] && echo "draft, GPU" || echo "final, CPU"), ${workers} process(es), timeout ${timeout}s)"
   rc=0; bl_profile; run_watched bl_render "$FR" "0-$((FRAMES - 1))" || rc=$?
   T1=$(date +%s)
   [ $rc = 0 ] || { echo "$no Blender exited with $rc — last lines of ${LOG#$ROOT/}:"; grep -h "\[swatch\]" "$LOG" | grep -v "\[swatch\] frame " | tail -15; tail -5 "$LOG"; exit 1; }
@@ -288,7 +296,7 @@ if [ $engine = blender ]; then
     "$HFMP4" || die "could not encode the frames to ${HFMP4#$ROOT/}"
   [ -z "$stamp" ] || echo "$stamp" > "$FR/inputs.txt"   # determinism.sh compares fresh frames against these
 else
-  echo "→ rendering '$slug' (${quality}, ${workers} worker(s), timeout ${timeout}s)"
+  echo "→ rendering '$slug$SUF' (spec $SPEC, ${DUR} s, ${W}×${H}, ${quality}, ${workers} worker(s), timeout ${timeout}s)"
   rc=0; run_hf --quality "$quality" --output "$HFMP4" || rc=$?
   T1=$(date +%s)
   [ $rc = 0 ] || { echo "$no hyperframes exited with $rc — last lines of ${LOG#$ROOT/}:"; tail -15 "$LOG"; exit 1; }
@@ -299,9 +307,9 @@ fi
 n=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$HFMP4")
 wh=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$HFMP4")
 [ "$n" = "$FRAMES" ] || die "frame count $n ≠ $FRAMES in ${HFMP4#$ROOT/}"
-[ "$wh" = "1920x1080" ] || die "render is $wh, expected 1920x1080"
+[ "$wh" = "${W}x${H}" ] || die "render is $wh, expected ${W}x${H}"
 fail=0; drew=0; sums=""
-for f in 12 51 90 138; do     # t = 0.4 / 1.7 / 3.0 / 4.6 — one frame per content-spec segment
+for f in $SAMPLES; do     # one frame per content-spec segment (spec 1: t = 0.4 / 1.7 / 3.0 / 4.6; spec 2: each beat's middle)
   crop=""; [ "$hud" = true ] && crop="crop=iw:ih-100:0:0,"      # keep the HUD strip out of the "did it draw" stats
   st=$(ffmpeg -v error -i "$HFMP4" -vf "select=eq(n\\,$f),${crop}signalstats,metadata=mode=print:file=-" -frames:v 1 -f null - 2>/dev/null | tr '\n' ' ')
   get() { echo "$st" | sed -n "s/.*lavfi.signalstats.$1=\([0-9.]*\).*/\1/p"; }
@@ -325,37 +333,39 @@ echo "$ok ${n} frames at ${wh}, canvas drew, no error card ($((T1 - T0))s render
 
 # ── optional score → music, optional events.json → foley on the frame of each action, mixed with the swatch profile
 AUDIO=""; MIXARGS=(); TP=-1.65
-if [ $builtin = 0 ] && [ -f "$SRC/score.json" ]; then   # (SRC = styles/<slug> or the given folder)
+if [ -f "$SRC/score.json" ]; then   # (SRC = styles/<slug>, the given folder, or a built-in: demo has a score, as a template)
   echo "→ music from ${SRC#$ROOT/}/score.json"
   "$ROOT/bin/vh" music "$SRC/score.json" "$OUT/music_raw.wav" >/dev/null
   MIXARGS+=(music="$OUT/music_raw.wav")
 fi
-if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist", "role"}]; own WAVs relative to the style folder
+if [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist", "role"}]; own WAVs relative to the style folder
   echo "→ foley from ${SRC#$ROOT/}/events.json"
   "$ROOT/bin/vh" sfx lib "$OUT/sfxlib" >/dev/null       # rebuilt each time, so library fixes always reach the swatch
   MIXARGS+=(events="$SRC/events.json" lib="$OUT/sfxlib" root="$SRC")
 fi
 # profile=swatch (playbook/04-audio.md, 混音): the music is the anchor; each foley event moves half way to its class's
 # level re the music's 3 s loudness (hero / detail / ambience / signal), one short room behind them, one static gain to
-# −14 LUFS, true peak ≤ $1 dBTP. Cut to 5 s with the 0.45 s fade inside the mix, so an SFX past the end fades with the score.
+# −14 LUFS, true peak ≤ $1 dBTP. Cut to the swatch's length with the 0.45 s fade inside the mix, so an SFX past the end
+# fades with the score. Every swatch, of either spec and either aspect, sits at this one loudness.
 mix_audio() {
   "$ROOT/bin/vh" mix "$OUT/music.wav" profile=swatch dur=$DUR fade=0.45 tp="$1" "${MIXARGS[@]}" stems="$OUT/stems" > "$OUT/mix.txt" \
     || { cat "$OUT/mix.txt"; die "bin/vh mix failed"; }
 }
 if [ ${#MIXARGS[@]} -gt 0 ]; then mix_audio "$TP"; AUDIO="$OUT/music.wav"; fi
 
-# ── swatch.mp4: 1280×720, H.264 High, yuv420p, faststart; CRF climbs until it fits the size cap.
+# ── swatch.mp4: OUT_W×OUT_H (1280×720, or 720×1280 for portrait), H.264 High, yuv420p, faststart; CRF climbs until it
+#    fits the size cap (MP4_LIMIT: 3 MB per 10 s).
 #    -threads 1: x264's VBV rate control (-maxrate/-bufsize) is not repeatable with frame threads — four encodes of the
 #    same input spanned 1 493 473–1 503 291 B around the 1 500 000 B cap, flipping halftone-comic between CRF 24 and 26.
 #    One thread gives the same bytes every time and costs about 3 s per pass at 720p.
-MP4="$MEDIA/swatch.mp4"; TMP="$OUT/swatch.tmp.mp4"
+MP4="$MEDIA/swatch$SUF.mp4"; TMP="$OUT/swatch.tmp.mp4"
 encode() { # $1 = CRF → $TMP
   if [ -n "$AUDIO" ]; then
-    ffmpeg -v error -y -i "$HFMP4" -i "$AUDIO" -map 0:v:0 -map 1:a:0 -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
+    ffmpeg -v error -y -i "$HFMP4" -i "$AUDIO" -map 0:v:0 -map 1:a:0 -vf "scale=$OUT_W:$OUT_H:flags=lanczos,format=yuv420p" \
       -c:v libx264 -preset slow -profile:v high -crf "$1" -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -c:a aac -b:a 128k -ac 2 -t $DUR -movflags +faststart "$TMP"
   else
-    ffmpeg -v error -y -i "$HFMP4" -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
+    ffmpeg -v error -y -i "$HFMP4" -vf "scale=$OUT_W:$OUT_H:flags=lanczos,format=yuv420p" \
       -c:v libx264 -preset slow -profile:v high -crf "$1" -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -an -t $DUR -movflags +faststart "$TMP"
   fi
@@ -363,7 +373,7 @@ encode() { # $1 = CRF → $TMP
 for crf in 18 20 22 24 26 28 30 32 34; do
   encode $crf; sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
 done
-[ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
+[ "$sz" -le $MP4_LIMIT ] || die "swatch$SUF.mp4 is still $sz bytes at CRF $crf (budget $MP4_LIMIT): reduce full-frame grain/noise"
 # The AAC encode moves the true peak by an amount that depends on the content (−1.9…+1.4 dB at 128k on the swatches' first encodes, up to +2.4 on a heavily limited remix), so
 # the encode is measured (the same 4× BS.1770 meter as the mix) and, while it peaks over −1.5 dBTP, the mix is made again
 # with its ceiling set below the mix's own true peak (from stems/meta.json; a mix that never reached the limiter would
@@ -381,7 +391,7 @@ print(f'{min(float(sys.argv[1]), m) - (float(sys.argv[2]) + 1.5) - 0.1:.2f}')" "
     echo "   the AAC encode peaks at $etp dBTP: the mix again with tp=$TP"
     mix_audio "$TP"; encode $crf; sz=$(fsize "$TMP")
   done
-  [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 grew to $sz bytes with the new mix at CRF $crf"
+  [ "$sz" -le $MP4_LIMIT ] || die "swatch$SUF.mp4 grew to $sz bytes with the new mix at CRF $crf"
 fi
 
 # ── audio QA over the whole clip (the fade-out tail excluded): the scan (silence, dropouts, pumping; the score's own
@@ -405,21 +415,38 @@ if [ -n "$AUDIO" ]; then
 fi
 [ -z "$AUDIO" ] || qa_gate "$TMP" "$OUT/qa_mp4.txt"
 mv "$TMP" "$MP4"
-echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -n "$AUDIO" ] && echo ", mix tp $TP dBTP, encode $etp dBTP")$([ -z "$AUDIO" ] && echo ', silent'))"
+echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && echo ', +music')$([ -f "$SRC/events.json" ] && echo ', +foley')$([ -n "$AUDIO" ] && echo ", mix tp $TP dBTP, encode $etp dBTP")$([ -z "$AUDIO" ] && echo ', silent'))"
 
-# ── poster.jpg: frame 90 (t = 3.0 s) from the 1080p render, 1280×720, ≤ 200 KB
-JPG="$MEDIA/poster.jpg"
+# ── poster.jpg: the poster frame (t = 3.0 s unless tokens.json says) from the full-size render, OUT_W×OUT_H, ≤ JPG_LIMIT
+#    (200 KB for spec 1, 150 KB for spec 2)
+JPG="$MEDIA/poster$SUF.jpg"
 for q in 2 3 4 5 6 7 8 10 12 15; do
-  ffmpeg -v error -y -i "$HFMP4" -vf "select=eq(n\\,$POSTER_FRAME),scale=1280:720:flags=lanczos" -frames:v 1 -q:v $q "$JPG"
+  ffmpeg -v error -y -i "$HFMP4" -vf "select=eq(n\\,$POSTER_FRAME),scale=$OUT_W:$OUT_H:flags=lanczos" -frames:v 1 -q:v $q "$JPG"
   psz=$(fsize "$JPG"); [ "$psz" -le $JPG_LIMIT ] && break
 done
-[ "$psz" -le $JPG_LIMIT ] || die "poster.jpg is still $psz bytes at q $q"
+[ "$psz" -le $JPG_LIMIT ] || die "poster$SUF.jpg is still $psz bytes at q $q"
 echo "$ok ${JPG#$ROOT/}  $((psz / 1000)) KB (q $q)"
 
-# ── contact sheet for self-review (not shipped): 10 frames, t = 0.25 … 4.75
+# ── preview.mp4 (spec 2, landscape): 2 s from PREVIEW_T, 854×480, H.264, no sound, ≤ 200 KB: the loop a gallery plays
+#    on hover. It stays in git with the poster; the full swatch goes to the release (bin/vh style register)
+if [ -n "$PREVIEW_T" ]; then
+  PV="$MEDIA/preview.mp4"; PVT="$OUT/preview.tmp.mp4"
+  for crf in 24 26 28 30 32 34 36 38; do
+    ffmpeg -v error -y -ss "$PREVIEW_T" -i "$HFMP4" -t 2 -vf "scale=$PREVIEW_W:$PREVIEW_H:flags=lanczos,format=yuv420p" \
+      -c:v libx264 -preset slow -profile:v high -crf "$crf" -g 30 -r $FPS -threads 1 -an -movflags +faststart "$PVT"
+    pvs=$(fsize "$PVT"); [ "$pvs" -le "$PREVIEW_LIMIT" ] && break
+  done
+  [ "$pvs" -le "$PREVIEW_LIMIT" ] || die "preview.mp4 is still $pvs bytes at CRF $crf (budget $PREVIEW_LIMIT)"
+  mv "$PVT" "$PV"; echo "$ok ${PV#$ROOT/}  $((pvs / 1000)) KB (crf $crf, ${PREVIEW_T}–$(python3 -c "print(f'{$PREVIEW_T + 2:g}')") s)"
+fi
+
+# ── contact sheet for self-review (not shipped): 10 frames spread over the swatch
 if command -v uv >/dev/null 2>&1 && uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
   echo "$ok sheet ${OUT#$ROOT/}/sheet.png"
 else
   ffmpeg -v error -y -i "$HFMP4" -vf "fps=2,scale=384:-1,tile=5x2" -frames:v 1 "$OUT/sheet.png" && echo "$ok sheet ${OUT#$ROOT/}/sheet.png (no timestamps)"
 fi
 echo "   total $(( $(date +%s) - T0 ))s · render log ${LOG#$ROOT/}"
+if [ "$SPEC" -ge 2 ] && [ $draft = 0 ] && [ $builtin = 0 ] && [ -z "$SRCDIR" ]; then   # a spec-2 swatch stays out of git
+  echo "   the full video stays out of git: once every aspect ($ASPECTS) is rendered, bin/vh style register $slug (tools/media.txt); poster$SUF.jpg$([ -n "$PREVIEW_T" ] && echo " and preview.mp4") go into git"
+fi

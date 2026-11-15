@@ -1,0 +1,134 @@
+{
+  "_doc": [
+    "The style library's families and tag words: the one place they are defined. A family is what the picture looks like;",
+    "each style belongs to exactly one, named by id in its own tokens.json (\"family\"). The order of `families` is the order",
+    "of styles/README.md's sections and of `bin/vh style list`. `tags` are the words a style's tokens.json \"tags\" may use,",
+    "one value per dimension. Video types (tokens.json \"video_types\") are the numbers of video-types/NN-*.md.",
+    "tools/styles.py reads this file; `bin/vh style check` holds every style to it, and `python3 tools/styles.py readme`",
+    "writes the README's tables from it. Rename a family here and in the tokens.json of its styles; nothing else names it."
+  ],
+  "families": [
+    {
+      "id": "explainer-drawing",
+      "zh": "讲解手绘",
+      "en": "Explainer drawing",
+      "line_zh": "边讲边画出来的图：白板、黑板、线稿、图解、剖面。东西是一笔笔画出来、拆开来给人看懂的",
+      "line_en": "Drawn while it is explained: whiteboards, chalk, line art, diagrams and cutaways, built stroke by stroke"
+    },
+    {
+      "id": "painting",
+      "zh": "绘画插画",
+      "en": "Painting and illustration",
+      "line_zh": "画出来的画面：水彩、油画、钢笔淡彩、扁平矢量插画，看得见颜料和笔触",
+      "line_en": "Painted pictures: watercolour, oil, pen and wash, flat vector illustration; the paint and the brush show"
+    },
+    {
+      "id": "print-collage",
+      "zh": "印刷与拼贴",
+      "en": "Print and collage",
+      "line_zh": "印出来、剪出来的平面：网点、专色套印、木刻、铜版、丝印、剪纸拼贴，套不准和纸纹是味道",
+      "line_en": "Printed and cut: halftone, spot colours, woodcut, engraving, screen print, cut-paper collage; misregistration and paper are the flavour"
+    },
+    {
+      "id": "traditional-craft",
+      "zh": "传统工艺",
+      "en": "Traditional crafts",
+      "line_zh": "东方和西方的老手艺：水墨、壁画、皮影、剪纸、年画、浮世绘、彩色玻璃，材料和纹样都要考据",
+      "line_en": "Old crafts, East and West: ink wash, murals, shadow puppets, paper cuts, woodblock prints, stained glass; materials and motifs researched"
+    },
+    {
+      "id": "handmade",
+      "zh": "手工质感",
+      "en": "Handmade",
+      "line_zh": "真实材料做的小世界：黏土、毛毡、折纸、积木、纸雕、桌面微缩，一拍二地动",
+      "line_en": "Small worlds of real material: clay, felt, folded paper, bricks, pop-up paper, tabletop miniatures, often on twos"
+    },
+    {
+      "id": "news-documentary",
+      "zh": "新闻纪实",
+      "en": "News and documentary",
+      "line_zh": "真素材和证据当主角：档案照片、字幕新闻、调查复原、口播图解，每个标注都有出处",
+      "line_en": "Real material and evidence lead: archive photos, captioned news, investigations, talking heads with graphics; every label sourced"
+    },
+    {
+      "id": "screen-ui",
+      "zh": "屏幕界面",
+      "en": "Screens and interfaces",
+      "line_zh": "画面就是一块屏幕：界面卡片、终端、HUD、桌面录屏、表格、代码编辑器",
+      "line_en": "The picture is a screen: interface cards, terminals, HUDs, desktops, spreadsheets, code editors"
+    },
+    {
+      "id": "film-look",
+      "zh": "影像质感",
+      "en": "Film and video looks",
+      "line_zh": "像某种摄影机、胶片或录像拍出来的：颗粒、色调、抽帧、构图和刮痕都来自那种影像和它的年代",
+      "line_en": "As if shot on a certain camera, stock or tape: grain, grade, step-printing, framing and scratches from that medium and its era"
+    },
+    {
+      "id": "cartoon-game",
+      "zh": "卡通与游戏",
+      "en": "Cartoons and games",
+      "line_zh": "卡通和游戏的画法：扁平卡通、橡皮管、赛璐珞、像素、漫画分格，靠夸张的动作和游戏的规则讲事",
+      "line_en": "Cartoon and game drawing: flat cartoons, rubber hose, cel, pixels, comic panels; told through big motion and game rules"
+    },
+    {
+      "id": "3d-light",
+      "zh": "3D 与光",
+      "en": "3D and light",
+      "line_zh": "立体的形和真实的光：棚拍产品、体积光、玻璃、霓虹、巨大的形体和走进去的世界",
+      "line_en": "Solid form and real light: studio products, volumetric light, glass, neon, monumental shapes, worlds to walk into"
+    },
+    {
+      "id": "map-data",
+      "zh": "地图数据",
+      "en": "Maps, data and instruments",
+      "line_zh": "画面在量一样东西：地图、图表、图形统计、仪器读数，数字和位置都是真的",
+      "line_en": "The picture measures something: maps, charts, pictograms, instrument readouts; the numbers and places are real"
+    },
+    {
+      "id": "type-graphic",
+      "zh": "字与平面",
+      "en": "Type and graphic design",
+      "line_zh": "字和纯平面图形本身就是画面：网格排字、动态字、梗图排版、铬字贴纸、几何构成",
+      "line_en": "Type and pure graphic shapes are the picture: grid typography, kinetic type, meme layouts, chrome and stickers, geometric play"
+    }
+  ],
+  "tags": {
+    "pace": {
+      "zh": "节奏",
+      "en": "pace",
+      "values": {
+        "calm": { "zh": "静", "en": "calm", "line": "慢动、长停、留白多，一个动作一个动作地来" },
+        "medium": { "zh": "中", "en": "medium", "line": "讲解片的稳步节奏：每拍有一件事，但不赶" },
+        "fast": { "zh": "快", "en": "fast", "line": "卡拍硬切，几乎每拍一个动作一个声音" }
+      }
+    },
+    "aspect": {
+      "zh": "画幅",
+      "en": "aspect",
+      "values": {
+        "landscape": { "zh": "横", "en": "landscape", "line": "语法离不开宽画面（长卷、地平线、横向的舞台）" },
+        "portrait": { "zh": "竖", "en": "portrait", "line": "为竖屏而生（字幕新闻、笔记卡），横屏反而别扭" },
+        "both": { "zh": "都行", "en": "both", "line": "换成 9:16 重新构图也成立；样片另出一个竖版" }
+      }
+    },
+    "cost": {
+      "zh": "渲染成本",
+      "en": "render cost",
+      "values": {
+        "seconds": { "zh": "秒级", "en": "seconds", "line": "Canvas 2D、SVG、轻的着色器：一段样片一分钟内渲完" },
+        "minutes": { "zh": "分钟级", "en": "minutes", "line": "全屏逐像素着色器、Three.js 场景：一段样片要几分钟" },
+        "blender": { "zh": "Blender 级", "en": "Blender", "line": "路径追踪的光和真实景深（Cycles）：一段样片几十分钟起" }
+      }
+    },
+    "source": {
+      "zh": "来源",
+      "en": "source",
+      "values": {
+        "masterwork": { "zh": "名作提炼", "en": "masterworks", "line": "从电影、动画、设计和美术的名作里拉片提炼" },
+        "community": { "zh": "社区作品", "en": "community work", "line": "从社区里用 agent 做的作品、skill 和公开视频里提炼，只借画面类型" },
+        "own-film": { "zh": "本仓库的片子", "en": "films made here", "line": "从用这个仓库做过的片子里成形的画面语言提炼；起中性的名字，不出现频道和片名" }
+      }
+    }
+  }
+}

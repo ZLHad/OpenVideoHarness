@@ -164,6 +164,9 @@ def main():
     build_jpg(have, a.out_dir / "gallery.jpg", a.cols)
     if a.mp4 or a.readme:
         vids = [d for d in have if (d / "media" / "swatch.mp4").exists()]
+        if len(vids) < len(have):   # a spec-2 swatch's video is in the release styles-media, not in git
+            print("! not in the reel, no media/swatch.mp4 here (tools/fetch_media.sh styles fetches the ones in the release): "
+                  + ", ".join(d.name for d in have if d not in vids))
         build_mp4(vids, a.out_dir / "gallery.mp4", a.clip_start, a.clip_len, a.out_dir / "gallery-readme.mp4" if a.readme else None)
 
 if __name__ == "__main__":

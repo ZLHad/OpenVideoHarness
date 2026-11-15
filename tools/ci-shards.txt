@@ -45,6 +45,7 @@ film_engine_checks 256
 edit_checks 99
 edit_footage_checks 34
 edit_cache_checks 54
+style_checks 20
 components_checks 37
 model3d_checks 43
 hdri_checks 29

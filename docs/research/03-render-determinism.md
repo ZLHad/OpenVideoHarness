@@ -21,7 +21,7 @@
 - **命令**：
 
 ```bash
-styles/_swatch/determinism.sh <slug>        # 无损 PNG，1 个 worker 对 3 个 worker，逐帧比；bin/vh style check <slug> 等价
+styles/_swatch/determinism.sh <slug>        # 无损 PNG，1 个 worker 对 3 个 worker，逐帧比；bin/vh style check <slug> --determinism 等价
 styles/_swatch/render.sh <slug> --workers 2 [--png]
 ffmpeg -i a.png -i b.png -lavfi "[0:v]format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr" -f null -
 ```
