@@ -57,7 +57,7 @@
 - **流程的形状**：关卡是底线，停下来交的东西可以换形式，例如草图立意卡（`playbook/12-ideation.md` 第 7 节）。
 - **评审的尺子**：`templates/TASTE_CHECKLIST.md` 的底线条目和打分层。reviewer 先写这支片子想做什么，再对着它打分；作者不采纳它的建议、写一行理由，是正当的结果。
 
-`skills/` 里的 skill 不在这四样里，但它是别的宿主进来的门：`bin/vh install-skill` 装出去的是短桩，只带 frontmatter 和克隆的路径，正文让 agent 回克隆里读 `skills/<名字>/SKILL.md`，所以改正文 `git pull` 就到了。改了 frontmatter（`name`、`description`，宿主靠它触发）、改了 `tools/skill_stub.md`、加了或改名了一个 skill，已装的桩要重写：CHANGELOG 里写一句要跑 `bin/vh install-skill`，`bin/vh doctor` 的 `skills` 行也会报。
+`skills/` 里的 skill 不在这四样里，但它是别的宿主进来的门：`bin/vh install-skill` 装出去的是短桩，只带 frontmatter 和克隆的路径，正文让 agent 回克隆里读 `skills/<名字>/SKILL.md`，所以改正文 `git pull` 就到了。改了 frontmatter（`name`、`description`，宿主靠它触发）、改了 `tools/skill_stub.md`、加了或改名了一个 skill，已装的桩要重写：CHANGELOG 里写一句要跑 `bin/vh install-skill`（它也会删掉自己为已经没有的 skill 写过的桩），`bin/vh doctor` 的 `skills` 行也会报。
 
 ## 推送前自查：`tools/ci.sh`
 

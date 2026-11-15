@@ -142,18 +142,29 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
 agents_body() { cat "$ROOT/CLAUDE.md"; }
 cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter (what a host triggers on), this clone as the harness
   # path, and a few lines that send the agent to <clone>/skills/<name>/SKILL.md, so a git pull updates what every host reads.
-  # tools/skill_stub.md is the stub's text; tools/doctor.py (skills_check) renders the same to compare with what is installed
-  local which=${1:-all} dests=() d s n t body
+  # tools/skill_stub.md is the stub's text; tools/doctor.py (skills_check) renders the same to compare with what is installed.
+  # Line ends come out LF from a CRLF checkout too (tr -d '\r'). A stub this clone wrote for a skill skills/ no longer has is
+  # removed: one whose Harness path line names this clone, alone in its folder; anything else there is left as it is
+  local which=${1:-all} dests=() d s n t body f line
   case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; all) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;;
     *) echo "usage: bin/vh install-skill [claude|codex|all]   (unknown target: $which)" >&2; exit 2 ;; esac
-  t=$(cat "$ROOT/tools/skill_stub.md")
+  t=$(tr -d '\r' < "$ROOT/tools/skill_stub.md")
+  line="Harness path (set by install.sh): $ROOT"
   for d in "${dests[@]}"; do
     for s in "$ROOT"/skills/*/SKILL.md; do
       n=$(basename "$(dirname "$s")")
       body=${t//@NAME@/"$n"}; body=${body//@HARNESS@/"$ROOT"}   # quoted replacements: an & in the path stays an &
       mkdir -p "$d/$n"
-      { awk 'NR == 1 && $0 == "---" { f = 1; print; next } f { print; if ($0 == "---") exit }' "$s"; printf '%s\n' "$body"; } > "$d/$n/SKILL.md"
+      { tr -d '\r' < "$s" | awk 'NR == 1 && $0 == "---" { f = 1; print; next } f { print; if ($0 == "---") exit }'; printf '%s\n' "$body"; } > "$d/$n/SKILL.md"
       echo "$c_ok skill → $d/$n/SKILL.md (a stub that reads $ROOT/skills/$n/SKILL.md)"
+    done
+    for f in "$d"/*/SKILL.md; do
+      [ -f "$f" ] || continue
+      n=$(basename "$(dirname "$f")")
+      [ -f "$ROOT/skills/$n/SKILL.md" ] && continue
+      tr -d '\r' < "$f" | grep -qxF "$line" || continue   # not this clone's: someone else's skill, or another clone's
+      [ "$(ls -A "$(dirname "$f")")" = SKILL.md ] || { echo "! $f was written for this clone, but skills/ has no $n now; other files are beside it, so it is left: remove it yourself" >&2; continue; }
+      rm "$f" && rmdir "$(dirname "$f")" && echo "$c_ok removed $d/$n (skills/ has no $n now)"
     done
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."

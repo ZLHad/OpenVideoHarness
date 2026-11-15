@@ -622,7 +622,9 @@ PY
   # fails on a download it cannot store). A made-up home: nothing installed is no problem; a fresh install is a stub with
   # the skill's own frontmatter and ok (bin/vh's awk and doctor's Python render the same stub); an edited stub, a whole
   # copy and a skill the folder has not got are outdated with the command that writes them again; a clone path with & and
-  # # in it is written as it is; a cache folder that cannot be written is named with the variable that moves it
+  # # in it is written as it is, and a CRLF checkout writes the same stub; a stub whose clone has gone is outdated, not
+  # another clone's; a stub this clone wrote for a skill it no longer has is said, and install-skill removes it (alone in
+  # its folder, naming this clone; nothing else); a cache folder that cannot be written is named with the variable that moves it
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if python3 - "$t" "$VH_BASH" <<'PY'
 import json, os, re, shutil, subprocess, sys
@@ -662,7 +664,8 @@ if c["state"] != "outdated" or "is a whole copy of skills/open-video-harness/SKI
 install("all"); os.remove(os.path.join(home, ".agents/skills/open-video-harness-web/SKILL.md")); c = check("skills")
 if c["state"] != "outdated" or "~/.agents/skills has no open-video-harness-web" not in c["note"] or "bin/vh install-skill codex " not in c["note"]:
     bad.append(f"a skill the folder has not got: {c}")
-p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's is left alone
+p = os.path.join(home, ".claude/skills/open-video-harness/SKILL.md")   # a copy that is another clone's (there: bin/vh in it) is left alone
+os.makedirs(os.path.join(t, "elsewhere", "bin")); open(os.path.join(t, "elsewhere", "bin", "vh"), "w").write("#!/bin/sh\n")
 text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "elsewhere"), open(p, encoding="utf-8").read())
 open(p, "w", encoding="utf-8").write(text + "\ntheirs\n"); install("codex"); c = check("skills")
 if c["state"] != "ok" or "left alone: 1 copy pointing at" not in c["note"]:
@@ -675,6 +678,47 @@ subprocess.run([sh, os.path.join(odd, "bin/vh"), "install-skill", "codex"], capt
 got = open(os.path.join(oh, ".agents/skills/open-video-harness/SKILL.md"), encoding="utf-8").read()
 if "Harness path (set by install.sh): " + odd + "\n" not in got:
     bad.append(f"a clone path with & and #: {got[:400]!r}")
+# a CRLF checkout writes the same stub, frontmatter and all (awk's "---" and Python's would part on a \r otherwise)
+crlf = os.path.normpath(os.path.join(t, "crlf"))
+os.makedirs(os.path.join(crlf, "bin")); shutil.copy("bin/vh", os.path.join(crlf, "bin"))
+for src in ["tools/skill_stub.md"] + [os.path.join("skills", n, "SKILL.md") for n in os.listdir("skills") if os.path.isfile(os.path.join("skills", n, "SKILL.md"))]:
+    os.makedirs(os.path.dirname(os.path.join(crlf, src)), exist_ok=True)
+    open(os.path.join(crlf, src), "wb").write(open(src, "rb").read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+ch = os.path.join(t, "crlfhome")
+subprocess.run([sh, os.path.join(crlf, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=ch), check=True)
+got = open(os.path.join(ch, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
+real = open(os.path.join(home, ".agents/skills/open-video-harness/SKILL.md"), "rb").read()
+if b"\r" in got or not got.startswith(b"---\nname: open-video-harness\n") or got.replace(crlf.encode(), os.getcwd().encode()) != real:
+    bad.append(f"a CRLF checkout's stub: {got[:200]!r}")
+# a stub whose clone has gone (moved or removed) is outdated, not another clone's; install-skill from here takes it back
+h9 = os.path.join(t, "h9")
+def install9(which):
+    return subprocess.run([sh, "bin/vh", "install-skill", which], capture_output=True, text=True, env=dict(env, HOME=h9))
+install9("claude")
+q = os.path.join(h9, ".claude/skills/open-video-harness/SKILL.md")
+text = re.sub(r"(?m)^(Harness path \(set by install\.sh\):).*$", lambda m: m.group(1) + " " + os.path.join(t, "gone"), open(q, encoding="utf-8").read())
+open(q, "w", encoding="utf-8").write(text)
+c = check("skills", HOME=h9)
+if c["state"] != "outdated" or "points at " + os.path.join(t, "gone") + ", where there is no clone now" not in c["note"]:
+    bad.append(f"a stub whose clone has gone: {c}")
+# a stub this clone wrote for a skill skills/ no longer has: doctor says so; install-skill removes it when it is alone in its
+# folder and names this clone, and leaves another skill, another clone's stub and a folder with more in it
+sk = os.path.join(h9, ".claude/skills")
+stub = open(os.path.join(sk, "open-video-harness-web/SKILL.md"), encoding="utf-8").read()
+for n, text, extra in (("ovh-old", stub, None), ("ovh-old2", stub, "notes.txt"), ("someone-else", "---\nname: someone-else\n---\n\nTheirs.\n", None),
+                       ("other-old", stub.replace(os.getcwd(), os.path.join(t, "elsewhere")), None)):
+    os.makedirs(os.path.join(sk, n)); open(os.path.join(sk, n, "SKILL.md"), "w", encoding="utf-8").write(text)
+    if extra:
+        open(os.path.join(sk, n, extra), "w").write("mine\n")
+c = check("skills", HOME=h9)
+if c["state"] != "outdated" or "ovh-old/SKILL.md is this clone's, for a skill skills/ no longer has" not in c["note"] or "someone-else" in c["note"] or "other-old" in c["note"]:
+    bad.append(f"stubs for a skill skills/ no longer has: {c}")
+r = install9("claude")
+left = sorted(os.listdir(sk))
+c = check("skills", HOME=h9)
+if left != ["open-video-harness", "open-video-harness-web", "other-old", "ovh-old2", "someone-else"] or "ovh-old2" not in r.stderr \
+        or c["state"] != "outdated" or "ovh-old2" not in c["note"] or "where there is no clone" in c["note"]:
+    bad.append(f"install-skill and the stubs it wrote for skills it no longer has: {left} {r.stderr[-300:]!r} {c}")
 c = check("caches")
 if c["state"] != "ok":
     bad.append(f"caches in a home that can be written: {c}")
@@ -689,7 +733,7 @@ if os.geteuid() != 0:   # root writes into a read-only folder all the same
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "install-skill writes stubs that read skills/ in the clone (the skill's own frontmatter, a clone path with & and # as it is); doctor's skills and caches lines: nothing installed is no problem, a fresh install is ok, an edited stub, a whole copy and a missing skill are outdated with the command that writes them again, another clone's copy is left alone; a cache folder that cannot be written is named with the variable that moves it"
+  then ok "install-skill writes stubs that read skills/ in the clone (the skill's own frontmatter, a clone path with & and # as it is, the same from a CRLF checkout) and removes the ones it wrote for skills the clone no longer has, nothing else; doctor's skills and caches lines: nothing installed is no problem, a fresh install is ok, an edited stub, a whole copy, a missing skill, a stub whose clone has gone and one for a skill the clone no longer has are outdated with the command that writes them again, another clone's copy is left alone; a cache folder that cannot be written is named with the variable that moves it"
   else bad "doctor's skills and caches lines"; fi
   rm -rf "$t"
   # ManimGX, an optional backend for Manim scenes (tools/modules.json; CI does not install it): doctor lists it, and with
