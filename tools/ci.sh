@@ -7735,6 +7735,20 @@ PY
   if [ "$rc:$rc2:$rc3:$k" = 1:1:1:1 ] && case "$a|$b|$c|$q" in *"no section"*"审阅页"*"|"*"no such markdown file"*"|"*"no such markdown file"*"|"*"2 sections"*"审阅页"*"审阅台"*) true ;; *) false ;; esac
   then ok "know --show: no such section lists the file's; no such file, or one outside the repo, is said; a part that fits two is listed, not guessed"
   else bad "know --show on what is not there ($rc/$rc2/$rc3/$k): $a | $b | $c | $q"; fi
+  # the film-craft sections are found by the words an agent would use: a shot card for an image prompt (playbook/05),
+  # the finishing pass (playbook/08 and the component), and image gen's help names the card
+  a=$(vh know 镜头卡 生图 --kind doc --json 2>/dev/null); b=$(vh know 光晕 色散 收尾 --json 2>/dev/null); c=$(vh image -h 2>&1)
+  if python3 - "$a" "$b" <<'PY' && grep -q "shot card" <<<"$c"
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+h = a["hits"][0]
+ok = h["file"] == "playbook/05-hybrid-genvideo.md" and h["title"].endswith("给生图写镜头卡")
+docs = [x for x in b["hits"] if x["kind"] == "doc"]; comps = [x for x in b["hits"] if x["kind"] == "component"]
+ok = ok and docs and docs[0]["file"] == "playbook/08-vfx-and-motion-sources.md" and "成片的收尾" in docs[0]["title"] and comps and comps[0]["id"] == "film-finish"
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: 镜头卡 finds playbook/05's shot card, 光晕 色散 收尾 finds playbook/08's finishing pass and film-finish; image gen -h names the shot card"
+  else bad "know, the film-craft sections: $(printf '%s' "$a" | head -c 300) | $(printf '%s' "$b" | head -c 300)"; fi
   rm -rf "$t"
 }
 
