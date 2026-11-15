@@ -101,6 +101,8 @@ body{overflow:hidden}
 .well>.ph{position:absolute;inset:0;display:grid;place-items:center;font:500 30px/1 var(--display);color:var(--on-pic);opacity:.25}
 .well>.ph~img,.well>.ph~video{position:relative}
 .results .well>.ph{font-size:16px}
+.well>.ph-why{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:var(--fs-label);color:var(--on-pic);opacity:.55}
+.results .well>.ph-why{display:none}
 .pcard:hover .well,.pcard:focus-visible .well{border-color:var(--you-line)}
 .pcard:focus-visible{outline:none}
 .pcard-name{font:500 var(--fs-text)/1.35 var(--display);color:var(--ink-hi)}
@@ -242,9 +244,13 @@ body{overflow:hidden}
 .tl-bar .btn{min-height:26px;font-size:var(--fs-label);white-space:nowrap}
 .tl-scroll{overflow:auto;position:relative}
 .tl{position:relative;min-width:100%;padding:0 12px 10px 0}
-.tl .grp{display:flex;align-items:center;gap:6px;padding:4px 0 2px 10px;font-size:11px;color:var(--ink-3);cursor:pointer;user-select:none;letter-spacing:var(--label-track);text-transform:var(--label-case)}
-.tl .grp::before{content:"▾";font-size:10px}
-.tl .grp.closed::before{content:"▸"}
+.tl .grp{display:flex;align-items:center;gap:6px;padding:4px 0 2px 10px;font-size:11px;color:var(--ink-3);cursor:default;user-select:none;letter-spacing:var(--label-track);text-transform:var(--label-case)}
+.tl .grp-t{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:1px 6px 1px 0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;border-radius:3px}   /* the name folds the group; the row around it does nothing */
+.tl .grp-t::before{content:"▾";font-size:10px}
+.tl .grp.closed .grp-t::before{content:"▸"}
+.tl .grp-t:hover,.tl .grp-t:focus-visible{color:var(--ink)}
+.tl .grp-n{font-size:10px;color:var(--ink-3)}
+.tl .trk{-webkit-user-select:none;user-select:none}   /* scrubbing across the narration selects no text */
 .tl{--lab-w:80px}
 .lane{display:grid;grid-template-columns:var(--lab-w) minmax(0,1fr);align-items:center;min-height:24px}
 .lane .lab{font-size:11px;color:var(--ink-3);text-align:right;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -406,7 +412,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .col{position:relative}
 .col .notice{margin:0}
 .col .blk-h .n{font-size:11px;color:var(--ink-3)}
-.col .c-cards{display:grid;gap:10px}
+.col .c-cards{display:grid;gap:8px}
 .col .g-dec{padding:10px}
 .col .g-q{font-size:var(--fs-ui)}
 .col .g-opt{padding:7px 8px 8px}
@@ -491,7 +497,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .tl-bar .help{min-width:26px;padding:0 8px;font-family:var(--mono)}
 .timeline{position:relative}
 .tl-help{position:absolute;right:12px;bottom:calc(100% + 6px);z-index:7;max-width:min(440px,calc(100% - 24px));margin:0;padding:10px 12px;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r-card);box-shadow:0 14px 30px -14px var(--shadow);font-size:var(--fs-small);color:var(--ink-2)}
-.tl-help p{margin:0}.tl-help p+p{margin-top:6px;color:var(--ink-3)}
+.tl-help p{margin:0}.tl-help p+p{margin-top:6px;color:var(--ink-3)}.tl-help p.h{margin-top:10px;color:var(--ink-2);font-weight:600}
 @media (hover:none) and (pointer:coarse){.kbd,.keys-only{display:none!important}}
 .pin.least{background:none;border:2px solid var(--wait)}
 .pin.listen{background:radial-gradient(circle,var(--wait) 0 2px,transparent 2.6px);border:2px solid var(--wait)}
@@ -517,16 +523,16 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .col-body .away{display:block;padding:9px 11px;border:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);text-decoration:none;border-radius:var(--r-card);font-size:var(--fs-small)}   /* the round's decisions, from another module: one line */
 .col-body .away:hover{border-color:var(--wait)}
 /* the column's decision cards, compact: an option a line and its good and its cost on one more, so what is under them is in view */
-.col .g-dec{padding:9px 10px}
+.col .g-dec{padding:8px 10px}
 .col .g-q{margin:0 0 2px}
-.col .g-cost{display:block;margin:0 0 6px}
+.col .g-cost{display:block;margin:0 0 5px}
 .col .g-opts{gap:6px}
 .col .g-opt{padding:6px 8px 7px}
 .col .g-opt .pc{display:block;margin-top:2px;font-size:var(--fs-label);line-height:1.45;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .col .g-opt .pc>span{display:inline!important;-webkit-line-clamp:unset!important;white-space:nowrap!important}
 .col .g-opt .pc>span+span::before{content:" · "}
 .col .g-opt .pc .k{margin-right:3px}
-.col .g-why{margin-top:5px;-webkit-line-clamp:2}
+.col .g-why{margin-top:4px;-webkit-line-clamp:2}
 /* a shot on the timeline: a cell of the strip, its picture filling it, its number on the picture's corner, a divider between */
 .blk.shot{flex-direction:column;align-items:flex-start;justify-content:space-between;gap:0;padding:0!important;border:0;border-left:1px solid var(--rule-2);border-radius:0}
 :root[data-theme=darkfield] .blk.shot{border-left:1px solid var(--rule-2)}
@@ -544,5 +550,6 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 
 :root[data-theme=darkfield] .mod[aria-current=page]{background:var(--panel-3)}   /* where you are, more than an underline */
 .col-body .blk-h .hint-inline{flex:1 1 auto;min-width:0;font-weight:400;color:var(--ink-3);letter-spacing:0;text-transform:none}   /* how to start, beside a heading whose count says none yet */
-.col-body{gap:12px}
+.col-body{gap:10px;padding-bottom:10px}
+.col-body>section:empty{display:none}   /* an empty block takes no gap */
 .col-body .blk-h>b,.col-body .blk-h>.n{flex:0 0 auto;white-space:nowrap}   /* the heading keeps its line; the hint beside it gives way */

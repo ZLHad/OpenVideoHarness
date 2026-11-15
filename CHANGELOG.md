@@ -22,12 +22,27 @@
   - A delivered film waits for no one, whatever an older stop still says. `bin/vh projects` calls it delivered unless a page waits for the person.
   - An older BRIEF's "# BRIEF — 片名" is read as the film's name.
 - The console:
-  - A film that went out shows the stops it left open as past.
+  - A film that went out shows with no word the stops it left open, skipped or never had (no "跳过" beside "已交付").
   - The right column holds a stop's decisions only on that stop's module; elsewhere it is one line ("初版等你定 2 件 →"). Its cards are compact.
+  - At 1440×900 the column fits without a fade, in both languages:
+    - the note button sits on the line that says what the note is on;
+    - an empty "我的意见" says how to start beside its heading;
+    - on the stop's own module "下一步" is left out, because the cards and "交给 agent" already say it;
+    - an empty block takes no space.
+  - A film card with no picture at all says why ("还没有画面", or "画面不在本机" for a delivered film). A dim letter alone looked like an image still loading.
   - "下一步" says whose turn it is in a sentence. The agent's own line is in the tooltip.
   - The timeline's shots are cells of a strip: the picture fills each one and its number sits on the picture.
+  - The timeline's pointer works as an editor's (asked for after use: clicks did unexpected things, and groups folded by themselves):
+    - a click puts the playhead where you click, with no snapping; on a shot, a line, a chapter or a mark it also selects it, and a mark takes its own second;
+    - a drag scrubs and selects nothing;
+    - Shift + drag chooses a span, the one gesture that snaps (the switch now reads "吸附");
+    - a double click on a shot or a line plays just that;
+    - ⌘/Ctrl + wheel, or a pinch, zooms around the pointer;
+    - a group folds from its name only. The whole row used to fold it, so a click a little off a lane folded a group, and the fold was kept; folds made that way open again;
+    - "?" lists the mouse and the keys.
   - The waiting film's card and a static page's main picture prefer a picture of the film to a contact sheet.
   - A static page made after its stop settled is a record ("已定", nothing to pick).
+  - A static page writes a shot one way, S4 as the console does; its anchor and the reply keep the id as given. In English, the reason for the recommended option reads "Why: …". `bin/vh gate --init` titles the reviewer's scores "评审打的分" on a Chinese page.
   - Covers named in PACKAGING.md are marked as the ones used; the rest are folded. The check, the titles and the licences count one way.
   - A film no longer here offers to say where it went, on its cut, its look back and its assets.
 

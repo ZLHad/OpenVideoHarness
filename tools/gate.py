@@ -104,7 +104,7 @@ def skeleton(gate, lang, plan=None):
                        {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
         d["least_sure"] = [{"id": f("镜头号（S04）或片子里的时间（12.4 s、0–5 s）：有时间的落在标尺上", "a shot id (S04) or a time in the film (12.4 s, 0–5 s): a time lands on the ruler"),
                             "note": f("自己最不满意的一处和默认的修法，一句；有几处写几处", "a place you like least and the fix it gets by default, a sentence; as many entries as there are such places")}]
-        d["appendix"] = [{"title": "reviewer 的分数" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
+        d["appendix"] = [{"title": "评审打的分" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
         if plan and not plan["quick"] and "2" not in plan["gates"]:   # no storyboard stop: the storyboard is shown here, each shot passed unless the person says otherwise
             d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it, from the draft's own frames
     else:

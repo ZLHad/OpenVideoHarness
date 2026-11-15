@@ -140,7 +140,7 @@ function picture(r, cls) {   // the film's letter is always under the picture: a
   const p = r.picture, ph = `<span class="ph">${esc(String(filmName(r) || "·").trim().slice(0, 1))}</span>`;
   if (p && p.kind === "image") return `<span class="well ${cls || ""}">${ph}<img src="${esc(p.href)}" alt="" loading="lazy"></span>`;
   if (p && p.kind === "video") return `<span class="well ${cls || ""}">${ph}<video muted playsinline preload="none" data-mid data-src="${esc(p.href)}"></video></span>`;
-  return `<span class="well ${cls || ""}">${ph}</span>`;
+  return `<span class="well ${cls || ""}">${ph}<span class="ph-why">${esc(t(r.state === "delivered" ? "no_pic_gone" : "no_pic"))}</span></span>`;   // no picture at all: say so, so it does not read as one still loading
 }
 function card(r) {   // its picture, its name, where it is, its kind, its day
   const day = r.last_activity && r.state !== "delivered" ? dayOf(r.last_activity.t) : "", kind = typeWords(r.type);   // a film that went out: its day is in "已交付 10-23"
@@ -406,7 +406,8 @@ function renderNext() {   // what happens next, in a line: who, and what (status
   const spent = money(b.spent), limit = b.unlimited ? "∞" : money(b.limit);
   const said = statusWords(ns.do || ""), cmds = [shortPath(ns.do || "")].concat((ns.commands || []).map(shortPath)).filter(Boolean).join("\n");   // the tooltip: status's own line and its commands
   const wait = stations().find((s) => s.state === "waiting_person"), words = who === "person" ? (wait ? t("next_you", { s: gateName(wait.id) }) : t("next_you0")) : t("next_agent");
-  const next = ns.do && who !== "nobody" ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next" title="${esc([said.text].concat(cmds ? [cmds] : []).join("\n"))}"><span class="who ${who}">${esc(t("who_" + who))}</span><span>${esc(words)}</span></p>` : "";
+  const said_here = who === "person" && $(".c-cards", $("#colBody"));   // the cards above and the 交给 agent button already say the person's next step
+  const next = ns.do && who !== "nobody" && !said_here ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next" title="${esc([said.text].concat(cmds ? [cmds] : []).join("\n"))}"><span class="who ${who}">${esc(t("who_" + who))}</span><span>${esc(words)}</span></p>` : "";
   $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li title="${esc(shortPath(x.cmd || x))}"><span class="mono tc" style="color:var(--agent)">●</span><span>${esc(cmdWords(x.cmd || x))}</span></li>`).join("")}</ul>` : "")
     + next + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
@@ -951,10 +952,10 @@ function CutModule(area) {
     </section>
     <section class="timeline" aria-label="timeline">
       <div class="tl-bar"><span class="legend" id="tlLegend"></span><span class="push"></span>
-        <button type="button" class="btn toggle" id="cSnap" aria-pressed="${snapOn}">${esc(t("snap"))}</button>
+        <button type="button" class="btn toggle" id="cSnap" aria-pressed="${snapOn}" title="${esc(t("snap_tip"))}">${esc(t("snap"))}</button>
         <span class="zoom"><button type="button" class="p-btn" id="zOut" title="${esc(t("zoom_out"))}" aria-label="${esc(t("zoom_out"))}">−</button><button type="button" class="p-btn" id="zIn" title="${esc(t("zoom_in"))}" aria-label="${esc(t("zoom_in"))}">+</button></span>
         <button type="button" class="btn help" id="tlHelp" aria-expanded="false" aria-controls="tlHelpBox" title="${esc(t("help"))}" aria-label="${esc(t("help"))}">?</button></div>
-      <div class="tl-help" id="tlHelpBox" hidden><p>${esc(t("tl_hint"))}</p><dl class="keys-only">${t("keys_list").split("；").map((x) => { const [k, ...w] = x.split("："); return `<dt><span class="kbd">${esc(k)}</span></dt><dd>${esc(w.join("："))}</dd>`; }).join("")}</dl></div>
+      <div class="tl-help" id="tlHelpBox" hidden><p>${esc(t("tl_hint"))}</p>${["mouse", "keys"].map((l) => `<p class="h keys-only">${esc(t("h_" + l))}</p><dl class="keys-only">${t(l + "_list").split("；").map((x) => { const [k, ...w] = x.split("："); return `<dt><span class="kbd">${esc(k)}</span></dt><dd>${esc(w.join("："))}</dd>`; }).join("")}</dl>`).join("")}</div>
       <div class="tl-scroll" id="tlScroll"><div class="tl" id="tl"></div></div>
     </section></div>`;
   const root = $("#cut", area), tl = $("#tl", area), scroll = $("#tlScroll", area), screen = $("#screen", area), frame = $("#frame", area);
@@ -1133,7 +1134,8 @@ function CutModule(area) {
     const markH = AM.map((m) => `${m.t1 != null ? `<span class="span-mark ${m.kind}" style="left:${pct(m.t)}%;width:${pct(m.t1) - pct(m.t)}%"></span>` : ""}<button type="button" class="pin ${m.kind === "mine" ? "note" : m.kind}" style="left:${pct(m.t)}%" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""} title="${esc(fmt(m.t) + " · " + (m.note || m.label))}" aria-label="${esc(fmt(m.t) + " " + (m.note || m.label))}"></button>`).join("");
     const diffH = changed.map((s) => `<span class="diff" style="left:${pct(s[0])}%;width:${Math.max(0.3, pct(s[1]) - pct(s[0]))}%">${esc(t("diff_label", { v: vnum(curV.id) }))}</span>`).join("")
       || (curV && curV.changed && curV.changed.whole ? `<span class="diff" style="left:0;width:100%">${esc(vnum(curV.id))} · ${esc(t("whole_render"))}</span>` : "");
-    const grp = (k, name) => `<div class="grp" data-grp="${k}" role="button" tabindex="0">${esc(name)}</div>`;
+    // a group folds from its name only (a button): the row around it is inert, so a click a little off a lane never folds one
+    const grp = (k, name) => { const shut = layout !== "review" && closed.has(k); return `<div class="grp${shut ? " closed" : ""}" data-grp="${k}"><button type="button" class="grp-t" aria-expanded="${!shut}" title="${esc(t(shut ? "g_unfold" : "g_fold"))}">${esc(name)}</button>${shut ? `<span class="grp-n">${esc(t("g_folded"))}</span>` : ""}</div>`; };
     tl.style.width = zoom * 100 + "%";
     tl.innerHTML = `<div class="lane ruler-l"><span class="lab"></span><div class="trk" data-ruler>${rulerTicks()}</div></div>`
       + grp("pic", t("g_pic")) + lane("chap", t("ln_chap"), chapH, "pic", t("e_chap")) + lane("shots", t("ln_shots"), shotH, "pic", t("e_shots"))
@@ -1143,18 +1145,18 @@ function CutModule(area) {
       + `<div class="over" aria-hidden="true"><div class="selr" hidden><span class="cap"></span></div><div class="tl-ph"><span class="cap"></span></div></div><div class="hover-tip" hidden></div>`;
     const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => k === "mine" || AM.some((m) => m.kind === k));
     $("#tlLegend", area).innerHTML = kinds.map(([, cls, w]) => `<span class="lg"><i class="pin ${cls}" aria-hidden="true"></i>${esc(t(w))}</span>`).join("");
-    if (layout !== "review") closed.forEach((g) => { const el = $(`.grp[data-grp="${g}"]`, tl); if (el) el.classList.add("closed"); $$(`.lane[data-g="${g}"]`, tl).forEach((x) => { x.hidden = true; }); });
+    if (layout !== "review") closed.forEach((g) => { $$(`.lane[data-g="${g}"]`, tl).forEach((x) => { x.hidden = true; }); });
     paintSel(); tick();
   }
-  const closed = new Set(store.get("desk:cut-closed") || []);
+  const closed = new Set(store.get("desk:cut-folded") || []);   // a new key: what the old full-width row folded by a stray click opens again
   tl.addEventListener("click", (e) => {
     const p = e.detail === 0 && e.target.closest("[data-pick]");   // Enter or Space on a pin
     if (p) { pickThing(p.dataset.pick, p); return; }
-    const g = e.target.closest(".grp"); if (!g) return;
-    const k = g.dataset.grp; if (closed.has(k)) closed.delete(k); else closed.add(k);
-    store.set("desk:cut-closed", [...closed]); draw();
+    const g = e.target.closest(".grp-t"); if (!g) return;
+    const k = g.parentElement.dataset.grp; if (closed.has(k)) closed.delete(k); else closed.add(k);
+    store.set("desk:cut-folded", [...closed]); draw();
+    const b = $(`.grp[data-grp="${k}"] .grp-t`, tl); if (b) b.focus({ preventScroll: true });   // the keyboard stays on it
   });
-  tl.addEventListener("keydown", (e) => { const g = e.target.closest(".grp"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); g.click(); } });
 
   /* the playhead, the readout, the picture when there is no film */
   let lastShot = null, lastPlaying = null;
@@ -1190,10 +1192,10 @@ function CutModule(area) {
   }
 
   /* selecting: a second, a span, a shot, a chapter, a line, a mark; the note box follows */
-  function select(s, play) {
+  function select(s, play, at) {   // at: the second a click was at, inside what it selects (the playhead goes there); else its start
     SEL = s;
     if (s) {
-      seek(s.t);
+      seek(at != null && !play && at >= s.t && (s.t1 == null || at <= s.t1) ? at : s.t);
       const kind = s.kind, a = +(+s.t).toFixed(1), b = s.t1 != null ? +(+s.t1).toFixed(1) : null;
       let scope;
       if (kind === "shot") scope = { target: "shot:" + s.id, label: t("l_shot", { x: s.id + (s.name ? " " + s.name : "") }), t: a, t1: b };
@@ -1209,11 +1211,11 @@ function CutModule(area) {
     draw(); renderList();
     if (keep) { const n = $(`${keep[0]} [data-pick="${CSS.escape(keep[1])}"]`, area); if (n) n.focus({ preventScroll: true }); }   // the keyboard stays where it was
   }
-  function pickThing(p, el) {
+  function pickThing(p, el, at) {   // at: the second a click on it was at; a mark always takes its own second
     const [kind, ...rest] = p.split(":"), id = rest.join(":");
-    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, name: s.label, t: s.t0, t1: s.t1, label: `${s.id} ${s.label}` }); }
-    else if (kind === "chapter" || kind === "seg" || kind === "part") { const c = chapters.find((x) => x.id === id); if (c) select({ kind: c.kind === "part" ? "range" : c.kind, id: c.id, name: c.title, t: c.t0, t1: c.t1, label: c.title }); }
-    else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }, kind === "play"); }
+    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, name: s.label, t: s.t0, t1: s.t1, label: `${s.id} ${s.label}` }, false, at); }
+    else if (kind === "chapter" || kind === "seg" || kind === "part") { const c = chapters.find((x) => x.id === id); if (c) select({ kind: c.kind === "part" ? "range" : c.kind, id: c.id, name: c.title, t: c.t0, t1: c.t1, label: c.title }, false, at); }
+    else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }, kind === "play", kind === "play" ? null : at); }
     else if (kind === "check") { const f = findings[+id]; if (f) select({ kind: f.t1 != null ? "range" : "time", t: +f.t, t1: f.t1 != null ? +f.t1 : null, name: `${t("k_check")} ${f.kind || ""}`.trim(), label: fmt(f.t) }); }
     else if (kind === "mark") {
       const m = allMarks().find((x) => x.target === id && (!el || el.dataset.t == null || Math.abs(x.t - +el.dataset.t) < 0.01)) || allMarks().find((x) => x.target === id);
@@ -1221,34 +1223,54 @@ function CutModule(area) {
         : { kind: "mark", target: m.target, t: m.t, t1: m.t1, name: m.kind === "mine" ? m.label : m.kind === "listen" ? t("sound_label", { t: fmt(m.t) }) : t("l_least", { x: m.label || fmt(m.t) }), label: m.kind === "mine" ? m.label : fmt(m.t) });
     }
   }
-  let drag = null;
+  /* the pointer on the lanes, as in an editor's timeline: a click puts the playhead where you click, and on a shot, a line, a
+     chapter or a mark selects it too (the note box names it); a drag scrubs and selects nothing; Shift + drag chooses a span,
+     the one gesture that snaps (while 吸附 is on); Shift + click, from the playhead to there; a double click on a shot, a line
+     or a chapter plays just that */
+  let drag = null, lastClick = null;
   tl.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || e.target.closest(".grp")) return;
     const trk = e.target.closest(".trk"); if (!trk) return;
-    drag = { x0: e.clientX, t0: tAt(e.clientX, true), pick: e.target.closest("[data-pick]"), moved: false, id: e.pointerId, before: SEL };
+    drag = { x0: e.clientX, t0: tAt(e.clientX, e.shiftKey), span: e.shiftKey, pick: e.target.closest("[data-pick]"), moved: false, id: e.pointerId, before: SEL };
     tl.setPointerCapture(e.pointerId);
   });
   tl.addEventListener("pointermove", (e) => {
     const tip = $(".hover-tip", tl);
     if (tip && dur && !drag) hoverTip(e, tip);
     if (!drag) return;
-    if (!drag.moved && Math.abs(e.clientX - drag.x0) > 4) drag.moved = true;
-    if (drag.moved) {
+    if (!drag.moved && Math.abs(e.clientX - drag.x0) > 4) { drag.moved = true; if (!drag.span && playing()) stop(); }
+    if (!drag.moved) return;
+    if (drag.span) {
       const x = tAt(e.clientX, true), a = Math.min(drag.t0, x), b = Math.max(drag.t0, x);
       SEL = { kind: "range", t: a, t1: b, label: `${fmt(a)}–${fmt(b)}` }; paintSel();
-      if (!playing()) { if (video) { try { video.currentTime = x; } catch (err) { /* not loaded */ } } else clockT = x; tick(); }
-    }
+    } else seek(tAt(e.clientX, false));   // scrubbing: the picture follows the pointer
   });
   tl.addEventListener("pointerleave", () => { const tip = $(".hover-tip", tl); if (tip) tip.hidden = true; });
   const endDrag = (e) => {
     if (!drag) return;
     const d = drag; drag = null;
-    if (e.type === "pointercancel") { SEL = d.before; paintSel(); return; }   // the gesture was taken away: nothing is selected by it
-    if (d.moved) { const s = SEL; if (s && s.t1 - s.t >= 0.1) select({ kind: "range", t: s.t, t1: s.t1, label: s.label }); else select({ kind: "time", t: s ? s.t : d.t0, label: fmt(s ? s.t : d.t0) }); return; }
-    if (d.pick && e.type === "pointerup") return pickThing(d.pick.dataset.pick, d.pick);
-    const x = d.t0; select({ kind: "time", t: x, label: fmt(x) });
+    if (e.type === "pointercancel") { SEL = d.before; paintSel(); return; }   // the gesture was taken away: nothing changes by it
+    if (d.moved) {
+      if (d.span) { const s = SEL; if (s && s.t1 - s.t >= 0.1) select({ kind: "range", t: s.t, t1: s.t1, label: s.label }); else { SEL = d.before; paintSel(); } }
+      else if (SEL && SEL.kind === "time") select({ kind: "time", t: now(), label: fmt(now()) });   // a selected second goes along with the playhead
+      return;
+    }
+    const x = tAt(e.clientX, d.span), p = d.pick && d.pick.dataset.pick;
+    if (d.span) { const a = Math.min(now(), x), b = Math.max(now(), x); if (b - a >= 0.1) return select({ kind: "range", t: a, t1: b, label: `${fmt(a)}–${fmt(b)}` }); }
+    const twice = !!p && !!lastClick && lastClick.p === p && e.timeStamp - lastClick.at < 400;
+    lastClick = p ? { p, at: e.timeStamp } : null;
+    if (twice && /^(shot|line|chapter|seg|part):/.test(p)) { lastClick = null; const [k, ...r] = p.split(":"); return playPiece(k, r.join(":")); }
+    if (p) return pickThing(p, d.pick, x);
+    select({ kind: "time", t: x, label: fmt(x) });
   };
   tl.addEventListener("pointerup", endDrag); tl.addEventListener("pointercancel", endDrag);
+  function playPiece(kind, id) {   // a double click: that shot, line or chapter, once, from its start to its end
+    if (kind === "line") return pickThing("play:" + id);
+    const it = kind === "shot" ? shots.find((x) => x.id === id) : chapters.find((x) => x.id === id);
+    if (!it) return;
+    pickThing(kind + ":" + id);
+    stopAt = it.t1; start();
+  }
   function hoverTip(e, tip) {
     const r = overRect(); if (e.clientX < r.left || e.clientX > r.right) { tip.hidden = true; return; }
     const x = tAt(e.clientX, false), s = shotAt(x);
@@ -1305,6 +1327,14 @@ function CutModule(area) {
   $("#zIn", area).addEventListener("click", () => { zoom = Math.min(16, zoom * 1.6); draw(); centerOn(now()); });
   $("#zOut", area).addEventListener("click", () => { zoom = Math.max(1, zoom / 1.6); draw(); centerOn(now()); });
   $$("[data-lay]", area).forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.lay)));
+  scroll.addEventListener("wheel", (e) => {   // ⌘ or Ctrl + wheel, and a trackpad's pinch: zoom, the second under the pointer staying under it
+    if (!(e.ctrlKey || e.metaKey) || !dur) return;
+    e.preventDefault();
+    const at = tAt(e.clientX, false), z = Math.max(1, Math.min(16, zoom * Math.exp(-e.deltaY * 0.003)));
+    if (Math.abs(z - zoom) < 1e-3) return;
+    zoom = z; draw();
+    const o = overRect(); scroll.scrollLeft += o.left + (at / dur) * o.width - e.clientX;
+  }, { passive: false });
   function centerOn(x) { const w = tl.scrollWidth; scroll.scrollLeft = Math.max(0, (x / (dur || 1)) * w - scroll.clientWidth / 2); }
   if (prevV && vb) {   // a read-only wipe between this version and the one kept before it
     const wl = $("#wl", frame), labs = $$(".wipe-l,.wipe-r", frame);

@@ -50,8 +50,8 @@ const STR = {
     n_notes: "{n} 条点评", unsure: "没把握", n_checks: "{n} 处检查", reads: "要看到", ver_n: "第 {n} 版", proxy: "代理",
     no_film_frames: "还没出成片，先看分镜的关键帧。", no_film_sheet: "还没出成片，先看联系表。", no_film0: "还没出成片。", film_gone_frames: "成片不在本机（可能挪到了别的盘），先看分镜的关键帧。", film_gone_sheet: "成片不在本机（可能挪到了别的盘），先看联系表。", film_gone0: "成片不在本机（可能挪到了别的盘）。",
     safe: "安全框", compare: "和{v}对比", ver_now: "{v} · 现在", lay_review: "审片", lay_fine: "精修", lay_sound: "听声音", layout: "布局",
-    tl_hint: "点一下选这一秒，拖一段选区间，点镜头选中它。",
-    snap: "对齐镜头", zoom_in: "放大", zoom_out: "缩小", play: "播放 / 暂停（空格）", prev_shot: "上一个镜头（←）", next_shot: "下一个镜头（→）",
+    tl_hint: "点哪，播放头就到哪；点在镜头、旁白或标记上，右边的意见就对着它。", h_mouse: "鼠标", h_keys: "键盘", mouse_list: "拖：拖着播放头看画面，不选东西；Shift + 拖：选一段（开着吸附时贴到镜头边）；双击镜头或旁白：只放这一段；⌘ / Ctrl + 滚轮：以指针为中心放大缩小；▾ 组名：收起或展开这一组",
+    snap: "吸附", snap_tip: "Shift + 拖选一段时，贴到镜头边、旁白和标记上", g_fold: "收起这一组", g_unfold: "展开这一组", g_folded: "已收起", zoom_in: "放大", zoom_out: "缩小", play: "播放 / 暂停（空格）", prev_shot: "上一个镜头（←）", next_shot: "下一个镜头（→）",
     g_pic: "画面", g_sound: "声音", g_review: "审阅", ln_chap: "章节", ln_shots: "镜头", ln_voice: "旁白", ln_music: "音乐", ln_hits: "卡点", ln_wave: "波形", ln_marks: "标记", ln_diff: "这一版改了",
     e_chap: "没有章节", e_shots: "没有镜头表", e_voice: "没有旁白", e_music: "没有配乐", e_wave: "还没有波形",
     e_diff: "这一版没有记下改了哪里（bin/vh patch 才记）", e_marks: "还没有标记", whole_render: "整支重渲",
@@ -120,7 +120,7 @@ const STR = {
     play_line: "播这一句",
     fact_other: "其他",
     col_film: "这支片子",
-    c_none_mine_m: "还没写。点页面上任意一处，在下面写一句。", c_mine_how: "点时间轴或一个镜头，在下面写一句", c_mine_how_m: "点页面上任意一处，在下面写一句",
+    c_none_mine_m: "还没写。点页面上任意一处，在下面写一句。", c_mine_how: "点时间轴或一个镜头，在下面写一句", c_mine_how_m: "点页面上任意一处，在下面写一句", no_pic: "还没有画面", no_pic_gone: "画面不在本机",
     subs_waiting: "{n} 份反馈还没交给 agent",
     blanks_n: "{n} 处没填",
     f_past: "",
@@ -151,12 +151,12 @@ const STR = {
     live_on_tip: "Once you send it, the agent carries on", live_off_tip: "After sending, tell the agent in the chat: “check the desk”",
     c_decide: "To decide", c_rec: "Default: recommended", c_least: "Where the agent is unsure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Working on", c_spend: "Spent",
     c_spent: "{s} spent", c_of: "of {l}", c_none_mine: "None yet. Click the timeline or a shot, then write a line below.", who_agent: "agent", who_person: "you", who_nobody: "delivered",
-    round_sum: "{n} {n|note|notes} · {d} {d|decision|decisions}", submit_round: "Send to the agent", c_whole_note: "Overall", round_quiet: "Nothing to decide now.", static_page: "Open the review page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}",
+    round_sum: "{n} {n|note|notes} · {d} {d|decision|decisions}", submit_round: "Send to agent", c_whole_note: "Overall", round_quiet: "Nothing to decide now.", static_page: "Open the review page", recent: "Recently decided", agent_decided_k: "the agent decided · {x}",
     at: "On", whole: "this page", whole_film: "the whole film", to_whole: "Deselect", say_agent: "Tell the agent", say_agent_tip: "Talking to the agent comes later; for now write a note, and it goes with what you send",
     as_note: "Write a note", c_ph: "Add a note on {x}…", note_add: "Add note", note_keys: "⌘↩", noted: "Noted: {x}", del: "Delete",
     d_dropped: "{n} can't be sent: what they are on can't be read, or they are too long",
     d_title: "Before you send it", d_decisions: "Decisions", d_items: "Notes", by_rec: " (you didn't change it: the recommendation)", d_none: "You wrote no notes.",
-    general: "Overall (optional)", general_ph: "e.g. the pace drags overall; the opening works…", submit: "Send to the agent", cancel: "Keep looking", preview: "The text that will be sent",
+    general: "Overall (optional)", general_ph: "e.g. the pace drags overall; the opening works…", submit: "Send to agent", cancel: "Keep looking", preview: "The text that will be sent",
     submit_hint: "Once it is sent, the agent reads your notes first the next time it works.",
     sent_live: "Sent; the agent is on it", sent: "Sent",
     hint_live: "Sent. The agent was waiting and has carried on.",
@@ -177,8 +177,8 @@ const STR = {
     n_notes: "{n} {n|note|notes}", unsure: "unsure", n_checks: "{n} {n|check|checks}", reads: "Should see", ver_n: "v{n}", proxy: "proxy",
     no_film_frames: "No film yet: these are the storyboard's key frames.", no_film_sheet: "No film yet: this is the contact sheet.", no_film0: "No film yet.", film_gone_frames: "The film isn't on this computer (moved to another drive?): these are the storyboard's key frames.", film_gone_sheet: "The film isn't on this computer (moved to another drive?): this is the contact sheet.", film_gone0: "The film isn't on this computer (moved to another drive?).",
     safe: "Safe area", compare: "Compare with {v}", ver_now: "{v} · now", lay_review: "Review", lay_fine: "Fine cut", lay_sound: "Listen", layout: "Layout",
-    tl_hint: "Click a second, drag a span, click a shot.",
-    snap: "Snap to shots", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
+    tl_hint: "The playhead goes where you click; click a shot, a line or a mark and your note is about it.", h_mouse: "Mouse", h_keys: "Keys", mouse_list: "Drag：scrub, selecting nothing；Shift + drag：choose a span (snapping to shot edges while Snap is on)；Double-click a shot or a line：play just that；⌘ / Ctrl + wheel：zoom around the pointer；▾ a group's name：fold or unfold it",
+    snap: "Snap", snap_tip: "When you Shift-drag a span, it snaps to shot edges, lines and marks", g_fold: "Fold this group", g_unfold: "Unfold this group", g_folded: "folded", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
     g_pic: "Picture", g_sound: "Sound", g_review: "Review", ln_chap: "Chapters", ln_shots: "Shots", ln_voice: "Voice", ln_music: "Music", ln_hits: "Hits", ln_wave: "Waveform", ln_marks: "Marks", ln_diff: "Changed",
     e_chap: "No chapters", e_shots: "No shot list", e_voice: "No narration", e_music: "No music", e_wave: "No waveform yet",
     e_diff: "This version doesn't record what changed (bin/vh patch does)", e_marks: "No marks yet", whole_render: "re-rendered whole",
@@ -247,7 +247,7 @@ const STR = {
     play_line: "Play this line",
     fact_other: "Other",
     col_film: "This film",
-    c_none_mine_m: "Nothing yet. Click anything on the page and write a line below.", c_mine_how: "click the timeline or a shot, write below", c_mine_how_m: "click anything on the page, write below",
+    c_none_mine_m: "Nothing yet. Click anything on the page and write a line below.", c_mine_how: "click the timeline or a shot, write below", c_mine_how_m: "click anything on the page, write below", no_pic: "No picture yet", no_pic_gone: "Its pictures are not on this machine",
     subs_waiting: "{n} {n|submission|submissions} not handed to the agent yet",
     blanks_n: "{n} {n|blank|blanks}",
     f_past: "",
@@ -418,9 +418,10 @@ function stations() { return (D && D.status && D.status.stations) || []; }
 function filmDelivered() { const s = stations().find((x) => x.id === "deliver"); return !!s && s.state === "done"; }   // bin/vh status says it went out
 function flowState(f) {   // a flow item's lamp: from the film's own stops; none of them in the plan: not a stop
   const S = stations().filter((s) => f.st.includes(s.id));
-  if (!S.length) return { state: "off", S };
+  const gone = filmDelivered() && !f.st.includes("deliver");   // it went out: a stop it skipped, never had, or left open waits for no one (no word, not 跳过)
+  if (!S.length) return { state: gone ? "past" : "off", S };
   if (S.some((s) => s.state === "waiting_person")) return { state: "wait", S };
-  if (filmDelivered() && !S.some((s) => s.id === "deliver") && !S.every((s) => s.state === "done" || s.state === "skipped")) return { state: "past", S };   // it went out: a gap an older stop left waits for no one
+  if (gone && (S.every((s) => s.state === "skipped") || !S.every((s) => s.state === "done" || s.state === "skipped"))) return { state: "past", S };
   if (S.some((s) => s.state === "waiting_agent" || s.state === "in_progress")) return { state: "agent", S };
   if (S.every((s) => s.state === "skipped")) return { state: "skip", S };
   if (S.every((s) => s.state === "done" || s.state === "skipped")) return { state: "done", S };

@@ -71,7 +71,7 @@ T = {
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
     "en": dict(html_lang="en", settled_done="Decided", settled_skipped="Skipped (you said not to stop)", settled_delivered="Delivered", settled_note="This page is settled; it is a record now. To change something, say it in the chat.", asked_then="Asked then: ", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
                nothing="Nothing to decide on this page. Take a look, then reply “ok” or say what to change.",
-               rec="recommended", why_rec="Why it's recommended: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
+               rec="recommended", why_rec="Why: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
                copy="Copy", copied="Copied",
                rest="Leave the rest alone if it's fine; to change a shot, write “{shot} change: …”.",
                rest_plain="Leave the rest alone if it's fine; only write what to change.",
@@ -121,6 +121,12 @@ def over_budget(s, key):
     n, zh = budget_len(s)
     lim = BUDGET[key][0 if zh else 1]
     return (n, lim) if n > lim else None
+
+
+def shot_label(sid):
+    """A shot as the page writes it: S4, never S04 or S004 (the console writes it the same way). Its anchor, its
+    data and the reply keep the id as given."""
+    return re.sub(r"^([A-Za-z]+)0+(?=\d)", r"\1", sid or "")
 
 
 def time_of(label):
@@ -558,7 +564,7 @@ class Page:
             e = html.escape(part)
             e = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", e)
             e = re.sub(r"(?<![A-Za-z0-9])(S\d{1,3}[a-z]?)(?![0-9])",
-                       lambda m: f'<a href="#shot-{m.group(1)}" data-shot-link="{m.group(1)}">{m.group(1)}</a>' if m.group(1) in self.shot_ids else m.group(1), e)
+                       lambda m: f'<a href="#shot-{m.group(1)}" data-shot-link="{m.group(1)}">{shot_label(m.group(1))}</a>' if m.group(1) in self.shot_ids else shot_label(m.group(1)), e)
             out.append(e.replace("\n", "<br>"))
         return "".join(out)
 
@@ -818,7 +824,7 @@ class Page:
             else:
                 at = f'<span class="at static">{when}</span>'
             sid = m["id"]
-            shown_id = "" if (sid and time_of(sid)) else (f'<a class="id" href="#shot-{esc(sid)}">{esc(sid)}</a>' if sid in self.shot_ids else (f'<span class="id">{esc(sid)}</span>' if sid else ""))
+            shown_id = "" if (sid and time_of(sid)) else (f'<a class="id" href="#shot-{esc(sid)}">{esc(shot_label(sid))}</a>' if sid in self.shot_ids else (f'<span class="id">{esc(shot_label(sid))}</span>' if sid else ""))
             out.append(f'<li class="{m["kind"]}" data-target="{esc(m["target"])}"' + (f' data-t="{m["t"]:g}"' if m["t"] is not None else "")
                        + f'>{at}<span>{shown_id}{self.text(m["note"])}</span></li>')
         untimed = "" if any(m["t"] is not None for m in items) else " untimed"   # no times at all: no empty time column
@@ -855,7 +861,7 @@ class Page:
                     + (f'<span class="p">→ {t["plan"]}{colon}{self.text(sh["note"])}</span>' if sh["note"] else "")
                 seek = f' data-t="{sh["t0"]:g}"' + (f' data-t1="{sh["t1"]:g}"' if sh["t1"] is not None else "") if sh["t0"] is not None else ""
                 cards.append(f'<figure class="g-shot{" flag" if flag else ""}" id="shot-{esc(sid)}" data-target="shot:{esc(sid)}" data-shot="{esc(sid)}"{seek}>'
-                             f'<div class="well">{img}<span class="sid">{esc(sid)}</span>' + (f'<span class="dur">{dur}</span>' if dur else "")
+                             f'<div class="well">{img}<span class="sid">{esc(shot_label(sid))}</span>' + (f'<span class="dur">{dur}</span>' if dur else "")
                              + f'</div><figcaption>{lines}</figcaption></figure>')
             extra = "".join(self.figure(a, f"segment {s['id']}") for a in self.assets_for(s["id"]))
             note = f'<p class="g-seg-note">{self.text(s["note"])}</p>' if s["note"] else ""
