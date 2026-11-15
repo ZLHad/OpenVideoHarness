@@ -162,7 +162,7 @@ table.t.lines tr:hover td{background:var(--panel-3)}
 .energy{display:block;width:100%;height:90px;border-bottom:1px solid var(--rule);margin-bottom:6px}
 .energy .env{fill:var(--you-soft);stroke:var(--you);stroke-width:1.2;vector-effect:non-scaling-stroke}
 .energy .mk{stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
-.energy .mk.you{stroke:var(--you)}.energy .mk.wait{stroke:var(--wait)}.energy .mk.quiet{stroke:var(--ink-3)}
+.energy .mk.you{stroke:var(--you)}.energy .mk.wait,.energy .mk.listen{stroke:var(--wait)}.energy .mk.check{stroke:var(--live)}.energy .mk.quiet{stroke:var(--ink-3)}
 .secband{position:relative;height:34px;margin:0 0 8px;border:1px solid var(--rule);background:var(--panel)}
 .secband span{position:absolute;top:0;bottom:0;padding:8px 6px 0;font-size:var(--fs-label);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 1px 0 0 var(--rule-2)}
 .secband span.s0{background:var(--panel-3)}.secband span.s1{background:var(--panel-2)}
@@ -176,6 +176,7 @@ table.t.lines tr:hover td{background:var(--panel-3)}
 .hits2 .meta{white-space:nowrap}
 .dotw{font-style:normal;font-size:9px;color:var(--ink-3)}
 .dotw.you{color:var(--you)}.dotw.wait{color:var(--wait)}.dotw.live{color:var(--live)}.dotw.ok{color:var(--ok)}
+.dotw.listen{color:var(--wait)}.dotw.check{color:var(--live)}   /* the timeline's marks: listen ▶ amber, a check's finding ✕ red */
 
 /* ---------- 交付 ---------- */
 .mgrid.ship{grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr)}
@@ -238,6 +239,7 @@ table.t.ledger tr:hover td{background:var(--panel-3)}
 
 /* ---------- a static review page (bin/vh review): the stop's module above its gate view, read only ---------- */
 .sp-mod{margin:4px 0 30px}
+.g-head[hidden]+.sp-mod{margin-top:28px}   /* a settled page whose heading is the module's own: room under the top bar */
 .sp-mod .m2{display:block;min-height:0}
 .sp-mod .m2+.m2{margin-top:30px;padding-top:24px;border-top:1px solid var(--rule)}
 .sp-mod .mh2 h2{margin:0;font:500 var(--fs-h2)/1.3 var(--display);color:var(--ink-hi);overflow-wrap:anywhere}
@@ -274,11 +276,10 @@ table.t.ledger tr:hover td{background:var(--panel-3)}
 .declog{list-style:none;margin:0;padding:0}
 .declog li{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--rule);cursor:pointer}.declog li:first-child{border-top:0}
 .declog li>div{display:grid;gap:2px;min-width:0}.declog b{font-weight:500;color:var(--ink)}
-.xs.ovt{visibility:hidden;border:1px solid var(--rule-2);background:none;color:var(--ink-2);border-radius:var(--r-pill);padding:1px 9px;font-size:var(--fs-label);cursor:pointer}
+.xs.ovt{border:0;background:none;color:var(--ink-3);padding:0 2px;font-size:var(--fs-label);cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px}
 .wg .xs.ovt{position:absolute;top:8px;right:8px}
 .declog li>.xs.ovt{align-self:start}
-.wg:hover .xs.ovt,.declog li:hover .xs.ovt,.xs.ovt:focus-visible{visibility:visible}   /* "改" where the pointer is, small, over nothing */
-@media (hover:none){.xs.ovt{visibility:visible}}
+.xs.ovt:hover,.xs.ovt:focus-visible{color:var(--ink);text-decoration-color:currentColor}   /* "改": always there, a small link, over nothing */
 .quotes q.fold{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .quotes q.fold.open{display:block}
 .quotes .means{display:block;margin-top:3px;font-size:var(--fs-small);color:var(--ink-2)}
@@ -287,3 +288,6 @@ table.t.ledger tr:hover td{background:var(--panel-3)}
 .wg{padding-right:44px}   /* room for "改" at the cell's top right */
 .mgrid>.pn+.pn{margin-top:0}   /* side by side in a grid: the same top */
 .checkl .meta{white-space:normal}
+.mgrid.board.nopic{grid-template-columns:minmax(0,1fr);gap:10px}.mgrid.board.nopic .kv2{display:flex;flex-wrap:wrap;gap:4px 28px}
+.mgrid.board.nopic .kv2>div{border:0;padding:0}   /* no picture: the note and this page's facts in a line each, no empty half */
+.mgrid.ledger.one{grid-template-columns:minmax(0,1fr)}

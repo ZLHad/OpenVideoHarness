@@ -22,7 +22,7 @@
   - A delivered film waits for no one, whatever an older stop still says. `bin/vh projects` calls it delivered unless a page waits for the person.
   - An older BRIEF's "# BRIEF — 片名" is read as the film's name.
 - The console:
-  - A film that went out shows with no word the stops it left open, skipped or never had (no "跳过" beside "已交付").
+  - A film that went out says "没单独停" for the stops it left open, skipped or never had (no "跳过" beside "已交付", and no station without a word).
   - The right column holds a stop's decisions only on that stop's module; elsewhere it is one line ("初版等你定 2 件 →"). Its cards are compact.
   - At 1440×900 the column fits without a fade, in both languages:
     - the note button sits on the line that says what the note is on;
@@ -35,7 +35,7 @@
   - The timeline's pointer works as an editor's (asked for after use: clicks did unexpected things, and groups folded by themselves):
     - a click puts the playhead where you click, with no snapping; on a shot, a line, a chapter or a mark it also selects it, and a mark takes its own second;
     - a drag scrubs and selects nothing;
-    - Shift + drag chooses a span, the one gesture that snaps (the switch now reads "吸附");
+    - Shift + drag chooses a span, the one gesture that snaps (while "对齐镜头" is on);
     - a double click on a shot or a line plays just that;
     - ⌘/Ctrl + wheel, or a pinch, zooms around the pointer;
     - a group folds from its name only. The whole row used to fold it, so a click a little off a lane folded a group, and the fold was kept; folds made that way open again;
@@ -46,7 +46,6 @@
     - the review layout says where the sound lanes are;
     - a note just added is brought into view in the column;
     - on another module, the line to a stop's decisions is a quiet link, with no "下一步" under it saying the same;
-    - an option's pros and costs show whole on hover where the column cuts them to a line;
     - takes that are not on this machine are said once, not on every card;
     - the film's sound shows its length before it plays;
     - on a phone, a bar above the picture says what waits ("初版等你定 2 件 ↓") and goes to the decisions, which come after the picture and the timeline;
@@ -54,6 +53,17 @@
     - a place to listen is marked with a play triangle, not a second ring beside the agent's ○;
     - an option's pros and costs in the column are as bright as on the static page; on 棱镜's amber card they had read at under 4:1;
     - the ⌘↩ badge beside 记下 is readable.
+  - After a second acceptance review on screenshots:
+    - a decision's options in the right column show their pros and costs whole, a line each. They had been cut to one line to fit 900 px; "agent 没把握的" and "请你听" fold to their headings instead and open on a click;
+    - the board page's bar says the stop in the top bar's words, and a delivered film's 立意 and 大纲 bars say that a change now remakes the film;
+    - a delivered film's ledger shows no "还没出过版本" and no row for a decision it never came to. "改" is always there, as a small link;
+    - a static page made after its stop settled shows one status line (the module's), and says "要改，在对话里说", since it has no note box. Its outline counts the open round's unsure places, as the console does;
+    - a shot is written one way in a check's message and in the submission's list, which also keeps a span's end;
+    - the board's moved rough cut offers to say where it went on a delivered film too, and with no picture the page leaves no gap;
+    - the marks are one set on every page: a place to listen an amber ▶, the agent's unsure place an amber ○, the check's finding a red ✕, your note a cyan ●. This covers the sound page and the static page, and a shot flagged unsure carries the ○ that the legend lists;
+    - the music panel says its player is the music's whole track, not the film;
+    - a quote's date is said once, and a log topic of "fact" reads 事实;
+    - the demo's contact sheet shows its six frames.
   - The waiting film's card and a static page's main picture prefer a picture of the film to a contact sheet.
   - A static page made after its stop settled is a record ("已定", nothing to pick).
   - A static page writes a shot one way, S4 as the console does; its anchor and the reply keep the id as given. In English, the reason for the recommended option reads "Why: …". `bin/vh gate --init` titles the reviewer's scores "评审打的分" on a Chinese page.

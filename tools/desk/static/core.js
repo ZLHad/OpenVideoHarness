@@ -50,8 +50,8 @@ const STR = {
     n_notes: "{n} 条点评", unsure: "没把握", n_checks: "{n} 处检查", reads: "要看到", ver_n: "第 {n} 版", proxy: "代理",
     no_film_frames: "还没出成片，先看分镜的关键帧。", no_film_sheet: "还没出成片，先看联系表。", no_film0: "还没出成片。", film_gone_frames: "成片不在本机（可能挪到了别的盘），先看分镜的关键帧。", film_gone_sheet: "成片不在本机（可能挪到了别的盘），先看联系表。", film_gone0: "成片不在本机（可能挪到了别的盘）。",
     safe: "安全框", compare: "和{v}对比", ver_now: "{v} · 现在", lay_review: "审片", lay_fine: "精修", lay_sound: "听声音", layout: "布局",
-    tl_hint: "点哪，播放头就到哪；点在镜头、旁白或标记上，右边的意见就对着它。", h_mouse: "鼠标", h_keys: "键盘", tl_more: "旁白、音乐和波形在这两个布局里：", mouse_list: "拖：拖着播放头看画面，不选东西；Shift + 拖：选一段（开着吸附时贴到镜头边）；双击镜头或旁白：只放这一段；⌘ / Ctrl + 滚轮：以指针为中心放大缩小；▾ 组名：收起或展开这一组",
-    snap: "吸附", snap_tip: "Shift + 拖选一段时，贴到镜头边、旁白和标记上", g_fold: "收起这一组", g_unfold: "展开这一组", g_folded: "已收起", zoom_in: "放大", zoom_out: "缩小", play: "播放 / 暂停（空格）", prev_shot: "上一个镜头（←）", next_shot: "下一个镜头（→）",
+    tl_hint: "点哪，播放头就到哪；点在镜头、旁白或标记上，右边的意见就对着它。", h_mouse: "鼠标", h_keys: "键盘", tl_more: "旁白、音乐和波形在这两个布局里：", mouse_list: "拖：拖着播放头看画面，不选东西；Shift + 拖：选一段（开着对齐镜头时贴到镜头边）；双击镜头或旁白：只放这一段；⌘ / Ctrl + 滚轮：以指针为中心放大缩小；▾ 组名：收起或展开这一组",
+    snap: "对齐镜头", snap_tip: "Shift + 拖选一段时，贴到镜头边、旁白和标记上", g_fold: "收起这一组", g_unfold: "展开这一组", g_folded: "已收起", zoom_in: "放大", zoom_out: "缩小", play: "播放 / 暂停（空格）", prev_shot: "上一个镜头（←）", next_shot: "下一个镜头（→）",
     g_pic: "画面", g_sound: "声音", g_review: "审阅", ln_chap: "章节", ln_shots: "镜头", ln_voice: "旁白", ln_music: "音乐", ln_hits: "卡点", ln_wave: "波形", ln_marks: "标记", ln_diff: "这一版改了",
     e_chap: "没有章节", e_shots: "没有镜头表", e_voice: "没有旁白", e_music: "没有配乐", e_wave: "还没有波形",
     e_diff: "这一版没有记下改了哪里（bin/vh patch 才记）", e_marks: "还没有标记", whole_render: "整支重渲",
@@ -123,7 +123,7 @@ const STR = {
     c_none_mine_m: "还没写。点页面上任意一处，在下面写一句。", c_mine_how: "点时间轴或一个镜头，在下面写一句", c_mine_how_m: "点页面上任意一处，在下面写一句", no_pic: "还没有画面", no_pic_gone: "画面不在本机",
     subs_waiting: "{n} 份反馈还没交给 agent",
     blanks_n: "{n} 处没填",
-    f_past: "",
+    f_past: "没单独停",
     away_decide: "{s}等你定 {n} 件",
     away_look: "{s}等你看",
     next_you: "看{s}，定好以后交给 agent。",
@@ -177,8 +177,8 @@ const STR = {
     n_notes: "{n} {n|note|notes}", unsure: "unsure", n_checks: "{n} {n|check|checks}", reads: "Should see", ver_n: "v{n}", proxy: "proxy",
     no_film_frames: "No film yet: these are the storyboard's key frames.", no_film_sheet: "No film yet: this is the contact sheet.", no_film0: "No film yet.", film_gone_frames: "The film isn't on this computer (moved to another drive?): these are the storyboard's key frames.", film_gone_sheet: "The film isn't on this computer (moved to another drive?): this is the contact sheet.", film_gone0: "The film isn't on this computer (moved to another drive?).",
     safe: "Safe area", compare: "Compare with {v}", ver_now: "{v} · now", lay_review: "Review", lay_fine: "Fine cut", lay_sound: "Listen", layout: "Layout",
-    tl_hint: "The playhead goes where you click; click a shot, a line or a mark and your note is about it.", h_mouse: "Mouse", h_keys: "Keys", tl_more: "Narration, music and the waveform are in:", mouse_list: "Drag：scrub, selecting nothing；Shift + drag：choose a span (snapping to shot edges while Snap is on)；Double-click a shot or a line：play just that；⌘ / Ctrl + wheel：zoom around the pointer；▾ a group's name：fold or unfold it",
-    snap: "Snap", snap_tip: "When you Shift-drag a span, it snaps to shot edges, lines and marks", g_fold: "Fold this group", g_unfold: "Unfold this group", g_folded: "folded", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
+    tl_hint: "The playhead goes where you click; click a shot, a line or a mark and your note is about it.", h_mouse: "Mouse", h_keys: "Keys", tl_more: "Narration, music and the waveform are in:", mouse_list: "Drag：scrub, selecting nothing；Shift + drag：choose a span (snapping to shot edges while Snap to shots is on)；Double-click a shot or a line：play just that；⌘ / Ctrl + wheel：zoom around the pointer；▾ a group's name：fold or unfold it",
+    snap: "Snap to shots", snap_tip: "When you Shift-drag a span, it snaps to shot edges, lines and marks", g_fold: "Fold this group", g_unfold: "Unfold this group", g_folded: "folded", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
     g_pic: "Picture", g_sound: "Sound", g_review: "Review", ln_chap: "Chapters", ln_shots: "Shots", ln_voice: "Voice", ln_music: "Music", ln_hits: "Hits", ln_wave: "Waveform", ln_marks: "Marks", ln_diff: "Changed",
     e_chap: "No chapters", e_shots: "No shot list", e_voice: "No narration", e_music: "No music", e_wave: "No waveform yet",
     e_diff: "This version doesn't record what changed (bin/vh patch does)", e_marks: "No marks yet", whole_render: "re-rendered whole",
@@ -250,7 +250,7 @@ const STR = {
     c_none_mine_m: "Nothing yet. Click anything on the page and write a line below.", c_mine_how: "click the timeline or a shot, write below", c_mine_how_m: "click anything on the page, write below", no_pic: "No picture yet", no_pic_gone: "Its pictures are not on this machine",
     subs_waiting: "{n} {n|submission|submissions} not handed to the agent yet",
     blanks_n: "{n} {n|blank|blanks}",
-    f_past: "",
+    f_past: "no stop of its own",
     away_decide: "{s}: {n} to decide",
     away_look: "{s} is waiting for you",
     next_you: "look at the {s}, decide, and send it to the agent.",
@@ -445,6 +445,7 @@ function gateName(g, pages) {   // a stop by its name ("初版"); a later page o
   const more = !pages ? "" : letter ? t("page_k", { n: letter[1].charCodeAt(0) - 96 }) : rest.replace(/^[-_·\s]+/, "");
   return `${L.stn[b] || b}${more ? " · " + more : ""}`;
 }
+const shotText = (s) => String(s || "").replace(/(^|[^A-Za-z0-9])S0+(?=\d)/g, "$1S");   // a shot inside a tool's sentence, written one way: S06 → S6
 function shortDate(d) {   // one way to write a day: "11-14" this year, "2025-11-14" another year
   const m = String(d || "").match(/^(\d{4})-(\d\d)-(\d\d)/); if (!m) return "";
   return +m[1] === new Date().getFullYear() ? `${m[2]}-${m[3]}` : `${m[1]}-${m[2]}-${m[3]}`;

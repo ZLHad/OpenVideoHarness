@@ -39,6 +39,7 @@ function renderModule() {
   host.id = "spMod"; host.className = "sp-mod";
   host.addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.hidden = true; }, true);   // a picture not there: the letter under it shows
   if (head) root.parentNode.insertBefore(head, root);   // the page's heading first (its stop, what it asks, the spend, a missing file), then the module
+  const settledHead = head && root.hasAttribute("data-settled") ? [...head.querySelectorAll(".g-eyebrow, .g-then")] : [];   // settled: the module's own line says where it stands
   root.parentNode.insertBefore(host, root);
   try { renderModule(); } catch (e) {   // a module that cannot draw this project: the gate view alone, as before
     host.remove(); if (head) root.prepend(head); return;
@@ -51,5 +52,7 @@ function renderModule() {
     main.hidden = true; const b = main.closest(".g-body"); if (b) b.classList.remove("has-side");
   }
   root.addEventListener("change", (e) => { const r = e.target; if (r.type === "radio" && r.name.startsWith("dec-")) follow(r.name.slice(4), r.value); });
+  settledHead.forEach((x) => { x.hidden = true; });
+  if (head && settledHead.length && ![...head.children].some((c) => !c.hidden)) head.hidden = true;
   document.documentElement.classList.add("has-mod");
 })();

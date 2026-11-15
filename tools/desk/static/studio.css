@@ -26,7 +26,7 @@ body{overflow:hidden}
 .stn.agent{color:var(--ink-2)}.stn.agent i{background:var(--agent);box-shadow:0 0 8px var(--agent)}
 .stn.wait{color:var(--ink)}.stn.wait i{background:var(--wait);box-shadow:0 0 8px var(--wait)}.stn.wait em{color:var(--wait)}
 .stn.off i{background:none;border:1px dashed var(--rule-2)}
-.stn.past i{background:var(--ok);opacity:.45}.stn.past small{display:none}   /* a film that went out: a stop it left open, past, with no word */
+.stn.past i{background:var(--ok);opacity:.45}.stn.past small{color:var(--ink-3)}   /* a film that went out: a stop it left open, past, with no word */
 .stn.wait small{color:var(--wait)}.stn.agent small{color:var(--agent)}
 .stn.wait{background:var(--wait-soft);box-shadow:inset 0 0 0 1px var(--wait-line)}   /* where it waits for you, at a glance (舰桥's solid block, softer) */
 .stn[aria-current=true]{color:var(--ink-hi);background:var(--panel-3)}
@@ -533,17 +533,16 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .col .g-cost{display:block;margin:0 0 5px}
 .col .g-opts{gap:6px}
 .col .g-opt{padding:6px 8px 7px}
-.col .g-opt .pc{display:block;margin-top:2px;font-size:var(--fs-label);line-height:1.45;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.col .g-opt .pc>span{display:inline!important;-webkit-line-clamp:unset!important;white-space:nowrap!important}
-.col .g-opt .pc>span+span::before{content:" · "}
-.col .g-opt .pc .k{margin-right:3px}
+.col .g-opt .pc{display:grid;gap:1px;margin-top:3px;font-size:var(--fs-label);line-height:1.45;color:var(--ink-2)}   /* the pros and costs whole, a line each: comparing them is what the card is for */
+.col .g-opt .pc>span{display:block!important;-webkit-line-clamp:unset!important;white-space:normal!important;overflow:visible!important}
+.col .g-opt .pc .k{margin-right:4px}
 .col .g-why{margin-top:4px;-webkit-line-clamp:2}
 /* a shot on the timeline: a cell of the strip, its picture filling it, its number on the picture's corner, a divider between */
 .blk.shot{flex-direction:column;align-items:flex-start;justify-content:space-between;gap:0;padding:0!important;border:0;border-left:1px solid var(--rule-2);border-radius:0}
 :root[data-theme=darkfield] .blk.shot{border-left:1px solid var(--rule-2)}
 .blk.shot img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:cover}
 .blk.shot .sid{position:relative;z-index:1;margin:2px 0 0 2px;font:500 10.5px/1.35 var(--mono);color:var(--on-pic);background:var(--scrim);padding:0 4px;border-radius:2px}
-.blk.shot .sid.flag{box-shadow:inset 0 -2px 0 var(--wait)}.blk.shot .sid.note{box-shadow:inset 0 -2px 0 var(--you)}
+.blk.shot .sid.flag::after{content:" ○";color:var(--wait)}.blk.shot .sid.note::after{content:" ●";color:var(--you)}   /* the legend's own marks: unsure ○, your note ● */
 .blk.shot .slab{position:relative;z-index:1;margin:0 0 2px 2px;max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis;font-size:10.5px;color:var(--on-pic);background:var(--scrim);padding:0 4px;border-radius:2px}
 .blk.shot.sel{box-shadow:inset 0 0 0 2px var(--you)}
 .wav path{fill:var(--ink-3);opacity:.3;stroke:var(--ink-2);stroke-width:1;vector-effect:non-scaling-stroke}   /* the sound's outline, not a block */
@@ -561,3 +560,6 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .phone-dec{display:none}
 @media (max-width:900px){.app.is-cut .cut>.phone-dec:not([hidden]){order:1;display:flex;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--wait-line);background:var(--wait-soft);color:var(--wait);font-size:var(--fs-small);text-decoration:none}
   .app.is-cut .cut>.phone-dec::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--wait)}}   /* a phone: above the picture, the way to what you are asked to decide */
+.col-body .cfold>summary{cursor:pointer;list-style:none;margin:0}.col-body .cfold>summary::-webkit-details-marker{display:none}
+.col-body .cfold>summary::before{content:"▸";flex:none;width:10px;font-size:10px;color:var(--ink-3)}.col-body .cfold[open]>summary::before{content:"▾"}
+.col-body .cfold[open]>summary{margin-bottom:8px}.col-body .cfold+.cfold{margin-top:10px}.col-body .cfold>summary:hover b{color:var(--ink)}   /* the unsure places and the places to listen, folded to a heading */

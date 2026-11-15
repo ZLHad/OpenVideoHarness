@@ -197,6 +197,13 @@ def module_payload(project, gate, out_dir, marks, lang):
     data["history"] = [{k: h.get(k) for k in ("title", "date", "quotes", "notes")} for h in d.get("history") or []]
     data["status"] = {"stations": st.get("stations") or [], "assets": {"budget": ((st.get("assets") or {}).get("budget") or {})}}
     data["docs"] = [x for x in d.get("docs") or [] if x.get("file") == "STORYBOARD.md"] if "board" in mods else []
+    cur = d.get("current")
+    if cur and cur != gate and d.get("round_open"):   # a page made after its stop: the open round's unsure places count in its outline as in the console
+        try:
+            more = [m for m in page_for(project, cur, lang=lang).marks() if m["kind"] == "least" and m["t"] is not None]
+        except (ValueError, OSError, AttributeError, KeyError, TypeError):
+            more = []
+        marks = list(marks) + [m for m in more if m["target"] not in {x["target"] for x in marks}]
     data["marks"] = marks
     if "sound" in mods:
         tl = (d.get("studio") or {}).get("timeline") or {}

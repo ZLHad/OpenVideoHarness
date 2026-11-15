@@ -196,7 +196,7 @@ code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none;letter-spacing:normal}   /
 .g-marks.untimed li{grid-template-columns:minmax(0,1fr)}.g-marks.untimed .at{display:none}
 .g-marks .at{font:var(--fs-label) var(--mono);color:var(--wait);text-align:left;border:0;background:none;padding:0;cursor:pointer;white-space:nowrap}
 .g-marks .at.static{cursor:default}
-.g-marks li.listen .at{color:var(--you)}
+.g-marks li.listen .at{color:var(--wait)}   /* a place to listen: the timeline's amber, as the agent's unsure places */
 .g-marks .id{color:var(--ink);margin-right:6px;font-family:var(--mono);font-size:var(--fs-label)}
 .g-marks li.on{color:var(--ink)}
 

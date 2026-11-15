@@ -360,10 +360,6 @@ function renderColumn() {
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
-  $$(".g-opt", cards || document.createElement("i")).forEach((o) => {   // the column cuts an option's pros and costs to a line: the whole of them on hover
-    const lines = $$(".pc>span", o).map((x) => { const k = $(".k", x), all = x.textContent.trim(); return k ? `${k.textContent.trim()} ${all.slice(k.textContent.length).trim()}` : all; });
-    if (lines.length) o.title = lines.join("\n");
-  });
   renderMarks(); renderMine(); renderNext(); renderRound(); syncPhoneDec();
   if (!$("#composer").dataset.ready) buildComposer();
   $("#composer").hidden = false;
@@ -401,9 +397,12 @@ function recentHtml() {   // what was decided last, when nothing is open: REVIEW
 function renderMarks() {   // the round's places in the film: on the round's own module (elsewhere its one line goes there)
   const home = GATE_MOD[gateBase(ROUND.id)] || "cut", M = MOD === home ? gateMarks() : [], least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
   const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${+(m.t)}"` : ""}${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(shotName(m.id))}</b> ` : ""}${esc(m.note)}</span></li>`;
-  $("#cMarks").innerHTML = (least.length ? `<h3 class="blk-h"><b>${esc(t("c_least"))}</b><span class="n mono">${least.length}</span></h3><ul class="note-list marks">${least.map(li).join("")}</ul>` : "")
-    + (listen.length ? `<h3 class="blk-h" style="margin-top:12px"><b>${esc(t("c_listen"))}</b><span class="n mono">${listen.length}</span></h3><ul class="note-list marks">${listen.map(li).join("")}</ul>` : "");
+  // folded to their headings and counts: the decisions above take the room (their pros and costs whole); a click opens one, and it stays open
+  const fold = (k, title, list) => `<details class="cfold" data-k="${k}"${COLOPEN[k] ? " open" : ""}><summary class="blk-h"><b>${esc(title)}</b><span class="n mono">${list.length}</span></summary><ul class="note-list marks">${list.map(li).join("")}</ul></details>`;
+  $("#cMarks").innerHTML = (least.length ? fold("least", t("c_least"), least) : "") + (listen.length ? fold("listen", t("c_listen"), listen) : "");
+  $$("#cMarks details").forEach((d) => d.addEventListener("toggle", () => { COLOPEN[d.dataset.k] = d.open; }));
 }
+const COLOPEN = { least: false, listen: false };
 function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.status); }
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
@@ -561,7 +560,7 @@ function openConfirm() {
   const decs = (ROUND.data.decisions || []).filter((d) => p.decisions[d.id]).map((d, i) => { const v = p.decisions[d.id], mine = !p.defaulted.includes(d.id), o = (d.options || []).find((x) => x.id === v) || {};
     return `<li><span class="q">${i + 1} · ${esc(d.question || d.id)}</span><span class="v ${mine ? "mine" : "rec"}">${esc(o.label ? cut(String(o.label).replace(/\*\*|`/g, ""), 60) : v || "–")}${mine ? "" : esc(t("by_rec"))}</span></li>`; }).join("");   // an option by its words; the code only in the reply for the chat
   const least = gateMarks().filter((m) => m.kind === "least");   // what "改完下面两处" points at, here in the sheet
-  const leastHtml = least.length ? `<h4>${esc(t("c_least"))}</h4>${least.map((m) => `<li><span class="q">${esc(m.t != null ? fmt(m.t) : "")}${m.id && !/^\s*\d/.test(m.id) ? " " + esc(m.id) : ""}</span><span>${esc(m.note)}</span></li>`).join("")}` : "";
+  const leastHtml = least.length ? `<h4>${esc(t("c_least"))}</h4>${least.map((m) => `<li><span class="q">${esc(m.t != null ? fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "") : "")}${m.id && !/^\s*\d/.test(m.id) ? " " + esc(shotName(m.id)) : ""}</span><span>${esc(m.note)}</span></li>`).join("")}` : "";
   const items = p.items.map((i) => `<li><span class="q">${esc(i.label)} · ${esc(st[i.status])}</span>${i.text ? `<span>${esc(i.text)}</span>` : ""}${i.suggest ? `<span class="serif">→ ${esc(i.suggest)}</span>` : ""}</li>`).join("")
     + (p.dropped.length ? `<h4 class="dropped">${esc(t("d_dropped", { n: p.dropped.length }))}</h4>${p.dropped.map((i) => `<li class="dropped"><span class="q">${esc(cut(i.label, 60))}</span><span>${esc(cut(i.text, 120))}</span></li>`).join("")}` : "");
   const c = $("#confirm");
@@ -948,7 +947,7 @@ function CutModule(area) {
   let SEL = null, inPt = null, stopAt = null, clockT = 0, raf = 0, simPlaying = false, simLast = 0;
   const notesOf = () => myItems().filter(([, v]) => v.t != null).map(([k, v]) => ({ kind: "mine", t: +v.t, t1: v.t1 != null ? +v.t1 : null, target: k, label: v.label || k, note: v.text || "" }));
   const agentMarks = () => gateMarks().filter((m) => m.t != null).map((m) => ({ kind: m.kind, t: +m.t, t1: m.t1 != null ? +m.t1 : null, target: m.target, label: m.id || "", note: m.note }));
-  const checkMarks = () => findings.map((f, i) => ({ kind: "check", t: +f.t, t1: f.t1 != null ? +f.t1 : null, target: "time:" + (+f.t).toFixed(1), label: f.kind || "", note: f.message || "", sev: f.severity, i }));
+  const checkMarks = () => findings.map((f, i) => ({ kind: "check", t: +f.t, t1: f.t1 != null ? +f.t1 : null, target: "time:" + (+f.t).toFixed(1), label: f.kind || "", note: shotText(f.message || ""), sev: f.severity, i }));
   const allMarks = () => agentMarks().concat(checkMarks(), notesOf()).sort((a, b) => a.t - b.t);
 
   area.innerHTML = `<div class="cut layout-${layout}" id="cut">
@@ -1103,7 +1102,7 @@ function CutModule(area) {
       if (!chk) h = `<p class="void">${esc(t("no_checks"))}</p>`;
       else {
         h = `<p class="meta" style="margin:4px 6px 8px">${esc(t("verdict"))} <b class="${verdictCls(chk.verdict)}">${esc(chk.verdict || "–")}</b> · ${esc(chk.video || "")}</p>${chk.stale ? `<p class="notice">${esc(t("check_stale"))}</p>` : ""}`;
-        h += findings.map((f) => `<button type="button" class="lrow text" data-pick="check:${findings.indexOf(f)}"><span class="tc">${esc(fmt(f.t))}</span><span class="tx"><em style="color:var(--live)">✕ ${esc(f.severity === "fail" ? t("sev_fail") : t("sev_warn"))}</em> ${esc(f.message || f.kind || "")}</span></button>`).join("");
+        h += findings.map((f) => `<button type="button" class="lrow text" data-pick="check:${findings.indexOf(f)}"><span class="tc">${esc(fmt(f.t))}</span><span class="tx"><em style="color:var(--live)">✕ ${esc(f.severity === "fail" ? t("sev_fail") : t("sev_warn"))}</em> ${esc(shotText(f.message || f.kind || ""))}</span></button>`).join("");
       }
     }
     b.innerHTML = h;
@@ -1162,7 +1161,7 @@ function CutModule(area) {
       + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + (diffH ? lane("thin extra", t("ln_diff"), diffH, "review") : "")   // what changed: a lane only when it is on record
       + (layout === "review" && (lines.length || peaks || sections.length || beats.length) ? `<div class="tl-more"><span>${esc(t("tl_more"))}</span><button type="button" data-lay-go="fine">${esc(t("lay_fine"))}</button><button type="button" data-lay-go="sound">${esc(t("lay_sound"))}</button></div>` : "")   // the review layout keeps the picture and the review: say where the sound is
       + `<div class="over" aria-hidden="true"><div class="selr" hidden><span class="cap"></span></div><div class="tl-ph"><span class="cap"></span></div></div><div class="hover-tip" hidden></div>`;
-    const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => k === "mine" || AM.some((m) => m.kind === k));
+    const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => k === "mine" || AM.some((m) => m.kind === k) || (k === "least" && shots.some((s) => s.unsure)));   // a shot flagged unsure carries the ○ too
     $("#tlLegend", area).innerHTML = kinds.map(([, cls, w]) => `<span class="lg"><i class="pin ${cls}" aria-hidden="true"></i>${esc(t(w))}</span>`).join("");
     if (layout !== "review") closed.forEach((g) => { $$(`.lane[data-g="${g}"]`, tl).forEach((x) => { x.hidden = true; }); });
     paintSel(); tick();

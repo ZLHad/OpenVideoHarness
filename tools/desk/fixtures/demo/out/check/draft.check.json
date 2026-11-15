@@ -21,7 +21,7 @@
   {
    "kind": "loudness",
    "severity": "warn",
-   "message": "结尾的峰值太靠近上限，只差 0.2 dB",
+   "message": "结尾的峰值太靠近上限，只差 0.2\u00a0dB",
    "t": 31.0,
    "t1": null
   },
