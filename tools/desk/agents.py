@@ -487,14 +487,14 @@ class Session:
         return self._answer(rid, {"outcome": "selected", "optionId": option_id}, "page")   # what the server knows: the page's token and not an agent's process
 
     def reject_waiting(self, by):
-        """Each waiting request answered: rejected where the agent offered a rejection (a timeout, the desk locked), else
-        cancelled (a stop, the agent or the desk going away); never allowed."""
+        """Each waiting request answered: rejected where the agent offered a rejection (a timeout), else cancelled (a stop,
+        the agent or the desk going away); never allowed."""
         for rid in list(self.pending):
             p = self.pending.get(rid)
             if not p:
                 continue
             rej = next((o["optionId"] for o in p["options"] if o.get("kind") == "reject_once"), None)
-            self._answer(rid, {"outcome": "selected", "optionId": rej} if rej and by in ("timeout", "locked") else {"outcome": "cancelled"}, by)
+            self._answer(rid, {"outcome": "selected", "optionId": rej} if rej and by == "timeout" else {"outcome": "cancelled"}, by)
 
     # ---------- from the person ----------
     def say(self, text, scope=None, despite=False):
@@ -811,20 +811,6 @@ class Manager:
                     elif now - p["detached"] >= APPROVAL_TIMEOUT:
                         s.reject_waiting("timeout")
                         break
-
-    def lockdown(self):
-        """The desk accepts nothing any more (its link was opened twice): every waiting request is refused, every turn is
-        stopped (another page may have started it), and each page's stream ends."""
-        for s in list(self.sessions.values()):
-            try:
-                s.reject_waiting("locked")
-                if s.running:
-                    s.emit("notice", code="locked")
-                    s.stop()
-            except Exception:
-                pass
-            with s.cond:
-                s.cond.notify_all()
 
     def shutdown(self):
         """The desk is stopping: waiting requests cancelled, turns cancelled, every adapter stopped (TERM to its group

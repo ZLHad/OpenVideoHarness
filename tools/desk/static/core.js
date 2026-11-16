@@ -6,7 +6,6 @@
 const STR = {
   zh: {
     brand: "片场", nokey: "这一页现在只能看。要操作，请点终端里（或 agent 发给你的）那条控制台地址。找不到的话，在终端里运行：",
-    key_reused: "这个控制台地址已经在别处打开过（可能是你在别的浏览器或窗口里，也可能是别的程序抢先了），所以这台控制台现在不再接受操作。要接着用，在终端里运行下面这一行，它会给你一个新地址：",
     nokey_copy: "复制", nokey_copied: "复制好了：粘到终端里运行", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
@@ -136,7 +135,7 @@ const STR = {
   },
   en: {
     nokey: "This page can only look for now. To work in it, open the console address from your terminal (or the one your agent sent you). Can't find it? Run this in a terminal:",
-    key_reused: "This console address was already opened somewhere else (maybe by you in another browser or window, maybe by another program first), so the console accepts nothing now. To carry on, run this in a terminal; it gives you a new address:",
+   
     nokey_copy: "Copy", nokey_copied: "Copied: paste it into a terminal",
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, then copy it to your agent",
