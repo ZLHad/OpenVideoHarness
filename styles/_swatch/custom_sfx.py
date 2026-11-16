@@ -94,4 +94,36 @@ place(x, chirp(int(0.07 * SR), 3200, 4500, 38, r), 0.0)
 place(x, chirp(int(0.06 * SR), 3600, 4900, 42, r) * 0.85, 0.11)
 place(x, chirp(int(0.12 * SR), 4200, 3900, 55, r) * 0.6, 0.22)
 write("styles/tabletop-miniature/sfx/bird.wav", x)
+# whiteboard: a dry-erase marker. Each stroke sound is as long as its stroke in styles/whiteboard/swatch.js (XS 0.07, S 0.14,
+# M 0.34, L 0.62 s) and follows the same minimum-jerk speed curve the picture uses (16u²(1-u)²): the nib's tap on the
+# board, then friction noise and a stick-slip squeak that rise and fall with the hand's speed
+def marker(dur, seed, squeak=0.55, f0=1150):
+    n = int((dur + 0.02) * SR); t = np.arange(n) / SR; r = np.random.default_rng(seed)
+    u = np.clip(t / dur, 0, 1); v = 16 * u * u * (1 - u) ** 2; e = 0.18 + 0.82 * v
+    e *= np.where(t > dur, np.exp(-(t - dur) / 0.004), 1.0)
+    fric = band(r.standard_normal(n), 2400, 7500) * e ** 0.9 * 0.45
+    gate = np.repeat(r.random(n // 960 + 2), 960)[:n]; gate = np.convolve((gate > 0.35).astype(float), np.ones(240) / 240, "same")
+    f = f0 * (0.75 + 0.5 * v) * (1 + 0.02 * np.sin(2 * np.pi * 31 * t)); ph = 2 * np.pi * np.cumsum(f) / SR
+    sq = sum(np.sin(k * ph) / k for k in range(1, 7)) * gate * v * squeak * 0.4
+    tap = mixed(burst(int(0.02 * SR), 1500, 6000, 0.0025, r), modes(int(0.03 * SR), [190], [0.008], [0.5]))
+    x = fric + sq; x[:len(tap)] += tap * 1.2
+    x[-int(0.005 * SR):] *= np.linspace(1, 0, int(0.005 * SR))
+    return x
+def marker_run(path, n_glyph, period, seed, f0):
+    """handwriting: one short stroke group per glyph, a tap at each glyph's start"""
+    x = np.zeros(int((n_glyph * period + 0.03) * SR))
+    for i in range(n_glyph):
+        place(x, marker(period * 0.86, seed + i, 0.4, f0 * (1 + 0.06 * ((i * 7) % 5 - 2))), i * period)
+    write(path, x)
+WB = "styles/whiteboard/sfx"
+write(f"{WB}/marker_L.wav", marker(0.62, 101, 0.6, 1050))
+write(f"{WB}/marker_M_a.wav", marker(0.34, 102, 0.55, 1180))
+write(f"{WB}/marker_M_b.wav", marker(0.34, 103, 0.7, 1320))
+write(f"{WB}/marker_S_a.wav", marker(0.14, 104, 0.5, 1250))
+write(f"{WB}/marker_S_b.wav", marker(0.14, 105, 0.45, 1400))
+x = np.zeros(int(0.26 * SR))
+for i, at in enumerate([0.0, 0.08, 0.16]): place(x, marker(0.07, 106 + i, 0.3, 1300 + 90 * i), at)
+write(f"{WB}/marker_taps.wav", x)
+marker_run(f"{WB}/marker_write_title.wav", 9, 0.11, 120, 1150)
+marker_run(f"{WB}/marker_write_caption.wav", 10, 0.06, 140, 1300)
 print("ok")

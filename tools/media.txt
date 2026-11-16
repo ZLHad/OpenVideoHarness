@@ -10,3 +10,5 @@ showcase/03-math-fourier/media/final.mp4 03-math-explainer.mp4 f6eff1bcd133f6c9f
 showcase/04-intro-film/media/final.mp4 intro-film-1080p.mp4 c763ab78c704294a02d2ccd56c792d13f76077cbb86f7949f973d2946ef5447a
 showcase/04-intro-film/v3/final.mp4 intro-film-v3-81s.mp4 c1aea967f79b33d4892010805a1dc4d2b8c1653593ab5076047ac72889328f03
 styles/gallery.mp4 styles-gallery-v2.mp4 4d338e84772c65c69398e9cdf980472080bcd680fa03080ce5da28875bedadb0
+styles/whiteboard/media/swatch.mp4 styles-media/whiteboard-b8f99591.mp4 b8f99591fe8db9cbe3710156de34b6a52dcb3e4ef9957c231b351b24fa36304f
+styles/whiteboard/media/swatch-portrait.mp4 styles-media/whiteboard-portrait-525db456.mp4 525db456d438b78fe9ca70b6388d9ea492b2f908c9c01d0eb4988c267d63bcf9

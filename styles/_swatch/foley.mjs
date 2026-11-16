@@ -4,8 +4,8 @@
 // usage: node styles/_swatch/foley.mjs <slug> [<slug> …]      (render.sh then mixes events.json under the score)
 // A Blender scene (swatch.py) is checked by blender_prep.py scan, then run by plain python3 for its FOLEY (no bpy there).
 import { execFileSync } from "node:child_process";
-import { existsSync, realpathSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { cpSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 const STYLES = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -33,11 +33,24 @@ function pyFoley(py) {
   const out = execFileSync(cmd[0], cmd[1], { encoding: "utf8", env }).trim().split("\n");
   return JSON.parse(out[out.length - 1]);
 }
+// A scene that imports the shared libraries the way the stage lays them out (../../vendor/x.js, ../../components/…:
+// styles/_swatch/README.md, "给预设作者的坑" 10) cannot be imported from styles/<slug>/, where ../../ is the repo root.
+// Import such a scene from a throwaway copy in the stage's layout: scenes/<slug>/ beside links to vendor/ and components/.
+async function importScene(slug, js) {
+  if (!/["']\.\.\/\.\.\/(vendor|components)\//.test(readFileSync(js, "utf8"))) return import(pathToFileURL(js).href);
+  const d = mkdtempSync(`${tmpdir()}/swatch-foley-`);
+  try {
+    cpSync(`${STYLES}/${slug}`, `${d}/scenes/${slug}`, { recursive: true, filter: (p) => !p.startsWith(`${STYLES}/${slug}/media`) });
+    if (existsSync(`${STYLES}/_swatch/vendor`)) symlinkSync(`${STYLES}/_swatch/vendor`, `${d}/vendor`);
+    symlinkSync(resolve(STYLES, "../components"), `${d}/components`);
+    return await import(pathToFileURL(`${d}/scenes/${slug}/swatch.js`).href);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+}
 for (const slug of process.argv.slice(2)) {
   const js = `${STYLES}/${slug}/swatch.js`, py = `${STYLES}/${slug}/swatch.py`;
   let m;
   try {
-    if (existsSync(js)) m = await import(pathToFileURL(js).href);
+    if (existsSync(js)) m = await importScene(slug, js);
     else if (existsSync(py)) m = { FOLEY: pyFoley(py) };
     else throw new Error("no swatch.js or swatch.py");
   } catch (e) { console.error(`${slug}: ${e.message.trim()}`); process.exitCode = 1; continue; }
