@@ -90,6 +90,9 @@ def locks_check():
         return "install does not use npm ci"
 
 
+MECHANISM = re.compile(r"(?i)钥匙|密钥|令牌|口令|token|\bkey\b|\?k=")   # words for how the console works, which a person never needs to read
+
+
 def page_check():
     """agent.js in node: the agent's words escaped, no links made; the diff; send, answer, stop and the settings act only on a
     real event; the box is never filled from anything but the person's own draft."""
@@ -103,10 +106,8 @@ def page_check():
     if "<a " in js or "href=" in js.replace('href="${', ""):
         return "agent.js makes links"
     core = (HERE / "static" / "core.js").read_text(encoding="utf-8")
-    gate = (ROOT / "tools" / "gate.py").read_text(encoding="utf-8")
-    said = re.findall(r'\b(?:nokey|key_reused|nokey_copied): "([^"]*)"', core) + re.findall(r'\b(?:reload|n_locked|perm_by_locked): "([^"]*)"', js) \
-        + re.findall(r'"(?:terminal|busy)": "([^"]*)"', gate)
-    shown = [x for x in said if re.search(r"(?i)钥匙|密钥|令牌|口令|token|\bkey\b|\?k=", x)]
+    said = re.findall(r'\b(?:nokey|key_reused|nokey_copied): "([^"]*)"', core) + re.findall(r'\b(?:reload|n_locked|perm_by_locked): "([^"]*)"', js)
+    shown = [x for x in said if MECHANISM.search(x)]   # (gate's own words: link_checks reads what it prints)
     if len(said) < 12 or shown:
         return f"the words a person reads name the mechanism: {shown or len(said)}"
     node = shutil.which("node")
@@ -1008,6 +1009,8 @@ def link_checks():
         forced, (port4, k4) = run("desk", "link", str(proj), "--force")
         if busy.returncode != 1 or "middle of a turn" not in busy.stderr or gk or "bin/vh desk link" not in g.stdout or not port4:
             return f"mid-turn: link {busy.returncode} {busy.stderr[-160:]!r}, gate {g.stdout[-200:]!r}, --force {forced.returncode}"
+        if MECHANISM.search(g.stdout):   # what the person reads says what to do, not how it works (an address itself may carry ?k=)
+            return f"gate's words for the person name the mechanism: {g.stdout[-200:]!r}"
     finally:
         pid = desk_pid()
         if pid:
