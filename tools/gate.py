@@ -3,15 +3,20 @@ desk when this stop is reviewed there, print the chat message; with --wait, wait
 At gate ① the message also says where this film stops (tools/gatecheck.py's plan_of), so one sentence from the person adds
 or takes away a stop. Gate ③'s page is not sent while gate ②, when the film's plan has it, has nothing on record.
 
-usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeout s] [--port N] [--json]
+usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeout s] [--port N] [--print-address] [--json]
        bin/vh gate <project> <n> --init [--json]
   <n>       1 | 2 | 3 | E0–E5 | 2b … : out/review/gate-<n>.json (playbook/01-pipeline.md, 审阅页, has every field); left out:
             this round, as bin/vh review takes it
   where the person reviews: --desk, --page or --chat when the person asked in chat; else the 审阅方式 line in LOCAL.md
             (对话 | 审阅页 | 审阅台; chat | page | desk); else the effort's default: studio the review desk, standard and quick
             the static page. Every channel gets the static page (out/review/gate-<n>.html, also index.html) and the chat
-            message; the desk channel also gets the desk, started in the background on 127.0.0.1 when it is not serving
-            this project yet (it stops by itself after 12 h without a request), and its address in the message
+            message; the desk channel also gets the desk: Studio (bin/vh studio) when it is running and has this project,
+            else this project's desk, started in the background on 127.0.0.1 when it is not serving yet (it stops by itself
+            after 12 h without a request). The desk shows its window at this stop itself, and the message says it is open
+            there (nothing secret in it); when the window did not open, the message says so and what to run
+  --print-address   the desk channel, for a browser on another machine: show nothing; write an address that opens one
+            page, once, within ten minutes, to your terminal alone (the message says only where it is). Refused with no
+            terminal (an agent's shell has none) and while this film's desk runs (bin/vh desk link --print-address)
   --wait    the desk channel only: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout,
             default 7100 s). An agent runs this in the background: the message is printed first, before the waiting
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
@@ -41,15 +46,18 @@ from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
-SAY = {"zh": {"desk_wait": "审阅台：{url}（勾选、点评、提交；我在后台等着，你一提交我就接着做）",
-              "desk": "审阅台：{url}（勾选、点评、提交，然后回到这里说一声“看审阅台”）",
-              "terminal": "（这个审阅台是在终端里起的：用终端里那条控制台地址打开。要换个浏览器，或者这一页只能看，在终端里运行 {cmd}，它会给一个新地址）",
-              "busy": "（控制台里的 agent 正在这个项目上做事，审阅台没有重启，地址还是原来那条。这一页只能看的话，等它做完在终端里运行 {cmd}，它会给一个新地址）"},
-       "en": {"desk_wait": "Review desk: {url} (tick, comment, submit; I'm waiting and carry on as soon as you submit)",
-              "desk": "Review desk: {url} (tick, comment, submit, then tell me here: “check the desk”)",
-              "terminal": "(This desk was started in a terminal: open the console address it printed there. For another browser, or if the page can only look, run {cmd} in a terminal; it gives a new address)",
-              "busy": "(An agent in the console is working on this project, so the desk kept its address. If the page can only look, run {cmd} in a terminal once it's done; it gives a new address)"}}
-
+SAY = {"zh": {"desk_wait": "这一站已经在 Studio 窗口里打开了：勾选、点评、提交；我在后台等着，你一提交我就接着做。",
+              "desk": "这一站已经在 Studio 窗口里打开了：勾选、点评、提交，然后回到这里说一声“看审阅台”。",
+              "tab": "（这台电脑上没有 Chrome、Edge 这类浏览器，所以它开在了浏览器的一个标签页里。）",
+              "closed": "Studio 的窗口这次没能打开（{why}）。跟我说一声“打开 Studio”，我再试一次；页面在 {page}。",
+              "no_browser": "这台电脑上找不到 Chrome、Edge 这类浏览器，浏览器的标签页也没有连上", "no_connect": "窗口开了，但里面的页面没有连上",
+              "printed": "审阅台的地址（另一台电脑上的浏览器用）写在了运行这条命令的终端里：十分钟内能打开一页、只能打开一次，谁先打开谁就能在里面操作，别转给别人。"},
+       "en": {"desk_wait": "This stop is open in Studio's window: tick, comment, submit; I'm waiting and carry on as soon as you submit.",
+              "desk": "This stop is open in Studio's window: tick, comment, submit, then tell me here: “check the desk”.",
+              "tab": "(No Chrome, Edge or the like on this computer, so it opened in a tab of your browser.)",
+              "closed": "Studio's window did not open this time ({why}). Say \"open Studio\" and I will try again; the page is {page}.",
+              "no_browser": "no Chrome, Edge or the like on this computer, and no browser tab connected", "no_connect": "the window opened, but its page did not connect",
+              "printed": "The review desk's address (for a browser on another computer) is in the terminal this ran in: it opens one page, once, within ten minutes; whoever opens it first can work in it, so keep it to yourself."}}
 
 CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/01-pipeline.md, 导演模式)
     "E0": ("设定图、主旋律试听或 look-dev 变体", "the design sheet, the theme to listen to, or the look-dev variants"),
@@ -188,21 +196,35 @@ def channel_of(project, flag=None):
     return ("desk" if effort == "studio" else "page"), f"effort {effort} ({src})"
 
 
-def start_desk(project, port=None):
-    """The desk's address for this stop, with a launch key: a new desk started in its own session (it outlives this
-    command), or the running one started again with a new key (the earlier key may be spent, or opened by someone else:
-    bin/vh desk link). The running one is kept, and its address goes out without a key, when the person started it in a
-    terminal (the address it printed there has the key) or an agent in its column is mid-turn. → (url, how, why): how is
-    started, restarted, terminal or busy; url None when it did not come up (why)."""
+def start_desk(project, gate, port=None, print_address=False):
+    """The desk for this stop, its window shown at this stop's gate view: Studio (the console) when it runs and lists this
+    project; else the desk serving this project, or a new one started in its own session (it outlives this command). The
+    window gets its access from the desk itself; nothing secret is in this command's output. print_address: show nothing;
+    a fresh desk of this project (main refuses while one runs; Studio is left alone), and its address with a one-time code
+    back, which main writes to the terminal alone.
+    → (address, how, shown, why): how is studio, running, started or restarted; shown is the desk's answer ({opened, how,
+    why}); address None when none came up (why)."""
     sys.path.insert(0, str(HERE / "desk"))
     import server, launch
+    route = f"/gate/{quote(gate, safe='')}"
+    if not print_address:
+        console = server.running_info(None, [])
+        at = launch.place(console["url"], project) if console else None
+        if at:
+            return console["url"], "studio", launch.show(console["url"], at + route), None
+    at = "/p/" + quote(server.keyify(project.name, project), safe="") + route
     info = server.running_info(project)
-    if info and not info.get("background", True):
-        return info.get("url"), "terminal", None
-    if info and launch.turn_running(project, info):
-        return info.get("url"), "busy", None
-    url, why = launch.relink(project, port=port) if info else launch.start(project, (), True, port, IDLE)
-    return url, ("restarted" if info else "started"), why
+    if print_address:
+        url, why = launch.start(project, (), True, port, IDLE, True)
+        return (url + "#" + at if url else None), "started", {"opened": False}, why
+    if info:
+        url, how = info.get("url"), "running"
+    else:
+        url, why = launch.start(project, (), True, port, IDLE)
+        if not url:
+            return None, "started", {"opened": False}, why
+        how = "running" if why == "running" else "started"   # another start made it meanwhile
+    return url, how, launch.show(url, at), None
 
 
 def main(argv):
@@ -216,6 +238,9 @@ def main(argv):
     ap.add_argument("--wait", action="store_true", help="the desk only: then wait for the submission, like bin/vh desk wait")
     ap.add_argument("--timeout", type=float, default=7100, help="with --wait: seconds (default 7100, under Claude Code's 2 h)")
     ap.add_argument("--port", type=int, help="the desk's port when it has to start (default: the first free of 8780–8799)")
+    ap.add_argument("--print-address", action="store_true", help="the desk only, for a browser on another machine: open none, write an "
+                                                                 "address that opens one page to your terminal alone (refused with no terminal, "
+                                                                 "and while this film's desk runs)")
     ap.add_argument("--init", action="store_true", help="write out/review/gate-<n>.json as a skeleton to fill in, and stop")
     ap.add_argument("--json", action="store_true", help="the record on stdout, the lines a person reads on stderr")
     a = ap.parse_args(argv)
@@ -233,6 +258,17 @@ def main(argv):
     if a.wait and channel != "desk":
         return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
                             "the chat. Leave --wait out, or use --desk if they want the desk")
+    if a.print_address and channel != "desk":
+        return jsonerr.fail("usage", f"gate: --print-address is the desk's address, and this stop is reviewed on the {channel} ({why})")
+    if a.print_address:   # before the page goes out: the address goes to a person's terminal, and comes with a fresh desk only
+        sys.path.insert(0, str(HERE / "desk"))
+        import server
+        if not server.has_terminal():
+            return jsonerr.fail("refused", f"gate: {server.NO_TERMINAL}")
+        if server.running_info(project):
+            return jsonerr.fail("refused", "gate: this film's review desk is running already, and an address for another computer comes only with a "
+                                f"fresh start; this never closes a window that is open. To start it again on purpose (its window closes): bin/vh desk link {a.project} "
+                                f"--print-address, then bin/vh gate {a.project} without it")
     asked = stop_of(re.sub(r"\.json$", "", re.sub(r"^gate-", "", (a.gate or review.current_page(project) or "").strip())))
     if asked == "3":   # gate ① before it (standard, studio: as render and check ask it), and gate ② when this film's plan has it (a BRIEF with a Stops line)
         lacking = gatecheck.not_on_record(project, asked)
@@ -254,25 +290,33 @@ def main(argv):
         lines.append(gatecheck.plan_words(gatecheck.plan_of(project), page.lang, lambda g: review.gate_title(g, page.lang)))
     url = None
     if channel == "desk":
-        import server
-        url, how, why = start_desk(project, a.port)
+        url, how, shown, why_not = start_desk(project, page.gate, a.port, a.print_address)
         if not url:
-            return jsonerr.fail("failed", f"gate: the review desk did not start ({why or 'out/review/.desk.log says why'}); the page is {page_path}. "
-                                f"Start it by hand: bin/vh desk link {a.project}")
-        base, _, query = url.partition("?")   # ?k=…: the launch key, when this command started the desk
-        print(f"✓ review desk {base} (" + {"started": "started, in the background, with a new link", "restarted": "started again with a new link: the earlier one is void",
-                                           "terminal": "already serving: started in a terminal, whose own address is the one to open",
-                                           "busy": "already serving: an agent in its column is mid-turn, so it kept its address"}[how] + ")", file=sys.stderr)
-        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=base.rstrip("/") + "/" + (f"?{query}" if query else "") + "#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
-        if how in ("terminal", "busy"):
-            lines.append(SAY[page.lang][how].format(cmd=server.link_cmd(project)))
+            return jsonerr.fail("failed", f"gate: the review desk did not start ({why_not or 'out/review/.desk.log says why'}); the page is {page_path}. "
+                                f"Start it by hand: bin/vh studio {a.project}")
+        print("✓ review desk (" + {"studio": "Studio, already running", "running": "already serving this project",
+                                   "started": "started, in the background"}[how]
+              + ("" if a.print_address else f": its window {shown.get('how')}" if shown.get("opened") else f": no window ({shown.get('why')})") + ")", file=sys.stderr)
+        if a.print_address:
+            sys.path.insert(0, str(HERE / "desk"))
+            import server
+            if not server.to_terminal(server.address_words(url)):
+                return jsonerr.fail("failed", f"gate: the desk started, but its address could not be written to your terminal; the page is {page_path}")
+            lines.append(SAY[page.lang]["printed"])
+        elif shown.get("opened"):
+            lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"])
+            if shown.get("how") == "tab":
+                lines.append(SAY[page.lang]["tab"])
+        else:
+            lines.append(SAY[page.lang]["closed"].format(why=SAY[page.lang].get(shown.get("code") or "", shown.get("why") or "?"), page=page_path))
+        url = url.partition("?")[0].partition("#")[0]   # an address that opens nothing by itself
     print(f"  this stop is reviewed on the {channel} ({why})", file=sys.stderr)
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": page.gate, "page": str(page_path), "channel": channel, "url": url,
                           "message": "\n".join(lines)}, ensure_ascii=False), flush=True)
     else:
         print("\n".join(lines), flush=True)
-    activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url.partition('?')[0]}" if url else ""), [page_path])   # the log is in the project: never the launch key
+    activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url.partition('?')[0]}" if url else ""), [page_path])   # the log is in the project: never the key
     try:   # the text as it was when the page went out (tools/history.py); a failure to save never stops the page, nor does a lock held elsewhere for long
         import history
         for x in history.save(project, f"gate {page.gate}: the page went out", wait=2)[1]:

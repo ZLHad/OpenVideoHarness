@@ -676,7 +676,7 @@
    "purpose": "审阅台的状态：哪些提交交过了、有没有 agent 在等、服务在哪",
    "made_by": "tool",
    "writers": ["desk", "gate"],
-   "readers": ["desk", "gate", "status"],
+   "readers": ["desk", "gate", "status", "studio"],
    "required": null,
    "version_key": null,
    "schema": null,

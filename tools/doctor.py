@@ -23,9 +23,10 @@ never the value. A module whose needed modules (needs.programs) are not usable h
 that no redirect carries on (a 30x is not followed), over https only (a base address set in the environment may be
 http for this machine alone), and no answer's text is passed on: a failure is its HTTP status and the provider's error
 code, with any run of six or more of the key's characters taken out. A key is never printed, recorded or written.
-The machine and repo lines end with two about the host an agent runs in: skills, the stubs bin/vh install-skill
+The machine and repo lines end with three about the host: skills, the stubs bin/vh install-skill
 wrote against the stub it would write now (a stub reads skills/ in the clone, so only the stub itself can fall behind;
-a whole copy stays as it was when the repo moves on); caches, whether the folders a first run downloads into (uv's,
+a whole copy stays as it was when the repo moves on); studio-icon, the launcher bin/vh studio --install-icon makes
+(installed or not, which clone it runs, made by an earlier launcher or picture); caches, whether the folders a first run downloads into (uv's,
 npm's, Hugging Face's, HyperFrames', bin/vh's own) can be written, tried with a file made and removed.
 Exit 0: it is a report (2 on a usage error or an unreadable table).
 
@@ -594,8 +595,24 @@ def repo_checks(webgl, found_by):
         same = False
     out.append({"name": "agents_md", "state": "ok" if same else "incomplete", "note": "in sync with CLAUDE.md" if same else "out of sync with CLAUDE.md → bin/vh sync-agents"})
     out.append(skills_check())
+    out.append(studio_icon_check())
     out.append(caches_check(bool(found_by.get("hf-chrome"))))
     return out
+
+
+def studio_icon_check():
+    """The launcher icon bin/vh studio --install-icon makes (an OVH Studio.app, a desktop entry on Linux): installed or not
+    (optional), and whether it runs this clone. It runs bin/vh studio in its clone, so a git pull changes what it does; it
+    falls behind only when its launcher or picture changed (made again by --install-icon), or its clone moved."""
+    try:
+        sys.path.insert(0, str(ROOT / "tools" / "desk"))
+        import studio
+        st = studio.status()
+    except Exception as e:
+        return {"name": "studio-icon", "state": "unchecked", "note": f"could not look ({type(e).__name__}: {e})"}
+    state = {"ok": "ok", "outdated": "outdated", "elsewhere": "outdated", "unsupported": "unsupported"}.get(st["state"], "unchecked")
+    where = f"{shown(st['path'])}: " if st.get("path") else ""
+    return {"name": "studio-icon", "state": state, "note": where + st["note"]}
 
 
 MACHINE = ("硬件", "已装工具", "已装引擎")   # LOCAL.md's lines doctor can write; a {…} left on any other line is its default

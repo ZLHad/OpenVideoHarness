@@ -210,9 +210,19 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 | Quick try | "A quick 15-second draft to see whether a cyber-glitch look suits my game trailer; don't ask me anything." |
 | Hands-on | "A 90-second explainer on how satellites avoid collisions, at the studio level. I'll choose the hook, the main character, the theme tune, the title and the cover; you decide the rest." |
 
+### Open Studio
+
+Studio is where you see every film, review a stop and talk to the agents on this machine. It is one window of its own, with no address bar, and asking again brings that same window forward rather than a second. Three ways bring it up:
+
+- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer asks once). Click it again and the same window comes to the front.
+- **In a terminal:** `bin/vh studio`, or `bin/vh studio <project>` to land on that film.
+- **Tell your agent** "open Studio" (or "打开 Studio"): it runs the same command, and the window appears.
+
+Closing the window leaves Studio running in the background, so an agent at work carries on, and the next click brings the window back where it was. On a Mac, quitting OVH Studio from the Dock stops Studio and closes its window. The window is your Chrome, Edge, Chromium or Brave with a profile of Studio's own (the Dock shows that browser's icon for it); with none of them, Studio opens in a tab of your default browser instead. A film kept outside Studio's folders opens in a review desk of its own, with a window of its own beside Studio's.
+
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 72 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 73 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|
@@ -361,6 +371,7 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
 bash install.sh --no-refs                        # skip the reference repos for now (references/fetch.sh later)
 bash install.sh --no-skill                       # don't register the global skill
+bash install.sh --icon                           # put the OVH Studio icon in your applications without asking (--no-icon: don't ask)
 ```
 
 - The installer fetches only the newest commit: the repo itself is about 95 MB to download and 200 MB on disk, before its packages and the reference repos. To contribute or browse the history, `git clone` normally and run `bin/vh setup`.

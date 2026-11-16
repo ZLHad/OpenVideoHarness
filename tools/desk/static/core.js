@@ -5,8 +5,9 @@
    these functions read (D, PKEY, SUB) and runs them. */
 const STR = {
   zh: {
-    brand: "片场", nokey: "这一页现在只能看。要操作，请点终端里（或 agent 发给你的）那条控制台地址。找不到的话，在终端里运行：",
-    nokey_copy: "复制", nokey_copied: "复制好了：粘到终端里运行", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
+    brand: "Studio", nokey: "这一页现在只能看。", reopen: "在 Studio 窗口里打开", reopened: "Studio 的窗口在前面了",
+    reopen_failed: "Studio 的窗口没能打开：点 OVH Studio 图标，或者让 agent 再打开一次 Studio",
+    taken: "这台电脑上有别的程序抢在这个窗口前面连上了 Studio，已经换过两次窗口。让 agent 重启 Studio 再试。", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
     f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
@@ -134,9 +135,9 @@ const STR = {
     no_play: "只有一张画面，没什么可播",
   },
   en: {
-    nokey: "This page can only look for now. To work in it, open the console address from your terminal (or the one your agent sent you). Can't find it? Run this in a terminal:",
-   
-    nokey_copy: "Copy", nokey_copied: "Copied: paste it into a terminal",
+    nokey: "This page can only look.", reopen: "Open in Studio's window", reopened: "Studio's window is in front",
+    reopen_failed: "Studio's window did not open: click the OVH Studio icon, or ask your agent to open Studio",
+    taken: "Another program on this computer connected to Studio before this window did, and the window was replaced twice already. Ask your agent to restart Studio.",
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, then copy it to your agent",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",
@@ -266,9 +267,8 @@ const STR = {
 };
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
-function deskToken() {   // the console's token: only the page that came with the desk's one-time launch key (?k=) is given it;
-  // it keeps it in this origin's storage (one port's), so a reload or a new tab of this browser has it too, and the key leaves
-  // the address bar. The static review page never calls this
+function deskToken() {   // the console's token, kept in this origin's storage (one port's) once the page traded its window's
+  // one-time code for it (studio.js), so a reload of the window has it too. The static review page never calls this
   const given = (document.querySelector('meta[name="desk-token"]') || {}).content || "";
   try {
     if (given) {

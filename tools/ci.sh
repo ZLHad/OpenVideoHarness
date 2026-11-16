@@ -2873,14 +2873,15 @@ PY
 # whose table is missing, which must come back as text), a server on a free port (the page, the data, a 206 range, and
 # what it refuses), a submission that wakes bin/vh desk wait and lands verbatim in REVIEW.md, the watcher's timeout,
 # bin/vh new --lang, and bin/vh review's language default
-desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid, desk_url and DESK_KEY
+desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid, desk_url and DESK_KEY (its one-time code)
   local i a; desk_url=""
-  "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 > "$2" 2>&1 & desk_pid=$!   # bin/vh execs python: $! is the server
+  # --print-address writes the address to the terminal alone: with_tty gives it one, and copies it into the log
+  python3 "$ROOT/tools/desk/fixtures/with_tty.py" "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 --print-address > "$2" 2>&1 & desk_pid=$!   # with_tty and bin/vh exec: $! is the server
   desk_rec "$desk_pid"
   for i in $(seq 150); do   # up to 30 s; stop early if the server exits
     desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2")
-    desk_key=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
-    [ -n "$desk_url" ] && return 0
+    desk_key=$(sed -n 's#.*: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
+    [ -n "$desk_url" ] && [ -n "$desk_key" ] && return 0
     kill -0 "$desk_pid" 2>/dev/null || break; sleep 0.2; done
   if kill -0 "$desk_pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$desk_pid" 2>/dev/null; wait "$desk_pid" 2>/dev/null
   else wait "$desk_pid"; a="exited with $?"; fi
@@ -3055,13 +3056,17 @@ def req(method, path, body=None, headers=None):
 bad = []
 def want(cond, msg):
     if not cond: bad.append(msg)
-s, _, page = req("GET", "/?k=" + os.environ.get("DESK_KEY", ""))   # the printed link: the page with the token, once
-token = page.decode().split('name="desk-token" content="')[1].split('"')[0]
+s, _, page = req("GET", "/?c=" + os.environ.get("DESK_KEY", ""))   # the printed address: a GET gives nothing
+want('name="desk-token" content=""' in page.decode(), "a GET of the page gave the token")
 tokf = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), f"token-{u.port}")   # kept, as the page keeps it in its storage
-if token:
-    open(tokf, "w").write(token)
-elif os.path.exists(tokf):
-    token = open(tokf).read()
+token = os.environ.get("DESK_TOKEN") or (open(tokf).read() if os.path.exists(tokf) else "")
+if not token:   # the page's script trades the code for the token, once
+    s, _, d = req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})
+    token = json.loads(d).get("token", "") if s == 200 else ""
+    again = req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})[0]
+    want(token and again == 403, f"the code: claimed {bool(token)}, a second claim {again}")
+    if token:
+        open(tokf, "w").write(token)
 fb = lambda **k: json.dumps(dict({"round": "1", "lang": "zh", "decisions": {"look": "L2"}, "defaulted": [], "general": "",
     "items": [{"target": "seg:1", "status": "change", "label": "大纲 第 1 段", "text": "开头再快一点 ``` 第 0 帧就要有水声"}]}, **k)).encode()
 H = {"Content-Type": "application/json", "X-Desk-Token": token}
@@ -3375,17 +3380,19 @@ PY
     && [ $rc2 = 0 ] && case "$b" in *"reviewed on the page (effort standard (BRIEF))"*) true ;; *) false ;; esac && [ ! -e "$t/gs/out/review/.desk.json" ]
   then ok "gate and review: a page that breaks a rule is written but sends nothing, starts no desk and does not become this round; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
   else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
-  # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
+  # the desk channel (studio): started once in the background, and the desk shows its window at this stop itself (the
+  # stand-in window, $OVH_STUDIO_BROWSER: made once, raised and sent to the stop after); the message says it is open there,
+  # with no address; --wait hands over a submission (with the token the window got, as the person's page holds it)
   a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?; desk_rec_of "$g"
-  ka=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)   # gate's own message carries the launch key
-  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?; desk_rec_of "$g"   # a second stop: the desk starts again with a new key (the first may be spent)
-  kb=$(printf '%s' "$b" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)
-  "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!   # and the stop that waits: its own new link
+  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?; desk_rec_of "$g"   # a second stop: the same desk, its window raised there
+  "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!   # and the stop that waits
   for rc3 in $(seq 100); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
-  DESK_KEY=$(sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/gw.out" | head -n 1); export DESK_KEY
   pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null); desk_rec "$pid"
   url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
-  python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
+  wp=$(python3 -c 'import hashlib, os, sys; print(os.path.join(os.environ["OVH_STUDIO_PROFILES"], "desk-" + hashlib.sha1(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:10]))' "$g")
+  wins=$(python3 -c 'import json, sys; e = [json.loads(l)["event"] for l in open(sys.argv[1])]; print(e.count("launch"), e.count("second"), e.count("told"))' "$wp/stand-in.log" 2>/dev/null)
+  DESK_TOKEN=$(cat "$wp/stand-in.token" 2>/dev/null); export DESK_TOKEN
+  DESK_TOKEN=$DESK_TOKEN python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?; unset DESK_TOKEN
   only=$(python3 - "$url" <<'PY' 2>/dev/null
 import http.client, json, sys, urllib.parse
 u = urllib.parse.urlsplit(sys.argv[1])
@@ -3395,19 +3402,20 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/?k="*"#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
-    && [ -n "$DESK_KEY" ] && [ -n "$ka" ] && [ -n "$kb" ] && [ "$ka" != "$kb" ] && [ "$kb" != "$DESK_KEY" ] \
-    && ! grep -rqF -e "$DESK_KEY" -e "$ka" -e "$kb" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"这一站已经在 Studio 窗口里打开了"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+    && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
+    && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
+    && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
-    && case "$b" in *"started again with a new link"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
+    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
 gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
-sys.exit(0 if len(desk) == 3 and all(d.get("parent") in gates for d in desk) and any(r["event"] == "feedback" for r in recs) else 1)
+sys.exit(0 if len(desk) == 1 and all(d.get("parent") in gates for d in desk) and any(r["event"] == "feedback" for r in recs) else 1)
 PY
-  then ok "gate: the desk channel starts the desk in the background (its run's parent is the gate), serving that project and nothing else, puts its address with a launch key in the message, landing on this round's gate view; the next stop starts it again with a new key; --wait hands over the submission"
+  then ok "gate: the desk channel starts the desk in the background once (its run's parent is the gate), serving that project and nothing else; it makes one window at this round's gate view (its page connected and got the token), raised and sent to the stop after; the message says it is open there with no address, and the log, .desk.json and .ovh hold nothing of the token; --wait hands over the submission"
   else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
@@ -3578,9 +3586,10 @@ PY
   mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
   printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
   printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
-  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!; desk_rec "$pid"
-  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
-  DESK_KEY=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); export DESK_KEY
+  python3 "$ROOT/tools/desk/fixtures/with_tty.py" "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 --print-address > "$t/console.log" 2>&1 & pid=$!; desk_rec "$pid"
+  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log")
+    DESK_KEY=$(sed -n 's#.*: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); [ -n "$url" ] && [ -n "$DESK_KEY" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
+  export DESK_KEY
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
   if python3 - "$url" "$t/root" "$t/root2" <<'PY'
 import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
@@ -3596,9 +3605,9 @@ def req(method, path, body=None, headers=None, host=None):
 bad = []
 def want(cond, msg):
     if not cond: bad.append(msg)
-s, _, page = req("GET", "/?k=" + os.environ.get("DESK_KEY", ""))
+s, _, page = req("GET", "/?c=" + os.environ.get("DESK_KEY", ""))   # a GET gives nothing: the page's script trades the code
 page = page.decode()
-token = page.split('name="desk-token" content="')[1].split('"')[0]
+token = json.loads(req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})[2]).get("token", "")
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
 want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
 for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js", "agent.css", "agent.js"):
@@ -3977,6 +3986,240 @@ PY
   fi
   rm -rf "$t"
 }
+studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its launcher icon, as a person meets them: in a temp
+  # HOME and TMPDIR (no console or window of this machine's is found or touched), the stand-in window, no screen needed.
+  # One window, always: made once, raised after (from an agent and from a terminal; two at once), made again when it was
+  # closed or its console was killed; a page that never connects is tried once more, then a browser tab; no Chromium-family
+  # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders opens in
+  # its own desk; --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
+  # that moved, doctor's line, the picture, install.sh's question and the release's check
+  local t a b c d e rc rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p p1 p2 p3 cpid w0 w1 w2 w3 wq tab3 tab4 left claims
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
+  mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
+  cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
+  printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$t/raised" > "$t/raise"; chmod +x "$t/raise"
+  studio_run() { TMPDIR="$t/tmp" HOME="$t/home" XDG_DATA_HOME="$t/home/.share" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" \
+    OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" "$VH_BASH" "$ROOT/bin/vh" studio "$@"; }
+  studio_tty() { TMPDIR="$t/tmp" HOME="$t/home" XDG_DATA_HOME="$t/home/.share" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" \
+    OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" python3 "$ROOT/tools/desk/fixtures/with_tty.py" --to "$t/pa.tty" "$VH_BASH" "$ROOT/bin/vh" studio "$@"; }   # a terminal of its own
+  st_console_pid() { python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["pid"])' "$t/tmp" 2>/dev/null; }
+  st_win() { python3 -c 'import glob, json, sys; e = [json.loads(l)["event"] for f in glob.glob(sys.argv[1] + "/console-*/stand-in.log") for l in open(f)]; print(" ".join(e))' "$t/prof"; }
+  st_stop() { local p; p=$(st_console_pid); [ -z "$p" ] || { kill "${1:--TERM}" "$p" 2>/dev/null; for i in $(seq 50); do kill -0 "$p" 2>/dev/null || break; sleep 0.1; done; }; }
+  a=$(BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc=$?   # an agent runs it: no terminal
+  pid=$(st_console_pid); desk_rec "$pid"
+  b=$(studio_run demo < /dev/null 2>&1); rc2=$?   # running: the same window, raised, on the film
+  c=$(python3 - "$t" <<'PY'
+import os, pty, select, subprocess, sys, time
+t = sys.argv[1]
+env = dict(os.environ, TMPDIR=t + "/tmp", HOME=t + "/home", OVH_PROJECTS=t + "/root", OVH_STUDIO_PROFILES=t + "/prof", OVH_STUDIO_ACTIVATE=t + "/raise")
+m, sl = pty.openpty()   # a person's terminal
+p = subprocess.Popen([os.environ.get("VH_BASH") or "bash", "bin/vh", "studio"], stdin=sl, stdout=sl, stderr=sl, env=env)
+os.close(sl)
+buf = b""
+while p.poll() is None:
+    r, _, _ = select.select([m], [], [], 0.2)
+    if r:
+        try:
+            buf += os.read(m, 4096)
+        except OSError:
+            break
+p.wait(10)
+os.close(m)
+print(p.returncode, buf.decode("utf-8", "replace").replace("\r", "").strip())
+PY
+)
+  studio_run < /dev/null > "$t/two1" 2>&1 & i=$!; studio_run demo < /dev/null > "$t/two2" 2>&1; wait $i   # two at once
+  w1=$(st_win)
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$t" "$pid" "$a" "$b" "$c" "$w1" "$(cat "$t/two1" "$t/two2")" <<'PY'
+import glob, json, os, re, sys
+t, pid, a, b, c, w1, two = sys.argv[1:8]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+ev = [json.loads(l) for f in glob.glob(t + "/prof/console-*/stand-in.log") for l in open(f)]
+want(w1.split()[:4] == ["launch", "page", "claimed", "present"] and w1.split().count("launch") == 1 and "second" not in w1, f"the window: {w1}")
+want(any(e["event"] == "told" and e["data"].get("go", "").startswith("/p/demo~") for e in ev), "the second run did not send the window to the film")
+raised = open(t + "/raised").read().split() if os.path.exists(t + "/raised") else []
+want(len(raised) >= 3 and set(raised) == {str(ev[0]["pid"])}, f"raised: {raised} (want the window's pid, for each run after the first)")
+want("Studio is open in its own window" in a and "started in the background" in a and "its window is in front" in b, f"said: {a!r} | {b!r}")
+want(c.startswith("0 ") and "its window is in front" in c, f"from a terminal: {c!r}")
+want(two.count("Studio is open") == 2, f"two at once: {two!r}")
+infos = glob.glob(t + "/tmp/ovh-desk-*/console-*.json")
+want(len(infos) == 1 and json.load(open(infos[0]))["pid"] == int(pid), f"one console: {infos}")
+tok = open(glob.glob(t + "/prof/console-*/stand-in.token")[0]).read()
+for f in glob.glob(t + "/**/*", recursive=True) + glob.glob(t + "/**/.*", recursive=True):
+    if os.path.isfile(f) and "/prof/" not in f and tok.encode() in open(f, "rb").read():   # (the window's profile is the browser's storage)
+        bad.append(f"the token is in {os.path.relpath(f, t)}")
+want(tok not in a + b + c + two and not re.search(r"\?c=|\?k=|http://", a + b + c + two), "the output has the token, a code or an address")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "studio: from an agent (no terminal) and from a terminal, one window: made once (its page connected and got the token), then raised and sent to the film, two runs at once included; one console; no output says an address, a code or the token, and no file but the window's own profile holds it"
+  else bad "studio: opening it (exits $rc/$rc2): $a | $b | $c | $w1 | $(cat "$t/two1" "$t/two2")"; fi
+  # three cold starts at once (no console running): one console, one window, and only one of them says it started it
+  mkdir -p "$t/tmp3" "$t/prof3"
+  cold() { TMPDIR="$t/tmp3" HOME="$t/home" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof3" OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" \
+    "$VH_BASH" "$ROOT/bin/vh" studio < /dev/null > "$t/cold$1" 2>&1; }
+  cold 1 & p1=$!; cold 2 & p2=$!; cold 3 & p3=$!; wait $p1 $p2 $p3
+  cpid=$(python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["pid"])' "$t/tmp3" 2>/dev/null); desk_rec "$cpid"
+  n=$(cat "$t/tmp3"/ovh-desk-*/console-*.log 2>/dev/null | grep -c '^desk: ')
+  n2=$(cat "$t/cold1" "$t/cold2" "$t/cold3" | grep -c 'started in the background')
+  w0=$(cat "$t/prof3"/console-*/stand-in.log 2>/dev/null | grep -c '"launch"')
+  if [ "$n" = 1 ] && [ "$n2" = 1 ] && [ "$w0" = 1 ] && [ "$(cat "$t/cold1" "$t/cold2" "$t/cold3" | grep -c 'Studio is open')" = 3 ]
+  then ok "studio: three cold starts at once give one console (a lock around looking and starting) and one window; one of them says it started Studio"
+  else bad "studio: three cold starts at once (consoles started $n, said started $n2, windows $w0): $(cat "$t/cold1" "$t/cold2" "$t/cold3" | tr '\n' ' ')"; fi
+  [ -z "$cpid" ] || { kill "$cpid" 2>/dev/null; for i in $(seq 50); do kill -0 "$cpid" 2>/dev/null || break; sleep 0.1; done; }
+  # the window closed, then studio: a new one; the console killed outright under its window, then studio: one window again
+  for p in $(pgrep -f "$t/prof/console-"); do kill "$p" 2>/dev/null; done; for i in $(seq 30); do pgrep -f "$t/prof/console-" >/dev/null || break; sleep 0.1; done
+  a=$(studio_run < /dev/null 2>&1); rc=$?
+  st_stop -KILL; sleep 0.3
+  b=$(BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc2=$?; pid=$(st_console_pid); desk_rec "$pid"
+  w2=$(st_win); n=$(pgrep -f "$t/prof/console-" | wc -l | tr -d ' ')
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && case "$a" in *"open in its own window"*) true ;; *) false ;; esac && case "$b" in *"open in its own window"*) true ;; *) false ;; esac \
+    && [ "$(printf '%s\n' $w2 | grep -c '^launch$')" = 3 ] && ! printf '%s' "$w2" | grep -q second && [ "$n" = 1 ]
+  then ok "studio: the window closed, the next run makes it again; the console killed outright under its window, the next console replaces that window with one of its own (one window, never two)"
+  else bad "studio: the window closed or its console killed (exits $rc/$rc2, windows running $n): $a | $b | $w2"; fi
+  # a window whose page never connects: once more, then a tab of the default browser; no Chromium-family browser: a tab;
+  # neither: a plain failure (exit 1) that says what to run
+  st_stop; rm -rf "$t/prof" "$t/tab"; mkdir -p "$t/prof" "$t/tab"
+  a=$(FAKE_WINDOW=dead BROWSER="python3 $ROOT/tools/desk/fixtures/studio_window.py --tab %s" studio_run < /dev/null 2>&1); rc=$?; desk_rec "$(st_console_pid)"
+  w3=$(st_win); tab3=$(cat "$t/tab/stand-in.log" 2>/dev/null | grep -c '"claimed"')
+  st_stop; rm -rf "$t/tab"; mkdir -p "$t/tab"   # (a tab stand-in goes when its folder does)
+  b=$(OVH_STUDIO_BROWSER=none BROWSER="python3 $ROOT/tools/desk/fixtures/studio_window.py --tab %s" studio_run < /dev/null 2>&1); rc2=$?; desk_rec "$(st_console_pid)"
+  tab4=$(cat "$t/tab/stand-in.log" 2>/dev/null | grep -c '"claimed"')
+  st_stop
+  c=$(OVH_STUDIO_BROWSER=none BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc3=$?; desk_rec "$(st_console_pid)"
+  d=$(OVH_STUDIO_BROWSER=none BROWSER=/usr/bin/false studio_run --icon open < /dev/null 2>&1); rc4=$?   # the icon's dialog: no command to run
+  st_stop
+  if [ $rc = 0 ] && [ "$(printf '%s\n' $w3 | grep -c '^launch$')" = 2 ] && [ "$(printf '%s\n' $w3 | grep -c '^closed$')" = 2 ] && [ "$tab3" = 1 ] \
+    && case "$a" in *"open in a tab of your browser (its window started, but the page in it did not connect)"*) true ;; *) false ;; esac \
+    && [ $rc2 = 0 ] && [ "$tab4" = 1 ] && case "$b" in *"open in a tab of your browser (no Chrome, Chromium, Edge or Brave here"*) true ;; *) false ;; esac \
+    && [ $rc3 = 1 ] && case "$c" in *"Studio's window did not open (no Chrome"*"Run bin/vh studio again"*) true ;; *) false ;; esac \
+    && [ $rc4 = 1 ] && case "$d" in *"did not open (no Chrome"*"Click the OVH Studio icon again, or ask your agent to open Studio"*) true ;; *) false ;; esac && case "$d" in *bin/vh*) false ;; *) true ;; esac
+  then ok "studio: a window whose page never connects is closed and tried once more, then a tab of the default browser, and that is said; with no Chromium-family browser a tab, said so; with neither, exit 1 and a sentence that says what happened and what to run (from the icon: click it again, or ask your agent; no command)"
+  else bad "studio: the fallbacks (exits $rc/$rc2/$rc3/$rc4): $a | $w3 | tabs $tab3/$tab4 | $b | $c | $d"; fi
+  rm -rf "$t/tab"
+  # a film outside Studio's folders opens in its own desk; the icon's open (its console) / alive / quit (the console and its
+  # window go; one bin/vh studio started is left); --print-address: refused with no terminal (nothing starts), the address in
+  # the terminal alone (not on stdout), opening one page once; refused while Studio runs (the same console, not restarted)
+  rm -rf "$t/prof"; mkdir -p "$t/prof"
+  a=$(BROWSER=/usr/bin/false studio_run "$t/outside" --json < /dev/null 2>/dev/null); rc=$?
+  b=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$t/outside/out/review/.desk.json" 2>/dev/null); desk_rec "$b"
+  studio_run < /dev/null >/dev/null 2>&1; desk_rec "$(st_console_pid)"
+  studio_run --icon quit --json > "$t/q0" 2>&1; rc2=$?   # Studio was started by bin/vh studio, not the icon: left as it is
+  st_stop
+  studio_run --icon alive; rc3=$?
+  c=$(studio_run --icon open < /dev/null 2>&1); rc4=$?; pid=$(st_console_pid); desk_rec "$pid"
+  studio_run --icon alive; rc5=$?
+  studio_run --icon quit --json > "$t/q1" 2>&1; rc6=$?
+  studio_run --icon alive; rc7=$?
+  wq=$(st_win); left=$(pgrep -f "$t/prof/console-" | wc -l | tr -d ' ')
+  n=$(studio_run --print-address < /dev/null 2>&1); rc9=$?; n2=$(st_console_pid)
+  studio_tty --print-address < /dev/null > "$t/pa" 2>&1; rc8=$?; d=$(cat "$t/pa" "$t/pa.tty" 2>/dev/null)
+  k=$(printf '%s' "$d" | sed -n 's#.*?c=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)
+  pid2=$(st_console_pid); desk_rec "$pid2"
+  e=$(studio_tty --print-address --json < /dev/null 2>&1); rc10=$?
+  url=$(python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["url"])' "$t/tmp" 2>/dev/null)
+  claims=$(python3 - "$url" "$k" <<'PY'
+import json, sys, urllib.error, urllib.request
+out = []
+for _ in range(2):
+    r = urllib.request.Request(sys.argv[1] + "api/claim", data=json.dumps({"c": sys.argv[2]}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        out.append(str(urllib.request.urlopen(r).status))
+    except urllib.error.HTTPError as e:
+        out.append(str(e.code))
+print(" ".join(out))
+PY
+)
+  if [ $rc = 0 ] && case "$a" in *'"where": "desk"'*'#/p/outside~'*'"opened": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
+    && [ $rc2 = 0 ] && grep -q '"stopped": false' "$t/q0" && [ $rc3 = 1 ] && [ $rc4 = 0 ] && [ $rc5 = 0 ] && [ $rc6 = 0 ] && grep -q '"stopped": true' "$t/q1" && [ $rc7 = 1 ] \
+    && [ "$left" = 0 ] && case "$wq" in *closed) true ;; *) false ;; esac \
+    && [ $rc8 = 0 ] && [ -n "$k" ] && [ "$claims" = "200 403" ] && case "$d" in *"opens one page, once, within ten minutes"*) true ;; *) false ;; esac \
+    && ! grep -q '?c=' "$t/pa" && grep -q 'is in your terminal' "$t/pa" && [ "$(grep -c '?c=' "$t/pa.tty")" = 1 ] \
+    && [ $rc9 = 1 ] && [ -z "$n2" ] && case "$n" in *"writes the address to your terminal and nowhere else"*) true ;; *) false ;; esac \
+    && [ $rc10 = 1 ] && [ "$(st_console_pid)" = "$pid2" ] && case "$e" in *'"refused": true'*"bin/vh desk link --print-address"*) true ;; *) false ;; esac && case "$e" in *'?c='*) false ;; *) true ;; esac
+  then ok "studio: a film outside Studio's folders opens in its own desk; the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address: refused with no terminal and nothing started, the address in the terminal alone, its code working once; refused while Studio runs, which goes on"
+  else bad "studio: its own desk, the icon's open/alive/quit, --print-address (exits $rc $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8 $rc9 $rc10, windows left $left, claims $claims): $a | $(cat "$t/q0" "$t/q1") | $c | $wq | $d | $n | $e"; fi
+  [ -z "$pid2" ] || kill "$pid2" 2>/dev/null; [ -z "$b" ] || kill "$b" 2>/dev/null
+  # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
+  # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
+  a=$(studio_run --install-icon --dir "$t/apps" --as linux 2>&1); rc=$?
+  b=$(studio_run --icon-status --dir "$t/apps" --as linux --json 2>&1)
+  cp "$t/apps/ovh-studio.desktop" "$t/apps/ovh-studio.desktop.bak"   # (as it was made)
+  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^REPO=.*$", "REPO=/no/such/clone", s))' "$t/apps/ovh-studio/studio-launch.sh"
+  c=$(PATH=/usr/bin:/bin "$t/apps/ovh-studio/studio-launch.sh" 2>&1); rc2=$?
+  python3 - "$t/apps/ovh-studio/ovh-studio.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["repo"] = "/no/such/clone"; json.dump(d, open(p, "w"))
+PY
+  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^X-OVH-Repo=.*$", "X-OVH-Repo=/no/such/clone", s))' "$t/apps/ovh-studio.desktop"
+  d=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
+  mkdir -p "$t/apps2" && printf 'not ours\n' > "$t/apps2/ovh-studio.desktop"
+  e=$(studio_run --install-icon --dir "$t/apps2" --as linux 2>&1); rc3=$?
+  studio_run --remove-icon --dir "$t/apps" --as linux >/dev/null 2>&1; rc4=$?
+  if [ $rc = 0 ] && case "$b" in *'"state": "ok"'*) true ;; *) false ;; esac && grep -q '^Exec="' "$t/apps/ovh-studio.desktop.bak" \
+    && [ "$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak")")" = "$(cd "$ROOT" && pwd -P)" ] \
+    && [ $rc2 = 1 ] && case "$c" in *"/no/such/clone"*"bin/vh studio --install-icon"*) true ;; *) false ;; esac \
+    && case "$d" in *"icon: elsewhere"*"no longer there"*"--install-icon here"*) true ;; *) false ;; esac \
+    && [ $rc3 = 1 ] && grep -qx 'not ours' "$t/apps2/ovh-studio.desktop" && case "$e" in *"not one bin/vh studio wrote"*) true ;; *) false ;; esac \
+    && [ $rc4 = 0 ] && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/apps/ovh-studio" ] && [ ! -e "$t/home/.share/ovh-studio" ]
+  then ok "studio icon (Linux): a desktop entry and its script run bin/vh studio in this clone; status ok; a clone that moved says which command to run again (the click and the status); a file it did not write is left alone; removed with its script and picture; with --dir, nothing outside that folder"
+  else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4; Exec $(grep -c '^Exec="' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null), repo line $(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null) for $(cd "$ROOT" && pwd -P), foreign kept $(grep -cx 'not ours' "$t/apps2/ovh-studio.desktop" 2>/dev/null), entry left $([ -e "$t/apps/ovh-studio.desktop" ] && echo yes || echo no), data left $([ -e "$t/apps/ovh-studio" ] || [ -e "$t/home/.share/ovh-studio" ] && echo yes || echo no)): $a | $b | $c | $d | $e"; fi
+  if [ "$(uname -s)" = Darwin ]; then
+    a=$(studio_run --install-icon --dir "$t/apps" 2>&1); rc=$?
+    app="$t/apps/OVH Studio.app"
+    b=$(osadecompile "$app" 2>/dev/null)
+    if [ $rc = 0 ] && codesign --verify --strict "$app" 2>/dev/null && [ ! -e "$app/Contents/Resources/Assets.car" ] \
+      && [ "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.zlhad.ovh-studio ] \
+      && [ "$(plutil -extract OSAAppletStayOpen raw "$app/Contents/Info.plist")" = true ] \
+      && ! plutil -p "$app/Contents/Info.plist" | grep -q UsageDescription \
+      && case "$b" in *"$ROOT"*"--icon \" & args"*"bin/vh studio --install-icon"*"on reopen"*"on quit"*) true ;; *) false ;; esac \
+      && iconutil -c iconset -o "$t/x.iconset" "$app/Contents/Resources/applet.icns" && [ "$(ls "$t/x.iconset" | wc -l | tr -d ' ')" = 10 ] \
+      && mkdir -p "$t/home/Applications" && cp -R "$app" "$t/home/Applications/" \
+      && HOME="$t/home" python3 -c 'import sys; sys.path.insert(0, "tools"); import doctor; c = doctor.studio_icon_check(); sys.exit(0 if c["state"] == "ok" and "~/Applications/OVH Studio.app" in c["note"] else 1)' \
+      && studio_run --remove-icon --dir "$t/apps" >/dev/null 2>&1 && [ ! -e "$app" ]
+    then ok "studio icon (macOS): OVH Studio.app, a stay-open applet (a second click and the Dock's Quit reach it) that runs bin/vh studio --icon in this clone and says what to run when the clone moved; ad-hoc signed and valid, its own bundle id, no privacy prompts asked for, no asset catalog over the icon; macOS reads all ten sizes of its .icns; doctor says it is in ~/Applications and runs this clone; removed"
+    else bad "studio icon (macOS, exit $rc): $a | $(printf '%s' "$b" | head -c 300)"; fi
+  fi
+  # the picture: drawn by stdlib Python, the sizes asked for, the same bytes each time; install.sh asks only at a terminal;
+  # a release makes the icon first
+  if python3 - <<'PY'
+import struct, sys, zlib
+sys.path.insert(0, "tools/desk")
+import icon
+bad = []
+for n in (16, 32, 128, 512):
+    a = icon.png(n, n, icon.render(n))
+    w, h = struct.unpack(">II", a[16:24])
+    if a[:8] != b"\x89PNG\r\n\x1a\n" or (w, h) != (n, n) or a != icon.png(n, n, icon.render(n)):
+        bad.append(f"{n}: {w}x{h}")
+raw = zlib.decompress(icon.png(16, 16, icon.render(16))[41:-16])   # rows of a filter byte and 16 pixels
+if raw[8 * 65 + 1 + 8 * 4: 8 * 65 + 1 + 8 * 4 + 3] != bytes(icon.CYAN):
+    bad.append("16 px: the middle is not the console's cyan")
+i = icon.icns()
+kinds, at = [], 8
+while at < len(i):
+    kinds.append(i[at:at + 4].decode()); at += struct.unpack(">I", i[at + 4:at + 8])[0]
+if i[:4] != b"icns" or struct.unpack(">I", i[4:8])[0] != len(i) or kinds != [k for k, _ in icon.ICNS]:
+    bad.append(f"icns: {kinds}")
+print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "studio icon's picture: stdlib Python draws it at 16, 32, 128 and 512 px, the same bytes each time, the console's cyan square in the middle at 16; the .icns has its ten entries"
+  else bad "studio icon's picture"; fi
+  sed -n '/^offer_icon() {/,/^}/p' install.sh > "$t/offer.sh"
+  mkdir -p "$t/inst/bin" && printf '#!/bin/sh\necho ran >> "%s"\n' "$t/inst/ran" > "$t/inst/bin/vh" && chmod +x "$t/inst/bin/vh"
+  a=$(cd "$t/inst" && ICON=ask bash -c '. "$1"; ICON_LATER=""; offer_icon; echo "later=$ICON_LATER"' _ "$t/offer.sh" < /dev/null 2>&1)
+  b=$(cd "$t/inst" && ICON=yes bash -c '. "$1"; ICON_LATER=""; offer_icon; echo "later=$ICON_LATER"' _ "$t/offer.sh" < /dev/null 2>&1)
+  if [ -s "$t/offer.sh" ] && [ "$a" = "later=1" ] && [ "$b" = "later=" ] && [ "$(cat "$t/inst/ran" 2>/dev/null)" = ran ] \
+    && grep -q 'ICON_LATER" ] || echo "  Icon:  bin/vh studio --install-icon' install.sh && grep -q 'studio --install-icon' tools/changes.py
+  then ok "install.sh: with nobody at a terminal it makes no icon and prints the command at the end; --icon makes it; a release makes the icon first (tools/changes.py)"
+  else bad "install.sh's icon question: $a | $b"; fi
+  rm -rf "$t"
+}
+
 agent_checks() {   # the console's agent column (tools/desk/agents.py, acp.py, agentlock.py, static/agent.js) against the stand-in
   # agents (tools/desk/fixtures/agents: the real adapters' messages of 2026-11-16, replayed; nothing real started or billed):
   # the adapter's clean environment, the addresses' refusals, a turn, the typed text alone reaching the agent, approvals only
@@ -8602,14 +8845,14 @@ if not (ex == 130 and one["state"] == "failed" and one["cancelled"] is True and 
 cancel()
 # each command bin/vh exec's into is known: the table of what its pid's command line looks like, and bin/vh's exec lines against it
 for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("frames", "node /r/tools/film/frames.mjs p"), ("patch", "node /r/tools/film/patch.mjs f"), ("determinism", "node /r/tools/film/determinism.mjs p"), ("cues", "node /r/tools/film/cues.mjs p"), ("fonts", "node /r/tools/film/fonts.mjs p"),
-                ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
+                ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("studio", "python3 /r/tools/desk/studio.py demo"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
                 ("style", "/bin/bash /r/bin/vh style x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
     if not C.is_ours(cmd, cl):
         bad.append(f"is_ours: {cmd}, {cl}")
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
     if C.is_ours(cmd, cl):
         bad.append(f"is_ours, not: {cmd}, {cl}")
-known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "studio.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
@@ -12097,6 +12340,15 @@ esac
 # run ends, also when a signal ends it: a run stopped half-way used to leave a desk running for its 12 h --idle. Only the
 # recorded pids, and only while each is still a desk (a pid reused since is someone else's process)
 CI_DESKS=$(mktemp "${TMPDIR:-/tmp}/vh-ci-desks.XXXXXX") || exit 2
+# a desk shows Studio's window itself (bin/vh gate, bin/vh studio, a terminal start): in a run the window is the stand-in
+# (tools/desk/fixtures/studio_window.py: it fetches the page, trades its code, holds the presence stream), raising it is a
+# script that notes the pid, its profiles are in a folder of this run's, and $BROWSER (the fallback tab) only notes the
+# address: a run opens no window and no tab on the machine it runs on, and never touches the person's own Studio window
+CI_WIN=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-windows.XXXXXX") || exit 2
+export OVH_STUDIO_PROFILES="$CI_WIN/profiles" OVH_STUDIO_BROWSER="$ROOT/tools/desk/fixtures/studio_window.py" OVH_STUDIO_ACTIVATE="$CI_WIN/raise"
+CI_BROWSER_LOG="$CI_WIN/browser.log"; : > "$CI_BROWSER_LOG"; export CI_BROWSER_LOG
+printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$CI_WIN/raised" > "$CI_WIN/raise"
+printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "$CI_BROWSER_LOG"\n' > "$CI_WIN/open"; chmod +x "$CI_WIN/raise" "$CI_WIN/open"; export BROWSER="$CI_WIN/open"
 desk_rec() { [ -z "${1:-}" ] || echo "$1" >> "$CI_DESKS"; }   # desk_rec <pid>
 desk_rec_of() { desk_rec "$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$1/out/review/.desk.json" 2>/dev/null)"; }   # the desk bin/vh gate started for <project>
 reap_desks() {
@@ -12106,6 +12358,10 @@ reap_desks() {
     case "$(ps -p "$p" -o command= 2>/dev/null)" in *tools/desk/desk.py*) kill "$p" 2>/dev/null ;; esac
   done < "$CI_DESKS"
   rm -f "$CI_DESKS"
+  for p in $(pgrep -f "$CI_WIN/profiles" 2>/dev/null); do   # a stand-in window a desk killed outright left behind: only this run's
+    case "$(ps -p "$p" -o command= 2>/dev/null)" in *studio_window.py*"$CI_WIN/profiles"*) kill "$p" 2>/dev/null ;; esac
+  done
+  rm -rf "$CI_WIN"
 }
 trap reap_desks EXIT; trap 'exit 143' TERM; trap 'exit 129' HUP; trap 'exit 130' INT
 # no group to run is never a pass: a table gone, emptied or unreadable would make every run "all checks passed"

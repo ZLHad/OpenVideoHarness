@@ -6,9 +6,17 @@ every project under the roots (bin/vh projects': $OVH_PROJECTS, <repo>/projects,
 started for wherever that is. The project files and bin/vh are the truth: every answer is read fresh from them, and the page
 keeps nothing of its own but the reviewer's draft (in the browser) until it is submitted.
 
-  GET  /?k=<launch key>           the page (static/index.html, and the project it opens on); with this run's token for
-                                  every GET that brings the key, for as long as the desk runs (a HEAD gets none)
-  GET  /api/hello                 does the page hold this run's token? 403 with the line for a new link
+  GET  /[?c=<code>&w=<window>]    the page (static/index.html, and the project it opens on). A GET changes nothing and
+                                  gives nothing: the page's own script trades the code for the token (POST /api/claim)
+  POST /api/claim                 {c}: a one-time code the desk made for the window it opened (or printed for
+                                  --print-address) → {token}, once; the code is gone after, and it lived seconds
+  GET  /api/presence?token=&w=    Server-Sent Events while a page with the token is open: the desk knows its window is
+                                  there (and when it closed), and sends it where to go ({go: "/p/<key>…"})
+  POST /api/open                  {at, renew}: show Studio's window (raise it, or make the one window, or a tab of the
+                                  default browser when there is no Chromium-family browser) at that place → {opened, how,
+                                  why}; no token needed, nothing secret back; twenty a minute. renew: the window whose
+                                  page could not trade its code (Desk.renew): a new token, and a fresh window, twice a run
+  GET  /api/hello                 does the page hold this run's token? 403 {reopen} when not
   GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
                                   studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
                                   (the other modules), core.js (the words and helpers a static page shares)
@@ -35,20 +43,31 @@ Only requests whose Host is this server's own address are answered (no DNS rebin
 a JSON body and, when the browser sends one, a same-origin Origin. So another web page open in the same browser can neither
 read a project nor submit feedback in the reviewer's name.
 
-The token is the only door, and the launch key is how a page gets it. The desk starts with a key, printed in the address
-it prints (http://127.0.0.1:N/?k=…) and nowhere in the project: not in .desk.json, not in a log bin/vh gate keeps there
-(gate hands its desk the key on stdin and prints it in its own message). Every page that GETs / with it gets this run's
-token, for as long as the desk runs, and keeps it in its origin's storage (one port's; a cookie would reach every port of
-127.0.0.1). A GET has no once-only effect: a browser that fetches the address twice (a prefetch, an extension, a session
-restored, the address delivered to another Chrome process than the window the person looks at) must not lock the person
-out of their own page, as the one-time key of 2026-11-16 did. A page without the key gets no token: it reads, but cannot
-submit, talk to an agent or answer one. So a command an agent runs in the project, which can read every file there and
-reach 127.0.0.1, finds no credential there. The key is outside the project: in the terminal where the desk printed it, in
-gate's output, so in the terminal agent's own transcript or task output under HOME, which an agent's command may read;
-whatever sees that output can come in for as long as this desk runs (bin/vh desk link starts it again with a new key).
-Which process sent a request on the loopback the server cannot tell (a peer-port lookup is beaten by a double fork or a
-half-closed socket), so it does not try. What stays outside: a process of the same user that reads the terminal's output,
-an agent's transcript, or the browser's profile, or that can synthesize input.
+The token is the only door. Nothing that holds it, or a way to it, is printed or written anywhere: not in the address
+a desk prints, not in .desk.json or a log, not in bin/vh gate's message or --json. The desk makes Studio's window itself
+(window.py): a Chromium-family browser named outright, with a profile of its own and --app (no address bar, no tabs, no
+extensions, nobody's session), at an address carrying a one-time code that lives a minute. The page's script trades it
+for the token (POST /api/claim) and keeps the token in its origin's storage (one port's; a cookie would reach every port
+of 127.0.0.1); the code is spent then, so the copy that stays in the browser's command line (ps shows it) opens nothing.
+A GET changes nothing: a browser may fetch an address more than once (a prefetch, an extension, the address handed to a
+headless Chrome another tool left running, as happened on 2026-11-16), and none of that may cost the person their page.
+The window counts as open only when its page connects back (GET /api/presence); else the desk tries once more, then a
+tab of the default browser, and says so. POST /api/open, which bin/vh studio, the launcher icon, bin/vh gate and a page
+that can only look call, needs no token: it shows the window and answers whether it did, nothing else. So a command an
+agent runs in the project, which can read every file there, reach 127.0.0.1 and read the process list, finds nothing to
+act with: the most it can do is bring Studio's window to the front. --print-address (a browser on another machine)
+writes an address with a code that lives ten minutes and opens one page, once, to the terminal alone (/dev/tty: not
+stdout, a log or --json), and is refused where there is none, as in an agent's shell. Which process sent a request on
+the loopback the server cannot tell (a peer-port lookup is beaten by a double fork or a half-closed socket), so it does
+not try.
+
+What this is, said plainly: a guardrail, not a wall. It keeps an agent from approving its own requests by ordinary means:
+reading files, logs and command output, calling the server. It does not stop a program of the same user that sets out to
+dig: one that reads the window's profile (the token is in its storage), races the window for its code in the second
+between the window's start and its page's claim (ps shows the code; the window whose page then finds its code spent
+asks for renew, and the console changes the token and replaces the window, twice a run, never while that window's page
+is connected; a program that also holds the window's presence stream blocks that), makes itself a terminal to read
+--print-address (script(1) does), or synthesizes input. Against those the boundary is the agent's own mode and sandbox.
 """
 import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
@@ -555,8 +574,18 @@ class Desk(http.server.ThreadingHTTPServer):
         self._fresh_at = 0.0   # the last walk an unknown key asked for
         self.roots = [str(r) for r in roots]
         self.token = secrets.token_urlsafe(24)
-        self.key = secrets.token_urlsafe(18)   # the launch key: every page that GETs / with it gets the token (a key given on stdin replaces it)
-        self.link_cmd = ""     # the line that stops this desk and starts it again with a new link (serve sets it)
+        self.codes = {}        # one-time codes: code → (until, window): a page trades one for the token, once (POST /api/claim)
+        self.windows = {}      # window id → "window" | "tab": what this desk opened (its address carries the id)
+        self.present = {}      # window id → pages of it connected with the token (GET /api/presence)
+        self.events = {}       # window id → what to tell it ({go})
+        self.pcond = threading.Condition()
+        self.window_lock = threading.Lock()   # one show at a time: two clicks, two terminals, still one window
+        self.opened_at = []    # POST /api/open: twenty a minute
+        self.spent = set()     # window ids whose code has been traded (by its page, or by whoever got to it first)
+        self.renewed = 0       # windows replaced because their page could not trade its code (POST /api/open {renew}): twice a run
+        self.window_name = "console-" + hashlib.sha1("\n".join(sorted(os.path.realpath(r) for r in roots)).encode()).hexdigest()[:10] \
+            if self.project is None else "desk-" + pid_of(self.project)[:10]   # its window's profile: one desk, one window
+        self.link_cmd = ""     # the line that stops this desk and starts it again with a new key (serve sets it)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
@@ -564,6 +593,128 @@ class Desk(http.server.ThreadingHTTPServer):
         self._listing = (0.0, None)
         self._keys = {self.own_key: self.project} if self.project else {}
         self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
+
+    # ---------- the window: one-time codes, presence, show ----------
+    def mint(self, ttl, w=""):
+        """A one-time code for one page, good for ttl seconds."""
+        code = secrets.token_urlsafe(18)
+        now = time.time()
+        with self._lock:
+            self.codes = {c: v for c, v in self.codes.items() if v[0] > now}
+            self.codes[code] = (now + ttl, w)
+        return code
+
+    def claim(self, code):
+        """Spend a code: True once, while it lives."""
+        with self._lock:
+            hit = next((c for c in self.codes if secrets.compare_digest(c.encode(), code.encode("utf-8", "replace"))), None)
+            v = self.codes.pop(hit, None) if hit else None
+            ok = bool(v) and v[0] > time.time()
+            if ok and v[1]:
+                self.spent.add(v[1])
+        return ok
+
+    def rotate(self):
+        """A new token for this run: every page holding the old one can only look, and its streams end."""
+        with self.pcond:
+            self.token = secrets.token_urlsafe(24)
+            self.present, self.events = {}, {}
+            self.pcond.notify_all()
+
+    def renew(self, w, at=""):
+        """POST /api/open {renew: w}: the page of a window this desk made could not trade its code (spent by someone else
+        first, or run out). When its code was spent, the token changes (whoever holds it can only look; its streams end);
+        then a fresh window takes that one's place. Twice a run at most, then the page stays one that can only look. A
+        window whose page is connected is never renewed (nothing changes, nothing counted: a plain POST with the window's
+        id from ps cannot replace a working window). A window this run did not make: a plain show. → show()'s answer, and
+        renewed."""
+        with self.pcond:
+            if self.present.get(w, 0) > 0:
+                return {"opened": True, "renewed": False, "code": "connected", "why": "that window's page is connected"}
+        with self._lock:
+            known = w in self.windows
+            if known and self.renewed >= 2:
+                return {"opened": False, "renewed": False, "code": "taken",
+                        "why": "another program on this computer connected before Studio's window did, twice: start Studio again"}
+            if known:
+                self.renewed += 1
+            taken = known and w in self.spent
+        if not known:
+            return dict(self.show(at), renewed=False)
+        if taken:
+            self.rotate()   # no page is present after it: show() closes the window and makes a fresh one
+        return dict(self.show(at), renewed=True)
+
+    def live_window(self):
+        """The id of this desk's window whose page is connected with the token, or None."""
+        with self.pcond:
+            return next((w for w, n in self.present.items() if n > 0 and self.windows.get(w) == "window"), None)
+
+    def _wait_present(self, w, secs):
+        end = time.time() + secs
+        with self.pcond:
+            while self.present.get(w, 0) <= 0:
+                left = end - time.time()
+                if left <= 0:
+                    return False
+                self.pcond.wait(left)
+        return True
+
+    def push(self, w, ev):
+        with self.pcond:
+            self.events.setdefault(w, []).append(ev)
+            self.pcond.notify_all()
+
+    def _entry(self, code, w, at):
+        return f"{self.url}?c={code}&w={w}" + (f"#{at}" if at else "")
+
+    def show(self, at=""):
+        """Show Studio's window at that place of the page: the one whose page is connected comes to the front (and goes
+        there); else one new window (a leftover of ours with no page in it goes first, so there is never a second), counted
+        as open only once its page connects; once more if not; then a tab of the default browser. → {opened, how, why}:
+        how is front (raised), open (there, but the system would not raise it), window (made), tab (the fallback)."""
+        import window as WIN
+        with self.window_lock:
+            prof = WIN.profile(self.window_name)
+            w = self.live_window()
+            if w and WIN.main_pid(prof) is None:   # its stream has not noticed yet (a ping every 5 s), but the window is gone
+                w = None
+            if w:
+                if at:
+                    self.push(w, {"go": at})
+                return {"opened": True, "how": "front" if WIN.raise_(prof) else "open"}
+            WIN.close(prof)
+            prog = WIN.browser()
+            why, code = "no Chrome, Chromium, Edge or Brave here for a window of its own", "no_browser"
+            if prog:
+                for _ in range(2):
+                    w = secrets.token_hex(6)
+                    self.windows[w] = "window"
+                    if WIN.launch(prog, prof, self._entry(self.mint(60, w), w, at)) and self._wait_present(w, 12):
+                        return {"opened": True, "how": "window"}
+                    WIN.close(prof)
+                why, code = "its window started, but the page in it did not connect", "no_connect"
+            w = secrets.token_hex(6)
+            self.windows[w] = "tab"
+            if WIN.tab(self._entry(self.mint(60, w), w, at)) and self._wait_present(w, 12):
+                return {"opened": True, "how": "tab", "why": why, "code": code}
+            return {"opened": False, "how": None, "why": why + ", and no browser tab connected either", "code": code}
+
+    def close_window(self):
+        """This desk's window goes with it (it is no use without the desk)."""
+        if not self.windows:
+            return
+        try:
+            import window as WIN
+            WIN.close(WIN.profile(self.window_name), wait=4)
+        except Exception:
+            pass
+
+    def handle_error(self, request, client_address):
+        """A page that went away mid-answer (a window closed, a reload, a stream given up) is no error: no traceback for it."""
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
 
     def server_bind(self):
         # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
@@ -665,10 +816,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         srv = self.server
         if path in ("/", "/index.html"):
-            k = (parse_qs(urlsplit(self.path).query).get("k") or [""])[0]
-            # every GET that brings the key gets the token: a GET has no once-only effect (a browser may fetch it twice)
-            give = bool(k) and self.command == "GET" and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii"))
-            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token if give else "") \
+            # a GET changes nothing and gives nothing (a browser may fetch an address twice): the page's script trades the
+            # code in its address for the token (POST /api/claim)
+            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", "") \
                 .replace("{{HOME}}", srv.own_key or "")
             return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
         if path.startswith("/static/") and path[8:] in STATIC:
@@ -678,7 +828,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/hello":   # does the page hold this run's token? (one from an earlier run does not count); if not, why, and the way out
             given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
             ok = secrets.compare_digest(given, srv.token.encode("ascii"))
-            return self._json({"ok": True} if ok else {"ok": False, "link": srv.link_cmd}, 200 if ok else 403)
+            return self._json({"ok": True} if ok else {"ok": False, "reopen": True}, 200 if ok else 403)
+        if path == "/api/presence":
+            return self._presence()
         m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
         if m:
             key = unquote(m.group(1))
@@ -739,13 +891,58 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
                            **({"error": err} if err else {})})
 
+    def _presence(self):
+        """GET /api/presence?token=&w=: a page with the token, as Server-Sent Events: while it is connected the desk knows
+        that page (its window) is there; it is told where to go ({go}); a page that went away is noticed within a second
+        (its connection, looked at each second: closed is readable and empty), and a comment every 5 s keeps the line."""
+        q = parse_qs(urlsplit(self.path).query)
+        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        srv = self.server
+        if not secrets.compare_digest(given, srv.token.encode("ascii")):
+            return self._error(403, "no access")
+        w = (q.get("w") or [""])[0]
+        w = w if re.fullmatch(r"[a-f0-9]{1,24}", w) else ""
+        self.send_response(200)
+        for k, v in (("Content-Type", "text/event-stream; charset=utf-8"), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")):
+            self.send_header(k, v)
+        self.end_headers()
+        self.close_connection = True
+        with srv.pcond:
+            mine = srv.token   # the stream ends when the token changes (Desk.rotate)
+            srv.present[w] = srv.present.get(w, 0) + 1
+            srv.pcond.notify_all()
+        try:
+            self.wfile.write(b"retry: 2000\nevent: hello\ndata: {}\n\n")
+            self.wfile.flush()
+            pinged = time.time()
+            while not srv.agents.closed and srv.token == mine:
+                with srv.pcond:
+                    if not srv.events.get(w):
+                        srv.pcond.wait(1)
+                    evs = srv.events.pop(w, [])
+                if not evs and time.time() - pinged < 5:
+                    if _closed(self.connection):
+                        break
+                    continue
+                self.wfile.write(("".join(f"data: {json.dumps(e)}\n\n" for e in evs) if evs else ": ping\n\n").encode("utf-8"))
+                self.wfile.flush()
+                pinged = srv.last = time.time()
+        except (OSError, ValueError):
+            pass   # the page went away: its window closed, or it reloaded
+        finally:
+            with srv.pcond:
+                if srv.token == mine:   # after a rotation the count started again
+                    srv.present[w] = srv.present.get(w, 1) - 1
+                srv.pcond.notify_all()
+
     def _events(self, project, key, sid):
         """One conversation's events as Server-Sent Events: those after Last-Event-ID (or ?after=), then each as it comes;
         a comment every 5 s keeps the line (and the desk's --idle) alive, and finds a page that went away. Needs the page's token (?token=): the events are
         the conversation, file contents and commands included."""
         q = parse_qs(urlsplit(self.path).query)
         given = (q.get("token") or [""])[0].encode("utf-8", "replace")
-        if not secrets.compare_digest(given, self.server.token.encode("ascii")):
+        mine = self.server.token
+        if not secrets.compare_digest(given, mine.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
         s = self.server.agents.get(sid, project, key)
         if s is None:
@@ -767,7 +964,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(("retry: 2000\nevent: hello\ndata: " + json.dumps(dict(s.summary(), config=A.clean(s.config, s.root),
                                                                                    caps=mgr.caps.get(s.kind) or {}), ensure_ascii=False) + "\n\n").encode("utf-8"))
             self.wfile.flush()
-            while not mgr.closed:
+            while not mgr.closed and self.server.token == mine:   # a new token (Desk.rotate) ends it
                 evs = s.after(after)
                 if evs:
                     out = "".join(f"id: {e['seq']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n" for e in evs)
@@ -927,6 +1124,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._error(404, "no such project")
         elif path == "/api/feedback" and self.server.project:
             project = self.server.project
+        elif path == "/api/claim":
+            return self._claim()
+        elif path == "/api/open":
+            return self._open()
         else:
             return self._error(404, "not found")
         if a:
@@ -966,9 +1167,49 @@ class Handler(http.server.BaseHTTPRequestHandler):
         sys.stderr.flush()
         self._json(dict(F.listening(project), saved=os.path.relpath(saved, project)))
 
+    def _claim(self):
+        """POST /api/claim {c}: a one-time code → this run's token, once."""
+        raw = self._body(4096, token=False)
+        if raw is None:
+            return
+        c = raw.get("c") if isinstance(raw.get("c"), str) else ""
+        if c and self.server.claim(c):
+            return self._json({"ok": True, "token": self.server.token})
+        return self._json({"ok": False}, 403)
+
+    def _open(self):
+        """POST /api/open {at, renew}: show Studio's window at that place (/p/<key>, and a module or a gate after it: a
+        project this desk serves; else its home). No token: it shows the window and says whether it did. renew: the id of
+        Studio's window whose page could not trade its code (Desk.renew). Twenty a minute."""
+        raw = self._body(4096, token=False)
+        if raw is None:
+            return
+        srv = self.server
+        at = raw.get("at") or ""
+        if not isinstance(at, str):
+            return self._error(400, "at: a place of the page, as /p/<key>")
+        at = at.strip()
+        if at in ("", "/"):
+            at = ""
+        else:
+            m = re.fullmatch(r"/p/([^/?#\s]{1,200})(/[^?#\s]{0,300})?", at)
+            if not m or srv.project_of(unquote(m.group(1))) is None:
+                at = ""   # a place this desk does not have: its home (the page that asked says nothing else)
+        now = time.time()
+        with srv._lock:
+            srv.opened_at = [x for x in srv.opened_at if now - x < 60]
+            if len(srv.opened_at) >= 20:
+                return self._json({"ok": False, "opened": False, "why": "asked too often: try again in a minute"}, 429)
+            srv.opened_at.append(now)
+        renew = raw.get("renew")
+        if isinstance(renew, str) and re.fullmatch(r"[a-f0-9]{1,24}", renew):
+            return self._json(dict(srv.renew(renew, at), ok=True))
+        r = srv.show(at)
+        return self._json(dict(r, ok=True))
+
     def _body(self, max_bytes=None, token=True):
         """The checks every POST passes (same origin, this run's token, JSON, a whole body) → the parsed JSON, or None
-        after the refusal is sent. token False: all but the token."""
+        after the refusal is sent. token False: all but the token (POST /api/claim and /api/open need none)."""
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             self._error(403, "cross-origin request refused")
@@ -1070,6 +1311,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 # ---------- start: once per project, or one console ----------
 
+def _closed(conn):
+    """Has the other end of this connection gone (a page that closed sends nothing more on a stream: readable means EOF)?"""
+    import select
+    try:
+        if not select.select([conn], [], [], 0)[0]:
+            return False
+        return conn.recv(1, socket.MSG_PEEK) == b""
+    except (OSError, ValueError):
+        return True
+
+
 def _info_path(project, roots=()):
     """Where a running desk says so: out/review/.desk.json in its project; a console's in the temp folder, one per user and
     set of roots (a console over other folders is another console)."""
@@ -1139,33 +1391,92 @@ def link_cmd(project=None, roots=()):
     return " ".join(["bin/vh desk link"] + ([short(project)] if project else []) + [w for r in roots for w in ("--root", short(r))])
 
 
-def open_in_browser(url):
-    """Open the console address in the person's default browser (a start from a terminal), and say whether it did. The
-    address may pass through a child process's arguments for a moment (xdg-open, open), which ps can see."""
+def ask_open(url, at=""):
+    """Ask the desk at url to show Studio's window at that place (POST /api/open). → {opened, how, why}."""
+    import http.client
+    u = urlsplit(url)
     try:
-        import webbrowser
-        ok = webbrowser.open(url, new=2)
-    except Exception:
-        ok = False
-    print("desk: opened it in your browser" if ok else "desk: no browser opened: open the address above", flush=True)
-    return ok
+        c = http.client.HTTPConnection("127.0.0.1", u.port, timeout=120)
+        c.request("POST", "/api/open", body=json.dumps({"at": at}).encode(), headers={"Content-Type": "application/json", "Host": f"127.0.0.1:{u.port}"})
+        r = c.getresponse()
+        d = json.loads(r.read() or b"{}")
+        c.close()
+    except (OSError, ValueError, http.client.HTTPException) as e:
+        return {"opened": False, "how": None, "why": f"Studio did not answer ({type(e).__name__})"}
+    if not isinstance(d, dict):
+        return {"opened": False, "how": None, "why": "Studio answered something else"}
+    if r.status != 200:
+        return {"opened": False, "how": None, "why": d.get("why") or d.get("error") or f"HTTP {r.status}"}
+    return {"opened": bool(d.get("opened")), "how": d.get("how"), "why": d.get("why"), "code": d.get("code")}
 
 
-def serve(project=None, port=None, idle=None, roots=(), only=False, key=None, open_browser=False):
+NO_TERMINAL = ("--print-address writes the address to your terminal and nowhere else, and this has none (an agent's shell has "
+               "none, nor has a pipe or a service): run it yourself in a terminal")
+
+
+def has_terminal():
+    """Has this process a terminal of its own (/dev/tty)? An agent's shell, a pipe or a service has none."""
+    try:
+        with open("/dev/tty", "w"):
+            return True
+    except OSError:
+        return False
+
+
+def to_terminal(text):
+    """text to this process's own terminal only: never stdout, a log or a --json record (an address that opens a page
+    goes only where a person sits). → False when there is none."""
+    try:
+        with open("/dev/tty", "w", encoding="utf-8") as t:
+            t.write(text.rstrip("\n") + "\n")
+        return True
+    except OSError:
+        return False
+
+
+def address_words(url):
+    """The lines --print-address writes to the terminal."""
+    return (f"Studio's address, for a browser on another computer: {url}\n  it opens one page, once, within ten minutes; "
+            "whoever opens it first can work in Studio, so keep it to yourself")
+
+
+def said(r, icon=False):
+    """What a person reads after a show: what happened, and what to do when it did not (icon: the launcher icon's dialog,
+    where nobody has a terminal in front of them)."""
+    if r.get("opened"):
+        return {"front": "Studio is open: its window is in front.", "open": "Studio is open in its window.",
+                "window": "Studio is open in its own window.",
+                "tab": "Studio is open in a tab of your browser (" + (r.get("why") or "no window of its own") + ")."}.get(r.get("how"), "Studio is open.")
+    why = r.get("why") or "no reason given"
+    if icon:
+        return f"Studio's window did not open ({why}). Click the OVH Studio icon again, or ask your agent to open Studio."
+    return f"Studio's window did not open ({why}). Run bin/vh studio again; on a computer with no screen, bin/vh studio --print-address"
+
+
+def serve(project=None, port=None, idle=None, roots=(), only=False, code=None, open_browser=False, print_address=False, owner=None):
     """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. project None: the console.
     port None: the first free of 8780–8799; 0: any free port. only: this project and nothing else under the roots (the desk
-    bin/vh gate starts). key: the launch key, given by the one who prints it (bin/vh gate, on stdin); then the address this
-    prints has none. open_browser: open the address in the person's browser once it serves (a start from a terminal).
-    → exit code."""
+    bin/vh gate starts). code: a one-time code from the one who starts it (on stdin), which prints it (--print-address).
+    open_browser: show Studio's window once it serves (a start from a terminal). print_address: print an address with a
+    one-time code (ten minutes, one page), for a browser on another machine. owner: who started it ("icon": the launcher,
+    which stops it when you quit it), in its info file. → exit code."""
     project = Path(project).resolve() if project else None
     url = running(project, roots)
+    person = sys.stdout.isatty()   # a person's terminal reads no addresses; an agent's shell or a log gets this one (it opens nothing)
     if url:
         what = project.name if project else "the console"
-        print(f"desk: already serving {what} at {url} (open the address it printed when it started; {link_cmd(project, roots)} "
-              "gives a new one)", flush=True)
-        if open_browser:   # this browser may already work in it; if not, the page says what to do
-            open_in_browser(url)
+        print(f"desk: already serving {what}" + ("" if person else f" at {url}"), flush=True)
+        if print_address:   # a running desk has no address to print: one that opens a page comes with a start
+            print(f"  an address for another computer comes only with a fresh start: bin/vh desk link {str(project) + ' ' if project else ''}"
+                  "--print-address starts it again (its window closes) and writes one to your terminal", flush=True)
+        elif open_browser:
+            print("desk: " + said(ask_open(url)), flush=True)
+        else:
+            print("  bin/vh studio shows its window", flush=True)
         return 0
+    if print_address and not has_terminal():
+        print(f"desk: {NO_TERMINAL}", file=sys.stderr)
+        return 2
     srv, last = None, None
     for p in ([port] if port is not None else DEFAULT_PORTS):
         try:
@@ -1179,7 +1490,7 @@ def serve(project=None, port=None, idle=None, roots=(), only=False, key=None, op
     info_p = _info_path(project, roots)
     # how it was started, so that bin/vh desk link can start it again alike: never the key or the token
     info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds"),
-            "roots": [os.path.realpath(r) for r in roots], "only": bool(only and project), "idle": idle, "background": bool(key)}
+            "roots": [os.path.realpath(r) for r in roots], "only": bool(only and project), "idle": idle, "owner": owner}
     if project:
         info["project"] = os.path.realpath(str(project))
     srv.link_cmd = link_cmd(project, roots)
@@ -1207,12 +1518,18 @@ def serve(project=None, port=None, idle=None, roots=(), only=False, key=None, op
                     return
         threading.Thread(target=watch, daemon=True).start()
     what = (f"{project.name}" + (" only" if only else "")) if project else "console (every project)"
-    if key:
-        srv.key = key
-    shown = srv.url if key else f"{srv.url}?k={srv.key}"   # the one place the key is written, when nobody else prints it
-    print(f"desk: {shown}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
-    if open_browser and not key:   # a start from a terminal: the person's browser opens the console address, and nobody need copy it
-        threading.Thread(target=open_in_browser, args=(f"{srv.url}?k={srv.key}",), daemon=True).start()
+    if code:
+        with srv._lock:
+            srv.codes[code] = (time.time() + 600, "")
+    print("desk: " + ("" if person else f"{srv.url}  ·  ") + f"{what}  (Ctrl-C stops it"
+          + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    if print_address:   # the one address that opens a page: to the terminal alone
+        print("  the address for another computer is in your terminal" if to_terminal(address_words(f"{srv.url}?c={srv.mint(600)}"))
+              else f"  {NO_TERMINAL}", flush=True)
+    if open_browser:   # a start from a terminal: Studio's window, made by the desk itself
+        threading.Thread(target=lambda: print("desk: " + said(srv.show()), flush=True), daemon=True).start()
+    elif not print_address and not code:
+        print("  bin/vh studio shows its window", flush=True)
     code = 0
     try:
         srv.serve_forever(poll_interval=0.25)
@@ -1220,6 +1537,7 @@ def serve(project=None, port=None, idle=None, roots=(), only=False, key=None, op
         code = 130
     finally:
         srv.agents.shutdown()   # waiting requests cancelled, every adapter stopped (TERM to its group if it lingers)
+        srv.close_window()      # its window is no use without it
         srv.server_close()
         try:
             if info_p is not None and json.loads(info_p.read_text()).get("pid") == os.getpid():

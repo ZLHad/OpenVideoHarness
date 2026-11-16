@@ -1158,10 +1158,11 @@
       ],
       "usage": [
         {
-          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s] [--json]",
+          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s] [--print-address] [--json]",
           "text": [
             "a stop in one command: checks out/review/gate-<n>.json, builds",
-            "the review page and makes it this round, opens the review desk when the stop is reviewed there",
+            "the review page and makes it this round, opens the review desk when the stop is reviewed there (Studio when it runs",
+            "and has the project; the desk shows its window at the stop itself, and the message says so, with no address)",
             "(LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;",
             "--wait (desk): then waits for the submission like desk wait (tools/gate.py)"
           ]
@@ -1195,7 +1196,7 @@
       ],
       "usage": [
         {
-          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] [--print-address] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--print-address] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
           "text": [
             "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio's shell: modules on the left,",
             "the film's stops on top, on the right a conversation with an agent and what waits for the person. No project: the space,",
@@ -1203,10 +1204,11 @@
             "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
             "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
-            "The address it prints is the console address: the browser that opens it can submit and talk to agents. Started in a",
-            "terminal it opens your browser there (--no-open: not); an agent gives the person the address instead.",
-            "link: that desk (or the console) stops and starts again alike, and this prints its new address (and opens it, in a",
-            "terminal): for an address lost, or opened somewhere else first (the page says so); the old address no longer works.",
+            "The desk shows Studio's window itself: started in a terminal it does (--no-open: not); bin/vh studio does any other",
+            "time, and a page that can only look has a button for it. Nothing it prints opens a page; --print-address writes an",
+            "address with a one-time code (ten minutes, one page) to the terminal alone, for a browser on another machine",
+            "(refused with no terminal).",
+            "link: that desk (or the console) stops and starts again alike, and shows the new run's window.",
             "The column's other tab talks to an agent on this machine in the film's folder; agents: which are installed, and",
             "install <kind>: its pinned adapter, outside the repo (it uses the person's own login)"
           ]
@@ -1228,6 +1230,48 @@
         {
           "name": "data",
           "summary": "what the desk reads from the project, as JSON"
+        }
+      ]
+    },
+    {
+      "name": "studio",
+      "summary": "Show Studio (the console, bin/vh desk) in its one window, from a terminal, from an agent (\"打开 Studio\") or from the launcher icon this installs (macOS: OVH Studio.app; Linux: a desktop entry). Open already: it comes to the front, never a second; not running: the console starts in the background first. The window is a Chromium-family browser named outright with Studio's own profile, counted as open only when its page connects (else once more, then a browser tab, and it says so). Nothing secret is printed.",
+      "when": "whenever the person wants to open Studio or a film in it: say it, or click the icon; --install-icon once per machine",
+      "stages": ["any", "env"],
+      "reads": [
+        "the running console's info file in this user's temp folder (ovh-desk-<uid>/), or <project>/out/review/.desk.json for a film outside Studio's folders",
+        "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects), to open on one"
+      ],
+      "writes": [
+        "what bin/vh desk writes, when it starts one (in the background, owner icon when the icon started it)",
+        "--install-icon: ~/Applications/OVH Studio.app (macOS) or ~/.local/share/applications/ovh-studio.desktop and ~/.local/share/ovh-studio/ (Linux; $XDG_DATA_HOME), or all of it in --dir"
+      ],
+      "usage": [
+        {
+          "synopsis": "studio [<project>] [--print-address] [--json]",
+          "text": [
+            "show Studio's one window (tools/desk/studio.py, window.py, tools/desk/README.md): raised when it is open, made when",
+            "not, the console started in the background when it does not run (it stops 12 h after its window closes); a",
+            "project: on that film (one outside Studio's folders opens in its own desk, with its own window). An agent runs it too",
+            "when the person asks to open Studio. --print-address: no screen here (ssh): show nothing, write an address that opens",
+            "one page, once, within ten minutes, to the terminal alone; refused with no terminal and while Studio runs"
+          ]
+        },
+        {
+          "synopsis": "studio --install-icon [--dir DIR] | --remove-icon [--dir DIR] | --icon-status [--dir DIR] [--json]",
+          "text": [
+            "the launcher icon, made here with what the system has (osacompile and codesign on macOS, stdlib Python for the picture):",
+            "click it to bring up Studio's window, again to bring it to the front; on macOS quitting it stops the Studio it started",
+            "and closes its window. It runs",
+            "bin/vh studio in this clone, so a git pull needs no reinstall; a clone that moved says which command to run again"
+          ]
+        },
+        {
+          "synopsis": "studio --icon open|alive|quit [--force]",
+          "text": [
+            "what the icon runs: open (as above, the console it starts is the icon's), alive (0 while a Studio runs), quit (stop",
+            "the icon's console; exit 3 while an agent in its column is mid-turn, unless --force)"
+          ]
         }
       ]
     },
