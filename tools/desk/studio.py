@@ -1,8 +1,8 @@
 """bin/vh studio: show Studio, the console (bin/vh desk), in a window of its own: from a terminal, from an agent ("打开
-Studio"), or from the launcher icon this also installs. One window, always: not open yet, it opens; open, it comes to
-the front.
+Studio"), or from the launcher icon this also installs. One window a console: not open yet, it opens; open, it comes
+to the front, never a second. (A film outside Studio's folders has a desk of its own, and so a window of its own.)
 
-  bin/vh studio [<project>] [--print-address [--force]] [--json]
+  bin/vh studio [<project>] [--print-address] [--json]
       Studio running: its window comes to the front (or is made, when it was closed), on that film when one is named; no
       second console, no second window, no conversation in its agent column interrupted. Not running: it starts in the
       background first (it stops by itself 12 h after its last page closes). The window is a Chromium-family browser
@@ -10,11 +10,13 @@ the front.
       it counts as open only when its page connects back, and otherwise this tries once more, then a tab of the default
       browser, and says what happened. A film outside Studio's folders opens in its own desk (bin/vh desk <project>).
       The same when an agent runs it: the person asked for the window. Nothing secret is printed.
-      --print-address: for a browser on another machine (no screen here): show nothing; print an address that opens one
-      page, once, within ten minutes. A running Studio starts again for it (refused while an agent in its column is
-      mid-turn; --force stops that turn).
-  bin/vh studio --install-icon [--dir DIR]    the launcher icon: on macOS "OVH Studio.app" in ~/Applications (DIR: there
-      instead), on Linux a desktop entry in ~/.local/share/applications ($XDG_DATA_HOME). It runs bin/vh studio in this
+      --print-address: for a browser on another machine (no screen here): show nothing; write an address that opens one
+      page, once, within ten minutes, to your terminal and nowhere else (not stdout, not --json, not a log). Refused with
+      no terminal (an agent's shell has none), and while Studio runs: it comes with a fresh start, and this never closes a
+      window that is open (bin/vh desk link --print-address starts it again, on purpose).
+  bin/vh studio --install-icon [--dir DIR]    the launcher icon: on macOS "OVH Studio.app" in ~/Applications, on Linux a
+      desktop entry in ~/.local/share/applications ($XDG_DATA_HOME). With DIR, all of it goes there and nothing outside it
+      is touched (not the system's list of apps either: a test copy, or a folder you add yourself). It runs bin/vh studio in this
       clone, so a git pull needs no reinstall; a clone that moved says which command to run again. Made here, with what
       every macOS has (osacompile, codesign) and stdlib Python (the picture: tools/desk/icon.py)
   bin/vh studio --remove-icon [--dir DIR]     take it away again (only one this wrote)
@@ -23,7 +25,8 @@ the front.
       icon's own), alive (exit 0 while a Studio runs, 1 when none), quit (stop the console the icon started, and with it
       its window; exit 3 while an agent in its column is mid-turn, unless --force)
 
-Exit: 0 done · 1 the window did not open, nothing came up, or the icon could not be made · 2 usage · 3 quit refused (an agent mid-turn).
+Exit: 0 done · 1 the window did not open, nothing came up, the icon could not be made, or --print-address refused (no
+terminal, Studio running) · 2 usage · 3 quit refused (an agent mid-turn).
 """
 import argparse, hashlib, json, os, plistlib, re, shlex, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -72,9 +75,10 @@ def _place(url, project, own):
     return launch.place(url, project) or ""
 
 
-def open_studio(project=None, print_address=False, force=False, owner=None):
-    """→ (record, exit code). The record: url (an address that opens a page only with print_address), opened, how (front,
-    open, window, tab), started, pid, where (studio | desk)."""
+def open_studio(project=None, print_address=False, owner=None):
+    """→ (record, exit code). The record: url (an address that opens nothing by itself), opened, how (front, open,
+    window, tab), started, pid, where (studio | desk). print_address: a fresh start only, its address with a one-time code
+    written to the terminal (printed: "terminal"), never into the record."""
     import launch, server
     console = _console()
     own = project is not None and not (launch.place(console["url"], project) if console else _in_console_roots(project))
@@ -82,15 +86,20 @@ def open_studio(project=None, print_address=False, force=False, owner=None):
     info = server.running_info(target, [])
     rec = {"version": 1, "tool": "bin/vh studio", "where": "desk" if own else "studio", "project": str(project) if project else None}
     if print_address:
+        if not server.has_terminal():
+            return dict(rec, error=server.NO_TERMINAL, refused=True), 1
         if info:
-            url, why = launch.relink(target, [], force, None, True)
-        else:
-            url, why = launch.start(target, [], False, None, launch.IDLE, True, owner)
+            return dict(rec, refused=True, error="Studio is running already, and an address for another computer comes only with a fresh "
+                        "start; this never closes a window that is open. To start it again on purpose (its window closes): bin/vh desk link "
+                        + (f"{project} " if own else "") + "--print-address"), 1
+        url, why = launch.start(target, [], False, None, launch.IDLE, True, owner)
         if not url:
             return dict(rec, error=why), 1
         info = server.running_info(target, []) or {}
         at = _place(url, project, own)
-        return dict(rec, url=url + (f"#{at}" if at else ""), opened=False, started=True, pid=info.get("pid")), 0
+        printed = server.to_terminal(server.address_words(url + (f"#{at}" if at else "")))
+        return dict(rec, url=url.partition("?")[0] + (f"#{at}" if at else ""), opened=False, started=True, pid=info.get("pid"),
+                    printed="terminal" if printed else None), 0 if printed else 1
     started = False
     if not info:
         url, why = launch.start(target, [], False, None, launch.IDLE, False, owner)
@@ -143,14 +152,16 @@ def _data_home():
 
 
 def where(platform, dir_=None):
-    """Where the icon goes (or is): the .app, or the desktop entry, and on Linux the folder of its script and picture."""
+    """Where the icon goes (or is): the .app, or the desktop entry, and on Linux the folder of its script and picture.
+    With --dir, all of it is inside that folder (Linux: <dir>/ovh-studio beside the entry): nothing else is touched."""
     if platform == "macos":
         return Path(dir_).expanduser() / f"{APP}.app" if dir_ else Path.home() / "Applications" / f"{APP}.app", None
-    entry = Path(dir_).expanduser() / DESKTOP if dir_ else _data_home() / "applications" / DESKTOP
-    return entry, _data_home() / "ovh-studio"
+    if dir_:
+        return Path(dir_).expanduser() / DESKTOP, Path(dir_).expanduser() / "ovh-studio"
+    return _data_home() / "applications" / DESKTOP, _data_home() / "ovh-studio"
 
 
-def _ours(platform, path):
+def _ours(platform, path, data=None):
     """The mark the icon carries, when this command wrote it (else None)."""
     try:
         if platform == "macos":
@@ -160,7 +171,7 @@ def _ours(platform, path):
         if not m:
             return None
         mark = {"repo": m.group(1)}
-        mp = _data_home() / "ovh-studio" / MARK
+        mp = (data or _data_home() / "ovh-studio") / MARK
         if mp.is_file():
             mark.update({k: v for k, v in json.loads(mp.read_text()).items() if k != "repo"})
         return mark
@@ -180,7 +191,7 @@ def _desktop_arg(s):
     return ('"' + inner + '"').replace("\\", "\\\\").replace("%", "%%")
 
 
-def build_app(dest):
+def build_app(dest, register=True):
     """OVH Studio.app at dest: a stay-open AppleScript applet (it answers a second click and the Dock's Quit), its icon,
     its name, the clone it runs. Ad-hoc signed, as osacompile signs it; made on this machine, so no quarantine and no
     Gatekeeper check. → None, or why it could not be made."""
@@ -222,13 +233,20 @@ def build_app(dest):
             shutil.rmtree(dest)
         shutil.move(str(app), str(dest))
     os.utime(dest)   # Finder and the Dock read the icon again
-    lsr = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-    if os.access(lsr, os.X_OK):
-        subprocess.run([lsr, "-f", str(dest)], capture_output=True, timeout=60)
+    if register:   # not for --dir: the system's list of apps is outside that folder
+        _lsregister("-f", dest)
     return None
 
 
-def build_desktop(entry, data):
+LSREGISTER = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+
+def _lsregister(flag, app):
+    if os.access(LSREGISTER, os.X_OK):
+        subprocess.run([LSREGISTER, flag, str(app)], capture_output=True, timeout=60)
+
+
+def build_desktop(entry, data, register=True):
     """The desktop entry, its script and its picture (256 px). → None, or why not."""
     import icon
     data.mkdir(parents=True, exist_ok=True)
@@ -245,16 +263,16 @@ def build_desktop(entry, data):
     entry.write_text(d, encoding="utf-8")
     entry.chmod(0o755)
     upd = shutil.which("update-desktop-database")
-    if upd:
+    if upd and register:
         subprocess.run([upd, str(entry.parent)], capture_output=True, timeout=60)
     return None
 
 
 def install(platform, dir_=None):
     path, data = where(platform, dir_)
-    if path.exists() and _ours(platform, path) is None:
+    if path.exists() and _ours(platform, path, data) is None:
         return None, f"{path} is there and is not one bin/vh studio wrote: left as it is (--dir puts the icon somewhere else)"
-    why = build_app(path) if platform == "macos" else build_desktop(path, data)
+    why = build_app(path, register=not dir_) if platform == "macos" else build_desktop(path, data, register=not dir_)
     return (None, why) if why else (path, None)
 
 
@@ -262,9 +280,11 @@ def remove(platform, dir_=None):
     path, data = where(platform, dir_)
     if not path.exists():
         return None, None
-    if _ours(platform, path) is None:
+    if _ours(platform, path, data) is None:
         return None, f"{path} is not one bin/vh studio wrote: left as it is"
     if platform == "macos":
+        if not dir_:
+            _lsregister("-u", path)
         shutil.rmtree(path)
     else:
         path.unlink()
@@ -279,11 +299,11 @@ def status(platform=None, dir_=None):
     platform = _platform(platform)
     if platform is None:
         return {"state": "unsupported", "note": "the launcher icon is for macOS and Linux"}
-    places = [where(platform, dir_)[0]] if dir_ else [where(platform)[0]] + ([Path("/Applications") / f"{APP}.app"] if platform == "macos" else [])
-    for p in places:
+    places = [where(platform, dir_)] if dir_ else [where(platform)] + ([(Path("/Applications") / f"{APP}.app", None)] if platform == "macos" else [])
+    for p, data in places:
         if not p.exists():
             continue
-        mark = _ours(platform, p)
+        mark = _ours(platform, p, data)
         if mark is None:
             continue
         repo = mark.get("repo") or ""
@@ -305,9 +325,10 @@ def main(argv):
     ap = argparse.ArgumentParser(prog="bin/vh studio", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__.split("\n\n", 1)[1])
     ap.add_argument("project", nargs="?", help="a project folder, or its name under projects/: open on that film")
-    ap.add_argument("--print-address", action="store_true", help="show nothing; print an address that opens one page, once, within ten minutes "
-                                                                 "(for a browser on another machine; whoever opens it first can work in Studio)")
-    ap.add_argument("--force", action="store_true", help="with --print-address or --icon quit: also while an agent in the column is mid-turn")
+    ap.add_argument("--print-address", action="store_true", help="show nothing; write an address that opens one page, once, within ten minutes, "
+                                                                 "to your terminal alone (for a browser on another machine; whoever opens it first "
+                                                                 "can work in Studio). Refused with no terminal, and while Studio runs")
+    ap.add_argument("--force", action="store_true", help="with --icon quit: also while an agent in the column is mid-turn")
     ap.add_argument("--json", action="store_true", help="the record on stdout")
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--install-icon", action="store_true", help="put the launcher icon in your applications")
@@ -341,7 +362,7 @@ def main(argv):
             else:
                 print(f"✓ {APP}: {path}\n  " + ("click it in Finder or Launchpad, or drag it to the Dock. Clicked again, it brings Studio back; quitting it "
                                                "stops the Studio it started. It runs bin/vh studio in this clone: a git pull needs no reinstall."
-                                               if platform == "macos" else "it is in your applications menu. It runs bin/vh studio in this clone: a git pull needs no reinstall."))
+                                               if platform == "macos" else ("it is in your applications menu. " if not a.dir else "") + "It runs bin/vh studio in this clone: a git pull needs no reinstall."))
             return 0
         path, why = remove(platform, a.dir)
         if why:
@@ -367,22 +388,25 @@ def main(argv):
             project = Path(project_dir(a.project)).resolve()
         except SystemExit as e:
             return jsonerr.fail("no_project", f"studio: {e}")
-    rec, rc = open_studio(project, a.print_address, a.force, "icon" if a.icon == "open" else None)
+    rec, rc = open_studio(project, a.print_address, "icon" if a.icon == "open" else None)
     if a.json:
         print(json.dumps(rec, ensure_ascii=False))
+        return rc
+    if rec.get("refused"):
+        _say(f"studio: {rec['error']}")
         return rc
     if rec.get("url") is None:
         _say(f"Studio did not start: {rec.get('error')}")
         return rc
     import server
     if a.print_address:
-        print(f"Studio's address, for a browser on another computer: {rec['url']}\n  it opens one page, once, within ten minutes; whoever opens "
-              "it first can work in Studio, so keep it to yourself", flush=True)
+        print("Studio started in the background: the address for another computer is in your terminal." if rec.get("printed")
+              else "Studio started in the background, but its address could not be written to your terminal", flush=True)
     elif rec.get("opened"):
         print(server.said(rec) + ("" if rec["where"] == "studio" else f" (on {project.name}, in its own desk: it is outside Studio's folders)")
               + ("\n  It started in the background; it stops by itself 12 h after its window closes." if rec.get("started") else ""), flush=True)
     else:
-        _say(server.said(rec))
+        _say(server.said(rec, icon=a.icon == "open"))
     return rc
 
 

@@ -2875,12 +2875,13 @@ PY
 # bin/vh new --lang, and bin/vh review's language default
 desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid, desk_url and DESK_KEY (its one-time code)
   local i a; desk_url=""
-  "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 --print-address > "$2" 2>&1 & desk_pid=$!   # bin/vh execs python: $! is the server
+  # --print-address writes the address to the terminal alone: with_tty gives it one, and copies it into the log
+  python3 "$ROOT/tools/desk/fixtures/with_tty.py" "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 --print-address > "$2" 2>&1 & desk_pid=$!   # with_tty and bin/vh exec: $! is the server
   desk_rec "$desk_pid"
   for i in $(seq 150); do   # up to 30 s; stop early if the server exits
     desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2")
-    desk_key=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
-    [ -n "$desk_url" ] && return 0
+    desk_key=$(sed -n 's#.*: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
+    [ -n "$desk_url" ] && [ -n "$desk_key" ] && return 0
     kill -0 "$desk_pid" 2>/dev/null || break; sleep 0.2; done
   if kill -0 "$desk_pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$desk_pid" 2>/dev/null; wait "$desk_pid" 2>/dev/null
   else wait "$desk_pid"; a="exited with $?"; fi
@@ -3585,9 +3586,10 @@ PY
   mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
   printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
   printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
-  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 --print-address > "$t/console.log" 2>&1 & pid=$!; desk_rec "$pid"
-  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
-  DESK_KEY=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); export DESK_KEY
+  python3 "$ROOT/tools/desk/fixtures/with_tty.py" "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 --print-address > "$t/console.log" 2>&1 & pid=$!; desk_rec "$pid"
+  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log")
+    DESK_KEY=$(sed -n 's#.*: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); [ -n "$url" ] && [ -n "$DESK_KEY" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
+  export DESK_KEY
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
   if python3 - "$url" "$t/root" "$t/root2" <<'PY'
 import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
@@ -3991,13 +3993,15 @@ studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its la
   # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders opens in
   # its own desk; --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
   # that moved, doctor's line, the picture, install.sh's question and the release's check
-  local t a b c d e rc rc2 rc3 rc4 rc5 rc6 rc7 rc8 pid pid2 url k app i n p w1 w2 w3 wq tab3 tab4 left claims
+  local t a b c d e rc rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p w1 w2 w3 wq tab3 tab4 left claims
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
   mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
   cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
   printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$t/raised" > "$t/raise"; chmod +x "$t/raise"
   studio_run() { TMPDIR="$t/tmp" HOME="$t/home" XDG_DATA_HOME="$t/home/.share" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" \
     OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" "$VH_BASH" "$ROOT/bin/vh" studio "$@"; }
+  studio_tty() { TMPDIR="$t/tmp" HOME="$t/home" XDG_DATA_HOME="$t/home/.share" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" \
+    OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" python3 "$ROOT/tools/desk/fixtures/with_tty.py" --to "$t/pa.tty" "$VH_BASH" "$ROOT/bin/vh" studio "$@"; }   # a terminal of its own
   st_console_pid() { python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["pid"])' "$t/tmp" 2>/dev/null; }
   st_win() { python3 -c 'import glob, json, sys; e = [json.loads(l)["event"] for f in glob.glob(sys.argv[1] + "/console-*/stand-in.log") for l in open(f)]; print(" ".join(e))' "$t/prof"; }
   st_stop() { local p; p=$(st_console_pid); [ -z "$p" ] || { kill "${1:--TERM}" "$p" 2>/dev/null; for i in $(seq 50); do kill -0 "$p" 2>/dev/null || break; sleep 0.1; done; }; }
@@ -4073,16 +4077,19 @@ PY
   tab4=$(cat "$t/tab/stand-in.log" 2>/dev/null | grep -c '"claimed"')
   st_stop
   c=$(OVH_STUDIO_BROWSER=none BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc3=$?; desk_rec "$(st_console_pid)"
+  d=$(OVH_STUDIO_BROWSER=none BROWSER=/usr/bin/false studio_run --icon open < /dev/null 2>&1); rc4=$?   # the icon's dialog: no command to run
   st_stop
   if [ $rc = 0 ] && [ "$(printf '%s\n' $w3 | grep -c '^launch$')" = 2 ] && [ "$(printf '%s\n' $w3 | grep -c '^closed$')" = 2 ] && [ "$tab3" = 1 ] \
     && case "$a" in *"open in a tab of your browser (its window started, but the page in it did not connect)"*) true ;; *) false ;; esac \
     && [ $rc2 = 0 ] && [ "$tab4" = 1 ] && case "$b" in *"open in a tab of your browser (no Chrome, Chromium, Edge or Brave here"*) true ;; *) false ;; esac \
-    && [ $rc3 = 1 ] && case "$c" in *"Studio's window did not open (no Chrome"*"Run bin/vh studio again"*) true ;; *) false ;; esac
-  then ok "studio: a window whose page never connects is closed and tried once more, then a tab of the default browser, and that is said; with no Chromium-family browser a tab, said so; with neither, exit 1 and a sentence that says what happened and what to run"
-  else bad "studio: the fallbacks (exits $rc/$rc2/$rc3): $a | $w3 | tabs $tab3/$tab4 | $b | $c"; fi
+    && [ $rc3 = 1 ] && case "$c" in *"Studio's window did not open (no Chrome"*"Run bin/vh studio again"*) true ;; *) false ;; esac \
+    && [ $rc4 = 1 ] && case "$d" in *"did not open (no Chrome"*"Click the OVH Studio icon again, or ask your agent to open Studio"*) true ;; *) false ;; esac && case "$d" in *bin/vh*) false ;; *) true ;; esac
+  then ok "studio: a window whose page never connects is closed and tried once more, then a tab of the default browser, and that is said; with no Chromium-family browser a tab, said so; with neither, exit 1 and a sentence that says what happened and what to run (from the icon: click it again, or ask your agent; no command)"
+  else bad "studio: the fallbacks (exits $rc/$rc2/$rc3/$rc4): $a | $w3 | tabs $tab3/$tab4 | $b | $c | $d"; fi
   rm -rf "$t/tab"
   # a film outside Studio's folders opens in its own desk; the icon's open (its console) / alive / quit (the console and its
-  # window go; one bin/vh studio started is left); --print-address prints an address that opens one page, once
+  # window go; one bin/vh studio started is left); --print-address: refused with no terminal (nothing starts), the address in
+  # the terminal alone (not on stdout), opening one page once; refused while Studio runs (the same console, not restarted)
   rm -rf "$t/prof"; mkdir -p "$t/prof"
   a=$(BROWSER=/usr/bin/false studio_run "$t/outside" --json < /dev/null 2>/dev/null); rc=$?
   b=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$t/outside/out/review/.desk.json" 2>/dev/null); desk_rec "$b"
@@ -4095,9 +4102,11 @@ PY
   studio_run --icon quit --json > "$t/q1" 2>&1; rc6=$?
   studio_run --icon alive; rc7=$?
   wq=$(st_win); left=$(pgrep -f "$t/prof/console-" | wc -l | tr -d ' ')
-  d=$(studio_run --print-address < /dev/null 2>&1); rc8=$?
+  n=$(studio_run --print-address < /dev/null 2>&1); rc9=$?; n2=$(st_console_pid)
+  studio_tty --print-address < /dev/null > "$t/pa" 2>&1; rc8=$?; d=$(cat "$t/pa" "$t/pa.tty" 2>/dev/null)
   k=$(printf '%s' "$d" | sed -n 's#.*?c=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)
   pid2=$(st_console_pid); desk_rec "$pid2"
+  e=$(studio_tty --print-address --json < /dev/null 2>&1); rc10=$?
   url=$(python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["url"])' "$t/tmp" 2>/dev/null)
   claims=$(python3 - "$url" "$k" <<'PY'
 import json, sys, urllib.error, urllib.request
@@ -4114,18 +4123,21 @@ PY
   if [ $rc = 0 ] && case "$a" in *'"where": "desk"'*'#/p/outside~'*'"opened": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
     && [ $rc2 = 0 ] && grep -q '"stopped": false' "$t/q0" && [ $rc3 = 1 ] && [ $rc4 = 0 ] && [ $rc5 = 0 ] && [ $rc6 = 0 ] && grep -q '"stopped": true' "$t/q1" && [ $rc7 = 1 ] \
     && [ "$left" = 0 ] && case "$wq" in *closed) true ;; *) false ;; esac \
-    && [ $rc8 = 0 ] && [ -n "$k" ] && [ "$claims" = "200 403" ] && case "$d" in *"opens one page, once, within ten minutes"*) true ;; *) false ;; esac
-  then ok "studio: a film outside Studio's folders opens in its own desk; the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address prints an address whose code works once"
-  else bad "studio: its own desk, the icon's open/alive/quit, --print-address (exits $rc $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8, windows left $left, claims $claims): $a | $(cat "$t/q0" "$t/q1") | $c | $wq | $d"; fi
+    && [ $rc8 = 0 ] && [ -n "$k" ] && [ "$claims" = "200 403" ] && case "$d" in *"opens one page, once, within ten minutes"*) true ;; *) false ;; esac \
+    && ! grep -q '?c=' "$t/pa" && grep -q 'is in your terminal' "$t/pa" && [ "$(grep -c '?c=' "$t/pa.tty")" = 1 ] \
+    && [ $rc9 = 1 ] && [ -z "$n2" ] && case "$n" in *"writes the address to your terminal and nowhere else"*) true ;; *) false ;; esac \
+    && [ $rc10 = 1 ] && [ "$(st_console_pid)" = "$pid2" ] && case "$e" in *'"refused": true'*"bin/vh desk link --print-address"*) true ;; *) false ;; esac && case "$e" in *'?c='*) false ;; *) true ;; esac
+  then ok "studio: a film outside Studio's folders opens in its own desk; the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address: refused with no terminal and nothing started, the address in the terminal alone, its code working once; refused while Studio runs, which goes on"
+  else bad "studio: its own desk, the icon's open/alive/quit, --print-address (exits $rc $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8 $rc9 $rc10, windows left $left, claims $claims): $a | $(cat "$t/q0" "$t/q1") | $c | $wq | $d | $n | $e"; fi
   [ -z "$pid2" ] || kill "$pid2" 2>/dev/null; [ -z "$b" ] || kill "$b" 2>/dev/null
   # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
   # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
   a=$(studio_run --install-icon --dir "$t/apps" --as linux 2>&1); rc=$?
   b=$(studio_run --icon-status --dir "$t/apps" --as linux --json 2>&1)
   cp "$t/apps/ovh-studio.desktop" "$t/apps/ovh-studio.desktop.bak"   # (as it was made)
-  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^REPO=.*$", "REPO=/no/such/clone", s))' "$t/home/.share/ovh-studio/studio-launch.sh"
-  c=$(PATH=/usr/bin:/bin "$t/home/.share/ovh-studio/studio-launch.sh" 2>&1); rc2=$?
-  python3 - "$t/home/.share/ovh-studio/ovh-studio.json" <<'PY'
+  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^REPO=.*$", "REPO=/no/such/clone", s))' "$t/apps/ovh-studio/studio-launch.sh"
+  c=$(PATH=/usr/bin:/bin "$t/apps/ovh-studio/studio-launch.sh" 2>&1); rc2=$?
+  python3 - "$t/apps/ovh-studio/ovh-studio.json" <<'PY'
 import json, sys
 p = sys.argv[1]; d = json.load(open(p)); d["repo"] = "/no/such/clone"; json.dump(d, open(p, "w"))
 PY
@@ -4139,9 +4151,9 @@ PY
     && [ $rc2 = 1 ] && case "$c" in *"/no/such/clone"*"bin/vh studio --install-icon"*) true ;; *) false ;; esac \
     && case "$d" in *"icon: elsewhere"*"no longer there"*"--install-icon here"*) true ;; *) false ;; esac \
     && [ $rc3 = 1 ] && grep -qx 'not ours' "$t/apps2/ovh-studio.desktop" && case "$e" in *"not one bin/vh studio wrote"*) true ;; *) false ;; esac \
-    && [ $rc4 = 0 ] && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/home/.share/ovh-studio" ]
-  then ok "studio icon (Linux): a desktop entry and its script run bin/vh studio in this clone; status ok; a clone that moved says which command to run again (the click and the status); a file it did not write is left alone; removed with its script and picture"
-  else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4; Exec $(grep -c '^Exec="' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null), repo line $(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null) for $(cd "$ROOT" && pwd -P), foreign kept $(grep -cx 'not ours' "$t/apps2/ovh-studio.desktop" 2>/dev/null), entry left $([ -e "$t/apps/ovh-studio.desktop" ] && echo yes || echo no), data left $([ -e "$t/home/.share/ovh-studio" ] && echo yes || echo no)): $a | $b | $c | $d | $e"; fi
+    && [ $rc4 = 0 ] && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/apps/ovh-studio" ] && [ ! -e "$t/home/.share/ovh-studio" ]
+  then ok "studio icon (Linux): a desktop entry and its script run bin/vh studio in this clone; status ok; a clone that moved says which command to run again (the click and the status); a file it did not write is left alone; removed with its script and picture; with --dir, nothing outside that folder"
+  else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4; Exec $(grep -c '^Exec="' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null), repo line $(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null) for $(cd "$ROOT" && pwd -P), foreign kept $(grep -cx 'not ours' "$t/apps2/ovh-studio.desktop" 2>/dev/null), entry left $([ -e "$t/apps/ovh-studio.desktop" ] && echo yes || echo no), data left $([ -e "$t/apps/ovh-studio" ] || [ -e "$t/home/.share/ovh-studio" ] && echo yes || echo no)): $a | $b | $c | $d | $e"; fi
   if [ "$(uname -s)" = Darwin ]; then
     a=$(studio_run --install-icon --dir "$t/apps" 2>&1); rc=$?
     app="$t/apps/OVH Studio.app"

@@ -7,11 +7,13 @@ comments and submits.
                                                 documents); a stop's gate view, where the options are cards to pick and
                                                 one button submits. Started in a terminal it shows Studio's window
                                                 (--no-open: not); bin/vh studio shows it any other time. Already running
-                                                with these roots: print its URL
+                                                with these roots: say so. A terminal shows no address (the page
+                                                is the window); an agent's shell or a log gets the address, which
+                                                opens a page that can only look
   bin/vh desk <project> [--root DIR …] [--port N] [--idle s] [--only]   the same page, opened on that project, every
                                                 other film a click away in the space. Default port: the first free of
-                                                8780–8799 (--port 0: any free port). Already serving this project: print
-                                                its URL. --idle s: stop after s seconds without a request. --only: this
+                                                8780–8799 (--port 0: any free port). Already serving this project: say
+                                                so. --idle s: stop after s seconds without a request. --only: this
                                                 project and nothing else under the roots (bin/vh gate starts the desk of a
                                                 stop so, with --idle 43200: 12 h)
   bin/vh desk wait <project> [--timeout s]      block until the reviewer submits, print the feedback, exit 0 (3 on
@@ -37,8 +39,9 @@ REVIEW.md as a dated section. <project> is a folder, or a name under $OVH_PROJEC
 
 The address a desk prints opens a page that can only look: the desk makes Studio's window itself (a start from a
 terminal, bin/vh studio, bin/vh gate, the launcher icon, a page's button), and that window's page gets the access with a
-one-time code. --print-address prints an address with such a code (ten minutes, one page), for a browser on another
-machine: whoever sees that output first can work in the console while it runs.
+one-time code. --print-address writes an address with such a code (ten minutes, one page) to your terminal and nowhere
+else, for a browser on another machine; with no terminal (an agent's shell) it is refused. Whoever opens that address
+first can work in the console while it runs.
 """
 import argparse, json, re, sys
 from pathlib import Path
@@ -77,8 +80,9 @@ def main(argv):
                                                    "few seconds); default: never. bin/vh gate starts it with 43200 (12 h)")
         ap.add_argument("--code-stdin", action="store_true", help="a one-time code on the first line of stdin, good for ten minutes "
                                                                   "(the one who starts it prints the address: bin/vh studio --print-address)")
-        ap.add_argument("--print-address", action="store_true", help="print an address that opens one page, for a browser on another "
-                                                                     "machine: whoever sees this output can work in the console while it runs")
+        ap.add_argument("--print-address", action="store_true", help="write an address that opens one page to your terminal alone, for a "
+                                                                     "browser on another machine (refused with no terminal): whoever opens "
+                                                                     "it first can work in the console while it runs")
         ap.add_argument("--only", action="store_true", help="serve this project and nothing else under the roots (bin/vh gate's "
                                                             "desk); without it the space has every film")
         ap.add_argument("--owner", choices=["icon"], help=argparse.SUPPRESS)   # who started it, in its info file: Studio's icon stops only its own
@@ -143,9 +147,9 @@ def link_cmd(argv):
     ap.add_argument("--root", action="append", default=[], metavar="DIR", help="the console's folders, as it was started with")
     ap.add_argument("--force", action="store_true", help="also when an agent in its column is mid-turn (that turn stops)")
     ap.add_argument("--no-open", action="store_true", help="show no window (bin/vh studio shows it later)")
-    ap.add_argument("--print-address", action="store_true", help="print an address that opens one page instead of showing the window, "
-                                                                 "for a browser on another machine: whoever sees it first can work in the console")
-    ap.add_argument("--json", action="store_true", help="{url, opened} on stdout")
+    ap.add_argument("--print-address", action="store_true", help="instead of showing the window, write an address that opens one page to "
+                                                                 "your terminal alone, for a browser on another machine (refused with no terminal)")
+    ap.add_argument("--json", action="store_true", help="{url, opened} on stdout (the url opens nothing by itself)")
     a = ap.parse_args(argv)
     for r in a.root:
         if not Path(r).expanduser().is_dir():
@@ -156,6 +160,9 @@ def link_cmd(argv):
         jsonerr.mark("no_project")
         return 2
     import launch, server
+    if a.print_address and not server.has_terminal():   # before anything stops
+        print(f"desk link: {server.NO_TERMINAL}", file=sys.stderr)
+        return 1
     url, why = launch.relink(project, [str(Path(r).expanduser()) for r in a.root], a.force, None, a.print_address)
     if not url:
         print(f"desk link: {why}", file=sys.stderr)
@@ -163,11 +170,14 @@ def link_cmd(argv):
     from urllib.parse import quote
     at = f"/p/{quote(server.keyify(project.name, project), safe='')}" if project else ""
     r = {"opened": False} if a.print_address or a.no_open else launch.show(url, at)
+    printed = a.print_address and server.to_terminal(server.address_words(url + (f"#{at}" if at else "")))
+    url = url.partition("?")[0]   # the code goes to the terminal alone
     if a.json:
-        print(json.dumps({"version": 1, "url": url + (f"#{at}" if at else ""), "opened": r.get("opened"), "how": r.get("how")}))
+        print(json.dumps({"version": 1, "url": url + (f"#{at}" if at else ""), "opened": r.get("opened"), "how": r.get("how"),
+                          "printed": "terminal" if printed else None}))
         return 0
     if a.print_address:
-        print(f"desk: {url}{'#' + at if at else ''}\n  started again; that address opens one page, once, in the next ten minutes", flush=True)
+        print("desk: started again; the address for another computer is in your terminal", flush=True)
     else:
         print("desk: started again · " + (server.said(r) if not a.no_open else "bin/vh studio shows its window"), flush=True)
     return 0

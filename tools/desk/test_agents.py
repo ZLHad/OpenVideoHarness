@@ -91,6 +91,7 @@ def locks_check():
 
 
 MECHANISM = re.compile(r"(?i)钥匙|密钥|令牌|口令|token|\bkey\b|\?k=|\?c=|地址|address")   # words for how the console works, which a person never needs to read
+WITH_TTY = str(HERE / "fixtures" / "with_tty.py")   # a terminal of its own: --print-address writes to the terminal alone
 WINDOWS = T / "windows"   # Studio's windows in these checks: the stand-in (fixtures/studio_window.py), their profiles here
 
 
@@ -139,10 +140,10 @@ def page_check():
     if "<a " in js or "href=" in js.replace('href="${', ""):
         return "agent.js makes links"
     core = (HERE / "static" / "core.js").read_text(encoding="utf-8")
-    said = re.findall(r'\b(?:nokey|reopen|reopened|reopen_failed): "([^"]*)"', core) + re.findall(r'\b(?:reload): "([^"]*)"', js)
-    shown = [x for x in said if MECHANISM.search(x)]   # (gate's own words: door_checks reads what it prints)
-    if len(said) < 10 or shown or re.search(r"key_reused|key-reused|n_locked|perm_by_locked|nokey_copy", core + js):
-        return f"the words a person reads name the mechanism: {shown or len(said)}"
+    said = re.findall(r'\b(?:nokey|reopen|reopened|reopen_failed|taken): "([^"]*)"', core) + re.findall(r'\b(?:reload): "([^"]*)"', js)
+    shown = [x for x in said if MECHANISM.search(x) or re.search(r"bin/vh|终端|terminal", x)]   # (gate's own words: door_checks reads what it prints)
+    if len(said) < 12 or shown or re.search(r"key_reused|key-reused|n_locked|perm_by_locked|nokey_copy", core + js):
+        return f"the words a person reads name the mechanism or a command: {shown or len(said)}"
     node = shutil.which("node")
     if not node:
         return None   # the static part above still ran
@@ -230,17 +231,18 @@ class Desk:
         self.log = T / f"desk-{time.time_ns()}.log"
         env = window_env(dict(os.environ, OVH_AGENTS_DIR=str(agents), OVH_AGENT_APPROVAL_TIMEOUT=timeout, HOME=str(T / "home"), OVH_AGENT_STOP_GRACE="1.5",
                               FAKE_ACP_LOG=str(T / "prompts.jsonl"), **(extra or {})))
-        self.proc = subprocess.Popen([sys.executable, str(HERE / "desk.py"), str(project), "--port", "0", "--print-address"], stdout=open(self.log, "w"),
-                                     stderr=subprocess.STDOUT, env=env, cwd=str(T))
+        self.proc = subprocess.Popen([sys.executable, WITH_TTY, sys.executable, str(HERE / "desk.py"), str(project), "--port", "0", "--print-address"],
+                                     stdout=open(self.log, "w"), stderr=subprocess.STDOUT, env=env, cwd=str(T))
         BG.add(self.proc.pid)
         for _ in range(150):
-            m = re.search(r"desk: (http://127\.0\.0\.1:(\d+)/)\?c=([A-Za-z0-9_-]+)", self.log.read_text())
+            m = re.search(r"http://127\.0\.0\.1:(\d+)/\?c=([A-Za-z0-9_-]+)", self.log.read_text())   # the line on its terminal
             if m:
                 break
             time.sleep(0.1)
         else:
             raise RuntimeError("no address: " + self.log.read_text()[-400:])
-        self.url, self.port, self.key = m.group(1), int(m.group(2)), m.group(3)
+        self.port, self.key = int(m.group(1)), m.group(2)
+        self.url = f"http://127.0.0.1:{self.port}/"
         page = urllib.request.urlopen(self.url + "?c=" + self.key).read().decode()   # the printed address: a GET gives nothing
         self.token = claim(self.port, self.key)[1]   # the page's script trades its code for the token
         self.key = re.search(r'name="desk-home" content="([^"]*)"', page).group(1)
@@ -846,6 +848,13 @@ for root, dirs, files in os.walk(proj):   # every file in the project, the hidde
         grab(os.path.join(root, f))
 for f in glob.glob(os.path.join(tempfile.gettempdir(), f"ovh-desk-{os.getuid()}", "*")):   # a console's info file
     grab(f)
+import subprocess
+vh = os.path.join(sys.argv[1], "bin", "vh")
+printed = []   # the documented ways to an address that opens a page, run as an agent's shell runs them: no terminal of its own
+for args in (["studio", "--print-address"], ["gate", proj, "1", "--desk", "--print-address"], ["desk", "link", proj, "--print-address"]):
+    r = subprocess.run(["bash", vh] + args, capture_output=True, text=True, timeout=120, start_new_session=True, stdin=subprocess.DEVNULL)
+    seen.append(r.stdout + r.stderr)
+    printed.append({"rc": r.returncode, "code": "?c=" in r.stdout + r.stderr, "said": (r.stdout + r.stderr)[-160:]})
 text = "\n".join(seen)
 m = re.search(r'"port": (\d+)', open(os.path.join(proj, "out", "review", ".desk.json")).read())
 base = f"http://127.0.0.1:{m.group(1)}/"
@@ -857,7 +866,6 @@ def get(path):
 cands = set(re.findall(r"[A-Za-z0-9_-]{16,}", text))
 page = get("")
 tokens = set(re.findall(r'name="desk-token" content="([^"]*)"', page)) - {""}
-import subprocess
 ps = subprocess.run(["ps", "-ax", "-o", "command="], capture_output=True, text=True).stdout   # every process's command line:
 cands |= set(re.findall(r"[A-Za-z0-9_-]{16,}", ps))                                        # the window's, with its code, among them
 for c in list(cands)[:800]:   # every string that could be a code: as the page fetches it, and as its script trades it
@@ -895,15 +903,17 @@ for tok in list(tokens | cands)[:400] + [""]:
         except urllib.error.HTTPError as e:
             codes.append(e.code)
 print(json.dumps({"tokens": len(tokens), "candidates": len(cands), "rid": rid, "codes": sorted(set(codes)), "tried": len(codes),
-                  "ps_code": "c=" in ps, "open": shown}))
+                  "ps_code": "c=" in ps, "open": shown, "printed": printed}))
 """
 
 
 def attack_checks():
-    """The review's attack, as a check: an agent's shell in the project reads every file there, the console's info folder
-    and the process list (Studio's window is open, its address with the one-time code in its command line), reaches
-    127.0.0.1, tries every string it found as a code (fetched and traded) and as a token, and tries to answer its own request
-    and raise its own mode. It must find nothing to act with; POST /api/open, which it can call, answers nothing secret."""
+    """The review's attack, as a check: an agent's shell in the project (no terminal of its own) reads every file there, the
+    console's info folder and the process list (Studio's window is open, its address with the one-time code in its command
+    line), runs the documented commands that write an address (studio, gate and desk link --print-address: each refused,
+    nothing restarted), reaches 127.0.0.1, tries every string it found as a code (fetched and traded) and as a token, and
+    tries to answer its own request and raise its own mode. It must find nothing to act with; POST /api/open, which it can
+    call, answers nothing secret. It does not read the browser's profile: that is outside what this guards (README 安全)."""
     import acp
     from fixtures.agents import stage as ST
     proj = T / "attack"
@@ -931,7 +941,8 @@ def attack_checks():
         t0 = time.time()
         while time.time() - t0 < 10 and '"permission"' not in (proj / ".ovh" / "agents" / f"{sid}.jsonl").read_text():
             time.sleep(0.2)
-        r = subprocess.run([sys.executable, "-c", ATTACKER], cwd=str(proj), env=acp.clean_env({"HOME": str(T / "home")}),
+        pid0 = info.get("pid")
+        r = subprocess.run([sys.executable, "-c", ATTACKER, str(ROOT)], cwd=str(proj), env=acp.clean_env({"HOME": str(T / "home")}),
                            capture_output=True, text=True, timeout=600)
         got = json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"error": r.stderr[-300:]}
         if os.environ.get("AGENT_TEST_TIMES"):
@@ -939,6 +950,12 @@ def attack_checks():
         ev = [json.loads(x) for x in (proj / ".ovh" / "agents" / f"{sid}.jsonl").read_text().splitlines()]
         if got.get("tokens") or got.get("codes") != [403] or not got.get("rid") or not got.get("ps_code") or any(e["type"] == "answered" for e in ev):
             return f"from the project's files, the process list and the loopback: {got}"
+        pr = got.get("printed") or []
+        if len(pr) != 3 or any(x["rc"] == 0 or x["code"] for x in pr) or not all("terminal" in x["said"] for x in pr):
+            return f"--print-address with no terminal (studio, gate, desk link): {pr}"
+        now = json.loads((proj / "out" / "review" / ".desk.json").read_text()) if (proj / "out" / "review" / ".desk.json").exists() else {}
+        if now.get("pid") != pid0:
+            return f"desk link --print-address with no terminal restarted the desk: {pid0} → {now.get('pid')}"
         if any(set(x) - {"ok", "opened", "how", "why", "code", "status"} or tok in json.dumps(x) for x in got.get("open") or [{}]):
             return f"/api/open answered {got.get('open')}"
         d.a(sid, "answer", {"request": got["rid"], "option": "reject"})
@@ -962,8 +979,10 @@ def door_checks():
     made holds the token; the next stop raises that window and sends it to the stop, no second window, no restart; POST
     /api/open shows it with no token and answers nothing secret, twenty a minute, no other origin; after bin/vh desk link
     (refused mid-turn, --force goes ahead) the old token only reads (the page is told it can reopen) and the old window is
-    replaced by one new window; gate --print-address puts an address with a code that opens one page. Nothing the person
-    reads in gate's message names an address or the mechanism."""
+    replaced by one new window; a window whose page could not trade its code is replaced and the token changes (twice a run,
+    then nothing changes); gate --print-address is refused with no terminal and while the film's desk runs (which goes
+    on), and otherwise writes an address with a code that opens one page to the terminal alone. Nothing the person reads in
+    gate's message names an address or the mechanism."""
     from fixtures.agents import stage as ST
     import server
     proj = T / "door"
@@ -1033,6 +1052,30 @@ def door_checks():
         evil = call(port, "POST", "/api/open", {"at": ""}, origin="http://evil.example")
         if a[0] != 200 or set(a[1]) - {"ok", "opened", "how", "why", "code"} or not a[1].get("opened") or t1 in json.dumps(a[1]) or evil[0] != 403:
             return f"/api/open: {a} {evil[0]}"
+        # a window whose page could not trade its code (here: its page traded it, as a program that got to it first would):
+        # renew changes the token (the old one only reads, its presence stream ends) and replaces the window, which gets a
+        # new one; twice a run, then refused with nothing changed; a window id this run did not make is a plain show; a
+        # claim of a spent or made-up code changes nothing
+        def w_of(e):
+            m = re.search(r"[?&]w=([a-f0-9]+)", e.get("url") or "")
+            return m.group(1) if m else ""
+        tokens = [t1]
+        for i in range(2):
+            w = w_of([e for e in window_of(name)[0] if e["event"] == "launch"][-1])
+            r = call(port, "POST", "/api/open", {"at": "", "renew": w})
+            tn = window_of(name)[1]
+            if r[0] != 200 or not r[1].get("renewed") or not r[1].get("opened") or any(x in json.dumps(r[1]) for x in tokens + [tn]) \
+                    or not tn or tn in tokens or call(port, "GET", "/api/hello", token=tokens[-1])[0] != 403 or call(port, "GET", "/api/hello", token=tn)[0] != 200:
+                return f"renew {i + 1}: {r}, the window {events()[-8:]}"
+            tokens.append(tn)
+        w = w_of([e for e in window_of(name)[0] if e["event"] == "launch"][-1])
+        third, other = call(port, "POST", "/api/open", {"at": "", "renew": w}), call(port, "POST", "/api/open", {"at": "", "renew": "abc123"})
+        late = [claim(port, x)[0] for x in ("x" * 24, tokens[0])]
+        if third[1].get("renewed") is not False or third[1].get("opened") or third[1].get("code") != "taken" or other[1].get("renewed") is not False \
+                or not other[1].get("opened") or late != [403, 403] or call(port, "GET", "/api/hello", token=tokens[-1])[0] != 200 \
+                or window_of(name)[1] != tokens[-1] or call(port, "GET", f"/api/presence?token={tokens[0]}&w={w}")[0] != 403:
+            return f"after two renewals: {third} {other}, late claims {late}, the window {events()[-8:]}"
+        t1 = tokens[-1]
         codes = [call(port, "POST", "/api/open", {"at": ""})[0] for _ in range(20)]
         if 429 not in codes:
             return f"twenty a minute: {codes}"
@@ -1043,6 +1086,7 @@ def door_checks():
         t0 = time.time()
         while time.time() - t0 < 5 and not (proj / ".ovh" / "agent.lock").exists():
             time.sleep(0.1)
+        n_launch = events().count("launch")
         busy = run("desk", "link", str(proj))
         forced = run("desk", "link", str(proj), "--force")
         port3 = info().get("port")
@@ -1050,13 +1094,30 @@ def door_checks():
         h_old = call(port3, "GET", "/api/hello", token=t1) if port3 else (0, {})
         if busy.returncode != 1 or "middle of a turn" not in busy.stderr or forced.returncode or not t3 or t3 == t1 \
                 or h_old != (403, {"ok": False, "reopen": True}) or call(port3, "GET", "/api/hello", token=t3)[0] != 200 \
-                or events().count("launch") != 2 or "second" in events() or "?c=" in forced.stdout + forced.stderr:
+                or events().count("launch") != n_launch + 1 or "second" in events() or "?c=" in forced.stdout + forced.stderr:
             return f"desk link: mid-turn {busy.returncode} {busy.stderr[-160:]!r}; --force {forced.returncode} {forced.stdout[-160:]!r}, the window {events()}, the old token {h_old}"
-        printed = run("gate", str(proj), "1", "--desk", "--print-address")   # for a browser on another machine
-        m = re.search(r"http://127\.0\.0\.1:(\d+)/\?c=([A-Za-z0-9_-]+)", printed.stdout)
+        # gate --print-address (a browser on another machine): with no terminal, refused; while this film's desk runs, refused and
+        # that desk goes on; with a terminal and no desk, the address goes to the terminal alone and opens one page
+        pid3 = info().get("pid")
+        none = run("gate", str(proj), "1", "--desk", "--print-address")
+        held = subprocess.run([sys.executable, WITH_TTY, "--to", str(T / "door-tty0")] + vh + ["gate", str(proj), "1", "--desk", "--print-address"],
+                              env=env, capture_output=True, text=True, timeout=180)
+        if none.returncode == 0 or "nowhere else" not in none.stderr or held.returncode == 0 or "running already" not in held.stderr \
+                or info().get("pid") != pid3 or "?c=" in none.stdout + none.stderr + held.stdout + held.stderr:
+            return f"gate --print-address refusals: {none.returncode} {none.stderr[-200:]!r}; {held.returncode} {held.stderr[-200:]!r}"
+        os.kill(int(pid3), signal.SIGTERM)
+        t0 = time.time()
+        while time.time() - t0 < 15 and info():
+            time.sleep(0.1)
+        tty = T / "door-tty"
+        printed = subprocess.run([sys.executable, WITH_TTY, "--to", str(tty)] + vh + ["gate", str(proj), "1", "--desk", "--print-address"],
+                                 env=env, capture_output=True, text=True, timeout=180)
+        bg_of(proj)
+        said_ = tty.read_text() if tty.exists() else ""
+        m = re.search(r"http://127\.0\.0\.1:(\d+)/\?c=([A-Za-z0-9_-]+)", said_)
         if printed.returncode or not m or claim(int(m.group(1)), m.group(2))[0] != 200 or claim(int(m.group(1)), m.group(2))[0] != 403 \
-                or "只能打开一次" not in printed.stdout:
-            return f"gate --print-address: {printed.returncode} {(printed.stdout + printed.stderr)[-300:]!r}"
+                or "终端里" not in printed.stdout or "?c=" in printed.stdout + printed.stderr:
+            return f"gate --print-address: {printed.returncode} {(printed.stdout + printed.stderr)[-300:]!r}, its terminal {said_[-200:]!r}"
     finally:
         pid = info().get("pid")
         if pid:
@@ -1068,8 +1129,9 @@ def door_checks():
 
 def open_checks():
     """bin/vh desk started in a terminal shows Studio's window (the stand-in: its page connects and gets the token), and
-    prints no code; with --no-open, or started by no terminal (an agent, a background start), it shows nothing and prints
-    no code; --print-address prints an address with a code; bin/vh desk link shows the new run's window."""
+    prints no code and no address; with --no-open, or started by no terminal (an agent, a background start), it shows
+    nothing and prints no code; --print-address with no terminal is refused before anything serves, and with one writes an
+    address with a code to the terminal alone; bin/vh desk link shows the new run's window."""
     import pty, select
     proj = T / "open"
     shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
@@ -1105,7 +1167,7 @@ def open_checks():
                              stderr=subprocess.STDOUT, env=env, cwd=str(T))
         BG.add(p.pid)
         t0 = time.time()
-        while time.time() - t0 < 10 and "desk: http" not in log.read_text():
+        while time.time() - t0 < 10 and "desk: http" not in log.read_text() and p.poll() is None:
             time.sleep(0.1)
         time.sleep(1.5)
         stop(p)
@@ -1117,10 +1179,10 @@ def open_checks():
     p, out = term([str(proj), "--port", "0"], rb"Studio is open|did not open")
     got = launches()
     stop(p)
-    if not (len(got) == 1 and window_of(name)[1] and "Studio is open in its own window" in out and "?c=" not in out):
+    if not (len(got) == 1 and window_of(name)[1] and "Studio is open in its own window" in out and "?c=" not in out and "http://" not in out):
         return f"a terminal start: the window {launches()}, said {out[-200:]!r}"
     n0 = len(launches())
-    p, out = term([str(proj), "--port", "0", "--no-open"], rb"desk: http")
+    p, out = term([str(proj), "--port", "0", "--no-open"], rb"desk: ")
     time.sleep(1.5)
     stop(p)
     if len(launches()) != n0 or "?c=" in out:
@@ -1129,8 +1191,21 @@ def open_checks():
     if len(launches()) != n0 or "?c=" in out or "bin/vh studio" not in out:
         return f"a start that is no terminal's made a window, or said {out[-200:]!r}"
     out = notty([str(proj), "--port", "0", "--print-address"])
-    if len(launches()) != n0 or not re.search(r"\?c=[A-Za-z0-9_-]{16,}", out) or "opens one page, once" not in out:
-        return f"--print-address: said {out[-200:]!r}"
+    if len(launches()) != n0 or "?c=" in out or "nowhere else" not in out or (proj / "out" / "review" / ".desk.json").exists():
+        return f"--print-address with no terminal: said {out[-200:]!r}"
+    tty, log = T / f"open-tty-{time.time_ns()}", T / f"open-tty-{time.time_ns()}.log"
+    p = subprocess.Popen([sys.executable, WITH_TTY, "--to", str(tty), sys.executable, str(HERE / "desk.py"), str(proj), "--port", "0", "--print-address"],
+                         stdin=subprocess.DEVNULL, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env, cwd=str(T))
+    BG.add(p.pid)
+    t0 = time.time()
+    while time.time() - t0 < 15 and not (tty.exists() and "?c=" in tty.read_text()) and p.poll() is None:
+        time.sleep(0.1)
+    time.sleep(0.5)
+    stop(p)
+    said_ = tty.read_text() if tty.exists() else ""
+    if len(launches()) != n0 or not re.search(r"\?c=[A-Za-z0-9_-]{16,}", said_) or "opens one page, once" not in said_ or "?c=" in log.read_text() \
+            or "in your terminal" not in log.read_text():
+        return f"--print-address in a terminal: its terminal {said_[-200:]!r}, its output {log.read_text()[-200:]!r}"
     p, out = term(["link", str(proj)], rb"Studio is open|did not open", 40)
     p.wait(20)
     bg_of(proj)
@@ -1157,14 +1232,18 @@ if __name__ == "__main__":
           "a request to approve whole in a box, every field of it in words, allow off until its end was on screen (a hidden second command, the sandbox turned off)",
           page_check)
     check("an agent's bin/vh runs under the repo's rules in the adapter's environment: a paid call with no budget is refused, even with a key set", rules_check)
-    check("an agent's shell in the project (every file, the console's info folder, the process list with Studio's window in it, the loopback) "
-          "finds nothing to act with: every string tried as a code and a token, /answer and /mode refused; /api/open answers nothing secret", attack_checks)
+    check("an agent's shell in the project (every file, the console's info folder, the process list with Studio's window in it, the loopback, "
+          "studio/gate/desk link --print-address with no terminal: refused, nothing restarted) finds nothing to act with: every string tried as a "
+          "code and a token, /answer and /mode refused; /api/open answers nothing secret", attack_checks)
     check("Studio's window: a GET gives nothing (any number of times); a code works once and only while it lives; the next stop raises the window "
           "and sends it there (no second window, no restart); /api/open needs no token and answers nothing secret (twenty a minute, no other origin); "
-          "desk link (refused mid-turn) leaves the old token reading and one new window; gate --print-address gives an address that opens one page; "
+          "a window whose page could not trade its code: a new token and a new window, twice a run, then nothing changes; "
+          "desk link (refused mid-turn) leaves the old token reading and one new window; gate --print-address is refused with no terminal and while "
+          "the film's desk runs, and otherwise writes an address that opens one page to the terminal alone; "
           "gate's words name no address or mechanism", door_checks)
-    check("bin/vh desk in a terminal shows Studio's window and prints no code; --no-open, or no terminal (an agent, a background start), shows "
-          "nothing and prints no code; --print-address prints an address with a code; desk link shows the new run's window", open_checks)
+    check("bin/vh desk in a terminal shows Studio's window and prints no code or address; --no-open, or no terminal (an agent, a background start), "
+          "shows nothing and prints no code; --print-address with no terminal is refused before it serves, with one the address goes to the terminal "
+          "alone; desk link shows the new run's window", open_checks)
     try:
         server_checks()
     except Exception as e:

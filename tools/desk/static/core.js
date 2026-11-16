@@ -6,7 +6,8 @@
 const STR = {
   zh: {
     brand: "Studio", nokey: "这一页现在只能看。", reopen: "在 Studio 窗口里打开", reopened: "Studio 的窗口在前面了",
-    reopen_failed: "Studio 的窗口没能打开：在这台电脑的终端里运行 bin/vh studio", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
+    reopen_failed: "Studio 的窗口没能打开：点 OVH Studio 图标，或者让 agent 再打开一次 Studio",
+    taken: "这台电脑上有别的程序抢在这个窗口前面连上了 Studio，已经换过两次窗口。让 agent 重启 Studio 再试。", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
     f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
@@ -135,7 +136,8 @@ const STR = {
   },
   en: {
     nokey: "This page can only look.", reopen: "Open in Studio's window", reopened: "Studio's window is in front",
-    reopen_failed: "Studio's window did not open: run bin/vh studio in a terminal on this computer",
+    reopen_failed: "Studio's window did not open: click the OVH Studio icon, or ask your agent to open Studio",
+    taken: "Another program on this computer connected to Studio before this window did, and the window was replaced twice already. Ask your agent to restart Studio.",
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, then copy it to your agent",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",

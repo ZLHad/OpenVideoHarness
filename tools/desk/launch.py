@@ -14,7 +14,8 @@ bin/vh gate and bin/vh desk link do.
                                       roots) and start it again alike, on the same port when it is free: every page of the
                                       old one can only look → (address, None) or (None, why)
 
-Nothing these print or write holds the desk's token or a code, unless print_address asks for an address that opens a page.
+Nothing these print or write holds the desk's token or a code. With print_address the address they return carries one,
+and the caller writes it to the terminal alone (server.to_terminal), never to stdout, --json or a log.
 """
 import json, os, secrets, signal, subprocess, sys, time
 from pathlib import Path

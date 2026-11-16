@@ -8,7 +8,8 @@ replaces this file and nothing else: the desk gives it an address with a one-tim
                             $OVH_STUDIO_PROFILES instead in the checks):
                             no extensions, no other tabs, no session of the person's to fetch the address again; the page's
                             access lives in its storage only
-  main_pid(profile)         the browser process that holds that profile (its window or windows), or None
+  main_pid(profile)         the browser process that holds that profile (from its SingletonLock, and only when that
+                            process is the browser with this profile), or None
   launch(prog, profile, url)   a window of its own (--app: no address bar, no tabs), started apart from the caller
   raise_(profile)           bring that window to the front → True when asked of the system (macOS: NSRunningApplication
                             by pid, through osascript's JavaScript, which needs no permission; Linux: wmctrl or xdotool when
@@ -26,6 +27,7 @@ from pathlib import Path
 MAC_APPS = ("Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser")
 LINUX_NAMES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "microsoft-edge-stable",
                "brave-browser")
+EXES = set(MAC_APPS) | set(LINUX_NAMES) | {"chrome", "msedge", "brave"}   # what a browser's own process is called
 CLASS = "OVHStudio"   # the window's class on Linux (--class): what wmctrl and xdotool find it by
 
 
@@ -64,18 +66,33 @@ def _argv(prog):
     return [sys.executable, prog] if prog.endswith(".py") else [prog]
 
 
-def main_pid(prof):
-    """The process whose command line holds --user-data-dir=<profile> and is no helper (--type=)."""
-    flag = f"--user-data-dir={prof}"
+def _is_window(pid, prof, prog):
+    """Is pid the browser holding this profile: its command line starts with the browser program (a stand-in script: the
+    interpreter, then the script) and names the profile, and it is no helper (--type=)?"""
     try:
-        out = subprocess.run(["ps", "-ax", "-o", "pid=,command="], capture_output=True, text=True, timeout=10).stdout
+        cmd = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True, timeout=10).stdout.strip()
     except (OSError, subprocess.SubprocessError):
+        return False
+    exe = cmd.split(" --", 1)[0].strip()   # the program (its path may hold spaces; every argument after it starts with --)
+    if prog.endswith(".py"):
+        starts = exe.endswith(" " + prog) and "python" in exe[:-len(prog)].lower()
+    else:   # the program itself, or the browser a wrapper script started (Linux: /usr/bin/google-chrome runs .../chrome)
+        starts = exe in (prog, os.path.realpath(prog)) or os.path.basename(exe) in EXES
+    return bool(cmd) and starts and f"--user-data-dir={prof}" in cmd and "--type=" not in cmd
+
+
+def main_pid(prof, prog=None):
+    """The browser process that holds Studio's profile, or None. The pid comes from the profile's SingletonLock (Chrome's
+    own link to host-pid, which outlives the process) and counts only when that process is the browser with this profile:
+    never a process that merely names the profile."""
+    prog = prog or browser()
+    if not prog:
         return None
-    for line in out.splitlines():
-        pid, _, cmd = line.strip().partition(" ")
-        if (flag + " ") in (cmd + " ") and "--type=" not in cmd and pid.isdigit() and int(pid) != os.getpid():
-            return int(pid)
-    return None
+    try:
+        pid = os.readlink(str(Path(prof) / "SingletonLock")).rsplit("-", 1)[-1]
+    except OSError:
+        return None
+    return int(pid) if pid.isdigit() and int(pid) != os.getpid() and _is_window(int(pid), prof, prog) else None
 
 
 def launch(prog, prof, url, size=(1440, 900)):
@@ -117,8 +134,11 @@ def raise_(prof):
     return False
 
 
-def close(prof, wait=8.0):
-    pid = main_pid(prof)
+def close(prof, wait=8.0, prog=None):
+    """End the browser holding Studio's profile (its window goes): TERM, and KILL only when the very same process is
+    still the browser with this profile after wait seconds. → True when none is left."""
+    prog = prog or browser()
+    pid = main_pid(prof, prog)
     if not pid:
         return True
     try:
@@ -129,15 +149,16 @@ def close(prof, wait=8.0):
         return False
     end = time.time() + wait
     while time.time() < end:
-        if main_pid(prof) is None:
+        if main_pid(prof, prog) != pid:
             return True
         time.sleep(0.2)
-    try:
-        os.kill(pid, signal.SIGKILL)
-    except OSError:
-        pass
-    time.sleep(0.5)
-    return main_pid(prof) is None
+    if main_pid(prof, prog) == pid:   # looked at again: the same browser, still there
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        time.sleep(0.5)
+    return main_pid(prof, prog) is None
 
 
 def tab(url):
