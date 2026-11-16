@@ -28,9 +28,10 @@ sys.dont_write_bytecode = True                 # importing swatch.py must not le
 
 import bpy
 
-# mirror of lib.js (the content spec every swatch follows; styles/_swatch/README.md, "统一内容规格")
+# mirror of lib.js (spec 1's content spec; styles/_swatch/README.md, "样片规格" and "统一内容规格（规格 1）")
 W, H, FPS, DUR, FRAMES, POSTER_T = 1920, 1080, 30, 5, 150, 3.0
 SPEC = {"establish": (0, 0.8), "title": (0.8, 2.6), "motif": (2.0, 4.0), "outro": (4.0, 5.0), "poster": 3.0}
+BEATS, ASPECT, SPEC_VERSION = None, "landscape", 1   # spec 2 (5–10 s, four beats, portrait too): render.sh passes --spec
 TITLE_EN = "Every frame is code."
 TITLE_ZH = "每一帧，都是代码。"
 MOTIF = [{"key": "outline", "en": "Outline", "zh": "大纲"},
@@ -48,6 +49,14 @@ def hash01(*xs):
     return zlib.crc32(struct.pack(f"<{len(xs)}d", *map(float, xs))) / 4294967296
 
 
+def use_spec(sp):
+    """The swatch spec render.sh resolved from tokens.json (tools/styles.py spec): frame size, length, poster, beats.
+    Without it the constants above stand, the 5 s spec-1 swatch."""
+    global W, H, DUR, FRAMES, POSTER_T, BEATS, ASPECT, SPEC_VERSION
+    W, H, DUR, POSTER_T = int(sp["w"]), int(sp["h"]), float(sp["dur"]), float(sp["poster"])
+    FRAMES, BEATS, ASPECT, SPEC_VERSION = int(round(DUR * FPS)), sp.get("beats"), sp.get("aspect", "landscape"), sp.get("spec", 1)
+
+
 def parse_frames(spec):
     out = []
     for part in spec.split(","):
@@ -63,14 +72,16 @@ def parse_frames(spec):
 
 def args():
     a = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    o = SimpleNamespace(scene=None, out=None, frames=f"0-{FRAMES - 1}", quality="final", fonts=None, hud=False)
+    o = SimpleNamespace(scene=None, out=None, frames=None, quality="final", fonts=None, hud=False)
     pos, i = [], 0
     while i < len(a):
         if a[i] in ("--frames", "--quality", "--fonts"): setattr(o, a[i][2:], a[i + 1]); i += 2
+        elif a[i] == "--spec": use_spec(json.loads(a[i + 1])); i += 2
         elif a[i] == "--hud": o.hud = True; i += 1
         else: pos.append(a[i]); i += 1
     if len(pos) != 2: raise SystemExit("usage: blender -b --python blender_render.py -- <scene_dir> <out_dir> [--frames …]")
     o.scene, o.out = pos
+    o.frames = o.frames or f"0-{FRAMES - 1}"
     if o.quality not in RENDER_DEFAULTS: raise SystemExit(f"[swatch] --quality is final or draft, not {o.quality}")
     return o
 
@@ -135,7 +146,8 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     device = setup_render(sc, q, o.hud)
-    env = SimpleNamespace(W=W, H=H, FPS=FPS, DUR=DUR, FRAMES=FRAMES, POSTER_T=POSTER_T, SPEC=SPEC, TITLE_EN=TITLE_EN,
+    env = SimpleNamespace(W=W, H=H, FPS=FPS, DUR=DUR, FRAMES=FRAMES, POSTER_T=POSTER_T, SPEC=SPEC, BEATS=BEATS,
+                          ASPECT=ASPECT, SPEC_VERSION=SPEC_VERSION, TITLE_EN=TITLE_EN,
                           TITLE_ZH=TITLE_ZH, MOTIF=MOTIF, tokens=json.load(open(os.path.join(o.scene, "tokens.json"))),
                           quality=o.quality, scene_dir=o.scene, fonts=load_fonts(o.fonts), scene=sc, hash=hash01)
     t0 = time.time(); mod.build(env)

@@ -16,8 +16,14 @@ homepage (docs/site/index.html):
     of their names (README.zh-CN.md is README.md, docs/research/en/x is docs/research/x, overview.zh.svg is overview.svg);
   - the homepage: each <… data-n="name">N</…> is the count, and its phrases are read as above; its relative links,
     images and #anchors are there; its STYLES are the repo's styles, each with its thumbnail (img/styles/<slug>.jpg) and
-    sample, its Chinese name the one in STYLE.md's title; as many lang="en" texts as lang="zh"; nothing from another
-    site loads with the page (a stylesheet, script, font, image or frame; a film's <source> waits for play).
+    sample (in git, or a swatch tools/media.txt fetches), its Chinese name the one in STYLE.md's title; as many lang="en"
+    texts as lang="zh"; nothing from another site loads with the page (a stylesheet, script, font, image or frame; a
+    film's <source> waits for play);
+  - styles/README.md: its tables are what styles/families.json and each styles/<slug>/tokens.json say (tools/styles.py
+    readme writes them);
+  - every page in git (.html, .js, .mjs, .md): a video from a GitHub release plays through <source src="…"
+    type="video/mp4"> inside its <video>, never <video src="…"> or a script's .src = …: the release serves
+    application/octet-stream, which WebKit (Safari) refuses unless the <source> says the type.
 Links to the web are not fetched (CI runs offline). Exit status: 0 all good, 1 a problem (each said), 2 usage.
 """
 import ast, json, os, re, sys, unicodedata
@@ -360,7 +366,7 @@ def site_problems(have):
         if zh != want:
             bad.append(f"{SITE}: STYLES names {slug} {zh!r}, but its STYLE.md calls it {want!r}")
         for f in (base / "img" / "styles" / f"{slug}.jpg", ROOT / "styles" / slug / "media" / "swatch.mp4"):
-            if not f.is_file():
+            if not f.is_file() and str(f.relative_to(ROOT)) not in fetched:
                 bad.append(f"{SITE}: the style {slug} has no {f.relative_to(ROOT)}")
     body = html[html.find("<body"):]
     tags = re.findall(r"<(\w+)\b[^>]*\blang=\"(en|zh)\"", body)
@@ -379,10 +385,57 @@ def site_problems(have):
     return bad
 
 
+RELEASE_URL = r"https://github\.com/[^/\s\"'`]+/[^/\s\"'`]+/releases/download/"
+
+
+def release_video_problems(files=None):
+    """A video served by a GitHub release, in any page in git: the release answers application/octet-stream, and WebKit
+    (Safari) will not play that from <video src> or a script's v.src = …; from <source src="…" type="video/mp4"> it
+    does (tested 2026-11-16 with Playwright's WebKit and Chrome). Flags <video src=release>, a <source> of one without a
+    video type, and a script setting .src (or setAttribute("src")) to a release URL, directly or through a name that
+    holds one (const BASE = 'https://github.com/…/releases/download/…', or a function returning one). It cannot follow
+    a URL handed in as an argument. A line that sets an image's src from a release opts out with "release-src-ok"."""
+    import subprocess
+    if files is None:
+        out = subprocess.run(["git", "ls-files", "*.html", "*.htm", "*.js", "*.mjs", "*.md"], cwd=ROOT, capture_output=True, text=True).stdout
+        files = [ROOT / f for f in out.split() if not f.startswith(("references/", "node_modules/")) and "/node_modules/" not in f]
+    bad = []
+    for p in files:
+        try:
+            text = Path(p).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "releases/download/" not in text:
+            continue
+        where = lambda i: f"{Path(p).relative_to(ROOT) if Path(p).is_relative_to(ROOT) else p}:{text.count(chr(10), 0, i) + 1}"
+        for m in re.finditer(r"<video\b[^>]*>", text, re.I):
+            if re.search(r"\bsrc\s*=\s*[\"']?" + RELEASE_URL, m.group(0), re.I):
+                bad.append(f"{where(m.start())}: <video src=…> from a GitHub release; put it in <source src=\"…\" type=\"video/mp4\">")
+        for m in re.finditer(r"<source\b[^>]*>", text, re.I):
+            tag = m.group(0)
+            if re.search(r"\bsrc\s*=\s*[\"']?" + RELEASE_URL + r"[^\"'\s>]*\.(?:mp4|m4v|mov|webm)", tag, re.I) and \
+                    not re.search(r"\btype\s*=\s*[\"']video/(?:mp4|webm|quicktime)", tag, re.I):
+                bad.append(f"{where(m.start())}: <source> of a GitHub release video without type=\"video/mp4\"")
+        names = set(re.findall(r"\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\([^)]*\)\s*=>\s*|[A-Za-z_$][\w$]*\s*=>\s*)?[`'\"]"
+                               + RELEASE_URL, text))
+        names |= set(re.findall(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{[^}]*?return\s+[`'\"]" + RELEASE_URL, text))
+        alt = "|".join(map(re.escape, sorted(names)))
+        src = r"(?:\.src\s*=|\.setAttribute\(\s*['\"]src['\"]\s*,)\s*[^;\n]*?(?:" + RELEASE_URL + (rf"|\b(?:{alt})\b" if alt else "") + ")"
+        for m in re.finditer(src, text):
+            line_end = text.find("\n", m.start())
+            if "release-src-ok" in text[m.start():line_end if line_end >= 0 else len(text)]:
+                continue   # an image, say: the line says so
+            bad.append(f"{where(m.start())}: a script sets a video's src to a GitHub release URL; add a <source src=… "
+                       f"type=\"video/mp4\"> to the <video> instead (WebKit refuses the release's octet-stream)")
+    return bad
+
+
 def check():
     have = counts()
     bad = [f"tools/readme.py: the repo has no {WHAT[k]}" for k, v in have.items() if not v]
+    import styles   # tools/styles.py: the style library's tables, from styles/families.json and the tokens.json files
     bad += count_problems(have) + pin_problems() + citation_problems() + site_problems(have)
+    bad += styles.readme_problems() + release_video_problems()
     for page in READMES:
         bad += link_problems(page)
     bad += pair_problems()
@@ -402,7 +455,8 @@ def main(argv):
         have = counts()
         print(f"the READMEs, the overview diagrams, install.sh, CITATION.cff and the homepage: {len(have)} counts as the repo has them "
               f"({have['commands']} commands, {have['styles']} styles, {have['recipes']} recipes …), the HyperFrames pin and the citation's version; "
-              f"their links in the repo; the READMEs side by side; the homepage's styles, both languages, no outside loads")
+              f"their links in the repo; the READMEs side by side; the homepage's styles, both languages, no outside loads; "
+              f"styles/README.md's tables from styles/families.json and tokens.json; release videos through <source type>")
         return 0
     print(__doc__.split("\n\n")[1], file=sys.stderr)
     return 2

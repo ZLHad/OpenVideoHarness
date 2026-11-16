@@ -18,7 +18,7 @@
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
 3. PR 一律开成草稿。先核对 `LOCAL.md` 的维护偏好，区分自己账号的开发与外部贡献；外部贡献必须按下节逐个介绍并取得明确批准。用户可以长期授权自己账号的日常开发 PR 检查通过后合并；没有对应授权时交付草稿等人决定。授权范围内，agent 审过 diff 后用 `python3 tools/land.py ready <PR>` 转正式 PR、排上 squash 自动合并，必需的检查都通过后由 GitHub 合并；合并后用 `python3 tools/land.py done <PR> --clean` 核对和清理。旧批量授权不覆盖新来的外部贡献。管理员“绕过规则合并”只留给人用，agent 不碰。
-4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git（风格样片 `swatch.mp4` 除外）：成片、样片集锦这类文件放在 GitHub Release `media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
+4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git：成片、样片集锦这类文件放在 GitHub Release `media`，新规格（规格 2）的完整风格样片放在 Release `styles-media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。例外只有 2026-11 以前的 33 个 5 秒风格样片（规格 1，各约 1 MB，下次重渲时移出去），和规格 2 留在 git 里的 2 秒小预览 `preview.mp4`（≤ 200 KB）。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
@@ -47,6 +47,17 @@
 - **新的中间文件在 `tools/artifacts.json` 登记一项。** 一支片子里多了一种文件（命令写的，或者工具开始读的），就加一项：路径、谁写谁读、什么时候必须有、怎么判过期（`stale`，判不了就是 `null`）、`bin/vh clean` 怎么处理它。工具和客户端要靠它的形状时，在 `tools/schemas/` 放一份 schema 和好坏两种 fixture，只用 `tools/schemalite.py` 读得懂的关键字；字段只加不改，所以 schema 只钉必需的字段和类型，允许多字段。`bin/vh artifacts check` 查表和命令表、schema、`tools/clean.py` 对得上：`tools/commands.json` 的 `writes`、`reads` 里 `<project>/…` 的路径没有对应的一项，CI 就不过。反过来，一项里列的 writer，在 `tools/commands.json` 里要有一行 `writes` 写到它的路径（自由文本说不清的，在 `tools/artifacts.py` 的 `NOT_SAID` 里写明原因）。
 - **检查给出路。** `bin/vh check` 新报一类问题（checkrec.py 的一种 kind）时，在 `tools/remedies.json` 给它配一两条出路：能解决它的配方筛选、命令或文档的一节。检查只报告，出路只给选项；`tools/remedies.py check` 查每条都真有其物。
 - **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key、平台，以及依赖这张表里的哪些模块（`needs`，模块名写在 `programs` 里，只在某个平台能用的再写 `elsewhere`：别处用什么）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）。key 只放进 header，不进 URL，不跟着重定向走，只走 https（本机除外），不打印，失败时也只报状态码和错误码。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
+
+## 加一个风格
+
+风格库在 `styles/`，一个风格一个目录，分类和标签是数据：
+
+1. 家族在 `styles/families.json`（id、中英文名、一句话、顺序），标签的可选词也在那里；每个风格在自己的 `tokens.json` 里写 `family`、`video_types`、`tags`、`swatch` 和 `card`（README 表格里的字）。这两处之外不写分类：`styles/README.md` 的表格由 `bin/vh style readme` 生成，`bin/vh style list` 现读，`tools/readme.py check` 核对 README 和数据对得上。加一个家族、改一个名字，只改 `families.json` 和用到它的 `tokens.json`。
+2. 写法照 `styles/README.md` 的"加一个新风格"：`_TEMPLATE.md` 写 `STYLE.md`，从 `styles/_swatch/demo/` 起步写样片（规格 2：5–10 秒、四拍、有声音，适合竖屏的另出竖版，见 `styles/_swatch/README.md` 的"样片规格"），`bin/vh style <slug>` 渲。
+3. `bin/vh style check <slug>`（加 `--text` 查安全框里的字）过了再提交。`tools/ci.sh` 跑 `bin/vh style check`：元数据、家族、类型、标签，以及本机有的样片的时长、尺寸、响度、体积、封面、预览、竖版和循环接缝。
+4. 完整样片不进 git：`bin/vh style register <slug>` 把它登记进 `tools/media.txt`（Release `styles-media`，文件名带 sha256 的前 8 位，重渲不会覆盖 main 还在用的那份），并打印上传命令。PR 说明里写上要传的文件和这几条命令；上传是维护者合并时做的事（第 4 条）。提交的是源码、`poster.jpg`（竖版另有 `poster-portrait.jpg`）和 `preview.mp4`。
+5. 网页里放 Release 的视频，写成 `<video>` 里的 `<source src="…" type="video/mp4">`，不写 `<video src>`，也不在脚本里 `v.src = …`：Release 返回 `application/octet-stream`，Safari（WebKit）不放。`tools/readme.py check` 查所有入库的 `.html`、`.js`、`.md`。
+6. `bin/vh style readme` 重写表格，在官网的 `STYLES` 里加上它（`tools/readme.py` 会说缺什么），`CHANGELOG.md` 记一笔。
 
 ## 改文档：四个绑定点
 
@@ -90,7 +101,8 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | 文档和命令行一致 | 命令表 `tools/commands.json`、`CLAUDE.md` 的命令行和 `bin/vh` 实际分发的命令对不上；表里缺一句话、阶段或用法，阶段名和 playbook/01 的总表不一致；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
 | 外接模块表 | `tools/modules.json` 里写了不存在的命令或适配文件、不认识的字段；探测不走 https、把 key 放进 URL；HyperFrames 钉的版本在 `bin/vh`、`styles/_swatch/package.json` 和表里不一样；`bin/vh doctor` 把 key 的值打出来 |
 | 产物表 | `tools/artifacts.json` 写了不存在的命令、文档或 schema；`tools/schemas/` 里有一份 schema 没有项指向它；说 `bin/vh clean` 怎么处理一种文件，和 `tools/clean.py` 在一棵假树上实际做的不一样；`tools/commands.json` 写的项目里的路径，表里没有；schema 和真的 jsonschema、`tools/schemalite.py` 三者在 fixture 上说法不一 |
-| README 和官网的数字和链接 | 两份 README、`docs/assets/overview.*.svg`、`install.sh` 和官网写的命令数、风格数、配方数这类数字和仓库对不上（`python3 tools/readme.py` 列出现在的数）；链接或图片指向不存在的文件，`#锚点` 不是那一页的标题；中英两份 README 的小节数或链接的文件对不上；官网的风格列表不是仓库里的那些风格、中英文段数不一样，或者页面一打开就从别的网站加载字体、脚本、图片 |
+| README 和官网的数字和链接 | 两份 README、`docs/assets/overview.*.svg`、`install.sh` 和官网写的命令数、风格数、配方数这类数字和仓库对不上（`python3 tools/readme.py` 列出现在的数）；链接或图片指向不存在的文件，`#锚点` 不是那一页的标题；中英两份 README 的小节数或链接的文件对不上；官网的风格列表不是仓库里的那些风格、中英文段数不一样，或者页面一打开就从别的网站加载字体、脚本、图片；`styles/README.md` 的表格和 `styles/families.json`、各个 `tokens.json` 对不上；入库的页面用 `<video src>` 或脚本里的 `.src =` 放 Release 的视频 |
+| 风格库 | `bin/vh style check`：一个风格的家族不在 `styles/families.json`、类型不在 `video-types/`、标签不是那几个词、`card` 缺格；样片的时长、尺寸、响度、体积、封面、预览、竖版或循环接缝不合它的规格；`tools/media.txt` 的格式不对，或者规格 2 的完整样片进了 git；`bin/vh style list` 的筛选、`tools/styles.py spec` 算出的数字、`tools/fetch_media.sh` 从别的 Release 下载、渲染器 stage 里的尺寸和时长（规格 1 的页面和改动前一样） |
 | 研究笔记两种语言对齐 | `docs/research/` 的一篇笔记缺了英文版或中文版，两版的节数（`##`、`###`）、表格行数、图的张数，或者某一节（`##`）里的列表条目数对不上；中英两份索引漏了一篇、多列了不存在的一篇，或顺序不对 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |
 
@@ -155,6 +167,6 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 
 同一天补打了 `v0.1.0`、`v0.2.0`、`v0.2.1` 三个 Release，说明取自 `CHANGELOG.md` 对应的一节。
 
-另有一个不是版本的 Release `media`（tag `media`，2026-10-04 由 agent 在维护者同意后建）：放样片和风格集锦的视频文件，规则见上面第 4 条。它的 tag 不移动，也不受上面两个规则集保护（规则集只管 `v*`）；换文件按第 4 条用新文件名，不覆盖。
+另有一个不是版本的 Release `media`（tag `media`，2026-10-04 由 agent 在维护者同意后建）：放样片和风格集锦的视频文件，规则见上面第 4 条。它的 tag 不移动，也不受上面两个规则集保护（规则集只管 `v*`）；换文件按第 4 条用新文件名，不覆盖。第二个是 `styles-media`，放规格 2 的完整风格样片（`bin/vh style register` 打印的命令第一次用时会建它，带 `--latest=false`），规则和 `media` 一样。
 
 发新版本的做法：把 `CHANGELOG.md` 的 Unreleased 改成 `## vX.Y.Z — 日期`，经 PR 合并进 main，然后由维护者在合并后的提交上建 Release（`gh release create vX.Y.Z --target <提交> --latest --notes-file <这一节>`；`media` 也是一个 Release，不写 `--latest` 它可能还标着 Latest）。这一节太长时（GitHub 的说明上限是 125,000 字符），在这一节开头写一段摘要，说明只用摘要，末尾链到这个 tag 的 `CHANGELOG.md`。tag 一旦建好就不再移动；发错了就发一个新的补丁版本。改了这两个文件以后，用 `gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input <文件>` 同步线上配置，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。
