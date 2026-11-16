@@ -10,7 +10,7 @@
 - The review caps, the local re-check and "a later round overrules an earlier one" are said in `templates/TASTE_CHECKLIST.md`'s 打分层 only; playbook/02's layer 5 and 01's effort table point there. The checklist loses its history paragraph; its 20 items and 8 scores are unchanged.
 - Trimmed without changing a rule: `video-types/02` (research reasons kept as citations; a stale self-check line about three hook cards now says they come with `hook=own`, as its Prompt block already did), `playbook/09` (the etymology of 起承转合, two quotes), `templates/BRIEF.md`'s comments, the duplicated closing lines of 01.
 - `tools/readpath.py`: start counts 01 up to 努力程度 and none of 02; a type doc is counted without its 来源. `tools/ci.sh` checks CLAUDE.md's step 2 and 01's start against that, and reads the director mode's names from 01. `tools/remedies.json`'s gate ② entry points to 每处交什么、怎么记.
-- Read path, standard knowledge short: before starting 81,855 → 64,405 characters; by the first draft 114,202 → 107,373; quick 52,794 → 51,160.
+- Read path, standard knowledge short: before starting 81,855 → 64,429 characters (every type 13–23% less); by the first draft 114,202 → 107,355; quick 52,794 → 51,184.
 
 **Credit for other people's work moves to ACKNOWLEDGMENTS.md; the docs teach a method without saying whose post it came from**
 - Why: the README's thanks put the libraries the films are made with next to projects, posts and accounts we had only read, and many docs said "from X's post" or "learned from X" in the middle of a method. Someone reading a method does not need the name, and the thanks belong in one place.

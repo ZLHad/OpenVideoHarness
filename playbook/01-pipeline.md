@@ -178,8 +178,6 @@ projects/2026-10-01-leo-doppler/
 
 `out/review/gate-<n>.json` 长这样，路径相对项目目录：
 
-`out/review/gate-<n>.json` 长这样，路径相对项目目录：
-
 ```json
 {
   "summary": "24 镜分 6 段；先定主角、主旋律、钩子，约 5 分钟",
