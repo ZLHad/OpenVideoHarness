@@ -3195,7 +3195,7 @@ PY
 # desk channel starts the desk in the background (once), adds its address, and with --wait hands over the submission;
 # desk --idle stops a desk nobody asks anything
 gate_stop_checks() {
-  local t=$1 g a b c rc rc2 rc3 i pid url
+  local t=$1 g k a b c rc rc2 rc3 i pid url
   # --init: a skeleton for the stop in the review language, "version": 1; refused until filled in, with nothing written and
   # no page as far as status and the desk go; never overwritten; a quick project is told it has no gates, and can have a stop
   OVH_PROJECTS="$t" vh new math gi >/dev/null 2>&1; g=$(ls -d "$t"/*-gi)
@@ -3217,8 +3217,8 @@ PY
   else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
   # a knowledge short's concept cards carry 2 titles and a cover layout (video-types/02, playbook/10 §1): the skeleton asks for
   # them, and the page shows them on the card
-  OVH_PROJECTS="$t" vh new short gk --no-install >/dev/null 2>&1; g=$(ls -d "$t"/*-gk); vh gate "$g" 1 --init >/dev/null 2>&1
-  a=$(python3 - "$g" <<'PY'
+  OVH_PROJECTS="$t" vh new short gk --no-install >/dev/null 2>&1; k=$(ls -d "$t"/*-gk); vh gate "$k" 1 --init >/dev/null 2>&1
+  a=$(python3 - "$k" <<'PY'
 import json, sys
 from pathlib import Path
 g = Path(sys.argv[1]); f = g / "out/review/gate-1.json"
@@ -3234,8 +3234,8 @@ d["appendix"] = [{"title": "BRIEF", "path": "BRIEF.md"}]
 f.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
 PY
 )
-  vh gate "$g" 1 --page >/dev/null 2>&1; rc=$?
-  if [ -z "$a" ] && [ $rc = 0 ] && grep -q '标题A一 / 标题A二' "$g/out/review/gate-1.html" && grep -q 'C1 大字报：封面B' "$g/out/review/gate-1.html"
+  vh gate "$k" 1 --page >/dev/null 2>&1; rc=$?
+  if [ -z "$a" ] && [ $rc = 0 ] && grep -q '标题A一 / 标题A二' "$k/out/review/gate-1.html" && grep -q 'C1 大字报：封面B' "$k/out/review/gate-1.html"
   then ok "gate: a knowledge short's concept cards ask for 2 titles and a cover layout, and the page shows them on the card"
   else bad "gate, a card's titles and cover (exit $rc): $a"; fi
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?; b=$(vh review "$g" 1 2>&1); rc2=$?
