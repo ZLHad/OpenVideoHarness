@@ -6062,7 +6062,10 @@ console.log(bad.join("; ")); process.exit(bad.length ? 1 : 0);' 2>&1); then
   # a made-up repo: one style copied from styles/, families.json, the type names, tools/media.txt and .gitignore
   fx="$t/fx"; mkdir -p "$fx/styles/fx-one/media" "$fx/tools" "$fx/video-types"
   ( cd "$fx" && git init -q . ) || bad "style fixture: git init"
-  cp styles/families.json styles/README.md "$fx/styles/"; cp tools/media.txt "$fx/tools/"; cp .gitignore "$fx/"
+  cp styles/families.json styles/README.md "$fx/styles/"; cp .gitignore "$fx/"
+  # tools/media.txt without the real styles' swatch lines: the made-up repo has none of those styles, and the check
+  # (rightly) names a registered swatch of a style that is not there
+  grep -v '^styles/[^/]*/media/swatch' tools/media.txt > "$fx/tools/media.txt"
   for v in video-types/[0-9][0-9]-*.md; do : > "$fx/$v"; done
   cp styles/ink-wash/STYLE.md styles/ink-wash/swatch.js styles/ink-wash/score.json "$fx/styles/fx-one/"
   cp styles/ink-wash/media/poster.jpg styles/ink-wash/media/swatch.mp4 "$fx/styles/fx-one/media/"
