@@ -14,10 +14,11 @@
 #      into ~/.local/share/ovh/obscura, linked from ~/.local/bin; bin/vh web checks facts against web pages with it
 #   5. run bin/vh doctor --fill-local as a final check: it also writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎)
 #      where they still hold the template, never a line you wrote
-#   6. ask whether to put Studio's launcher icon in your applications (macOS: ~/Applications/OVH Studio.app; Linux: a
-#      desktop entry in ~/.local/share/applications), which brings up Studio's window with a click. Asked in a terminal
-#      only (also under curl | bash); otherwise, and with --no-icon, it only prints the command (bin/vh studio --install-icon);
-#      --icon installs it without asking
+#   6. ask whether to put OVH Studio, Studio's own window, in your applications (macOS: ~/Applications/OVH Studio.app;
+#      Linux: a desktop entry in ~/.local/share/applications): Electron, about 130 MB downloaded once and 260 MB on disk
+#      (without npm or a network, a small launcher that opens a browser's window instead). Asked in a terminal only (also
+#      under curl | bash); otherwise, and with --no-icon, it only prints the command (bin/vh studio --install-icon); --icon
+#      installs it without asking
 # It never runs sudo and leaves your PATH and shell profile alone. Not done here: the first use of the tools downloads more, into caches under
 # your home directory, without asking:
 #   - the first hyperframes render: HyperFrames' own chrome-headless-shell (about 200 MB, ~/.cache/hyperframes)
@@ -32,7 +33,7 @@ DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all; OBSCURA=0; ICON=ask
 while [ $# -gt 0 ]; do case "$1" in
   --dir) DIR="$2"; shift 2 ;; --no-refs) REFS=0; shift ;; --no-skill) SKILL=none; shift ;; --skill) SKILL="${2:?--skill needs claude|codex|all|none}"; shift 2 ;; --obscura) OBSCURA=1; shift ;;
   --icon) ICON=yes; shift ;; --no-icon) ICON=no; shift ;;
-  -h|--help) sed -n '2,27p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
+  -h|--help) sed -n '2,28p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
 case "$SKILL" in claude|codex|all|none) ;; *) echo "unknown --skill '$SKILL' (claude|codex|all|none)"; exit 1 ;; esac
 say() { printf '\033[1m→ %s\033[0m\n' "$*"; }
 offer_icon() {   # Studio's launcher icon: asked only with a person at a terminal (/dev/tty: curl | bash too); else the command is printed
@@ -42,7 +43,7 @@ offer_icon() {   # Studio's launcher icon: asked only with a person at a termina
     yes) bin/vh studio --install-icon || echo "! icon not made; bin/vh studio --install-icon tries again" ;;
     no) ICON_LATER=1 ;;
     *) if [ -t 1 ] && { exec 3</dev/tty; } 2>/dev/null; then
-         printf '\033[1m→ Put an "OVH Studio" icon in your applications, to bring up Studio with a click? [y/N] \033[0m'
+         printf '\033[1m→ Put OVH Studio, Studio\047s own window, in your applications? (downloads about 130 MB once) [y/N] \033[0m'
          read -r a <&3 || a=""; exec 3<&-
          case "$a" in y|Y|yes|Yes) bin/vh studio --install-icon || echo "! icon not made; bin/vh studio --install-icon tries again" ;; *) ICON_LATER=1 ;; esac
        else ICON_LATER=1; fi ;;
@@ -101,6 +102,6 @@ cat <<MSG
   Note:  the first render downloads Chrome (about 200 MB) and the first sound commands download Python packages (about 700 MB)
          into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG
-[ -z "$ICON_LATER" ] || echo "  Icon:  bin/vh studio --install-icon puts OVH Studio in your applications, to open Studio with a click"
+[ -z "$ICON_LATER" ] || echo "  Icon:  bin/vh studio --install-icon puts OVH Studio, Studio's own window, in your applications (about 130 MB, once)"
 [ "$REFS" = 1 ] || echo "  Refs:  not fetched (--no-refs). Where a doc points into references/repos/<dir>/, bash references/fetch.sh <dir> fetches that one"
 [ -z "$arm" ] || echo "  ! Linux arm64: no browser yet, and HyperFrames has none of its own here; set one up before the first render (engines/README.md, \"Linux：渲染前要先备好的三样\")"

@@ -31,6 +31,8 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   POST /api/p/<key>/feedback      a submission: checked, saved to out/review/feedback/, copied into REVIEW.md
   GET  /f/<key>/<path>            a file inside that project (HTTP Range, so video and audio can seek); nothing outside
                                   it, no hidden files
+  GET  /v/<key>/<path>            that file on a page of its own with a slim bar (its name): text and markdown as text, a
+                                  picture, a player, a page in a frame, else a sentence; Studio's app opens new-page links here
   GET  /api/p/<key>/agents        the column's agents (installed or how to install), the project's conversations, its lock
   GET  /api/p/<key>/agent/<id>/events?token=   one conversation's events, as Server-Sent Events (agents.py)
   POST /api/p/<key>/agent/new · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
@@ -69,7 +71,7 @@ asks for renew, and the console changes the token and replaces the window, twice
 is connected; a program that also holds the window's presence stream blocks that), makes itself a terminal to read
 --print-address (script(1) does), or synthesizes input. Against those the boundary is the agent's own mode and sandbox.
 """
-import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
+import datetime, hashlib, html, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
@@ -84,7 +86,14 @@ import agents as A     # noqa: E402  (the agents the column talks to: one adapte
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
           "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8",
-          "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8"}
+          "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8",
+          "reader.css": "text/css; charset=utf-8", "reader.js": "text/javascript; charset=utf-8"}
+# GET /v/<key>/<path>: a project file on a page of its own (Studio's app opens the console's new-page links there)
+VIEW = {"image": {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif", ".bmp"}, "video": {".mp4", ".mov", ".m4v", ".webm"},
+        "audio": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".opus"}, "page": {".html", ".htm"}, "markdown": {".md", ".markdown"},
+        "text": {".txt", ".json", ".jsonl", ".csv", ".tsv", ".srt", ".vtt", ".ass", ".yaml", ".yml", ".toml", ".log", ".py", ".js", ".mjs",
+                 ".ts", ".css", ".sh", ".tex", ".bib", ".xml", ".ini", ".cfg", ".lrc"}}
+VIEW_TEXT_MAX = 2 << 20   # bytes of text shown on the page; longer: said so
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
@@ -591,6 +600,7 @@ class Desk(http.server.ThreadingHTTPServer):
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
         self._lock = threading.Lock()
         self._listing = (0.0, None)
+        self._joined_m = 0
         self._keys = {self.own_key: self.project} if self.project else {}
         self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
 
@@ -646,9 +656,11 @@ class Desk(http.server.ThreadingHTTPServer):
         return dict(self.show(at), renewed=True)
 
     def live_window(self):
-        """The id of this desk's window whose page is connected with the token, or None."""
+        """(id, kind) of this desk's window whose page is connected with the token, or (None, None). kind: shell (Studio's
+        own app) or window (a browser's)."""
         with self.pcond:
-            return next((w for w, n in self.present.items() if n > 0 and self.windows.get(w) == "window"), None)
+            w = next((w for w, n in self.present.items() if n > 0 and self.windows.get(w) in ("shell", "window")), None)
+        return (w, self.windows.get(w)) if w else (None, None)
 
     def _wait_present(self, w, secs):
         end = time.time() + secs
@@ -669,31 +681,56 @@ class Desk(http.server.ThreadingHTTPServer):
         return f"{self.url}?c={code}&w={w}" + (f"#{at}" if at else "")
 
     def show(self, at=""):
-        """Show Studio's window at that place of the page: the one whose page is connected comes to the front (and goes
-        there); else one new window (a leftover of ours with no page in it goes first, so there is never a second), counted
-        as open only once its page connects; once more if not; then a tab of the default browser. → {opened, how, why}:
-        how is front (raised), open (there, but the system would not raise it), window (made), tab (the fallback)."""
+        """Show Studio's window at that place of the page. The one whose page is connected comes to the front (and goes
+        there). Else one new window, counted as open only once its page connects: Studio's own app when it is installed
+        (tools/desk/shell: it raises itself, one window a desk), once more if its page does not connect; then a window of a
+        Chromium-family browser (a leftover of ours with no page in it goes first, so there is never a second), once more;
+        then a tab of the default browser. → {opened, how, why, code}: how is front (raised), open (there, but the system
+        would not raise it), app (Studio's own app), window (a browser's), tab (the fallback); why and code say what did not
+        work on the way."""
         import window as WIN
         with self.window_lock:
             prof = WIN.profile(self.window_name)
-            w = self.live_window()
-            if w and WIN.main_pid(prof) is None:   # its stream has not noticed yet (a ping every 5 s), but the window is gone
+            app, app_why = WIN.shell()
+            w, kind = self.live_window()
+            if kind == "shell" and not (app and WIN.shell_pid(app)):   # its stream has not noticed yet (a ping every 5 s), but it is gone
+                w = None
+            if kind == "window" and WIN.main_pid(prof) is None:
                 w = None
             if w:
                 if at:
                     self.push(w, {"go": at})
+                if kind == "shell":   # the running app takes the line and raises its window itself
+                    return {"opened": True, "how": "front" if WIN.shell_send(app, {"url": self.url, "role": self.window_name}) else "open"}
                 return {"opened": True, "how": "front" if WIN.raise_(prof) else "open"}
+            why, code = None, None
+            if app:
+                why, code = "Studio's own app did not open", "no_app"
+                for _ in range(2):
+                    w = secrets.token_hex(6)
+                    self.windows[w] = "shell"
+                    line = {"url": self._entry(self.mint(60, w), w, at), "role": self.window_name, "w": w, "fresh": True}
+                    said_ = []
+                    if WIN.shell_send(app, line, said_) and self._wait_present(w, 15):
+                        return {"opened": True, "how": "app"}
+                    if said_ == ["moved"]:   # the app no longer finds this clone: no second try, and say what a person can do
+                        why, code = ("Studio's own app no longer finds OpenVideoHarness where it was installed: ask your agent to "
+                                     "put the Studio icon back"), "app_moved"
+                        break
+            elif app_why:
+                why, code = app_why, "no_app"
             WIN.close(prof)
             prog = WIN.browser()
-            why, code = "no Chrome, Chromium, Edge or Brave here for a window of its own", "no_browser"
             if prog:
                 for _ in range(2):
                     w = secrets.token_hex(6)
                     self.windows[w] = "window"
                     if WIN.launch(prog, prof, self._entry(self.mint(60, w), w, at)) and self._wait_present(w, 12):
-                        return {"opened": True, "how": "window"}
+                        return {"opened": True, "how": "window", "why": why, "code": code}
                     WIN.close(prof)
-                why, code = "its window started, but the page in it did not connect", "no_connect"
+                why, code = (why + "; " if why else "") + "its window started, but the page in it did not connect", code or "no_connect"
+            else:
+                why, code = (why + "; " if why else "") + "no Chrome, Chromium, Edge or Brave here for a window of its own", code or "no_browser"
             w = secrets.token_hex(6)
             self.windows[w] = "tab"
             if WIN.tab(self._entry(self.mint(60, w), w, at)) and self._wait_present(w, 12):
@@ -701,12 +738,18 @@ class Desk(http.server.ThreadingHTTPServer):
             return {"opened": False, "how": None, "why": why + ", and no browser tab connected either", "code": code}
 
     def close_window(self):
-        """This desk's window goes with it (it is no use without the desk)."""
+        """This desk's window goes with it (it is no use without the desk): the app's (it quits when it was its last) or
+        the browser's."""
         if not self.windows:
             return
         try:
             import window as WIN
-            WIN.close(WIN.profile(self.window_name), wait=4)
+            if "shell" in self.windows.values():
+                app, _ = WIN.shell()
+                if app and WIN.shell_pid(app):
+                    WIN.shell_send(app, {"close": self.window_name})
+            if "window" in self.windows.values():
+                WIN.close(WIN.profile(self.window_name), wait=4)
         except Exception:
             pass
 
@@ -733,15 +776,19 @@ class Desk(http.server.ThreadingHTTPServer):
         import status as S
         with self._lock:
             when, rec = self._listing
-            if rec is not None and not fresh and time.time() - when < LISTING_TTL:
+            jm = self._joined_mtime()
+            if rec is not None and not fresh and time.time() - when < LISTING_TTL and jm == self._joined_m:
                 return rec
+            self._joined_m = jm
             if self.only:
                 rec = {"version": 1, "roots": [], "count": 1, "projects": [PJ.row(self.project, self.project.name, S, False)]}
             else:
                 rec = PJ.listing(self.roots)
-                if self.project and not any(os.path.realpath(r["path"]) == os.path.realpath(str(self.project)) for r in rec["projects"]):
-                    rec["projects"].append(PJ.row(self.project, self.project.name, S, False))
-                    rec["count"] = len(rec["projects"])
+                extra = ([str(self.project)] if self.project else []) + self.joined()
+                for x in extra:   # the project it was started for, and the films that joined this console
+                    if not any(os.path.realpath(r["path"]) == os.path.realpath(x) for r in rec["projects"]):
+                        rec["projects"].append(PJ.row(Path(x), Path(x).name, S, False))
+                rec["count"] = len(rec["projects"])
             keys = {self.own_key: self.project} if self.project else {}
             for r in rec["projects"]:
                 p = Path(r["path"])
@@ -755,6 +802,23 @@ class Desk(http.server.ThreadingHTTPServer):
                 r["key"] = k
             self._keys, self._listing = keys, (time.time(), rec)
             return rec
+
+    def joined(self):
+        """The films outside the roots that joined this console (bin/vh studio or gate on such a film: join()), each a
+        folder that is still a project (BRIEF.md). None for a desk of one project."""
+        p = joined_path(self.roots) if self.project is None else None
+        try:
+            got = json.loads(p.read_text()) if p else []
+        except (OSError, ValueError):
+            return []
+        return [x for x in got if isinstance(x, str) and os.path.isabs(x) and os.path.isfile(os.path.join(x, "BRIEF.md"))][:50]
+
+    def _joined_mtime(self):
+        p = joined_path(self.roots) if self.project is None else None
+        try:
+            return p.stat().st_mtime_ns if p else 0
+        except OSError:
+            return 0
 
     def project_of(self, key):
         """The folder a key names, or None. A key not seen yet walks the roots once more, at most once in FRESH_GAP seconds
@@ -856,12 +920,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if m.group(1):
                 return self._agents(project, key)
             return self._events(project, key, m.group(3))
-        if path.startswith("/f/"):
+        if path.startswith("/f/") or path.startswith("/v/"):
             key, _, rel = path[3:].partition("/")
             project = srv.project_of(unquote(key))
             if project is None:
                 return self._error(404, "no such project")
-            return self._file(project, rel)
+            return self._file(project, rel) if path.startswith("/f/") else self._view(project, key, rel)
         # the desk's first addresses: the project it was started for
         if srv.project and path == "/api/data":
             try:
@@ -896,7 +960,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         that page (its window) is there; it is told where to go ({go}); a page that went away is noticed within a second
         (its connection, looked at each second: closed is readable and empty), and a comment every 5 s keeps the line."""
         q = parse_qs(urlsplit(self.path).query)
-        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        given = (self.headers.get("X-Desk-Token") or (q.get("token") or [""])[0]).encode("utf-8", "replace")   # Studio's own app sends a header
         srv = self.server
         if not secrets.compare_digest(given, srv.token.encode("ascii")):
             return self._error(403, "no access")
@@ -940,7 +1004,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         a comment every 5 s keeps the line (and the desk's --idle) alive, and finds a page that went away. Needs the page's token (?token=): the events are
         the conversation, file contents and commands included."""
         q = parse_qs(urlsplit(self.path).query)
-        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        given = (self.headers.get("X-Desk-Token") or (q.get("token") or [""])[0]).encode("utf-8", "replace")   # Studio's own app sends a header
         mine = self.server.token
         if not secrets.compare_digest(given, mine.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
@@ -1072,6 +1136,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if os.path.commonpath([f, root]) != root or not os.path.isfile(f) or hidden(os.path.relpath(f, root).split(os.sep)):
             return None
         return f
+
+    def _view(self, project, key, rel):
+        """GET /v/<key>/<path>: the file on a page of its own, with a slim bar (its name and where it is in the project):
+        text and markdown as text (markdown through reader.render_md, everything escaped), a picture, a player, a page
+        in a frame (still sandboxed by /f/'s header); a kind it cannot show, a sentence that says so and where it is.
+        Studio's own app opens the console's new-page links here, so a link never gives an empty window."""
+        f = self._resolve(project, rel)
+        if not f:
+            return self._error(404, "no such file in this project")
+        name, ext = os.path.basename(f), os.path.splitext(f)[1].lower()
+        where = os.path.relpath(f, project)
+        src = "/f/" + key + "/" + rel
+        kind = next((k for k, exts in VIEW.items() if ext in exts), None)
+        e = html.escape
+        if kind == "image":
+            body = f'<main class="pic"><img src="{e(src)}" alt="{e(name)}"></main>'
+        elif kind in ("video", "audio"):
+            body = f'<main class="av"><{kind} controls preload="metadata" src="{e(src)}"></{kind}></main>'
+        elif kind == "page":
+            body = f'<main class="page"><iframe src="{e(src)}" title="{e(name)}"></iframe></main>'
+        elif kind in ("markdown", "text") and os.path.getsize(f) <= VIEW_TEXT_MAX:
+            text = Path(f).read_bytes().decode("utf-8", "replace")
+            body = (f'<main class="text"><article class="md">{reader.render_md(text)}</article></main>' if kind == "markdown"
+                    else f'<main class="text"><pre>{e(text)}</pre></main>')
+        else:
+            why = ("这份文本太长，这里不显示" if kind else "这种文件在这里显示不了") + f"：它在项目的 {where}。"
+            why_en = ("This text is too long to show here" if kind else "Studio cannot show this kind of file here") + f": it is {where} in the project."
+            body = f'<main class="none"><p>{e(why)}<br>{e(why_en)}</p></main>'
+        page = (f'<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                f'<title>{e(name)}</title><link rel="stylesheet" href="/static/ui.css"><link rel="stylesheet" href="/static/reader.css">'
+                f'<script src="/static/reader.js"></script></head><body><header class="bar"><span class="name">{e(name)}</span>'
+                f'<span class="path">{e(where)}</span></header>{body}</body></html>')
+        return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
 
     def _file(self, project, rel):
         f = self._resolve(project, rel)
@@ -1334,6 +1431,37 @@ def _info_path(project, roots=()):
     return d / f"console-{which}.json"
 
 
+def joined_path(roots=()):
+    """The films a console shows beside its roots': the last fifty opened in Studio from outside them, a list beside its
+    info file in this user's own folder in the temp folder (0700), so a restart (bin/vh desk link) keeps them."""
+    p = _info_path(None, roots)
+    return p.with_name(p.stem + ".films") if p else None   # (not *.json: what looks for console-*.json finds only info files)
+
+
+def join(project, roots=()):
+    """A film outside the console's roots joins its space (bin/vh studio <film>, bin/vh gate on the desk channel while
+    Studio runs), so it opens in Studio's one window instead of a desk and window of its own. → True when it is in."""
+    p = joined_path(roots)
+    real = os.path.realpath(str(project))
+    if p is None or not os.path.isfile(os.path.join(real, "BRIEF.md")):
+        return False
+    import fcntl
+    try:
+        with open(p.with_name(p.name + ".lock"), "a") as lock:   # two opens at once: neither loses the other's film
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                cur = [x for x in json.loads(p.read_text()) if isinstance(x, str)] if p.exists() else []
+            except (OSError, ValueError):
+                cur = []
+            if cur[-1:] != [real]:   # opened again: the newest, so the list is the last fifty opened
+                tmp = p.with_name(p.name + f".{os.getpid()}.tmp")
+                tmp.write_text(json.dumps(([x for x in cur if x != real] + [real])[-50:]))
+                os.replace(tmp, p)
+    except OSError:
+        return False
+    return True
+
+
 def _own_dir():
     """This user's folder for consoles in the temp folder (on a Linux /tmp shared with other users too): made 0700, and
     used only while it is a folder, not a link, owned by this user and closed to others; None otherwise."""
@@ -1444,8 +1572,10 @@ def said(r, icon=False):
     """What a person reads after a show: what happened, and what to do when it did not (icon: the launcher icon's dialog,
     where nobody has a terminal in front of them)."""
     if r.get("opened"):
+        if r.get("how") == "window" and r.get("why"):   # Studio's own app is installed and did not open: a browser's window instead
+            return f"Studio is open in a browser window ({r['why']})."
         return {"front": "Studio is open: its window is in front.", "open": "Studio is open in its window.",
-                "window": "Studio is open in its own window.",
+                "app": "Studio is open in its own window.", "window": "Studio is open in its own window.",
                 "tab": "Studio is open in a tab of your browser (" + (r.get("why") or "no window of its own") + ")."}.get(r.get("how"), "Studio is open.")
     why = r.get("why") or "no reason given"
     if icon:

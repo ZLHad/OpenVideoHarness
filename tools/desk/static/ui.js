@@ -14,7 +14,13 @@
     try { localStorage.setItem("ovh-theme", t); } catch (e) { /* a private window: not kept */ }
     document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
     document.querySelectorAll("select[data-theme-select]").forEach((s) => { s.value = t; });
+    if (window.ovhShell) {   // Studio's own window (tools/desk/shell): its colour and its buttons follow the theme
+      try { window.ovhShell.theme(t, getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()); } catch (e) { /* a plain page */ }
+    }
     return t;
+  }
+  if (window.ovhShell) {   // Studio's own window (tools/desk/shell/preload.js): its frame is the page's top bar, from the first paint
+    document.documentElement.classList.add("shell", window.ovhShell.platform === "mac" ? "shell-mac" : "shell-other");
   }
   {   // before the page paints (the static page's head script has done it already, from ?theme= too)
     let t = document.documentElement.getAttribute("data-theme");

@@ -103,7 +103,7 @@ def window_env(env):
         raise_.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{WINDOWS / 'raised.log'}'\n")
         raise_.chmod(0o755)
     return dict(env, OVH_STUDIO_BROWSER=str(HERE / "fixtures" / "studio_window.py"), OVH_STUDIO_ACTIVATE=str(raise_),
-                OVH_STUDIO_PROFILES=str(WINDOWS / "profiles"), BROWSER="/usr/bin/false")
+                OVH_STUDIO_PROFILES=str(WINDOWS / "profiles"), BROWSER="/usr/bin/false", OVH_STUDIO_SHELL="none")
 
 
 def window_of(name):

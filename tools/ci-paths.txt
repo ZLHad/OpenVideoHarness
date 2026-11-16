@@ -35,7 +35,7 @@ CODE_OF_CONDUCT.md
 SECURITY.md
 CITATION.cff                plumbing_checks studio_checks
 LICENSE                     hf_checks
-cases/**                    gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks
+cases/**                    gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
 showcase/**                 smoke_checks timeline_checks decision_checks web_checks model3d_checks
 install.sh                  plumbing_checks smoke_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
 LOCAL.example.md            plumbing_checks smoke_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
@@ -48,8 +48,8 @@ tools/words.py              cancel_checks words_checks
 tools/components.py         components_checks hdri_checks
 tools/assets/hdri.py        hdri_checks
 tools/hf.py                 hf_checks
-tools/know.py               gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks
-tools/readpath.py           gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks
-tools/artifacts.py          gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks artifacts_checks
-tools/artifacts.json        gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks artifacts_checks
+tools/know.py               gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
+tools/readpath.py           gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
+tools/artifacts.py          gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks artifacts_checks studio_checks
+tools/artifacts.json        gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks artifacts_checks studio_checks
 tools/textcheck/fixture/**  textcheck_checks render_checks film_engine_checks

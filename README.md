@@ -214,11 +214,11 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 Studio is where you see every film, review a stop and talk to the agents on this machine. It is one window of its own, with no address bar, and asking again brings that same window forward rather than a second. Three ways bring it up:
 
-- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer asks once). Click it again and the same window comes to the front.
+- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer asks once): Studio's own window, with its own frame, Dock icon and menu (Electron, about 130 MB downloaded once). Click it again and the same window comes to the front.
 - **In a terminal:** `bin/vh studio`, or `bin/vh studio <project>` to land on that film.
 - **Tell your agent** "open Studio" (or "打开 Studio"): it runs the same command, and the window appears.
 
-Closing the window leaves Studio running in the background, so an agent at work carries on, and the next click brings the window back where it was. On a Mac, quitting OVH Studio from the Dock stops Studio and closes its window. The window is your Chrome, Edge, Chromium or Brave with a profile of Studio's own (the Dock shows that browser's icon for it); with none of them, Studio opens in a tab of your default browser instead. A film kept outside Studio's folders opens in a review desk of its own, with a window of its own beside Studio's.
+It is the same page whichever way it shows: without OVH Studio installed, the window is your Chrome, Edge, Chromium or Brave with a profile of Studio's own; with none of those, a tab of your default browser. Closing the window leaves Studio running in the background, so an agent at work carries on, and the next click brings the window back where it was. Quitting OVH Studio stops it. A film kept outside Studio's folders joins Studio when you open it there, so it is in the same window too.
 
 ## What's in the box
 
@@ -252,7 +252,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `artifacts` | Every kind of file a project holds: what it is and who writes it; what this project has, lacks and has out of date |
 | | `projects` · `cancel` · `history` | Every project and where it stands; a running command stopped, with its end on record; a way back for the text you and the agent write |
 
-`bin/vh doctor` says which of the 43 outside programs, packages, models and services this machine can use (`tools/modules.json`).
+`bin/vh doctor` says which of the 44 outside programs, packages, models and services this machine can use (`tools/modules.json`).
 
 ## Engines, types and libraries
 
