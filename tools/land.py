@@ -17,8 +17,9 @@ ready, for a PR whose review is done:
     (a regular expression a line, # for a comment). That file is in .git, so each maintainer keeps their own there:
     attribution they do not want, private names and paths. A match is named by file and line number, its text not
     repeated.
-  - The merge pushed (only now), the squash message taken from the CHANGELOG.md entry the PR adds: its bold title with
-    " (#N)" the subject, its lines the body. A PR adding several entries (a batch) takes its own title as the subject and
+  - The merge pushed (only now), the squash message taken from the change note the PR adds: a new file in changes/
+    (tools/changes.py), or, the older way, an entry it adds to CHANGELOG.md. The note's bold title with " (#N)" is the
+    subject, its lines the body. A PR adding several notes or entries (a batch) takes its own title as the subject and
     the entries as the body; one adding none (a dependency bump) its title alone.
   - Then draft to ready, and auto-merge, squash, only while the head is the one checked: GitHub merges it when the
     required checks pass. A PR GitHub already finds mergeable is merged at once.
@@ -36,6 +37,7 @@ from pathlib import Path
 
 BASE = "main"
 TITLE = re.compile(r"^\*\*(.+?)\*\*\s*$")   # a CHANGELOG entry's title line
+NOTE = re.compile(r"^changes/(?!README\.md$)[^/]+\.md$")   # a change note (tools/changes.py)
 
 
 class Stop(Exception):   # exit 2: could not start
@@ -106,17 +108,43 @@ def added_lines(base, head, *paths):
     return out
 
 
-def squash_message(n, title, lines):
-    """The squash's subject and body from the CHANGELOG.md lines the PR adds, (hunk, line) each. Only the hunks that add
-    an entry's bold title count: an edit to an older entry further down is not this PR's entry."""
+def changelog_entries(lines):
+    """The entries the PR adds to CHANGELOG.md, from its added lines, (hunk, line) each: [(title, [line…])]. Only the
+    hunks that add an entry's bold title count: an edit to an older entry further down is not this PR's entry."""
     hunks = {h for h, t in lines if TITLE.match(t)}
-    entry = [t for h, t in lines if h in hunks]
-    at = [i for i, t in enumerate(entry) if TITLE.match(t)]
-    if not at:
+    out = []
+    for h, t in lines:
+        if h not in hunks:
+            continue
+        if TITLE.match(t):
+            out.append((TITLE.match(t).group(1), []))
+        elif out:
+            out[-1][1].append(t)
+    return out
+
+
+def note_entries(base, head):
+    """The change notes the PR adds: each file new under changes/ but its README.md, [(title, [line…])] by name. One
+    that it only edits (another PR's) is not its own; one without a bold first line is left out (tools/changes.py check
+    fails it in CI)."""
+    out = []
+    for f in sorted(git("diff", "--name-only", "--diff-filter=A", "--no-renames", base, head, "--", "changes/").split("\n")):
+        if not NOTE.match(f):
+            continue
+        lines = git("show", f"{head}:{f}").strip("\n").split("\n")
+        if TITLE.match(lines[0]):
+            out.append((TITLE.match(lines[0]).group(1), lines[1:]))
+    return out
+
+
+def squash_message(n, title, entries):
+    """The squash's subject and body from the entries the PR adds, [(title, [line…])]: one entry is its title (#N) and
+    its lines; several are the PR's title and every entry; none the PR's title alone."""
+    if not entries:
         return f"{title} (#{n})", ""
-    if len(at) == 1:
-        return f"{TITLE.match(entry[at[0]]).group(1)} (#{n})", "\n".join(entry[at[0] + 1:]).strip("\n")
-    return f"{title} (#{n})", "\n".join(TITLE.match(t).group(1) if TITLE.match(t) else t for t in entry).strip("\n")
+    if len(entries) == 1:
+        return f"{entries[0][0]} (#{n})", "\n".join(entries[0][1]).strip("\n")
+    return f"{title} (#{n})", "\n\n".join((t + "\n" + "\n".join(body)).strip("\n") for t, body in entries)
 
 
 def merge_main(n, branch, head, main, after):
@@ -183,7 +211,8 @@ def ready(n, after, dry):
         p = subprocess.run(["git", "check-ignore", "--no-index", "--stdin"], input=adds, capture_output=True, text=True)
         problems += [f"it adds {f}, which git ignores" for f in p.stdout.split("\n") if f]
     lines = added_lines(main, new)
-    subject, body = squash_message(n, pr["title"], [(h, t) for f, h, t in lines if f == "CHANGELOG.md"])
+    entries = note_entries(main, new) + changelog_entries([(h, t) for f, h, t in lines if f == "CHANGELOG.md"])
+    subject, body = squash_message(n, pr["title"], entries)
     pats = deny_patterns()
     for i, p in pats:
         hits = sorted({f for f, h, t in lines if p.search(t)})

@@ -4,6 +4,8 @@
 #   tools/ci.sh                      everything the installed tools allow (shellcheck, pyflakes, ffmpeg are optional locally)
 #   tools/ci.sh --smoke              only the bin/vh smoke tests
 #   tools/ci.sh --shard i/n          shard i of n: the groups tools/ci-shards.txt deals to it (CI's macOS job runs 1/2 and 2/2)
+#   tools/ci.sh --changed [base]     the groups what changed since base (origin/main) needs (tools/ci-paths.txt): for the runs
+#                                    while you work; a full run before a push
 #   tools/ci.sh --committed [opt]    check HEAD in a clean temporary checkout: what a push sends, not the working tree
 #   VH_BASH=/bin/bash tools/ci.sh    run bin/vh and the syntax checks under another bash (macOS ships bash 3.2)
 #
@@ -227,7 +229,7 @@ if line != want:
     bad.append(f"CLAUDE.md's 命令行 line is not tools/commands.json's (bin/vh sync-agents writes it): {line!r} vs {want!r}")
 docs = subprocess.run(["git", "ls-files", "*.md"], capture_output=True, text=True).stdout.split()
 for d in docs:   # commands written as code: inside `backticks` or a fenced block (prose like "bin/vh · QA tools" is a label)
-    if d.startswith("references/") or d == "CHANGELOG.md":
+    if d.startswith(("references/", "changes/")) or d == "CHANGELOG.md":   # what changed, in the words of its day
         continue
     fence = False
     for n, line in enumerate(open(d, encoding="utf-8"), 1):
@@ -255,6 +257,8 @@ PY
   # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
   # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
   if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
+  # the change notes (changes/<name>.md, tools/changes.py): each one entry, a bold title and its lines
+  if out=$(python3 tools/changes.py check 2>&1); then ok "change notes: $out"; else echo "$out"; bad "change notes in changes/ (one entry a file: a bold title, then its lines)"; fi
   # the research notes (docs/research): each in both languages, the two with as many sections (## and ###), table rows and
   # figures, and as many list items in each ## section; both indexes list every note, in the same order, and nothing
   # that is not one
@@ -301,10 +305,11 @@ PY
   # function (named *_checks or *_report) that is not in it is called by one that is (or it would run in no run and no
   # shard)
   local g a="" b="" c="" d e r1 r2 r3 r4
-  a=$(groups | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
-  for g in $(groups | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
+  # (the table itself, not the one this run took: a run of some groups, OVH_CI_SHARDS or --changed, is not a broken table)
+  a=$(groups_in tools/ci-shards.txt | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
+  for g in $(groups_in tools/ci-shards.txt | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
   for g in $(sed -n -E 's/^([a-z0-9_]+_(checks|report))\(\) \{.*/\1/p' tools/ci.sh); do
-    groups | awk -v g="$g" '$1 == g { f = 1 } END { exit !f }' || grep -q -E "^[[:space:]]+$g([[:space:];]|\$)" tools/ci.sh || c="$c $g"
+    groups_in tools/ci-shards.txt | awk -v g="$g" '$1 == g { f = 1 } END { exit !f }' || grep -q -E "^[[:space:]]+$g([[:space:];]|\$)" tools/ci.sh || c="$c $g"
   done
   if [ -z "$a$b$c" ]; then ok "tools/ci-shards.txt: each group once with its seconds, each a function in tools/ci.sh; every *_checks and *_report function runs"
   else bad "tools/ci-shards.txt:${a:+ (lines that are not one group and its whole seconds, once:$a)}${b:+ (no such function:$b)}${c:+ (never run:$c)}"; fi
@@ -401,6 +406,159 @@ sys.exit(1 if bad else 0)
 PY
   ); then ok "read path: $out"; else bad "read path: $out"; fi
   out=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import readpath; print(len(readpath.upto("playbook/01-pipeline.md", "### 没有这一节")))' 2>&1); [ $? = 1 ] && case "$out" in *"has no heading starting with"*) ok "read path: a heading that is gone stops the table" ;; *) bad "read path, a heading that is gone: $out" ;; esac || bad "read path, a heading that is gone: $out"
+}
+
+plumbing_checks() {   # the repository's own development tools, each on a made-up repository: tools/changes.py (the change
+  # notes in changes/ and the release that gathers them into CHANGELOG.md) and tools/ci_select.py (which groups a change
+  # needs; tools/ci.sh --changed runs them), then tools/ci.sh --changed itself on a one-group table
+  local t r k m a b rc rc2; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-plumbing.XXXXXX")
+  cat > "$t/test.py" <<'PY'
+import os, shutil, subprocess, sys
+t, ROOT = sys.argv[1], sys.argv[2]
+env = dict({k: v for k, v in os.environ.items() if k not in ("OVH_CI_SHARDS", "OVH_CI_PATHS")}, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="ci", GIT_AUTHOR_EMAIL="ci@example.invalid",
+           GIT_COMMITTER_NAME="ci", GIT_COMMITTER_EMAIL="ci@example.invalid")
+def git(*a, cwd, when=None):
+    e = dict(env, GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when) if when else env
+    p = subprocess.run(["git", *a], cwd=cwd, env=e, capture_output=True, text=True)
+    if p.returncode: sys.exit(f"setup: git {' '.join(a)}: {p.stderr.strip()}")
+    return p.stdout.strip()
+def run(repo, tool, *a):
+    p = subprocess.run([sys.executable, f"tools/{tool}", *a], cwd=repo, env=env, capture_output=True, text=True)
+    return p.returncode, p.stdout, p.stderr
+def put(repo, rel, text):
+    os.makedirs(os.path.dirname(os.path.join(repo, rel)) or repo, exist_ok=True)
+    with open(os.path.join(repo, rel), "w", encoding="utf-8") as f: f.write(text)
+def read(repo, rel): return open(os.path.join(repo, rel), encoding="utf-8").read()
+def report(problems, what): print(("bad\t" if problems else "ok\t") + what + (": " + "; ".join(problems) if problems else ""))
+def repo(name, tools):
+    d = os.path.join(t, name); os.makedirs(os.path.join(d, "tools")); git("init", "-q", cwd=d)
+    for f in tools: shutil.copy(os.path.join(ROOT, "tools", f), os.path.join(d, "tools", f))
+    return d
+
+# ---- tools/changes.py ----
+c = repo("notes", ["changes.py"])
+put(c, "CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
+put(c, "CITATION.cff", 'cff-version: 1.2.0\nversion: "0.1.0"\ndate-released: "2026-01-01"\n')
+put(c, "changes/README.md", "what the folder is for\n")
+put(c, "changes/older.md", "**Older note**\n- Why: landed first\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "a", cwd=c, when="2026-02-01T00:00:00")
+put(c, "changes/newer.md", "**Newer note**\n- Why: landed second\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "b", cwd=c, when="2026-03-01T00:00:00")
+put(c, "changes/aaa-working.md", "**Not committed yet**\n- still being written\n")
+rc, out, err = run(c, "changes.py", "check"); p = [] if rc == 0 and "3 note(s)" in out and "2 entry(ies)" in out else [f"check: exit {rc}: {out}{err}"]
+rc, out, err = run(c, "changes.py", "show", "--titles")
+want = ["- Not committed yet  (changes/aaa-working.md)", "- Newer note  (changes/newer.md)", "- Older note  (changes/older.md)",
+        "- Old one  (CHANGELOG.md)", "- Old two  (CHANGELOG.md)"]
+if rc or out.splitlines() != want: p.append(f"show --titles: exit {rc}: {out!r}")
+rc, out, err = run(c, "changes.py", "show")
+if rc or not out.startswith("**Not committed yet**\n- still being written\n\n**Newer note**") or "**Old two**\n- two" not in out: p.append(f"show: {out[:200]!r}")
+report(p, "changes.py: check counts the notes and the Unreleased entries; show lists them newest first (a note not committed, then by the commit that added it, then ## Unreleased)")
+put(c, "changes/Bad_Name.md", "**x**\n- y\n"); put(c, "changes/no-title.md", "just text\n"); put(c, "changes/two.md", "**One**\n- a\n\n**Two**\n- b\n"); put(c, "changes/bare.md", "**Only a title**\n")
+rc, out, err = run(c, "changes.py", "check")
+rc2, out2, err2 = run(c, "changes.py", "release", "v0.2.0")
+p = [] if rc == 1 and all(s in out for s in ("changes/Bad_Name.md: a note is", "changes/no-title.md: its first line is not a bold title", "changes/two.md: it holds two entries", "changes/bare.md: it has a title and nothing under it")) else [f"check: exit {rc}: {out}"]
+if rc2 != 1 or "malformed" not in err2 or read(c, "CHANGELOG.md").count("## Unreleased") != 1: p.append(f"release over malformed notes: exit {rc2}: {err2[-200:]}")
+report(p, "changes.py: check names a bad file name, a missing title, two entries in one note and a title alone; release refuses while one is there")
+for f in ("Bad_Name", "no-title", "two", "bare"): os.remove(os.path.join(c, "changes", f + ".md"))
+before = read(c, "CHANGELOG.md")
+rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01", "--dry-run")
+p = [] if rc == 0 and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/older.md")) and "## v0.2.0 — 2026-04-01" in out else [f"dry run: exit {rc}: {out}{err}"]
+rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01")
+log, cff = read(c, "CHANGELOG.md"), read(c, "CITATION.cff")
+want = ("# Changelog\n\nWhat changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.\n\n"
+        "## v0.2.0 — 2026-04-01\n\n**Not committed yet**\n- still being written\n\n**Newer note**\n- Why: landed second\n\n**Older note**\n- Why: landed first\n\n"
+        "**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
+if rc or log != want: p.append(f"release: exit {rc}: {log!r}")
+if sorted(os.listdir(os.path.join(c, "changes"))) != ["README.md"]: p.append(f"left in changes/: {os.listdir(os.path.join(c, 'changes'))}")
+if 'version: "0.2.0"' not in cff or 'date-released: "2026-04-01"' not in cff: p.append(f"CITATION.cff: {cff!r}")
+report(p, "changes.py release: --dry-run writes nothing; then CHANGELOG.md has the version with the notes newest first and the Unreleased entries after them, a line saying where changes go now, no ## Unreleased; the notes deleted, README.md kept; CITATION.cff has the version and day")
+rc, out, err = run(c, "changes.py", "release", "v0.2.0"); rc2, out2, err2 = run(c, "changes.py", "release", "v0.3.0")
+rc3, out3, err3 = run(c, "changes.py", "show", "v0.2.0"); rc4, out4, err4 = run(c, "changes.py", "show")
+put(c, "changes/next.md", "**Next**\n- after\n"); rc5, out5, err5 = run(c, "changes.py", "release", "v0.3.0", "--date", "2026-05-01")
+p = [] if (rc, rc2, rc3, rc4, rc5) == (1, 1, 0, 0, 0) and "already" in err and "nothing to release" in err2 else [f"exits {rc}, {rc2}, {rc3}, {rc4}, {rc5}: {err}{err2}"]
+if not out3.startswith("**Not committed yet**") or "## " in out3 or "nothing has changed since the last release (v0.2.0)" not in out4: p.append(f"show: {out3[:80]!r} | {out4!r}")
+if read(c, "CHANGELOG.md").count("What changed since the last release") != 1 or "## v0.3.0 — 2026-05-01\n\n**Next**\n- after\n\n## v0.2.0" not in read(c, "CHANGELOG.md"): p.append("a second release: " + read(c, "CHANGELOG.md")[:300])
+report(p, "changes.py: a version there already and nothing to release are exit 1; show vX.Y.Z prints that section alone; a second release goes on top and says where changes go once")
+
+# ---- tools/ci_select.py ----
+s = repo("select", ["ci_select.py"])
+CI = "".join(x[1:] + "\n" for x in """
+|#!/usr/bin/env bash
+|ok() { echo ok; }
+|shared() { echo shared; }
+|only_b() { echo b; }
+|a_checks() {
+|  shared
+|  echo a
+|}
+|
+|# c's own comment
+|b_checks() {
+|  only_b
+|  echo b
+|}
+|
+|# what c checks
+|c_checks() {
+|  shared
+|  echo c
+|}
+|TOP=1
+|usage="usage"
+|case $1 in all) a_checks; b_checks; c_checks ;; esac
+""".splitlines() if x)   # (| keeps its lines off the start of a line of tools/ci.sh)
+put(s, "tools/ci.sh", CI); put(s, "tools/ci-shards.txt", "# the groups\na_checks 1\nb_checks 1\nc_checks 1\n")
+put(s, "tools/ci-paths.txt", "always a_checks\ndocs/**\nsrc/x.py c_checks\nsrc/all.py ALL\n")
+put(s, "docs/a.md", "a\n"); put(s, "src/x.py", "x\n"); put(s, "src/all.py", "y\n"); put(s, "src/other.py", "z\n")
+git("add", "-A", cwd=s); git("commit", "-q", "-m", "base", cwd=s); base = git("rev-parse", "HEAD", cwd=s)
+def sel(change, *extra):
+    git("checkout", "-q", "-f", base, cwd=s); git("clean", "-q", "-fd", cwd=s)
+    change()
+    rc, out, err = run(s, "ci_select.py", base, *extra)
+    return out.split() if rc == 0 else f"exit {rc}: {err.strip()[-200:]}"
+def edit(rel, old, new): put(s, rel, read(s, rel).replace(old, new, 1))
+cases = [
+    ("nothing changed", lambda: None, ["a_checks"]),
+    ("a new file under docs/ (not added to git)", lambda: put(s, "docs/b.md", "b\n"), ["a_checks"]),
+    ("src/x.py", lambda: put(s, "src/x.py", "x2\n"), ["a_checks", "c_checks"]),
+    ("a path no line matches", lambda: put(s, "src/other.py", "z2\n"), ["a_checks", "b_checks", "c_checks"]),
+    ("a path whose line says ALL", lambda: put(s, "src/all.py", "y2\n"), ["a_checks", "b_checks", "c_checks"]),
+    ("a line inside b_checks", lambda: edit("tools/ci.sh", "  echo b\n", "  echo bb\n"), ["a_checks", "b_checks"]),
+    ("the comment just above c_checks", lambda: edit("tools/ci.sh", "# what c checks", "# what c checks, said better"), ["a_checks", "c_checks"]),
+    ("a helper only b_checks calls", lambda: edit("tools/ci.sh", "only_b() { echo b; }", "only_b() { echo bee; }"), ["a_checks", "b_checks"]),
+    ("a helper a_checks and c_checks call", lambda: edit("tools/ci.sh", "shared() { echo shared; }", "shared() { echo all; }"), ["a_checks", "c_checks"]),
+    ("code at the top", lambda: edit("tools/ci.sh", "TOP=1", "TOP=2"), ["a_checks", "b_checks", "c_checks"]),
+    ("the dispatch", lambda: edit("tools/ci.sh", "all) a_checks;", "all|every) a_checks;"), ["a_checks", "b_checks", "c_checks"]),
+    ("a group's function taken out", lambda: edit("tools/ci.sh", "# c's own comment\nb_checks() {\n  only_b\n  echo b\n}\n", ""), ["a_checks", "b_checks", "c_checks"]),
+    ("a blank line between two functions", lambda: edit("tools/ci.sh", "}\n\n# c's own comment", "}\n\n\n# c's own comment"), ["a_checks"]),
+    ("a helper taken out right above another function", lambda: edit("tools/ci.sh", "only_b() { echo b; }\n", ""), ["a_checks", "b_checks", "c_checks"]),
+    ("the comment above c_checks taken out", lambda: edit("tools/ci.sh", "# what c checks\n", ""), ["a_checks", "c_checks"]),
+    ("a new group with its line in the table", lambda: (edit("tools/ci.sh", "TOP=1", "d_checks() {\n  echo d\n}\nTOP=1"), put(s, "tools/ci-shards.txt", read(s, "tools/ci-shards.txt") + "d_checks 1\n")), ["a_checks", "d_checks"]),
+    ("only a group's seconds in the table", lambda: edit("tools/ci-shards.txt", "b_checks 1", "b_checks 9"), ["a_checks"]),
+]
+p = [f"{what}: {got} (want {want})" for what, change, want in cases if (got := sel(change)) != want]
+report(p, f"ci_select.py: {len(cases)} kinds of change map to the groups they need (a path by its line in the table, none or ALL every group; tools/ci.sh by the function a change is in, a helper by its callers, a comment by the function below it, a blank line between functions none, the top and a function taken out every group; a group the table adds)")
+git("checkout", "-q", "-f", base, cwd=s); git("clean", "-q", "-fd", cwd=s); put(s, "src/other.py", "z3\n"); put(s, "src/x.py", "x3\n")
+rc, out, err = run(s, "ci_select.py", base, "--why"); rc2, out2, err2 = run(s, "ci_select.py", "no-such-ref")
+p = [] if rc == 0 and "src/other.py" in err and "every group: no line of tools/ci-paths.txt matches it" in err and "src/x.py" in err and "c_checks" in err and "so: every group" in err else [f"--why: {err}"]
+if rc2 != 2 or "no commit no-such-ref" not in err2: p.append(f"a base that is not there: exit {rc2}: {err2}")
+report(p, "ci_select.py: --why says what each path runs and why; a base that is not there is exit 2")
+print("end")
+PY
+  python3 "$t/test.py" "$t" "$ROOT" > "$t/out" 2>&1; r=$?
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "$m" ;; bad) bad "$m" ;; esac
+  done < "$t/out"
+  grep -qx end "$t/out" || bad "plumbing: the test stopped (exit $r): $(tail -n 3 "$t/out" | tr '\n' ' ')"
+  # the table of this repository: each group it names is a group, each pattern a tracked file; bash finds every group
+  if a=$(python3 tools/ci_select.py --check 2>&1); then ok "$a"; else bad "tools/ci_select.py --check: $a"; fi
+  # tools/ci.sh --changed on a one-group table: that group runs, the run says it was not a full one; a base that is not there stops it (exit 2)
+  printf 'readpath_report 0\n' > "$t/one.txt"; printf 'always readpath_report\n' > "$t/paths.txt"
+  a=$(OVH_CI_SHARDS="$t/one.txt" OVH_CI_PATHS="$t/paths.txt" tools/ci.sh --changed HEAD 2>&1); rc=$?
+  b=$(OVH_CI_SHARDS="$t/one.txt" OVH_CI_PATHS="$t/paths.txt" tools/ci.sh --changed no-such-ref 2>&1); rc2=$?
+  if [ "$rc:$rc2" = 0:2 ] && grep -q 'readpath_report' <<<"$a" && grep -q "Ran 1 of the $(groups_in "$ROOT/tools/ci-shards.txt" | wc -l | tr -d ' ') groups" <<<"$a" \
+     && grep -q 'all checks passed' <<<"$a" && grep -q 'no commit no-such-ref' <<<"$b" && ! grep -q 'all checks passed' <<<"$b"
+  then ok "tools/ci.sh --changed: runs the groups the change needs and says how many of all it ran; a base that is not there is exit 2"
+  else bad "tools/ci.sh --changed (exit $rc, $rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+  rm -rf "$t"
 }
 
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
@@ -11289,7 +11447,8 @@ PY
 land_checks() {   # tools/land.py on a made-up repository with a local origin and a stand-in gh (no network): a PR stacked
   # on one squashed since (-s ours, its tree kept), done (the squash's tree, main moved on, --clean), a plain merge on a PR
   # already mergeable, --dry-run, a conflict, main moved on after --after (a plain merge, not -s ours), an ignored file,
-  # land-deny (named, not repeated), a batch's several CHANGELOG entries, and the PRs it refuses
+  # land-deny (named, not repeated), a batch's several CHANGELOG entries, change notes in changes/ (two PRs that each add
+  # one land in turn without a conflict), and the PRs it refuses
   local t r k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-land.XXXXXX")
   cat > "$t/test.py" <<'PY'
 import json, os, subprocess, sys
@@ -11430,6 +11589,29 @@ rc, out = land("ready", "9", cwd=c)
 report([] if rc == 0 and queued(9) == {"auto": True, "subject": "Batch nine (#9)", "match": h1, "body": "Ninth B\n- b\n\nNinth A\n- a"}
        else [f"exit {rc}, queued {queued(9)}"], "a batch adding two CHANGELOG entries: the PR's title, the entries the body")
 
+# change notes (changes/<name>.md, tools/changes.py): the squash message from the note a PR adds; two PRs that each add one,
+# from the same main, land one after the other with no conflict; a note and a CHANGELOG entry together are a batch; a
+# PR that only edits a note already on main, or adds changes/README.md, adds no note of its own
+def note(name, title, *lines): os.makedirs(os.path.join(w, "changes"), exist_ok=True); put(f"changes/{name}.md", f"**{title}**\n" + "".join(f"- {x}\n" for x in lines))
+branch("pi", s3); note("tenth", "Tenth thing", "ten", "and more"); i1 = commit("tenth")
+branch("pj", s3); note("eleventh", "Eleventh thing", "eleven"); put("j.txt", "j\n"); j1 = commit("eleventh"); push("pi", "pj")
+pr(12, "pi", i1, title="Tenth PR"); pr(13, "pj", j1, title="Eleventh PR")
+rc, out = land("ready", "12", cwd=c); p = []
+if rc or queued(12) != {"auto": True, "subject": "Tenth thing (#12)", "match": i1, "body": "- ten\n- and more"}: p.append(f"#12: exit {rc}, queued {queued(12)}: {out[-200:]}")
+sq12 = squash(i1, s3, "Tenth thing (#12)"); push(f"{sq12}:refs/heads/main")
+rc, out = land("ready", "13", cwd=c); new13 = head("pj")
+if rc or parents(new13) != [j1, sq12]: p.append(f"#13: exit {rc}, not main merged in: {out[-300:]}")
+elif sorted(git("diff", "--name-only", sq12, new13, cwd=origin).split()) != ["changes/eleventh.md", "j.txt"]: p.append("#13 changes more than its own files against main")
+elif queued(13) != {"auto": True, "subject": "Eleventh thing (#13)", "match": new13, "body": "- eleven"}: p.append(f"#13 queued {queued(13)}")
+report(p, "change notes: the squash message from the note a PR adds; a second PR with its own note, from the same main, takes main in with no conflict and keeps its own note")
+branch("pk", sq12); note("fourteenth", "Fourteenth note", "x"); entry("Fourteenth entry", "y"); k1 = commit("fourteenth")
+branch("pl", sq12); note("tenth", "Tenth thing", "ten", "and more, said again"); put("changes/README.md", "what the folder is\n"); l1 = commit("fifteenth")
+push("pk", "pl"); pr(14, "pk", k1, title="Batch fourteen"); pr(15, "pl", l1, title="Fifteenth")
+rc, out = land("ready", "14", cwd=c); rc2, out2 = land("ready", "15", cwd=c)
+report([] if (rc, rc2) == (0, 0) and queued(14) == {"auto": True, "subject": "Batch fourteen (#14)", "match": k1, "body": "Fourteenth note\n- x\n\nFourteenth entry\n- y"}
+       and queued(15) == {"auto": True, "subject": "Fifteenth (#15)", "match": l1, "body": ""} else [f"exit {rc}, {rc2}, queued {queued(14)}, {queued(15)}"],
+       "change notes: a note and a CHANGELOG entry together are a batch (the PR's title, both the body); editing a note already on main, or adding changes/README.md, is no note (the PR's title)")
+
 pr(10, "pe", e1, baseRefName="pb"); pr(11, "pc", c1, state="CLOSED")
 r10, o10 = land("ready", "10", cwd=c); r11, o11 = land("ready", "11", cwd=c)
 report([] if (r10, r11) == (2, 2) and "based on pb" in o10 and "closed" in o11 else [f"exit {r10}, {r11}"],
@@ -11447,7 +11629,8 @@ PY
 # the groups (tools/ci-shards.txt): one a line, in the order a full run takes them, with their seconds on CI's macOS runner.
 # OVH_CI_SHARDS=<file>: another table (doc_checks runs tools/ci.sh on broken ones)
 CI_TABLE=${OVH_CI_SHARDS:-$ROOT/tools/ci-shards.txt}
-groups() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$CI_TABLE"; }
+groups_in() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$1"; }   # groups_in <table>: its lines, comments and blanks left out
+groups() { groups_in "$CI_TABLE"; }
 shard_of() { # shard_of <i> <n>: the groups of shard i of n, in the table's order. The longest first, each to the shard with
   # the fewest seconds so far (ties: the earlier group, the lower shard), so the same table always deals the same shards
   groups | awk -v i="$1" -v n="$2" '{ name[NR] = $1; w[NR] = $2 + 0; o[NR] = NR }
@@ -11471,7 +11654,7 @@ run_groups() { # run_groups <group…>: each group's checks, timed; then how lon
   printf '%s\n' ${CI_TIMES[@]+"${CI_TIMES[@]}"} | sort -t "$tab" -k1,1nr | awk 'NR <= 10' | while IFS="$tab" read -r ms m; do
     printf '  %5d.%d  %s\n' $((ms / 1000)) $((ms % 1000 / 100)) "$m"; done
 }
-usage="usage: tools/ci.sh [--smoke | --shard i/n | --committed [--smoke | --shard i/n]]"
+usage="usage: tools/ci.sh [--smoke | --shard i/n | --changed [base] | --committed [--smoke | --shard i/n | --changed [base]]]"
 case "${1:-all}" in
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     shift
@@ -11488,6 +11671,9 @@ case "${1:-all}" in
     case "$i$n" in *[!0-9]*) echo "$usage" >&2; exit 2 ;; esac
     [ "$i" -le "$n" ] || { echo "$usage" >&2; exit 2; }
     CI_RUN="Shard $i/$n" list=$(shard_of "$i" "$n") ;;
+  --changed)   # the groups what changed since base (origin/main) needs: tools/ci_select.py, by tools/ci-paths.txt
+    [ $# -le 2 ] || { echo "$usage" >&2; exit 2; }
+    CI_RUN="The run of what changed" list=$(python3 tools/ci_select.py ${2:+"$2"} --why) || exit 2 ;;
   --smoke) [ $# = 1 ] || { echo "$usage" >&2; exit 2; }
     CI_RUN="The smoke tests" list=$(groups | awk '$1 !~ /^(static_checks|doc_checks|readpath_report)$/ { print $1 }') ;;
   all) [ $# -le 1 ] || { echo "$usage" >&2; exit 2; }
@@ -11498,6 +11684,9 @@ esac
 [ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
 # shellcheck disable=SC2086   # one group a word
 run_groups $list
+# a run of some groups says so: a shard, --smoke, --changed or another table passes only what it ran
+ci_all=$(groups_in "$ROOT/tools/ci-shards.txt" | wc -l | tr -d ' ') ci_ran=$(printf '%s\n' $list | wc -l | tr -d ' ')
+[ "$ci_ran" -lt "$ci_all" ] && printf '\033[33m! Ran %s of the %s groups in tools/ci-shards.txt; tools/ci.sh runs them all, as before a push\033[0m\n' "$ci_ran" "$ci_all"
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
 # 1, not the count: an exit status is the count modulo 256, and 256 failed checks would have been a pass

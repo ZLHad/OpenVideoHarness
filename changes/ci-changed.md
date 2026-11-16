@@ -1,0 +1,7 @@
+**`tools/ci.sh --changed` runs only the groups a change needs**
+- Why: a full run takes 15–18 minutes on CI's macOS and about 10 on a fast Mac, and the parallel sessions ran it two or three times each while they worked. `OVH_CI_SHARDS=<table>` could run some groups, but you had to write the table, and a partial table turned one of doc_checks' checks red ("never run").
+- `tools/ci.sh --changed [base]` compares with base (`origin/main` by default), working tree and new files included, and runs the groups `tools/ci-paths.txt` names for the changed paths. A path the table does not know runs every group. Syntax, docs and the read-path table run every time.
+- A change to `tools/ci.sh` runs the group whose function it is in; a helper runs the groups that call it; a comment above a function counts as that function; the top and the dispatch run everything. bash itself says where each function starts, so a `}` inside a quoted block cannot fool it. A group added to `tools/ci-shards.txt` runs.
+- `python3 tools/ci_select.py --why` says what each changed path runs and why, without running anything; `--check` holds the table to the repository (each group exists, each pattern matches a tracked file, every group's function is found).
+- A run of some groups (a shard, `--smoke`, `--changed`, another table) ends with "Ran N of the M groups", and doc_checks reads `tools/ci-shards.txt` itself, so a partial run is no longer a broken table.
+- The full run before a push stays the rule (`CONTRIBUTING.md`); CI on a PR still runs everything.
