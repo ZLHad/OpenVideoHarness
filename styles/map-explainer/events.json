@@ -1,0 +1,12 @@
+[
+  {"t":0.7,"sfx":"air","gain_db":-11,"pan":0,"dur":1.6,"dir":"down","bright":-0.3,"tone":0.2},
+  {"t":1.5,"sfx":"pop","gain_db":-9,"pan":-0.28,"role":"hero","pitch":-2},
+  {"t":1.95,"sfx":"swoosh_tonal","gain_db":-13,"pan":0,"dur":0.8,"dir":"up","tone":0.3,"pan_from":-0.28,"pan_to":-0.07},
+  {"t":2.35,"sfx":"pop","gain_db":-9,"pan":0,"role":"hero","pitch":1},
+  {"t":3,"sfx":"swoosh_tonal","gain_db":-13,"pan":0,"dur":0.8,"dir":"up","tone":0.3,"pan_from":0,"pan_to":0.21},
+  {"t":3.4,"sfx":"pop","gain_db":-9,"pan":0.24,"role":"hero","pitch":4},
+  {"t":3.95,"sfx":"swoosh_tonal","gain_db":-13,"pan":0,"dur":0.7,"dir":"up","tone":0.3,"pan_from":0.28,"pan_to":0.49},
+  {"t":4.3,"sfx":"pop","gain_db":-9,"pan":0.48,"role":"hero","pitch":6},
+  {"t":4.63,"sfx":"paper","gain_db":-10,"pan":-0.5,"dur":0.25,"bright":-0.2},
+  {"t":7.45,"sfx":"air","gain_db":-11,"pan":0,"dur":0.9,"dir":"up","tone":0.2}
+]

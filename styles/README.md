@@ -1,4 +1,4 @@
-# 风格库：从名作里学来的 38 种口味
+# 风格库：从名作里学来的 43 种口味
 
 社区里用 Opus 5.5 做的视频，很大一部分长得差不多：暗底、发光、玻璃卡片、动态 UI，广告和发布片里尤其明显。agent 默认会走向最常见的那一种，所以这里给它一个明确的选择空间。
 
@@ -74,6 +74,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 |---|---|---|---|---|
 | [剪纸爵士片头](cutout-jazz/) `cutout-jazz` | Saul Bass 的片头（《金臂人》1955、《迷魂记》1958、《桃色血案》1959） | 几种纸色、剪刀边、铜管每记重音就是一刀 | 概念或产品的片头式开场 | 快 · 横 · 秒级 · 名作提炼<br>03 04 07 |
 | [半调漫画](halftone-comic/) `halftone-comic` | 《蜘蛛侠：平行宇宙》（2018）、Ben-Day 网点 | 网点代替渐变，套色故意不准，一拍二动 | 动作感强、节奏快的内容 | 快 · 都行 · 秒级 · 名作提炼<br>08 04 02 03 |
+| [纸桌档案](paper-desk-dossier/) `paper-desk-dossier` | 《Griffin & Sabine》（1991）、《战争迷雾》（2003） | 深褐桌面上一张奶白长纸，照片、卡片、印章、红笔批注带着分量一样样落下，镜头沿纸走 | 人物、历史、长讲解、照片回顾 | 中 · 都行 · 秒级 · 本仓库的片子<br>10 06 11 02 |
 | [孔版印刷](risograph/) `risograph` | Risograph 专色印刷 | 两三种专色叠印，永远套不准 | 温暖、独立、手作感的故事 | 静 · 都行 · 秒级 · 名作提炼<br>04 07 02 08 |
 
 ### 传统工艺
@@ -85,6 +86,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | [敦煌](dunhuang-mural/) `dunhuang-mural` | 莫高窟第 257 窟《鹿王本生图》、第 320 窟飞天、《九色鹿》（1981） | 矿物色、铁线描、飞天长飘带 | 丝路、历史、横卷叙事 | 中 · 横 · 秒级 · 名作提炼<br>07 02 04 06 |
 | [国潮](guochao-festive/) `guochao-festive` | 桃花坞等木版年画、《大闹天宫》 | 红底金线、粗宋大字、纹样逐拍铺开 | 节日、国风发布、竖屏 hook | 快 · 都行 · 秒级 · 名作提炼<br>03 02 04 05 |
 | [水墨](ink-wash/) `ink-wash` | 《小蝌蚪找妈妈》（1960）、《牧笛》（1963）、《山水情》（1988） | 一滴墨晕开成远山，大片留白 | 寓言、哲思、传统文化 | 静 · 横 · 秒级 · 名作提炼<br>07 04 06 03 |
+| [漆金螺钿屏风](lacquer-screen/) `lacquer-screen` | 尾形光琳《八桥莳绘螺钿砚箱》（18 世纪）、清康熙《宫苑仕女图》黑漆嵌螺钿屏风（17 世纪晚期） | 黑漆屏风在暗室里展开，一支金笔沿折扇写出一条走势，转折处嵌进螺钿 | 时间轴、增长曲线、东方题材的发布片 | 静 · 横 · 秒级 · 本仓库的片子<br>05 10 03 |
 | [皮影](shadow-puppet/) `shadow-puppet` | 中国皮影戏（2011 年列入人类非遗名录） | 油灯背光的布幕，关节皮影和三根签子 | 民间故事、戏曲、台前幕后 | 中 · 横 · 秒级 · 名作提炼<br>07 04 02 03 |
 | [剪影剪纸](silhouette-papercut/) `silhouette-papercut` | 《阿赫迈德王子历险记》（1926）、《猪八戒吃瓜》（1958） | 多层剪纸视差，每秒 12 格 | 童话、寓言、民间故事 | 静 · 横 · 秒级 · 名作提炼<br>07 04 02 06 |
 
@@ -103,6 +105,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | 风格 | 学习对象 | 一句话 | 适合 | 标签 |
 |---|---|---|---|---|
 | [档案推拉](archival-pan-zoom/) `archival-pan-zoom` | 《黄金之城》（1957）、《南北战争》（1990） | 在静止照片上极慢地推拉，衬线小字 | 历史、人物传记、项目来历 | 静 · 横 · 秒级 · 名作提炼<br>06 05 02 |
+| [视觉调查](visual-investigation/) `visual-investigation` | Forensic Architecture（2010 起；同名书 2017）、《细细的蓝线》（1988） | 夜间图纸立成线框模型，时间码走动，一条路线穿过去，每个事件一个编号标注和出处 | 新闻复盘、事件经过、讲清一件事的时间线 | 中 · 都行 · 秒级 · 名作提炼<br>02 10 05 |
 
 ### 屏幕界面
 
@@ -140,6 +143,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 | 风格 | 学习对象 | 一句话 | 适合 | 标签 |
 |---|---|---|---|---|
+| [暗棚实物 3D](dark-studio-3d/) `dark-studio-3d` | Edward Weston《青椒 30 号》（1930）、Irving Penn 的静物（1970 年代） | 暗棚里一件有分量的金属零件，轮廓光切出形，拆开又带着重量落回去，旁边一张写着材质和质量的说明卡 | 产品、硬件、工程原理、拆解 | 中 · 横 · Blender 级 · 本仓库的片子<br>03 10 02 |
 | [深空语义科普](deep-space-explainer/) `deep-space-explainer` | Harry Beck 的伦敦地铁图（1933）、《星际穿越》的黑洞（2014，DNEG 与 Kip Thorne）、《宇宙》（1980） | 深空黑底，每种东西一个颜色全片不变：光是金、物质是珊瑚红、观测者是蓝；主镜头是着色器做的黑洞和地球 | 天文、物理、前沿科学新闻和长讲解 | 静 · 都行 · 分钟级 · 名作提炼<br>01 02 10 |
 | [纪念碑科幻](monumental-scifi/) `monumental-scifi` | 《银翼杀手 2049》《降临》《星际穿越》 | 巨大的形体、层层雾、极少的字 | 发布 teaser、未来题材、片名 | 静 · 横 · 秒级 · 名作提炼<br>03 02 06 |
 | [产品发布片](product-keynote/) `product-keynote` | Apple Watch 发布片（2014）、2007 年 iPhone 发布会 | 无缝背景，产品先落稳、字再出来 | 软硬件发布、功能亮点 | 静 · 都行 · 秒级 · 名作提炼<br>03 05 |
@@ -155,6 +159,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | [机械钟表地图](clockwork-map/) `clockwork-map` | 《权力的游戏》片头（2011）、布拉格天文钟 | 地点是被齿轮顶出地面的黄铜机械 | 路线、版图、多地点关系 | 中 · 横 · 秒级 · 名作提炼<br>02 05 03 |
 | [编辑部数据叙事](editorial-data/) `editorial-data` | NYT The Upshot、The Pudding | 标题就是结论句，灰加一个强调色 | 数据新闻、研究结果 | 静 · 都行 · 秒级 · 名作提炼<br>05 06 02 |
 | [图形统计](isotype/) `isotype` | 维也纳图形统计法（Isotype）：《社会与经济》图集（1930）、Gerd Arntz 的符号 | 一个符号代表固定数量，多就多排几个，在拍点上加一个、减一个 | 人口、资源、比例这类计数（类型 05） | 中 · 都行 · 秒级 · 名作提炼<br>05 02 06 |
+| [立体地图解说](map-explainer/) `map-explainer` | Imhof《地形的地图表现》（1965）、Minard 的拿破仑远征图（1869） | 晕渲地形、海岸和河流，镜头从高处推近并压低，路线一段段长出来，每站标上编号和海拔 | 地理、历史行军、旅行、物流路线 | 中 · 都行 · 秒级 · 名作提炼<br>05 10 02 |
 
 ### 字与平面
 
@@ -188,14 +193,17 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | `watercolor-pastoral` | 吉卜力 / 久石让式的田园小品 | 明亮的钢琴、长笛、弦乐、风声 | 慢、暖，弦乐只做一次渐强 |
 | `cutout-jazz` | 摇摆大乐队（Saul Bass 片头里 Elmer Bernstein 那一路） | 弱音铜管、低音提琴、ride 和刷子、邦戈 | 铜管每记重音就是一刀，全是原声，干 |
 | `halftone-comic` | boom-bap（《蜘蛛侠：平行宇宙》） | 搓碟、铜管 stab、boom-bap 鼓、808 | 摇摆的十六分音符，分格切时全编制砸回来 |
+| `paper-desk-dossier` | 室内乐小品，D 小调 | 毡锤钢琴分解和弦、大提琴长音 | 每样东西落下都有一声纸响，打字、盖章、笔尖各有各的声音 |
 | `risograph` | lo-fi hip-hop | Rhodes、低音提琴、慵懒的鼓、颤音琴、黑胶噼啪 | 每加一版印色进一件乐器 |
 | `dunhuang-mural` | 丝路乐舞（E 商调） | 琵琶轮指、箜篌、笙、框鼓、编钟 | 明亮的调式，飞天相会时编钟和琵琶同落 |
 | `guochao-festive` | 国潮：唢呐加 trap / EDM | 唢呐、琵琶、808、trap 鼓、锣鼓、大鼓 | 响、亮、喜庆 |
 | `ink-wash` | 文人古琴加箫 | 古琴（滑音、吟猱、一个泛音）、箫 | 一个乐句一件事，大片留白，4 s 的大厅混响 |
+| `lacquer-screen` | 五声羽调的慢曲，D 羽 | 古琴泛音和滑音、低弦长音、钟 | 屏风展开一口长气，笔走一路沙沙，每颗螺钿嵌进去一声细响 |
 | `shadow-puppet` | 陕西皮影、秦腔 | 板胡、梆子、锣鼓经、板鼓、堂鼓 | 板胡叫板，梆子和锣鼓经推着走 |
 | `silhouette-papercut` | 八音盒摇篮曲（Lotte Reiniger 的童话） | 八音盒、竖琴、钢片琴 | 三拍子摇篮的晃，屏息时只留竖琴 |
 | `tabletop-miniature` | 小房间里的一台立式钢琴，角色的动作就是音符 | 立式钢琴（低音区带踏板铺底、高音区不带踏板是角色的落地）、房间底噪 | 很干；往上跳一级，音就往上走一级；灭灯时属七和弦悬着，天亮才解决 |
 | `archival-pan-zoom` | 纪录片式的提琴哀歌 | 独奏提琴和第二条空弦、毡锤钢琴 | 半速，旋律在人像入画时升到最高 |
+| `visual-investigation` | 冷静的纪录片脉冲，E 小调 | 低频长音、钟表滴答、毡锤钢琴单音 | 扫描一口气，墙立起来一声上扬，每个编号一下清脆的点击 |
 | `crt-terminal` | 终端小喇叭的冷极简 | 60 Hz 电源嗡声、失谐方波琶音、调制解调器哔声 | 干声，很多段只有嗡声 |
 | `fui-hud` | 冷电子（《创：战纪》那一路） | 带共振的滤波锯齿音序、sub 脉冲、失谐 drone | 十六分音符的音序，冷的 plate 混响 |
 | `pastel-ui` | 界面提示音放大成的小曲 | 卡林巴、Rhodes、拨弦低音提琴、高处的弦乐 pad、沙锤 | 每个事件都是卡林巴的一个音，对勾一级比一级高，最响在 2–4 s |
@@ -205,6 +213,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | `synthwave-outrun` | 合成器浪潮 | supersaw 和弦、门限混响军鼓、四拍底鼓、锯齿贝斯 | 80 年代的门限混响，贝斯跟着底鼓一拍一泵 |
 | `bouncy-flat-2d` | 欢快的讲解片 | 尤克里里扫弦、口哨、钟琴、拍手 | 每个落地点"叮"一下 |
 | `pixel-16bit` | 超任式的 JRPG | 带乒乓回声的方波主旋律、拨弦、铜管垫、三角波低音 | 16 位采样加硬件回声，不是 8 位芯片乐 |
+| `dark-studio-3d` | 低沉的电子脉冲，D 小调 | 低频长音、合成低音、金属打击 | 灯亮起一口上扬的气，零件落座一声沉的撞击，螺母拧到底一声脆响 |
 | `deep-space-explainer` | 太空里的管风琴 | 管风琴、低音心跳、钟琴 | 光出发时一声长的气流，黑洞是一层很低的嗡，光落到地球上蓝圈亮起时钟琴响一下 |
 | `monumental-scifi` | braam 加 CS-80（《银翼杀手 2049》） | braam、CS-80 铜管 pad、持续低音、远处的定音鼓 | 两记 braam 中间一次渐强，大教堂混响 |
 | `product-keynote` | 发布会式的钢琴揭示 | 毡锤钢琴、高处的弦乐 pad、竖琴、sub | 每段只一个和弦，留大量空气，揭示时一记深的 sub |
@@ -213,6 +222,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 | `clockwork-map` | 大提琴固定音型（《权力的游戏》片头那一路） | marcato 大提琴、弦乐、定音鼓、钟琴 | 机芯一样的六音音型，锁止落在小节线上 |
 | `editorial-data` | Glass / Richter 式的极简 | 钢琴三连音分解和弦、大提琴长音、秒表滴答 | 音型不变，只有和声在走，揭示前钢琴停下 |
 | `isotype` | 事件即音符的节拍器 | 木鱼、玩具钢琴、拨弦、笙 | 加一个符号就是一个音，数量往上数，音也往上走 |
+| `map-explainer` | 开阔的弦乐和竖琴，D 大调 | 竖琴分解和弦、弦乐长音、铜管渐强 | 高空的风，每段路线一口上扬的气，每个站点一声轻的弹响 |
 | `brutalist-meme` | phonk / trap 梗片节奏 | 808 滑音、牛铃 riff、trap 军鼓和 hats、clap | 硬切处 808 重打，包袱前屏息 |
 | `swiss-grid-type` | motorik 电子乐（Kraftwerk） | 方波音序贝斯、干的电子鼓、正弦 bleep | 八分音符一直往前走，"打破规则"那一小节鼓全撤 |
 | `y2k-chrome` | 千禧年泡泡糖电子舞曲 | 四拍底鼓、拍手、方波贝斯、808 低音、风琴和弦、钟琴 | 几乎每拍一个动作一个声音，没有屏息段，"停"是高光还在滑、分数还在跳 |
@@ -246,7 +256,7 @@ https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 1. **拉片**：用 `playbook/07-reverse-engineer.md` 拆解 1–3 部作品，写下能执行的规律：hex、帧数、缓动曲线、字体、配器。学的是社区作品或本仓库自己的片子时，只借画面类型，学习对象另找公开的名作；从本仓库片子里提炼的起中性的名字，公开文件里不出现频道名、片名和个人信息。
 2. **写文档**：复制 `_TEMPLATE.md` 写 `STYLE.md`，按其他预设的键写 `tokens.json`。库里认的字段：`slug`、`name`、`family`（`families.json` 里的一个 id）、`video_types`、`tags`（`pace`、`aspect`、`cost`、`source`，可选的词在 `families.json`）、`study`、`swatch`（`{"spec": 2, "duration": 8}`，时长 5–10 秒）、`card`（表格的六格：`learned_from`、`line`、`fit`、`score`、`instruments`、`sounds_like`）。哪个家族都不合适时，先在 `families.json` 加一个家族，写清为什么。
-3. **写样片**：从 `_swatch/demo/` 复制 `swatch.js`、`tokens.json`、`score.json`，按 `_swatch/README.md` 的"样片规格"写四拍，拟音写在 `FOLEY` 里，用 `node styles/_swatch/foley.mjs <slug>` 生成 `events.json`。风格要路径追踪的光和真实景深时，写成 Blender 场景 `swatch.py`（见 `_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 是样板）。
+3. **写样片**：从 `_swatch/demo/` 复制 `swatch.js`、`tokens.json`、`score.json`，按 `_swatch/README.md` 的"样片规格"写四拍，拟音写在 `FOLEY` 里，用 `node styles/_swatch/foley.mjs <slug>` 生成 `events.json`。不靠真实光的 3D（卡通渲染、霓虹、点云）用 three.js 就够（`_swatch/README.md` 的"场景 API"，分钟级）；要实物的反射、接触阴影和真实景深时，写成 Blender 场景 `swatch.py`（见 `_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 和 `dark-studio-3d` 是样板；Blender 场景的字是画面里的几何体，`bin/vh style check --text` 只量它 `TEXTS` 的读时）。
 4. **渲染迭代**：用 `bin/vh style <slug> --draft --hud` 反复改，满意后跑 `bin/vh style <slug>` 出正式样片（适合竖屏的会接着渲竖版），渲染器会自动检查帧数、错误卡片、冻帧和音频，并写出封面和 2 秒预览。
 5. **检查**：`bin/vh style check <slug>` 查元数据和样片（时长、尺寸、响度、体积、封面、预览、竖版、循环接缝），加 `--text` 再查字在不在安全框里、能不能读完；`bin/vh style check <slug> --determinism` 比较无损帧。
 6. **完整样片移出 git**：`bin/vh style register <slug>` 把 `swatch.mp4`（和竖版）登记进 `tools/media.txt`，并打印上传到 Release `styles-media` 的命令。上传是维护者在合并时做的事（`CONTRIBUTING.md` 第 4 条）；`.gitignore` 已经挡住了这两个文件，提交的是封面、预览和源码。
