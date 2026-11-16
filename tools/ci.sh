@@ -412,7 +412,7 @@ PY
 plumbing_checks() {   # the repository's own development tools, each on a made-up repository: tools/changes.py (the change
   # notes in changes/ and the release that gathers them into CHANGELOG.md) and tools/ci_select.py (which groups a change
   # needs; tools/ci.sh --changed runs them), then tools/ci.sh --changed itself on a one-group table
-  local t r k m a b rc rc2; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-plumbing.XXXXXX")
+  local t r k m a b d rc rc2; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-plumbing.XXXXXX")
   cat > "$t/test.py" <<'PY'
 import os, shutil, subprocess, sys
 t, ROOT = sys.argv[1], sys.argv[2]
@@ -614,6 +614,14 @@ PY
   grep -qx end "$t/out" || bad "plumbing: the test stopped (exit $r): $(tail -n 3 "$t/out" | tr '\n' ' ')"
   # the table of this repository: each group it names is a group, each pattern a tracked file; bash finds every group
   if a=$(python3 tools/ci_select.py --check 2>&1); then ok "$a"; else bad "tools/ci_select.py --check: $a"; fi
+  # the same under the system's bash when the first bash is another: macOS's 3.2 says a function with a heredoc in it
+  # starts further down than it does (CI's macOS shards have it first; a Mac with Homebrew's bash runs both here)
+  if [ -x /bin/bash ] && [ "$(/bin/bash -c 'echo $BASH_VERSION')" != "$(bash -c 'echo $BASH_VERSION')" ]; then
+    d=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); ln -s /bin/bash "$d/bash"
+    if a=$(PATH="$d:$PATH" python3 tools/ci_select.py --check 2>&1); then ok "tools/ci_select.py --check under the system's bash too ($(/bin/bash -c 'echo $BASH_VERSION'))"
+    else bad "tools/ci_select.py --check under the system's bash: $a"; fi
+    rm -rf "$d"
+  fi
   # tools/ci.sh --changed on a one-group table: that group runs, the run says it was not a full one; a base that is not there stops it (exit 2)
   printf 'readpath_report 0\n' > "$t/one.txt"; printf 'always readpath_report\n' > "$t/paths.txt"
   a=$(OVH_CI_SHARDS="$t/one.txt" OVH_CI_PATHS="$t/paths.txt" tools/ci.sh --changed HEAD 2>&1); rc=$?

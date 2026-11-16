@@ -114,7 +114,17 @@ def functions(text, cut=None, what=CI):
         p = subprocess.run(["bash", "-c", 'shopt -s extdebug; source "$1" >/dev/null 2>&1 </dev/null; '
                             'for f in $(compgen -A function); do declare -F "$f"; done', "_", f],
                            capture_output=True, text=True, cwd=d)
-    starts = sorted((int(m.group(2)), m.group(1)) for m in re.finditer(r"^(\S+) (\d+) ", p.stdout, re.M))
+    starts = []
+    for m in re.finditer(r"^(\S+) (\d+) ", p.stdout, re.M):
+        name, s = m.group(1), int(m.group(2))
+        # bash 3.2 (macOS's own) gives a line further down for a function with a heredoc in it: the line that defines
+        # it is the nearest one above (else below) that says name() — what bash 5 gives
+        own = re.compile(rf"^\s*(function\s+)?{re.escape(name)}\s*\(\)")
+        if not (1 <= s <= len(lines) and own.match(lines[s - 1])):
+            s = next((k for k in range(min(s, len(lines)), 0, -1) if own.match(lines[k - 1])), None) \
+                or next((k for k in range(max(s, 1), len(lines) + 1) if own.match(lines[k - 1])), s)
+        starts.append((s, name))
+    starts.sort()
     if not starts:
         raise Stop(f"{what}: bash found no function in it ({(p.stderr or '').strip()[:200]})")
     out = {}
