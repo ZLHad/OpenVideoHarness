@@ -462,6 +462,45 @@
       "install": {"macos": "claude.com/claude-code, then bin/vh install-skill claude", "linux": "claude.com/claude-code, then bin/vh install-skill claude"}
     },
     {
+      "name": "claude-agent-acp",
+      "kind": "npm",
+      "purpose": "Lets the console's agent column talk to Claude Code: the Agent Client Protocol adapter, which brings its own Claude Code. It runs with the person's own login and, by default, their own settings (mode, allow rules, skills).",
+      "version": {"pin": "0.107.0"},
+      "license": "Apache-2.0 (the adapter); Claude Code under Anthropic's terms",
+      "needs": {"programs": ["node"], "account": "a Claude subscription or Claude Code login (claude, then /login)"},
+      "adapter": ["tools/desk/agents.py (ADAPTERS, install, Manager)", "tools/desk/acp.py", "tools/desk/acp_guard.py", "tools/desk/agent-locks/"],
+      "commands": ["desk"],
+      "required": false,
+      "check": {"desk_agent": "claude"},
+      "install": {"macos": "bin/vh desk agents install claude (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install claude (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
+    },
+    {
+      "name": "codex-acp",
+      "kind": "npm",
+      "purpose": "Lets the console's agent column talk to Codex: the Agent Client Protocol adapter, which brings its own Codex. It uses the person's own ChatGPT login or Codex settings.",
+      "version": {"pin": "2.6.0"},
+      "license": "Apache-2.0",
+      "needs": {"programs": ["node"], "account": "a ChatGPT plan or the OpenAI login Codex already uses (codex login)"},
+      "adapter": ["tools/desk/agents.py (ADAPTERS, install, Manager)", "tools/desk/acp.py", "tools/desk/acp_guard.py", "tools/desk/agent-locks/"],
+      "commands": ["desk"],
+      "required": false,
+      "check": {"desk_agent": "codex"},
+      "install": {"macos": "bin/vh desk agents install codex (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install codex (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
+    },
+    {
+      "name": "dsh-acp",
+      "kind": "npm",
+      "purpose": "Lets the console's agent column talk to DeepSeek Harness: its CLI with the ACP profile, under a DSH_HOME of the console's own; the person's ~/.dsh is left alone and their credentials file is read where it is.",
+      "version": {"pin": "0.2.2-rc.3"},
+      "license": "MIT",
+      "needs": {"programs": ["node"], "account": "DeepSeek Harness signed in once (its desktop app or dsh), which writes ~/.dsh/.credentials.yaml"},
+      "adapter": ["tools/desk/agents.py (ADAPTERS, dsh_profile, install, Manager)", "tools/desk/acp.py", "tools/desk/acp_guard.py", "tools/desk/agent-locks/"],
+      "commands": ["desk"],
+      "required": false,
+      "check": {"desk_agent": "dsh"},
+      "install": {"macos": "bin/vh desk agents install dsh (about 1.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install dsh (about 1.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
+    },
+    {
       "name": "yt-dlp",
       "kind": "program",
       "purpose": "Reads video sites: scout and ref take a search's, a channel's or one video's metadata from YouTube with it (-J, never a download; OVH_YTDLP runs another, uvx yt-dlp). Sites change often, so an old one is the first thing to update when a site fails.",

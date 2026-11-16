@@ -242,7 +242,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | | `artifacts` | 项目里每种文件是什么、谁写的；这支片子有什么、缺什么、什么过期了 |
 | | `projects` · `cancel` · `history` | 所有项目和各自到哪了；停下一条正在跑的命令，并在记录里写清楚；你和 agent 写的文本的退路 |
 
-`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 40 个外接模块（程序、包、模型和联网服务）里的哪些。
+`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 43 个外接模块（程序、包、模型和联网服务）里的哪些。
 
 ## 引擎、类型和素材库
 
