@@ -10,6 +10,14 @@ showcase/03-math-fourier/media/final.mp4 03-math-explainer.mp4 f6eff1bcd133f6c9f
 showcase/04-intro-film/media/final.mp4 intro-film-1080p.mp4 c763ab78c704294a02d2ccd56c792d13f76077cbb86f7949f973d2946ef5447a
 showcase/04-intro-film/v3/final.mp4 intro-film-v3-81s.mp4 c1aea967f79b33d4892010805a1dc4d2b8c1653593ab5076047ac72889328f03
 styles/gallery.mp4 styles-gallery-v2.mp4 4d338e84772c65c69398e9cdf980472080bcd680fa03080ce5da28875bedadb0
+styles/paper-desk-dossier/media/swatch.mp4 styles-media/paper-desk-dossier-848f9533.mp4 848f9533550510e756b3cf9b470daabc14c5f6531cdc22fc8f4fcf67443ffb5f
+styles/paper-desk-dossier/media/swatch-portrait.mp4 styles-media/paper-desk-dossier-portrait-356e1df2.mp4 356e1df27339d7edad52794bc88b3d206b2471b1b3a224d58823584a76c6e9ac
+styles/lacquer-screen/media/swatch.mp4 styles-media/lacquer-screen-39b30ad1.mp4 39b30ad148e013f0404b30bd275bfc5ee654b3410d0350eaa3ad4fbb23727a2b
+styles/visual-investigation/media/swatch.mp4 styles-media/visual-investigation-132fc548.mp4 132fc5487838ee42289436e1ebd5b0cdc32379c7dc85f53a5ba2ad54a4192070
+styles/visual-investigation/media/swatch-portrait.mp4 styles-media/visual-investigation-portrait-11c8693c.mp4 11c8693cd6681774ba4bc732ca8ce18c6a8f41da3d09674abe29dae75306ccfb
+styles/map-explainer/media/swatch.mp4 styles-media/map-explainer-d735003e.mp4 d735003e4f5b8721b23cf71259bcea270811bc2893a717d131396041bad465fb
+styles/map-explainer/media/swatch-portrait.mp4 styles-media/map-explainer-portrait-bb241267.mp4 bb241267ba4925134364423de29ebd0f3c99a97d81c4c53a26f1df6642d1f863
+styles/dark-studio-3d/media/swatch.mp4 styles-media/dark-studio-3d-814b8863.mp4 814b88635201a9cfe16e48cfe244b978f8da6f1921d0bf6e3e93ee12ee892503
 styles/whiteboard/media/swatch.mp4 styles-media/whiteboard-b8f99591.mp4 b8f99591fe8db9cbe3710156de34b6a52dcb3e4ef9957c231b351b24fa36304f
 styles/whiteboard/media/swatch-portrait.mp4 styles-media/whiteboard-portrait-525db456.mp4 525db456d438b78fe9ca70b6388d9ea492b2f908c9c01d0eb4988c267d63bcf9
 styles/chalkboard/media/swatch.mp4 styles-media/chalkboard-6ac99c95.mp4 6ac99c952b71d7fb91f80e1b0ad8ca746a2f0d6bdf5efd66fcb24d578c2d74f3

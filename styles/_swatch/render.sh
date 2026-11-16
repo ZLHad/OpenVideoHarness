@@ -133,6 +133,12 @@ for d in demo catalog fontprobe; do [ -d "$SW/$d" ] && cp -R "$SW/$d" "$STAGE/";
 # the component library and the components (components/README.md): lib.js re-exports components/lib, and a scene may
 # import a component as ../../components/<name>/component.js. Scripts and tables only, not the samples' media
 rsync -a --include='*/' --include='*.js' --include='*.json' --exclude='*' --prune-empty-dirs "$ROOT/components/" "$STAGE/components/"
+# three.js r186, pinned once in engines/canvas-film/three/ (licence and hashes in its NOTICE.md), for a scene whose
+# swatch.js imports ../../three/build/three.module.js; any other stage stays as it was. Only build/ comes along: the
+# addons import "three" by name and the stage has no import map
+if [ $builtin = 0 ] && grep -q 'three/build/three\.module\.js' "$SRC/swatch.js" 2>/dev/null; then
+  mkdir -p "$STAGE/three" && cp -R "$ROOT/engines/canvas-film/three/build" "$STAGE/three/"
+fi
 if [ $builtin = 0 ]; then
   mkdir -p "$STAGE/scenes"
   rsync -a --exclude media --exclude '*.md' --exclude '.DS_Store' "$SRC/" "$STAGE/scenes/$slug/"

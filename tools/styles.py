@@ -466,6 +466,8 @@ def text_problems(st, sp, keep=None):
     s = st["slug"]
     bad, notes = [], []
     vh = [os.environ.get("VH_BASH", "bash"), str(ROOT / "bin/vh")]
+    if engine_of(st) == "blender":
+        return blender_text_problems(st, vh, keep)
     for aspect in sp["aspects"]:
         a = spec_of(st["tokens"], aspect)
         r = subprocess.run([str(STYLES / "_swatch/render.sh"), s, "--stage-only", "--aspect", aspect], capture_output=True, text=True)
@@ -505,6 +507,35 @@ def text_problems(st, sp, keep=None):
                 bad.append(f"{aspect}: a text is not on screen long enough to read once (bin/vh readcheck {tf})")
         elif aspect == "landscape" and a["spec"] >= 2:
             notes.append("the scene exports no TEXTS, so readcheck had nothing to time (export them as the template does)")
+    return bad, notes
+
+
+def blender_text_problems(st, vh, keep=None):
+    """A Blender scene's text is geometry in its frames, so textcheck (which reads canvas text calls) cannot see it: only
+    the reads' timing is checked, from the scene's TEXTS (`python3 swatch.py --texts`, after blender_prep.py's scan),
+    and the rest is said as a note. (problems, notes)"""
+    py = st["dir"] / "swatch.py"
+    r = subprocess.run([sys.executable, str(STYLES / "_swatch/blender_prep.py"), "scan", str(py)], capture_output=True, text=True)
+    if r.returncode:
+        return [f"blender_prep.py scan refuses swatch.py: {(r.stdout or r.stderr).strip().splitlines()[-1:]}"], []
+    r = subprocess.run([sys.executable, "-I", str(py), "--texts"], capture_output=True, text=True,
+                       env={"PATH": os.environ.get("PATH", ""), "PYTHONDONTWRITEBYTECODE": "1"})
+    lines = [l for l in r.stdout.strip().splitlines() if l.strip()]
+    try:
+        texts = json.loads(lines[-1]) if lines else None
+    except ValueError:
+        texts = None
+    notes = ["a Blender scene: its text is rendered geometry, so textcheck (safe frame, cover, 3:1) cannot see it; "
+             "check the type on the frames"]
+    if not isinstance(texts, list) or not texts:
+        notes.append("swatch.py prints no TEXTS (`python3 swatch.py --texts`), so readcheck had nothing to time")
+        return [], notes
+    out = Path(keep or tempfile.mkdtemp(prefix="vh-styletext.")) / st["slug"]
+    out.mkdir(parents=True, exist_ok=True)
+    tf = out / "texts.json"
+    tf.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+    rr = subprocess.run(vh + ["readcheck", str(tf), "--pace", "brisk"], capture_output=True, text=True)
+    bad = [f"a text is not on screen long enough to read once (bin/vh readcheck {tf})"] if rr.returncode == 1 else []
     return bad, notes
 
 
