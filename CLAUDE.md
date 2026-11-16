@@ -136,7 +136,7 @@ OpenVideoHarness/
 ├── skills/                   轻量 skill（`bin/vh install-skill` 装上的是指回这里的短桩，`git pull` 后不用重装）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用已装浏览器查网页事实、存参考页
 ├── video-types/              11 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
 ├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页和审阅台 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
-├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
+├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS；用到时再复制：SCRIPT、CHARACTER、PACKAGING；TASTE_CHECKLIST 不复制，自查和评审都读这里的一份
 ├── styles/                   风格预设（参考，不是模板）：STYLE.md + tokens.json + 真渲的 5 s 样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方和全片骨架
 ├── components/               能复用的动效（弹簧场景、翻页、纸面转场、章节进度条），各带参数表和样片；lib/ 是它们和样片共用的库

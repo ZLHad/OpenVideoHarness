@@ -38,7 +38,7 @@
 
 - **在哪看**决定字号下限和可读性检查缩到多宽（`03-motion-design.md` §4）。平台对应：竖屏、1:1、4:5、3:4 都是 `phone`（HyperFrames 类型用 `--aspect 4:5` / `3:4` 建项目，只出 1080p）；横屏片发抖音、视频号、小红书、微博、X 这类信息流，是 `feed`；发 B 站、YouTube、官网，是 `desktop`。抖音上 2–5 分钟的横屏知识中视频是个例外：`video-types/02-knowledge-short.md` 的"变体：抖音横屏中视频"默认按 `desktop`，理由写在那里。同一支横屏片既要在电脑上看、又要进手机信息流时，优先另出一个竖版（重新构图），而不是把横屏的字放大到 `feed` 那一档。
 - **4K**：用户要，或者精品档的片子要发到 B 站、YouTube 这类有 4K 播放的平台时再用；竖屏一般用不上（YouTube Shorts 最高只播 1080p）。照常按 1080p 写，出片时渲成 4K，BRIEF 的 Resolution 写 `1080p, 4k`。canvas、Three.js 这类自己画像素的代码要处理像素密度，出 4K 前先渲一个 4K draft，用 `bin/vh check <4K 视频> --against <1080p 成片>` 比一遍，再裁帧看锐度（`engines/README.md`"出 4K"）。成本：HyperFrames 渲染时间约 2.5–3.5 倍、文件约 3 倍；Blender 约 4 倍。
-- **核对和交付**：`bin/vh check` 拿成片对 BRIEF 的 Output 和 Resolution 两行，尺寸、帧率、时长对不上就失败（BRIEF 改了规格，就先改这两行）；色彩标签也一起查。发布用 x264 CRF 18–19、`-preset slow`、`yuv420p`、BT.709 标签。GitHub release 每个文件不能超过 2 GiB；README 里内嵌的视频每个不超过 10 MB（免费账户）。
+- **核对和交付**：`bin/vh check` 拿成片对 BRIEF 的 Output 和 Resolution 两行，尺寸、帧率、时长对不上就失败（BRIEF 改了规格，就先改这两行）；色彩标签也一起查。发布用 x264 CRF 18–19、`-preset slow`、`yuv420p`、BT.709 标签。
 
 ## 努力程度：三档各做多少
 
@@ -68,7 +68,7 @@
 
 ```
 projects/2026-10-01-leo-doppler/
-├── BRIEF.md  STYLE.md  STORYBOARD.md  SCRIPT.md  NOTES.md  LESSONS.md  TASTE_CHECKLIST.md
+├── BRIEF.md  STYLE.md  STORYBOARD.md  SCRIPT.md  NOTES.md  LESSONS.md
 ├── REVIEW.md  DECISIONS.md   人的原话 / 谁拍板、定了什么、为什么（导演模式）
 ├── audio/            voiceover.wav、bgm.mp3、timeline.json、beats.json
 ├── assets/           图片、字体、图标、片段，进来就 bin/vh assets add 登记来源和许可（台账 assets/ledger.json）
@@ -104,10 +104,10 @@ projects/2026-10-01-leo-doppler/
 
 - **计划记在 BRIEF 的 `Stops:` 一行。** `default` 由工具按片子算：片长读 Output 一行（`45s`、`3 min`、`1:30`、`两分钟` 都认），3D 读 Engine 一行（Blender、Three.js、3D），付费读这支片子自己的 Budget 一行和花费记录（`LOCAL.md` 的默认预算不算，真花了钱才算）。`bin/vh status <项目>` 的 `stops:` 说算出来的计划和原因。工具只认得这几样；别的"下一步贵"（一遍 draft 要渲十几分钟，每一帧都带的东西还没人看过，要请真人录音），你自己把 2 写进这一行。
 - **人说了看几次**（CLAUDE.md"停在哪"的三种说法，或者第一次停时回一句"分镜也给我看看""分镜不用单独看"），就照改 `Stops:`（`1, 2, 3` 或 `1, 3`；检查点也写在这一行，`1, E3, 3`），原话记进 REVIEW.md。要点名某一件事亲自定、某个检查点也停，才用到导演模式那 12 个名字。
-- **用户的话已经把立意定了**：不出立意卡，把他给立意的那几句原话记在 REVIEW.md 的关卡 ① 下，"定了"写照 brief 做什么，DECISIONS.md 的 concept 一行写已定；发一条消息，说你照这个会做成什么样、打算在哪几处停，不等回复接着做。只给了题目、立意要你来想的，不算；拿不准就出卡。
+- **用户的话已经把立意定了**：不出立意卡，把他给立意的那几句原话记在 REVIEW.md 的关卡 ① 下，"定了"写照 brief 做什么；发一条消息，说你照这个会做成什么样、打算在哪几处停，不等回复接着做。只给了题目、立意要你来想的，不算；拿不准就出卡。
 - **多停一次**不用谁批准：给关卡 ② 出一页，它就是一停。计划里的停只有用户在对话里的原话能拿掉，照下面"授权的无人值守模式"的格式记在那一关下面。片子本身贵而 `Stops:` 一行没写 2，关卡 ② 仍在计划里。
 - **工具怎么把关**（`tools/gatecheck.py`；这是给 agent 的护栏，不是锁）：
-  - 关卡 ①：`standard` 和 `studio` 的项目，`bin/vh render` 渲项目自己的整片（不带 `--range`、`--frames`；`out/` 下面的立意草图、look-dev 页不管）和 `bin/vh check` 之前，`REVIEW.md` 的关卡 ① 下（审阅台写的"审阅台反馈 · 关卡 1"一节也算）要有人的原话和"定了：…"一行，`DECISIONS.md` 的 concept 立意那一行状态要是"已定"；缺哪行，它就拒绝并说补哪一行。用户的跳过授权记在案的（下面"授权的无人值守模式"），放行。
+  - 关卡 ①：`standard` 和 `studio` 的项目，`bin/vh render` 渲项目自己的整片（不带 `--range`、`--frames`；`out/` 下面的立意草图、look-dev 页不管）和 `bin/vh check` 之前，`REVIEW.md` 的关卡 ① 下（审阅台写的"审阅台反馈 · 关卡 1"一节也算）要有人的原话和"定了：…"一行；缺哪行，它就拒绝并说补哪一行。关卡的记录只写在 REVIEW.md 这一处：`DECISIONS.md` 那张表的 concept 一行不用改状态，`bin/vh status` 从 REVIEW.md 读立意定了什么。用户的跳过授权记在案的（下面"授权的无人值守模式"），放行。
   - 关卡 ②：计划里有它而没有记录时，`bin/vh gate` 不发关卡 ③ 的页，`bin/vh check` 不放整片，draft 也算，因为 draft 本来就在分镜之后；不查这一条的是 animatic（放在 `out/animatic.mp4`）、`out/review/` 下的小样，和不到片长一半的片段。记录和关卡 ① 一样要两行：人的原话和"定了"；只跳过关卡 ① 的授权管不到关卡 ②。
   - BRIEF 里没有 `Stops:` 一行的项目（这一行加进模板之前建的）照旧是三道关卡，只查关卡 ①。
 
@@ -200,7 +200,7 @@ projects/2026-10-01-leo-doppler/
 ```
 
 - **必填**：`summary`，一句话说这页要你定什么、看完要多久；`decisions`，没有要定的写 `[]`。每个决定要有 `question`、`recommend` 和 `reply`（不写 `reply` 就用选项名拼）。选项的 `id` 别用纯数字，免得和决定的编号混在一起；同一页的几个决定也别共用 `id`（一个用 A / B，另一个用 H1 / H2），人随手回一个"A"才不会有歧义。
-- **选填**：`version`（骨架带的 1，不读）、`why`、`cost`，选项的 `label` / `pro` / `con`（文字里的换行照样换行）和 `frame`（这张卡的那一帧，立意卡用它），决定的 `columns`（`pro`、`con` 两栏的标题，不写是"好处 / 代价"；关卡 ① 的骨架写"这张卡讲什么 / 风险或代价"）；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）、`film`（播哪支视频，不写取第一支）、`listen`（`[{"t": 秒, "note": "…"}]`，请人听这几处）。`music` 只有审阅台用（见下面的"审阅台"）。
+- **选填**：`version`（骨架带的 1，不读）、`why`、`cost`，选项的 `label` / `pro` / `con`（文字里的换行照样换行）、`frame`（这张卡的那一帧，立意卡用它）、`titles` 和 `cover`（要发平台的片子，每张立意卡带的 2 个标题和 1 个封面版式，`playbook/10-hooks-and-packaging.md` 第 1 节；知识短视频的骨架写好了这两项，页面把它们排在卡上），决定的 `columns`（`pro`、`con` 两栏的标题，不写是"好处 / 代价"；关卡 ① 的骨架写"这张卡讲什么 / 风险或代价"）；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）、`film`（播哪支视频，不写取第一支）、`listen`（`[{"t": 秒, "note": "…"}]`，请人听这几处）。`music` 只有审阅台用（见下面的"审阅台"）。
 - `assets[].for` 写决定或分段的 `id`，图就挂在那件决定或那一段下；不写的进"材料"。视频加 `t0` / `t1` 只播一段，加 `poster` 指定封面帧。附录的 `text` 可以放简单的竖线表格（`| a | b |`、`|---|---|`）。
 - `least_sure` 的 `id` 写镜头号（`S04`）或时间（`12.4 s`、`0–5 s`），也可以写 `t`、`t1` 秒数。镜头的 `note` 写"默认会这样改"。
 - `include`：一个 JSON 文件（或几个的列表），路径相对项目，只补 gate JSON 没写的键，gate JSON 写了的优先；`bin/vh storyboard` 写的 `out/check/storyboard/review.json` 就是给它用的。

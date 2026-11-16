@@ -15,15 +15,15 @@ plan and why (--json: stops). Each has a state:
                   out/review/gate-<n>.html, as the template's sections do: REVIEW.md grows downwards, so a second
                   review of the page comes after the first); with no such section, in the stop's section when REVIEW.md
                   was written after that page (said in the stop's note). Gate ① goes by gatecheck.py's own rule, as
-                  bin/vh render and check do: a decision and the person's words in a gate ① section, and the concept
-                  on record in DECISIONS.md
+                  bin/vh render and check do: a decision and the person's words in a gate ① section (record.concept is
+                  what its 定了 line says; DECISIONS.md's concept row is not asked for, an older project's is read)
   skipped         Effort quick (no page of its own, and the Director line does not ask for this stop, by stop= or x=own), or
                   waived in the user's own words in REVIEW.md
   waiting_person  its page is out (bin/vh gate made it: a gate JSON not sent yet is not, nor a page whose last run bin/vh gate
                   refused, exit 1, for it sent nothing), it is this round (out/review/.current), and nothing has come back for it yet
   waiting_agent   the person submitted on the desk and no agent has it yet, or an agent has it and REVIEW.md has no
                   decision for it yet; or the project moved on past its page with no decision on record; gate ①
-                  decided, but its record lacks the person's words or DECISIONS.md's concept (render and check refuse);
+                  decided, but its record lacks the person's words (render and check refuse);
                   gate ② of a film whose plan has it (a BRIEF with a Stops line) decided without the person's words
   in_progress     the first stop with nothing yet after the last one that has something, when all before it are done or
                   skipped: what the agent works towards
@@ -91,10 +91,11 @@ R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playboo
 R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
 R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md", "engines/EDIT.md", "engines/editing.md"
 R_4K = "engines/README.md#出 4K"   # read only for a film delivered in 4K (the BRIEF's Resolution)
+R_TYPE = "playbook/03-motion-design.md#4."   # the text-size floors by Watch on (a floor at every effort), read where the BRIEF is filled
 TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas"}
 OWN_STOP = G.OWN_STOP   # what a Director line can keep for the person (x=own), and its stop (tools/gatecheck.py)
 READS = (R_PAGE, R_DESK, R_STOPS, R_READS, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
-         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K)
+         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K, R_TYPE)
 
 
 def rel(project, p):
@@ -203,11 +204,14 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
         waived = G.waived_stop(review_text, key) if is_stop else None
         st["record"] = {"decided": decided, "said": said, "waived": waived, "from": how}
         missing = []
-        if key == "1":
+        if key == "1":   # the concept, from REVIEW.md (the one record of a stop); an older project's DECISIONS.md row still counts
             dec = project / "DECISIONS.md"
-            st["record"]["concept_on_record"] = concept = dec.is_file() and G.concept_decided(G.read(dec))
+            row = dec.is_file() and G.concept_decided(G.read(dec))
+            st["record"]["concept_on_record"] = bool(decided and said) or row
+            st["record"]["concept_from"] = "REVIEW.md" if decided and said else "DECISIONS.md" if row else None
+            st["record"]["concept"] = G.gate1_words(review_text) if decided else None
             if decided and effort != "quick":   # what gatecheck would still ask for
-                missing = ([] if said else ["the person's words (原话) in REVIEW.md"]) + ([] if concept else ["the concept row in DECISIONS.md"])
+                missing = [] if said else ["the person's words (原话) in REVIEW.md"]
         elif key == "2" and plan["line"] is not None and "2" in plan["gates"] and effort != "quick":
             decided, said = G.stop_record(review_text, "2") if not page_secs else (decided, said)   # as bin/vh gate and check read it
             if decided and not said:
@@ -623,8 +627,9 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         delivered = st[-1]["state"] == "done"
         return out("nobody" if delivered and not working else "agent", busy + ("delivered: what this film taught goes into LESSONS.md" if delivered else "carry on"))
     todo = scaffold_todo(project, proj)
-    if todo:
+    if todo and s["id"] != "1":
         return out("agent", busy + "the engine's scaffold is not there: this makes it", [todo], [R_HF] if "hf-init" in todo else [])
+    later = todo   # gate ①'s cards, BRIEF and outline need no engine (bin/vh new --no-install, or a scaffold that failed offline): it is made before the scenes
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
@@ -678,12 +683,14 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         say, cmds = page()
         if any(c.endswith("--init") for c in cmds):   # the first stop, not begun: what this level does comes first
             cmds = [effort, *cmds]
+        if later:
+            cmds, say = [*cmds, later], f"{say}; the engine is not installed yet: {later} (it needs the network) before the scenes"
         own_only = quick and mine and "concept" not in own   # quick's concept is the agent's: a page only for what the person kept
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"NOTES.md's material first, your own concept (a quick film's), then options for {mine} with a frame each" if own_only
                                                          else "NOTES.md's material first, then concept cards that really differ, a frame each, and the outline (the user's own words already settle the concept: no cards, "
                                                          "their words and 定了 under 关卡 ① in REVIEW.md, one message that says what you will make and where it stops, and carry on); "
                                                          "bin/vh gate's message tells the person where this film stops", say) if x),
-                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
+                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_TYPE, R_IDEAS, R_CARDS, None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
     if key == "2":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),
@@ -711,7 +718,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if fstate == "none":
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final") if x),
                    [effort if quick else None, engine_setup(project, proj), render_cmd(project, proj, not quick)],
-                   [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
+                   [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, R_TYPE, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
     if fstate in ("unchecked", "stale"):
         return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),
                    check + ([f"bin/vh sheet {p}/{film}"] if not is_final(film) else []), [R_PHONE] if quick else [])

@@ -555,9 +555,9 @@ PY
 cmd_new() {
   local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
   VH_OWN=new; [ -z "$VH_JSON" ] || vh_trap   # (a step that stops it unsaid: vh_exit says so)
-  [ $# -ge 2 ] || { x="usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--json]"; echo "$x" >&2; cmd_types >&2; vh_said usage "$x"; exit 2; }
+  [ $# -ge 2 ] || { x="usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--no-install] [--json]"; echo "$x" >&2; cmd_types >&2; vh_said usage "$x"; exit 2; }
   case "$2" in -*) vh_fail usage 2 "bin/vh new: $2 is no slug: bin/vh new <type> <slug> [options]" ;; esac
-  local type slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff="" json="" todo=""
+  local type slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff="" json="" todo="" noinst=""
   type=$(type_key "$1") || { echo "unknown type: $1" >&2; cmd_types >&2; vh_said usage "unknown type: $1" "bin/vh types lists them"; exit 2; }
   doc=$(type_doc "$type")
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
@@ -575,6 +575,7 @@ cmd_new() {
     --three)  three=1; shift ;;
     --from)   needv $# "${2:-}" "--from needs a project (a folder, or a name under the projects folder)"; from=$2; shift 2 ;;
     --json)   json=1; shift ;;
+    --no-install) noinst=1; shift ;;   # no network: the engine's scaffold (HyperFrames' init, npm install) is left for later, its command said
     *) vh_fail usage 2 "unknown option: $1" ;;
   esac; done
   [ -z "$json" ] || { exec 3>&1 1>&2; VH_JFD=3; }   # --json: the record on stdout at the end, the lines a person reads on stderr
@@ -651,10 +652,11 @@ cmd_new() {
   elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
-    (cd "$dir" && npm install --no-fund --no-audit --loglevel=error) || todo="(cd $(rel "$dir") && npm install)"
+    if [ -n "$noinst" ]; then todo="(cd $(rel "$dir") && npm install)"
+    else (cd "$dir" && npm install --no-fund --no-audit --loglevel=error) || todo="(cd $(rel "$dir") && npm install)"; fi
   else mkdir -p "$dir"; fi
   mkdir -p "$dir/audio" "$dir/assets" "$dir/out/check"
-  for f in BRIEF STYLE STORYBOARD REVIEW DECISIONS NOTES LESSONS TASTE_CHECKLIST; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
+  for f in BRIEF STYLE STORYBOARD REVIEW DECISIONS NOTES LESSONS; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
   # the type doc is named, not pasted: its Prompt 增量块 is read after the concept (CLAUDE.md step 4); the marker is
   # what tools/vhdraw.py reads to find the type
   python3 - "$doc.md" "$dir/BRIEF.md" <<'PY'
@@ -694,7 +696,8 @@ PY
     [ -z "$three" ] || echo "   three.js : the Three.js layer in three/ (a pinned three.js with it): FILM.three in src/50-shots.js turns it on (ENGINE_README.md, Three.js 层)"
   else
     case "$type" in
-      short|promo|data|meme) x=${frameh:+$aspect}; x=${x:-$res}; cmd_hf_init "$dir" "$x" || todo="bin/vh hf-init $(rel "$dir") $x" ;;   # it says why
+      short|promo|data|meme) x=${frameh:+$aspect}; x=${x:-$res}
+        if [ -n "$noinst" ]; then todo="bin/vh hf-init $(rel "$dir") $x"; else cmd_hf_init "$dir" "$x" || todo="bin/vh hf-init $(rel "$dir") $x"; fi ;;   # it says why
       math|paper) echo "   engine   : Manim → cd $(rel "$dir") && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
       edit) echo "   engine   : HyperFrames → bin/vh hf-init $(rel "$dir") portrait   (or landscape; see video-types/09-editing-talking-head.md)" ;;
     esac
@@ -722,8 +725,10 @@ PY
   python3 "$ROOT/tools/identity.py" "$dir" >/dev/null || echo "$c_wa no .ovh/project.json was written: bin/vh projects --assign gives $(rel "$dir") its id" >&2
   eff=$(sed -n 's/^- Effort: \([a-z]*\).*/\1/p' "$dir/BRIEF.md" | head -1); eff=${eff:-${effort:-standard}}   # as the BRIEF has it now
   NEW_DIR=""
-  ACT_SUMMARY="created ${dir##*/} · $type · $eff${todo:+ · the scaffold did not finish}"; act_begin "$dir" new "${typed[@]}" || true
-  if [ -n "$todo" ]; then echo "$c_no created $(rel "$dir"), but its engine's scaffold did not finish; this finishes it: $todo"
+  local left="the scaffold did not finish"; [ -z "$noinst" ] || left="its engine left for later (--no-install)"
+  ACT_SUMMARY="created ${dir##*/} · $type · $eff${todo:+ · $left}"; act_begin "$dir" new "${typed[@]}" || true
+  if [ -n "$todo" ] && [ -n "$noinst" ]; then echo "$c_ok created $(rel "$dir") without its engine (--no-install); with the network, this installs it: $todo"
+  elif [ -n "$todo" ]; then echo "$c_no created $(rel "$dir"), but its engine's scaffold did not finish; this finishes it: $todo"
   else echo "$c_ok created $(rel "$dir")"; fi
   echo "   type doc : video-types/$doc.md"
   local fdesc="${frameh:+$aspect, }$res"   # empty for the types whose engine is not scaffolded here (math, paper, handdrawn, mv, edit)
@@ -750,19 +755,19 @@ PY
        echo "              when the film is long, a heavy 3D render or paid (the BRIEF's Stops line; bin/vh status says the plan)." ;;
   esac
   if [ -n "$json" ]; then   # next: bin/vh status's next_step, so the two never tell different stories
-    python3 - "$ROOT" "$dir" "$type" "$doc" "$eff" "${lang:-zh}" "$watch" "${outres:-1080p}" "$wh" "$engine" "$todo" >&3 <<'PY'
+    python3 - "$ROOT" "$dir" "$type" "$doc" "$eff" "${lang:-zh}" "$watch" "${outres:-1080p}" "$wh" "$engine" "$todo" "$noinst" >&3 <<'PY'
 import json, subprocess, sys
-root, d, t, doc, eff, lang, watch, res, wh, engine, todo = sys.argv[1:12]
+root, d, t, doc, eff, lang, watch, res, wh, engine, todo, noinst = sys.argv[1:13]
 st = json.loads(subprocess.run([sys.executable, root + "/tools/status.py", d, "--json"], capture_output=True, text=True).stdout)
 own = {"short": "hyperframes", "promo": "hyperframes", "data": "hyperframes", "meme": "hyperframes", "edit": "hyperframes", "math": "manim", "paper": "manim",
        "handdrawn": "ClaudeAnimationBase", "mv": "ClaudeAnimationBase"}
 print(json.dumps({"version": 1, "project": d, "id": st["project"]["id"], "type": t, "doc": f"video-types/{doc}.md", "effort": eff, "lang": lang, "frame": wh or None, "watch": watch,
-                  "resolution": res, "engine": engine or own.get(t), "scaffold": {"ok": not todo, "finish": todo or None}, "next": st["next_step"]},
+                  "resolution": res, "engine": engine or own.get(t), "scaffold": {"ok": not todo, "finish": todo or None, "skipped": bool(noinst and todo)}, "next": st["next_step"]},
                  ensure_ascii=False, indent=1))
 PY
   fi
-  VH_OWN=""   # it is made: what is left is the scaffold's own exit, said in the record
-  [ -z "$todo" ] || exit 1
+  VH_OWN=""   # it is made: what is left is the scaffold's own exit, said in the record (--no-install: left on purpose, exit 0)
+  [ -z "$todo" ] || [ -n "$noinst" ] || exit 1
 }
 
 cmd_effort() { # the effort levels: the rules from CLAUDE.md's 努力程度, the table from playbook/01's; with a level, only that column
@@ -857,7 +862,7 @@ cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (to
     case " $* " in *" --range"*|*" --frames"*|*" -h "*|*" --help "*) ;;
       *) local g grc=0; g=$(python3 "$ROOT/tools/gatecheck.py" "$(arg_dir "$@")" --for render) || grc=$?
          if [ "$grc" = 1 ]; then printf '%s\n' "$g" | sed "1s/^/$c_no /" >&2; echo "   (a part of the film renders before that: --range a:b)" >&2
-           ACT_SUMMARY="refused: no record of gate ① (REVIEW.md, DECISIONS.md)"; exit 1; fi ;;
+           ACT_SUMMARY="refused: no record of gate ① (REVIEW.md)"; exit 1; fi ;;
     esac
   fi
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
