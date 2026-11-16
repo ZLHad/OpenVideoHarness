@@ -2463,7 +2463,7 @@ PY
   printf '#!/bin/sh\ntouch "%s/npx-ran"\nexit 1\n' "$t" > "$t/bad/npx"; chmod +x "$t/bad/npx"
   a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/o" vh new short oo --no-install --json 2>"$t/o.err"); rc=$?; p=$(ls -d "$t"/o/*-oo 2>/dev/null)
   if [ "$rc" = 0 ] && [ ! -e "$t/npx-ran" ] && [ -f "$p/BRIEF.md" ] && [ ! -f "$p/hyperframes.json" ] && grep -q "without its engine (--no-install); with the network, this installs it: bin/vh hf-init" "$t/o.err" \
-    && python3 -c 'import json, sys; d = json.loads(sys.argv[1]); s, c = d["scaffold"], d["next"]["commands"]; sys.exit(0 if s["ok"] is False and s["skipped"] is True and s["finish"].endswith(" portrait") and c[0].startswith("bin/vh effort") and c[-1] == s["finish"] and "before the scenes" in d["next"]["do"] else 1)' "$a"
+    && python3 -c 'import json, os, sys; d = json.loads(sys.argv[1]); s, c = d["scaffold"], d["next"]["commands"]; same = lambda a, b: a.split(" ")[:2] == b.split(" ")[:2] and a.split(" ")[-1] == b.split(" ")[-1] and os.path.realpath(a.split(" ")[2]) == os.path.realpath(b.split(" ")[2]); sys.exit(0 if s["ok"] is False and s["skipped"] is True and s["finish"].endswith(" portrait") and c[0].startswith("bin/vh effort") and same(c[-1], s["finish"]) and "before the scenes" in d["next"]["do"] else 1)' "$a"   # (one path may be /var/…, the other /private/var/…)
   then ok "new --no-install: HyperFrames' init is not tried, the project is made, the command that installs it later is said, exit 0; status keeps gate ①'s work and names it last"
   else bad "new --no-install (exit $rc): $(cat "$t/o.err" | head -c 400) | $(printf '%s' "$a" | head -c 400)"; fi
   # and on quick, which has no gate ①: its first step (BRIEF, the quick card, the size floors) comes first, the install just
