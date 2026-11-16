@@ -66,7 +66,10 @@ async function stylesheetLoaded(id) {
 
 // Load every @font-face whose family is named anywhere in the tokens, plus the lib fallbacks and scene.fonts.
 async function loadFonts(tokens, extra) {
-  const text = JSON.stringify(tokens || {}) + " " + (extra || []).join(" ") + " " + lib.FALLBACK_FAMILIES.join(" ");
+  // every field but the library's own words (card, tags, swatch, family: tools/styles.py), so a font named in a README
+  // row is not loaded for a scene that never draws with it
+  const { card, tags, swatch, family, ...fontish } = tokens || {};
+  const text = JSON.stringify(fontish) + " " + (extra || []).join(" ") + " " + lib.FALLBACK_FAMILIES.join(" ");
   const jobs = [];
   for (const face of document.fonts) {
     const fam = face.family.replace(/^["']|["']$/g, "");
@@ -91,7 +94,8 @@ async function boot() {
     if (typeof scene.setup === "function") await scene.setup(ctx, state.tokens, lib);
     // Warm pass: draw a spread of frames so any font, image or cache first touched inside renderAt is loaded
     // before the first captured frame (otherwise worker 1 and worker 4 could draw frame 90 differently).
-    for (const t of [0, 0.9, 1.8, 2.7, 3.0, 3.6, 4.5, lib.DUR - 1 / lib.FPS]) {
+    const warm = (window.__swatchSpec && window.__swatchSpec.warm) || [0, 0.9, 1.8, 2.7, 3.0, 3.6, 4.5];
+    for (const t of [...warm, lib.DUR - 1 / lib.FPS]) {
       ctx.reset();
       try { scene.renderAt(t, ctx, state.tokens, lib); }
       catch (err) { log("error", `renderAt(${t.toFixed(2)}) threw during warm-up: ${err && err.stack || err}`); break; }   // the frame itself will show the error card
@@ -105,6 +109,11 @@ async function boot() {
     log("error", `${STYLE}: ${err && err.stack || err}`);
   }
   window.__swatchDraw = draw;
+  // the page contract (engines/CONTRACT.md) for bin/vh textcheck and frames: the same draw at t, and the scene's
+  // reads ([{text, start, end}], readcheck's format) when it exports texts(lib, tokens) or TEXTS (bin/vh style check --text)
+  let texts = null;
+  try { texts = state.scene && (typeof state.scene.texts === "function" ? state.scene.texts(lib, state.tokens) : state.scene.TEXTS); } catch (e) { texts = null; }
+  window.film = { frame: (t) => draw(t), duration: lib.DUR, ...(Array.isArray(texts) ? { texts } : {}) };
   draw(window.__swatchT || 0);
   window.__swatchResolve && window.__swatchResolve();
 }

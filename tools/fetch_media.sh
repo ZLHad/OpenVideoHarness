@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Download the showcase and style-gallery videos from the GitHub release "media" to the paths the build scripts and
-# READMEs use (tools/media.txt lists them; git doesn't keep videos, so a clone stays small). A file already present
+# Download the showcase, style-gallery and style-swatch videos from the GitHub releases to the paths the build scripts and
+# READMEs use (tools/media.txt lists them; git doesn't keep videos, so a clone stays small). An asset written <tag>/<name>
+# is in that release (the full style swatches are in "styles-media"); a bare name is in "media". A file already present
 # with the right checksum is skipped; one that differs (a local render, say) is kept unless you pass --force.
 # usage: tools/fetch_media.sh [--force] [word…]      (run from anywhere; words filter the paths, e.g. "04-intro" or "styles")
 #        tools/fetch_media.sh -h | --help          this, and nothing downloaded
@@ -11,7 +12,7 @@ unset CDPATH   # an exported one could send this relative cd elsewhere (as in bi
 force=0 words=()
 for a in "$@"; do   # options before anything is fetched: -h was a word, and matched the paths with "-h" in them
   case "$a" in
-    -h|--help) sed -n '2,8s/^# \{0,1\}//p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,9s/^# \{0,1\}//p' "$0"; exit 0 ;;
     --force) force=1 ;;
     -*) echo "tools/fetch_media.sh: unknown option $a (tools/fetch_media.sh --help)" >&2; exit 2 ;;
     *) words+=("$a") ;;
@@ -19,7 +20,8 @@ for a in "$@"; do   # options before anything is fetched: -h was a word, and mat
 done
 set -- ${words[@]+"${words[@]}"}
 cd "$(dirname "$0")/.." || exit 1
-BASE=${VH_MEDIA_URL:-https://github.com/ZLHad/OpenVideoHarness/releases/download/media}
+BASE=${VH_MEDIA_URL:-https://github.com/ZLHad/OpenVideoHarness/releases/download/media}   # the release "media"
+ROOT_URL=${VH_MEDIA_ROOT:-${BASE%/*}}                                                       # <tag>/<name> assets: any release
 sha() { if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 got_n=0 matched=0 failed=0
 while read -r path asset sum || [ -n "${path:-}" ]; do
@@ -32,8 +34,9 @@ while read -r path asset sum || [ -n "${path:-}" ]; do
   fi
   mkdir -p "$(dirname "$path")"
   echo "fetch $path  ←  $asset"
-  if ! curl -fL --retry 3 --progress-bar -o "$path.part" "$BASE/$asset"; then
-    rm -f "$path.part"; echo "could not download $asset from $BASE (is it in the release?)" >&2; failed=$((failed + 1)); continue
+  case "$asset" in */*) url="$ROOT_URL/$asset" ;; *) url="$BASE/$asset" ;; esac
+  if ! curl -fL --retry 3 --progress-bar -o "$path.part" "$url"; then
+    rm -f "$path.part"; echo "could not download $asset from ${url%/*} (is it in the release?)" >&2; failed=$((failed + 1)); continue
   fi
   got=$(sha "$path.part")
   if [ "$got" != "$sum" ]; then

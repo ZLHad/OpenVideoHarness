@@ -150,6 +150,18 @@ def build():
         tags = [name] + flat(d.get("painters")) + flat(d.get("tags")) + [str(x["name"]) for x in slots if x.get("name")]
         body = "\n".join(f"{x.get('name', '')}: {x.get('text', '')}" for x in slots)
         units.append(unit("component", name, name, f.relative_to(ROOT).as_posix(), 1, str(d.get("summary") or ""), tags, body))
+    try:
+        lib = json.loads((ROOT / "styles" / "families.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        lib = {}
+    fam = {f.get("id"): [f.get("zh", ""), f.get("en", "")] for f in lib.get("families", []) if isinstance(f, dict)}
+    words = {(dim, k): [v.get("zh", ""), v.get("en", "")] for dim, t in (lib.get("tags") or {}).items() if isinstance(t, dict)
+             for k, v in (t.get("values") or {}).items() if isinstance(v, dict)}
+    def style_words(tok):
+        out = list(fam.get(tok.get("family"), []))
+        for dim, v in (tok.get("tags") or {}).items() if isinstance(tok.get("tags"), dict) else []:
+            out += words.get((dim, v), [])
+        return [w for w in out if w]
     for d in sorted(p for p in (ROOT / "styles").iterdir() if p.is_dir() and not p.name.startswith("_")):
         f = d / "STYLE.md"
         if not f.is_file():
@@ -161,6 +173,7 @@ def build():
         try:
             tok = json.loads((d / "tokens.json").read_text(encoding="utf-8"))
             tags += flat(tok.get("family")) + flat(tok.get("transitions")) + flat(tok.get("camera")) + flat(tok.get("type_anim"))
+            tags += style_words(tok)   # the family's names and the tag words (styles/families.json)
             tags += flat((tok.get("texture") or {}).get("type")) + flat((tok.get("name") or {}).get("en"))
         except (OSError, ValueError, AttributeError):
             pass

@@ -1,5 +1,8 @@
-# The videos kept in the GitHub release "media" instead of git: <path in the repo> <release asset> <sha256>.
-# tools/fetch_media.sh downloads them to these paths (the paths are in .gitignore).
+# The videos kept in GitHub releases instead of git: <path in the repo> <release asset> <sha256>.
+# A bare asset name is in the release "media"; <tag>/<name> is in that release: the full style swatches (5–10 s, swatch
+# spec 2) are styles-media/<slug>[-portrait]-<sha256[:8]>.mp4, written here by `bin/vh style register <slug>`.
+# tools/fetch_media.sh downloads them to these paths (the paths are in .gitignore). tools/styles.py check holds the lines
+# to this form; tools/ci.sh runs it.
 showcase/00-promo-launch-film/media/final.mp4 00-launch-short.mp4 f93321c753af806d03d80d81362a46bdb23b19b36f3765a38cd1a16015949272
 showcase/01-handdrawn-clawd-leaf/media/final.mp4 01-handdrawn-short.mp4 f42681f2a2f09fa1cb56aeebe1e296d9efebc0155b674733dd0c8baac96b5c97
 showcase/02-short-leo-doppler/media/final.mp4 02-vertical-science-short.mp4 8224e90435498512bf38558579aec6463d2070372818b36e8b48aefeb975e231
