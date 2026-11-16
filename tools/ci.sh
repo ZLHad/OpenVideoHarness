@@ -3610,9 +3610,9 @@ page = page.decode()
 token = json.loads(req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})[2]).get("token", "")
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
 want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
-for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js", "agent.css", "agent.js"):
+for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js", "agent.css", "agent.js", "reader.css", "reader.js"):
     want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
-want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its nine files (static.js is the static page's)")
+want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its eleven files (static.js is the static page's)")
 s, _, d = req("GET", "/api/projects"); d = json.loads(d)
 real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
 rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
@@ -4271,7 +4271,7 @@ if re.findall(r"exposeInMainWorld\(\"(\w+)\"", pre) != ["ovhShell"] or set(re.fi
 for f in ("main.js", "preload.js"):
     if subprocess.run(["node", "--check", d + f]).returncode:
         bad.append(f"{f} does not parse")
-css = re.sub(r"/\*.*?\*/", "", open("tools/desk/static/studio.css").read(), flags=re.S)
+css = re.sub(r"/\*.*?\*/", "", open("tools/desk/static/studio.css").read() + open("tools/desk/static/reader.css").read(), flags=re.S)
 frame = [r for r in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if "app-region" in r[1]]
 if not frame or any(not s.strip().startswith("html.shell") for sel, _ in frame for s in re.sub(r":is\([^)]*\)", ":is()", sel).split(",")):
     bad.append("an -webkit-app-region rule outside html.shell")
@@ -4303,14 +4303,54 @@ want(R.line({ close: "console-a" }).close === "console-a" && R.line({ quit: true
 want(R.navigation(C + "/#/p/x", C + "/f/x/a.html") === "stay" && R.navigation(C + "/", "https://example.com/") === "browser", "the same console stays, a site elsewhere goes to the browser");
 want(["http://127.0.0.1:9/", "http://localhost:8780/", "javascript:alert(1)", "file:///etc/hosts"].every((u) => R.navigation(C + "/", u) === "deny"), "another local address, javascript: and file: go nowhere");
 want(R.newPage(C + "/#/p/x", C + "/f/x/t.html") === "inside" && R.newPage(C + "/", "https://example.com/") === "browser", "a new page: the same console inside, a site elsewhere outside");
+want(["research/digest/x/transcript.md", "notes.txt", "a.png", "a.mp4", "out/review/gate-1.html", "a.pdf"].every((p) => R.readerUrl(C + "/#/p/x", C + "/f/demo~ab/" + p + "?k=1") === C + "/v/demo~ab/" + p)
+  && R.readerUrl(C + "/", "https://example.com/a.md") === null && R.readerUrl(C + "/", "http://127.0.0.1:9/f/x/a.md") === null, "every project file a link opens (a transcript among them) goes through the reader; nothing else does");
 want(R.permission("fullscreen", C + "/", C + "/#/p/x") && !R.permission("fullscreen", "http://127.0.0.1:9/", C + "/") && !R.permission("media", C + "/", C + "/"), "full screen for the console's page, nothing else");
 want(R.show(null, { url: C + "/" }) === "make" && R.show(C + "/#/p", { url: C + "/?c=x" }) === "raise" && R.show(C + "/", { url: C + "/?c=x", fresh: true }) === "load"
   && R.show(C + "/", { url: "http://127.0.0.1:8781/?c=x" }) === "check", "a line to show: make, raise, load, or check another console");
 console.log(bad.join("; "));
 process.exit(bad.length ? 1 : 0);
 JS
-); then ok "studio's shell rules under node: the token only on the console page's own requests to its own console (not a page from elsewhere, not elsewhere, not a frame); only the console's lines; the same console stays, sites elsewhere in the browser, other local addresses nowhere; same-console pages in the app; full screen only; another console's address only after a check; a boot whose clone is gone exits 3 at once when the console starts it"
+); then ok "studio's shell rules under node: the token only on the console page's own requests to its own console (not a page from elsewhere, not elsewhere, not a frame); only the console's lines; the same console stays, sites elsewhere in the browser, other local addresses nowhere; same-console pages in the app, every project file through the reader (a text document among them); full screen only; another console's address only after a check; a boot whose clone is gone exits 3 at once when the console starts it"
   else bad "studio's shell rules under node: $a"; fi
+  # the reader the app opens those links in (GET /v/<key>/<path>): each kind shows its content (markdown and text as
+  # escaped text, a picture, a player, a page in a frame), a kind it cannot show says so and where the file is, the
+  # file's name is the page's title; a hidden file or a way out of the project is refused
+  if a=$(python3 - <<'PY'
+import os, re, shutil, sys, tempfile, threading, urllib.error, urllib.request
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+import server
+d = tempfile.mkdtemp(); p = d + "/demo"
+shutil.copytree("tools/desk/fixtures/demo", p)
+os.makedirs(p + "/research/kinds")
+for n, b in (("n.txt", b"a <b>line</b>\n"), ("a.png", b"\x89PNG"), ("c.mp4", b"\0"), ("t.mp3", b"\0"), ("g.html", b"<h1>g</h1>"), ("x.pdf", b"%PDF")):
+    open(f"{p}/research/kinds/{n}", "wb").write(b)
+open(p + "/.env", "w").write("K=1")
+srv = server.Desk(0, p, (), True)
+threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True).start()
+def get(rel):
+    try:
+        r = urllib.request.urlopen(f"http://127.0.0.1:{srv.port}/v/{srv.own_key}/{rel}")
+        return r.status, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, ""
+want = {"research/digest/tide-lecture/transcript.md": r'<main class="text"><article class="md"><h1>', "research/kinds/n.txt": r"<pre>a &lt;b&gt;line&lt;/b&gt;",
+        "research/kinds/a.png": r'<main class="pic"><img src="/f/', "research/kinds/c.mp4": r'<main class="av"><video controls', "research/kinds/t.mp3": r'<main class="av"><audio controls',
+        "research/kinds/g.html": r'<main class="page"><iframe src="/f/', "research/kinds/x.pdf": r'<main class="none"><p>[^<]*research/kinds/x\.pdf'}
+bad = []
+for rel, pat in want.items():
+    st, body = get(rel)
+    if st != 200 or not re.search(pat, body) or f"<title>{os.path.basename(rel)}</title>" not in body or 'class="bar"' not in body:
+        bad.append(f"{rel}: {st} {body[-200:]!r}")
+for rel in (".env", "../x", "research/kinds/none.md"):
+    if get(rel)[0] != 404:
+        bad.append(f"{rel} not refused")
+srv.shutdown(); srv.agents.shutdown(); srv.server_close(); shutil.rmtree(d)
+print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+); then ok "the reader (GET /v/…), where the app opens the console's new-page links: a transcript and other text as text, a picture, a video and an audio player, a page in a frame, a PDF said plainly with where it is; each titled with the file's name, with its bar; a hidden file, a way out and a missing file refused"
+  else bad "the reader (GET /v/…): $a"; fi
   # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
   # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
   a=$(studio_run --install-icon --no-shell --dir "$t/apps" --as linux 2>&1); rc=$?

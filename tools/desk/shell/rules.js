@@ -40,6 +40,16 @@ function newPage(openerUrl, toUrl) {
   return n === "stay" ? "inside" : n;
 }
 
+// The page a new-page link of the console opens in the app's reader window: a project file (/f/<key>/<path>) through
+// the console's reader (/v/<key>/<path>: text as text, a picture, a player, a page in a frame, else a sentence), so a
+// window is never left empty; another page of the same console as it is; null for anything that does not open inside.
+function readerUrl(openerUrl, toUrl) {
+  if (newPage(openerUrl, toUrl) !== "inside") return null;
+  const u = new URL(toUrl);
+  if (u.pathname.startsWith("/f/")) { u.pathname = "/v/" + u.pathname.slice(3); u.search = ""; u.hash = ""; }
+  return u.toString();
+}
+
 // Full screen (the player's button) for the console's own page; nothing else.
 function permission(perm, requestingUrl, windowUrl) {
   const o = originOf(requestingUrl);
@@ -55,4 +65,4 @@ function show(currentUrl, msg) {
   return msg.fresh ? "load" : "raise";
 }
 
-module.exports = { originOf, line, tokenFor, navigation, newPage, permission, show };
+module.exports = { originOf, line, tokenFor, navigation, newPage, readerUrl, permission, show };

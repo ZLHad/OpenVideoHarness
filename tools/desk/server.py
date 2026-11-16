@@ -31,6 +31,8 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   POST /api/p/<key>/feedback      a submission: checked, saved to out/review/feedback/, copied into REVIEW.md
   GET  /f/<key>/<path>            a file inside that project (HTTP Range, so video and audio can seek); nothing outside
                                   it, no hidden files
+  GET  /v/<key>/<path>            that file on a page of its own with a slim bar (its name): text and markdown as text, a
+                                  picture, a player, a page in a frame, else a sentence; Studio's app opens new-page links here
   GET  /api/p/<key>/agents        the column's agents (installed or how to install), the project's conversations, its lock
   GET  /api/p/<key>/agent/<id>/events?token=   one conversation's events, as Server-Sent Events (agents.py)
   POST /api/p/<key>/agent/new · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
@@ -69,7 +71,7 @@ asks for renew, and the console changes the token and replaces the window, twice
 is connected; a program that also holds the window's presence stream blocks that), makes itself a terminal to read
 --print-address (script(1) does), or synthesizes input. Against those the boundary is the agent's own mode and sandbox.
 """
-import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
+import datetime, hashlib, html, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
@@ -84,7 +86,14 @@ import agents as A     # noqa: E402  (the agents the column talks to: one adapte
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
           "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8",
-          "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8"}
+          "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8",
+          "reader.css": "text/css; charset=utf-8", "reader.js": "text/javascript; charset=utf-8"}
+# GET /v/<key>/<path>: a project file on a page of its own (Studio's app opens the console's new-page links there)
+VIEW = {"image": {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif", ".bmp"}, "video": {".mp4", ".mov", ".m4v", ".webm"},
+        "audio": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".opus"}, "page": {".html", ".htm"}, "markdown": {".md", ".markdown"},
+        "text": {".txt", ".json", ".jsonl", ".csv", ".tsv", ".srt", ".vtt", ".ass", ".yaml", ".yml", ".toml", ".log", ".py", ".js", ".mjs",
+                 ".ts", ".css", ".sh", ".tex", ".bib", ".xml", ".ini", ".cfg", ".lrc"}}
+VIEW_TEXT_MAX = 2 << 20   # bytes of text shown on the page; longer: said so
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
@@ -911,12 +920,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if m.group(1):
                 return self._agents(project, key)
             return self._events(project, key, m.group(3))
-        if path.startswith("/f/"):
+        if path.startswith("/f/") or path.startswith("/v/"):
             key, _, rel = path[3:].partition("/")
             project = srv.project_of(unquote(key))
             if project is None:
                 return self._error(404, "no such project")
-            return self._file(project, rel)
+            return self._file(project, rel) if path.startswith("/f/") else self._view(project, key, rel)
         # the desk's first addresses: the project it was started for
         if srv.project and path == "/api/data":
             try:
@@ -1127,6 +1136,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if os.path.commonpath([f, root]) != root or not os.path.isfile(f) or hidden(os.path.relpath(f, root).split(os.sep)):
             return None
         return f
+
+    def _view(self, project, key, rel):
+        """GET /v/<key>/<path>: the file on a page of its own, with a slim bar (its name and where it is in the project):
+        text and markdown as text (markdown through reader.render_md, everything escaped), a picture, a player, a page
+        in a frame (still sandboxed by /f/'s header); a kind it cannot show, a sentence that says so and where it is.
+        Studio's own app opens the console's new-page links here, so a link never gives an empty window."""
+        f = self._resolve(project, rel)
+        if not f:
+            return self._error(404, "no such file in this project")
+        name, ext = os.path.basename(f), os.path.splitext(f)[1].lower()
+        where = os.path.relpath(f, project)
+        src = "/f/" + key + "/" + rel
+        kind = next((k for k, exts in VIEW.items() if ext in exts), None)
+        e = html.escape
+        if kind == "image":
+            body = f'<main class="pic"><img src="{e(src)}" alt="{e(name)}"></main>'
+        elif kind in ("video", "audio"):
+            body = f'<main class="av"><{kind} controls preload="metadata" src="{e(src)}"></{kind}></main>'
+        elif kind == "page":
+            body = f'<main class="page"><iframe src="{e(src)}" title="{e(name)}"></iframe></main>'
+        elif kind in ("markdown", "text") and os.path.getsize(f) <= VIEW_TEXT_MAX:
+            text = Path(f).read_bytes().decode("utf-8", "replace")
+            body = (f'<main class="text"><article class="md">{reader.render_md(text)}</article></main>' if kind == "markdown"
+                    else f'<main class="text"><pre>{e(text)}</pre></main>')
+        else:
+            why = ("这份文本太长，这里不显示" if kind else "这种文件在这里显示不了") + f"：它在项目的 {where}。"
+            why_en = ("This text is too long to show here" if kind else "Studio cannot show this kind of file here") + f": it is {where} in the project."
+            body = f'<main class="none"><p>{e(why)}<br>{e(why_en)}</p></main>'
+        page = (f'<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                f'<title>{e(name)}</title><link rel="stylesheet" href="/static/ui.css"><link rel="stylesheet" href="/static/reader.css">'
+                f'<script src="/static/reader.js"></script></head><body><header class="bar"><span class="name">{e(name)}</span>'
+                f'<span class="path">{e(where)}</span></header>{body}</body></html>')
+        return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
 
     def _file(self, project, rel):
         f = self._resolve(project, rel)

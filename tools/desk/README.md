@@ -41,7 +41,7 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 
 窗口有两种，同一个页面（`tools/desk/window.py` 是唯一知道怎么开窗口的地方，服务按这个顺序试）：
 
-1. **Studio 自己的窗口（OVH Studio，Electron）**，装了就用它。没有系统标题栏：macOS 上红绿灯三个按钮在页面自己的顶栏里（主题换了，按钮的位置和窗口的颜色跟着换），顶栏就是拖窗口的地方（里面能点的照样能点）；Linux 上是 Electron 的标题栏覆盖层，按钮画在顶栏右端。窗口先用主题的底色、画好了才显示，开的时候不闪白。Dock 上只有它一个图标，名字是 OVH Studio。有自己的菜单（中英文跟系统：关于、退出；编辑；重新载入、缩放、全屏；窗口，含"关闭窗口" ⌘W）。播放器的全屏按钮可用（只给控制台自己的页面）。点开同一个控制台的另一页（静态的关卡页、转写稿、放大的图）开在应用自己的第二个窗口里，跟着主窗口一起关；别的网站的链接在默认浏览器里开。
+1. **Studio 自己的窗口（OVH Studio，Electron）**，装了就用它。没有系统标题栏：macOS 上红绿灯三个按钮在页面自己的顶栏里（主题换了，按钮的位置和窗口的颜色跟着换），顶栏就是拖窗口的地方（里面能点的照样能点）；Linux 上是 Electron 的标题栏覆盖层，按钮画在顶栏右端。窗口先用主题的底色、画好了才显示，开的时候不闪白。Dock 上只有它一个图标，名字是 OVH Studio。有自己的菜单（中英文跟系统：关于、退出；编辑；重新载入、缩放、全屏；窗口，含"关闭窗口" ⌘W）。播放器的全屏按钮可用（只给控制台自己的页面）。点开同一个控制台的另一页（静态的关卡页、转写稿、放大的图、附的视频音频和别的文件）开在应用自己的阅读窗口里：经控制台的 `/v/` 显示（文本当文本，显示不了的说一句），没有系统标题栏，主题的底色，一条细栏可以拖、红绿灯在里面，窗口名是文件名，⌘W 关，跟着打开它的窗口一起关；别的网站的链接在默认浏览器里开。
    - **一个应用，一个窗口**：服务启动它时在标准输入里给它一行（窗口的地址带一次性开门码、哪个服务、窗口 id），命令行里什么都没有；它已经在跑时，新启动的那一个通过 Electron 的单实例锁把这一行交给在跑的那个，自己退出，在跑的那个把窗口带到最前（不用 osascript）。一个服务一个窗口（控制台一个；Studio 没开着时 `bin/vh gate` 起的单个项目的审阅台各一个）。这台电脑上的任何程序都能递给它一行；它不做认证（那属于存心攻击，上面"安全"说了边界），只守一条：窗口所在的控制台还认它的令牌时，不会被一行话指到别的控制台去。
    - **加固**：`contextIsolation`、无 Node、`sandbox`、不许 webview、只开控制台自己的页面（别的地址交给默认浏览器）、除了控制台页面的全屏，相机麦克风这类权限一律不给；preload 只给页面三样东西：`ovhShell.platform`、`ovhShell.access` 和 `ovhShell.theme()`。令牌只在应用主进程的内存里，跟着换到它的那个窗口，只加在那个窗口自己的页面发给同一个控制台的请求上（`tools/desk/shell/rules.js` 里这几条判断用普通的 node 测）。页面看到 `ovhShell` 才给自己加上 `html.shell`（顶栏留出按钮的位置、可以拖），在浏览器里一切照旧。
    - **代码在仓库里**：`tools/desk/shell/`（`main.js`、`preload.js`、`package.json` 和提交进来的锁文件：Electron 钉死在一个版本，全部从 registry.npmjs.org 来、带完整性校验、不跑安装脚本）。应用本身只带一个小小的 boot（`tools/desk/launcher/shell-boot.js` 生成的 `Resources/app/boot.js`），它从这份仓库里跑 `main.js`，所以 `git pull` 以后不用重装。
@@ -116,6 +116,7 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 | `GET /api/p/<键>/status` | 有没有 agent 在等这个项目的反馈，和这一轮的页名 `round` |
 | `POST /api/p/<键>/feedback` | 一次提交（格式见下面"写什么"），另带 `pid`：和这个地址现在指的文件夹对不上（或没带）就 409，不写进任何项目 |
 | `GET /f/<键>/<路径>` | 这个项目里的一个文件（支持 Range） |
+| `GET /v/<键>/<路径>` | 同一个文件放在一页里：顶上一条细栏写着文件名和它在项目里的位置；文本和 markdown 当文本显示（markdown 经 `reader.render_md`，一律先转义），图片、视频和音频的播放器、网页放在框里（仍受 `/f/` 的沙箱头管着），显示不了的种类说一句并说文件在哪。Studio 自己的应用把控制台里"在新页打开"的链接都开在这里，所以开出来的窗口不会是空的 |
 | `GET /api/p/<键>/agents` | `{agents: [{kind, label, installed, version, pinned, outdated, size, install, settings_toggle, signed_in}], sessions: [{id, kind, label, title, first, created, last, live, running, pending, personal, turns}], pid, approval_timeout, lock}`：右栏能用哪几家、这个项目的对话（新的在前），和谁拿着项目锁 |
 | `GET /api/p/<键>/agent/<id>/events?token=…[&after=N]` | 这个对话的事件，SSE：先一个 `hello`（会话的状态、设置、agent 报的能力），然后 `after`（或 `Last-Event-ID`）之后的每一件，再来的边到边推；每 5 秒一行注释保活。要页面的令牌 |
 | `POST /api/p/<键>/agent/new` | `{kind, personal}`：开一个新对话，起好 agent，带着它的设置回来；没装 424，起不来 503 |

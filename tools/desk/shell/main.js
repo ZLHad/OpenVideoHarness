@@ -7,10 +7,11 @@
 // Access: this process trades the code for the console's token itself (POST /api/claim) and keeps the token in memory
 // alone, tied to the window it was traded for; it adds it (X-Desk-Token) to that window's own page's requests to that same
 // console (rules.tokenFor), and the page holds only a placeholder ("shell"). So the token is in no command line, no page,
-// no storage and no file. A link to a page of the same console opens in a plain second window of the app (no token,
-// closing with its opener); other sites open in the default browser. A second start (the console again, a second click)
-// hands its line to the running one through Electron's single-instance lock and exits: one app, one window a desk,
-// raised by itself.
+// no storage and no file. A link that opens a new page of the same console opens in a reader window of the app's own
+// (rules.readerUrl: a project file through the console's reader, /v/, so it never shows empty; no system title bar, no
+// token, closing with its opener); other sites open in the default browser. A second start (the console again, a
+// second click) hands its line to the running one through Electron's single-instance lock and exits: one app, one
+// window a desk, raised by itself.
 // Started by a click (no stdin), it asks the clone to show Studio (bin/vh studio --icon open), which starts it as above.
 // {close: role} closes that desk's window (the desk is stopping); with no window left, the app quits. {quit: true}: the app
 // quits (bin/vh studio --remove-icon, before it takes the app away). Any local program can hand the app a line: a window
@@ -95,14 +96,25 @@ function rules(win) {   // where its page may go (decided against the page it sh
   win.webContents.setWindowOpenHandler(({ url: to }) => {
     const n = R.newPage(win.webContents.getURL(), to);
     if (n === "browser") shell.openExternal(to);
-    if (n !== "inside") return { action: "deny" };
-    return { action: "allow", overrideBrowserWindowOptions: { width: 1200, height: 820, minWidth: 600, minHeight: 400, title: "Studio",
-      backgroundColor: settings().bg || BG.darkfield, autoHideMenuBar: true, webPreferences: HARD } };
+    if (n === "inside") reader(win, R.readerUrl(win.webContents.getURL(), to));
+    return { action: "deny" };
   });
-  win.webContents.on("did-create-window", (child) => {   // a plain window on the same console (no token: the pages it opens need none); it goes with its opener
-    rules(child);
-    win.once("closed", () => { if (!child.isDestroyed()) child.destroy(); });
+}
+
+function reader(opener, url) {   // a page of the same console in a window of the app's own: no system title bar, the theme's
+  // ground, the reader's slim bar to drag by with the buttons in it and the file's name as the window's; no token (the
+  // reader and project files need none); it goes with the window that opened it, and ⌘W closes it
+  const s = settings(), bg = s.bg || BG[BG[s.theme] ? s.theme : "darkfield"];
+  const win = new BrowserWindow({
+    width: 1100, height: 820, minWidth: 520, minHeight: 360, show: false, backgroundColor: bg, title: "",
+    titleBarStyle: "hidden",
+    ...(MAC ? { trafficLightPosition: { x: 14, y: 13 } } : { titleBarOverlay: { color: bg, symbolColor: "#b4b0a8", height: 38 } }),
+    webPreferences: Object.assign({ preload: path.join(__dirname, "preload.js") }, HARD),
   });
+  win.once("ready-to-show", () => { win.show(); win.focus(); });
+  rules(win);
+  opener.once("closed", () => { if (!win.isDestroyed()) win.destroy(); });
+  win.loadURL(url);
 }
 const HARD = { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, allowRunningInsecureContent: false,
   spellcheck: false, webviewTag: false, navigateOnDragDrop: false };
