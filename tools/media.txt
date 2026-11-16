@@ -14,9 +14,9 @@ styles/whiteboard/media/swatch.mp4 styles-media/whiteboard-b8f99591.mp4 b8f99591
 styles/whiteboard/media/swatch-portrait.mp4 styles-media/whiteboard-portrait-525db456.mp4 525db456d438b78fe9ca70b6388d9ea492b2f908c9c01d0eb4988c267d63bcf9
 styles/chalkboard/media/swatch.mp4 styles-media/chalkboard-6ac99c95.mp4 6ac99c952b71d7fb91f80e1b0ad8ca746a2f0d6bdf5efd66fcb24d578c2d74f3
 styles/chalkboard/media/swatch-portrait.mp4 styles-media/chalkboard-portrait-08f04c49.mp4 08f04c491692abc2e7c050df5be6f655dc2073151da0c5d5b67d551d805bc9ed
-styles/gold-line-dark/media/swatch.mp4 styles-media/gold-line-dark-e7e5d075.mp4 e7e5d07576d9b71618241d3445aac682b864c699af79a16bd77a6aa768fb7d73
-styles/gold-line-dark/media/swatch-portrait.mp4 styles-media/gold-line-dark-portrait-17abc1df.mp4 17abc1df90350cb39697e497201d7a771e716853964134cbd9c4a223d7fe02f8
 styles/era-media-relay/media/swatch.mp4 styles-media/era-media-relay-31555469.mp4 31555469a478236e71aa00f13d254fb702dd8d1f8f74a0bc5b348f11b847d621
 styles/era-media-relay/media/swatch-portrait.mp4 styles-media/era-media-relay-portrait-bd36dcb5.mp4 bd36dcb507613733a4c2cf973c096bc16fba501ac3a3ee5f172f39a69bbef843
-styles/deep-space-explainer/media/swatch.mp4 styles-media/deep-space-explainer-76689523.mp4 76689523abe83a53de29593f19205f96ee3e2d7c2ba67cfd27ec0e745ac7a206
-styles/deep-space-explainer/media/swatch-portrait.mp4 styles-media/deep-space-explainer-portrait-64defc98.mp4 64defc988aa4e25e756491236273ebd2a25c85bd36e217e796a5e18487ff6db1
+styles/gold-line-dark/media/swatch.mp4 styles-media/gold-line-dark-eb352358.mp4 eb352358b686a34e3184025eebbd6d92aec629f1135be8d3c2e2f6a49f53e50e
+styles/gold-line-dark/media/swatch-portrait.mp4 styles-media/gold-line-dark-portrait-6ed82b68.mp4 6ed82b68c31b5aed6284adfd20a80593094fe4f062c9aa9c86a03cdee56bac64
+styles/deep-space-explainer/media/swatch.mp4 styles-media/deep-space-explainer-55068fe0.mp4 55068fe0bdf30df86ab6bbe193f068b8601814c8d7efa032323379d7cd713da9
+styles/deep-space-explainer/media/swatch-portrait.mp4 styles-media/deep-space-explainer-portrait-1a5117cf.mp4 1a5117cf27f261dc5cf2eaa4f09227db82cfc4762b2091c2f53ffe9fad53844d

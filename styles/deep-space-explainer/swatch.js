@@ -174,16 +174,24 @@ export async function setup(ctx, tokens, lib) {
     const per = PX * p;
     return [rnd() * per, (rnd() - 0.5) * 3600, 0.5 + rnd() * (p > 0.9 ? 1.8 : 1.1), 0.35 + rnd() * 0.6, rnd() * 6.28, p, per];
   }));
-  // a faint band of galaxy, fixed to the screen
+  // a band of galaxy on its own depth (0.2): a tile one period wide (PX * 0.2), so the journey brings it back too
+  g.bandP = 0.2; g.bandW = PX * g.bandP; g.bandH = H + 700;
   g.band = (() => {
-    const c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
-    x.translate(W / 2, H / 2); x.rotate(P ? -1.1 : -0.32);
-    x.filter = "blur(60px)";
-    for (let i = 0; i < 40; i++) {
-      const u = (rnd() - 0.5) * Math.max(W, H) * 1.6, v = (rnd() - 0.5) * 160;
-      x.fillStyle = `rgba(${150 + rnd() * 60},${140 + rnd() * 50},${170 + rnd() * 50},${0.035 + rnd() * 0.04})`;
-      x.beginPath(); x.ellipse(u, v, 160 + rnd() * 260, 50 + rnd() * 70, 0, 0, 7); x.fill();
-    }
+    const c = document.createElement("canvas"); c.width = g.bandW; c.height = g.bandH; const x = c.getContext("2d");
+    const cy0 = g.bandH / 2, wave = (u) => cy0 + Math.sin(u / g.bandW * Math.PI * 2) * 50 + Math.sin(u / g.bandW * Math.PI * 6 + 1) * 18;
+    const each = (fn) => { for (const o of [-g.bandW, 0, g.bandW]) fn(o); };   // drawn three times, so the tile has no seam
+    x.filter = "blur(70px)";                                     // the wide faint halo
+    for (let i = 0; i < 30; i++) { const u = rnd() * g.bandW, v = wave(u) + (rnd() - 0.5) * 120, a = 0.02 + rnd() * 0.02, rx = 260 + rnd() * 300;
+      each((o) => { x.fillStyle = `rgba(160,150,185,${a})`; x.beginPath(); x.ellipse(u + o, v, rx, 130, 0, 0, 7); x.fill(); }); }
+    x.filter = "blur(26px)";                                     // the brighter, thinner core
+    for (let i = 0; i < 70; i++) { const u = rnd() * g.bandW, v = wave(u) + (rnd() - 0.5) * 40, a = 0.03 + rnd() * 0.04, rx = 80 + rnd() * 160;
+      each((o) => { x.fillStyle = `rgba(${200 + rnd() * 40},${185 + rnd() * 30},${200 + rnd() * 40},${a})`; x.beginPath(); x.ellipse(u + o, v, rx, 22 + rnd() * 20, 0, 0, 7); x.fill(); }); }
+    x.filter = "blur(10px)";                                     // dark lanes of dust across it
+    for (let i = 0; i < 22; i++) { const u = rnd() * g.bandW, v = wave(u) + (rnd() - 0.5) * 30, rx = 60 + rnd() * 140, rot = (rnd() - 0.5) * 0.5;
+      each((o) => { x.fillStyle = "rgba(2,4,8,0.55)"; x.beginPath(); x.ellipse(u + o, v, rx, 6 + rnd() * 10, rot, 0, 7); x.fill(); }); }
+    x.filter = "none";                                           // and the band's own crowd of faint stars
+    for (let i = 0; i < 2600; i++) { const u = rnd() * g.bandW, v = wave(u) + (rnd() + rnd() + rnd() - 1.5) * 90, a = 0.12 + rnd() * 0.35, r = 0.6 + rnd() * 0.9;
+      each((o) => { x.fillStyle = `rgba(230,232,245,${a})`; x.fillRect(u + o, v, r, r); }); }
     return c;
   })();
   // type
@@ -223,7 +231,8 @@ function camAt(t) {
   const K = G.keys;
   let i = 0;
   while (i < K.length - 2 && t >= K[i + 1][0]) i++;
-  const [t0, a] = K[i], [t1, b] = K[i + 1], u = sm5(sg(t, t0, t1));
+  const x = sg(t, K[i][0], K[i + 1][0]), u = i === 0 ? 1 - (1 - x) * (1 - x) : sm5(x);   // already drifting at the first frame
+  const [, a] = K[i], [, b] = K[i + 1];
   return [0, 1, 2].map((d) => a[d] + (b[d] - a[d]) * u);
 }
 
@@ -248,7 +257,12 @@ function scene(ctx, t, tokens, lib) {
   const [cx, cy, z] = camAt(t);
   const S = (x, y) => [W / 2 + (x - cx) * z, H / 2 + (y - cy) * z];
   ctx.fillStyle = C("bg"); ctx.fillRect(0, 0, W, H);
-  ctx.drawImage(G.band, 0, 0);
+  { // the galaxy band, on its own depth
+    const p = G.bandP, ze = 1 + (z - 1) * p, off = -(((cx * p) % G.bandW) + G.bandW) % G.bandW;
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(lib.PORTRAIT ? -0.9 : -0.26); ctx.scale(ze, ze);
+    for (let k = -1; k <= 1; k++) ctx.drawImage(G.band, off + k * G.bandW - G.bandW / 2, -G.bandH / 2 - cy * p);
+    ctx.restore();
+  }
   // stars
   for (const layer of G.stars) for (const [u, v, r, a, ph, p, per] of layer) {
     const ze = 1 + (z - 1) * p;

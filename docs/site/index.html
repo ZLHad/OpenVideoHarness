@@ -1261,7 +1261,23 @@ const STYLES = [
   ['synthwave-outrun', 'Synthwave Outrun', '合成器浪潮'], ['tabletop-miniature', 'Tabletop Miniature', '桌面微缩剧场'], ['walk-in-world', 'Walk-in World', '走进去的世界'], ['watercolor-pastoral', 'Watercolor Pastoral', '水彩田园'],
   ['whiteboard', 'Whiteboard Sketch', '白板速写'], ['y2k-chrome', 'Y2K Chrome', 'Y2K 铬面'],
 ];
-const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;   // the 5 s sample (swatch.mp4)
+const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;   // the 5 s sample (swatch.mp4) of a spec-1 style
+// A spec-2 style (tokens.json "swatch": {"spec": 2}) keeps only its 2 s preview.mp4 in git; its full sample is a release
+// asset (tools/media.txt, release styles-media), named here. Its tile plays the preview; the lightbox plays the release
+// file through <source type="video/mp4"> once STYLES_MEDIA_UPLOADED is true (flip it when the maintainer has uploaded
+// them), and the preview until then. tools/readme.py check holds this list to tools/media.txt and the styles' specs.
+const STYLES_MEDIA_UPLOADED = false;
+const RELEASE_SAMPLES = {
+  'chalkboard': 'chalkboard-6ac99c95.mp4',
+  'deep-space-explainer': 'deep-space-explainer-55068fe0.mp4',
+  'era-media-relay': 'era-media-relay-31555469.mp4',
+  'gold-line-dark': 'gold-line-dark-eb352358.mp4',
+  'whiteboard': 'whiteboard-b8f99591.mp4',
+};
+const hoverClip = slug => stylePath(slug, slug in RELEASE_SAMPLES ? 'preview.mp4' : 'swatch.mp4');
+const fullClip = slug => !(slug in RELEASE_SAMPLES) ? { src: stylePath(slug, 'swatch.mp4') }
+  : STYLES_MEDIA_UPLOADED ? { src: `https://github.com/ZLHad/OpenVideoHarness/releases/download/styles-media/${RELEASE_SAMPLES[slug]}`, type: 'video/mp4' }
+  : { src: stylePath(slug, 'preview.mp4'), loop: true };
 const thumbPath = slug => `img/styles/${slug}.jpg`;                   // a 384 x 216 copy of its poster, for the galaxy and the wall
 
 /* ---------- split headings into words (Chinese: characters) that rise in ---------- */
@@ -1639,14 +1655,14 @@ const tiles = STYLES.map(([slug, en, zh], i) => {
   const t = { b, v, slug, en, zh };
   v.addEventListener('ended', () => b.classList.remove('on'));
   b.addEventListener('mouseenter', () => playTile(t));
-  b.addEventListener('click', () => { stopWall(); openLightbox({ video: stylePath(slug, 'swatch.mp4'), cap: lang === 'zh' ? zh : en, code: `bin/vh new promo my-film --style ${slug}` }); });
+  b.addEventListener('click', () => { stopWall(); openLightbox({ video: fullClip(slug), cap: lang === 'zh' ? zh : en, code: `bin/vh new promo my-film --style ${slug}` }); });
   return t;
 });
 const yours = document.createElement('div'); yours.className = 'sw info';
 yours.style.setProperty('--d', `${0.35 + 10 * 0.06}s`);
 wall.appendChild(yours);
 function playTile(t) {
-  if (!t.v.src) t.v.src = stylePath(t.slug, 'swatch.mp4');
+  if (!t.v.src) t.v.src = hoverClip(t.slug);
   t.v.currentTime = 0;
   const p = t.v.play(); if (p) p.then(() => t.b.classList.add('on')).catch(() => {});
 }
@@ -1705,7 +1721,13 @@ const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
 function openLightbox({ video, img, cap, code }) {
   pauseAll();
   lbMedia.innerHTML = '';
-  if (video) { const v = document.createElement('video'); v.src = video; v.controls = true; v.autoplay = true; v.playsInline = true; lbMedia.appendChild(v); }
+  if (video) {   // a path, or { src, type, loop }: a release file goes through <source type> (WebKit refuses it as a bare src)
+    const c = typeof video === 'string' ? { src: video } : video;
+    const v = document.createElement('video'); v.controls = true; v.autoplay = true; v.playsInline = true; v.loop = !!c.loop;
+    if (c.type) { const so = document.createElement('source'); so.type = c.type; so.src = c.src; v.appendChild(so); }   // release-src-ok: a <source type>
+    else v.src = c.src;
+    lbMedia.appendChild(v);
+  }
   if (img) { const i = new Image(); i.src = img; i.alt = cap; lbMedia.appendChild(i); }
   lbCap.innerHTML = '';
   const c = document.createElement('span'); c.textContent = cap; lbCap.appendChild(c);

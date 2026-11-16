@@ -1,13 +1,28 @@
-"""Rebuild the custom foley WAVs that some styles ship in styles/<slug>/sfx/ (all synthesized, seeded, no downloads).
+"""Build the custom foley WAVs that some styles use from styles/<slug>/sfx/ (all synthesized, seeded, no downloads).
 
-usage (from the repo root): uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py
+usage (from the repo root): uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py [<slug> …] [--list]
+  no slug: every style's sounds; with slugs: only theirs (render.sh builds a style's own before it mixes its foley);
+  --list: the slugs this script makes sounds for, one a line, writing nothing.
 Built-in sounds come from `bin/vh sfx lib`; a style adds its own WAV here only when no built-in fits, and names it
-in its events.json by relative path (see styles/_swatch/README.md, "拟音"). Output is byte-identical on every run."""
-import sys, wave, numpy as np
+in its events.json by relative path (see styles/_swatch/README.md, "拟音"). Output is byte-identical on every run, and
+every sound is computed whatever is asked for (only the writing is skipped), so asking for one style cannot shift
+another's random draws. The WAVs are build output: styles/*/sfx/ is in .gitignore (the 14 that were committed before
+2026-11-16 stay tracked until their styles are rendered again)."""
+import os, sys, wave, numpy as np
 sys.path.insert(0, "tools/audio")
 import music as M
 SR = 48000
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+LIST = "--list" in sys.argv[1:]
+SLUGS = set()
+def want(path):
+    """note the style a sound is for; True when it is to be written"""
+    slug = path.split("/")[1]; SLUGS.add(slug)
+    if LIST or (ARGS and slug not in ARGS): return False
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return True
 def write(path, x):
+    if not want(path): return
     x = np.clip(x / max(1e-9, np.abs(x).max()) * 0.89, -1, 1)          # peak −1 dBFS; level is set by gain_db in events.json
     with wave.open(path, "wb") as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((x * 32767).astype("<i2").tobytes())
@@ -34,6 +49,7 @@ write("styles/silhouette-papercut/sfx/snip.wav", x)
 # Two takes, alternated A B A B over the four cuts (bin/vh qa warns when one file plays three times in a row): b has
 # its own gates and hops a fifth higher
 def glitch_cut(path, seed, hops):
+    if not want(path): return                                          # its RNG is its own: skipping it shifts nothing
     n = int(0.25 * SR); t = np.arange(n) / SR; rng = np.random.default_rng(seed)
     sq = np.sign(np.sin(2 * np.pi * rng.choice(hops, n // 600 + 1).repeat(600)[:n] * t))
     gate = (rng.random(n // 480 + 1) > .35).astype(float).repeat(480)[:n]; gate[:480] = 1.0          # always open on the hit
@@ -259,4 +275,5 @@ n = int(1.2 * SR); t = np.arange(n) / SR; r = np.random.default_rng(503)
 ping = sum(np.sin(2 * np.pi * f * t) * np.exp(-t / d) * a for f, d, a in [(1760, 0.5, 0.6), (2637, 0.35, 0.35), (5274, 0.12, 0.1)])
 x = ping * np.minimum(1, t / 0.002); x[:int(0.01 * SR)] += burst(int(0.01 * SR), 3000, 9000, 0.0015, r) * 0.5
 x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR)); write(f"{DS}/detect.wav", x)
-print("ok")
+if LIST: print("\n".join(sorted(SLUGS)))
+else: print("ok")
