@@ -169,7 +169,7 @@ def link_cmd(argv):
     if a.print_address:
         print(f"desk: {url}{'#' + at if at else ''}\n  started again; that address opens one page, once, in the next ten minutes", flush=True)
     else:
-        print(f"desk: started again · " + (server.said(r) if not a.no_open else "bin/vh studio shows its window"), flush=True)
+        print("desk: started again · " + (server.said(r) if not a.no_open else "bin/vh studio shows its window"), flush=True)
     return 0
 
 

@@ -81,8 +81,12 @@ def main_pid(prof):
 def launch(prog, prof, url, size=(1440, 900)):
     """Start the browser with a window of its own at url. The caller does not wait for it; whether it shows is known
     when its page connects back."""
+    # --use-mock-keychain, --password-store=basic: Studio's profile keeps nothing secret of the person's, so it never asks
+    # the system keychain (a fresh profile launched from the launcher app made macOS put up a keychain dialog, and the page
+    # waited behind it)
     args = _argv(prog) + [f"--user-data-dir={prof}", f"--app={url}", "--no-first-run", "--no-default-browser-check",
-                          f"--window-size={size[0]},{size[1]}", f"--class={CLASS}", "--disable-features=Translate"]
+                          f"--window-size={size[0]},{size[1]}", f"--class={CLASS}", "--disable-features=Translate",
+                          "--use-mock-keychain", "--password-store=basic"]
     try:
         subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         return True

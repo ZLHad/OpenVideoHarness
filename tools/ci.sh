@@ -3991,7 +3991,7 @@ studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its la
   # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders opens in
   # its own desk; --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
   # that moved, doctor's line, the picture, install.sh's question and the release's check
-  local t a b c d e rc rc2 rc3 rc4 rc5 rc6 rc7 rc8 pid pid2 port url k app i n p w1 w2 w3 wq tab3 tab4 left claims
+  local t a b c d e rc rc2 rc3 rc4 rc5 rc6 rc7 rc8 pid pid2 url k app i n p w1 w2 w3 wq tab3 tab4 left claims
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
   mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
   cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
@@ -4122,13 +4122,14 @@ PY
   # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
   a=$(studio_run --install-icon --dir "$t/apps" --as linux 2>&1); rc=$?
   b=$(studio_run --icon-status --dir "$t/apps" --as linux --json 2>&1)
-  sed -i.bak 's#^REPO=.*#REPO=/no/such/clone#' "$t/home/.share/ovh-studio/studio-launch.sh"
+  cp "$t/apps/ovh-studio.desktop" "$t/apps/ovh-studio.desktop.bak"   # (as it was made)
+  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^REPO=.*$", "REPO=/no/such/clone", s))' "$t/home/.share/ovh-studio/studio-launch.sh"
   c=$(PATH=/usr/bin:/bin "$t/home/.share/ovh-studio/studio-launch.sh" 2>&1); rc2=$?
   python3 - "$t/home/.share/ovh-studio/ovh-studio.json" <<'PY'
 import json, sys
 p = sys.argv[1]; d = json.load(open(p)); d["repo"] = "/no/such/clone"; json.dump(d, open(p, "w"))
 PY
-  sed -i.bak 's#^X-OVH-Repo=.*#X-OVH-Repo=/no/such/clone#' "$t/apps/ovh-studio.desktop"
+  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^X-OVH-Repo=.*$", "X-OVH-Repo=/no/such/clone", s))' "$t/apps/ovh-studio.desktop"
   d=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
   mkdir -p "$t/apps2" && printf 'not ours\n' > "$t/apps2/ovh-studio.desktop"
   e=$(studio_run --install-icon --dir "$t/apps2" --as linux 2>&1); rc3=$?
@@ -8818,14 +8819,14 @@ if not (ex == 130 and one["state"] == "failed" and one["cancelled"] is True and 
 cancel()
 # each command bin/vh exec's into is known: the table of what its pid's command line looks like, and bin/vh's exec lines against it
 for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("frames", "node /r/tools/film/frames.mjs p"), ("patch", "node /r/tools/film/patch.mjs f"), ("determinism", "node /r/tools/film/determinism.mjs p"), ("cues", "node /r/tools/film/cues.mjs p"), ("fonts", "node /r/tools/film/fonts.mjs p"),
-                ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
+                ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("studio", "python3 /r/tools/desk/studio.py demo"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
                 ("style", "/bin/bash /r/bin/vh style x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
     if not C.is_ours(cmd, cl):
         bad.append(f"is_ours: {cmd}, {cl}")
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
     if C.is_ours(cmd, cl):
         bad.append(f"is_ours, not: {cmd}, {cl}")
-known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "studio.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
