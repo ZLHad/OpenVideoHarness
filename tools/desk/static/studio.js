@@ -1427,15 +1427,8 @@ async function checkKey() {   // the token this page holds, from the launch key:
   let r = null, d = {}, ok = false, why = "";
   try { r = await fetch("/api/hello", { headers: { "X-Desk-Token": TOKEN }, cache: "no-store" }); d = await r.json().catch(() => ({})); ok = r.ok; } catch (e) { r = null; }
   if (r && !ok) {
-    if (d.locked) why = "key_reused";
-    else if (k) {   // the key was spent before this page came, and this browser holds no token of this run: someone else opened it first
-      try {
-        const x = await fetch("/api/key-reused", { method: "POST", headers: { "Content-Type": "application/json", "X-Desk-Token": TOKEN }, body: JSON.stringify({ k }) });
-        const y = await x.json().catch(() => ({}));
-        ok = x.ok && !!y.ok; why = ok ? "" : y.locked ? "key_reused" : "nokey"; d = Object.assign({}, d, y);
-      } catch (e) { why = "nokey"; }
-    } else why = "nokey";   // opened without the address, or the console restarted since
-    if (!ok && TOKEN) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }
+    why = "nokey";   // opened without the address, or the console restarted since
+    if (TOKEN) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }
   }
   if (k) history.replaceState(null, "", location.pathname + location.hash);   // once is enough: a reload does not ask again
   const b = $("#nokey");

@@ -6,10 +6,9 @@ every project under the roots (bin/vh projects': $OVH_PROJECTS, <repo>/projects,
 started for wherever that is. The project files and bin/vh are the truth: every answer is read fresh from them, and the page
 keeps nothing of its own but the reviewer's draft (in the browser) until it is submitted.
 
-  GET  /?k=<launch key>           the page (static/index.html, and the project it opens on); with this run's token for the
-                                  first GET that brings the key (a HEAD spends nothing)
-  GET  /api/hello                 does the page hold this run's token? 403 with the line for a new link (and why: locked)
-  POST /api/key-reused            {k}: the key came back to a page with no token of this run; the right key locks the desk
+  GET  /?k=<launch key>           the page (static/index.html, and the project it opens on); with this run's token for
+                                  every GET that brings the key, for as long as the desk runs (a HEAD gets none)
+  GET  /api/hello                 does the page hold this run's token? 403 with the line for a new link
   GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
                                   studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
                                   (the other modules), core.js (the words and helpers a static page shares)
@@ -36,18 +35,20 @@ Only requests whose Host is this server's own address are answered (no DNS rebin
 a JSON body and, when the browser sends one, a same-origin Origin. So another web page open in the same browser can neither
 read a project nor submit feedback in the reviewer's name.
 
-The token goes to one browser only, and it is the only door. The desk starts with a one-time launch key, printed in the
-address it prints (http://127.0.0.1:N/?k=…) and nowhere in the project: not in .desk.json, not in a log bin/vh gate keeps
-there (gate hands its desk the key on stdin and prints it in its own message). The first page that GETs it gets the token
-and keeps it in its origin's storage (one port's; a cookie would reach every port of 127.0.0.1); the key is spent. A page
-without it gets no token: it reads, but cannot submit, talk to an agent or answer one. So a command an agent runs in the
-project, which can read every file there and reach 127.0.0.1, finds no credential there. The key is outside the project:
-in gate's output, so in the terminal agent's own transcript or task output under HOME, which an agent's command may read.
-Who opens the link before the person holds the token; when the person's page then brings the spent key with no token of
-this run, the desk locks (lockdown): every token given out is void, and nothing is accepted until bin/vh desk link starts it
-again with a new key. Which process sent a request on the loopback the server cannot tell (a peer-port lookup is beaten by
-a double fork or a half-closed socket), so it does not try. What stays outside: a process of the same user that reads the
-terminal's output, an agent's transcript, or the browser's profile, or that can synthesize input.
+The token is the only door, and the launch key is how a page gets it. The desk starts with a key, printed in the address
+it prints (http://127.0.0.1:N/?k=…) and nowhere in the project: not in .desk.json, not in a log bin/vh gate keeps there
+(gate hands its desk the key on stdin and prints it in its own message). Every page that GETs / with it gets this run's
+token, for as long as the desk runs, and keeps it in its origin's storage (one port's; a cookie would reach every port of
+127.0.0.1). A GET has no once-only effect: a browser that fetches the address twice (a prefetch, an extension, a session
+restored, the address delivered to another Chrome process than the window the person looks at) must not lock the person
+out of their own page, as the one-time key of 2026-11-16 did. A page without the key gets no token: it reads, but cannot
+submit, talk to an agent or answer one. So a command an agent runs in the project, which can read every file there and
+reach 127.0.0.1, finds no credential there. The key is outside the project: in the terminal where the desk printed it, in
+gate's output, so in the terminal agent's own transcript or task output under HOME, which an agent's command may read;
+whatever sees that output can come in for as long as this desk runs (bin/vh desk link starts it again with a new key).
+Which process sent a request on the loopback the server cannot tell (a peer-port lookup is beaten by a double fork or a
+half-closed socket), so it does not try. What stays outside: a process of the same user that reads the terminal's output,
+an agent's transcript, or the browser's profile, or that can synthesize input.
 """
 import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
@@ -554,9 +555,7 @@ class Desk(http.server.ThreadingHTTPServer):
         self._fresh_at = 0.0   # the last walk an unknown key asked for
         self.roots = [str(r) for r in roots]
         self.token = secrets.token_urlsafe(24)
-        self.key = secrets.token_urlsafe(18)   # the launch key: one use, then the page holds the token (a key given on stdin replaces it)
-        self.key_spent = False
-        self.locked = None     # why this desk accepts nothing any more ("key_reused"): until a new key, bin/vh desk link
+        self.key = secrets.token_urlsafe(18)   # the launch key: every page that GETs / with it gets the token (a key given on stdin replaces it)
         self.link_cmd = ""     # the line that stops this desk and starts it again with a new link (serve sets it)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
@@ -565,21 +564,6 @@ class Desk(http.server.ThreadingHTTPServer):
         self._listing = (0.0, None)
         self._keys = {self.own_key: self.project} if self.project else {}
         self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
-
-    def lockdown(self, why):
-        """Its launch key came back to a page that holds no token of this run: whoever opened it first (another browser
-        of the person's, or another program) may hold the token. Every token given out is void from now on, what waits is
-        refused, turns stop, and nothing is accepted until a new key (bin/vh desk link). False when it was locked already."""
-        with self._lock:
-            if self.locked:
-                return False
-            self.locked = why
-            self.token = secrets.token_urlsafe(24)   # held by nobody
-        self.agents.lockdown()
-        sys.stderr.write(f"desk: its link was opened a second time, by a page without its token: every token is void and nothing is "
-                         f"accepted any more; {self.link_cmd or 'bin/vh desk link'} gives a new link\n")
-        sys.stderr.flush()
-        return True
 
     def server_bind(self):
         # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
@@ -682,11 +666,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         srv = self.server
         if path in ("/", "/index.html"):
             k = (parse_qs(urlsplit(self.path).query).get("k") or [""])[0]
-            give = False
-            with srv._lock:   # the launch key opens one page, once (a GET: a HEAD or any other address never spends it)
-                if k and self.command == "GET" and not srv.key_spent and not srv.locked \
-                        and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii")):
-                    srv.key_spent, give = True, True
+            # every GET that brings the key gets the token: a GET has no once-only effect (a browser may fetch it twice)
+            give = bool(k) and self.command == "GET" and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii"))
             page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token if give else "") \
                 .replace("{{HOME}}", srv.own_key or "")
             return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
@@ -696,9 +677,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._projects()
         if path == "/api/hello":   # does the page hold this run's token? (one from an earlier run does not count); if not, why, and the way out
             given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
-            ok = not srv.locked and secrets.compare_digest(given, srv.token.encode("ascii"))
-            return self._json({"ok": True} if ok else {"ok": False, "link": srv.link_cmd, **({"locked": srv.locked} if srv.locked else {})},
-                              200 if ok else 403)
+            ok = secrets.compare_digest(given, srv.token.encode("ascii"))
+            return self._json({"ok": True} if ok else {"ok": False, "link": srv.link_cmd}, 200 if ok else 403)
         m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
         if m:
             key = unquote(m.group(1))
@@ -781,14 +761,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.close_connection = True
         mgr = self.server.agents
-        tok = self.server.token   # a lockdown voids it: the stream ends
         with s.cond:
             s.subscribers += 1
         try:
             self.wfile.write(("retry: 2000\nevent: hello\ndata: " + json.dumps(dict(s.summary(), config=A.clean(s.config, s.root),
                                                                                    caps=mgr.caps.get(s.kind) or {}), ensure_ascii=False) + "\n\n").encode("utf-8"))
             self.wfile.flush()
-            while not mgr.closed and self.server.token == tok:
+            while not mgr.closed:
                 evs = s.after(after)
                 if evs:
                     out = "".join(f"id: {e['seq']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n" for e in evs)
@@ -948,8 +927,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._error(404, "no such project")
         elif path == "/api/feedback" and self.server.project:
             project = self.server.project
-        elif path == "/api/key-reused":
-            return self._key_reused()
         else:
             return self._error(404, "not found")
         if a:
@@ -957,8 +934,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             return self._error(403, "cross-origin request refused")
-        if self.server.locked:
-            return self._error(403, f"this desk accepts nothing any more (its link was opened twice): {self.server.link_cmd} gives a new link")
         given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")   # bytes: a non-ASCII str would raise
         if not secrets.compare_digest(given, self.server.token.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
@@ -991,33 +966,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         sys.stderr.flush()
         self._json(dict(F.listening(project), saved=os.path.relpath(saved, project)))
 
-    def _key_reused(self):
-        """POST /api/key-reused {k}: a page came with the launch key and got no token (the key was spent), and the token
-        it may hold is not this run's. The key is this desk's: someone else opened the link first, or the person opened it
-        in another browser. The desk locks (lockdown). A page that holds the token changes nothing (the person clicked the
-        link again); a wrong key changes nothing either."""
-        raw = self._body(4096, token=False)
-        if raw is None:
-            return
-        srv = self.server
-        given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
-        if not srv.locked and secrets.compare_digest(given, srv.token.encode("ascii")):
-            return self._json({"ok": True})
-        k = raw.get("k") if isinstance(raw.get("k"), str) else ""
-        if not (k and srv.key_spent and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii"))):
-            return self._error(403, "not this desk's link")
-        srv.lockdown("key_reused")
-        return self._json({"ok": False, "locked": srv.locked, "link": srv.link_cmd}, 403)
-
     def _body(self, max_bytes=None, token=True):
         """The checks every POST passes (same origin, this run's token, JSON, a whole body) → the parsed JSON, or None
-        after the refusal is sent. token False: all but the token (a page that came with the spent key has none)."""
+        after the refusal is sent. token False: all but the token."""
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             self._error(403, "cross-origin request refused")
-            return None
-        if token and self.server.locked:
-            self._error(403, f"this desk accepts nothing any more (its link was opened twice): {self.server.link_cmd} gives a new link")
             return None
         given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
         if token and not secrets.compare_digest(given, self.server.token.encode("ascii")):

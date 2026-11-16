@@ -106,9 +106,9 @@ def page_check():
     if "<a " in js or "href=" in js.replace('href="${', ""):
         return "agent.js makes links"
     core = (HERE / "static" / "core.js").read_text(encoding="utf-8")
-    said = re.findall(r'\b(?:nokey|key_reused|nokey_copied): "([^"]*)"', core) + re.findall(r'\b(?:reload|n_locked|perm_by_locked): "([^"]*)"', js)
+    said = re.findall(r'\b(?:nokey|nokey_copy|nokey_copied): "([^"]*)"', core) + re.findall(r'\b(?:reload): "([^"]*)"', js)
     shown = [x for x in said if MECHANISM.search(x)]   # (gate's own words: link_checks reads what it prints)
-    if len(said) < 12 or shown:
+    if len(said) < 8 or shown or re.search(r"key_reused|key-reused|n_locked|perm_by_locked", core + js):
         return f"the words a person reads name the mechanism: {shown or len(said)}"
     node = shutil.which("node")
     if not node:
@@ -852,7 +852,7 @@ print(json.dumps({"tokens": len(tokens), "candidates": len(cands), "rid": rid, "
 def attack_checks():
     """The review's attack, as a check: an agent's shell in the project reads every file there and the console's info
     folder, reaches 127.0.0.1, and tries to answer its own request and raise its own mode. It must find no credential there.
-    (The token is the only door: a process that has it, or the key before the person, gets in; see link_checks.)"""
+    (The token is the only door: a process that has it, or the key, gets in; see link_checks.)"""
     import acp
     from fixtures.agents import stage as ST
     proj = T / "attack"
@@ -875,8 +875,9 @@ def attack_checks():
         d.key = re.search(r'name="desk-home" content="([^"]*)"', page).group(1)
         d.info = d.get(f"/api/p/{d.key}/agents")[1]
         d.pid = d.info["pid"]
-        if re.search(r'name="desk-token" content="[^"]+"', urllib.request.urlopen(d.url + "?k=" + m.group(3)).read().decode()):
-            return "the launch key opened a second page"
+        again = re.search(r'name="desk-token" content="([^"]*)"', urllib.request.urlopen(d.url + "?k=" + m.group(3)).read().decode())
+        if not again or again.group(1) != d.token:   # the address fetched again (a prefetch, an extension): the same token, nothing locked
+            return "the launch key did not open a second page with the token"
         st, s0 = d.new("claude")
         sid = s0["id"]
         d.a(sid, "say", {"text": "在这里写一个 acp-note.txt"})
@@ -904,11 +905,12 @@ def attack_checks():
 
 
 def link_checks():
-    """The launch key from the person's side: a HEAD spends nothing; the key coming back to a page without this run's
-    token (someone opened it first, or another browser) locks the desk: every token void, what waits refused, POSTs
-    refused, the stream ends, and the page is told why and the line out; bin/vh desk link and the next bin/vh gate start
-    it again with a new key, the old key and token void; while an agent in its column is mid-turn, link refuses (--force
-    goes ahead) and gate keeps the link and says how."""
+    """The launch key from the person's side: it works for the whole run, in every page that brings it. The person's case of
+    2026-11-16: the address fetched two and three times (a browser's prefetch, an extension, the address handed to a
+    headless Chrome first): each page gets the token, the earlier ones keep working, a waiting request and a turn go on,
+    and the desk never says its link was opened twice; a HEAD gets none; the old lock's address is gone. bin/vh desk link
+    and the next bin/vh gate start it again with a new key, the old key and token void; while an agent in its column is
+    mid-turn, link refuses (--force goes ahead) and gate keeps the link and says how."""
     import types
     from fixtures.agents import stage as ST
     proj = T / "link"
@@ -957,13 +959,13 @@ def link_checks():
         if not port:
             return f"gate gave no link: {(out.stdout + out.stderr)[-300:]}"
         st, none, _ = page(port, k1, "HEAD")
-        st2, t1, hk = page(port, k1)
-        if st != 200 or none or not t1:
-            return f"a HEAD spent the key: HEAD {st}, then the link gave a token: {bool(t1)}"
-        same = call(port, "POST", "/api/key-reused", {"k": k1}, t1)   # the person clicks the link again: their page holds the token
-        wrong = call(port, "POST", "/api/key-reused", {"k": "x" * 24})
-        if same[0] != 200 or wrong[0] != 403 or call(port, "GET", "/api/hello", token=t1)[0] != 200:
-            return f"the same browser again {same}, a wrong key {wrong}: the desk locked"
+        pages = [page(port, k1) for _ in range(3)]   # the address fetched three times: a prefetch, the window, another browser
+        t1, hk = pages[0][1], pages[0][2]
+        if st != 200 or none or not t1 or any(p[1] != t1 for p in pages) or call(port, "GET", "/api/hello", token=t1)[0] != 200:
+            return f"the address fetched three times: HEAD gave a token {bool(none)}, the pages' tokens {[bool(p[1]) for p in pages]}"
+        gone = call(port, "POST", "/api/key-reused", {"k": k1}, t1)
+        if gone[0] != 404:
+            return f"the old lock's address still answers: {gone}"
         out, (port2, k2) = run("gate", str(proj), "1", "--desk", "--port", "0")   # the next stop: a new key
         if not port2 or "started again with a new link" not in out.stderr or k2 == k1:
             return f"the next gate: {(out.stdout + out.stderr)[-300:]}"
@@ -977,21 +979,26 @@ def link_checks():
         call(port2, "POST", f"/api/p/{hk}/agent/{sid}/say", {"text": "写个文件", "pid": pid}, t2)
         if not L.wait(lambda e: e["type"] == "permission"):
             return "no request to approve came"
-        # someone else opened the link first: the person's page comes with the spent key and holds no token of this run
-        st, none, _ = page(port2, k2)
-        r = call(port2, "POST", "/api/key-reused", {"k": k2})
+        # the person's case: while a request waits, the address is fetched twice more (no token kept): every page gets the
+        # token, the first page's token still works, the turn goes on and the stream stays open, and the desk says nothing
+        again = [page(port2, k2) for _ in range(2)]
         h = call(port2, "GET", "/api/hello", token=t2)
-        say = call(port2, "POST", f"/api/p/{hk}/agent/{sid}/say", {"text": "hi", "pid": pid}, t2)
         t0 = time.time()
-        while time.time() - t0 < 8 and not L.closed:
+        while time.time() - t0 < 2 and not L.closed:
             time.sleep(0.1)
-        L.close()
         ev = [json.loads(x) for x in (proj / ".ovh" / "agents" / f"{sid}.jsonl").read_text().splitlines()]
-        refused = [e for e in ev if e["type"] == "answered" and e.get("by") == "locked"]
-        if none or r[0] != 403 or r[1].get("locked") != "key_reused" or "bin/vh desk link" not in r[1].get("link", "") \
-                or h[0] != 403 or h[1].get("locked") != "key_reused" or say[0] != 403 or not L.closed or not refused or refused[0]["kind"] != "reject_once":
-            return f"a key that came back: page token {bool(none)}, report {r}, hello {h}, say {say[0]}, stream closed {L.closed}, refused {refused}"
-        out, (port3, k3) = run("desk", "link", str(proj))   # the way out
+        rid = next((e["rid"] for e in ev if e["type"] == "permission"), None)
+        open_stream = not L.closed
+        ans = call(port2, "POST", f"/api/p/{hk}/agent/{sid}/answer", {"request": rid, "option": "reject", "pid": pid}, again[-1][1])
+        L.close()
+        t0 = time.time()
+        while time.time() - t0 < 10 and (proj / ".ovh" / "agent.lock").exists():   # the turn ends after the answer
+            time.sleep(0.1)
+        log = (proj / "out" / "review" / ".desk.log").read_text(errors="replace") if (proj / "out" / "review" / ".desk.log").exists() else ""
+        if any(p[1] != t2 for p in again) or h[0] != 200 or not open_stream or ans[0] != 200 or "opened a second time" in log:
+            return (f"the address fetched again mid-request: tokens {[p[1] == t2 for p in again]}, hello {h[0]}, stream open {open_stream}, "
+                    f"answer {ans}, the log says locked: {'opened a second time' in log}")
+        out, (port3, k3) = run("desk", "link", str(proj))   # a new key: the old one and its token void
         if not port3 or out.returncode:
             return f"desk link: {(out.stdout + out.stderr)[-300:]}"
         st, t3, hk = page(port3, k3)
@@ -1109,10 +1116,10 @@ if __name__ == "__main__":
           page_check)
     check("an agent's bin/vh runs under the repo's rules in the adapter's environment: a paid call with no budget is refused, even with a key set", rules_check)
     check("an agent's shell in the project (every file, the console's info folder, the loopback) finds no credential: /answer and "
-          "/mode refused; the launch key in gate's message only, good once", attack_checks)
-    check("the launch key: a HEAD spends nothing; coming back to a page without this run's token it locks the desk (every token void, what waits refused, "
-          "POSTs refused, the stream ends, the page told why and the line out); desk link and the next gate start it with a new key; mid-turn, link refuses "
-          "and gate keeps its link", link_checks)
+          "/mode refused; the launch key in gate's message only, good for every page that brings it", attack_checks)
+    check("the launch key works for the whole run: the address fetched two and three times (the person's case) gives each page the token, the earlier ones "
+          "keep working, a waiting request is answered, nothing is locked and the desk says nothing; a HEAD gives none; desk link and the next gate start "
+          "it with a new key; mid-turn, link refuses and gate keeps its link", link_checks)
     check("bin/vh desk in a terminal opens your browser at its address (that page gets the token); --no-open, or no terminal (an agent, a "
           "background start), opens nothing; desk link in a terminal opens the new address", open_checks)
     try:
