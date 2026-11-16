@@ -19,7 +19,7 @@ window.film = {
 
 | 字段 | 必填 | 意思 |
 |---|---|---|
-| `frame(t)` | 是 | 画出 t 秒（`0 ≤ t < duration`）的完整画面，连同它自己管的 DOM（比如字幕）。硬规则 1：同一个 t 永远画出同一帧，不管之前画过什么、按什么顺序要帧。浏览器重画同一帧不总是逐字节相同（图层会重新光栅化），所以比较时留一点容差，同硬规则 1 的 45 dB；OpenFilm 规范第 3 节也这么说。 |
+| `frame(t)` | 是 | 画出 t 秒（`0 ≤ t < duration`）的完整画面，连同它自己管的 DOM（比如字幕）。硬规则 1：同一个 t 永远画出同一帧，不管之前画过什么、按什么顺序要帧。浏览器重画同一帧不总是逐字节相同（图层会重新光栅化），所以比较时留一点容差，同硬规则 1 的 45 dB。 |
 | `duration` | 是 | 片长，秒。OpenFilm 允许不写（当作静帧）；本仓库的片子都有长度，所以必填。 |
 | `ready` | 否 | 宿主等它 resolve 之后才调 `frame`；是函数时按方法调（`film.ready()`）。网页字体要逐个 `document.fonts.load('900 60px X')`，不能只等 `document.fonts.ready`。 |
 | `width`、`height` | 否 | 写了就以它为准。不写时，宿主按 HyperFrames 根元素的 `data-width` × `data-height`，或者页面的 `<meta name="viewport" content="width=…, height=…">`，再不然 1920 × 1080（`bin/vh frames --size` 可以另给）。出 4K 不改这两个数，而是把设备像素比设成 2：画布要按 `innerWidth × devicePixelRatio` 分配像素，固定尺寸的画布只会被放大。 |
@@ -42,7 +42,7 @@ window.film = {
 | `fps` | 可选。页面是按哪个帧率做的（数字）：每帧变一次的东西（颗粒、抖动）按它变 | `bin/vh render`：`--fps` 和它不同时提醒一句，两个数都写出来 |
 | `ui(t)` | 方法：t 秒时常驻界面（进度条、署名、字幕）的字和线在哪：`[{name, box: [x0, y0, x1, y1]}]`，画面的 CSS px；只框界面自己的字和线，垫在下面的底板、渐变不算。写了它，`frame(t, { layer: "scene" })` 就要画出不带界面的这一帧（不认这个参数的页面照常画整帧，宿主会看出来、说一声） | `bin/vh textcheck`：两种画法各画一遍，场景自己在这些框里画了线、边、字的，报出来（警告） |
 
-这几项都是数据，在 `ready` 里算好：OpenFilm 的说法是"跟着声音走的时间是数据，不是接口"。`cover(id)` 和 `ui(t)` 是方法，同样是 t 的纯函数。
+这几项都是数据，在 `ready` 里算好：跟着声音走的时间是数据，不是接口。`cover(id)` 和 `ui(t)` 是方法，同样是 t 的纯函数。
 
 ### 以前的 `window.__vh`
 
@@ -54,7 +54,7 @@ window.film = {
 
 1. 从页面所在的文件夹起一个只在本机 `127.0.0.1` 的服务来打开页面（不用 `file://`），所以页面能 `fetch` 这个文件夹里的文件；项目根目录的页面，就是整个项目。时区固定为 UTC，所以显示本地时间的页面在哪台机器上都画得一样。
 2. 页面的脚本运行之前，先设好 `window.filmHost = { version: '0.1', name: 'ovh' }`。看到它，页面就不能自己往前走：不开自转的动画循环，不自动播放，不开开发界面。
-3. **时钟兜底**：从画第一帧起，`performance.now()`、`requestAnimationFrame` 的时间戳、`Date`、页面留着在跑的 CSS 和 Web Animations 都钉在 t 上，`Math.random` 每帧按 t 重新播种。硬规则 1 照旧是"不许用这些"；兜底的作用是写错了也不出错，宿主还会报出哪些帧调了 `Math.random`（`Date` 和 `performance.now` 常被库自己读，比如 HyperFrames 的运行时，所以不报）。加载阶段（`ready` 之前）照常走真实时间。思路和 OpenFilm 的 `FILM_CLOCK` 一样，代码是本仓库自己写的（`tools/film/clock.js`）。
+3. **时钟兜底**：从画第一帧起，`performance.now()`、`requestAnimationFrame` 的时间戳、`Date`、页面留着在跑的 CSS 和 Web Animations 都钉在 t 上，`Math.random` 每帧按 t 重新播种。硬规则 1 照旧是"不许用这些"；兜底的作用是写错了也不出错，宿主还会报出哪些帧调了 `Math.random`（`Date` 和 `performance.now` 常被库自己读，比如 HyperFrames 的运行时，所以不报）。加载阶段（`ready` 之前）照常走真实时间。代码在 `tools/film/clock.js`。
 4. 等 `ready`，再调 `frame(t)`，等它 resolve，然后截取视口（无损 PNG）。`ready` 包括字体：字体文件都载好了。字形不归页面自己查（页面问不出一个字是哪个字体画的），由宿主查，见第 6 条。
 5. 页面抛错、请求失败，都报出来，不当作成功：加载时的、画某一帧时的、最后一帧之后才冒出来的（比如一帧留下的定时器抛的错）都算。
 
@@ -62,14 +62,14 @@ window.film = {
 
 7. **GPU 丢失**：GPU 进程崩溃时，页面上所有 canvas 都被清空，页面留着当纹理用的那些也一样，而页面只收到 `contextlost` / `webglcontextlost` 事件，没有报错。宿主在页面脚本之前数这些事件，每次截图后查一遍；丢过就重新载入页面，再画这一帧，连丢 4 次就报错退出。所以一次渲染里页面可能被载入不止一次，硬规则 1 保证画出来的还是同一张。页面自己结束的 context 不算（`WEBGL_lose_context`，比如 three 的 `forceContextLoss()`），WebGL context 太多时浏览器结束最旧的那个也不算。Web Worker 里的 `OffscreenCanvas`、WebGPU、其他来源的 iframe 数不到。
 
-还没做的：页面用 `<video>` 取画面时，OpenFilm 的宿主会把 seek 落到那一帧里面、等新的一帧上屏再截图，这个宿主还没有；它的服务也不答 HTTP Range 请求。
+还没做的：页面用 `<video>` 取画面时，宿主应当把 seek 落到那一帧里面、等新的一帧上屏再截图，现在还没有；宿主的服务也不答 HTTP Range 请求。
 
 ## 在序列里
 
 一支片子可以由剪辑表（`edit.json`，格式见 `engines/EDIT.md`）把几个页面、图和纯色排成一串段。页面不用为此改什么：它照样是原子，宿主照样调 `frame(t)`，页面不知道自己在序列里。要知道的是三件事：
 
 1. **两种钟**：剪辑表给每个页面写明 `clock`。`film`：宿主给的 t 就是片子的时间，和单独渲这个页面一样，页面的 cue 照旧挂在旁白上；`local`：t 是页面自己的时间，u = in + (片子时间 − 段起点) · speed，从 0 起，适合片名卡、可复用的组件页、从 OpenFilm 拿来的页面（OpenFilm 的页面就是这种）。页面的 `texts`、`shots`、`chapters`、`cues` 照旧逐页读，序列层的工具按钟换算到片子时间。
-2. **比段短时**：段默认不能比页面的 `duration` 长，长了 render 和 frames 开页时就拒绝（意外的定格是缺陷）；段上写 `hold: true`，多出来的帧停在页面的最后一帧（OpenFilm 的规则）。
+2. **比段短时**：段默认不能比页面的 `duration` 长，长了 render 和 frames 开页时就拒绝（意外的定格是缺陷）；段上写 `hold: true`，多出来的帧停在页面的最后一帧。
 3. **服务根**：剪辑表模式下宿主从 `edit.json` 所在的文件夹（项目根）起服务，页面按它的相对路径打开（`pages/ch2/film.html`），页面里的相对路径照常从页面自己的位置算。所以章节页也能读到项目根的 `audio/timeline.zh.json`，而所有画片子时间的页面必须读同一份旁白时间轴、beats 和时间映射：render 开工前按 sha256 比，不是同一份就停下。只用根路径（`/src/x.js`）取文件的页面，放进子文件夹就找不到它们。
 
 宿主自己的三个页面（`tools/film/pages/still.html`、`slate.html`、`color.html`）也按这一页的合约写，画图、灰卡和纯色；它们要画什么，宿主经 `window.filmHost.params` 给（两帧之间可以换），页面对 t 和这些参数是纯函数。

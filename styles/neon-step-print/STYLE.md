@@ -126,6 +126,5 @@ Visual style: neon night with step-printed motion smear. Night teal-black #0A141
 
 ## 相关资源
 
-- lemo-opuscar 里没有直接对应的风格。`cel-anime-80s`（背光霓虹、1987 年录像带质感）只在"霓虹背光"这一点上接近，见 `references/repos/lemo-opuscar/styles/cel-anime-80s/STYLE.md`（LemoLab，CC BY 4.0）。
 - `playbook/08-vfx-and-motion-sources.md` 的"真正的子帧运动模糊"一节：抽帧就是它的变体，快门超过 360° 再加步进。
 - `video-types/04-lyric-music-video.md`、`video-types/02-knowledge-short.md`。

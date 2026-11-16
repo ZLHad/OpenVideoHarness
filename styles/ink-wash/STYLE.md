@@ -85,7 +85,7 @@ Titles are written stroke by stroke in correct stroke order, vertical, in the em
 ## 引擎做法
 
 - **首选 ClaudeAnimationBase（p5.brush）**：远山和雾用 `paint(pts, { fill, fillOp, bleed: .2–.3, tex: .6–.8, ink: null })`；飞白用 `inkLine(pts, sw, '#1E1B18', 'dry')`；角色用淡墨 `wash` 加浓墨描边。每层先 `boilSeed(key)`，远山静止时不能 boil。
-- **需要更浓的笔墨**时，照 lemo 的做法自写 Canvas2D 笔刷：中线（Catmull-Rom）× 压力曲线 × 4–60 根鬃毛轨迹，鬃毛的断点用沿"归一化弧长"的长尺度噪声，这样一拍二重画时飞白不会爬动。湿层和干层分两张画布，湿层做 12 点 Poisson 模糊（约 5px）+ 边缘色素堆积（小模糊减大模糊）。
+- **需要更浓的笔墨**时，自写 Canvas2D 笔刷：中线（Catmull-Rom）× 压力曲线 × 4–60 根鬃毛轨迹，鬃毛的断点用沿"归一化弧长"的长尺度噪声，这样一拍二重画时飞白不会爬动。湿层和干层分两张画布，湿层做 12 点 Poisson 模糊（约 5px）+ 边缘色素堆积（小模糊减大模糊）。
 - **墨晕转场**：`mask(p) = d(p)·(0.62 + 0.8·fbm(p·s)) < r(t)`，fbm 用 `hash(i)` 种子；在 `r(t)` 内外 8px 的环带里压暗 12% 做水线。全部是 t 的纯函数。
 - **笔顺书写**：拿 `Kaiti SC` 的字形做骨架参考，手写每一笔的中线点列和顺序；不要用字形轮廓去裁笔触（交叉处会出缺口）。
 - 手卷横移用单一的世界坐标，字幕等屏幕层画之前重置 transform。
@@ -100,7 +100,6 @@ Titles are written stroke by stroke in correct stroke order, vertical, in the em
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/ink-wash/STYLE.md`（LemoLab，CC BY 4.0，https://creativecommons.org/licenses/by/4.0/）。本文为重写：墨分五色的档位、湿干分层、归一化弧长鬃毛噪声和墨晕 mask 的思路改编自该文，数值和规则按本仓库重新定过。
-- `references/repos/story-to-handdrawn-video/references/handdrawn-style-library.json` 的 `ink-wash`（水墨写意）配方，MIT。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/ink-wash/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：全文重写，数值和规则按本仓库重新定过。
 - `video-types/07-hand-drawn.md`、`engines/ClaudeAnimationBase/ANIMATION_GUIDE.md`、`playbook/03-motion-design.md`、`playbook/04-audio.md`。
 - 相近预设：`styles/silhouette-papercut/`（纸片分层）、`styles/watercolor-pastoral/`（同一引擎的水彩用法）。

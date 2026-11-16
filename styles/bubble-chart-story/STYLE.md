@@ -102,7 +102,6 @@ Visual style: live-narrated animated bubble chart. Light page #F7F5F0, ink #2321
 
 ## 相关资源
 
-- `references/repos/data-animation-skills/skills/chart-animation/SKILL.md`（MIT）：每个值从当前帧算出，排名和位置都插值、不跳。
-- `references/repos/lemo-opuscar/styles/dataviz/STYLE.md`（LemoLab，CC BY 4.0）：把 Rosling 的"一个点就是一个角色"列为对标，本文沿用这个思路，改成气泡图、浅底和指示棒。
+- 同类社区 skill 的做法见 `references/community-skills.md` 第 1 节"05 数据叙事 / 动画图表"。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/data-in-motion.md`。
 - `video-types/05-data-story.md`（"Gapminder 式动画适合讲故事"一条）；`playbook/04-audio.md`（cue 词触发）。

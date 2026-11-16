@@ -93,7 +93,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 ### 配乐（`music`）
 
-来源优先级（借鉴自归藏 product-video skill 的做法）：
+来源优先级：
 1. **用户给的曲子**，或用户有授权的曲库。按它的实际节拍重新对齐画面：`bin/vh beats`。要找一首可以用的现成曲子：`bin/vh bgm search` 查本机声音库和 Openverse（多是 Jamendo 的 CC BY），`bgm pick` 在强拍上截好、连节拍表和署名一起进项目（参数见 `bin/vh bgm -h`）。
 2. **生成的曲子**：云端用 Lyria（`bin/vh music --provider lyria`，Gemini API 按首付费，先按 BRIEF 的 `Budget:` 占住再调，曲子和提示词记进台账、标成 AI 生成；长度只能用提示词说，回来多长就是多长）；本机的音乐生成模型先确认权重已经下载、运行环境也装好，才算可用，接口位见下文"歌曲"。
 3. **代码原创作曲**：`bin/vh music`。编曲源码 `score.json` 跟着项目一起提交，段落（`sections`）按镜头边界排，音色和速度按片子的气质选。因为曲子是我们自己写的，节拍网格和冲击点是**精确的**，不用再做节拍检测。
@@ -303,7 +303,7 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 | 免费、先凑合用 | `edge-tts`（微软中文音色，非官方接口，随时可能失效） |
 | 词级时间戳 | 已封装：`bin/vh tts … --align gemini`（Gemini 3.5 Transcribe，词级，0.1 s 步长，顺带对稿）和 `--align local`（本机的 mlx-whisper，Apple Silicon，不要 key、没有日配额，同样对稿）。别的机器上离线的话，中文用 FunASR（字级，带标点）；通用用 whisper.cpp；已有讲稿或歌词、只需对齐时用 ctc-forced-aligner |
 | 节拍 | librosa 或 beat_this（后者 downbeat 更准）。音乐平缓时，检测出来的 BPM 只是一个强加的节拍器，不能拿来硬切。 |
-| 歌词对齐 | Demucs 分离人声 → Whisper 分块转写 → 用序列对齐（Needleman–Wunsch 或 difflib）把真实歌词对到转写结果上。functional-emotions-video 的 `analysis/` 目录有完整脚本。 |
+| 歌词对齐 | Demucs 分离人声 → Whisper 分块转写 → 用序列对齐（Needleman–Wunsch 或 difflib）把真实歌词对到转写结果上。现成的整套脚本见 `references/community-skills.md` 第 1 节"04 歌词视频 / MV"。 |
 | 音乐 | 能调用的接口：Lyria（`bin/vh music --provider lyria`；lyria-3.5 每首 $0.08、30 s 的 lyria-3-clip-preview $0.04，没有免费档，2026-10-26 对着 Google 的价目页核过）；要每段精确时长时用 Eleven Music（没接）。现成的曲子：`bin/vh bgm search`、`bgm pick`。Suno 没有公开的自助 API，不接；人在 Suno 上生成，再把文件交给 agent。 |
 | 音效 | 录好的：`bin/vh sfx search`、`sfx pick`（本机声音库和 Openverse，许可和署名进台账）；生成的：ElevenLabs Sound Effects API（没接）。 |
 

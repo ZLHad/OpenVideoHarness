@@ -12,11 +12,10 @@
 |---|---|---|
 | Risograph 数码速印机与它的专色油墨 | 理想科学工业（Riso Kagaku）1946 年由羽山昇（Noboru Hayama）创立；Risograph 各机型的年份未核实 | 一次只印一种颜色；油墨半透明，叠印等于相乘；每一版单独对位，偏差是常态；实地有针孔，走纸方向有条纹 |
 | 《報道ステーション》（Hodo Station）片头动画 | 2021 · Hiromu Oka | 把每一帧真的分色、逐张用 Riso 印出来再扫描：三色、A3 纸上千张；颗粒和套版随帧"沸腾"，这是数字滤镜模仿不出的一点 |
-| 《Sunday Ride》（lemo-opuscar 的样片） | 2026 · LemoLab（CC BY 4.0） | 用 RGB 三个通道存三块版的密度，着色器负责网点、错位和颗粒；"版即叙事"：开场一版，每个转折加一版 |
 
 核实：Riso Kagaku 的创立年份和创始人来自 Wikipedia；Hiromu Oka 的作品、年份和工艺（三色、上千张 A3、逐帧扫描）来自 It's Nice That 的制作专访。
 
-**不照搬**：不出现 RISO 的商标和机器外观，油墨名只当颜色参考；不照搬 Oka 片头的画面，也不照搬 lemo 样片的骑车人、鸽子和"粉色圆盘吞掉公园"这一具体镜头（"叠印盖满"这个语法可以用，但样片改成了矩形整版滑入）。
+**不照搬**：不出现 RISO 的商标和机器外观，油墨名只当颜色参考；不照搬 Oka 片头的画面，也不照搬现成样片里的骑车人、鸽子和"粉色圆盘吞掉公园"这一具体镜头（"叠印盖满"这个语法可以用，但样片改成了矩形整版滑入）。
 
 ## 视觉语法
 
@@ -98,7 +97,6 @@ Visual style: risograph print in motion. Warm paper #F4EFE4 and three translucen
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/risograph/STYLE.md`（LemoLab，CC BY 4.0）：本预设的主要来源。三通道存版、着色器印刷、每块区域两版一网点、固定偏移加踢、35% 颗粒重印、"版即叙事"都来自它；本文改写了参数、配乐分层和转场的具体做法，去掉了它的角色和镜头。
-- `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`：多网角叠印的另一种用法。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/risograph/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：改写了参数、配乐分层和转场的具体做法，去掉了原作的角色和镜头。
 - `video-types/04-lyric-music-video.md`、`video-types/07-hand-drawn.md`。
 - 外部：It's Nice That 对 Hiromu Oka 的专访（<https://www.itsnicethat.com/articles/hiromu-oka-hodo-station-process-animation-051222>）。

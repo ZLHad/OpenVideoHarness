@@ -21,7 +21,7 @@
 
 ## 工作流
 
-写代码前先把第 2–4 步写出来。这个顺序来自 3brown1blue 的 `paper-explainer.md`，它把这三步叫 Gate 1/2/3；在这里它们只是步骤，并入 CLAUDE.md 的关卡，只在关卡 ①②③ 和导演模式点名的地方停（`quick` 不设关卡）：
+写代码前先把第 2–4 步写出来。它们只是步骤，并入 CLAUDE.md 的关卡，只在关卡 ①②③ 和导演模式点名的地方停（`quick` 不设关卡）：
 
 1. **读源文件**：优先读 `.tex`，没有再读 PDF。把以下内容**照抄**进 `NOTES.md`：标题、作者、单位、会议或期刊、年份、每个要上屏的数字和它所在的表格或图的位置。
    **没附论文时**：先问用户要 `.tex`、PDF 或 arXiv id，这时什么都不写，不出立意卡和稿子，也不凭记忆写作者、年份和数字。用户只给了题目，查到的 arXiv id 先请他确认是这一篇。
@@ -41,7 +41,7 @@
 | 3–5 分钟 | 动机和问题 → 系统模型 → 关键想法（1–2 个机制动画）→ 结果（1–2 张图）→ 一句话总结 + 论文信息 |
 | 10 分钟以上 | 按 `10-long-explainer.md` 做：一个贯穿的问题、按内容起名的章节，不必一节论文一章；报告录像（幻灯片加讲者）看 `cases/paper-paper2video.md` 的通道拆分 |
 
-3brown1blue 的 `paper-explainer.md` 里有更详细的五分钟模板，也分领域（ML、物理/工程、生物医学）给出了常见套路。3–5 分钟的讲解怎么排节拍、在哪里换挡，见 `playbook/09-narrative.md` 的模板 B。
+更详细的五分钟模板，以及分领域（ML、物理/工程、生物医学）的常见套路，在 `references/community-skills.md` 第 1 节"06 论文讲解 / 学术视频"列的那份论文讲解规则里。3–5 分钟的讲解怎么排节拍、在哪里换挡，见 `playbook/09-narrative.md` 的模板 B。
 
 ## 禁止
 
@@ -80,13 +80,9 @@ Engines: Manim CE for mechanisms/equations, HyperFrames for title/structure/resu
 
 - `cases/paper-paper2video.md`：报告录像型的通道拆分，以及"让 VLM 从变体里选"。
 - `cases/explainer-code2video.md`：左侧讲义、右侧锚点动画区的版式。
-- `references/repos/3brown1blue/src/three_b1b/skill/rules/paper-explainer.md`（**必读**），以及同一目录下的 `remotion-integration.md`。
-- `references/repos/3brown1blue/src/three_b1b/skill/templates/paper_explainer.py`：论文讲解的场景模板。
+- 论文讲解的规则（**必读**）和场景模板：路径在 `references/community-skills.md` 第 1 节"06 论文讲解 / 学术视频"。
 - `references/repos/hyperframes-launches/claude-paper-launch/`：HyperFrames 做的论文发布片，带 ElevenLabs 旁白和 `transcript.json`，可以当作用 HyperFrames 做论文视频的样板。
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **data-animation-skills / presentation-video**（MIT）：把幻灯片重建成带旁白、自动翻页的视频；每页标题写成一句论断，每页时长等于该页旁白的实测时长。见 `references/repos/data-animation-skills/skills/presentation-video/SKILL.md`。
-- **ssrajadh/paperview**（Apache-2.0，未拉取）：论文或代码库生成讲解视频，本地渲染加 TTS；清单里和本类最贴近，值得拉下来细读。
+同类社区 skill（论文讲解的规则和场景模板、把幻灯片重建成带旁白的视频、论文转讲解视频的插件）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"06 论文讲解 / 学术视频"。只读参考；复用代码前先确认许可。

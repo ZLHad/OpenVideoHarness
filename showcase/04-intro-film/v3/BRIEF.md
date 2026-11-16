@@ -56,7 +56,7 @@
 - Refs (2–3 named works):
   - `showcase/00-promo-launch-film`: the visual system to continue;
   - Ryoji Ikeda, *test pattern* series: picture and sound from one data source, hard sync (the discipline, not the strobe);
-  - `hyperframes-launches/sfx-music-launch` + PDoom as the rhythm yardstick.
+  - `hyperframes-launches/sfx-music-launch` as the rhythm yardstick.
 - Explicitly NOT:
   - AI-trailer slop: purple-cyan gradients, glow orbs, glassmorphism, particle swirls, ✨ icons, chrome 3D logos, trailer braams. The one exception is the part-3 gag: at most 6 frames, stamped #10 FAIL;
   - feature-card grids, slide decks, screen-recording tours;

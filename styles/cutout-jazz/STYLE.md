@@ -110,6 +110,6 @@ Visual style: mid-century cut-paper title design. Flat opaque paper shapes in fo
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/spy-titles/STYLE.md`（LemoLab，CC BY 4.0）：同一语法的完整样片。剪刀边缓存、纸缝、一拍二、停拍这几个做法来自它；本文按 OpenVideoHarness 的规则改写了数值、禁止项和"屏息"的处理。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/spy-titles/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：按 OpenVideoHarness 的规则改写了数值、禁止项和"屏息"的处理。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Shadow Cut，可以作暗场景的对照。
 - `video-types/07-hand-drawn.md`（剪纸：3–5 层纸、软投影、12 fps 步进）、`video-types/03-product-promo.md`、`playbook/03-motion-design.md` §6 转场。

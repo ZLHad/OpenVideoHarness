@@ -114,7 +114,7 @@
 - **容易被误用成**：
   - 一堆风格不一的图标拼盘；
   - 按数量放大图标；
-  - 三维或等轴测图标（那是 lemo 的 `iso-infographic`）；
+  - 三维或等轴测图标；
   - 厕所标志式的剪贴画，符号只是装饰，不代表任何数量。
 
 ## 禁止项
@@ -154,8 +154,6 @@ Visual style: pictorial statistics in the Vienna-method grammar. Flat, printing-
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/pictogram-motion/STYLE.md`（LemoLab，MIT）：以 1972 年慕尼黑奥运会的几何人形为学习对象，一张卡片一个人形，踩拍切换。和本预设的区别：它讲"一件事"，Isotype 讲"有多少"。本文借了它"每个关键动作落在整拍上"的做法。
-- `references/repos/lemo-opuscar/styles/iso-infographic/STYLE.md`（LemoLab，MIT）：把 Isotype 式的数字放进等轴测场景，入场带回弹。本预设反过来：纯平面、不透视，入场只有盖章落地的 3 px。
 - 本仓库的 `editorial-data`（同属数据类：一条线加一个强调色）和 `risograph`（同样是 Futura 配暖纸，但靠叠印和错版；本预设是干净的平涂印刷）。
 - `video-types/05-data-story.md`；`playbook/03-motion-design.md`。
 - 外部资料：

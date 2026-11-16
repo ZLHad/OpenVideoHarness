@@ -17,7 +17,7 @@
 
 核实：蓝晒法的发明人和年份来自 Wikipedia（Cyanotype、Blueprint 条目）；《Iron Man》片尾的制作方和创意总监来自 Art of the Title 与 Motionographer；GB/T 14691 对长仿宋体的规定来自国家标准全文公开系统的条目和机械制图手册摘录。ISO 128 当前的分部版本号没有核对。
 
-**不照搬**：不用任何真实专利图、盔甲造型或真实品牌产品的外形；不复刻 lemo 样片里"修订云变成真云"这一桥段（"一个制图符号变成真东西"这个语法可以用，但换一个符号）。
+**不照搬**：不用任何真实专利图、盔甲造型或真实品牌产品的外形；不复刻"修订云变成真云"这个现成桥段（"一个制图符号变成真东西"这个语法可以用，但换一个符号）。
 
 ## 视觉语法
 
@@ -101,7 +101,7 @@ Visual style: engineering blueprint on cyanotype paper. The whole film is one sh
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/blueprint/STYLE.md`（LemoLab，CC BY 4.0）：同名风格的完整样片。制图顺序、线宽随缩放的指数、斜投影系数动画、零件按八分音符飞出这几条来自它；本文改写了色值和字体（换成本机可用的 DIN 与仿宋）、改用审图黄代替红印章，并补了国标长仿宋和"活的尺寸"规则。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/blueprint/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：改写了色值和字体（换成本机可用的 DIN 与仿宋），改用审图黄代替红印章，并补了国标长仿宋和"活的尺寸"规则。
 - `video-types/01-math-science-explainer.md`、`video-types/03-product-promo.md`、`video-types/06-paper-explainer.md`。
 - `playbook/03-motion-design.md` §1（缓动表）、`playbook/08-vfx-and-motion-sources.md`。
 - 外部：Art of the Title 的《Iron Man》片尾页（<https://www.artofthetitle.com/title/iron-man/>），只看语法。

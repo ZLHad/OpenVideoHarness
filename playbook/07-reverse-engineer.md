@@ -58,4 +58,4 @@ ffmpeg -i ref.mp4 -vn -ac 1 -ar 16000 ref.wav                                   
 
 ## 相关工具
 
-`references/repos/viral-video-decomposer/`（MIT）：把爆款短视频拆成镜头级拉片、爆款机制分析、AI 生产蓝图和视频生成 brief。适合批量拆短视频。
+要批量拆短视频（镜头级拉片 → 爆款机制 → 变量槽 → 生成 brief）时，同类社区 skill 见 `references/community-skills.md` 第 1 节"08 野兽派 / 网络梗 / 快剪"。

@@ -114,7 +114,5 @@ Titles appear one character at a time (180 ms apart), outline first, then fill. 
 
 ## 相关资源
 
-- lemo-opuscar 没有对应的敦煌风格；相近的是 `references/repos/lemo-opuscar/styles/stained-glass/STYLE.md`（按光照分格上色）与 `ukiyoe`（手卷式横移），均为 CC BY 4.0（LemoLab）。
-- `references/repos/story-to-handdrawn-video/references/handdrawn-style-library.json` 的 `hs-190`（飞天曲线·矿物色，MIT）。
 - 敦煌研究院官网的洞窟介绍（第 257、320 窟）：https://www.dha.ac.cn/
 - `video-types/07-hand-drawn.md`、`playbook/03-motion-design.md`、`playbook/04-audio.md`。

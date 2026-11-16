@@ -10,12 +10,11 @@
 
 | 作品 | 年份 · 出处 | 从它身上学什么 |
 |---|---|---|
-| 《你问 AI 一句话之后的 3 秒钟》 | 2026-09-29 · 科了个喵，抖音（拆片见 `cases/oneshot-five.md` 第 1 节） | 浅色界面讲解可以很耐看：柔和的三色底、白卡片、一个蓝紫强调色；每个 token 一个颜色一路带到输出；常驻读数告诉观众走到哪了；结尾答案变成画面 |
 | Material You（Material Design 3） | 2021 · Google，2021-05-18 在 Google I/O 上和 Android 12 预览版一起公布（当时 Android 12 还在 beta） | 动态取色：从墙纸里提取颜色，生成一套柔和的色调板，界面跟着墙纸换色 |
 
-核实（2026-10-02）：科了个喵那支片子的日期、配色和读数以 `cases/oneshot-five.md` 的拆片为准；Material You 的公布场合、日期和动态取色按维护方核对过的事实写。
+核实（2026-10-02）：Material You 的公布场合、日期和动态取色按维护方核对过的事实写。
 
-**不照搬**：开场在输入框里打字再发送，和原片前 5 秒是同一种镜头（原片打的是一个问题）。样片保留它，因为"打出来、发出去"是这个风格的签名；换掉的是节奏（0.8 s 内发出）和颜色的来历（三个概念色从输入框里长出来）。想彻底避开，可以让标题以一条通知或一张卡片进场。其余不用原片的镜头和它的"回车后 x 秒 / 慢放 ×N"读数，不用 Google 的组件和字体，聊天界面是通用的，不仿任何真实 App。
+**不照搬**：开场在输入框里打字再发送，和 `cases/oneshot-five.md` 第 1 节拆的那支浅色界面讲解片前 5 秒是同一种镜头（那支打的是一个问题）。样片保留它，因为"打出来、发出去"是这个风格的签名；换掉的是节奏（0.8 s 内发出）和颜色的来历（三个概念色从输入框里长出来）。想彻底避开，可以让标题以一条通知或一张卡片进场。其余不用那支片子的镜头和它的"回车后 x 秒 / 慢放 ×N"读数，不用 Google 的组件和字体，聊天界面是通用的，不仿任何真实 App。
 
 ## 视觉语法
 
@@ -109,6 +108,5 @@ Visual style: a light, friendly UI explainer. A soft pastel mesh wallpaper (lave
 
 ## 相关资源
 
-- lemo-opuscar 的 `living-screencast`（LemoLab，MIT）是近亲：真实产品的界面重画成矢量、镜头在屏幕里推拉，追求"像录屏"；这里是通用的讲解界面，靠概念色、焦点卡片和"答案变成画面"。见 `references/repos/lemo-opuscar/styles/living-screencast/STYLE.md`。
 - 本库：`fui-hud`（暗底电影界面）、`bubble-chart-story`（同为讲解，舞台是一张图）、`product-keynote`。
 - `cases/oneshot-five.md` 第 1 节；`video-types/02-knowledge-short.md`、`03-product-promo.md`、`05-data-story.md`；`playbook/03-motion-design.md` §4、`playbook/04-audio.md` 的"转场音效按风格选"。

@@ -84,6 +84,6 @@ HyperFrames 里色带是关键词 span 的一个伪元素或背景层，宽度�
 
 ## 来源
 
-改写自 gongnyang/awesome-ai-motion（MIT）的卡片 highlight-sweep。文字重写；参数沿用卡片的默认值和范围（时长取范围中段），按 30 fps 换算；草图是本仓库写的。卡片注明的概念来源（GSAP、HyperFrames、Vox 的讲解片）只是手法出处。
+改写自 gongnyang/awesome-ai-motion（MIT）的卡片 highlight-sweep。文字重写；参数沿用卡片的默认值和范围（时长取范围中段），按 30 fps 换算；草图是本仓库写的。
 
 **许可**：本文件修改自 [awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion) 在 commit `1e3c249` 时的 `effects/highlight-sweep/README.md`（Copyright (c) 2026 gongnyang，MIT），改了什么见上一段。来自上游的部分仍按 MIT 授权，许可全文见 [`LICENSES/MIT-awesome-ai-motion.txt`](../LICENSES/MIT-awesome-ai-motion.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

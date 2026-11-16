@@ -7,7 +7,7 @@
 | 画风 | 引擎 |
 |---|---|
 | 水彩、墨线、角色动画 | **ClaudeAnimationBase**（p5.js + p5.brush）。本机已装好，渲染约 0.13 秒一帧 |
-| 更浓的笔触画面 | 参考 functional-emotions-video 的 WebGL 笔触渲染器：先画 Canvas2D 底稿，GPU 再用约 6 万个带纹理的笔触重画 |
+| 更浓的笔触画面 | 自己写 WebGL 笔触渲染器：先画 Canvas2D 底稿，GPU 再用约 6 万个带纹理的笔触重画（`cases/mv-functional-emotions.md`） |
 | 白板手绘 | rough.js、perfect-freehand、excalidraw-animate，放进 HyperFrames 或自己写的 `renderAt(t)` |
 | 剪纸 | HyperFrames 或 p5：3–5 层纸，带软投影，12fps 步进 |
 
@@ -37,7 +37,7 @@
 
 ## 汉字按笔顺书写
 
-水墨、书法、白板一类的片子常要把汉字一笔一笔写出来，比如章节标题。Eian 的《华夏·五千年》就是这么做的（见 `cases/community-prompts.md`）。这和 ANIMATION_GUIDE 的"不写字"不冲突：那条禁的是牌子、字幕、标签这类信息文字；书写本身就是画面时可以用，但要在项目的 `STYLE.md` 里写明这个例外。
+水墨、书法、白板一类的片子常要把汉字一笔一笔写出来，比如章节标题，`cases/community-prompts.md` 里那支讲华夏五千年的片子就是这么做的。这和 ANIMATION_GUIDE 的"不写字"不冲突：那条禁的是牌子、字幕、标签这类信息文字；书写本身就是画面时可以用，但要在项目的 `STYLE.md` 里写明这个例外。
 
 **数据**：[Make Me a Hanzi](https://github.com/skishore/makemeahanzi)（skishore）提供 9,000 多个常用简繁汉字的笔顺矢量数据。`graphics.txt` 每行是一个 JSON：`character` 是字；`strokes` 是按正确笔顺排好的每一笔轮廓（SVG path）；`medians` 是每一笔的中线点列。坐标系是 1024×1024、y 轴朝上，左上角在 (0, 900)，显示时要翻转，README 给的变换是 `scale(1, -1) translate(0, -900)`。字形来自文鼎的两款 PL 楷体字库，写出来是楷书的样子。
 
@@ -155,9 +155,4 @@ ANIMATION_GUIDE 的 Review loop 一节已经很完整，这里只补两条：
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **hand-drawn-explainer**（Apache-2.0）：区分"逐笔落墨"和"手绘风元素在动"，不用整图淡入冒充落墨；左右双语义岛布局。见 `references/repos/hand-drawn-explainer/SKILL.md`、`references/repos/hand-drawn-explainer/references/stroke-story-workflow.md`。
-- **claude-animation-skill**（MIT，不在 183 个 skill 的清单里）：Node canvas 画的手绘 2D，不用浏览器；"细节圣经"要求每个表面画三层（底色 → 纹理 → 边缘），线宽和细节随景深递减；笔触种子取自稳定的名字而不是帧号；`verify` 把 5 个帧正序、倒序、再正序渲三遍比 MD5。见 `references/repos/claude-animation-skill/plugins/claude-animation/skills/claude-animation/SKILL.md`。
-- **story-to-handdrawn-video**（MIT）：文字 → 黑白画稿 → 彩色插画，三段揭示；附 327 项画风和配色资产，可以离线浏览。见 `references/repos/story-to-handdrawn-video/references/style-library.html`。
-- **remotion-guofeng-starter**（代码 MIT，演示素材不能商用）：国风纸片组件 `PaperCollageLayer`，风格资产和故事分开。见 `references/repos/remotion-guofeng-starter/style/design.md`。
+同类社区 skill（逐笔落墨和左右双语义岛、纯代码手绘 2D 的细节规范、文字到画稿再到插画的三段揭示、国风纸片拼贴）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"07 手绘 / 水彩 / 剪纸"。只读参考；复用代码前先确认许可。

@@ -4,7 +4,7 @@
 
 ## 原则
 
-1. **特效服务于内容**。每个特效都要能说出一句"因为这支片子（产品、概念）有 X，所以用 Y"（借鉴归藏的做法）。说不出来的，就是装饰。
+1. **特效服务于内容**。每个特效都要能说出一句"因为这支片子（产品、概念）有 X，所以用 Y"。说不出来的，就是装饰。
 2. **全片一套特效语汇**：2–3 种转场、1 种主背景手法，反复使用，不要每个镜头换一种。
 3. **声画同源**：特效的触发点从 `music.beats.json` 的 `beats`、`downbeats`、`hits`，或者 `timeline.json` 的句子边界读取，不要手填时间。
 4. **随机要可复现**：粒子、噪声、抖动全部用带种子的 hash。着色器里只用 `uTime = t`，不用系统时钟。
@@ -15,15 +15,15 @@
 |---|---|---|---|---|
 | 转场 | `npx hyperframes add <block>` 注册表里有着色器转场（例如 `flash-through-white`）；速度匹配的切法见 `references/repos/hyperframes/_upstream_claude/skills/cut-the-curve/` | `brushWipe`、`iris`、`irisShape`（见 ANIMATION_GUIDE） | `Transform`、`FadeTransform`、摄像机移动 | 跟着动作切、形状匹配切 |
 | 背景和氛围 | Three.js 或 canvas 层；`hyperframes-creative/references/audio-reactive.md` | 水彩 fill、纸纹、`glow()` | `NumberPlane`、渐变背景 | 颗粒、暗角、光晕、色散、空气（"成片的收尾"，见下；组件 `film-finish`） |
-| 粒子、汇聚、流线场 | canvas 或 Three.js 自己写，用 `hash(i)` 定初始状态 | `hash` + `jit` | `VMobject` 点阵 | 思路参考 guizang 的 `assets/fx-lab/`（AGPL，只看思路不复用代码） |
+| 粒子、汇聚、流线场 | canvas 或 Three.js 自己写，用 `hash(i)` 定初始状态 | `hash` + `jit` | `VMobject` 点阵 | 同类社区特效实验见 `references/community-skills.md` 第 1 节"03 产品宣传 / 发布片"（AGPL，只看思路不复用代码） |
 | 文字动效 | 逐词 stagger、`steps()` 打字、`clip-path` 揭示（数值见 03 篇） | `letter()`、`sfx()` | `Write`、`TransformMatchingTex` | — |
-| 数据图表动画 | `npx hyperframes add data-chart`；`hyperframes-creative/references/data-in-motion.md` | — | `Axes`、`BarChart` | `references/repos/data-animation-skills/` |
+| 数据图表动画 | `npx hyperframes add data-chart`；`hyperframes-creative/references/data-in-motion.md` | — | `Axes`、`BarChart` | `references/community-skills.md` 第 1 节"05 数据叙事 / 动画图表" |
 | 角色动画 | — | Clawd 的 31 种情绪、转身、舞蹈（ANIMATION_GUIDE） | — | 生成视频打底 + 转描（`05-hybrid-genvideo.md`） |
-| 3D、着色器 | Three.js 层 + postprocessing | — | `ThreeDScene` | `references/repos/awesome-opus5-5-videos/` 的 3d 类作品和 prompt |
+| 3D、着色器 | Three.js 层 + postprocessing | — | `ThreeDScene` | `cases/opus55-gallery.md` 第 3 节"3D / 着色器"的作品和 prompt |
 | 光标、UI 演示 | `oversized-cursor` 技法（`_upstream_claude/skills/oversized-cursor/`） | — | — | 用真实 UI，不用占位 |
 
 更多风格来源：
-- `references/community-skills.md` §2 收录了 lemo-opuscar 的 43 种影片风格，每种都有风格 prompt 和纯代码样片；
+- `references/community-skills.md` §2 收录了 43 种社区影片风格，每种都有风格 prompt 和纯代码样片；
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 是 8 种设计师风格预设。
 
 ## 特效做成预设栈
@@ -86,11 +86,11 @@ npx hyperframes render --variables '{"fx":"A"}' --output out/lookdev/A.mp4
 - 好处：跟镜头的字在 N 个子时刻的位置都一样，自动保持清晰；只有真正在画面上移动的东西才会糊，不再需要 guard 之类的补丁。
 
 三种接法：
-- **`bin/vh render --motion-blur N`**：守页面合约的页面都能用，不改页面。快门默认半帧（`--shutter`），按上面的公式以这一帧的时刻为中心；快门在片头片尾、剪辑表的切点和页面自己的镜头边界截短，N 个子时刻在剩下的一侧重新均分（这些帧的拖影只有平时一半），硬切不混。下面 promo.html 的做法不同：越过切点的子时刻退回 t。平均在 sRGB 值上做；要线性光、逐镜头给不同的 N，用下一种。页面自己已经做了子帧模糊的（WebGL 里累积，或用了 `components/lib/paint.js` 的 `motionBlur()`、`whip()`），不要再开，否则叠两层。出片前用 `bin/vh frames --motion-blur N --strip …` 先看一段。
+- **`bin/vh render --motion-blur N`**：守页面合约的页面都能用，不改页面。快门默认半帧（`--shutter`），按上面的公式以这一帧的时刻为中心；快门在片头片尾、剪辑表的切点和页面自己的镜头边界截短，N 个子时刻在剩下的一侧重新均分（这些帧的拖影只有平时一半），硬切不混。下面那支宣传片的做法不同：越过切点的子时刻退回 t。平均在 sRGB 值上做；要线性光、逐镜头给不同的 N，用下一种。页面自己已经做了子帧模糊的（WebGL 里累积，或用了 `components/lib/paint.js` 的 `motionBlur()`、`whip()`），不要再开，否则叠两层。出片前用 `bin/vh frames --motion-blur N --strip …` 先看一段。
 - **在 Three.js 层里累积**：`renderAt(t)` 把场景在 N 个子时刻各渲一次，累加进一张浮点 render target 取平均；bloom、调色、颗粒这些后期只在平均之后做一次。
-- **整页高帧率渲染，再用 ffmpeg 平均**：[product-film-skill](https://github.com/Rieranthony/product-film-skill)（Remotion）就是这样做的：渲 240 fps 母版，用 `tmix=frames=4` 加 `select='not(mod(n+1\,4))'` 降到 60 fps，相当于 360° 快门。HyperFrames 本地渲染的 `--fps` 文档只列了 24/30/60，输出 30 fps 时这条路最多只有 2 个子帧；它较新的版本有整帧子采样的 `motionBlur` 渲染选项（见 `references/repos/hyperframes/skills/hyperframes-animation/references/motion-blur.md`），在 0.8.82 上没有验证过。社区里也有人用 Playwright 渲子帧做运动模糊（`cases/opus55-gallery.md` 里 @twoclipping 那条）。
+- **整页高帧率渲染，再用 ffmpeg 平均**：渲 240 fps 母版，用 `tmix=frames=4` 加 `select='not(mod(n+1\,4))'` 降到 60 fps，相当于 360° 快门。HyperFrames 本地渲染的 `--fps` 文档只列了 24/30/60，输出 30 fps 时这条路最多只有 2 个子帧；它较新的版本有整帧子采样的 `motionBlur` 渲染选项（见 `references/repos/hyperframes/skills/hyperframes-animation/references/motion-blur.md`），在 0.8.82 上没有验证过。用 Playwright 逐个渲子帧再平均也行，`cases/opus55-gallery.md` 第 3 节"03 产品宣传"里那条"一个形状、永不切镜"的模板就是这样做的。
 
-还有两个细节，来自 abstract-algebra-promo 的 `promo.html`（无许可证，只读；拆解见 `cases/opus55-gallery.md` §7）。它在单个 canvas 里每帧取 3–4 个子时刻，按 180° 快门以 t 为中心前后展开，累加进一张 WebGL 浮点纹理：
+还有两个细节，见 `cases/opus55-gallery.md` §7 拆的那支抽象代数宣传片。它在单个 canvas 里每帧取 3–4 个子时刻，按 180° 快门以 t 为中心前后展开，累加进一张 WebGL 浮点纹理：
 
 - **子帧不能跨切点**：子时刻落进了另一个场景或另一个镜头，这个子帧就改用 t 本身来渲。不这样做，切点两侧的画面会在同一帧里叠印，硬切变成一帧溶。它的做法是每个场景除了 `draw(lt)` 还带一个 `shot(lt)`，返回场景内当前镜头的编号；子时刻 tₖ 所在的场景或 `shot(tₖ)` 和 t 的不一样，就退回 t。一拍一个镜头的快切蒙太奇最需要这条。
 - **顺手得到抗锯齿**：每个子帧再给整个画面加一个不同的亚像素平移（一张固定的 8 组偏移表，范围 ±0.5 px），平均之后边缘自然变柔，等于白送了一次超采样抗锯齿。偏移表是固定的，所以仍然是 t 的纯函数。偏移只加在画面层；字幕、章节标题、闪白在平均和调色之后按 t 单独画，不参与模糊，始终清晰。

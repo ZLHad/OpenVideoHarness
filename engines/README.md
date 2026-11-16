@@ -288,8 +288,7 @@ uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认
 - 【综合】选 Python 3.12 是求稳；如果装不上，以 docs.manim.community 的安装说明为准，并把最终可用的命令记进 `LESSONS.md`。
 - manim-voiceover 需要的 TTS 后端，按它的 README 选装。
 - 锚点网格和包围盒审计有现成实现：`showcase/03-math-fourier/scenes/style.py`，可以复制到自己的项目里用。
-- 写代码前先读 `references/repos/3brown1blue/src/three_b1b/skill/SKILL.md` 里的 Gotchas。
-- 注意 CE 和 ManimGL 的 API 不能混用，参考 `references/repos/3brown1blue/src/three_b1b/skill/rules/manimgl-differences.md`。
+- 写代码前先读一遍 Manim 的常见坑；CE 和 ManimGL 的 API 不能混用。整理好这两样的社区 skill 和本地路径，见 `references/community-skills.md` 第 1 节"01 数学 / 科学讲解"。
 - **可选后端 ManimGX**：见 `engines/manimgx.md`；首选仍是 Manim CE。
 
 ## Blender，按需使用（部分验证）
