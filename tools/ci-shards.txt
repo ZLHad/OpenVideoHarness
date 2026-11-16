@@ -11,6 +11,7 @@
 static_checks 25
 doc_checks 2
 readpath_report 0
+plumbing_checks 10
 smoke_checks 133
 pace_checks 15
 timeline_checks 25
@@ -45,6 +46,7 @@ film_engine_checks 256
 edit_checks 99
 edit_footage_checks 34
 edit_cache_checks 54
+style_checks 20
 components_checks 37
 model3d_checks 43
 hdri_checks 29

@@ -37,6 +37,12 @@ showcase/04-intro-film/blender/out/
 showcase/04-intro-film/opening/node_modules
 
 # videos live in the GitHub release "media" (tools/fetch_media.sh puts them here; tools/media.txt lists them)
+# The full style swatches too, in the release "styles-media" (bin/vh style register <slug> lists them in tools/media.txt):
+# a swatch rendered under spec 2 (5–10 s) never goes into git; its poster.jpg, poster-portrait.jpg and the 2 s
+# preview.mp4 do. The 33 older 5 s swatches (spec 1) are still tracked: an ignore rule does not touch a tracked file,
+# and each leaves git (git rm --cached) the first time it is rendered under spec 2.
+styles/*/media/swatch.mp4
+styles/*/media/swatch-portrait.mp4
 showcase/*/media/final.mp4
 showcase/04-intro-film/v3/final.mp4
 styles/gallery.mp4

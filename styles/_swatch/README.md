@@ -1,9 +1,10 @@
 # styles/_swatch · 风格样片渲染器
 
-每个风格预设都要附一段用本仓库真渲出来的 5 秒样片，用样片证明风格之间确实不同。本目录负责把 `styles/<slug>/swatch.js`（或 Blender 场景 `swatch.py`，见"Blender 场景"）渲成：
+每个风格预设都要附一段用本仓库真渲出来的样片，用样片证明风格之间确实不同。样片按风格 `tokens.json` 里 `"swatch"` 写的规格渲（下面的"样片规格"）：2026-11 以前的 33 个是规格 1，5 秒；新加的是规格 2，5–10 秒、四拍。本目录负责把 `styles/<slug>/swatch.js`（或 Blender 场景 `swatch.py`，见"Blender 场景"）渲成：
 
-- `styles/<slug>/media/swatch.mp4`：1280×720，H.264 High，yuv420p，faststart，≤ 1.5 MB；有 `score.json` 时带配乐，否则静音；
-- `styles/<slug>/media/poster.jpg`：t = 3.0 s 那一帧，1280×720，≤ 200 KB。
+- `styles/<slug>/media/swatch.mp4`：1280×720，H.264 High，yuv420p，faststart，≤ 3 MB / 10 s（5 s 的是 1.5 MB）；有 `score.json` 时带配乐（规格 2 必须有）；规格 2 的这个文件不进 git，放在 Release `styles-media`；
+- `styles/<slug>/media/poster.jpg`：t = 3.0 s 那一帧，1280×720，规格 1 ≤ 200 KB，规格 2 ≤ 150 KB；
+- 规格 2 另有 `media/preview.mp4`（2 s、854×480、无声、≤ 200 KB），适合竖屏的风格另有 `swatch-portrait.mp4`（720×1280）和 `poster-portrait.jpg`。
 
 引擎是固定在 0.8.202 的 HyperFrames。画面是一张 1920×1080 的 `<canvas>`，每一帧都是 `renderAt(t)` 的纯函数。这张 canvas 固定按 1 倍像素画：把样片的画法搬进要出 4K 的项目时，canvas 要按 `devicePixelRatio` 开大再 `ctx.scale`，以像素为单位的效果（颗粒、网点大小、用 `getImageData` 取的遮罩，例如 `scratched-type`、`pixel-16bit`）要跟着换算（`engines/README.md`"出 4K"）。需要路径追踪的光、真实景深的风格（目前是 `tabletop-miniature`）改用 Blender 的 Cycles，场景写成 `swatch.py`，渲出的帧走同一套检查、配乐、混音和编码。
 
@@ -11,23 +12,25 @@
 
 ```bash
 (cd styles/_swatch && npm ci)                    # 第一次：本地装 hyperframes@0.8.202（不装全局 skill）
-styles/_swatch/render.sh demo --draft            # 冒烟：内置 demo → styles/_swatch/out/demo/media/
+styles/_swatch/render.sh demo --draft            # 冒烟：内置 demo（规格 2 的起始模板）→ styles/_swatch/out/demo/media/
 styles/_swatch/render.sh <slug>                  # 正式：styles/<slug>/ → styles/<slug>/media/
 styles/_swatch/render.sh <slug> --draft --hud    # 自查用：角上烧 t / 帧号（不要交付）
+styles/_swatch/render.sh <slug> --aspect portrait  # 竖版（规格 2、适合竖屏的风格）；bin/vh style <slug> 会把横竖两版都渲了
+python3 tools/styles.py spec styles/<slug>       # 这个风格的样片规格算出来的全部数字（时长、帧数、尺寸、预算、四拍）
 styles/_swatch/determinism.sh <slug>             # 确定性检验（1 个 worker 对 3 个 worker，逐帧比对）
 uv run --with pillow python styles/_swatch/gallery.py --mp4   # styles/gallery.jpg + gallery.mp4（--readme 再加 gallery-readme.mp4）
 ```
 
 本机实测（M3 Max；渲染走 CPU 软件光栅，原因见下面"确定性"）：正式渲染（`--quality delivery`、2 个 worker）单个 swatch 的 HyperFrames 部分约 15–45 s，整条流程（含音乐、音效、QA）约 20–50 s（走 GPU 时约 13–19 s，见下面"确定性"）；`determinism.sh` 要渲两遍无损 PNG，halftone-comic 约 40 s，fui-hud 约 50 s，有大面积颗粒的场景更久（PNG 编码变慢）。demo 的正式产物：swatch.mp4 0.91 MB（CRF 18），poster.jpg 111 KB。
 
-`render.sh` 的参数：`--draft`（HyperFrames draft 画质；产物写到 `out/<slug>/media/`，不会覆盖 `styles/<slug>/media/` 里已发布的正式样片）、`--workers N`（默认 2；检测到别的 `hyperframes render` 在跑时自动降到 1；worker 数只影响速度，画面逐字节相同）、`--hud`、`--png`（只渲无损 PNG 序列到 `out/<slug>/png-w<N>/`）、`--stage-only`（只搭 stage，打印 snapshot / preview 命令）、`--timeout S`。`<slug>` 也可以是一个带 `/` 的路径，指向任意位置的场景文件夹（草稿、测试用），产物写进该文件夹的 `media/`。
+`render.sh` 的参数：`--aspect landscape|portrait`（默认横版；竖版的中间文件和 stage 在 `out/<slug>-portrait/`、`out/stage/<slug>-portrait/`）、`--draft`（HyperFrames draft 画质；产物写到 `out/<slug>/media/`，不会覆盖 `styles/<slug>/media/` 里已发布的正式样片）、`--workers N`（默认 2；检测到别的 `hyperframes render` 在跑时自动降到 1；worker 数只影响速度，画面逐字节相同）、`--hud`、`--png`（只渲无损 PNG 序列到 `out/<slug>/png-w<N>/`）、`--stage-only`（只搭 stage，打印 snapshot / preview 命令）、`--timeout S`。`<slug>` 也可以是一个带 `/` 的路径，指向任意位置的场景文件夹（草稿、测试用），产物写进该文件夹的 `media/`。
 
 ## 目录
 
 ```
 styles/_swatch/
 ├── README.md          本文件
-├── index.html         唯一的 composition：5.0 s · 30 fps · 1920×1080 · 一张 canvas#c；变量 style / hud
+├── index.html         唯一的 composition：5.0 s · 30 fps · 1920×1080 · 一张 canvas#c；变量 style / hud。render.sh 在 stage 里按规格改尺寸和时长，并写进 window.__swatchSpec
 ├── boot.js            运行时：读变量 → 加载 tokens 和场景 → 预载字体 → setup → 预热 → 每次 seek 画一帧
 ├── lib.js             传给场景的 lib：组件库 components/lib 的全部，加上样片自己的内容规格（W、SPEC、SAFE…）
 ├── fonts.css          生成文件：本机系统字体的 @font-face local() 目录（fonts.py 生成）
@@ -37,7 +40,7 @@ styles/_swatch/
 ├── blender_render.py  Blender 场景的渲染器（在 Blender 里运行；GPL-3.0-or-later，见"Blender 场景"）
 ├── blender_prep.py    Blender 场景渲染前的两步：静态检查 swatch.py、把它的 FONTS 解析成字体文件
 ├── gallery.py         styles/gallery.jpg（+ 带声音的 gallery.mp4，+ README 用的 gallery-readme.mp4）
-├── demo/              中性示例场景：按统一内容规格走一遍 API，复制它起步
+├── demo/              中性示例场景，也是规格 2 的起始模板：8 s 四拍、横竖两版、配乐和拟音，复制它起步
 ├── catalog/           lib.js 测试卡：每个纹理、滤镜、转场、WebGL 各一格（改 lib.js 后渲它看）
 ├── fontprobe/         字体探针：在渲染用的 Chrome 里逐个加载 fonts.css 的字体，红色 = 打不开
 ├── package.json · package-lock.json · hyperframes.json · meta.json   （hyperframes 0.8.202 精确版本）
@@ -70,12 +73,17 @@ export async function setup(ctx, tokens, lib) {
 export function renderAt(t, ctx, tokens, lib) {
   // 必需。画出 t 时刻的完整一帧。
 }
+
+export function texts(lib) {
+  // 可选（规格 2 建议有）：第三拍要读的字，readcheck 的格式 [{text, start, end}]，start 是完全显示的那一刻。
+  // bin/vh style check --text 拿它查读时；textcheck 也拿它当登记的 read。也可以 export const TEXTS = [...]。
+}
 ```
 
 约定：
 
-- `t` 是秒，已量化成 `k/30`（k = 0…149）；帧号用 `lib.frame(t)`。
-- `ctx` 是 1920×1080 的 `CanvasRenderingContext2D`。每帧调用前运行时会执行 `ctx.reset()`，像素和状态（变换、alpha、filter、字体……）全部清空，所以 `renderAt` 必须从背景开始画满整帧。
+- `t` 是秒，已量化成 `k/30`（k = 0…`lib.FRAMES` − 1：5 s 是 149，8 s 是 239）；帧号用 `lib.frame(t)`。
+- `ctx` 是 `lib.W`×`lib.H` 的 `CanvasRenderingContext2D`：横版 1920×1080，竖版 1080×1920（`lib.PORTRAIT`）。版式从 `lib.W`、`lib.H`、`lib.SAFE` 算，同一份场景画两个版本。每帧调用前运行时会执行 `ctx.reset()`，像素和状态（变换、alpha、filter、字体……）全部清空，所以 `renderAt` 必须从背景开始画满整帧。
 - `tokens` 是解析后的 `tokens.json`；`lib` 是 `lib.js` 整个模块。
 - 需要着色器时，用 `lib.shader(frag)` 在离屏 WebGL2 canvas 上跑一个全屏片元着色器，再 `ctx.drawImage(fx.render(t, uniforms, textures), 0, 0)` 合进来。输入纹理可以是任何 canvas，所以"先用 2D 画，再过一遍 shader（半调、CRT、色差）"也能做到。
 - 同目录的图片等素材用模块相对路径加载：`const img = new Image(); img.src = new URL("./paper.png", import.meta.url); await img.decode();`（放在 `setup` 里）。素材必须是自己做的或许可允许的。
@@ -98,7 +106,7 @@ def build(env): …          # 每个 Blender 进程调用一次：搭整个场�
 def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属性：t 的纯函数，不留跨帧状态
 ```
 
-`env` 里有 `W H FPS DUR FRAMES POSTER_T SPEC TITLE_EN TITLE_ZH MOTIF`（和 `lib.js` 同值）、`tokens`、`fonts`、`scene`、`quality`（final 或 draft）和 `hash(*xs)`（[0, 1)，跨机器一致，用来做手放抖动之类的"随机"）。
+`env` 里有 `W H FPS DUR FRAMES POSTER_T SPEC BEATS ASPECT SPEC_VERSION TITLE_EN TITLE_ZH MOTIF`（和 `lib.js` 同值；规格 2 时 `render.sh` 用 `--spec` 把时长、画幅和四拍传进去）、`tokens`、`fonts`、`scene`、`quality`（final 或 draft）和 `hash(*xs)`（[0, 1)，跨机器一致，用来做手放抖动之类的"随机"）。
 
 - **不打关键帧**：`apply` 直接设属性，渲染器逐帧 `apply(k/30)` 再渲。所以没有运动模糊；要运动模糊的项目按 `engines/blender.md` 逐帧采样成关键帧。
 - **画质**：正式版是 CPU 上的 Cycles，默认 64 spp、自适应阈值 0.02、OIDN 降噪，`use_animated_seed`（噪点随帧号变，仍是 t 的函数）；`--draft` 改用 GPU（Metal、OptiX、CUDA、HIP 或 oneAPI，都没有就用 CPU），默认 16 spp。渲出的 PNG 在 `out/<slug>/frames/`（草稿是 `frames-draft/`），再按 BT.709、tv range 编成和 HyperFrames 一样的 1080p `hf.mp4`（CRF 8，单线程，每次同样的字节），后面的检查、配乐、混音、编码、封面、联系表全部共用。
@@ -133,9 +141,46 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 
 **许可**：`blender_render.py` 和每个 `swatch.py` 调用 Blender 的 Python API，按 GPL-3.0-or-later 分发，文件头有 SPDX 标注（维护者 2026-10-01 的决定，见 `engines/blender.md` 的"许可证"）；`blender_prep.py` 不 import bpy，和仓库其余部分一样是 MIT。
 
-## 统一内容规格
+## 样片规格
 
-所有样片讲同一件事，画廊里比的才只是风格。时间和文案在 `lib.SPEC`、`lib.TITLE_EN`、`lib.TITLE_ZH`、`lib.MOTIF` 里，场景直接引用，不要自己改写。
+每个风格的 `tokens.json` 里有一块 `"swatch"`，说它的样片按哪一版规格渲：
+
+```json
+"swatch": { "spec": 2, "duration": 8 }
+```
+
+可选的还有 `"beats": [1.5, 4.5, 7]`（三个分界，秒）、`"poster": 3.0`（封面那一帧）、`"preview": 2.0`（2 秒预览从哪开始）。`python3 tools/styles.py spec styles/<slug>` 打印算出来的全部数字；`render.sh`、`determinism.sh` 和 `bin/vh style check` 用的都是它，数字只写在 `tools/styles.py` 一处。
+
+| | 规格 1（2026-11 以前的 33 个） | 规格 2（新加的） |
+|---|---|---|
+| 时长 | 5 s | 5–10 s，默认 8 s，整帧 |
+| 内容 | 同一个标题、同一个三元素母题（下一节"统一内容规格"） | 四拍：立住世界、招牌动作、真实字号的字、收住并接回第一帧 |
+| 渲染 | 1920×1080、30 fps | 同左；适合竖屏的风格再渲一个 1080×1920 |
+| 交付 | 1280×720 H.264，≤ 1.5 MB | 1280×720 H.264，≤ 3 MB / 10 s（8 s 是 2.4 MB）；竖版 720×1280，同样的预算 |
+| 声音 | 有配乐时 −14 LUFS | 必须有，−14 LUFS（±1），真峰值 ≤ −1 dBTP；所有样片一个响度，集锦里连播不会忽大忽小 |
+| 封面 | t = 3.0 s，≤ 200 KB | t = 3.0 s（可改），≤ 150 KB；竖版另有 `poster-portrait.jpg` |
+| 预览 | 无 | `preview.mp4`：2 s、854×480、无声、≤ 200 KB，给画廊悬停时播 |
+| 放哪 | 都在 git | 封面、预览、源码在 git；完整样片在 Release `styles-media`（`bin/vh style register <slug>` 登记进 `tools/media.txt`） |
+| 循环 | 不要求 | 最后一帧回到第一帧：`bin/vh style check` 量两帧缩到 160×90 的亮度平均差，超过 12/255 算没接上 |
+
+**四拍**（秒数按 8 s；`lib.BEATS` 按时长缩放，或按 `swatch.beats`）：
+
+1. **立住世界**（0–1.5 s）：色板和质感一眼看清。0.1 s 就有占画面两成以上的东西在动，配乐同一拍起音。
+2. **招牌动作**（1.5–4.5 s）：这个风格最有代表性的一种运动或转场。元素就位以后不干等，每一拍有一个次要动作。
+3. **真实字号的字**（4.5–7 s）：一个标题和一行字幕，按片子里会用的字号（`lib.TYPE`：横版标题 96 px、字幕 48 px、标签 44 px；竖版 130、65、44 px；下限见 `playbook/03-motion-design.md` §4），停够读完一遍：`bin/vh style check --text` 用 `readcheck` 的快读下限量，标题加 `lib.CAPTION_ZH` 要完全显示约 2.1 s，所以这一拍默认 2.5 s。5–6 s 的样片这一拍只有 1.6–1.9 s，读不完标题加字幕：加长样片，或这一拍只放标题。字幕统一用 `lib.CAPTION_ZH`，标题默认 `lib.TITLE_ZH` 和 `lib.TITLE_EN`：画廊里比的是同样的字放进不同的世界。
+4. **收住**（7–8 s）：落定，最后一帧回到第一帧的样子，能循环，也接得进集锦。
+
+为什么不再让所有样片讲同一件事：5 秒里一个标题加三元素，看得出一个画面，看不出这个风格怎么动、怎么转场、字放上去是什么样；风格上百个以后，画廊靠的是每个风格最像它的那一下。比较仍然公平：四拍的位置、字号和字幕的字是统一的。
+
+**竖版**：`tokens.json` 的 `tags.aspect` 是 `portrait` 或 `both` 时，`bin/vh style <slug>` 渲完横版接着渲竖版（`render.sh --aspect portrait`）。画布 1080×1920，`lib.W`、`lib.H`、`lib.SAFE`、`lib.PORTRAIT` 都换成竖版的，`anchor()`、`slots()` 默认也按竖版的帧算。同一份 `swatch.js` 画两个版本，按 `lib.PORTRAIT` 重新构图（demo 把三张卡从横排改成竖排），不是裁。
+
+**起始模板**：`demo/` 就是规格 2 的模板：一张时间表 `T` 同时管画面、`FOLEY`（拟音）和 `texts()`（要读的字），复制它的 `swatch.js`、`tokens.json`、`score.json` 起步。`score.json` 用 120 BPM 加 `"meters": {"1": 3, "2": 3, "3": 3, "4": 5, "5": 2}`，四拍的分界（1.5、4.5、7 s）正好落在小节线上。
+
+**旧的 33 个**：都写着 `"swatch": { "spec": 1, "duration": 5 }`，渲出来和改动前逐字节相同（2026-11-16 在 swiss-grid-type、halftone-comic、walk-in-world 上比过 swatch.mp4、poster.jpg 和 hf.mp4）。重渲其中一个时可以照旧按规格 1；改成规格 2 重写样片的那一次，把 git 里的 `swatch.mp4` 移出去（`git rm --cached styles/<slug>/media/swatch.mp4`，再 `bin/vh style register <slug>`）。
+
+## 统一内容规格（规格 1）
+
+规格 1 的样片都讲同一件事，画廊里比的才只是风格。时间和文案在 `lib.SPEC`、`lib.TITLE_EN`、`lib.TITLE_ZH`、`lib.MOTIF` 里，场景直接引用，不要自己改写。
 
 | 时间 | 内容 |
 |---|---|
@@ -171,7 +216,7 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 
 | 类别 | 函数 |
 |---|---|
-| 常量 | `W H FPS DUR FRAMES POSTER_T SPEC TITLE_EN TITLE_ZH MOTIF SAFE.action/.title`（`{x0,y0,x1,y1,w,h,cx,cy}`） |
+| 常量 | `W H FPS DUR FRAMES POSTER_T SPEC TITLE_EN TITLE_ZH MOTIF SAFE.action/.title`（`{x0,y0,x1,y1,w,h,cx,cy}`）；规格 2 另有 `SPEC_VERSION BEATS`（`{world, signature, type, close}`，各是 `[起, 止]` 秒）`TYPE`（`{title, caption, label}` px）`PORTRAIT ASPECT CAPTION_EN CAPTION_ZH`。尺寸和时长按 stage 写进的 `window.__swatchSpec`，没有它时是规格 1 的 1920×1080、5 s |
 | 布局 | `anchor("C4")`（安全框里的 6×6 锚点，A–F 是列，1–6 是行）· `slots(3, {area, y, gap})` 母题的三个槽位 · `safeBoxes(w, h)` 任意画幅的安全框 · `FRAME` / `setFrame({w, h, fps, dpr})` 画面的尺寸和帧率（样片是 1920×1080、30 fps） |
 | 时间 | `frame(t)` · `step(t, 12)`（按 12 fps 停帧，"一拍二"用 15）· `seg(t,a,b)` · `env(t,a,b,fadeIn,fadeOut)` · `tween(t,a,b,ease)` |
 | 数学 | `clamp lerp invlerp remap smoothstep fract TAU` |
@@ -223,20 +268,20 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 
 ## 配乐（可选）
 
-`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，再用 `bin/vh mix … profile=swatch dur=5 fade=0.45` 和拟音一起混（混音里截到 5 s、最后 0.45 s 淡出；一个整体增益，必要时接真峰值限幅，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。AAC 编码会让真峰值变高或变低，差多少看内容（现在的 28 个样片第一次编码在 −1.9 到 +1.4 dB 之间，editorial-data 的钢琴最高；限幅更重的重混还会更高，editorial-data 第二次重混 +2.4 dB），所以封装后再量一次：高于 −1.5 dBTP 时，从混音实际的真峰值（和原上限取较低者）再降低超出的量加 0.1 dB，重混、重新封装；最多 3 次，还超就报错退出。现在的 28 个样片里有 3 个需要重混：cutout-jazz 一次，dunhuang-mural 和 editorial-data 各两次。写法见 `bin/vh music --example` 和 `tools/audio/README.md` 的"score.json"。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
+`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，再用 `bin/vh mix … profile=swatch dur=<样片时长> fade=0.45` 和拟音一起混（混音里截到样片的时长、最后 0.45 s 淡出；一个整体增益，必要时接真峰值限幅，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。AAC 编码会让真峰值变高或变低，差多少看内容（现在的 28 个样片第一次编码在 −1.9 到 +1.4 dB 之间，editorial-data 的钢琴最高；限幅更重的重混还会更高，editorial-data 第二次重混 +2.4 dB），所以封装后再量一次：高于 −1.5 dBTP 时，从混音实际的真峰值（和原上限取较低者）再降低超出的量加 0.1 dB，重混、重新封装；最多 3 次，还超就报错退出。现在的 28 个样片里有 3 个需要重混：cutout-jazz 一次，dunhuang-mural 和 editorial-data 各两次。写法见 `bin/vh music --example` 和 `tools/audio/README.md` 的"score.json"。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
 
 **拟音**：再放一个 `styles/<slug>/events.json`，格式和 `bin/vh sfx place` 一样，是 `[{"t", "sfx", "gain_db", "pan", "dist"}]`，`render.sh` 就会把音效摆在每个动作发生的那一帧，按 swatch profile 和配乐一起混音：以配乐 3 s 的短时响度为锚点，每个音效按类（hero、detail、ambience、signal）往各自的电平走一半，身后一个 0.25 s 的短房间，配乐不做 ducking（起始平衡是原来的配乐 0 dB、音效 −3 dB；做法见 `playbook/04-audio.md` 的"混音"，数值见 `tools/audio/README.md` 的"混音"）。名字提示分错类时，在 `FOLEY` 里给那个事件写 `role`，`foley.mjs` 会带进 events.json。内置音效的塑形字段（`dur`、`pitch`、`center`、`dir`、`bright`、`tone`、`pan_from`、`pan_to`）和钉住的 `variant` 也照样带进去：转场按动作塑形，每个风格选一个合适的转场家族（见 `playbook/04-audio.md` 的"转场音效按风格选"）。`sfx` 可以是内置的 15 个音效名，也可以是风格文件夹里自己的 WAV，用相对路径，来源记进 STYLE.md。`t` 是声音落点，要和 swatch.js 里对应动作的时间取自同一个常量；声像 `pan` 取发声物体在画面上的 x。qa 会把这些落点当成设计好的起音，不报 click。推荐做法：在 swatch.js 里 `export const FOLEY = [{t, sfx, gain_db, pan}]`，t 直接引用动作的时间常量，再用 `node styles/_swatch/foley.mjs <slug>` 生成 events.json，画面和声音就只有一个时间来源。内置音效里没有合适的声音时，可以在 `styles/<slug>/sfx/` 放自己合成的 WAV，但生成代码必须写进 `styles/_swatch/custom_sfx.py`（带固定种子），保证 `uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py` 能逐字节重建。不要放下载来的素材。
 
-想让段落点精确落在 0.8 / 2.0 / 4.0 s，最省事的是 150 BPM 加 `"meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3}`（9 个电影、品牌类样片都这么做）。封装后 `render.sh` 会自动跑完整的 `bin/vh qa`（扫描、cue check、混音报告），先对混音 WAV（`out/<slug>/music.wav`），它是门禁，通过了 swatch.mp4 才放进 `media/`；再对 swatch.mp4 跑扫描和 cue check（单个 cue 的问题只作警告，整个编码偏了才判失败，那是封装错位；混音报告读的是 stems，不重跑）。都是 `--from 0.3 --to 4.5` 加 `--stems out/<slug>/stems`，结果写进 `out/<slug>/qa.txt` 和 `qa_mp4.txt`，日志在同名的 `.log`：出现数字静音、掉音、抽吸（配乐自己的凹陷不算）、WAV 上对不上的 cue、只以“弱”对上又被报告判为 `BURIED` 的 cue，或混音报告的硬失败，就判失败，失败的几行会打印出来。不带节拍表的话，qa 在 5 s 的片段上只会检查 1.0–2.2 s，所以不要手动省掉它。第一轮最常见的两种失败：只有 hats 的段落在拍与拍之间出现数字静音；稀疏段落出现抽吸凹坑。修法都是加一层 pad 或 sub 持续垫底。
+规格 2 的四拍落在小节线上，见上面"样片规格"的起始模板（120 BPM，8 s 正好 16 拍）。规格 1 想让段落点精确落在 0.8 / 2.0 / 4.0 s，最省事的是 150 BPM 加 `"meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3}`（9 个电影、品牌类样片都这么做）。封装后 `render.sh` 会自动跑完整的 `bin/vh qa`（扫描、cue check、混音报告），先对混音 WAV（`out/<slug>/music.wav`），它是门禁，通过了 swatch.mp4 才放进 `media/`；再对 swatch.mp4 跑扫描和 cue check（单个 cue 的问题只作警告，整个编码偏了才判失败，那是封装错位；混音报告读的是 stems，不重跑）。都是 `--from 0.3 --to 4.5` 加 `--stems out/<slug>/stems`，结果写进 `out/<slug>/qa.txt` 和 `qa_mp4.txt`，日志在同名的 `.log`：出现数字静音、掉音、抽吸（配乐自己的凹陷不算）、WAV 上对不上的 cue、只以“弱”对上又被报告判为 `BURIED` 的 cue，或混音报告的硬失败，就判失败，失败的几行会打印出来。不带节拍表的话，qa 在 5 s 的片段上只会检查 1.0–2.2 s，所以不要手动省掉它。第一轮最常见的两种失败：只有 hats 的段落在拍与拍之间出现数字静音；稀疏段落出现抽吸凹坑。修法都是加一层 pad 或 sub 持续垫底。
 
 ## render.sh 做的检查
 
 - **看门狗**：HyperFrames 在自己的进程组里运行，超时（draft 300 s、正式 600 s）或日志连续 `SWATCH_STALL`（默认 120 s）不动时，整组杀掉，Chrome 一起杀。离线时依赖 CDN 的页面就是这样静默挂住的。
-- 退出码、输出文件存在、**帧数正好 150**、分辨率 1920×1080。
-- **抽 4 帧**（t = 0.4 / 1.7 / 3.0 / 4.6，每个规格段一帧）看 signalstats：至少一帧 Y 的极差 ≥ 24（canvas 确实画了东西）；任何一帧都不是品红错误卡片；4 帧的 md5 不能全部相同（排除冻帧）。
+- 退出码、输出文件存在、**帧数正好是规格的帧数**（5 s 150 帧，8 s 240 帧）、分辨率是规格的画布（1920×1080 或 1080×1920）。
+- **抽 4 帧**（规格 1 是 t = 0.4 / 1.7 / 3.0 / 4.6，每个规格段一帧；规格 2 是每一拍的正中）看 signalstats：至少一帧 Y 的极差 ≥ 24（canvas 确实画了东西）；任何一帧都不是品红错误卡片；4 帧的 md5 不能全部相同（排除冻帧）。
 - 日志里的 `[swatch]` 行去重后打印出来（字体回落、异常）。
-- 转码：CRF 从 18 往上加，直到文件 ≤ 1 500 000 字节；封面的 JPEG q 从 2 往上加，直到 ≤ 200 000 字节。有声音时再量 AAC 编码后的真峰值，高于 −1.5 dBTP 就降低混音的上限重混（见上面的配乐一节）。
-- 自查联系表：`styles/_swatch/out/<slug>/sheet.png`（t = 0.25 … 4.75，10 格，带时间戳）。它只是中间产物，不交付；按 `playbook/02-verification.md` 自查时用它，转场前后再单独抽 strip。
+- 转码：CRF 从 18 往上加，直到文件在规格的预算内（3 MB / 10 s）；封面的 JPEG q 从 2 往上加，直到 ≤ 200 000 字节（规格 2 是 150 000）；规格 2 的 `preview.mp4` 从 CRF 24 往上加，直到 ≤ 200 000 字节。有声音时再量 AAC 编码后的真峰值，高于 −1.5 dBTP 就降低混音的上限重混（见上面的配乐一节）。
+- 自查联系表：`styles/_swatch/out/<slug>/sheet.png`（铺满整段，带时间戳；竖版在 `out/<slug>-portrait/`）。它只是中间产物，不交付；按 `playbook/02-verification.md` 自查时用它，转场前后再单独抽 strip。
 
 ## 画廊
 
@@ -261,9 +306,12 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 ## 给 `bin/vh style` 的接线
 
 ```bash
-bin/vh style <slug> [--draft] [--hud] [--workers N]   →  "$ROOT/styles/_swatch/render.sh" "$@"
+bin/vh style <slug> [--draft] [--hud] [--workers N]   →  "$ROOT/styles/_swatch/render.sh" "$@" --aspect <每个画幅>（规格 2 适合竖屏的渲两遍）
 bin/vh style gallery [--mp4]                          →  uv run -q --with pillow python "$ROOT/styles/_swatch/gallery.py" [--mp4]
-bin/vh style check <slug> [workers_b]                 →  "$ROOT/styles/_swatch/determinism.sh" <slug> [workers_b]
+bin/vh style check [<slug>…] [--meta] [--text]        →  python3 "$ROOT/tools/styles.py" check …（元数据、样片规格、安全框里的字）
+bin/vh style check <slug> --determinism [workers_b]   →  "$ROOT/styles/_swatch/determinism.sh" <slug> [workers_b] [--aspect portrait]
+bin/vh style register <slug>                          →  python3 "$ROOT/tools/styles.py" register <slug>（完整样片登记进 tools/media.txt）
+bin/vh style list | readme                            →  python3 "$ROOT/tools/styles.py" list | readme
 ```
 
-首次使用前要有 `styles/_swatch/node_modules`：`bin/vh setup` 和 `install.sh` 都会装；`bin/vh style <slug>` 和 `bin/vh style check <slug>` 发现缺依赖时会先自动 `npm ci`（Blender 场景不需要它，跳过这一步）。直接调用 `render.sh` 或 `determinism.sh` 时缺依赖会报错，并提示 `(cd styles/_swatch && npm ci)`。
+首次使用前要有 `styles/_swatch/node_modules`：`bin/vh setup` 和 `install.sh` 都会装；`bin/vh style <slug>` 和 `bin/vh style check <slug> --determinism` 发现缺依赖时会先自动 `npm ci`（Blender 场景不需要它，跳过这一步）。直接调用 `render.sh` 或 `determinism.sh` 时缺依赖会报错，并提示 `(cd styles/_swatch && npm ci)`。

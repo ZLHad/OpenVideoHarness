@@ -4,6 +4,8 @@
 #   tools/ci.sh                      everything the installed tools allow (shellcheck, pyflakes, ffmpeg are optional locally)
 #   tools/ci.sh --smoke              only the bin/vh smoke tests
 #   tools/ci.sh --shard i/n          shard i of n: the groups tools/ci-shards.txt deals to it (CI's macOS job runs 1/2 and 2/2)
+#   tools/ci.sh --changed [base]     the groups what changed since base (origin/main) needs (tools/ci-paths.txt): for the runs
+#                                    while you work; a full run before a push
 #   tools/ci.sh --committed [opt]    check HEAD in a clean temporary checkout: what a push sends, not the working tree
 #   VH_BASH=/bin/bash tools/ci.sh    run bin/vh and the syntax checks under another bash (macOS ships bash 3.2)
 #
@@ -140,11 +142,12 @@ PY
   then ok "time-map solver example: its spec solves to a map timemap check takes; an edit between two pins moves that span's knots alone"
   else bad "time-map solver example (engines/canvas-film/examples/time-map-solve.py)"; fi
   rm -rf "$d"
-  # media: videos live in the GitHub release "media" (tools/media.txt, tools/fetch_media.sh), so a clone stays small;
-  # the style swatches (about 1 MB each, read by the tools) are the one exception. No file over 8 MB either.
+  # media: videos live in the GitHub releases "media" and "styles-media" (tools/media.txt, tools/fetch_media.sh), so a
+  # clone stays small; a style's 2 s preview.mp4 and the 33 older 5 s swatches are the exception (bin/vh style check, in
+  # style_checks, holds a spec-2 swatch.mp4 out of git). No file over 8 MB either.
   out=$(files | while IFS= read -r f; do
       lc=$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')   # [[ ]], not case: bash 3.2 can't parse case inside $( ); lower-cased: .GIF too
-      if [[ ! "$f" =~ ^styles/[^/]+/media/swatch\.mp4$ && "$lc" =~ \.(mp4|mov|webm|mkv|gif)$ ]]; then echo "$f: a video (put it in the media release, see tools/fetch_media.sh)"; continue; fi
+      if [[ ! "$f" =~ ^styles/[^/]+/media/(swatch|preview)\.mp4$ && "$lc" =~ \.(mp4|mov|webm|mkv|gif)$ ]]; then echo "$f: a video (put it in the media release, see tools/fetch_media.sh)"; continue; fi
       if [ -f "$f" ]; then s=$(wc -c < "$f"); [ "$s" -gt 8000000 ] && echo "$f: $((s / 1000000)) MB, over 8 MB"; fi
     done)
   if [ -n "$out" ]; then echo "$out"; bad "videos or large files in git"; else ok "no videos or files over 8 MB in git"; fi
@@ -227,7 +230,7 @@ if line != want:
     bad.append(f"CLAUDE.md's 命令行 line is not tools/commands.json's (bin/vh sync-agents writes it): {line!r} vs {want!r}")
 docs = subprocess.run(["git", "ls-files", "*.md"], capture_output=True, text=True).stdout.split()
 for d in docs:   # commands written as code: inside `backticks` or a fenced block (prose like "bin/vh · QA tools" is a label)
-    if d.startswith("references/") or d == "CHANGELOG.md":
+    if d.startswith(("references/", "changes/")) or d == "CHANGELOG.md":   # what changed, in the words of its day
         continue
     fence = False
     for n, line in enumerate(open(d, encoding="utf-8"), 1):
@@ -255,6 +258,8 @@ PY
   # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
   # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
   if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
+  # the change notes (changes/<name>.md, tools/changes.py): each one entry, a bold title and its lines
+  if out=$(python3 tools/changes.py check 2>&1); then ok "change notes: $out"; else echo "$out"; bad "change notes in changes/ (one entry a file: a bold title, then its lines)"; fi
   # the research notes (docs/research): each in both languages, the two with as many sections (## and ###), table rows and
   # figures, and as many list items in each ## section; both indexes list every note, in the same order, and nothing
   # that is not one
@@ -301,10 +306,11 @@ PY
   # function (named *_checks or *_report) that is not in it is called by one that is (or it would run in no run and no
   # shard)
   local g a="" b="" c="" d e r1 r2 r3 r4
-  a=$(groups | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
-  for g in $(groups | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
+  # (the table itself, not the one this run took: a run of some groups, OVH_CI_SHARDS or --changed, is not a broken table)
+  a=$(groups_in tools/ci-shards.txt | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
+  for g in $(groups_in tools/ci-shards.txt | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
   for g in $(sed -n -E 's/^([a-z0-9_]+_(checks|report))\(\) \{.*/\1/p' tools/ci.sh); do
-    groups | awk -v g="$g" '$1 == g { f = 1 } END { exit !f }' || grep -q -E "^[[:space:]]+$g([[:space:];]|\$)" tools/ci.sh || c="$c $g"
+    groups_in tools/ci-shards.txt | awk -v g="$g" '$1 == g { f = 1 } END { exit !f }' || grep -q -E "^[[:space:]]+$g([[:space:];]|\$)" tools/ci.sh || c="$c $g"
   done
   if [ -z "$a$b$c" ]; then ok "tools/ci-shards.txt: each group once with its seconds, each a function in tools/ci.sh; every *_checks and *_report function runs"
   else bad "tools/ci-shards.txt:${a:+ (lines that are not one group and its whole seconds, once:$a)}${b:+ (no such function:$b)}${c:+ (never run:$c)}"; fi
@@ -408,6 +414,230 @@ sys.exit(1 if bad else 0)
 PY
   ); then ok "read path: $out"; else bad "read path: $out"; fi
   out=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import readpath; print(len(readpath.upto("playbook/01-pipeline.md", "### 没有这一节")))' 2>&1); [ $? = 1 ] && case "$out" in *"has no heading starting with"*) ok "read path: a heading that is gone stops the table" ;; *) bad "read path, a heading that is gone: $out" ;; esac || bad "read path, a heading that is gone: $out"
+}
+
+plumbing_checks() {   # the repository's own development tools, each on a made-up repository: tools/changes.py (the change
+  # notes in changes/ and the release that gathers them into CHANGELOG.md) and tools/ci_select.py (which groups a change
+  # needs; tools/ci.sh --changed runs them), then tools/ci.sh --changed itself on a one-group table
+  local t r k m a b d rc rc2; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-plumbing.XXXXXX")
+  cat > "$t/test.py" <<'PY'
+import os, shutil, subprocess, sys
+t, ROOT = sys.argv[1], sys.argv[2]
+env = dict({k: v for k, v in os.environ.items() if k not in ("OVH_CI_SHARDS", "OVH_CI_PATHS")}, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="ci", GIT_AUTHOR_EMAIL="ci@example.invalid",
+           GIT_COMMITTER_NAME="ci", GIT_COMMITTER_EMAIL="ci@example.invalid")
+def git(*a, cwd, when=None):
+    e = dict(env, GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when) if when else env
+    p = subprocess.run(["git", *a], cwd=cwd, env=e, capture_output=True, text=True)
+    if p.returncode: sys.exit(f"setup: git {' '.join(a)}: {p.stderr.strip()}")
+    return p.stdout.strip()
+def run(repo, tool, *a):
+    p = subprocess.run([sys.executable, f"tools/{tool}", *a], cwd=repo, env=env, capture_output=True, text=True)
+    return p.returncode, p.stdout, p.stderr
+def put(repo, rel, text):
+    os.makedirs(os.path.dirname(os.path.join(repo, rel)) or repo, exist_ok=True)
+    with open(os.path.join(repo, rel), "w", encoding="utf-8") as f: f.write(text)
+def read(repo, rel): return open(os.path.join(repo, rel), encoding="utf-8").read()
+def report(problems, what): print(("bad\t" if problems else "ok\t") + what + (": " + "; ".join(problems) if problems else ""))
+def repo(name, tools):
+    d = os.path.join(t, name); os.makedirs(os.path.join(d, "tools")); git("init", "-q", cwd=d)
+    for f in tools: shutil.copy(os.path.join(ROOT, "tools", f), os.path.join(d, "tools", f))
+    return d
+
+# ---- tools/changes.py ----
+c = repo("notes", ["changes.py"])
+put(c, "CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
+put(c, "CITATION.cff", 'cff-version: 1.2.0\nversion: "0.1.0"\ndate-released: "2026-01-01"\n')
+put(c, "changes/README.md", "what the folder is for\n"); put(c, ".gitignore", ".DS_Store\n")
+put(c, "changes/a-first.md", "**Older note**\n- Why: landed first\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "a", cwd=c, when="2026-02-01T00:00:00")
+put(c, "changes/b-second.md", "**Newer note**\n- Why: landed second\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "b", cwd=c, when="2026-02-01T00:00:00")   # the same second
+put(c, "changes/aaa-working.md", "**Not committed yet**\n- still being written\n"); put(c, "changes/.DS_Store", "Finder's\n")   # (ignored: no note)
+rc, out, err = run(c, "changes.py", "check"); p = [] if rc == 0 and "3 note(s)" in out and "2 entry(ies)" in out else [f"check: exit {rc}: {out}{err}"]
+rc, out, err = run(c, "changes.py", "show", "--titles")
+want = ["- Not committed yet  (changes/aaa-working.md)", "- Newer note  (changes/b-second.md)", "- Older note  (changes/a-first.md)",
+        "- Old one  (CHANGELOG.md)", "- Old two  (CHANGELOG.md)"]
+if rc or out.splitlines() != want: p.append(f"show --titles: exit {rc}: {out!r}")
+rc, out, err = run(c, "changes.py", "show")
+if rc or not out.startswith("**Not committed yet**\n- still being written\n\n**Newer note**") or "**Old two**\n- two" not in out: p.append(f"show: {out[:200]!r}")
+report(p, "changes.py: check counts the notes (a file git ignores is none) and the Unreleased entries; show lists them newest first (a note not committed, then by the commit that added it, two in one second the later first, then ## Unreleased)")
+put(c, "changes/Bad_Name.md", "**x**\n- y\n"); put(c, "changes/no-title.md", "just text\n"); put(c, "changes/two.md", "**One**\n- a\n\n**Two**\n- b\n"); put(c, "changes/bare.md", "**Only a title**\n")
+rc, out, err = run(c, "changes.py", "check")
+rc2, out2, err2 = run(c, "changes.py", "release", "v0.2.0")
+p = [] if rc == 1 and all(s in out for s in ("changes/Bad_Name.md: a note is", "changes/no-title.md: its first line is not a bold title", "changes/two.md: it holds two entries", "changes/bare.md: it has a title and nothing under it")) else [f"check: exit {rc}: {out}"]
+if rc2 != 1 or "malformed" not in err2 or read(c, "CHANGELOG.md").count("## Unreleased") != 1: p.append(f"release over malformed notes: exit {rc2}: {err2[-200:]}")
+report(p, "changes.py: check names a bad file name, a missing title, two entries in one note and a title alone; release refuses while one is there")
+for f in ("Bad_Name", "no-title", "two", "bare"): os.remove(os.path.join(c, "changes", f + ".md"))
+before = read(c, "CHANGELOG.md")
+rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01")
+report([] if rc == 1 and "not committed" in err and "changes/aaa-working.md" in err and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/aaa-working.md"))
+       else [f"exit {rc}: {err[-200:]}"], "changes.py release: a note not committed is refused (release deletes what it takes), nothing written")
+git("add", "-A", cwd=c); git("commit", "-q", "-m", "c", cwd=c)
+rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01", "--dry-run")
+p = [] if rc == 0 and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/a-first.md")) and "## v0.2.0 — 2026-04-01" in out else [f"dry run: exit {rc}: {out}{err}"]
+rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01")
+log, cff = read(c, "CHANGELOG.md"), read(c, "CITATION.cff")
+want = ("# Changelog\n\nWhat changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.\n\n"
+        "## v0.2.0 — 2026-04-01\n\n**Not committed yet**\n- still being written\n\n**Newer note**\n- Why: landed second\n\n**Older note**\n- Why: landed first\n\n"
+        "**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
+if rc or log != want: p.append(f"release: exit {rc}: {log!r}")
+if sorted(os.listdir(os.path.join(c, "changes"))) != [".DS_Store", "README.md"]: p.append(f"left in changes/: {os.listdir(os.path.join(c, 'changes'))}")
+if 'version: "0.2.0"' not in cff or 'date-released: "2026-04-01"' not in cff: p.append(f"CITATION.cff: {cff!r}")
+git("add", "-A", cwd=c); git("commit", "-q", "-m", "release v0.2.0", cwd=c)
+report(p, "changes.py release: --dry-run writes nothing; then CHANGELOG.md has the version with the notes newest first and the Unreleased entries after them, a line saying where changes go now, no ## Unreleased; the notes deleted, README.md and the ignored .DS_Store kept; CITATION.cff has the version and day")
+rc, out, err = run(c, "changes.py", "release", "v0.2.0"); rc2, out2, err2 = run(c, "changes.py", "release", "v0.3.0")
+rc3, out3, err3 = run(c, "changes.py", "show", "v0.2.0"); rc4, out4, err4 = run(c, "changes.py", "show")
+put(c, "changes/next.md", "**Next**\n- after\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "next", cwd=c)
+rc5, out5, err5 = run(c, "changes.py", "release", "v0.3.0", "--date", "2026-05-01")
+p = [] if (rc, rc2, rc3, rc4, rc5) == (1, 1, 0, 0, 0) and "already" in err and "nothing to release" in err2 else [f"exits {rc}, {rc2}, {rc3}, {rc4}, {rc5}: {err}{err2}"]
+if not out3.startswith("**Not committed yet**") or "## " in out3 or "nothing has changed since the last release (v0.2.0)" not in out4: p.append(f"show: {out3[:80]!r} | {out4!r}")
+if read(c, "CHANGELOG.md").count("What changed since the last release") != 1 or "## v0.3.0 — 2026-05-01\n\n**Next**\n- after\n\n## v0.2.0" not in read(c, "CHANGELOG.md"): p.append("a second release: " + read(c, "CHANGELOG.md")[:300])
+report(p, "changes.py: a version there already and nothing to release are exit 1; show vX.Y.Z prints that section alone; a second release goes on top and says where changes go once")
+git("add", "-A", cwd=c); git("commit", "-q", "-m", "release v0.3.0", cwd=c)
+put(c, "CITATION.cff", 'cff-version: 1.2.0\nversion: "0.3.0"\n'); put(c, "changes/later.md", "**Later**\n- l\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "later", cwd=c)
+before = read(c, "CHANGELOG.md"); rc, out, err = run(c, "changes.py", "release", "v0.4.0")
+report([] if rc == 1 and "no date-released: line" in err and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/later.md"))
+       else [f"exit {rc}: {err[-200:]}"], "changes.py release: a CITATION.cff without its date-released line is refused, nothing written (it never says it wrote what it could not)")
+o = repo("order", ["changes.py"])
+put(o, "CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n"); git("add", "-A", cwd=o); git("commit", "-q", "-m", "start", cwd=o)
+put(o, "changes/n1.md", "**Note one**\n- 1\n"); git("add", "-A", cwd=o); git("commit", "-q", "-m", "n1", cwd=o)
+put(o, "CHANGELOG.md", read(o, "CHANGELOG.md").replace("## Unreleased\n\n", "## Unreleased\n\n**Landed the old way**\n- later than note one\n\n")); git("add", "-A", cwd=o); git("commit", "-q", "-m", "old", cwd=o)
+put(o, "changes/n3.md", "**Note three**\n- 3\n"); git("add", "-A", cwd=o); git("commit", "-q", "-m", "n3", cwd=o)
+rc, out, err = run(o, "changes.py", "show", "--titles")
+report([] if rc == 0 and out.splitlines() == ["- Note three  (changes/n3.md)", "- Landed the old way  (CHANGELOG.md)", "- Note one  (changes/n1.md)"] else [f"exit {rc}: {out!r}"],
+       "changes.py: an Unreleased entry goes by the commit that wrote its title (git blame), so one that landed between two notes is listed between them")
+
+# ---- tools/ci_select.py ----
+s = repo("select", ["ci_select.py"])
+CI = "".join(x[1:] + "\n" for x in """
+|#!/usr/bin/env bash
+|ok() { echo ok; }
+|shared() { echo shared; }
+|only_b() { echo b; }
+|a_checks() {
+|  shared
+|  echo a
+|}
+|
+|# c's own comment
+|b_checks() {
+|  only_b
+|  echo b
+|}
+|
+|# what c checks
+|c_checks() {
+|  shared
+|  echo c
+|}
+|TOP=1
+|usage="usage"
+|case $1 in all) a_checks; b_checks; c_checks ;; esac
+""".splitlines() if x)   # (| keeps its lines off the start of a line of tools/ci.sh)
+put(s, "tools/ci.sh", CI); put(s, "tools/ci-shards.txt", "# the groups\na_checks 1\nb_checks 1\nc_checks 1\n")
+put(s, "tools/ci-paths.txt", "always a_checks\ndocs/**\nsrc/x.py c_checks\nsrc/all.py ALL\n")
+put(s, "docs/a.md", "a\n"); put(s, "src/x.py", "x\n"); put(s, "src/all.py", "y\n"); put(s, "src/other.py", "z\n")
+git("add", "-A", cwd=s); git("commit", "-q", "-m", "base", cwd=s); base = git("rev-parse", "HEAD", cwd=s)
+def sel(change, *extra):
+    git("checkout", "-q", "-f", base, cwd=s); git("clean", "-q", "-fd", cwd=s)
+    change()
+    rc, out, err = run(s, "ci_select.py", base, *extra)
+    return out.split() if rc == 0 else f"exit {rc}: {err.strip()[-200:]}"
+def edit(rel, old, new): put(s, rel, read(s, rel).replace(old, new, 1))
+cases = [
+    ("nothing changed", lambda: None, ["a_checks"]),
+    ("a new file under docs/ (not added to git)", lambda: put(s, "docs/b.md", "b\n"), ["a_checks"]),
+    ("a file under docs/ whose name has a space and Chinese in it", lambda: put(s, "docs/立意 卡.md", "c\n"), ["a_checks"]),
+    ("src/x.py", lambda: put(s, "src/x.py", "x2\n"), ["a_checks", "c_checks"]),
+    ("a path no line matches", lambda: put(s, "src/other.py", "z2\n"), ["a_checks", "b_checks", "c_checks"]),
+    ("a path whose line says ALL", lambda: put(s, "src/all.py", "y2\n"), ["a_checks", "b_checks", "c_checks"]),
+    ("a line inside b_checks", lambda: edit("tools/ci.sh", "  echo b\n", "  echo bb\n"), ["a_checks", "b_checks"]),
+    ("the comment just above c_checks", lambda: edit("tools/ci.sh", "# what c checks", "# what c checks, said better"), ["a_checks", "c_checks"]),
+    ("a helper only b_checks calls", lambda: edit("tools/ci.sh", "only_b() { echo b; }", "only_b() { echo bee; }"), ["a_checks", "b_checks"]),
+    ("a helper a_checks and c_checks call", lambda: edit("tools/ci.sh", "shared() { echo shared; }", "shared() { echo all; }"), ["a_checks", "c_checks"]),
+    ("code at the top", lambda: edit("tools/ci.sh", "TOP=1", "TOP=2"), ["a_checks", "b_checks", "c_checks"]),
+    ("the dispatch", lambda: edit("tools/ci.sh", "all) a_checks;", "all|every) a_checks;"), ["a_checks", "b_checks", "c_checks"]),
+    ("a group's function taken out", lambda: edit("tools/ci.sh", "# c's own comment\nb_checks() {\n  only_b\n  echo b\n}\n", ""), ["a_checks", "b_checks", "c_checks"]),
+    ("a blank line between two functions", lambda: edit("tools/ci.sh", "}\n\n# c's own comment", "}\n\n\n# c's own comment"), ["a_checks"]),
+    ("a helper taken out right above another function", lambda: edit("tools/ci.sh", "only_b() { echo b; }\n", ""), ["a_checks", "b_checks", "c_checks"]),
+    ("the comment above c_checks taken out", lambda: edit("tools/ci.sh", "# what c checks\n", ""), ["a_checks", "c_checks"]),
+    ("a new group with its line in the table", lambda: (edit("tools/ci.sh", "TOP=1", "d_checks() {\n  echo d\n}\nTOP=1"), put(s, "tools/ci-shards.txt", read(s, "tools/ci-shards.txt") + "d_checks 1\n")), ["a_checks", "d_checks"]),
+    ("only a group's seconds in the table", lambda: edit("tools/ci-shards.txt", "b_checks 1", "b_checks 9"), ["a_checks"]),
+]
+p = [f"{what}: {got} (want {want})" for what, change, want in cases if (got := sel(change)) != want]
+report(p, f"ci_select.py: {len(cases)} kinds of change map to the groups they need (a path by its line in the table, none or ALL every group; tools/ci.sh by the function a change is in, a helper by its callers, a comment by the function below it, a blank line between functions none, the top and a function taken out every group; a group the table adds)")
+git("checkout", "-q", "-f", base, cwd=s); git("clean", "-q", "-fd", cwd=s); put(s, "src/other.py", "z3\n"); put(s, "src/x.py", "x3\n")
+rc, out, err = run(s, "ci_select.py", base, "--why"); rc2, out2, err2 = run(s, "ci_select.py", "no-such-ref")
+p = [] if rc == 0 and "src/other.py" in err and "every group: no line of tools/ci-paths.txt matches it" in err and "src/x.py" in err and "c_checks" in err and "so: every group" in err else [f"--why: {err}"]
+if rc2 != 2 or "no commit no-such-ref" not in err2: p.append(f"a base that is not there: exit {rc2}: {err2}")
+report(p, "ci_select.py: --why says what each path runs and why; a base that is not there is exit 2")
+# --check follows a narrow line's files to what reaches them: a module a tool imports that a bin/vh command runs, a
+# folder that tool names, a module the top of bin/vh reaches (every command), a tool only tools/ci.sh runs
+d = repo("reach", ["ci_select.py"])
+put(d, "tools/ci.sh", "".join(x[1:] + "\n" for x in """
+|#!/usr/bin/env bash
+|vh() { bash bin/vh "$@"; }
+|a_checks() {
+|  vh other
+|}
+|b_checks() {
+|  vh use x
+|}
+|c_checks() {
+|  python3 tools/solo.py
+|}
+|usage="usage"
+""".splitlines() if x))
+put(d, "bin/vh", "".join(x[1:] + "\n" for x in """
+|#!/usr/bin/env bash
+|set -euo pipefail
+|cmd_use() { python3 "$ROOT/tools/user.py" "$@"; }
+|helper() { python3 "$ROOT/tools/hub.py"; }
+|cmd_other() { echo other; }
+|helper
+|case "${1:-help}" in
+|  use) shift; cmd_use "$@" ;;
+|  other) shift; cmd_other "$@" ;;
+|esac
+""".splitlines() if x))
+put(d, "tools/commands.json", '{"commands": [{"name": "use"}, {"name": "other"}]}\n')
+put(d, "tools/ci-shards.txt", "a_checks 1\nb_checks 1\nc_checks 1\n")
+put(d, "tools/lib.py", "X = 1\n"); put(d, "tools/user.py", "import lib\nfrom pathlib import Path\nprint(Path('.') / 'docs', lib.X)\n")
+put(d, "tools/hubbed.py", "Y = 2\n"); put(d, "tools/hub.py", "import hubbed\n"); put(d, "tools/solo.py", "print(1)\n"); put(d, "docs/a.md", "a\n")
+put(d, "tools/ci-paths.txt", "always a_checks\ntools/lib.py\ndocs/**\ntools/hubbed.py c_checks\ntools/solo.py c_checks\n")
+git("add", "-A", cwd=d); git("commit", "-q", "-m", "reach", cwd=d)
+rc, out, err = run(d, "ci_select.py", "--check"); rc2, out2, err2 = run(d, "ci_select.py", "--suggest")
+p = [] if rc == 1 else [f"--check: exit {rc}"]
+p += [f"--check said nothing of: {w}" for w in ("tools/lib.py also reaches b_checks (b_checks: tools/lib.py ← tools/user.py ← bin/vh use)",
+      "docs/** also reaches b_checks", "tools/hubbed.py reaches every group (tools/hubbed.py ← tools/hub.py ← bin/vh, outside any one command)") if w not in out]
+if "tools/solo.py" in out: p.append(f"--check flagged tools/solo.py, which only c_checks runs: {out}")
+if rc2 or [x.split() for x in out2.splitlines()] != [["tools/lib.py", "b_checks", "#", "was:"], ["docs/**", "b_checks", "#", "was:"], ["tools/hubbed.py", "ALL"], ["tools/solo.py", "c_checks"]]:
+    p.append(f"--suggest: exit {rc2}: {out2!r}")
+report(p, "ci_select.py --check: a narrow line misses the group whose bin/vh command runs a tool that imports its module, or names its folder; a module the top of bin/vh reaches reaches every group; --suggest says what each line must name")
+print("end")
+PY
+  python3 "$t/test.py" "$t" "$ROOT" > "$t/out" 2>&1; r=$?
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "$m" ;; bad) bad "$m" ;; esac
+  done < "$t/out"
+  grep -qx end "$t/out" || bad "plumbing: the test stopped (exit $r): $(tail -n 3 "$t/out" | tr '\n' ' ')"
+  # the table of this repository: each group it names is a group, each pattern a tracked file; bash finds every group
+  if a=$(python3 tools/ci_select.py --check 2>&1); then ok "$a"; else bad "tools/ci_select.py --check: $a"; fi
+  # the same under the system's bash when the first bash is another: macOS's 3.2 says a function with a heredoc in it
+  # starts further down than it does (CI's macOS shards have it first; a Mac with Homebrew's bash runs both here)
+  if [ -x /bin/bash ] && [ "$(/bin/bash -c 'echo $BASH_VERSION')" != "$(bash -c 'echo $BASH_VERSION')" ]; then
+    d=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); ln -s /bin/bash "$d/bash"
+    if a=$(PATH="$d:$PATH" python3 tools/ci_select.py --check 2>&1); then ok "tools/ci_select.py --check under the system's bash too ($(/bin/bash -c 'echo $BASH_VERSION'))"
+    else bad "tools/ci_select.py --check under the system's bash: $a"; fi
+    rm -rf "$d"
+  fi
+  # tools/ci.sh --changed on a one-group table: that group runs, the run says it was not a full one; a base that is not there stops it (exit 2)
+  printf 'readpath_report 0\n' > "$t/one.txt"; printf 'always readpath_report\n' > "$t/paths.txt"
+  a=$(OVH_CI_SHARDS="$t/one.txt" OVH_CI_PATHS="$t/paths.txt" tools/ci.sh --changed HEAD 2>&1); rc=$?
+  b=$(OVH_CI_SHARDS="$t/one.txt" OVH_CI_PATHS="$t/paths.txt" tools/ci.sh --changed no-such-ref 2>&1); rc2=$?
+  if [ "$rc:$rc2" = 0:2 ] && grep -q 'readpath_report' <<<"$a" && grep -q "Ran 1 of the $(groups_in "$ROOT/tools/ci-shards.txt" | wc -l | tr -d ' ') groups" <<<"$a" \
+     && grep -q 'all checks passed' <<<"$a" && grep -q 'no commit no-such-ref' <<<"$b" && ! grep -q 'all checks passed' <<<"$b"
+  then ok "tools/ci.sh --changed: runs the groups the change needs and says how many of all it ran; a base that is not there is exit 2"
+  else bad "tools/ci.sh --changed (exit $rc, $rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+  rm -rf "$t"
 }
 
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
@@ -814,7 +1044,7 @@ PY
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
            "check $t/no-such.mp4" \
            captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" \
-           "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check" \
+           "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check no-such" "style check --bogus" "style register" \
            "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4" \
            assets "assets no-such" "assets list $t/no-such" "assets check $t/empty" "assets add" "assets add $t/no-such $t/v.mp4" "assets credits" \
            "assets remove $t/fx no-such-id" "assets add $t/fx $t/no-such.png" "assets add $t/fx $t/v.mp4 --class nope" "assets check $t/fx --policy loose"; do
@@ -5963,6 +6193,224 @@ PY
   rm -rf "$t"
 }
 
+style_checks() {   # the style library (tools/styles.py, styles/families.json, styles/_swatch): every style against the families,
+  # the video types, the tag words and its swatch spec; the list and its filters; the spec's numbers; the staged page and
+  # lib.js at both specs and aspects; and, on a made-up repo, what the check must refuse, the README tables, the videos
+  # out of git (tools/media.txt, register, the tracked-video rule) and fetch_media.sh's other release
+  local t a b rc fx v
+  # every style in the repo: metadata always; the swatch media where ffmpeg is here (CI has it)
+  if command -v ffprobe >/dev/null; then a=$(vh style check 2>&1); rc=$?; v="metadata and swatch media"
+  else a=$(vh style check --meta 2>&1); rc=$?; v="metadata (no ffmpeg here: the media not checked)"; fi
+  if [ $rc = 0 ]; then ok "style check, $v: $(printf '%s' "$a" | tail -1 | cut -c1-150)"; else echo "$a"; bad "style check ($v)"; fi
+  # the list: each style once, grouped in families.json's order, and the filters keep what they name
+  if a=$(python3 - <<'PY'
+import json, subprocess, sys
+def run(*a):
+    r = subprocess.run([sys.executable, "tools/styles.py", "list", *a], capture_output=True, text=True)
+    return r.returncode, r.stdout
+fams = [f["id"] for f in json.load(open("styles/families.json", encoding="utf-8"))["families"]]
+import pathlib
+dirs = sorted(p.parent.name for p in pathlib.Path("styles").glob("*/tokens.json") if not p.parent.name.startswith("_"))
+_, out = run("--json"); d = json.loads(out)
+got = [s["slug"] for s in d["styles"]]
+bad = []
+if sorted(got) != dirs: bad.append("--json does not list each style once")
+order = [fams.index(s["family"]) for s in d["styles"]]
+if order != sorted(order): bad.append("not grouped in families.json's order")
+_, o6 = run("--type", "06", "--json")
+if not all("06" in s["video_types"] for s in json.loads(o6)["styles"]) or not json.loads(o6)["styles"]: bad.append("--type 06")
+_, op = run("--aspect", "portrait", "--json")
+asp = {s["tags"]["aspect"] for s in json.loads(op)["styles"]}
+if not asp or "landscape" in asp: bad.append(f"--aspect portrait gave {asp}")
+want = sorted(s["slug"] for s in d["styles"] if s["tags"]["aspect"] in ("portrait", "both"))
+if sorted(s["slug"] for s in json.loads(op)["styles"]) != want: bad.append("--aspect portrait left out a style for both")
+rc, _ = run("--pace", "slow")
+if rc != 2: bad.append(f"--pace slow exited {rc}, not 2")
+_, txt = run()
+import re
+heads = [l for l in txt.splitlines() if re.fullmatch(r"\S.* · [a-z0-9-]+ \(\d+\)", l)]
+if len(heads) != len({s["family"] for s in d["styles"]}): bad.append("the text list has not one heading a family")
+print("; ".join(bad) or f"{len(got)} styles once each in {len(heads)} families, in order; --type, --aspect (portrait takes both) filter; a tag word it does not know exits 2")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "style list: $a"; else bad "style list: $a"; fi
+  # the swatch spec's numbers: spec 1 is the 5 s swatch render.sh always made, spec 2 the new one; a bad length or an
+  # aspect the style has not is refused
+  if a=$(python3 - <<'PY'
+import json, subprocess, sys, tempfile, pathlib
+def spec(folder, *a):
+    r = subprocess.run([sys.executable, "tools/styles.py", "spec", folder, *a], capture_output=True, text=True)
+    return r.returncode, r.stdout, r.stderr
+bad = []
+rc, out, _ = spec("styles/ink-wash", "--shell")
+for want in ("FRAMES='150'", "DUR='5'", "W='1920'", "H='1080'", "SAMPLES='12 51 90 138'", "MP4_LIMIT='1500000'", "JPG_LIMIT='200000'", "PREVIEW_T=''", "POSTER_FRAME='90'", "ASPECTS='landscape'"):
+    if want not in out: bad.append(f"spec 1: no {want}")
+rc, out, _ = spec("styles/_swatch/demo")
+d = json.loads(out)
+if (d["frames"], d["aspects"], d["mp4_bytes"], d["poster_bytes"], d["preview"], d["beats"]["type"]) != (240, ["landscape", "portrait"], 2400000, 150000, 2.0, [4.5, 7.0]):
+    bad.append(f"spec 2 (the demo): {d['frames']} {d['aspects']} {d['mp4_bytes']} {d['poster_bytes']} {d['preview']} {d['beats']}")
+rc, out, _ = spec("styles/_swatch/demo", "--aspect", "portrait")
+if json.loads(out)[ "w"] != 1080 or json.loads(out)["out_h"] != 1280: bad.append("the portrait spec")
+if spec("styles/ink-wash", "--aspect", "portrait")[0] != 1: bad.append("a portrait version of a landscape spec-1 style was not refused")
+t = pathlib.Path(tempfile.mkdtemp())
+tok = json.load(open("styles/_swatch/demo/tokens.json", encoding="utf-8"))
+for sw, what in (({"spec": 2, "duration": 11}, "11 s"), ({"spec": 2, "duration": 7.01}, "7.01 s (not whole frames)"), ({"spec": 1, "duration": 8}, "spec 1 at 8 s"),
+                 ({"spec": 3}, "spec 3"), ({"spec": 2, "beats": [1, 6, 5]}, "beats out of order")):
+    (t / "tokens.json").write_text(json.dumps({**tok, "swatch": sw}), encoding="utf-8")
+    if spec(str(t))[0] != 1: bad.append(f"{what} was not refused")
+print("; ".join(bad) or "spec 1: 150 frames, 1.5 MB, 200 KB, render.sh's four check frames, no preview, landscape only; spec 2: 240 frames, 2.4 MB, 150 KB, a 2 s preview, beats, a portrait version; a length outside 5–10 s or not in whole frames, an unknown spec and beats out of order are refused")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "style spec: $a"; else bad "style spec: $a"; fi
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  # the staged page: a spec-1 landscape page is the shell with one line added; spec 2 portrait has its size and length;
+  # lib.js reads the spec from the page (and is the 5 s 1920×1080 swatch without one)
+  if a=$(python3 - "$t" <<'PY'
+import json, subprocess, sys
+t = sys.argv[1]
+sys.path.insert(0, "tools"); import styles
+shell = open("styles/_swatch/index.html", encoding="utf-8").read()
+def page(folder, aspect):
+    sp = styles.spec_of(json.load(open(f"{folder}/tokens.json", encoding="utf-8")), aspect)
+    return json.loads(dict(l.split("=", 1) for l in styles.spec_shell(sp).splitlines())["PAGE_SPEC"].strip("'"))
+one = styles.stage_page(shell, "demo", page("styles/ink-wash", "landscape"))
+bad = []
+if [l for l in one.splitlines() if "__swatchSpec" not in l] != shell.splitlines(): bad.append("a spec-1 page differs from the shell by more than the spec line")
+two = styles.stage_page(shell, "demo", page("styles/_swatch/demo", "portrait"))
+for want in ('data-width="1080" data-height="1920"', 'data-duration="8"', "width: 1080px; height: 1920px", '<canvas id="c" width="1080" height="1920">', '"aspect":"portrait"'):
+    if want not in two: bad.append(f"the portrait page has no {want}")
+open(f"{t}/spec.json", "w").write(json.dumps(page("styles/_swatch/demo", "portrait")))
+print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  ) && mkdir -p "$t/lib" && cp styles/_swatch/lib.js "$t/lib/" && cp -R components "$t/lib/components" && b=$(cd "$t/lib" && node --input-type=module -e '
+import fs from "node:fs";
+const bad = [];
+let L = await import("./lib.js?a");
+if ([L.W, L.H, L.DUR, L.FRAMES, L.POSTER_T, L.SPEC_VERSION, L.BEATS, L.PORTRAIT].join() !== "1920,1080,5,150,3,1,,false") bad.push(`no spec: ${[L.W, L.H, L.DUR, L.FRAMES, L.SPEC_VERSION]}`);
+globalThis.window = { __swatchSpec: JSON.parse(fs.readFileSync("../spec.json", "utf8")) };
+L = await import("./lib.js?b");
+if ([L.W, L.H, L.DUR, L.FRAMES, L.SPEC_VERSION, L.PORTRAIT, L.TYPE.title, L.BEATS.type.join("-")].join() !== "1080,1920,8,240,2,true,130,4.5-7") bad.push(`portrait spec 2: ${[L.W, L.H, L.DUR, L.FRAMES, L.SPEC_VERSION, L.PORTRAIT, L.TYPE.title]}`);
+if (L.SAFE.action.x0 !== 54 || L.SAFE.action.y0 !== 96 || L.anchor("A1").x > 540) bad.push("SAFE and anchor() are not of the portrait frame");
+console.log(bad.join("; ")); process.exit(bad.length ? 1 : 0);' 2>&1); then
+    ok "style stage: a spec-1 page is the shell plus the spec line; a spec-2 portrait page has 1080×1920, 8 s and the spec; lib.js gives 1920×1080, 5 s without a spec and the portrait frame, beats and type sizes with one"
+  else bad "style stage: $a $b"; fi
+  # a made-up repo: one style copied from styles/, families.json, the type names, tools/media.txt and .gitignore
+  fx="$t/fx"; mkdir -p "$fx/styles/fx-one/media" "$fx/tools" "$fx/video-types"
+  ( cd "$fx" && git init -q . ) || bad "style fixture: git init"
+  cp styles/families.json styles/README.md "$fx/styles/"; cp tools/media.txt "$fx/tools/"; cp .gitignore "$fx/"
+  for v in video-types/[0-9][0-9]-*.md; do : > "$fx/$v"; done
+  cp styles/ink-wash/STYLE.md styles/ink-wash/swatch.js styles/ink-wash/score.json "$fx/styles/fx-one/"
+  cp styles/ink-wash/media/poster.jpg styles/ink-wash/media/swatch.mp4 "$fx/styles/fx-one/media/"
+  python3 - "$fx" <<'PY'
+import json, re, sys
+fx = sys.argv[1]; p = f"{fx}/styles/fx-one/tokens.json"
+t = json.load(open("styles/ink-wash/tokens.json", encoding="utf-8")); t["slug"] = "fx-one"
+json.dump(t, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+md = f"{fx}/styles/fx-one/STYLE.md"; s = open(md, encoding="utf-8").read().split("\n", 1)
+open(md, "w", encoding="utf-8").write(f"# {t['name']['zh']} · fx-one\n" + s[1])
+PY
+  # the old swatch in git, as the 33 spec-1 ones are (.gitignore now ignores new ones, so it is added by force)
+  ( cd "$fx" && git add -A && git add -f styles/fx-one/media/swatch.mp4 && git -c user.name=ci -c user.email=ci@example.invalid commit -qm fx ) || bad "style fixture: commit"
+  style_fx() { OVH_STYLES_ROOT="$fx" python3 "$ROOT/tools/styles.py" "$@"; }
+  # its README tables follow the data; a moved style shows as a difference
+  style_fx readme >/dev/null; a=$(style_fx readme --check 2>&1); rc=$?
+  python3 -c 'import json, sys; p = sys.argv[1]; t = json.load(open(p)); t["family"] = "handmade"; json.dump(t, open(p, "w"), ensure_ascii=False)' "$fx/styles/fx-one/tokens.json"
+  b=$(style_fx readme --check 2>&1); rc2=$?
+  case "$rc:$rc2:$b" in 0:1:*"not what styles/families.json and the tokens.json files say"*) ok "style readme: the tables are written from the data, and a style moved to another family shows until they are rewritten" ;;
+    *) bad "style readme ($rc, $rc2): $a | $b" ;; esac
+  style_fx readme >/dev/null
+  # what the check refuses in a style's metadata, each named
+  if a=$(python3 - "$fx" <<'PY'
+import json, os, subprocess, sys
+fx = sys.argv[1]; p = f"{fx}/styles/fx-one/tokens.json"
+good = json.load(open(p, encoding="utf-8"))
+env = {**os.environ, "OVH_STYLES_ROOT": fx}
+def check(**change):
+    t = json.loads(json.dumps(good));
+    for k, v in change.items():
+        if v is None: t.pop(k, None)
+        elif k == "tags_pace": t["tags"]["pace"] = v
+        elif k == "card_line": t["card"].pop("line")
+        else: t[k] = v
+    json.dump(t, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+    r = subprocess.run([sys.executable, "tools/styles.py", "check", "fx-one", "--meta"], capture_output=True, text=True, env=env)
+    return r.returncode, r.stdout
+bad = []
+for change, word in (({"family": "nope"}, "no family in styles/families.json"), ({"tags_pace": "slow"}, "tags.pace 'slow'"),
+                     ({"video_types": ["99"]}, "video_types ['99']"), ({"card_line": 1}, "card needs"), ({"tags": None}, "tags needs"),
+                     ({"swatch": {"spec": 2, "duration": 12}}, "duration 12"), ({"slug": "other"}, "slug 'other'")):
+    rc, out = check(**change)
+    if rc != 1 or word not in out: bad.append(f"{change}: {rc} {out.strip()[:160]}")
+rc, out = check()
+if rc != 0: bad.append(f"the good tokens failed: {out.strip()[:200]}")
+print("; ".join(bad) or "an unknown family, tag word or video type, a missing card cell or tags, a length outside the spec and a slug that is not the folder's are each refused and named")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "style check: $a"; else bad "style check: $a"; fi
+  # the videos out of git: a spec-2 swatch in git, unregistered, then registered; tools/media.txt's form
+  if command -v ffmpeg >/dev/null; then
+    python3 -c 'import json, sys; p = sys.argv[1]; t = json.load(open(p)); t["swatch"] = {"spec": 2, "duration": 8}; json.dump(t, open(p, "w"), ensure_ascii=False)' "$fx/styles/fx-one/tokens.json"
+    a=$(style_fx check fx-one 2>&1)
+    m="$fx/styles/fx-one/media"
+    # an 8 s swatch that keeps to spec 2: one grey picture (so it loops), a tone at about -14 LUFS, a poster and a preview
+    ffmpeg -v error -y -f lavfi -i "color=c=0x808080:s=1280x720:r=30:d=8" -f lavfi -i "sine=f=440:d=8:sample_rate=48000" \
+      -filter_complex "[1:a]volume=7.8dB,aformat=channel_layouts=stereo[a]" -map 0:v -map "[a]" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k -t 8 "$m/swatch.mp4"
+    ffmpeg -v error -y -f lavfi -i "color=c=0x808080:s=854x480:r=30:d=2" -c:v libx264 -pix_fmt yuv420p -t 2 "$m/preview.mp4"
+    ffmpeg -v error -y -f lavfi -i "color=c=0x808080:s=1280x720" -frames:v 1 "$m/poster.jpg"
+    b=$(style_fx check fx-one 2>&1)
+    ( cd "$fx" && git rm -q --cached styles/fx-one/media/swatch.mp4 && git add -A && git -c user.name=ci -c user.email=ci@example.invalid commit -qm spec2 ) >/dev/null 2>&1
+    c=$(style_fx check 2>&1); style_fx register fx-one > "$t/reg.out" 2>&1; d=$(style_fx check 2>&1); rc=$?
+    e=$(sed -n 's/^registered  styles\/fx-one\/media\/swatch.mp4  →  //p' "$t/reg.out")
+    v=""
+    case "$a" in *"5.00 s long, its tokens.json asks for 8 s"*"no media/preview.mp4"*) ;; *) v="$v [a spec-2 tokens.json over a 5 s video, no preview: $a]" ;; esac
+    case "$b" in *"is in git: spec-2 swatches live in the release"*) ;; *) v="$v [the video in git: $b]" ;; esac
+    case "$c" in *"is not in tools/media.txt: bin/vh style register fx-one"*) ;; *) v="$v [not registered: $c]" ;; esac
+    [ $rc = 0 ] || v="$v [after register: $d]"
+    case "$e" in styles-media/fx-one-????????.mp4) ;; *) v="$v [the asset name: $e]" ;; esac
+    grep -q "^styles/fx-one/media/swatch.mp4 styles-media/fx-one-[0-9a-f]\{8\}.mp4 [0-9a-f]\{64\}$" "$fx/tools/media.txt" || v="$v [no tools/media.txt line]"
+    grep -q "gh release upload styles-media" "$t/reg.out" || v="$v [no upload command]"
+    (cd "$fx" && git ls-files --error-unmatch styles/fx-one/media/swatch.mp4 >/dev/null 2>&1) && v="$v [the video is still in git]"
+    if [ -z "$v" ]; then ok "style media: a 5 s video under an 8 s spec-2 tokens.json and no preview are named; a spec-2 swatch in git and one not in tools/media.txt are refused; register writes styles-media/<slug>-<sha8>.mp4 and the upload commands; a fake 8 s swatch at -14 LUFS passes"
+    else bad "style media:$(printf '%s' "$v" | head -c 1200)"; fi
+    # tools/media.txt's own form
+    printf 'styles/fx-one/media/swatch.mp4 media/other.mp4 abc\n' >> "$fx/tools/media.txt"
+    a=$(style_fx check 2>&1)
+    case "$a" in *"twice"*"is no sha256"*|*"is no sha256"*"twice"*) ok "style media: a line of tools/media.txt that repeats a path or holds no sha256 is named" ;;
+      *) bad "style media: a bad tools/media.txt line: $(printf '%s' "$a" | head -c 400)" ;; esac
+  else skip "style media" "no ffmpeg here"; fi
+  # tools/fetch_media.sh: a bare asset from "media", <release>/<name> from that release
+  mkdir -p "$t/fm/tools" "$t/rel/media" "$t/rel/styles-media"
+  cp tools/fetch_media.sh "$t/fm/tools/"; printf 'one' > "$t/rel/media/a.mp4"; printf 'two' > "$t/rel/styles-media/b.mp4"
+  sha_of() { python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())' "$1"; }
+  { echo "x/a.mp4 a.mp4 $(sha_of one)"; echo "y/b.mp4 styles-media/b.mp4 $(sha_of two)"; } > "$t/fm/tools/media.txt"
+  a=$(VH_MEDIA_URL="file://$t/rel/media" "$t/fm/tools/fetch_media.sh" 2>&1); rc=$?
+  if [ $rc = 0 ] && [ "$(cat "$t/fm/x/a.mp4" 2>/dev/null)" = one ] && [ "$(cat "$t/fm/y/b.mp4" 2>/dev/null)" = two ]; then
+    ok "fetch_media.sh: a bare asset comes from the release media, <release>/<name> from that release"
+  else bad "fetch_media.sh with two releases ($rc): $a"; fi
+  # a GitHub release video on a page: <source type> passes; <video src>, a <source> without its type and a script's
+  # .src (directly, through a constant or a function) are each named
+  cat > "$t/page.html" <<'HTML'
+<video controls><source src="https://github.com/o/r/releases/download/media/ok.mp4" type="video/mp4"></video>
+<video src="https://github.com/o/r/releases/download/media/a.mp4"></video>
+<video><source src="https://github.com/o/r/releases/download/media/b.mp4"></video>
+<script>
+const BASE = 'https://github.com/o/r/releases/download/styles-media/';
+const clip = (s) => `https://github.com/o/r/releases/download/styles-media/${s}.mp4`;
+v.src = BASE + "c.mp4";
+w.src = clip("d");
+img.src = BASE + "e.gif"; // release-src-ok
+x.setAttribute("src", "https://github.com/o/r/releases/download/media/f.mp4");
+</script>
+HTML
+  a=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import readme; from pathlib import Path; print("\n".join(readme.release_video_problems([Path(sys.argv[1])])))' "$t/page.html" 2>&1)
+  if [ "$(printf '%s\n' "$a" | grep -c .)" = 5 ] && printf '%s' "$a" | grep -q ':2: <video src' && printf '%s' "$a" | grep -q ':3: <source>' \
+    && printf '%s' "$a" | grep -q ':7: a script' && printf '%s' "$a" | grep -q ':8: a script' && printf '%s' "$a" | grep -q ':10: a script'; then
+    ok "release videos: <source type=video/mp4> passes; <video src>, a <source> with no type and a script's .src (direct, through a constant or a function) are named; a line marked release-src-ok is left alone"
+  else bad "release videos: $a"; fi
+  rm -rf "$t"
+}
+
 components_checks() {   # bin/vh components (tools/components.py, components/): the tables and the code agree, each state is a
   # function of t, add copies what a project needs, and a page of classic scripts (canvas-film's kind) and one of modules
   # draw the library and the components through the page contract, the same frames in any order
@@ -8642,7 +9090,7 @@ PY
 }
 
 activity_checks() {
-  local t p a b c rc rc2 i pid want la lp
+  local t p a b c rc rc2 i pid want la lp n
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
   cp -R tools/desk/fixtures/zh "$p"
   vh review "$p" 1 >/dev/null 2>&1; rc=$?
@@ -8788,8 +9236,14 @@ PY
   # the reader: the human lines, --json, and --follow as the log grows; bin/vh new logs into the project it made
   vh review "$p" 1 >/dev/null 2>&1; vh review "$p" 9 >/dev/null 2>&1
   a=$(vh activity "$p"); b=$(vh activity "$p" --json)
+  # (it waits for output, not for time, but for one window: the follower prints what the log held and only then reads
+  # the log's size, so a line written between the two is never printed (tools/activity.py's follow). The review starts
+  # 0.2 s after the first lines; a machine that stalls the follower longer than that between the two can still fail it)
   "$VH_BASH" "$ROOT/bin/vh" activity "$p" --follow --json > "$t/follow.out" 2>&1 & pid=$!
-  sleep 1; vh review "$p" 1 >/dev/null 2>&1; sleep 1.2; kill $pid 2>/dev/null; wait $pid 2>/dev/null
+  for _ in $(seq 1 300); do [ -s "$t/follow.out" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.1; done; sleep 0.2
+  n=$(grep -c '"event": "start"' "$t/follow.out"); vh review "$p" 1 >/dev/null 2>&1
+  for _ in $(seq 1 300); do [ "$(grep -c '"event": "start"' "$t/follow.out")" -gt "$n" ] && tail -n 1 "$t/follow.out" | grep -q '"event": "end"' && break; sleep 0.1; done
+  kill $pid 2>/dev/null; wait $pid 2>/dev/null
   if case "$a" in *"review . 1"*"✓"*"gate-1.html"*"review . 9"*"✗ exit 2"*) true ;; *) false ;; esac && python3 - "$b" "$t/follow.out" <<'PY'
 import json, sys
 d = json.loads(sys.argv[1]); f = [json.loads(l) for l in open(sys.argv[2], encoding="utf-8") if l.strip()]
@@ -9435,7 +9889,7 @@ film_chrome() {   # film_chrome: whether the page tools find a headless Chrome (
 # bin/vh render and patch (tools/film) on the same fixtures: chunks and keyframes, motion blur and alpha, the queue and
 # its resume, the disk floor, patch's windows, versions, --in-place, proxy and thumbs (where ffmpeg and ffprobe are)
 render_checks() {
-  local t a rc
+  local t a rc pid
   film_chrome || { no_chrome "render"; return; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
@@ -9502,22 +9956,28 @@ PY
     else bad "render --motion-blur ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 200) | $(printf '%s' "$d" | tail -c 200)"; fi
     # a render stopped with blurred chunks kept, then the same command without the blur, or with --motion-blur 1: those
     # chunks are not taken, it starts over (the record compares the keys either render has). The page hangs on a time off
-    # the frame grid after 0.1 s, so the blurred render keeps its first chunk and stops at --frame-timeout, while an
-    # unblurred one draws only grid times. One stopped render: its chunk and record copied back before each of the two
+    # the frame grid after 0.1 s: the blurred render finishes its first chunk (frames 0-2) and waits on frame 3's
+    # sub-frames, while an unblurred one draws only grid times. It is stopped as a Ctrl-C would stop it (SIGTERM, which
+    # keeps the finished chunks) once its first chunk is on disk, not by a timeout, so a slow machine stops it at the same
+    # place (a --frame-timeout of 2 s failed on CI's macOS when the first chunk took longer). bin/vh execs node, so $! is
+    # the render. One stopped render: its chunk and record copied back before each of the two
     sed 's|frame(t) {|frame(t) { if (t > 0.1 \&\& Math.abs(t * 30 - Math.round(t * 30)) > 1e-6) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/mb/stops.html"
-    vh render "$t/mb/stops.html" --motion-blur 4 --gop 3 --workers 1 --frame-timeout 2 --no-estimate --out "$t/mb/resume.mp4" >/dev/null 2>&1; rc=$?
+    "$VH_BASH" "$ROOT/bin/vh" render "$t/mb/stops.html" --motion-blur 4 --gop 3 --workers 1 --frame-timeout 600 --no-estimate --out "$t/mb/resume.mp4" >/dev/null 2>"$t/mb/stop.err" & pid=$!
+    for _ in $(seq 1 3000); do [ -s "$t/mb/.resume.mp4.parts/part0000.mp4" ] && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    kill -TERM "$pid" 2>/dev/null; wait "$pid"; rc=$?
     cp -R "$t/mb/.resume.mp4.parts" "$t/mb/stopped" 2>/dev/null
     for flag in "" "--motion-blur 1"; do
       say=${flag:-"no --motion-blur"}
       rm -rf "$t/mb/.resume.mp4.parts"; cp -R "$t/mb/stopped" "$t/mb/.resume.mp4.parts" 2>/dev/null
       # shellcheck disable=SC2086
       a=$(vh render "$t/mb/stops.html" $flag --gop 3 --workers 1 --no-estimate --out "$t/mb/resume.mp4" 2>&1); rc2=$?
-      if [ "$rc:$rc2" = 1:0 ] && grep -q "the 1 chunks kept from an earlier render are not used (changed: the motion blur); starting over" <<<"$a" \
+      if [ "$rc:$rc2" = 143:0 ] && [ -s "$t/mb/stopped/part0000.mp4" ] && [ ! -e "$t/mb/stopped/part0001.mp4" ] \
+         && grep -q "the 1 chunks kept from an earlier render are not used (changed: the motion blur); starting over" <<<"$a" \
          && python3 -c 'import subprocess, sys
 y = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-vf", "select=eq(n\\,2)", "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout
 sys.exit(0 if len(y) == 160 * 90 and not [v for v in y[45 * 160:46 * 160] if 38 < v < 213] else 1)' "$t/mb/resume.mp4"
       then ok "render, $say: the blurred chunk a stopped render kept is not taken (the motion blur changed), the film drawn sharp"
-      else bad "render, $say, over a blurred chunk a stopped render kept (exit $rc:$rc2): $(printf '%s' "$a" | head -c 400)"; fi
+      else bad "render, $say, over a blurred chunk a stopped render kept (exit $rc:$rc2; kept: $(ls "$t/mb/stopped" 2>/dev/null | tr '\n' ' ')): $(printf '%s' "$a" | grep -v '^render: ' | head -c 400) | the stopped render: $(tail -c 300 "$t/mb/stop.err")"; fi
     done
     # canvas-film's fadeOut reaches black on the last frame, which is drawn one frame before the film's end; the frames before it are not black yet
     vh new short fo --engine canvas-film --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-fo 2>/dev/null)
@@ -11297,7 +11757,8 @@ PY
 land_checks() {   # tools/land.py on a made-up repository with a local origin and a stand-in gh (no network): a PR stacked
   # on one squashed since (-s ours, its tree kept), done (the squash's tree, main moved on, --clean), a plain merge on a PR
   # already mergeable, --dry-run, a conflict, main moved on after --after (a plain merge, not -s ours), an ignored file,
-  # land-deny (named, not repeated), a batch's several CHANGELOG entries, and the PRs it refuses
+  # land-deny (named, not repeated), a batch's several CHANGELOG entries, change notes in changes/ (two PRs that each add
+  # one land in turn without a conflict), and the PRs it refuses
   local t r k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-land.XXXXXX")
   cat > "$t/test.py" <<'PY'
 import json, os, subprocess, sys
@@ -11438,6 +11899,34 @@ rc, out = land("ready", "9", cwd=c)
 report([] if rc == 0 and queued(9) == {"auto": True, "subject": "Batch nine (#9)", "match": h1, "body": "Ninth B\n- b\n\nNinth A\n- a"}
        else [f"exit {rc}, queued {queued(9)}"], "a batch adding two CHANGELOG entries: the PR's title, the entries the body")
 
+# change notes (changes/<name>.md, tools/changes.py): the squash message from the note a PR adds; two PRs that each add one,
+# from the same main, land one after the other with no conflict; a note and a CHANGELOG entry together are a batch; a
+# PR that only edits a note already on main, or adds changes/README.md, adds no note of its own
+def note(name, title, *lines): os.makedirs(os.path.join(w, "changes"), exist_ok=True); put(f"changes/{name}.md", f"**{title}**\n" + "".join(f"- {x}\n" for x in lines))
+branch("pi", s3); note("tenth", "Tenth thing", "ten", "and more"); i1 = commit("tenth")
+branch("pj", s3); note("eleventh", "Eleventh thing", "eleven"); put("j.txt", "j\n"); j1 = commit("eleventh"); push("pi", "pj")
+pr(12, "pi", i1, title="Tenth PR"); pr(13, "pj", j1, title="Eleventh PR")
+rc, out = land("ready", "12", cwd=c); p = []
+if rc or queued(12) != {"auto": True, "subject": "Tenth thing (#12)", "match": i1, "body": "- ten\n- and more"}: p.append(f"#12: exit {rc}, queued {queued(12)}: {out[-200:]}")
+sq12 = squash(i1, s3, "Tenth thing (#12)"); push(f"{sq12}:refs/heads/main")
+rc, out = land("ready", "13", cwd=c); new13 = head("pj")
+if rc or parents(new13) != [j1, sq12]: p.append(f"#13: exit {rc}, not main merged in: {out[-300:]}")
+elif sorted(git("diff", "--name-only", sq12, new13, cwd=origin).split()) != ["changes/eleventh.md", "j.txt"]: p.append("#13 changes more than its own files against main")
+elif queued(13) != {"auto": True, "subject": "Eleventh thing (#13)", "match": new13, "body": "- eleven"}: p.append(f"#13 queued {queued(13)}")
+report(p, "change notes: the squash message from the note a PR adds; a second PR with its own note, from the same main, takes main in with no conflict and keeps its own note")
+branch("pk", sq12); note("fourteenth", "Fourteenth note", "x"); entry("Fourteenth entry", "y"); k1 = commit("fourteenth")
+branch("pl", sq12); note("tenth", "Tenth thing", "ten", "and more, said again"); put("changes/README.md", "what the folder is\n"); l1 = commit("fifteenth")
+push("pk", "pl"); pr(14, "pk", k1, title="Batch fourteen"); pr(15, "pl", l1, title="Fifteenth")
+rc, out = land("ready", "14", cwd=c); rc2, out2 = land("ready", "15", cwd=c)
+report([] if (rc, rc2) == (0, 0) and queued(14) == {"auto": True, "subject": "Batch fourteen (#14)", "match": k1, "body": "Fourteenth note\n- x\n\nFourteenth entry\n- y"}
+       and queued(15) == {"auto": True, "subject": "Fifteenth (#15)", "match": l1, "body": ""} else [f"exit {rc}, {rc2}, queued {queued(14)}, {queued(15)}"],
+       "change notes: a note and a CHANGELOG entry together are a batch (the PR's title, both the body); editing a note already on main, or adding changes/README.md, is no note (the PR's title)")
+branch("pm", sq12); git("mv", "changes/tenth.md", "changes/mine.md", cwd=w); note("说明", "Sixteenth note", "sixteen"); m1 = commit("sixteenth"); push("pm")
+pr(16, "pm", m1, title="Sixteenth")
+rc, out = land("ready", "16", cwd=c)
+report([] if rc == 0 and queued(16) == {"auto": True, "subject": "Sixteenth note (#16)", "match": m1, "body": "- sixteen"} else [f"exit {rc}, queued {queued(16)}: {out[-200:]}"],
+       "change notes: a note moved to another name (git mv) is not the PR's own; a note named in Chinese is read as it is (the squash message from it)")
+
 pr(10, "pe", e1, baseRefName="pb"); pr(11, "pc", c1, state="CLOSED")
 r10, o10 = land("ready", "10", cwd=c); r11, o11 = land("ready", "11", cwd=c)
 report([] if (r10, r11) == (2, 2) and "based on pb" in o10 and "closed" in o11 else [f"exit {r10}, {r11}"],
@@ -11455,7 +11944,8 @@ PY
 # the groups (tools/ci-shards.txt): one a line, in the order a full run takes them, with their seconds on CI's macOS runner.
 # OVH_CI_SHARDS=<file>: another table (doc_checks runs tools/ci.sh on broken ones)
 CI_TABLE=${OVH_CI_SHARDS:-$ROOT/tools/ci-shards.txt}
-groups() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$CI_TABLE"; }
+groups_in() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$1"; }   # groups_in <table>: its lines, comments and blanks left out
+groups() { groups_in "$CI_TABLE"; }
 shard_of() { # shard_of <i> <n>: the groups of shard i of n, in the table's order. The longest first, each to the shard with
   # the fewest seconds so far (ties: the earlier group, the lower shard), so the same table always deals the same shards
   groups | awk -v i="$1" -v n="$2" '{ name[NR] = $1; w[NR] = $2 + 0; o[NR] = NR }
@@ -11479,7 +11969,7 @@ run_groups() { # run_groups <group…>: each group's checks, timed; then how lon
   printf '%s\n' ${CI_TIMES[@]+"${CI_TIMES[@]}"} | sort -t "$tab" -k1,1nr | awk 'NR <= 10' | while IFS="$tab" read -r ms m; do
     printf '  %5d.%d  %s\n' $((ms / 1000)) $((ms % 1000 / 100)) "$m"; done
 }
-usage="usage: tools/ci.sh [--smoke | --shard i/n | --committed [--smoke | --shard i/n]]"
+usage="usage: tools/ci.sh [--smoke | --shard i/n | --changed [base] | --committed [--smoke | --shard i/n | --changed [base]]]"
 case "${1:-all}" in
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     shift
@@ -11496,6 +11986,9 @@ case "${1:-all}" in
     case "$i$n" in *[!0-9]*) echo "$usage" >&2; exit 2 ;; esac
     [ "$i" -le "$n" ] || { echo "$usage" >&2; exit 2; }
     CI_RUN="Shard $i/$n" list=$(shard_of "$i" "$n") ;;
+  --changed)   # the groups what changed since base (origin/main) needs: tools/ci_select.py, by tools/ci-paths.txt
+    [ $# -le 2 ] || { echo "$usage" >&2; exit 2; }
+    CI_RUN="The run of what changed" list=$(python3 tools/ci_select.py ${2:+"$2"} --why) || exit 2 ;;
   --smoke) [ $# = 1 ] || { echo "$usage" >&2; exit 2; }
     CI_RUN="The smoke tests" list=$(groups | awk '$1 !~ /^(static_checks|doc_checks|readpath_report)$/ { print $1 }') ;;
   all) [ $# -le 1 ] || { echo "$usage" >&2; exit 2; }
@@ -11506,6 +11999,9 @@ esac
 [ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
 # shellcheck disable=SC2086   # one group a word
 run_groups $list
+# a run of some groups says so: a shard, --smoke, --changed or another table passes only what it ran
+ci_all=$(groups_in "$ROOT/tools/ci-shards.txt" | wc -l | tr -d ' ') ci_ran=$(printf '%s\n' $list | wc -l | tr -d ' ')
+[ "$ci_ran" -lt "$ci_all" ] && printf '\033[33m! Ran %s of the %s groups in tools/ci-shards.txt; tools/ci.sh runs them all, as before a push\033[0m\n' "$ci_ran" "$ci_all"
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
 # 1, not the count: an exit status is the count modulo 256, and 256 failed checks would have been a pass

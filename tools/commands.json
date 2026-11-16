@@ -1219,24 +1219,49 @@
     },
     {
       "name": "style",
-      "summary": "The style library: list the presets, compare them side by side, attach some to a project as references; render a preset's 5 s swatch, build the gallery, check a swatch's determinism.",
+      "summary": "The style library: list and filter the presets by family, video type and tags, compare them, attach some to a project as references; render a preset's swatch (5–10 s, portrait too), check it against the spec, register its video for the release, build the gallery and the README tables.",
       "when": "the look of the concept cards (gate ①) or of STYLE.md; looking after styles/",
       "stages": ["2", "1"],
       "reads": [
-        "styles/<preset>/STYLE.md, tokens.json, media/"
+        "styles/families.json; styles/<preset>/STYLE.md, tokens.json, media/",
+        "tools/media.txt (check, register)"
       ],
       "writes": [
         "<project>/style-refs/<preset>/, BRIEF.md, STYLE.md, DECISIONS.md (apply)",
         "<project>/out/check/style-compare-<a>-<b>….png (compare)",
-        "styles/<preset>/media/ (a swatch render)",
+        "styles/<preset>/media/ (a swatch render: swatch.mp4, poster.jpg, preview.mp4, the portrait pair)",
+        "tools/media.txt (register)",
+        "styles/README.md's tables (readme)",
         "styles/gallery.jpg (gallery)"
       ],
       "usage": [
         {
-          "synopsis": "style list | <preset> [--draft] | gallery [--mp4] [--readme] | check <preset>",
+          "synopsis": "style list [--family F] [--type NN] [--pace P] [--aspect A] [--cost C] [--source S] [--json]",
           "text": [
-            "style library: list presets, render a 5 s swatch, build styles/gallery.jpg",
-            "(the swatch render's other options: styles/_swatch/render.sh -h)"
+            "the presets by family (styles/families.json), with pace, aspect, render cost, the video types they suit and",
+            "whether the swatch is here; the options filter (--aspect portrait also lists the presets for both)"
+          ]
+        },
+        {
+          "synopsis": "style <preset> [--aspect landscape|portrait] [--draft] [--hud]",
+          "text": [
+            "render the swatch at the spec its tokens.json asks for: every aspect it has unless --aspect names one",
+            "(styles/_swatch/README.md, 样片规格; the render's other options: styles/_swatch/render.sh -h)"
+          ]
+        },
+        {
+          "synopsis": "style check [<preset>…] [--meta] [--text] [--json] | check <preset> --determinism [workers_b]",
+          "text": [
+            "metadata against styles/families.json and video-types/; the swatch's length, size, loudness, budget, poster,",
+            "preview, portrait and loop seam; --text: text inside the safe frame (textcheck, readcheck); --determinism:",
+            "frames from one and from N render workers must match"
+          ]
+        },
+        {
+          "synopsis": "style register <preset>… [--dry-run] | readme [--check] | gallery [--mp4] [--readme]",
+          "text": [
+            "a spec-2 swatch's videos into tools/media.txt (release styles-media) with the upload commands, nothing",
+            "uploaded / styles/README.md's tables from the data / styles/gallery.jpg"
           ]
         },
         {
@@ -1249,19 +1274,27 @@
       "subcommands": [
         {
           "name": "list",
-          "summary": "the presets"
+          "summary": "the presets by family; filter by family, video type and tags"
         },
         {
           "name": "<preset>",
-          "summary": "render the preset's 5 s swatch"
+          "summary": "render the preset's swatch, every aspect it has"
+        },
+        {
+          "name": "check",
+          "summary": "metadata, the swatch against its spec, text in the safe frame; --determinism"
+        },
+        {
+          "name": "register",
+          "summary": "the full swatch videos into tools/media.txt, and the upload commands"
+        },
+        {
+          "name": "readme",
+          "summary": "styles/README.md's tables from styles/families.json and the tokens.json files"
         },
         {
           "name": "gallery",
           "summary": "build styles/gallery.jpg (--mp4, --readme)"
-        },
-        {
-          "name": "check",
-          "summary": "frames from one and from N render workers must match"
         },
         {
           "name": "compare",

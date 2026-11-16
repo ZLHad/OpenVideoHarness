@@ -383,7 +383,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
   case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
-    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
   esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
@@ -918,24 +918,29 @@ swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determ
   [ -f "$d/swatch.py" ] && [ ! -f "$d/swatch.js" ] && return 0
   [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] || (cd "$ROOT/styles/_swatch" && npm ci --silent)
 }
-cmd_style() { # style library: styles/<preset>/{STYLE.md,tokens.json,swatch.js,media/}; renderer in styles/_swatch
+cmd_style() { # style library: styles/<preset>/{STYLE.md,tokens.json,swatch.js,media/} and styles/families.json (tools/styles.py);
+  # the renderer in styles/_swatch
   local sw="$ROOT/styles/_swatch"
   case "${1:-list}" in
-    list) python3 - "$ROOT/styles" <<'PY'
-import json, pathlib, sys
-for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
-    t = d / "tokens.json"
-    if d.name.startswith("_") or not t.exists(): continue
-    j = json.loads(t.read_text())
-    has = "swatch" if (d / "media" / "swatch.mp4").exists() else "—"
-    print(f"  {d.name:22} {j.get('family',''):13} {j.get('name',{}).get('zh',''):14} {has}")
-PY
-      ;;
+    list) [ $# -gt 0 ] && shift
+      case "${1:-}" in -h|--help) echo "usage: bin/vh style list [--family F] [--type NN] [--pace calm|medium|fast] [--aspect landscape|portrait|both] [--cost seconds|minutes|blender] [--source masterwork|community|own-film] [--json]"; return ;; esac
+      python3 "$ROOT/tools/styles.py" list "$@" ;;
     gallery) shift; on_ctrl_c uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
-    check) shift; local u="usage: bin/vh style check <preset> [workers_b=3]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"
-      case "${1:-}" in -h|--help) echo "$u"; return ;; esac
-      [ $# -gt 0 ] || { echo "$u" >&2; exit 2; }
-      swatch_deps "$1"; "$sw/determinism.sh" "$@" ;;
+    check) shift; local x det="" u="usage: bin/vh style check [<preset>…] [--meta] [--text] [--json]   metadata (family, video types, tags, card) and the swatch: length, size, loudness, budget, poster, preview, portrait, loop; --meta: metadata only; --text: text inside the safe frame (textcheck, readcheck)
+       bin/vh style check <preset> --determinism [workers_b=3] [--aspect portrait]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"
+      for x in "$@"; do case "$x" in -h|--help) echo "$u"; return ;; --determinism) det=1 ;; esac; done
+      if [ -n "$det" ]; then
+        local args=(); for x in "$@"; do [ "$x" = --determinism ] || args+=("$x"); done
+        [ ${#args[@]} -gt 0 ] || { echo "$u" >&2; exit 2; }
+        swatch_deps "${args[0]}"; "$sw/determinism.sh" "${args[@]}"
+      else
+        python3 "$ROOT/tools/styles.py" check "$@"
+      fi ;;
+    register) shift; local u="usage: bin/vh style register <preset>… [--dry-run]   its spec-2 swatch videos into tools/media.txt (release styles-media) and the upload commands; uploads nothing"
+      case "${1:-}" in -h|--help) echo "$u"; return ;; "") echo "$u" >&2; exit 2 ;; esac
+      python3 "$ROOT/tools/styles.py" register "$@" ;;
+    readme) shift; case "${1:-}" in -h|--help) echo "usage: bin/vh style readme [--check]   styles/README.md's tables from styles/families.json and the tokens.json files"; return ;; esac
+      python3 "$ROOT/tools/styles.py" readme "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]" >&2; exit 2; }
       on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
     apply) shift; local u="usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)" s styles x
@@ -946,7 +951,17 @@ PY
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project" >&2; exit 2; }
       for s in $styles; do attach_style "$dir" "$s"
         echo "$c_ok styles/$s attached to $(rel "$dir") as a reference (style-refs/$s/, BRIEF Style refs, a DECISIONS line to fill in)"; done ;;
-    *) swatch_deps "$1"; on_ctrl_c "$sw/render.sh" "$@" ;;
+    *) swatch_deps "$1"
+      # every aspect the swatch has (spec 2: landscape, then portrait for a style that suits it), unless the call names
+      # one or asks for less than a whole render (--png, --stage-only, --stamp)
+      local x one="" d aspects=""
+      for x in "$@"; do case "$x" in --aspect|--aspect=*|--png|--stage-only|--stamp|-h|--help) one=1 ;; esac; done
+      case "$1" in */*) d=$1 ;; demo|catalog|fontprobe) d="$sw/$1" ;; *) d="$ROOT/styles/$1" ;; esac
+      [ -n "$one" ] || aspects=$(python3 "$ROOT/tools/styles.py" spec "$d" --shell 2>/dev/null | sed -n "s/^ASPECTS='\(.*\)'$/\1/p")
+      case "$aspects" in
+        *" "*) for x in $aspects; do on_ctrl_c "$sw/render.sh" "$@" --aspect "$x" || return $?; done ;;
+        *) on_ctrl_c "$sw/render.sh" "$@" ;;
+      esac ;;
   esac
 }
 
