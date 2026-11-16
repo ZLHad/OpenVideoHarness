@@ -8,7 +8,7 @@
    goes to /api/p/<key>/feedback, the desk's one submission channel. No framework, no CDN. Every text from a project is escaped
    before it reaches the page (documents arrive as HTML that reader.py has already escaped). The words and the helpers a
    static review page shares are in core.js, the other modules in modules.js; both load before this file. */
-const TOKEN = (document.querySelector('meta[name="desk-token"]') || {}).content || "";
+const TOKEN = deskToken();
 const HOME = (document.querySelector('meta[name="desk-home"]') || {}).content || "";
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
@@ -1422,3 +1422,10 @@ $("#lang").addEventListener("click", () => {
 setLang(pickLang());
 OVH.theme(document.documentElement.getAttribute("data-theme"));
 route();
+(async function checkKey() {   // the token this page holds, from the launch key: an earlier run's (or none) only reads
+  let ok = false, refused = false;
+  if (TOKEN) { try { const r = await fetch("/api/hello", { headers: { "X-Desk-Token": TOKEN }, cache: "no-store" }); ok = r.ok; refused = r.status === 403; } catch (e) { ok = false; } }
+  if (refused) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }
+  const b = $("#nokey"); if (b) { b.hidden = ok; b.textContent = ok ? "" : t("nokey"); }
+  AGENT.keyOk(ok);
+})();

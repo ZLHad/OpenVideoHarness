@@ -27,7 +27,7 @@ no desk, and bin/vh status counts it as not sent until a run of it goes through 
 --wait without the desk, --init over a file, gate ③'s page while gate ② is in the film's plan and not on record (a BRIEF with a
 Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out.
 """
-import argparse, contextlib, json, os, re, subprocess, sys, time
+import argparse, secrets, contextlib, json, os, re, subprocess, sys, time
 from pathlib import Path
 from urllib.parse import quote
 
@@ -176,15 +176,23 @@ def start_desk(project, port=None):
         return url, False
     log = project / "out" / "review" / ".desk.log"
     log.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [os.environ.get("OVH_BASH") or "bash", str(ROOT / "bin" / "vh"), "desk", str(project), "--idle", str(IDLE), "--only"]   # this stop's project only
+    # the launch key goes to the desk on stdin and into this command's message, never into the log in the project (an agent
+    # working in the project can read that): the page that comes with it is the only one that gets the desk's token
+    key = secrets.token_urlsafe(18)
+    cmd = [os.environ.get("OVH_BASH") or "bash", str(ROOT / "bin" / "vh"), "desk", str(project), "--idle", str(IDLE), "--only", "--key-stdin"]
     if port is not None:
         cmd += ["--port", str(port)]
     with open(log, "ab") as out:
-        p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True)
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=out, stderr=out, start_new_session=True)
+    try:
+        p.stdin.write((key + "\n").encode())
+        p.stdin.close()
+    except OSError:
+        pass
     for _ in range(200):
         url = server.running(project)
         if url:
-            return url, True
+            return f"{url}?k={key}", True
         if p.poll() is not None:
             break
         time.sleep(0.1)
@@ -246,14 +254,15 @@ def main(argv):
             return jsonerr.fail("failed", f"gate: the review desk did not start (out/review/.desk.log says why); the page is {page_path}. "
                                 f"Start it by hand: bin/vh desk {a.project}")
         print(f"✓ review desk {url} ({'started, in the background' if started else 'already serving this project'})", file=sys.stderr)
-        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url.rstrip("/") + "/#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
+        base, _, query = url.partition("?")   # ?k=…: the launch key, when this command started the desk
+        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=base.rstrip("/") + "/" + (f"?{query}" if query else "") + "#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
     print(f"  this stop is reviewed on the {channel} ({why})", file=sys.stderr)
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": page.gate, "page": str(page_path), "channel": channel, "url": url,
                           "message": "\n".join(lines)}, ensure_ascii=False), flush=True)
     else:
         print("\n".join(lines), flush=True)
-    activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url}" if url else ""), [page_path])
+    activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url.partition('?')[0]}" if url else ""), [page_path])   # the log is in the project: never the launch key
     try:   # the text as it was when the page went out (tools/history.py); a failure to save never stops the page, nor does a lock held elsewhere for long
         import history
         for x in history.save(project, f"gate {page.gate}: the page went out", wait=2)[1]:

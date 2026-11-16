@@ -14,7 +14,7 @@
 const ASTR = {
   zh: {
     tab_chat: "对话", tab_round: "这一轮", tab_ask: "待批准 {n}", tab_dec: "待你定 {n}", ask_bar: "{a} 在等你点头：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史", ag_hist_none: "这支片子还没有别的对话",
-    ag_idle: "空闲", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
+    ag_idle: "空闲", ag_lookonly: "只能看", lookonly_b: "这一页不是从控制台打印的那条链接打开的，所以看不到、也发不出对话。用那条链接打开，就能在这里和 agent 说话。", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
     u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
@@ -28,7 +28,7 @@ const ASTR = {
     busy_turn: "{a} 还在做上一句。等它做完，或者点停止。",
     busy_console: "{a} 正在这支片子上干活（另一个对话，或另一个页面）。等它做完，或者去那边停下它。",
     busy_command: "终端里正在跑 {x}（进程 {p}）。等它跑完再让 agent 动手。",
-    busy_process: "终端里有 {x}（进程 {p}）在这支片子的文件夹里。为了不两边同时改，先等它停下。",
+    busy_process: "终端里有 {x}（进程 {p}）开在这支片子的文件夹里，它可能正在改东西。现在让 {a} 动手，两边可能改到同一处。",
     busy_waiting: "终端里有个 agent 在等你交这一轮。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
     perm_h: "{a} 想{v}，要你点头", perm_wait: "等你点", perm_by_person: "你选了：{o}", perm_by_stop: "你点了停止，取消了", perm_by_timeout: "没有页面开着，{m} 分钟后按“不行”处理了",
     perm_by_gone: "agent 停了，这一问作废", perm_by_restart: "控制台重启过，这一问作废", perm_by_turn: "这一轮结束了，这一问作废", perm_by_desk: "控制台关了，这一问作废",
@@ -36,10 +36,11 @@ const ASTR = {
     v_read: "读", v_edit: "改", v_delete: "删", v_move: "挪", v_search: "找", v_execute: "跑", v_think: "想", v_fetch: "上网取", v_switch_mode: "换模式", v_other: "用",
     v_read_w: "读文件", v_edit_w: "改文件", v_delete_w: "删文件", v_move_w: "挪文件", v_search_w: "找文件", v_execute_w: "跑命令", v_fetch_w: "上网取东西", v_other_w: "用工具",
     st_pending: "准备中", st_in_progress: "在跑", st_asking: "等你点头", st_completed: "好了", st_failed: "没做成", st_refused: "你没允许，所以没做", out_show: "看输出", out_lines: "{n} 行",
-    new_file: "新文件", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
+    new_file: "新文件", own_desc: "它自己的说明：", own_opts: "它给的选项原文：", gap: "…（中间还有 {n} 字，点下面看全部）…", see_all: "看完整的（共 {n} 字）",
+    too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
     turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
     turn_restart: "控制台重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
-    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_stopping: "正在停…",
+    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_stopping: "正在停…",
     unknown: "{a} 发来一条这里还显示不了的更新（点开看原样）", working_dsh: "{a} 在做，回复会整段一起到", sec: "{n} 秒", min: "{m} 分 {s} 秒",
     m_default: "改动前都问", m_acceptEdits: "改文件不问", m_plan: "只出计划", m_auto: "危险的才问", m_bypassPermissions: "什么都不问",
     "m_read-only": "只读", "m_workspace-write": "只改项目里的", m_agent: "危险的才问", "m_agent-full-access": "不设限",
@@ -50,7 +51,7 @@ const ASTR = {
   },
   en: {
     tab_chat: "Chat", tab_round: "This round", tab_ask: "{n} to allow", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History", ag_hist_none: "No other chats in this film yet",
-    ag_idle: "Idle", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
+    ag_idle: "Idle", ag_lookonly: "Look only", lookonly_b: "This page was not opened from the link the console printed, so it cannot show or send a conversation. Open that link to talk to an agent here.", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
     u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
@@ -64,7 +65,7 @@ const ASTR = {
     busy_turn: "{a} is still on your last message. Wait for it, or press Stop.",
     busy_console: "{a} is working on this film (in another chat or page). Wait for it, or stop it there.",
     busy_command: "{x} is running in a terminal (process {p}). Let it finish before the agent starts.",
-    busy_process: "{x} (process {p}) is open in this film's folder in a terminal. Wait until it stops, so the two don't edit at once.",
+    busy_process: "{x} (process {p}) is open in this film's folder in a terminal and may be editing. If {a} starts now, both may edit the same thing.",
     busy_waiting: "An agent in a terminal is waiting for you to send this round. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
     perm_h: "{a} wants to {v}", perm_wait: "Waiting for you", perm_by_person: "You chose: {o}", perm_by_stop: "Cancelled when you pressed Stop", perm_by_timeout: "No page was open; after {m} minutes it was refused",
     perm_by_gone: "The agent stopped; this request lapsed", perm_by_restart: "The console restarted; this request lapsed", perm_by_turn: "The turn ended; this request lapsed", perm_by_desk: "The console closed; this request lapsed",
@@ -72,10 +73,11 @@ const ASTR = {
     v_read: "read", v_edit: "edit", v_delete: "delete", v_move: "move", v_search: "search", v_execute: "run", v_think: "think", v_fetch: "fetch", v_switch_mode: "switch mode", v_other: "use",
     v_read_w: "read a file", v_edit_w: "edit a file", v_delete_w: "delete a file", v_move_w: "move a file", v_search_w: "search", v_execute_w: "run a command", v_fetch_w: "fetch from the web", v_other_w: "use a tool",
     st_pending: "getting ready", st_in_progress: "running", st_asking: "waiting for you", st_completed: "done", st_failed: "failed", st_refused: "You didn't allow it, so it wasn't done", out_show: "Output", out_lines: "{n} lines",
-    new_file: "new file", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
+    new_file: "new file", own_desc: "Its own description: ", own_opts: "Its options as it wrote them: ", gap: "…({n} more characters: open the full text below)…", see_all: "See it all ({n} characters)",
+    too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
     turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
     turn_restart: "The console restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
-    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_stopping: "Stopping…",
+    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_stopping: "Stopping…",
     unknown: "{a} sent an update this page can't show yet (open it to see it as sent)", working_dsh: "{a} is working; its reply comes in one piece", sec: "{n} s", min: "{m} min {s} s",
     m_default: "Ask before changes", m_acceptEdits: "Edit without asking", m_plan: "Plan only", m_auto: "Ask only if risky", m_bypassPermissions: "Never ask",
     "m_read-only": "Read only", "m_workspace-write": "Edit the project only", m_agent: "Ask only if risky", "m_agent-full-access": "No limits",
@@ -88,7 +90,8 @@ const ASTR = {
 const at = (k, vars) => { const s = (ASTR[LANG] || ASTR.zh)[k]; return s == null ? t(k, vars) : String(s).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : "")); };
 
 const AGENT = (() => {
-  const TOKEN_ = (document.querySelector('meta[name="desk-token"]') || {}).content || "";
+  const TOKEN_ = deskToken();
+  let KEYOK = true;   // the page holds this run's token (studio.js asks /api/hello); without it the box is not offered
   let KEYP = "", INFO = null, KIND = "", S = null, ES = null, BUSY = null, TAB = "", ERR = null, NEWBOX = false, tick = null, raf = 0;
   const kinds = () => ((INFO && INFO.agents) || []);
   const meta = (k) => kinds().find((a) => a.kind === k) || { kind: k, label: k };
@@ -110,7 +113,7 @@ const AGENT = (() => {
       if (e.state === "start") { S.running = true; S.stopping = false; S.turnAt = e.t; S.cur = null; }
       else { const stopped = S.stopping || S.stopAsked; S.running = false; S.stopping = false; S.stopAsked = false; item("e" + e.seq, () => ({ kind: "end", stop: stopped && !e.error ? "cancelled" : e.stop, asked: stopped, error: e.error, took: S.turnAt ? e.t - S.turnAt : null })); S.turnAt = null; }
     } else if (ty === "state") { Object.assign(S.config, e); }
-    else if (ty === "permission") { const it = item("p" + e.rid, () => ({ kind: "perm", rid: e.rid, tool: e.tool || {}, options: e.options || [], answered: null })); S.perms[e.rid] = it; const tl = e.tool && S.tools[e.tool.toolCallId]; if (tl) tl.v++; }
+    else if (ty === "permission") { const it = item("p" + e.rid, () => ({ kind: "perm", rid: e.rid, tool: e.tool || {}, options: e.options || [], answered: null, clipped: !!e.clipped })); S.perms[e.rid] = it; const tl = e.tool && S.tools[e.tool.toolCallId]; if (tl) tl.v++; }
     else if (ty === "answered") { const it = S.perms[e.rid]; if (it) { it.answered = e; it.v++; const tl = it.tool && S.tools[it.tool.toolCallId]; if (tl) tl.v++; } }
     else if (ty === "notice") {
       if (e.code === "agent_gone") S.gone = true;
@@ -165,6 +168,7 @@ const AGENT = (() => {
   function sessionsOf(kind) { return ((INFO && INFO.sessions) || []).filter((s) => s.kind === kind); }
   function open(sum) {
     close();
+    if (!KEYOK) return;   // a page without this run's token opens no conversation
     S = blank(sum); ERR = null; BUSY = null;
     store_.set(`desk:agent:${KEYP}`, { kind: KIND, sid: sum.id });
     if (sum.config) Object.assign(S.config, sum.config);
@@ -205,7 +209,7 @@ const AGENT = (() => {
     const sc = typeof SCOPE !== "undefined" && SCOPE && SCOPE.target ? SCOPE : null;
     const scope = sc ? { kind: sc.target.split(":")[0], id: sc.target.split(":").slice(1).join(":"), t: sc.t, t1: sc.t1, module: typeof MOD !== "undefined" ? MOD : "", label: sc.label } : null;
     const btn = $("#agSend"); if (btn) btn.disabled = true;
-    const r = await post(`${S.id}/say`, { text, scope, despite_waiting: !!despite });
+    const r = await post(`${S.id}/say`, { text, scope, despite: !!despite });
     if (btn) btn.disabled = false;
     if (r.ok) { ta.value = ""; store_.set(`desk:agent:say:${KEYP}`, ""); BUSY = null; S.sum.turns = (S.sum.turns || 0) + 1; }
     else if (r.status === 409 && r.data && r.data.who) BUSY = r.data.who;
@@ -312,6 +316,7 @@ const AGENT = (() => {
     raf = setTimeout(() => { raf = 0; renderHead(); renderThread(); renderFoot(); }, 30);
   }
   function stateNow() {   // {k: word key, cls, x}: what the agent is doing, said in a few words
+    if (!KEYOK) return { k: "ag_lookonly", cls: "" };
     if (!S) return ERR && ERR.code === "starting" ? { k: "ag_starting", cls: "agent" } : { k: "ag_fresh", cls: "" };
     if (S.offline === "closed") return { k: "reload", cls: "live" };
     if (S.offline) return { k: "reconnect", cls: "live" };
@@ -344,11 +349,23 @@ const AGENT = (() => {
     const more = opts.filter((o) => o.type === "select" && !["mode", "model", "thought_level"].includes(o.category) && (o.options || []).length > 1);
     return `<div class="ag-set">${parts.map(([k, sel]) => `<label><span>${esc(at(k))}</span>${sel}</label>`).join("")}${more.length ? `<details class="ag-more"><summary>${esc(at("set_more"))}</summary>${more.map((o) => `<label><span>${esc(o.name || o.id)}</span>${selectOf(o, o.category)}</label>`).join("")}</details>` : ""}${S.personal ? "" : `<span class="chip quiet">${esc(at("set_personal_off"))}</span>`}</div>`;
   }
+  let SETOPEN = false;   // the settings unfolded (one line otherwise)
+  function headLine() {   // mode · model · effort, the context used and the cost, in a line; a click opens the settings
+    if (!S) return "";
+    const C = S.config || {}, opts = Array.isArray(C.configOptions) ? C.configOptions : [];
+    const byCat = (c) => opts.find((o) => o.category === c && o.type === "select");
+    const nameOf = (o, cat) => { if (!o) return ""; const flat = []; (o.options || []).forEach((x) => (Array.isArray(x.options) ? x.options : [x]).forEach((y) => flat.push(y)));
+      const x = flat.find((y) => y.value === o.currentValue) || {}; const w = cat === "mode" ? at("m_" + x.value) : cat === "thought_level" ? at("e_" + x.value) : cat === "model" && x.value === "default" ? at("mdl_default") : "";
+      return w && !/^(m|e|mdl)_/.test(w) ? w : x.name || x.value || ""; };
+    let mode = nameOf(byCat("mode"), "mode");
+    if (!mode && C.modes) { const m = (C.modes.availableModes || []).find((x) => x.id === C.modes.currentModeId) || {}; mode = at("m_" + m.id) !== "m_" + m.id ? at("m_" + m.id) : m.name || ""; }
+    const sum = [mode, nameOf(byCat("model"), "model"), nameOf(byCat("thought_level"), "thought_level")].filter(Boolean).join(" · ");
+    const use = [S.usage && S.usage.used != null && S.usage.size ? `${kilo(S.usage.used)} / ${kilo(S.usage.size)}` : "", S.cost ? money(S.cost) : ""].filter(Boolean).join(" · ");
+    return `<div class="ag-line"><button type="button" class="ag-sum" id="agSum" aria-expanded="${SETOPEN}" title="${esc(at(SETOPEN ? "set_close" : "set_open"))}"><span>${esc(sum || at("set_open"))}</span><i aria-hidden="true">${SETOPEN ? "▴" : "▾"}</i></button>${use ? `<span class="ag-usetxt mono" title="${esc([S.usage && S.usage.used != null ? at("u_ctx", { u: kilo(S.usage.used), s: kilo(S.usage.size || 0) }) : "", S.cost ? at("u_cost", { c: money(S.cost) }) : ""].filter(Boolean).join(" · "))}">${esc(use)}</span>` : ""}</div>${SETOPEN ? settingsHtml() : ""}`;
+  }
   function usageHtml() {
     if (!S) return "";
-    const bits = [];
-    if (S.usage && S.usage.used != null && S.usage.size) bits.push(`<span>${esc(at("u_ctx", { u: kilo(S.usage.used), s: kilo(S.usage.size) }))}</span>`);
-    if (S.cost) bits.push(`<span>${esc(at("u_cost", { c: money(S.cost) }))}</span>`);
+    const bits = [];   // the quota, when the agent warns of it: context and cost are on the head's line
     const r = S.rate;
     if (r && r.status && r.status !== "allowed") {
       const who = label(), w = at("w_" + (r.rateLimitType || "")) !== "w_" + (r.rateLimitType || "") ? at("w_" + r.rateLimitType) : "";
@@ -379,7 +396,8 @@ const AGENT = (() => {
     $("#agOrb").className = "ag-orb " + st.cls;
     $("#agState").className = "ag-state " + st.cls;
     part("agState", `${esc(word)}${el ? ` <span class="mono">${esc(el)}</span>` : ""}`);
-    if (part("agSetBox", settingsHtml())) {
+    if (part("agSetBox", headLine())) {
+      const sb = $("#agSum"); if (sb) sb.addEventListener("click", () => { SETOPEN = !SETOPEN; renderHead(); });
       $$("#agSetBox select[data-cfg]").forEach((x) => x.addEventListener("change", (e) => setting(e, "config", x.dataset.cfg, x.value)));
       $$("#agSetBox select[data-mode]").forEach((x) => x.addEventListener("change", (e) => setting(e, "mode", null, x.value)));
     }
@@ -392,6 +410,7 @@ const AGENT = (() => {
       const cmd = m.install || `bin/vh desk agents install ${KIND}`;
       return `<div class="ag-empty"><h3>${esc(at("not_inst_h", { a: m.label }))}</h3><p>${at("not_inst_b", { s: esc(m.size || ""), l })}</p><div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div></div>`;
     }
+    if (!KEYOK) return `<div class="ag-empty"><h3>${esc(at("ag_lookonly"))}</h3><p>${esc(at("lookonly_b"))}</p></div>`;
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
     return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3><p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
   }
@@ -407,7 +426,7 @@ const AGENT = (() => {
       const d = it.d, v = verbOf(d), ti = toolTitle(d), st = d.status || "pending";
       const refused = st === "failed" && pm && pm.answered && !/^allow/.test(pm.answered.kind || "");   // its failure is the person's no
       const fail = st === "failed" && !refused ? String((typeof d.rawOutput === "string" && d.rawOutput) || "").split("\n")[0] : "";
-      if (refused) return `<div class="ag-tool st-refused"><div class="ag-tool-h"><span class="ag-verb">${esc(at("v_" + v))}</span><span class="ag-ti mono" title="${esc(ti)}">${esc(ti ? cut(ti, 120) : verbWords(d))}</span><span class="ag-st">${esc(pm.answered.by === "person" ? at("st_refused") : at("st_failed"))}</span></div>${pm.answered.by === "person" ? "" : answerHtml(pm)}</div>`;
+      if (refused) return `<div class="ag-tool st-refused"><div class="ag-tool-h"><span class="ag-verb">${esc(at("v_" + v))}</span><span class="ag-st">${esc(/^(page|person)$/.test(pm.answered.by) ? at("st_refused") : at("st_failed"))}</span></div>${ti ? whole(ti) : ""}${/^(page|person)$/.test(pm.answered.by) ? "" : answerHtml(pm)}</div>`;
       return `<div class="ag-tool st-${esc(st)}"><div class="ag-tool-h"><span class="ag-verb">${esc(at("v_" + v))}</span><span class="ag-ti mono" title="${esc(ti)}">${esc(ti ? cut(ti, 120) : verbWords(d))}</span><span class="ag-st">${esc(at("st_" + st) !== "st_" + st ? at("st_" + st) : st)}</span></div>${fail ? `<p class="ag-fail">${esc(cut(fail, 200))}</p>` : ""}${contentHtml(Object.assign({}, pm ? { content: pm.tool.content } : {}, d))}${pm ? answerHtml(pm) : ""}</div>`;
     }
     if (it.kind === "perm") {   // a request about no tool on screen: a card of its own
@@ -419,26 +438,35 @@ const AGENT = (() => {
       if (it.stop === "cancelled") return `<p class="ag-sys">${esc(at(it.asked ? "turn_cancelled" : "turn_halted"))}${it.took ? " · " + esc(secs(it.took)) : ""}</p>`;   // Codex ends a turn so after a refusal
       if (it.error && /auth/i.test(it.error)) return S.items.some((x) => x.kind === "notice" && x.code === "signed_out") ? `<p class="ag-sys bad">${esc(at("turn_signed_out"))}</p>`
         : `<p class="ag-note bad">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;   // "Authentication required"
+      if (it.error === "agent_stuck") return "";   // the notice after it says what happened
       if (it.error) return `<p class="ag-sys bad">${esc(it.error === "agent_gone" ? at("turn_gone") : it.error === "desk_restart" ? at("turn_restart") : at("turn_error", { e: cut(it.error, 160) }))}</p>`;
       return it.took ? `<p class="ag-sys">${esc(at("turn_took", { s: secs(it.took) }))}</p>` : "";
     }
     if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
+    if (it.kind === "notice" && it.code === "restarted") return `<p class="ag-note warn">${esc(at("n_restarted", { a: label() }))}</p>`;
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
     if (it.kind === "unknown") return `<details class="ag-unknown"><summary>${esc(at("unknown", { a: label() }))}</summary><pre>${esc(cut(JSON.stringify(it.u, null, 1), 2000))}</pre></details>`;
     return "";
   }
   function permOf(toolId) { let out = null; for (const p of Object.values(S.perms)) if (p.tool && p.tool.toolCallId === toolId) out = p; return out; }
   function askHead(pm) { return `<div class="ag-perm-h"><b>${esc(at("perm_h", { a: label(), v: verbWords(pm.tool || {}) }))}</b>${pm.answered ? "" : `<span class="chip warn">${esc(at("perm_wait"))}</span>`}</div>`; }
-  function askBody(d) {   // what it wants to do: the command or file, its own words for it, the change
-    const ti = toolTitle(d);
-    return `${ti ? `<code class="ag-cmdline mono">${esc(cut(ti, 400))}</code>` : ""}${d.rawInput && d.rawInput.description ? `<p class="ag-mute">${esc(d.rawInput.description)}</p>` : ""}${(Array.isArray(d.content) ? d.content : []).filter((c) => c && c.type === "diff").map(diffHtml).join("")}`;
+  function whole(s) {   // a command or a path, every character of it: a long one folded to its head and its tail, the rest one click away
+    s = String(s || "");
+    if (s.length <= 600) return `<code class="ag-cmdline mono">${esc(s)}</code>`;
+    const n = cps(s).length, head = cps(s).slice(0, 300).join(""), tail = cps(s).slice(-200).join("");
+    return `<code class="ag-cmdline mono">${esc(head)}<span class="ag-gap">${esc(at("gap", { n: n - 500 }))}</span>${esc(tail)}</code><details class="ag-out"><summary>${esc(at("see_all", { n }))}</summary><pre>${esc(s)}</pre></details>`;
   }
-  function askHtml(pm, d) {
-    return `<div class="ag-perm">${askHead(pm)}${askBody(d)}<div class="ag-opts">${pm.options.map((o) => `<button type="button" class="btn${/^allow/.test(o.kind) ? "" : " ghost"}${o.kind === "allow_once" ? " btn-primary" : ""}" data-rid="${esc(pm.rid)}" data-opt="${esc(o.optionId)}">${esc(optWords(o))}</button>`).join("")}</div></div>`;
+  function askBody(d) {   // what it wants to do: the command or file in full, its own description (as its words), the change
+    const ti = toolTitle(d);
+    return `${ti ? whole(ti) : ""}${d.rawInput && d.rawInput.description ? `<p class="ag-mute">${esc(at("own_desc"))}${esc(d.rawInput.description)}</p>` : ""}${(Array.isArray(d.content) ? d.content : []).filter((c) => c && c.type === "diff").map(diffHtml).join("")}`;
+  }
+  function askHtml(pm, d) {   // the options in this page's words, the agent's own wording beside them (it may say what an option reaches)
+    const own = pm.options.map((o) => o.name).filter(Boolean);
+    return `<div class="ag-perm">${askHead(pm)}${askBody(d)}${pm.clipped ? `<p class="ag-note bad">${esc(at("too_long"))}</p>` : ""}<div class="ag-opts">${pm.options.map((o) => `<button type="button" class="btn${/^allow/.test(o.kind) ? "" : " ghost"}${o.kind === "allow_once" ? " btn-primary" : ""}" data-rid="${esc(pm.rid)}" data-opt="${esc(o.optionId)}"${pm.clipped && /^allow/.test(o.kind) ? " disabled" : ""}>${esc(optWords(o))}</button>`).join("")}</div>${own.length ? `<p class="ag-mute">${esc(at("own_opts"))}${own.map((x) => `「${esc(x)}」`).join(" ")}</p>` : ""}</div>`;
   }
   function answerHtml(pm) {   // how the request was answered, and by whom
     const ans = pm.answered; if (!ans) return "";
-    const by = ans.by === "person" ? at("perm_by_person", { o: optWords(pm.options.find((o) => o.optionId === ans.option) || { kind: ans.kind, name: ans.option }) })
+    const by = ans.by === "page" || ans.by === "person" ? at("perm_by_person", { o: optWords(pm.options.find((o) => o.optionId === ans.option) || { kind: ans.kind, name: ans.option }) })
       : at({ stop: "perm_by_stop", timeout: "perm_by_timeout", agent_gone: "perm_by_gone", desk_restart: "perm_by_restart", turn_end: "perm_by_turn", desk_stop: "perm_by_desk" }[ans.by] || "perm_by_turn", { m: Math.round(((INFO && INFO.approval_timeout) || 600) / 60) });
     return `<p class="ag-ans ${/^allow/.test(ans.kind || "") ? "ok" : "no"}">${esc(by)}</p>`;
   }
@@ -495,7 +523,7 @@ const AGENT = (() => {
     const sc = typeof SCOPE !== "undefined" && SCOPE ? SCOPE : null;
     const x = sc ? sc.label : typeof scopeLabel === "function" ? scopeLabel() : "";
     const busy = BUSY ? BUSY.map((w) => at("busy_" + (w.why || "console"), { a: label(), x: w.label || "", p: w.pid || "" })).join(" ") : "";
-    const anyway = BUSY && BUSY.length && BUSY.every((w) => w.why === "waiting");
+    const anyway = BUSY && BUSY.length && BUSY.every((w) => w.why === "waiting" || w.why === "process");
     const ready = !!(f.dataset.ready);
     if (!ready) {
       f.dataset.ready = "1";
@@ -518,9 +546,10 @@ const AGENT = (() => {
     }
     $("#agScope").textContent = x; $("#agScope").className = "chip" + (sc ? "" : " quiet");
     $("#agSay").placeholder = sc ? at("ph_say", { x: sc.label }) : at("ph_say0", { a: label() });
-    $("#agSay").disabled = !meta(KIND).installed;
+    $("#agSay").disabled = !meta(KIND).installed || !KEYOK;
     $("#agStop").hidden = !running; $("#agStop").disabled = !!(S && S.stopping);
-    $("#agSend").disabled = !meta(KIND).installed;
+    $("#agSend").disabled = !meta(KIND).installed || !KEYOK;
+    f.classList.toggle("off", !KEYOK);
     const waitp = S ? Object.values(S.perms).filter((p) => !p.answered) : [];
     const ask = $("#agAsk"); ask.hidden = !waitp.length;
     ask.textContent = waitp.length ? at("ask_bar", { a: label(), x: cut(toolTitle(Object.assign({}, (S.tools[(waitp[0].tool || {}).toolCallId] || {}).d || {}, waitp[0].tool || {})) || verbWords(waitp[0].tool || {}), 48) }) + " ↑" : "";
@@ -565,6 +594,7 @@ const AGENT = (() => {
     },
     leave() { close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
     scope() { if (KEYP) renderFoot(); },
+    keyOk(ok) { KEYOK = !!ok; if (!KEYOK) close(); if (KEYP) render(); },   // without this run's token the conversation is not opened at all
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab,
     _md: md, _diff: diffLines, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page

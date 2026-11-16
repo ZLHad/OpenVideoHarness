@@ -1202,6 +1202,7 @@
             "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
             "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
+            "The address it prints carries a one-time key (?k=…): the page opened with it is the one that can submit and talk to agents.",
             "The column's other tab talks to an agent on this machine in the film's folder; agents: which are installed, and",
             "install <kind>: its pinned adapter, outside the repo (it uses the person's own login)"
           ]

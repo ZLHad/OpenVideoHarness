@@ -28,7 +28,7 @@ The desk reads the same out/review/gate-<n>.json as bin/vh review, and shows a s
 tools/desk/static/ui.css and ui.js), plus the project's markdown and bin/vh status (the contract is in tools/desk/README.md). A submission goes to out/review/feedback/<round>-<time>.json and .md, and its text into
 REVIEW.md as a dated section. <project> is a folder, or a name under $OVH_PROJECTS / projects/ (date prefix optional).
 """
-import argparse, json, sys
+import argparse, json, re, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -61,6 +61,8 @@ def main(argv):
         ap.add_argument("--port", type=int, help="port on 127.0.0.1 (default: the first free of 8780–8799; 0: any free)")
         ap.add_argument("--idle", type=float, help="stop after this many seconds without a request (an open desk page asks every "
                                                    "few seconds); default: never. bin/vh gate starts it with 43200 (12 h)")
+        ap.add_argument("--key-stdin", action="store_true", help="read the launch key from the first line of stdin (bin/vh gate "
+                                                                 "prints it in its message; the address the desk prints then has none)")
         ap.add_argument("--only", action="store_true", help="serve this project and nothing else under the roots (bin/vh gate's "
                                                             "desk); without it the space has every film")
     elif sub == "wait":
@@ -85,7 +87,11 @@ def main(argv):
             print("desk: --only needs a project (it serves that project and nothing else)", file=sys.stderr)
             return 2
         import server
-        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only)
+        key = sys.stdin.readline().strip() if a.key_stdin else None
+        if a.key_stdin and not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", key or ""):
+            print("desk: --key-stdin: no key on stdin", file=sys.stderr)
+            return 2
+        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only, key)
     project = find(a.project)
     if not project:
         jsonerr.mark("no_project")

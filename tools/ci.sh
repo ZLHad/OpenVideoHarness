@@ -2589,11 +2589,13 @@ PY
 # whose table is missing, which must come back as text), a server on a free port (the page, the data, a 206 range, and
 # what it refuses), a submission that wakes bin/vh desk wait and lands verbatim in REVIEW.md, the watcher's timeout,
 # bin/vh new --lang, and bin/vh review's language default
-desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid and desk_url
+desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid, desk_url and DESK_KEY
   local i a; desk_url=""
   "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 > "$2" 2>&1 & desk_pid=$!   # bin/vh execs python: $! is the server
   for i in $(seq 150); do   # up to 30 s; stop early if the server exits
-    desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2"); [ -n "$desk_url" ] && return 0
+    desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2")
+    desk_key=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
+    [ -n "$desk_url" ] && return 0
     kill -0 "$desk_pid" 2>/dev/null || break; sleep 0.2; done
   if kill -0 "$desk_pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$desk_pid" 2>/dev/null; wait "$desk_pid" 2>/dev/null
   else wait "$desk_pid"; a="exited with $?"; fi
@@ -2756,7 +2758,7 @@ PY
   if ! desk_start "$t/p" "$t/srv.log"; then rm -rf "$t"; return; fi
   pid=$desk_pid; url=$desk_url
   cat > "$t/client.py" <<'PY'
-import http.client, json, socket, sys, urllib.parse
+import http.client, json, os, socket, sys, urllib.parse
 u = urllib.parse.urlsplit(sys.argv[1]); proj = sys.argv[2]; what = sys.argv[3]
 def req(method, path, body=None, headers=None):
     c = http.client.HTTPConnection(u.hostname, u.port, timeout=10)
@@ -2768,8 +2770,13 @@ def req(method, path, body=None, headers=None):
 bad = []
 def want(cond, msg):
     if not cond: bad.append(msg)
-s, _, page = req("GET", "/")
+s, _, page = req("GET", "/?k=" + os.environ.get("DESK_KEY", ""))   # the printed link: the page with the token, once
 token = page.decode().split('name="desk-token" content="')[1].split('"')[0]
+tokf = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), f"token-{u.port}")   # kept, as the page keeps it in its storage
+if token:
+    open(tokf, "w").write(token)
+elif os.path.exists(tokf):
+    token = open(tokf).read()
 fb = lambda **k: json.dumps(dict({"round": "1", "lang": "zh", "decisions": {"look": "L2"}, "defaulted": [], "general": "",
     "items": [{"target": "seg:1", "status": "change", "label": "大纲 第 1 段", "text": "开头再快一点 ``` 第 0 帧就要有水声"}]}, **k)).encode()
 H = {"Content-Type": "application/json", "X-Desk-Token": token}
@@ -3061,6 +3068,7 @@ PY
   else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
   # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
   a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
+  export DESK_KEY=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)   # gate's own message carries the launch key
   b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?
   pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null)
   url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
@@ -3076,7 +3084,8 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/?k="*"#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+    && [ -n "$DESK_KEY" ] && ! grep -rqF -- "$DESK_KEY" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
     && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
@@ -3259,6 +3268,7 @@ PY
   printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
   "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!
   for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
+  export DESK_KEY=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log")
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
   if python3 - "$url" "$t/root" "$t/root2" <<'PY'
 import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
@@ -3274,7 +3284,7 @@ def req(method, path, body=None, headers=None, host=None):
 bad = []
 def want(cond, msg):
     if not cond: bad.append(msg)
-s, _, page = req("GET", "/")
+s, _, page = req("GET", "/?k=" + os.environ.get("DESK_KEY", ""))
 page = page.decode()
 token = page.split('name="desk-token" content="')[1].split('"')[0]
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")

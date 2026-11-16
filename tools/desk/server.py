@@ -29,9 +29,18 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   The desk's first addresses stay, for the project it was started for: /api/data (reader.read_project alone, as bin/vh desk
   data prints it), /api/status, /api/feedback, /p/<path>.
 
-Only requests whose Host is this server's own address are answered (no DNS rebinding); a POST also needs the token
-printed into the page, a JSON body and, when the browser sends one, a same-origin Origin. So another web page open
-in the same browser can neither read a project nor submit feedback in the reviewer's name.
+Only requests whose Host is this server's own address are answered (no DNS rebinding); a POST also needs this run's token,
+a JSON body and, when the browser sends one, a same-origin Origin. So another web page open in the same browser can neither
+read a project nor submit feedback in the reviewer's name.
+
+The token goes to one browser only. The desk starts with a one-time launch key, printed in the address it prints
+(http://127.0.0.1:N/?k=…) and nowhere else: not in .desk.json, not in a log bin/vh gate keeps in the project (gate hands its
+desk the key on stdin and prints it in its own message). The page that comes with the key gets the token and keeps it in its
+origin's storage (one port's; a cookie would reach every port of 127.0.0.1); the key is spent. A page without it gets no
+token: it reads, but cannot submit, talk to an agent or answer one. So a command an agent runs in the project, which can
+read every file there and reach 127.0.0.1, finds no credential; and a request from an agent's own process tree is refused
+besides (agents.py, peer_pid). What stays outside: a process of the same user that reads the terminal's output or the
+browser's profile.
 """
 import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
@@ -538,6 +547,8 @@ class Desk(http.server.ThreadingHTTPServer):
         self._fresh_at = 0.0   # the last walk an unknown key asked for
         self.roots = [str(r) for r in roots]
         self.token = secrets.token_urlsafe(24)
+        self.key = secrets.token_urlsafe(18)   # the launch key: one use, then the page holds the token (a key given on stdin replaces it)
+        self.key_spent = False
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
@@ -646,13 +657,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         srv = self.server
         if path in ("/", "/index.html"):
-            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token) \
+            k = (parse_qs(urlsplit(self.path).query).get("k") or [""])[0]
+            give = False
+            with srv._lock:   # the launch key opens one page, once: that page keeps the token in its own storage
+                if k and not srv.key_spent and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii")):
+                    srv.key_spent, give = True, True
+            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token if give else "") \
                 .replace("{{HOME}}", srv.own_key or "")
             return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
         if path.startswith("/static/") and path[8:] in STATIC:
             return self._send(200, (HERE / "static" / path[8:]).read_bytes(), STATIC[path[8:]])
         if path == "/api/projects":
             return self._projects()
+        if path == "/api/hello":   # does the page hold this run's token? (one from an earlier run of the desk does not count)
+            given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
+            ok = secrets.compare_digest(given, srv.token.encode("ascii"))
+            return self._json({"ok": ok}, 200 if ok else 403)
         m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
         if m:
             key = unquote(m.group(1))
@@ -911,6 +931,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")   # bytes: a non-ASCII str would raise
         if not secrets.compare_digest(given, self.server.token.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
+        if A.agentlock.from_agents(self.client_address[1], self.server.agents.adapter_pids()):   # an agent never submits the round
+            return self._error(403, "refused: this request comes from one of the agents' own processes, not from the page")
         if not self.headers.get("Content-Type", "").startswith("application/json"):
             return self._error(415, "send JSON")
         try:
@@ -989,6 +1011,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         raw = self._body(64 * 1024)
         if raw is None:
             return
+        if A.agentlock.from_agents(self.client_address[1], self.server.agents.adapter_pids()):
+            return self._error(403, "refused: this request comes from one of the agents' own processes, not from the page")
         if raw.get("pid") != pid_of(project):
             return self._error(409, "this address names another project now than the page was opened on: reload it")
         mgr = self.server.agents
@@ -1020,7 +1044,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 scope = {k: scope.get(k) for k in ("kind", "id", "t", "t1", "module", "label") if scope.get(k) is not None} if scope else None
                 if scope and isinstance(scope.get("label"), str):
                     scope["label"] = scope["label"][:80]   # shown in the page with the message, never sent to the agent
-                s.say(text, scope, despite_waiting=raw.get("despite_waiting") is True)
+                s.say(text, scope, despite=raw.get("despite") is True)
                 return self._json({"ok": True})
             if what == "answer":
                 s.answer(str(raw.get("request") or ""), str(raw.get("option") or ""))
@@ -1095,10 +1119,11 @@ def running(project=None, roots=None):
     return info.get("url")
 
 
-def serve(project=None, port=None, idle=None, roots=(), only=False):
+def serve(project=None, port=None, idle=None, roots=(), only=False, key=None):
     """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. project None: the console.
     port None: the first free of 8780–8799; 0: any free port. only: this project and nothing else under the roots (the desk
-    bin/vh gate starts). → exit code."""
+    bin/vh gate starts). key: the launch key, given by the one who prints it (bin/vh gate, on stdin); then the address this
+    prints has none. → exit code."""
     project = Path(project).resolve() if project else None
     url = running(project, roots)
     if url:
@@ -1145,7 +1170,10 @@ def serve(project=None, port=None, idle=None, roots=(), only=False):
                     return
         threading.Thread(target=watch, daemon=True).start()
     what = (f"{project.name}" + (" only" if only else "")) if project else "console (every project)"
-    print(f"desk: {srv.url}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    if key:
+        srv.key = key
+    shown = srv.url if key else f"{srv.url}?k={srv.key}"   # the one place the key is written, when nobody else prints it
+    print(f"desk: {shown}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
     code = 0
     try:
         srv.serve_forever(poll_interval=0.25)

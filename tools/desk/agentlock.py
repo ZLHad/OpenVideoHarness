@@ -77,14 +77,14 @@ def acquire(project, holder):
     return read(project) or {"label": "?", "why": "race"}
 
 
-def release(project, session):
-    """Let go of the lock this session holds (another holder's lock is left alone)."""
+def release(project, session, turn=None):
+    """Let go of the lock this session holds (another holder's lock is left alone; with turn, only that turn's)."""
     cur = None
     try:
         cur = json.loads(path(project).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return
-    if isinstance(cur, dict) and cur.get("pid") == os.getpid() and cur.get("session") == session:
+    if isinstance(cur, dict) and cur.get("pid") == os.getpid() and cur.get("session") == session and (turn is None or cur.get("turn") in (None, turn)):
         try:
             path(project).unlink()
         except OSError:
@@ -118,6 +118,38 @@ def _under(pid, roots, tree):
     return False
 
 
+def peer_pid(port):
+    """The pid of the process whose end of a TCP connection on 127.0.0.1 is this port (lsof; ss on Linux), or None."""
+    try:
+        if shutil.which("lsof"):
+            out = subprocess.run(["lsof", "-nP", f"-iTCP@127.0.0.1:{int(port)}", "-sTCP:ESTABLISHED", "-Fpn"], capture_output=True,
+                                 text=True, timeout=5).stdout
+            pid = None
+            for line in out.splitlines():
+                if line.startswith("p") and line[1:].isdigit():
+                    pid = int(line[1:])
+                elif line.startswith("n") and line[1:].startswith(f"127.0.0.1:{int(port)}->"):
+                    return pid
+        elif shutil.which("ss"):
+            out = subprocess.run(["ss", "-tnpH", "state", "established", f"( sport = :{int(port)} )"], capture_output=True,
+                                 text=True, timeout=5).stdout
+            m = re.search(r"pid=(\d+)", out)
+            return int(m.group(1)) if m else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    return None
+
+
+def from_agents(port, ours):
+    """Does the connection from this local port come from one of the console's own agents (a process under an adapter)?
+    The second line of defence behind the token: a process an agent starts in a session of its own escapes it."""
+    roots = {int(p) for p in ours if p}
+    if not roots:
+        return False
+    pid = peer_pid(port)
+    return bool(pid) and _under(pid, roots, _tree())
+
+
 def _agents_in(project, ours, tree):
     """[(pid, program)] of agent programs whose working folder is inside the project, not ours (lsof; [] without it)."""
     if not shutil.which("lsof"):
@@ -128,7 +160,7 @@ def _agents_in(project, ours, tree):
                              timeout=6).stdout
     except (OSError, subprocess.SubprocessError):
         return []
-    found, pid, cmd = [], None, ""
+    inside, pid, cmd = [], None, ""
     for line in out.splitlines():
         if line.startswith("p"):
             pid, cmd = int(line[1:]) if line[1:].isdigit() else None, ""
@@ -136,9 +168,24 @@ def _agents_in(project, ours, tree):
             cmd = line[1:]
         elif line.startswith("n") and pid:
             n = os.path.realpath(line[1:])
-            inside = n == root or n.startswith(root + os.sep)
-            if inside and AGENT_PROGRAMS.search(cmd) and not _under(pid, ours, tree):
-                found.append((pid, cmd))
+            if (n == root or n.startswith(root + os.sep)) and not _under(pid, ours, tree):
+                inside.append((pid, cmd))
+    found = []
+    args = {}
+    if any(not AGENT_PROGRAMS.search(c) for _, c in inside):   # node and python CLIs: their name is in the command line
+        try:
+            ps = subprocess.run(["ps", "-o", "pid=,args=", "-p", ",".join(str(p) for p, _ in inside)], capture_output=True, text=True, timeout=5).stdout
+            args = {int(l.split(None, 1)[0]): l.split(None, 1)[1] for l in ps.splitlines() if len(l.split(None, 1)) == 2 and l.split()[0].isdigit()}
+        except (OSError, subprocess.SubprocessError):
+            args = {}
+    for pid, cmd in inside:
+        if AGENT_PROGRAMS.search(cmd):
+            found.append((pid, cmd))
+            continue
+        words = args.get(pid, "").split()[:2]   # node /…/dsh, python3 /…/aider
+        hit = next((w for w in words[1:] if AGENT_PROGRAMS.search(w)), None) if words and re.search(r"(?i)(^|/)(node|bun|deno|python3?)$", words[0]) else None
+        if hit:
+            found.append((pid, os.path.basename(hit)))
     return found
 
 
@@ -157,15 +204,17 @@ def occupants(project, ours=(), session=None):
         runs, _ = activity.runs(activity.read(project))
     except Exception:   # an unreadable log says nothing about who is working
         runs = []
-    for r in runs:
-        if r.get("state") == "running" and r.get("pid") and not _under(int(r["pid"]), roots, tree) and r.get("cmd") not in ("desk",):
-            out.append({"why": "command", "label": f"bin/vh {r.get('cmd')}", "pid": r.get("pid")})
     try:
         import feedback as F
-        if F.listening(project).get("listening"):
-            out.append({"why": "waiting", "label": "bin/vh desk wait"})
+        waiting = bool(F.listening(project).get("listening"))
     except Exception:
-        pass
+        waiting = False
+    for r in runs:   # the desk itself is no work; bin/vh gate --wait is the agent waiting for this round (below)
+        if r.get("state") == "running" and r.get("pid") and not _under(int(r["pid"]), roots, tree) and r.get("cmd") != "desk" \
+                and not (waiting and r.get("cmd") == "gate"):
+            out.append({"why": "command", "label": f"bin/vh {r.get('cmd')}", "pid": r.get("pid")})
+    if waiting:
+        out.append({"why": "waiting", "label": "bin/vh desk wait"})
     for pid, cmd in _agents_in(project, roots | {os.getpid()}, tree):
         out.append({"why": "process", "label": cmd, "pid": pid})
     return out

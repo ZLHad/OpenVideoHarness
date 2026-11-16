@@ -34,9 +34,14 @@ import agentlock   # noqa: E402
 PROTOCOL = 1
 APPROVAL_TIMEOUT = float(os.environ.get("OVH_AGENT_APPROVAL_TIMEOUT") or 600)   # s without a page before a request is rejected
 TURN_TIMEOUT = 6 * 3600.0
+STOP_GRACE = float(os.environ.get("OVH_AGENT_STOP_GRACE") or 8)   # s after a cancel before the desk ends the turn itself
 MAX_TEXT = 4000      # characters: what a page sees of a tool's output, a command's text …
 MAX_DIFF = 40000     # characters of a diff's old or new text
 MAX_PROMPT = 20000   # characters the person may send at once
+MAX_ASK = 200000     # characters of any one string in a request to approve: kept whole up to this; a longer one cannot be allowed
+CHUNK_GAP = 0.12     # s: the agent's text pieces within this are written as one event (a turn can send tens of thousands)
+SCOPE_KINDS = ("dec", "least", "deleg", "concept", "seg", "cap", "shot", "fact", "time", "atime", "led", "doc", "asset", "range",
+               "chapter", "card")   # core.js's TARGET_RE: the kinds of thing the console can have selected
 ID_RE = re.compile(r"^[a-f0-9]{32}$")
 
 # the adapters: the npm package that speaks ACP for each agent, pinned. size: on disk after install (macOS arm64, 2026-11-16)
@@ -136,10 +141,15 @@ def install(kind, out=sys.stdout):
         return 2
     base = home() / kind
     base.mkdir(parents=True, exist_ok=True)
-    (base / "package.json").write_text(json.dumps({"name": f"ovh-agent-{kind}", "private": True,
-                                                   "dependencies": {a["package"]: a["version"]}}, indent=1) + "\n")
+    locks = HERE / "agent-locks" / kind   # the whole tree pinned, each package with its integrity hash: npm ci installs exactly it
+    pinned = json.loads((locks / "package-lock.json").read_text(encoding="utf-8"))["packages"][""].get("dependencies") or {}
+    if pinned != {a["package"]: a["version"]}:
+        print(f"desk agents: {locks}/package-lock.json pins {pinned}, not {a['package']}@{a['version']}", file=sys.stderr)
+        return 2
+    for f in ("package.json", "package-lock.json"):
+        shutil.copyfile(locks / f, base / f)
     print(f"desk agents: installing {a['package']}@{a['version']} into {base} ({a['size']}) …", file=out, flush=True)
-    r = subprocess.run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error", "--save-exact"], cwd=str(base),
+    r = subprocess.run([npm, "ci", "--no-audit", "--no-fund", "--loglevel=error"], cwd=str(base),
                        env=dict(os.environ, npm_config_update_notifier="false"))
     if r.returncode != 0:
         print(f"desk agents: npm install failed (exit {r.returncode})", file=sys.stderr)
@@ -174,7 +184,7 @@ def _clip(s, n):
     return s if len(s) <= n else s[:n] + f"\n…（还有 {len(s) - n} 字）"
 
 
-def clean(obj, root, n=MAX_TEXT, depth=0):
+def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
     """An update as the log keeps it: the project's own folder written as a relative path, the home folder as ~, long
     strings clipped (a diff's texts less so), the bulky echoes dropped (Claude's toolResponse repeats the file)."""
     if depth > 12:
@@ -185,17 +195,45 @@ def clean(obj, root, n=MAX_TEXT, depth=0):
         h = str(Path.home())
         if h and len(h) > 1:
             obj = obj.replace(h + "/", "~/")
+        if cut is not None and len(obj) > n:
+            cut.append(len(obj))
         return _clip(obj, n)
     if isinstance(obj, list):
-        return [clean(x, root, n, depth + 1) for x in obj[:200]]
+        if cut is not None and len(obj) > 200:
+            cut.append(len(obj))
+        return [clean(x, root, n, depth + 1, cut) for x in obj[:200]]
     if isinstance(obj, dict):
         out = {}
         for k, v in list(obj.items())[:80]:
             if k in ("toolResponse", "sessionId"):
                 continue
-            out[k] = clean(v, root, MAX_DIFF if k in ("oldText", "newText") else n, depth + 1)
+            out[k] = clean(v, root, max(n, MAX_DIFF) if k in ("oldText", "newText") else n, depth + 1, cut)
         return out
     return obj
+
+
+def private_options(opts):
+    """Claude's "agent" setting lists the person's own subagents by name (their plugins): the log keeps the one in use and how
+    many there are, not the names."""
+    out = []
+    for o in opts if isinstance(opts, list) else []:
+        if isinstance(o, dict) and o.get("id") == "agent" and isinstance(o.get("options"), list):
+            cur = [x for x in o["options"] if isinstance(x, dict) and x.get("value") == o.get("currentValue")]
+            o = dict(o, options=cur, count=len(o["options"]))
+        out.append(o)
+    return out
+
+
+def folder(d):
+    """<project>/.ovh/agents/, made with a .gitignore of *: a project in a git repository of its own never commits a
+    conversation (file contents, command output, what it cost) by a git add -A."""
+    d.mkdir(parents=True, exist_ok=True)
+    g = d / ".gitignore"
+    if not g.exists():
+        try:
+            g.write_text("# the console's conversations with agents (bin/vh desk): never committed\n*\n")
+        except OSError:
+            pass
 
 
 def option_kind(opts, option_id):
@@ -228,7 +266,8 @@ class Session:
         self.log = self.project / ".ovh" / "agents" / f"{self.id}.jsonl"
         self.cond = threading.Condition()
         self.events = events or []
-        self.seq = self.events[-1]["seq"] if self.events else 0
+        self.seq = max((e["seq"] for e in self.events), default=0)   # the largest: a log with a line out of order loses nothing new
+        self._buf = None           # the agent's text not written yet: {"u", "text"}; written when CHUNK_GAP passes or anything else comes
         self.header = header or {}
         self.acp_id = self.header.get("acp_id")
         self.personal = self.header.get("personal", True)
@@ -242,6 +281,8 @@ class Session:
         self._n = 0
         self._attach_lock = threading.RLock()   # attach → set_config (DSH defaults) → attach
         self._say_lock = threading.Lock()
+        self.turn = 0              # this conversation's turns, numbered: a turn ended here is not ended again by its late answer
+        self._ended = 0
         for e in self.events:      # the state an old log ends in: what the page shows before it talks again
             if e.get("type") == "state":
                 self.config.update({k: v for k, v in e.items() if k in ("modes", "configOptions", "models")})
@@ -249,11 +290,42 @@ class Session:
     # ---------- the log ----------
     def emit(self, type_, **fields):
         with self.cond:
+            self._flush()
+            self._emit(type_, **fields)
+
+    def _flush(self):
+        """Write the agent's text gathered so far as one event."""
+        b, self._buf = self._buf, None
+        if b:
+            self._emit("update", u=clean(dict(b["u"], content={"type": "text", "text": b["text"]}), self.root, MAX_ASK))   # its words whole
+
+    def chunk(self, u):
+        """A piece of the agent's text: gathered with the pieces that follow within CHUNK_GAP, of the same message."""
+        text = (u.get("content") or {}).get("text") if isinstance(u.get("content"), dict) else None
+        if not isinstance(text, str):
+            return self.emit("update", u=clean(u, self.root))
+        with self.cond:
+            b = self._buf
+            if b and (b["u"].get("sessionUpdate"), b["u"].get("messageId")) == (u.get("sessionUpdate"), u.get("messageId")) and len(b["text"]) < 8000:
+                b["text"] += text
+                return
+            self._flush()
+            self._buf = {"u": u, "text": text}
+
+        def later(mine=self._buf):
+            time.sleep(CHUNK_GAP)
+            with self.cond:
+                if self._buf is mine:
+                    self._flush()
+        threading.Thread(target=later, daemon=True).start()
+
+    def _emit(self, type_, **fields):
+        with self.cond:
             self.seq += 1
             ev = {"seq": self.seq, "t": round(time.time(), 3), "type": type_, **fields}
             self.events.append(ev)
             try:
-                self.log.parent.mkdir(parents=True, exist_ok=True)
+                folder(self.log.parent)
                 with open(self.log, "a", encoding="utf-8") as f:
                     f.write(json.dumps(ev, ensure_ascii=False) + "\n")
             except OSError:
@@ -328,7 +400,7 @@ class Session:
     def _header(self):
         self.header.update(kind=self.kind, acp_id=self.acp_id, personal=self.personal, created=self.header.get("created") or time.time())
         try:
-            self.log.parent.mkdir(parents=True, exist_ok=True)
+            folder(self.log.parent)
             (self.log.parent / f"{self.id}.json").write_text(json.dumps(dict(self.header, id=self.id), ensure_ascii=False))
         except OSError:
             pass
@@ -337,7 +409,8 @@ class Session:
         st = {k: res[k] for k in ("modes", "configOptions", "models") if isinstance(res.get(k), (dict, list))}
         if st:
             self.config.update(st)
-            self.emit("state", **clean(st, self.root))
+            shown = dict(st, **({"configOptions": private_options(st["configOptions"])} if "configOptions" in st else {}))
+            self.emit("state", **clean(shown, self.root))
 
     def _dsh_defaults(self):
         """DeepSeek Harness desktop's reasoning effort, as the person set it there (the model is in the profile already)."""
@@ -361,6 +434,9 @@ class Session:
             self.config["modes"] = dict(self.config["modes"], currentModeId=u.get("currentModeId"))
         elif kind == "config_option_update" and isinstance(u.get("configOptions"), list):
             self.config["configOptions"] = u["configOptions"]
+            u = dict(u, configOptions=private_options(u["configOptions"]))
+        if kind in ("agent_message_chunk", "agent_thought_chunk"):
+            return self.chunk(u)
         self.emit("update", u=clean(u, self.root))
 
     def on_permission(self, agent_rid, params):
@@ -368,10 +444,12 @@ class Session:
         self._n += 1
         rid = f"r{self._n}-{uuid.uuid4().hex[:8]}"
         opts = [o for o in (params.get("options") or []) if isinstance(o, dict) and isinstance(o.get("optionId"), str)]
+        cut = []   # what it asks is kept whole, up to MAX_ASK a string: what the person approves is what the agent asked
+        tool = clean(params.get("toolCall") or {}, self.root, MAX_ASK, cut=cut)
         with self.cond:
-            self.pending[rid] = {"agent": agent_rid, "options": opts, "detached": None if self.subscribers else time.time()}
-        self.emit("permission", rid=rid, tool=clean(params.get("toolCall") or {}, self.root),
-                  options=[{"optionId": o["optionId"], "name": str(o.get("name") or "")[:120], "kind": o.get("kind")} for o in opts])
+            self.pending[rid] = {"agent": agent_rid, "options": opts, "detached": None if self.subscribers else time.time(), "clipped": bool(cut)}
+        self.emit("permission", rid=rid, tool=tool, **({"clipped": True} if cut else {}),
+                  options=[{"optionId": o["optionId"], "name": str(o.get("name") or "")[:300], "kind": o.get("kind")} for o in opts])
 
     def _answer(self, rid, outcome, by):
         with self.cond:
@@ -396,7 +474,9 @@ class Session:
             raise ValueError("this request was answered already, or is gone")
         if not any(o["optionId"] == option_id for o in p["options"]):
             raise ValueError("not one of the options the agent offered")
-        return self._answer(rid, {"outcome": "selected", "optionId": option_id}, "person")
+        if p.get("clipped") and str(option_kind(p["options"], option_id) or "").startswith("allow"):
+            raise ValueError("this request is too long to show whole, so it can only be refused")
+        return self._answer(rid, {"outcome": "selected", "optionId": option_id}, "page")   # what the server knows: the page's token and not an agent's process
 
     def reject_waiting(self, by):
         """Each waiting request answered: rejected where the agent offered a rejection, else cancelled (timeout, the agent
@@ -409,19 +489,21 @@ class Session:
             self._answer(rid, {"outcome": "selected", "optionId": rej} if rej and by == "timeout" else {"outcome": "cancelled"}, by)
 
     # ---------- from the person ----------
-    def say(self, text, scope=None, despite_waiting=False):
-        """A turn with the person's words. Raises Busy (a turn runs, or someone else works on the project: an agent waiting
-        for this round's review is let through when the person said so, despite_waiting), Unavailable."""
+    def say(self, text, scope=None, despite=False):
+        """A turn with the person's words. Raises Busy (a turn runs, or someone else works on the project; an agent waiting
+        for this round's review, or one open in the folder, is let through when the person said so: despite), Unavailable."""
         with self._say_lock:
             if self.running:
                 raise Busy([{"why": "turn", "label": ADAPTERS[self.kind]["label"]}])
             who = agentlock.occupants(self.project, self.mgr.adapter_pids(), self.id)
-            if who and not (despite_waiting and all(w["why"] == "waiting" for w in who)):
+            if who and not (despite and all(w["why"] in ("waiting", "process") for w in who)):
                 raise Busy(who)
             self.attach()
+            self.turn += 1
             got = agentlock.acquire(self.project, {"kind": self.kind, "label": ADAPTERS[self.kind]["label"], "session": self.id,
-                                                   "desk": self.mgr.url})
+                                                   "turn": self.turn})   # no address: nothing an agent reads there reaches the desk
             if got is not True:
+                self.turn -= 1
                 raise Busy([dict(got, why="console")])
             self.running, self.stopping = True, False
         self.emit("user", text=text, **({"scope": scope} if scope else {}))
@@ -429,9 +511,21 @@ class Session:
         prompt = [{"type": "text", "text": text}]
         if scope:   # what the person had selected in the console: named by the page's own words, not the project's
             prompt.append({"type": "text", "text": scope_note(scope)})
-        threading.Thread(target=self._turn, args=(prompt,), name=f"turn-{self.id[:6]}", daemon=True).start()
+        threading.Thread(target=self._turn, args=(prompt, self.turn), name=f"turn-{self.id[:6]}", daemon=True).start()
 
-    def _turn(self, prompt):
+    def _end(self, n, **fields):
+        """End turn n, once: what waits is cancelled, the lock goes, the page hears it. False when it had ended already."""
+        with self._say_lock:
+            if self._ended >= n:
+                return False
+            self._ended = n
+            self.reject_waiting("turn_end")
+            agentlock.release(self.project, self.id, n)
+            self.running, self.stopping = False, False
+        self.emit("turn", state="end", **fields)
+        return True
+
+    def _turn(self, prompt, n):
         res, err = None, None
         try:
             peer = self.mgr.peers.get(self.kind)
@@ -440,12 +534,8 @@ class Session:
             res = peer.call("session/prompt", {"sessionId": self.acp_id, "prompt": prompt}, TURN_TIMEOUT)
         except acp.AcpError as e:
             err = str(e)[:300]
-        finally:
-            self.reject_waiting("turn_end")
-            agentlock.release(self.project, self.id)
-            self.running, self.stopping = False, False
         res = res if isinstance(res, dict) else {}
-        self.emit("turn", state="end", stop=res.get("stopReason") or ("error" if err else None), usage=clean(res.get("usage") or {}, self.root),
+        self._end(n, stop=res.get("stopReason") or ("error" if err else None), usage=clean(res.get("usage") or {}, self.root),
                   **({"error": err} if err else {}))
 
     def stop(self):
@@ -461,6 +551,16 @@ class Session:
                 peer.notify("session/cancel", {"sessionId": self.acp_id})
             except acp.AcpError:
                 pass
+        n = self.turn
+
+        def unheard():   # the adapter did not end the turn after the cancel: end it here, and start that agent afresh
+            time.sleep(STOP_GRACE)
+            if self._ended >= n or self.turn != n:
+                return
+            if self._end(n, stop="cancelled", error="agent_stuck"):
+                self.emit("notice", code="restarted")
+                self.mgr.restart(self.kind)
+        threading.Thread(target=unheard, name=f"stop-{self.id[:6]}", daemon=True).start()
         return True
 
     def set_mode(self, mode_id):
@@ -474,9 +574,9 @@ class Session:
         except (acp.AcpError, KeyError) as e:
             raise Unavailable("refused", str(e))
         self.config["modes"] = dict(modes, currentModeId=mode_id)
-        self.emit("state", modes=clean(self.config["modes"], self.root), by="person")
+        self.emit("state", modes=clean(self.config["modes"], self.root), by="page")
 
-    def set_config(self, config_id, value, by="person"):
+    def set_config(self, config_id, value, by="page"):
         opts = self.config.get("configOptions") or []
         o = next((x for x in opts if isinstance(x, dict) and x.get("id") == config_id), None)
         if o is None:
@@ -507,8 +607,10 @@ class Session:
 def scope_note(scope):
     """The console's note of what the person had selected, built from its kind and id alone (never a label taken from a
     project file): "(In the console the person had selected: shot S4, 0:12–0:18.)"."""
-    kind = str(scope.get("kind") or "")[:20]
-    ident = re.sub(r"[^\w.:~+-]", "", str(scope.get("id") or ""))[:60]
+    kind = str(scope.get("kind") or "")
+    kind = kind if kind in SCOPE_KINDS else ""   # a kind the console knows, never a word from a file
+    ident = str(scope.get("id") or "")
+    ident = ident if re.fullmatch(r"[A-Za-z0-9._:~+-]{1,40}", ident) else ""   # an id of the console's own shape (S4, 2, 12.5-18)
 
     def t(x):
         return f"{int(x // 60)}:{x % 60:04.1f}" if isinstance(x, (int, float)) and x == x and 0 <= x < 1e6 else None
@@ -516,7 +618,8 @@ def scope_note(scope):
     a, b = t(scope.get("t")), t(scope.get("t1"))
     if a:
         parts.append(f"{a}–{b}" if b else a)
-    mod = re.sub(r"[^\w-]", "", str(scope.get("module") or ""))[:20]
+    mod = str(scope.get("module") or "")
+    mod = mod if mod in ("idea", "outline", "board", "sound", "cut", "ship", "assets", "ledger") else ""
     if mod:
         parts.append(f"module {mod}")
     return "(In the console the person had selected: " + ", ".join(parts) + ".)" if parts else ""
@@ -535,6 +638,7 @@ class Manager:
         self._lock = threading.RLock()
         self._starting = {k: threading.Lock() for k in ADAPTERS}
         self.closed = False
+        self._closing = []     # adapters being stopped (a restart): shutdown waits for them
         threading.Thread(target=self._watch, name="agents-watch", daemon=True).start()
 
     def adapter_pids(self):
@@ -597,6 +701,18 @@ class Manager:
             p.fail(rid, -32601, f"the console does not handle {method}")
         if s is not None and method not in ("session/request_permission",):
             s.emit("notice", code="unsupported", method=str(method)[:60])
+
+    def restart(self, kind):
+        """Stop this kind's adapter (TERM to its group) so that the next word starts it afresh; its conversations read on."""
+        p = self.peers.pop(kind, None)
+        for s in list(self.sessions.values()):
+            if s.kind == kind:
+                s.live = False
+                s.reject_waiting("agent_gone")
+        if p is not None:
+            t = threading.Thread(target=p.close, args=(0.5, 3.0), daemon=True)
+            t.start()
+            self._closing.append(t)   # the desk's shutdown waits for it too
 
     def _exit(self, kind, code):
         self.peers.pop(kind, None)
@@ -705,6 +821,6 @@ class Manager:
         threads = [threading.Thread(target=p.close, daemon=True) for p in list(self.peers.values()) if p is not None]
         for t in threads:
             t.start()
-        for t in threads:
+        for t in threads + self._closing:
             t.join(timeout=10)
         self.peers.clear()

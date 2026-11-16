@@ -2,6 +2,8 @@
    variables: violet is the agent, cyan is you, amber waits for you, red is live or wrong, green is done; the rest is grey. */
 .col-tabs{display:flex;gap:2px 18px;padding:10px 16px 0;border-bottom:1px solid var(--rule)}
 .col-tabs[hidden]{display:none}
+.nokey{margin:0;padding:9px 16px;border-bottom:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);font-size:var(--fs-label);line-height:1.6}
+.nokey[hidden]{display:none}
 .col-tabs button{border:0;background:none;cursor:pointer;padding:0 0 9px;margin-bottom:-1px;font-size:var(--fs-small);color:var(--ink-3);border-bottom:1px solid transparent;display:inline-flex;align-items:center;gap:6px}
 .col-tabs button[aria-selected=true]{color:var(--ink-hi);border-bottom-color:var(--ink)}
 :root[data-theme=prism] .col-tabs button[aria-selected=true]{border-bottom-color:var(--you)}
@@ -38,6 +40,14 @@
 .ag-more summary{cursor:pointer}
 .ag-more[open]{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px 12px}
 .ag-more[open] summary{flex-basis:100%}
+.ag-line{display:flex;align-items:center;gap:10px;min-width:0}
+.ag-sum{display:inline-flex;align-items:center;gap:6px;min-width:0;border:1px solid var(--rule);background:var(--panel-2);color:var(--ink-2);font:var(--fs-label) var(--sans);padding:3px 8px;border-radius:var(--r-ctl);cursor:pointer}
+.ag-sum span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-sum i{font-style:normal;color:var(--ink-3)}
+.ag-sum[aria-expanded=true]{color:var(--ink)}
+.ag-usetxt{margin-left:auto;flex:none;font-size:11px;color:var(--ink-3)}
+#agSetBox .ag-set{margin-top:8px}
+.ag-gap{color:var(--wait);font-family:var(--sans)}
 .ag-use{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--ink-3)}
 .ag-use .warn{color:var(--wait)}.ag-use .bad{color:var(--live)}
 
@@ -64,7 +74,7 @@
 .ag-tool.st-pending .ag-st,.ag-tool.st-in_progress .ag-st{color:var(--agent)}
 .ag-tool.st-asking{border-left-color:var(--wait-line)}.ag-tool.st-asking .ag-st{color:var(--wait)}
 .ag-tool.st-completed .ag-st{color:var(--ok)}
-.ag-tool.st-refused{border-left-color:var(--rule-2)}.ag-tool.st-refused .ag-st{color:var(--ink-3)}.ag-tool.st-refused .ag-ti{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--rule-2)}
+.ag-tool.st-refused{border-left-color:var(--rule-2)}.ag-tool.st-refused .ag-st{color:var(--ink-2);flex:1 1 auto;text-align:right}.ag-tool.st-refused .ag-ti{flex:none;font-size:var(--fs-label);color:var(--ink-3)}
 .ag-tool.st-failed{border-left-color:var(--live-line)}.ag-tool.st-failed .ag-st,.ag-fail{color:var(--live)}
 .ag-fail{margin:0;font-size:var(--fs-label)}
 .ag-diff{border:1px solid var(--rule);border-radius:var(--r-card);overflow:hidden}
@@ -119,6 +129,7 @@
 .ag-foot textarea:focus{outline:none;border-color:var(--you)}   /* no growing on focus: a click on Stop or Send that blurs it would land where the button was */
 .ag-busy{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);font-size:var(--fs-label);line-height:1.55;border-radius:var(--r-card)}
 .ag-busy[hidden]{display:none}
+.ag-foot.off{opacity:.45}
 .ag-ask{display:block;width:100%;text-align:left;padding:8px 10px;border:1px solid var(--wait-line);background:var(--wait-soft);color:var(--wait);font:500 var(--fs-small)/1.4 var(--sans);border-radius:var(--r-card);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-ask[hidden]{display:none}
 .ag-busy .ag-opts{margin-left:auto}
