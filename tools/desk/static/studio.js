@@ -222,6 +222,7 @@ function hoverClips(root) {   // a film's card plays 4 s of it, muted, while the
   });
 }
 function spaceColumn() {   // the column is where you talk to the agent: on the space, the sentence that starts a new film
+  AGENT.leave();   // an agent works in a film's folder: the conversation is there, not on the space
   $("#colRound").hidden = true; $("#composer").hidden = true; $("#confirm").hidden = true;
   $("#colHead").innerHTML = `<b>${esc(t("new_film"))}</b>`;
   $("#colBody").innerHTML = `<section class="ask"><label class="blk-h" for="oneLine"><b>${esc(t("ask_h"))}</b></label>
@@ -363,6 +364,7 @@ function renderColumn() {
   renderMarks(); renderMine(); renderNext(); renderRound(); syncPhoneDec();
   if (!$("#composer").dataset.ready) buildComposer();
   $("#composer").hidden = false;
+  AGENT.enter(PKEY);   // the column's other tab: the conversation with the agent on this film (agent.js)
 }
 function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then the column: a bar above the picture goes to the decisions
   const pd = $("#phoneDec"); if (!pd || !D) return;
@@ -477,9 +479,9 @@ function gotoTarget(target, tt, t1, label) {   // a note or a mark in the column
 function buildComposer() {
   const c = $("#composer");
   c.dataset.ready = "1";
-  // one row: what the note is on, and the button that notes it; the box under it (the agent's side of the box waits, hidden, until one is connected)
+  // one row: what the note is on, and the button that notes it; the box under it (saying it to the agent is the column's other tab, agent.js)
   c.innerHTML = `<div class="crow send"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button><span class="meta" id="sayHint"></span><span class="kbd" aria-hidden="true">${esc(t("note_keys"))}</span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>
-    <div class="crow" hidden><span class="modes" role="group"><button type="button" disabled title="${esc(t("say_agent_tip"))}">${esc(t("say_agent"))}</button><button type="button" aria-pressed="true">${esc(t("as_note"))}</button></span></div>
+
     <textarea id="say" rows="2" maxlength="4000"></textarea>`;
   $("#toWhole").addEventListener("click", () => setScope(null));
   $("#sayAdd").addEventListener("click", addNote);
@@ -492,6 +494,7 @@ function updateComposer() {
   $("#scope").textContent = x; $("#scope").className = "chip" + (SCOPE ? "" : " quiet");
   $("#toWhole").hidden = !SCOPE;
   $("#say").placeholder = t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : x });
+  AGENT.scope();   // the conversation's box writes against the same selection
 }
 function setScope(s) {
   SCOPE = s; updateComposer();
@@ -596,7 +599,7 @@ async function submit() {
   $("#confirm details").open = true;
 }
 function save() {
-  store.set(KEY, FB);
+  store.set(KEY, FB); AGENT.tabs();
   if (!D) return;
   renderMine(); renderRound();
   if (CUT) CUT.refresh();
@@ -1411,7 +1414,7 @@ function CutModule(area) {
 
 $("#lang").addEventListener("click", () => {
   const n = LANG === "zh" ? "en" : "zh"; try { localStorage.setItem("desk:lang", n); } catch (e) { /* no storage */ }
-  setLang(n);
+  setLang(n); AGENT.lang();
   if (D) { const key = PKEY; leaveProject(); D = null; PKEY = ""; $("#composer").dataset.ready = ""; showProject(Object.assign(parse(), { key })); }
   else route();
 });

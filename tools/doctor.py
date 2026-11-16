@@ -193,6 +193,14 @@ def check_module(m, found_by, today):
                 notes.append("the version HyperFrames pins")
             if os.path.isdir(p):
                 notes += [size_of(p), shown(os.path.dirname(p.rstrip("/")))]
+    elif ck.get("desk_agent"):   # an agent's ACP adapter for the console, installed outside the repo (tools/desk/agents.py)
+        sys.path.insert(0, str(ROOT / "tools" / "desk"))
+        import agents as A
+        got = A.installed(ck["desk_agent"])
+        if not got:
+            r.update(state="missing", note=f"not installed (bin/vh desk agents install {ck['desk_agent']}; the console's column says so too)")
+            return r
+        r["found"], r["version"] = got["path"], got["version"]
     elif ck.get("npm"):
         pj = ROOT / ck["npm"]["in"] / "node_modules" / ck["npm"]["package"] / "package.json"
         try:
@@ -224,7 +232,7 @@ def check_module(m, found_by, today):
     v = r["version"]
     if v and ver.get("min") and vtuple(v) < vtuple(ver["min"]):
         r["state"] = "outdated"; notes.append(f"{ver['min']} or newer needed")
-    if v and ver.get("pin") and (ck.get("npm") or ck.get("program")) and v != ver["pin"].split()[0]:
+    if v and ver.get("pin") and (ck.get("npm") or ck.get("program") or ck.get("desk_agent")) and v != ver["pin"].split()[0]:
         r["state"] = "outdated"; notes.append(f"not {ver['pin'].split()[0]}, the pinned version")
     if v and ver.get("max_age_days"):
         mm = re.fullmatch(r"(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?", v)
@@ -731,8 +739,10 @@ def problems(t, commands=None):
         if m.get("status") == "planned" and cmds:
             bad.append(f"{at}: planned, yet commands use it")
         ck = m.get("check")
-        if not isinstance(ck, dict) or set(ck) - {"program", "env", "paths", "version", "pattern", "also", "features", "finder", "npm", "uv", "hf_model", "files", "per_project"}:
+        if not isinstance(ck, dict) or set(ck) - {"program", "env", "paths", "version", "pattern", "also", "features", "finder", "npm", "uv", "hf_model", "files", "per_project", "desk_agent"}:
             bad.append(f"{at}: check has a key doctor does not know")
+        elif ck.get("desk_agent") is not None and ck["desk_agent"] not in ("claude", "codex", "dsh"):
+            bad.append(f"{at}: desk_agent {ck['desk_agent']!r} is not one of the console's agents (claude, codex, dsh)")
         elif ck.get("finder") not in (None, "chrome", "hf-chrome"):
             bad.append(f"{at}: finder {ck['finder']!r} is not one bin/vh passes (chrome, hf-chrome)")
         p = m.get("probe")

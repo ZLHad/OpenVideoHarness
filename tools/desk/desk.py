@@ -19,6 +19,10 @@ comments and submits.
   bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none); it then
                                                 counts as handed over (out/review/feedback/.consumed)
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
+  bin/vh desk agents [--json]                   the agents the console's column can talk to (Claude Code, Codex, DeepSeek
+                                                Harness): installed or not, the pinned adapter version, where they live
+  bin/vh desk agents install <claude|codex|dsh>   install that agent's ACP adapter, pinned, outside the repo
+                                                ($OVH_AGENTS_DIR, else $XDG_CACHE_HOME/ovh/agents); it uses your own login
 
 The desk reads the same out/review/gate-<n>.json as bin/vh review, and shows a stop with the same markup (tools/review.py,
 tools/desk/static/ui.css and ui.js), plus the project's markdown and bin/vh status (the contract is in tools/desk/README.md). A submission goes to out/review/feedback/<round>-<time>.json and .md, and its text into
@@ -43,6 +47,8 @@ def find(arg):
 
 
 def main(argv):
+    if argv and argv[0] == "agents":
+        return agents_cmd(argv[1:])
     sub = argv[0] if argv and argv[0] in ("wait", "feedback", "data") else "serve"
     rest = argv[1:] if sub != "serve" else argv
     ap = argparse.ArgumentParser(prog="bin/vh desk" + ("" if sub == "serve" else " " + sub),
@@ -99,6 +105,30 @@ def main(argv):
         return 0
     import reader
     print(json.dumps(reader.read_project(project), ensure_ascii=False, indent=1))
+    return 0
+
+
+def agents_cmd(argv):
+    """bin/vh desk agents [--json] · bin/vh desk agents install <kind>"""
+    import agents as A
+    ap = argparse.ArgumentParser(prog="bin/vh desk agents", description="the agents the console's column can talk to, and installing one")
+    ap.add_argument("what", nargs="?", choices=["list", "install"], default="list")
+    ap.add_argument("kind", nargs="?", choices=list(A.ADAPTERS))
+    ap.add_argument("--json", action="store_true")
+    a = ap.parse_args(argv)
+    if a.what == "install":
+        if not a.kind:
+            print("usage: bin/vh desk agents install <claude|codex|dsh>", file=sys.stderr)
+            return 2
+        return A.install(a.kind)
+    rows = A.catalog()
+    if a.json:
+        print(json.dumps({"version": 1, "home": str(A.home()), "agents": rows}, ensure_ascii=False, indent=1))
+        return 0
+    print(f"agents for the console (in {A.home()}):")
+    for r in rows:
+        state = (f"installed {r['version']}" + (f" (pinned {r['pinned']}: reinstall)" if r["outdated"] else "")) if r["installed"] else f"not installed ({r['size']}): {r['install']}"
+        print(f"  {r['label']:<18} {state}")
     return 0
 
 

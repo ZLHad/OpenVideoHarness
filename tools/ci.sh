@@ -3151,7 +3151,7 @@ PY
   if a=$(python3 - <<'PY'
 import re
 css = open("tools/desk/static/ui.css", encoding="utf-8").read()
-studio = open("tools/desk/static/studio.css", encoding="utf-8").read() + open("tools/desk/static/modules.css", encoding="utf-8").read()
+studio = "".join(open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("studio.css", "modules.css", "agent.css"))
 js = open("tools/desk/static/ui.js", encoding="utf-8").read()
 def block(sel):
     m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
@@ -3183,12 +3183,12 @@ for name, t in themes.items():
 if 'DEFAULT_THEME = "darkfield"' not in js or 'THEMES = ["darkfield", "prism", "bridge"]' not in js:
     low.append("ui.js: THEMES and DEFAULT_THEME")
 stray = []
-for f, text in (("ui.css", css), ("studio.css and modules.css", studio)):
+for f, text in (("ui.css", css), ("studio.css, modules.css and agent.css", studio)):
     rules = re.sub(r"/\*.*?\*/", "", re.sub(r":root(,:root)?(\[data-theme=\w+\])?\{.*?\}", "", text, flags=re.S), flags=re.S)
     stray += [f"{f} {x}" for x in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", rules)]
 print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.join(stray[:4])}"] if stray else [])))
 PY
-) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css, studio.css and modules.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
+) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css, studio.css, modules.css and agent.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
   else bad "theme contrast or stray colours: $a"; fi
   # the console's own safety: project words reach the page only through escaping or the DOM; an unknown key walks the roots at
   # most once in FRESH_GAP; the console's info file is trusted only in a folder of this user's own; a card's picture and a gate
@@ -3279,9 +3279,9 @@ page = page.decode()
 token = page.split('name="desk-token" content="')[1].split('"')[0]
 want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
 want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
-for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js"):
+for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js", "agent.css", "agent.js"):
     want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
-want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its seven files (static.js is the static page's)")
+want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its nine files (static.js is the static page's)")
 s, _, d = req("GET", "/api/projects"); d = json.loads(d)
 real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
 rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
@@ -3597,7 +3597,7 @@ want("afterSent(" in sub and "reloadProject(" in sub and "leaveProject(" not in 
 want(re.search(r'e\.key === "Escape"[\s\S]{0,240}typing\(\)\) \{ e\.preventDefault\(\); document\.activeElement\.blur\(\);', st) and re.search(r"function addNote\(\)[\s\S]*?ta\.blur\(\);\s*//[^\n]*\n}", st),
      "Esc does not leave a text box, or ⌘↩ keeps the keys in it")
 want(re.search(r"function jumpShot\(dir\)[\s\S]{0,200}stepPoint\([\s\S]{0,80}pickThing\(\"shot:\"", st), "← → moves the playhead without selecting the shot")
-ids = re.findall(r'\sid="([A-Za-z][\w-]*)"', html + st + open("tools/desk/static/modules.js", encoding="utf-8").read())
+ids = re.findall(r'\sid="([A-Za-z][\w-]*)"', html + st + open("tools/desk/static/modules.js", encoding="utf-8").read() + open("tools/desk/static/agent.js", encoding="utf-8").read())
 dup = sorted({i for i in ids if ids.count(i) > 1} - {"gatePart"})   # gatePart: one of two exclusive layouts
 want(not dup, f"an id written twice in the console (a reload keeps the old module on screen while the column is drawn): {dup}")
 caps = []
@@ -3655,6 +3655,19 @@ PY
   fi
   rm -rf "$t"
 }
+agent_checks() {   # the console's agent column (tools/desk/agents.py, acp.py, agentlock.py, static/agent.js) against the stand-in
+  # agents (tools/desk/fixtures/agents: the real adapters' messages of 2026-11-16, replayed; nothing real started or billed):
+  # the adapter's clean environment, the addresses' refusals, a turn, the typed text alone reaching the agent, approvals only
+  # by an offered option and never by default, stop, the lock, a restart, every adapter gone with the desk
+  local t k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-agents.XXXXXX")
+  python3 tools/desk/test_agents.py "$t" > "$t/out" 2>&1
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "agent column: $m" ;; bad) bad "agent column: $m" ;; esac
+  done < "$t/out"
+  grep -qx end "$t/out" || bad "agent column: the test stopped: $(tail -n 3 "$t/out" | tr '\n' ' ')"
+  rm -rf "$t"
+}
+
 concept_checks() {   # bin/vh concept: the roulette (seeded by the project's name, what the project has and --not left out)
   # and the six-then-three board (pillow through uv: the same bytes for the same input)
   local t p a b c rc rc2 rc3

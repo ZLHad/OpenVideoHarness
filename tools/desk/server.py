@@ -21,6 +21,11 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   POST /api/p/<key>/feedback      a submission: checked, saved to out/review/feedback/, copied into REVIEW.md
   GET  /f/<key>/<path>            a file inside that project (HTTP Range, so video and audio can seek); nothing outside
                                   it, no hidden files
+  GET  /api/p/<key>/agents        the column's agents (installed or how to install), the project's conversations, its lock
+  GET  /api/p/<key>/agent/<id>/events?token=   one conversation's events, as Server-Sent Events (agents.py)
+  POST /api/p/<key>/agent/new · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
+                                  the typed text, an answer among the agent's own options, stop (waiting requests cancelled
+                                  first), a setting among those the agent offered
   The desk's first addresses stay, for the project it was started for: /api/data (reader.read_project alone, as bin/vh desk
   data prints it), /api/status, /api/feedback, /p/<path>.
 
@@ -38,10 +43,12 @@ sys.path.insert(0, str(HERE.parent))
 import feedback as F   # noqa: E402
 import reader          # noqa: E402
 import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
+import agents as A     # noqa: E402  (the agents the column talks to: one adapter process a kind, a session a conversation)
 
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
-          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8"}
+          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8",
+          "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
@@ -537,6 +544,7 @@ class Desk(http.server.ThreadingHTTPServer):
         self._lock = threading.Lock()
         self._listing = (0.0, None)
         self._keys = {self.own_key: self.project} if self.project else {}
+        self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
 
     def server_bind(self):
         # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
@@ -661,6 +669,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]
             return self._gate(project, key, m.group(3), lang if lang in ("zh", "en") else None)
+        m = re.fullmatch(r"/api/p/([^/]+)/agents|/api/p/([^/]+)/agent/([a-f0-9]{32})/events", path)
+        if m:
+            key = unquote(m.group(1) or m.group(2))
+            project = srv.project_of(key)
+            if project is None:
+                return self._error(404, f"no project {key!r} under this desk's roots")
+            if m.group(1):
+                return self._agents(project, key)
+            return self._events(project, key, m.group(3))
         if path.startswith("/f/"):
             key, _, rel = path[3:].partition("/")
             project = srv.project_of(unquote(key))
@@ -679,6 +696,72 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if srv.project and path.startswith("/p/"):
             return self._file(srv.project, path[3:])
         self._error(404, "not found")
+
+    # ---------- the agent column ----------
+    def _agents(self, project, key):
+        """The agents this machine has (installed or how to install), the project's conversations, and who holds it."""
+        mgr = self.server.agents
+        try:
+            sessions = mgr.listing(project)
+        except OSError as e:
+            sessions, err = [], str(e)
+        else:
+            err = None
+        lock = A.agentlock.read(project)
+        auth = mgr.auth
+        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"]))) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
+                           "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
+                           **({"error": err} if err else {})})
+
+    def _events(self, project, key, sid):
+        """One conversation's events as Server-Sent Events: those after Last-Event-ID (or ?after=), then each as it comes;
+        a comment every 5 s keeps the line (and the desk's --idle) alive, and finds a page that went away. Needs the page's token (?token=): the events are
+        the conversation, file contents and commands included."""
+        q = parse_qs(urlsplit(self.path).query)
+        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        if not secrets.compare_digest(given, self.server.token.encode("ascii")):
+            return self._error(403, "missing or wrong desk token: reload the page")
+        s = self.server.agents.get(sid, project, key)
+        if s is None:
+            return self._error(404, "no such conversation in this project")
+        try:
+            after = int(self.headers.get("Last-Event-ID") or (q.get("after") or ["0"])[0])
+        except ValueError:
+            after = 0
+        self.send_response(200)
+        for k, v in (("Content-Type", "text/event-stream; charset=utf-8"), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
+                     ("X-Accel-Buffering", "no"), ("Referrer-Policy", "no-referrer")):
+            self.send_header(k, v)
+        self.end_headers()
+        self.close_connection = True
+        mgr = self.server.agents
+        with s.cond:
+            s.subscribers += 1
+        try:
+            self.wfile.write(("retry: 2000\nevent: hello\ndata: " + json.dumps(dict(s.summary(), config=A.clean(s.config, s.root),
+                                                                                   caps=mgr.caps.get(s.kind) or {}), ensure_ascii=False) + "\n\n").encode("utf-8"))
+            self.wfile.flush()
+            while not mgr.closed:
+                evs = s.after(after)
+                if evs:
+                    out = "".join(f"id: {e['seq']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n" for e in evs)
+                    after = evs[-1]["seq"]
+                    self.wfile.write(out.encode("utf-8"))
+                    self.wfile.flush()
+                    self.server.last = time.time()
+                    continue
+                with s.cond:
+                    if s.seq <= after and not mgr.closed:
+                        s.cond.wait(5)
+                if s.seq <= after:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    self.server.last = time.time()
+        except (OSError, ValueError):
+            pass   # the page went away
+        finally:
+            with s.cond:
+                s.subscribers -= 1
 
     def _projects(self):
         try:
@@ -811,14 +894,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         m = re.fullmatch(r"/api/p/([^/]+)/feedback", path)
-        if m:
-            project = self.server.project_of(unquote(m.group(1)))
+        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
+        if m or a:
+            project = self.server.project_of(unquote((m or a).group(1)))
             if project is None:
                 return self._error(404, "no such project")
         elif path == "/api/feedback" and self.server.project:
             project = self.server.project
         else:
             return self._error(404, "not found")
+        if a:
+            return self._agent_post(project, unquote(a.group(1)), a.group(3), a.group(4) or "new")
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             return self._error(403, "cross-origin request refused")
@@ -853,6 +939,107 @@ class Handler(http.server.BaseHTTPRequestHandler):
         sys.stderr.write(f"desk: feedback saved → {saved} (also in REVIEW.md)\n")
         sys.stderr.flush()
         self._json(dict(F.listening(project), saved=os.path.relpath(saved, project)))
+
+    def _body(self, max_bytes=None):
+        """The checks every POST passes (same origin, this run's token, JSON, a whole body) → the parsed JSON, or None
+        after the refusal is sent."""
+        origin = self.headers.get("Origin")
+        if origin and urlsplit(origin).netloc not in self.server.hosts:
+            self._error(403, "cross-origin request refused")
+            return None
+        given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
+        if not secrets.compare_digest(given, self.server.token.encode("ascii")):
+            self._error(403, "missing or wrong desk token: reload the page")
+            return None
+        if not self.headers.get("Content-Type", "").startswith("application/json"):
+            self._error(415, "send JSON")
+            return None
+        limit = max_bytes or F.MAX_BODY
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        if n <= 0 or n > limit:
+            self._error(413 if n > 0 else 400, f"empty, or larger than {limit // 1024} KiB")
+            return None
+        try:
+            body = self.rfile.read(n)
+        except OSError:
+            self.close_connection = True
+            self._error(408, "the request body did not arrive")
+            return None
+        if len(body) < n:
+            self.close_connection = True
+            self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says")
+            return None
+        try:
+            raw = json.loads(body.decode("utf-8"))
+        except (ValueError, RecursionError) as e:
+            self._error(400, str(e) or type(e).__name__)
+            return None
+        if not isinstance(raw, dict):
+            self._error(400, "send a JSON object")
+            return None
+        return raw
+
+    def _agent_post(self, project, key, sid, what):
+        """The person's actions in the agent column. Each carries the folder's identity (pid), like a submission: a page
+        opened on another folder under this address is refused. Only the text in "text" is ever sent as the person's
+        words; an answer must be one of the options the agent offered for a request that still waits."""
+        raw = self._body(64 * 1024)
+        if raw is None:
+            return
+        if raw.get("pid") != pid_of(project):
+            return self._error(409, "this address names another project now than the page was opened on: reload it")
+        mgr = self.server.agents
+        try:
+            if what == "new":
+                kind = raw.get("kind")
+                if kind not in A.ADAPTERS:
+                    return self._error(400, "unknown agent")
+                s = mgr.open(project, key, kind, personal=raw.get("personal", True) is not False)
+                try:
+                    s.attach()   # the agent's mode, model and effort are on the page before the first word
+                except A.Unavailable as e:
+                    return self._json(dict(s.summary(), error=e.code, detail=str(e)[:500]), 503 if e.code != "not_installed" else 424)
+                return self._json(dict(s.summary(), config=A.clean(s.config, s.root)))
+            s = mgr.get(sid, project, key)
+            if s is None:
+                return self._error(404, "no such conversation in this project")
+            if what == "attach":
+                s.attach()
+                return self._json(dict(s.summary(), config=A.clean(s.config, s.root)))
+            if what == "say":
+                text = raw.get("text")
+                if not isinstance(text, str) or not text.strip():
+                    return self._error(400, "say something")
+                if len(text) > A.MAX_PROMPT:
+                    return self._error(413, f"at most {A.MAX_PROMPT} characters at once")
+                text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text).strip()
+                scope = raw.get("scope") if isinstance(raw.get("scope"), dict) else None
+                scope = {k: scope.get(k) for k in ("kind", "id", "t", "t1", "module", "label") if scope.get(k) is not None} if scope else None
+                if scope and isinstance(scope.get("label"), str):
+                    scope["label"] = scope["label"][:80]   # shown in the page with the message, never sent to the agent
+                s.say(text, scope, despite_waiting=raw.get("despite_waiting") is True)
+                return self._json({"ok": True})
+            if what == "answer":
+                s.answer(str(raw.get("request") or ""), str(raw.get("option") or ""))
+                return self._json({"ok": True})
+            if what == "stop":
+                return self._json({"ok": True, "stopped": s.stop()})
+            if what == "mode":
+                s.set_mode(str(raw.get("mode") or ""))
+                return self._json({"ok": True})
+            if what == "config":
+                s.set_config(str(raw.get("id") or ""), raw.get("value"))
+                return self._json({"ok": True})
+        except A.Busy as e:
+            return self._json({"error": "busy", "who": e.who}, 409)
+        except A.Unavailable as e:
+            return self._json({"error": e.code, "detail": str(e)[:500]}, 424 if e.code == "not_installed" else 503)
+        except ValueError as e:
+            return self._error(400, str(e))
+        return self._error(404, "not found")
 
 
 # ---------- start: once per project, or one console ----------
@@ -965,6 +1152,7 @@ def serve(project=None, port=None, idle=None, roots=(), only=False):
     except KeyboardInterrupt:
         code = 130
     finally:
+        srv.agents.shutdown()   # waiting requests cancelled, every adapter stopped (TERM to its group if it lingers)
         srv.server_close()
         try:
             if info_p is not None and json.loads(info_p.read_text()).get("pid") == os.getpid():
