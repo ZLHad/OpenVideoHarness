@@ -47,12 +47,14 @@ ID_RE = re.compile(r"^[a-f0-9]{32}$")
 # the adapters: the npm package that speaks ACP for each agent, pinned. size: on disk after install (macOS arm64, 2026-11-16)
 ADAPTERS = {
     "claude": {"label": "Claude Code", "package": "@agentclientprotocol/claude-agent-acp", "version": "0.107.0",
-               "bin": "claude-agent-acp", "args": [], "login": "`claude` works in your terminal", "size": "≈ 0.4 GB",
+               "bin": "claude-agent-acp", "args": [], "install_scripts": [], "login": "`claude` works in your terminal", "size": "≈ 0.4 GB",
                "settings_toggle": True},
     "codex": {"label": "Codex", "package": "@agentclientprotocol/codex-acp", "version": "2.6.0",
-              "bin": "codex-acp", "args": [], "login": "`codex` works in your terminal", "size": "≈ 0.4 GB"},
+              "bin": "codex-acp", "args": [], "install_scripts": [], "login": "`codex` works in your terminal", "size": "≈ 0.4 GB"},
     "dsh": {"label": "DeepSeek Harness", "package": "@deepseek-ai/dsh", "version": "0.2.2-rc.3",
-            "bin": "dsh", "args": ["--profile", "acp"], "login": "DeepSeek Harness (its desktop app) is signed in", "size": "≈ 1.4 GB"},
+            "bin": "dsh", "args": ["--profile", "acp"],
+            # its native modules build or fetch at install: the only packages of the three trees that run a script
+            "install_scripts": ["@deepseek-ai/dsh-subprocess-local", "@google/genai", "koffi", "node-pty", "protobufjs"], "login": "DeepSeek Harness (its desktop app) is signed in", "size": "≈ 1.4 GB"},
 }
 ORDER = ("claude", "codex", "dsh")
 
@@ -149,7 +151,7 @@ def install(kind, out=sys.stdout):
     for f in ("package.json", "package-lock.json"):
         shutil.copyfile(locks / f, base / f)
     print(f"desk agents: installing {a['package']}@{a['version']} into {base} ({a['size']}) …", file=out, flush=True)
-    r = subprocess.run([npm, "ci", "--no-audit", "--no-fund", "--loglevel=error"], cwd=str(base),
+    r = subprocess.run([npm, "ci", "--no-audit", "--no-fund", "--loglevel=error"] + ([] if a["install_scripts"] else ["--ignore-scripts"]), cwd=str(base),
                        env=dict(os.environ, npm_config_update_notifier="false"))
     if r.returncode != 0:
         print(f"desk agents: npm install failed (exit {r.returncode})", file=sys.stderr)

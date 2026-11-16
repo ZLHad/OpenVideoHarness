@@ -79,6 +79,9 @@ def locks_check():
         loose = [k for k, v in lock["packages"].items() if k and v.get("resolved") and not v.get("integrity")]
         if loose:
             return f"{kind}: {len(loose)} packages without an integrity hash ({loose[0]})"
+        scripts = sorted(k.split("node_modules/")[-1] for k, v in lock["packages"].items() if v.get("hasInstallScript"))
+        if scripts != sorted(a["install_scripts"]):   # a tree without them installs with --ignore-scripts; a new one is looked at first
+            return f"{kind}: packages with install scripts {scripts}, not the {a['install_scripts']} ADAPTERS names"
     if "npm\", \"ci\"" not in (HERE / "agents.py").read_text().replace("'", '"').replace('[npm, "ci"', 'npm", "ci"'):
         return "install does not use npm ci"
 
