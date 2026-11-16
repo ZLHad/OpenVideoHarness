@@ -18,7 +18,7 @@
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。改着的时候用 `tools/ci.sh --changed`，只跑这次改动用得到的组（见下面"推送前自查"）；推送前和合并前仍然整跑一次。修 bug 要先复现，再证明修好，前后对比写进 PR。
 3. PR 一律开成草稿。先核对 `LOCAL.md` 的维护偏好，区分自己账号的开发与外部贡献；外部贡献必须按下节逐个介绍并取得明确批准。用户可以长期授权自己账号的日常开发 PR 检查通过后合并；没有对应授权时交付草稿等人决定。授权范围内，agent 审过 diff 后用 `python3 tools/land.py ready <PR>` 转正式 PR、排上 squash 自动合并，必需的检查都通过后由 GitHub 合并；合并后用 `python3 tools/land.py done <PR> --clean` 核对和清理。旧批量授权不覆盖新来的外部贡献。管理员“绕过规则合并”只留给人用，agent 不碰。
-4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git：成片、样片集锦这类文件放在 GitHub Release `media`，新规格（规格 2）的完整风格样片放在 Release `styles-media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。例外只有 2026-11 以前的 33 个 5 秒风格样片（规格 1，各约 1 MB，下次重渲时移出去），和规格 2 留在 git 里的 2 秒小预览 `preview.mp4`（≤ 200 KB）。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
+4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git：成片、样片集锦这类文件放在 GitHub Release `media`，新规格（规格 2）的完整风格样片放在 Release `styles-media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。例外只有 2026-11 以前的 33 个 5 秒风格样片（规格 1，各约 1 MB，下次重渲时移出去），和规格 2 留在 git 里的 2 秒小预览 `preview.mp4`（≤ 200 KB）。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。GitHub Release 每个文件不能超过 2 GiB；README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB，免费账户）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
 5. 用户能感知到的改动，在 `changes/` 下加一个文件记一笔，不直接改 `CHANGELOG.md`。文件名用小写字母、数字和连字符，比如 `changes/ci-by-change.md`；内容就是一条 CHANGELOG 条目：第一行粗体标题，下面一行一条（`changes/README.md` 有例子）。两个 PR 各加各的文件，先后合并时不会在 `CHANGELOG.md` 顶上冲突。`python3 tools/changes.py show` 列出还没发版的改动，发版时它们合进 `CHANGELOG.md`（见"版本 tag 和 Release"）。过渡期两种写法都认，到第一次用 `tools/changes.py release` 发版为止：已经开着的 PR 照旧往 `CHANGELOG.md` 的 Unreleased 加条目也行，`tools/land.py` 和发版都认得。发版会删掉 `## Unreleased` 这个标题，之后还往那里加条目的 PR 会在那一行冲突，把条目挪进 `changes/` 下的一个文件就好。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
@@ -84,6 +84,8 @@ tools/ci.sh --shard 1/2            # 只跑两个 shard 里的第 1 个，CI 的
 tools/ci.sh --changed              # 只跑这次改动用得到的组：和 origin/main 比（也可以写别的基准，tools/ci.sh --changed <基准>）
 python3 tools/ci_select.py --why   # 只说要跑哪些组、为什么，不跑
 ```
+
+**几个会话同时在这台机器上跑检查**：停自己的运行只按自己记下的 PID，不用 `pkill -f`；别人的 `vh-ci.*` 临时目录不动。
 
 **改着的时候按改动跑，推送前和合并前整跑。** `--changed` 看这次改了哪些文件：和基准的分叉点比，工作区里没提交、没 `git add` 的文件也算。它按 `tools/ci-paths.txt` 算出要跑的组，只跑这些。这张表一行是一个路径模式和它要跑的组。拿不准就整跑：表里没有的路径整跑，一行要窄就得有依据。依据是 `python3 tools/ci_select.py --check`（`tools/ci.sh` 跑它）：它从一行对上的每个文件出发，找出 import 它或在代码里写到它名字的文件，再一层层往外找；再找写到其中任何一个的 `bin/vh` 命令和跑这些命令的组，以及 `tools/ci.sh` 里写到它们的组。一行漏了其中哪一组，或者一路通到所有组，检查就不过。`python3 tools/ci_select.py --suggest` 打印每一行该写哪些组。所以现在大多数路径都整跑：`bin/vh`、引擎、模板、`CLAUDE.md` 和 `playbook/` 这类 agent 读的文档、风格和组件、`tools/` 下的共用工具（status、review、审阅台、jsonerr 和它们用到的）都没有行，几乎每一组都会经过它们。能省下时间的是外围的改动：变更记录、落地和这套检查自己的工具、几个只有一两组用的工具、给人看的页面。语法、文档和读量表这三组每次都跑。`tools/ci.sh` 本身看改在哪个函数里：改在哪个组里就跑哪个组，改在辅助函数里就跑调用它的组，改在开头或末尾的分发里就整跑。只跑了一部分组时，末尾会说跑了全部组里的几组。它省的只是改着时的等待：推送前照旧跑 `tools/ci.sh --committed`，PR 上的 CI 也照旧整跑。
 

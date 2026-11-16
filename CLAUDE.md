@@ -22,7 +22,7 @@
 
 三档管的是 agent 自己迭代、自查和评审做多少，不是成片质量的高低，也不决定停几次（见"停在哪"；只有 `quick` 不设人工关卡）：`quick` 一口气做完（自查一遍就交）、`standard` 标准（一轮独立评审，**默认**）、`studio` 精品（多轮打磨和评审）。三档出的都是正式画质的成片，守同样的底线。每档做多少，全表在 `playbook/01-pipeline.md` 的"努力程度"（`bin/vh effort <档位>` 打印）。
 
-- **怎么定**（优先级从高到低）：用户在对话里说的（"快速出一版""随便做个草稿"是 `quick`；只说"不用审、直接出""中间我不看"、没提档位的，也按 `quick`；"精品""发布用""认真打磨"是 `studio`）> BRIEF 的 `Effort:` 行 > `LOCAL.md` 的默认 > `standard`。档位不清楚、又会明显影响工作量时（例如一句话要做"发布片"），在关卡 ① 顺带问一句。
+- **怎么定**（优先级从高到低）：用户在对话里说的（"快速出一版""随便做个草稿"是 `quick`；只说"不用审、直接出"或"中间我不看"、而没提档位的，也按 `quick`；"精品""发布用""认真打磨"是 `studio`）> BRIEF 的 `Effort:` 行 > `LOCAL.md` 的默认 > `standard`。档位不清楚、又会明显影响工作量时（例如一句话要做"发布片"），在关卡 ① 顺带问一句。
 - **降档只能由用户决定**：`quick` 跳过人工关卡，所以必须来自用户本人（对话里说的，或用户自己写在 LOCAL.md、BRIEF 里的）。agent 不能为了省时间自己降档；时间紧也不是把 `studio` 做成 `standard` 的理由，做不完就说明情况，让用户决定。
 - **子代理和 reviewer 最费 token**：每个子代理都要从头读一遍文档。整支片子开 1–3 个就够（比如难做的一段、作曲、那一轮独立评审），不必每一章开一个，默认用便宜一档的模型（对话或 `LOCAL.md` 里指定了就照它）。按章节铺开并行、多轮评审、最强档的 reviewer，留给 `studio`，或者人点名要。
 - **评审有上限**：整片评审（全新上下文的 reviewer 看完整片、打满 8 项分）一支片子最多 10 轮；同一类问题最多改 5 次，改不动就写进 NOTES 的"已知局限"交给人；小修只查改过的那一段。细则见 `TASTE_CHECKLIST.md` 的打分层。
@@ -136,7 +136,7 @@ OpenVideoHarness/
 ├── skills/                   轻量 skill（`bin/vh install-skill` 装上的是指回这里的短桩，`git pull` 后不用重装）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用已装浏览器查网页事实、存参考页
 ├── video-types/              11 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
 ├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页和审阅台 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
-├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
+├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS；用到时再复制：SCRIPT、CHARACTER、PACKAGING；TASTE_CHECKLIST 不复制，自查和评审都读这里的一份
 ├── styles/                   风格预设（参考，不是模板）：STYLE.md + tokens.json + 真渲的 5 s 样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方和全片骨架
 ├── components/               能复用的动效（弹簧场景、翻页、纸面转场、章节进度条），各带参数表和样片；lib/ 是它们和样片共用的库

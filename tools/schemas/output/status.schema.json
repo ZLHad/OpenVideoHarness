@@ -59,7 +59,9 @@
        "said": {"type": "boolean"},
        "waived": {},
        "from": {"type": ["string", "null"]},
-       "concept_on_record": {"type": "boolean"}
+       "concept_on_record": {"type": "boolean"},
+       "concept_from": {"enum": ["REVIEW.md", "DECISIONS.md", null]},
+       "concept": {"type": ["string", "null"], "description": "gate ①'s 定了 line as written in REVIEW.md (what comes before 改了), not a reading of it"}
       }
      },
      "feedback": {
