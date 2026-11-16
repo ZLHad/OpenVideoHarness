@@ -2828,6 +2828,7 @@ PY
 desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid, desk_url and DESK_KEY
   local i a; desk_url=""
   "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 > "$2" 2>&1 & desk_pid=$!   # bin/vh execs python: $! is the server
+  desk_rec "$desk_pid"
   for i in $(seq 150); do   # up to 30 s; stop early if the server exits
     desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2")
     desk_key=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
@@ -3303,14 +3304,14 @@ PY
   then ok "gate and review: a page that breaks a rule is written but sends nothing, starts no desk and does not become this round; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
   else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
   # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
-  a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
+  a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?; desk_rec_of "$g"
   ka=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)   # gate's own message carries the launch key
-  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?   # a second stop: the desk starts again with a new key (the first may be spent)
+  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?; desk_rec_of "$g"   # a second stop: the desk starts again with a new key (the first may be spent)
   kb=$(printf '%s' "$b" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)
   "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!   # and the stop that waits: its own new link
   for rc3 in $(seq 100); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
   DESK_KEY=$(sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/gw.out" | head -n 1); export DESK_KEY
-  pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null)
+  pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null); desk_rec "$pid"
   url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
   python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
   only=$(python3 - "$url" <<'PY' 2>/dev/null
@@ -3338,7 +3339,7 @@ PY
   else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
-  "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!
+  "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!; desk_rec "$pid"
   for i in $(seq 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
   if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
   else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
@@ -3505,7 +3506,7 @@ PY
   mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
   printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
   printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
-  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!
+  "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!; desk_rec "$pid"
   for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
   DESK_KEY=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); export DESK_KEY
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
@@ -12021,6 +12022,21 @@ case "${1:-all}" in
     CI_RUN="The run" list=$(groups | awk '{ print $1 }') ;;
   *) echo "$usage" >&2; exit 2 ;;
 esac
+# the desks a check starts in the background (bin/vh gate's is in a session of its own) are recorded and stopped when the
+# run ends, also when a signal ends it: a run stopped half-way used to leave a desk running for its 12 h --idle. Only the
+# recorded pids, and only while each is still a desk (a pid reused since is someone else's process)
+CI_DESKS=$(mktemp "${TMPDIR:-/tmp}/vh-ci-desks.XXXXXX") || exit 2
+desk_rec() { [ -z "${1:-}" ] || echo "$1" >> "$CI_DESKS"; }   # desk_rec <pid>
+desk_rec_of() { desk_rec "$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$1/out/review/.desk.json" 2>/dev/null)"; }   # the desk bin/vh gate started for <project>
+reap_desks() {
+  local p
+  [ -f "$CI_DESKS" ] || return 0
+  while read -r p; do
+    case "$(ps -p "$p" -o command= 2>/dev/null)" in *tools/desk/desk.py*) kill "$p" 2>/dev/null ;; esac
+  done < "$CI_DESKS"
+  rm -f "$CI_DESKS"
+}
+trap reap_desks EXIT; trap 'exit 143' TERM; trap 'exit 129' HUP; trap 'exit 130' INT
 # no group to run is never a pass: a table gone, emptied or unreadable would make every run "all checks passed"
 [ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
 # shellcheck disable=SC2086   # one group a word

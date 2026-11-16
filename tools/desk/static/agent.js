@@ -14,7 +14,7 @@
 const ASTR = {
   zh: {
     tab_chat: "对话", tab_round: "这一轮", tab_ask: "待批准 {n}", tab_dec: "待你定 {n}", ask_bar: "{a} 在等你点头：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史", ag_hist_none: "这支片子还没有别的对话",
-    ag_idle: "空闲", ag_lookonly: "只能看", lookonly_b: "这一页只能看：页面顶上写着为什么，和换一条新链接的那一行。", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
+    ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
     u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
@@ -44,18 +44,18 @@ const ASTR = {
     too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
     turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
     turn_restart: "控制台重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
-    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_locked: "控制台的链接被打开了两次，它不再接受操作：这一轮停下了。", n_stopping: "正在停…",
+    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_locked: "控制台的地址在别处又打开过，它不再接受操作：这一轮停下了。", n_stopping: "正在停…",
     unknown: "{a} 发来一条这里还显示不了的更新（点开看原样）", working_dsh: "{a} 在做，回复会整段一起到", sec: "{n} 秒", min: "{m} 分 {s} 秒",
     m_default: "改动前都问", m_acceptEdits: "改文件不问", m_plan: "只出计划", m_auto: "危险的才问", m_bypassPermissions: "什么都不问",
     "m_read-only": "只读", "m_workspace-write": "只改项目里的", m_agent: "危险的才问", "m_agent-full-access": "不设限",
     e_off: "不推理", mdl_default: "默认", e_low: "低", e_medium: "中", e_high: "高", e_xhigh: "很高", e_max: "最高", e_ultra: "最高并分派", e_default: "默认",
     personal_on: "带上我的个人设置（放行规则、skills、插件）", personal_tip: "关掉：只带这个项目自己的设置，你的 skills、插件和放行规则都不带；模式还是 Claude Code 自己的默认，可以在上面改",
-    new_h: "开一个新对话", new_go: "开始", cancel: "先不", reconnect: "连接断了，正在重连…", reload: "控制台重启过：刷新这一页", gone_page: "这个对话找不到了",
+    new_h: "开一个新对话", new_go: "开始", cancel: "先不", reconnect: "连接断了，正在重连…", reload: "和控制台断开了", gone_page: "这个对话找不到了",
     err_send: "没发出去：{e}", sent_fail: "没发出去", scope_whole: "整个{x}",
   },
   en: {
     tab_chat: "Chat", tab_round: "This round", tab_ask: "{n} to allow", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History", ag_hist_none: "No other chats in this film yet",
-    ag_idle: "Idle", ag_lookonly: "Look only", lookonly_b: "This page can only look: the note at the top says why, and gives the line for a new link.", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
+    ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
     u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
@@ -85,13 +85,13 @@ const ASTR = {
     too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
     turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
     turn_restart: "The console restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
-    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_locked: "The console's link was opened twice, so it accepts nothing now: this turn was stopped.", n_stopping: "Stopping…",
+    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_locked: "The console's address was opened somewhere else, so it accepts nothing now: this turn was stopped.", n_stopping: "Stopping…",
     unknown: "{a} sent an update this page can't show yet (open it to see it as sent)", working_dsh: "{a} is working; its reply comes in one piece", sec: "{n} s", min: "{m} min {s} s",
     m_default: "Ask before changes", m_acceptEdits: "Edit without asking", m_plan: "Plan only", m_auto: "Ask only if risky", m_bypassPermissions: "Never ask",
     "m_read-only": "Read only", "m_workspace-write": "Edit the project only", m_agent: "Ask only if risky", "m_agent-full-access": "No limits",
     e_off: "Off", mdl_default: "Default", e_low: "Low", e_medium: "Medium", e_high: "High", e_xhigh: "Very high", e_max: "Max", e_ultra: "Max, delegating", e_default: "Default",
     personal_on: "Bring my personal settings (allow rules, skills, plugins)", personal_tip: "Off: only this project's settings, none of your skills, plugins or allow rules; the mode is still Claude Code's own default, which you can change above",
-    new_h: "Start a new chat", new_go: "Start", cancel: "Cancel", reconnect: "Connection lost, reconnecting…", reload: "The console restarted: reload this page", gone_page: "This chat is gone",
+    new_h: "Start a new chat", new_go: "Start", cancel: "Cancel", reconnect: "Connection lost, reconnecting…", reload: "Lost the console", gone_page: "This chat is gone",
     err_send: "Not sent: {e}", sent_fail: "Not sent", scope_whole: "the whole {x}",
   },
 };
@@ -184,7 +184,7 @@ const AGENT = (() => {
     ES = new EventSource(url);
     ES.addEventListener("hello", (m) => { try { const h = JSON.parse(m.data); S.live = h.live; S.caps = h.caps || {}; if (h.config) Object.assign(S.config, h.config); S.gone = false; schedule(); } catch (e) { /* a bad line */ } });
     ES.onmessage = (m) => { let e; try { e = JSON.parse(m.data); } catch (x) { return; } const was = Object.keys(S.perms).filter((r) => !S.perms[r].answered).length; apply(e); schedule(); if (e.type === "permission" && TAB !== "chat" && !was) toast(at("perm_h", { a: label(), v: verbWords(e.tool) })); };
-    ES.onerror = () => { if (S) { S.offline = ES && ES.readyState === 2 ? "closed" : true; schedule(); } };   // closed: the desk restarted (a new token) or the conversation is gone
+    ES.onerror = () => { if (S) { S.offline = ES && ES.readyState === 2 ? "closed" : true; schedule(); } if (ES && ES.readyState === 2 && typeof checkKey === "function") checkKey(); };   // closed: the desk restarted (a new token) or the conversation is gone
     ES.onopen = () => { if (S) { S.offline = false; schedule(); } };
     clearInterval(tick); tick = setInterval(() => { if (S && S.running) renderHead(); }, 1000);
   }
@@ -418,7 +418,7 @@ const AGENT = (() => {
       const cmd = m.install || `bin/vh desk agents install ${KIND}`;
       return `<div class="ag-empty"><h3>${esc(at("not_inst_h", { a: m.label }))}</h3><p>${at("not_inst_b", { s: esc(m.size || ""), l })}</p><div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div></div>`;
     }
-    if (!KEYOK) return `<div class="ag-empty"><h3>${esc(at("ag_lookonly"))}</h3><p>${esc(at("lookonly_b"))}</p></div>`;
+    if (!KEYOK) return "";   // the note above the column says it once, with what to do
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
     return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3><p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
   }

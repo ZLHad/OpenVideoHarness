@@ -102,6 +102,13 @@ def page_check():
         return f"the box is filled from something else: {sets}"
     if "<a " in js or "href=" in js.replace('href="${', ""):
         return "agent.js makes links"
+    core = (HERE / "static" / "core.js").read_text(encoding="utf-8")
+    gate = (ROOT / "tools" / "gate.py").read_text(encoding="utf-8")
+    said = re.findall(r'\b(?:nokey|key_reused|nokey_copied): "([^"]*)"', core) + re.findall(r'\b(?:reload|n_locked|perm_by_locked): "([^"]*)"', js) \
+        + re.findall(r'"(?:terminal|busy)": "([^"]*)"', gate)
+    shown = [x for x in said if re.search(r"(?i)钥匙|密钥|令牌|口令|token|\bkey\b|\?k=", x)]
+    if len(said) < 12 or shown:
+        return f"the words a person reads name the mechanism: {shown or len(said)}"
     node = shutil.which("node")
     if not node:
         return None   # the static part above still ran
@@ -160,6 +167,30 @@ def rules_check():
 
 # ---------- a desk with the stand-ins ----------
 
+BG = set()   # the desks a check starts (and bin/vh gate's, in a session of their own): stopped when this ends, by a signal too
+
+
+def bg_of(project):
+    """Note the desk bin/vh gate or bin/vh desk link started for this project."""
+    try:
+        BG.add(int(json.loads((Path(project) / "out" / "review" / ".desk.json").read_text())["pid"]))
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+
+
+def reap():
+    for pid in list(BG):
+        try:
+            cmd = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True, timeout=5).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if "tools/desk/desk.py" in cmd:   # still that desk, not a process that got its pid since
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+
+
 class Desk:
     def __init__(self, project, agents, timeout="2", extra=None):
         self.log = T / f"desk-{time.time_ns()}.log"
@@ -167,6 +198,7 @@ class Desk:
                    FAKE_ACP_LOG=str(T / "prompts.jsonl"), **(extra or {}))
         self.proc = subprocess.Popen([sys.executable, str(HERE / "desk.py"), str(project), "--port", "0"], stdout=open(self.log, "w"),
                                      stderr=subprocess.STDOUT, env=env, cwd=str(T))
+        BG.add(self.proc.pid)
         for _ in range(150):
             m = re.search(r"desk: (http://127\.0\.0\.1:(\d+)/)\?k=([A-Za-z0-9_-]+)", self.log.read_text())
             if m:
@@ -829,6 +861,7 @@ def attack_checks():
     # the desk the way a stop starts it: bin/vh gate, its key on stdin, its log in the project
     out = subprocess.run([str(ROOT / "bin" / "vh"), "gate", str(proj), "1", "--desk", "--port", "0"], env=env, capture_output=True,
                          text=True, timeout=90)
+    bg_of(proj)
     m = re.search(r"(http://127\.0\.0\.1:(\d+)/)\?k=([A-Za-z0-9_-]+)", out.stdout + out.stderr)
     info = json.loads((proj / "out" / "review" / ".desk.json").read_text()) if (proj / "out" / "review" / ".desk.json").exists() else {}
     try:
@@ -886,6 +919,7 @@ def link_checks():
 
     def run(*args):
         out = subprocess.run(vh + list(args), env=env, capture_output=True, text=True, timeout=120)
+        bg_of(proj)
         m = re.search(LINK, out.stdout)
         return out, (int(m.group(1)), m.group(2)) if m else (None, None)
 
@@ -983,7 +1017,86 @@ def link_checks():
                 pass
 
 
+def open_checks():
+    """bin/vh desk started in a terminal opens the person's browser at its address (and that page gets the token); with
+    --no-open, or started by no terminal (an agent, a background start), it opens nothing; bin/vh desk link in a terminal
+    opens the new address. $BROWSER stands in for the browser: a script that notes what it was asked to open."""
+    import pty, select, shlex
+    rec, br = T / "browser.log", T / "browser.sh"
+    br.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> {shlex.quote(str(rec))}\n")
+    br.chmod(0o755)
+    proj = T / "open"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
+    env = dict(os.environ, BROWSER=str(br), HOME=str(T / "home"), OVH_AGENTS_DIR=str(T / "none"))
+
+    def term(args, until, t=15):   # run desk.py with a terminal for its output; → (process, what it printed by then)
+        m, sl = pty.openpty()
+        p = subprocess.Popen([sys.executable, str(HERE / "desk.py"), *args], stdin=subprocess.DEVNULL, stdout=sl, stderr=sl, env=env, cwd=str(T))
+        os.close(sl)
+        BG.add(p.pid)
+        buf, t0 = b"", time.time()
+        while time.time() - t0 < t and not re.search(until, buf):
+            r, _, _ = select.select([m], [], [], 0.2)
+            if r:
+                try:
+                    buf += os.read(m, 4096)
+                except OSError:
+                    break
+        os.close(m)
+        return p, buf.decode("utf-8", "replace")
+
+    def opened():
+        return rec.read_text().splitlines() if rec.exists() else []
+
+    def token(url):
+        page = urllib.request.urlopen(url.split("#")[0]).read().decode()
+        t = re.search(r'name="desk-token" content="([^"]*)"', page)
+        return t.group(1) if t else ""
+
+    def stop(p):
+        p.terminate()
+        try:
+            p.wait(15)
+        except subprocess.TimeoutExpired:
+            p.kill()
+
+    p, out = term([str(proj), "--port", "0"], rb"opened it in your browser|no browser opened")
+    got = opened()
+    tok = token(got[0]) if got else ""
+    stop(p)
+    if not (len(got) == 1 and "?k=" in got[0] and tok and "opened it in your browser" in out):
+        return f"a terminal start: opened {got}, token {bool(tok)}, said {out[-160:]!r}"
+    rec.unlink()
+    p, out = term([str(proj), "--port", "0", "--no-open"], rb"desk: http")
+    time.sleep(1.5)
+    stop(p)
+    if opened():
+        return f"--no-open opened {opened()}"
+    log = T / "open-notty.log"
+    p = subprocess.Popen([sys.executable, str(HERE / "desk.py"), str(proj), "--port", "0"], stdin=subprocess.DEVNULL, stdout=open(log, "w"),
+                         stderr=subprocess.STDOUT, env=env, cwd=str(T))
+    BG.add(p.pid)
+    t0 = time.time()
+    while time.time() - t0 < 10 and "desk: http" not in log.read_text():
+        time.sleep(0.1)
+    time.sleep(1.5)
+    stop(p)
+    if opened():
+        return f"a start that is no terminal's opened {opened()}"
+    p, out = term(["link", str(proj)], rb"opened it in your browser|no browser opened", 40)
+    p.wait(20)
+    bg_of(proj)
+    got = opened()
+    tok = token(got[0]) if got else ""
+    if not (len(got) == 1 and "?k=" in got[0] and tok and "new address" in out):
+        return f"desk link in a terminal: opened {got}, token {bool(tok)}, said {out[-200:]!r}"
+
+
 if __name__ == "__main__":
+    import atexit
+    atexit.register(reap)
+    for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):   # a run stopped half-way still stops what it started
+        signal.signal(sig, lambda n, _f: sys.exit(128 + n))
     T.mkdir(parents=True, exist_ok=True)
     check("the adapter's environment: no provider key, none of the host session's ANTHROPIC_*/CLAUDE_CODE_* variables, the basics kept", env_check)
     check("bin/vh desk agents: none in an empty folder (and the column says how to install), the staged three at their pinned versions", catalog_check)
@@ -997,6 +1110,8 @@ if __name__ == "__main__":
     check("the launch key: a HEAD spends nothing; coming back to a page without this run's token it locks the desk (every token void, what waits refused, "
           "POSTs refused, the stream ends, the page told why and the line out); desk link and the next gate start it with a new key; mid-turn, link refuses "
           "and gate keeps its link", link_checks)
+    check("bin/vh desk in a terminal opens your browser at its address (that page gets the token); --no-open, or no terminal (an agent, a "
+          "background start), opens nothing; desk link in a terminal opens the new address", open_checks)
     try:
         server_checks()
     except Exception as e:

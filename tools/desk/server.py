@@ -1185,17 +1185,32 @@ def link_cmd(project=None, roots=()):
     return " ".join(["bin/vh desk link"] + ([short(project)] if project else []) + [w for r in roots for w in ("--root", short(r))])
 
 
-def serve(project=None, port=None, idle=None, roots=(), only=False, key=None):
+def open_in_browser(url):
+    """Open the console address in the person's default browser (a start from a terminal), and say whether it did. The
+    address may pass through a child process's arguments for a moment (xdg-open, open), which ps can see."""
+    try:
+        import webbrowser
+        ok = webbrowser.open(url, new=2)
+    except Exception:
+        ok = False
+    print("desk: opened it in your browser" if ok else "desk: no browser opened: open the address above", flush=True)
+    return ok
+
+
+def serve(project=None, port=None, idle=None, roots=(), only=False, key=None, open_browser=False):
     """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. project None: the console.
     port None: the first free of 8780–8799; 0: any free port. only: this project and nothing else under the roots (the desk
     bin/vh gate starts). key: the launch key, given by the one who prints it (bin/vh gate, on stdin); then the address this
-    prints has none. → exit code."""
+    prints has none. open_browser: open the address in the person's browser once it serves (a start from a terminal).
+    → exit code."""
     project = Path(project).resolve() if project else None
     url = running(project, roots)
     if url:
         what = project.name if project else "the console"
-        print(f"desk: already serving {what} at {url} (its link with the key is where it started; {link_cmd(project, roots)} starts it again "
-              "with a new one)", flush=True)
+        print(f"desk: already serving {what} at {url} (open the address it printed when it started; {link_cmd(project, roots)} "
+              "gives a new one)", flush=True)
+        if open_browser:   # this browser may already work in it; if not, the page says what to do
+            open_in_browser(url)
         return 0
     srv, last = None, None
     for p in ([port] if port is not None else DEFAULT_PORTS):
@@ -1242,6 +1257,8 @@ def serve(project=None, port=None, idle=None, roots=(), only=False, key=None):
         srv.key = key
     shown = srv.url if key else f"{srv.url}?k={srv.key}"   # the one place the key is written, when nobody else prints it
     print(f"desk: {shown}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    if open_browser and not key:   # a start from a terminal: the person's browser opens the console address, and nobody need copy it
+        threading.Thread(target=open_in_browser, args=(f"{srv.url}?k={srv.key}",), daemon=True).start()
     code = 0
     try:
         srv.serve_forever(poll_interval=0.25)

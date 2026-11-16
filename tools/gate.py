@@ -43,12 +43,12 @@ IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without 
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
 SAY = {"zh": {"desk_wait": "审阅台：{url}（勾选、点评、提交；我在后台等着，你一提交我就接着做）",
               "desk": "审阅台：{url}（勾选、点评、提交，然后回到这里说一声“看审阅台”）",
-              "terminal": "（这个审阅台是在终端里启动的：它在那里打印的链接带着钥匙。这个浏览器打不开、或者要换一个浏览器，运行 {cmd}，用它打印的新链接）",
-              "busy": "（控制台里的 agent 正在这个项目上做事，没有给审阅台换新链接。这个浏览器打不开时，等它做完运行 {cmd}，用它打印的新链接）"},
+              "terminal": "（这个审阅台是在终端里起的：用终端里那条控制台地址打开。要换个浏览器，或者这一页只能看，在终端里运行 {cmd}，它会给一个新地址）",
+              "busy": "（控制台里的 agent 正在这个项目上做事，审阅台没有重启，地址还是原来那条。这一页只能看的话，等它做完在终端里运行 {cmd}，它会给一个新地址）"},
        "en": {"desk_wait": "Review desk: {url} (tick, comment, submit; I'm waiting and carry on as soon as you submit)",
               "desk": "Review desk: {url} (tick, comment, submit, then tell me here: “check the desk”)",
-              "terminal": "(This desk was started in a terminal: the link it printed there has the key. If this browser can't open it, or you need another browser, run {cmd} and use the new link it prints)",
-              "busy": "(An agent in the console is working on this project, so the desk kept its link. If this browser can't open it, run {cmd} once it's done and use the new link it prints)"}}
+              "terminal": "(This desk was started in a terminal: open the console address it printed there. For another browser, or if the page can only look, run {cmd} in a terminal; it gives a new address)",
+              "busy": "(An agent in the console is working on this project, so the desk kept its address. If the page can only look, run {cmd} in a terminal once it's done; it gives a new address)"}}
 
 
 CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/01-pipeline.md, 导演模式)
@@ -243,8 +243,8 @@ def main(argv):
                                 f"Start it by hand: bin/vh desk link {a.project}")
         base, _, query = url.partition("?")   # ?k=…: the launch key, when this command started the desk
         print(f"✓ review desk {base} (" + {"started": "started, in the background, with a new link", "restarted": "started again with a new link: the earlier one is void",
-                                           "terminal": "already serving: started in a terminal, whose link has the key",
-                                           "busy": "already serving: an agent in its column is mid-turn, so it kept its link"}[how] + ")", file=sys.stderr)
+                                           "terminal": "already serving: started in a terminal, whose own address is the one to open",
+                                           "busy": "already serving: an agent in its column is mid-turn, so it kept its address"}[how] + ")", file=sys.stderr)
         lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=base.rstrip("/") + "/" + (f"?{query}" if query else "") + "#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
         if how in ("terminal", "busy"):
             lines.append(SAY[page.lang][how].format(cmd=server.link_cmd(project)))

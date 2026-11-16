@@ -5,10 +5,8 @@
    these functions read (D, PKEY, SUB) and runs them. */
 const STR = {
   zh: {
-    brand: "片场", nokey: "这一页只能看：它不是从控制台打印的那条链接打开的。要提交、和 agent 说话，在终端里运行下面这一行，打开它打印的新链接（旧链接随之作废）。",
-    key_reused: "这条链接已经被用过一次：可能是你在别的浏览器或窗口里打开过，也可能是别的程序抢先用了。现在这台控制台不再接受操作。在终端里运行下面这一行，打开它打印的新链接。",
-    key_locked: "这台控制台不再接受操作：它的链接被打开了两次（可能是你在别的浏览器或窗口里打开过，也可能是别的程序抢先用了）。在终端里运行下面这一行，打开它打印的新链接。",
-    key_stale: "控制台重启过，这一页手里的令牌作废了：打开它新打印的链接；找不到就在终端里运行下面这一行。",
+    brand: "片场", nokey: "这一页现在只能看。要操作，请点终端里（或 agent 发给你的）那条控制台地址。找不到的话，在终端里运行：",
+    key_reused: "这个控制台地址已经在别处打开过（可能是你在别的浏览器或窗口里，也可能是别的程序抢先了），所以这台控制台现在不再接受操作。要接着用，在终端里运行下面这一行，它会给你一个新地址：",
     nokey_copy: "复制", nokey_copied: "复制好了：粘到终端里运行", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
@@ -137,10 +135,8 @@ const STR = {
     no_play: "只有一张画面，没什么可播",
   },
   en: {
-    nokey: "This page can only look: it was not opened from the link the console printed. To submit or talk to an agent, run the line below in a terminal and open the new link it prints (the old one stops working).",
-    key_reused: "This link was already used once: maybe you opened it in another browser or window, maybe another program got to it first. This console accepts nothing now. Run the line below in a terminal and open the new link it prints.",
-    key_locked: "This console accepts nothing now: its link was opened twice (maybe by you in another browser or window, maybe by another program first). Run the line below in a terminal and open the new link it prints.",
-    key_stale: "The console was restarted, so this page's token no longer works: open the new link it printed, or run the line below in a terminal for one.",
+    nokey: "This page can only look for now. To work in it, open the console address from your terminal (or the one your agent sent you). Can't find it? Run this in a terminal:",
+    key_reused: "This console address was already opened somewhere else (maybe by you in another browser or window, maybe by another program first), so the console accepts nothing now. To carry on, run this in a terminal; it gives you a new address:",
     nokey_copy: "Copy", nokey_copied: "Copied: paste it into a terminal",
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, then copy it to your agent",

@@ -5,7 +5,9 @@ comments and submits.
                                                 <repo>/projects, each --root), a card a film, waiting ones first; a project's
                                                 page (its stops, its film with the ruler, what to decide, its checks and
                                                 documents); a stop's gate view, where the options are cards to pick and
-                                                one button submits. Already running with these roots: print its URL
+                                                one button submits. Started in a terminal it opens your browser at the
+                                                console address it prints (--no-open: not). Already running with these
+                                                roots: print its URL
   bin/vh desk <project> [--root DIR …] [--port N] [--idle s] [--only]   the same page, opened on that project, every
                                                 other film a click away in the space. Default port: the first free of
                                                 8780–8799 (--port 0: any free port). Already serving this project: print
@@ -19,11 +21,12 @@ comments and submits.
   bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none); it then
                                                 counts as handed over (out/review/feedback/.consumed)
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
-  bin/vh desk link [<project>] [--root DIR …] [--force]   a new link: the desk serving this project (or the console of
-                                                these roots) stops and starts again in the background, alike, on the same
-                                                port, and this prints its address with a new one-time key; every token of
-                                                the old link is void. For a link used up, lost, or opened by someone else
-                                                (the page says so). An agent mid-turn in its column: refused (--force stops it)
+  bin/vh desk link [<project>] [--root DIR …] [--force]   a new console address: the desk serving this project (or the
+                                                console of these roots) stops and starts again in the background, alike, on
+                                                the same port, and this prints the new address (in a terminal it opens your
+                                                browser there too); the old address no longer works. For an address lost, or
+                                                opened somewhere else first (the page says so). An agent mid-turn in its
+                                                column: refused (--force stops it)
   bin/vh desk agents [--json]                   the agents the console's column can talk to (Claude Code, Codex, DeepSeek
                                                 Harness): installed or not, the pinned adapter version, where they live
   bin/vh desk agents install <claude|codex|dsh>   install that agent's ACP adapter, pinned, outside the repo
@@ -72,6 +75,8 @@ def main(argv):
                                                                  "prints it in its message; the address the desk prints then has none)")
         ap.add_argument("--only", action="store_true", help="serve this project and nothing else under the roots (bin/vh gate's "
                                                             "desk); without it the space has every film")
+        ap.add_argument("--no-open", action="store_true", help="started in a terminal it opens your browser at its address; this leaves "
+                                                               "it to you (started otherwise it never opens one)")
     elif sub == "wait":
         ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100, under Claude Code's 2 h)")
     elif sub == "feedback":
@@ -98,7 +103,9 @@ def main(argv):
         if a.key_stdin and not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", key or ""):
             print("desk: --key-stdin: no key on stdin", file=sys.stderr)
             return 2
-        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only, key)
+        opened = sys.stdout.isatty() and not a.no_open and not a.key_stdin   # a person's terminal; an agent or a background start prints only
+        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only, key,
+                            opened)
     project = find(a.project)
     if not project:
         jsonerr.mark("no_project")
@@ -127,6 +134,7 @@ def link_cmd(argv):
     ap.add_argument("project", nargs="?", help="project folder, or its name under projects/; left out: the console")
     ap.add_argument("--root", action="append", default=[], metavar="DIR", help="the console's folders, as it was started with")
     ap.add_argument("--force", action="store_true", help="also when an agent in its column is mid-turn (that turn stops)")
+    ap.add_argument("--no-open", action="store_true", help="in a terminal it opens your browser at the new address; this leaves it to you")
     ap.add_argument("--json", action="store_true", help="{url} on stdout")
     a = ap.parse_args(argv)
     for r in a.root:
@@ -147,8 +155,10 @@ def link_cmd(argv):
     full = f"{base}?{q}" + (f"#/p/{quote(server.keyify(project.name, project), safe='')}" if project else "")
     if a.json:
         print(json.dumps({"version": 1, "url": full}))
-    else:
-        print(f"desk: {full}\n  open it in the browser you review in: the link works once, and the one before it is void", flush=True)
+        return 0
+    print(f"desk: {full}\n  the console's new address: the one before it no longer works", flush=True)
+    if sys.stdout.isatty() and not a.no_open:
+        server.open_in_browser(full)
     return 0
 
 

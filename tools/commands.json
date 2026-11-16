@@ -1194,7 +1194,7 @@
       ],
       "usage": [
         {
-          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
           "text": [
             "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio's shell: modules on the left,",
             "the film's stops on top, on the right a conversation with an agent and what waits for the person. No project: the space,",
@@ -1202,9 +1202,10 @@
             "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
             "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
-            "The address it prints carries a one-time key (?k=…): the page opened with it is the one that can submit and talk to agents.",
-            "link: that desk (or the console) stops and starts again alike with a new key, and this prints the new address: for a link",
-            "used up, lost, or opened first by someone else (the page says so; every token of the old link is void).",
+            "The address it prints is the console address: the browser that opens it can submit and talk to agents. Started in a",
+            "terminal it opens your browser there (--no-open: not); an agent gives the person the address instead.",
+            "link: that desk (or the console) stops and starts again alike, and this prints its new address (and opens it, in a",
+            "terminal): for an address lost, or opened somewhere else first (the page says so); the old address no longer works.",
             "The column's other tab talks to an agent on this machine in the film's folder; agents: which are installed, and",
             "install <kind>: its pinned adapter, outside the repo (it uses the person's own login)"
           ]
