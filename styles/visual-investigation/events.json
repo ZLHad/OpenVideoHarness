@@ -1,0 +1,9 @@
+[
+  {"t":0.55,"sfx":"air","gain_db":-10,"pan":0,"dur":0.95,"bright":0.4,"tone":0.5,"pan_from":-0.7,"pan_to":0.7},
+  {"t":1.95,"sfx":"swoosh_tonal","gain_db":-12,"pan":0,"dur":0.8,"dir":"up","tone":0.4},
+  {"t":2.225,"sfx":"click","gain_db":-8,"pan":-0.5,"role":"hero","pitch":3},
+  {"t":3.013,"sfx":"click","gain_db":-8,"pan":-0.1,"role":"hero","pitch":6},
+  {"t":3.888,"sfx":"click","gain_db":-8,"pan":0.25,"role":"hero","pitch":-2},
+  {"t":4.5,"sfx":"tick","gain_db":-12,"pan":-0.4,"pitch":4},
+  {"t":7.5,"sfx":"air","gain_db":-11,"pan":0,"dur":0.8,"bright":0.3,"tone":0.5,"pan_from":0.7,"pan_to":-0.7}
+]

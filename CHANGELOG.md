@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**Five new styles on swatch spec 2: a paper desk dossier, a lacquer screen, a visual investigation, a relief map, a dark 3D studio**
+- Why: the first round of growing the library past 33. These five fill gaps the library had: real material on paper, a dark East Asian craft, an evidence-led news look, a map that measures real terrain, and a 3D route for the batch of 3D styles to come.
+- `paper-desk-dossier` (纸桌档案, print-collage): a camera travels along a cream sheet on a walnut desk; two public-domain Watkins photographs, an index card that types itself, a stamp and a visible red pen land with their weight. Landscape and portrait.
+- `lacquer-screen` (漆金螺钿屏风, traditional-craft): a six-panel black lacquer screen unfolds in perspective, a gold-tipped brush writes one line across the folds, mother-of-pearl set in at the turns, one vermilion seal.
+- `visual-investigation` (视觉调查, news-documentary): a scanned night floor plan rises into wireframe as the camera tilts; a running timecode, an event track and numbered callouts with time and source. The event is invented and neutral. Landscape and portrait.
+- `map-explainer` (立体地图解说, map-data): a generated shaded relief (no real place, no borders), the camera pushing in and tilting, a route growing leg by leg with heights read off the terrain, the title in a legend box. Landscape and portrait.
+- `dark-studio-3d` (暗棚实物 3D, 3d-light): a steel gear, bearing and nut built in three.js under softbox reflections and rim lights, exploding and dropping back with weight, and a spec card whose mass is worked out from the model's volume. About 1.5 minutes to render (cost: minutes).
+- `styles/_swatch/render.sh` copies the pinned three.js r186 build (`engines/canvas-film/three/build`) into every stage as `three/`, so a swatch can be 3D without its own copy; `styles/_swatch/README.md` says how to import it.
+- The site lists the five with their thumbnails; the style counts are 38. The full swatches are registered in `tools/media.txt` for the release `styles-media` (not uploaded).
+- Checked: each passes `bin/vh style check <slug> --text` and `--determinism` (1 against 3 workers, 240/240 frames identical, both aspects where there are two).
+
 **Credit for other people's work moves to ACKNOWLEDGMENTS.md; the docs teach a method without saying whose post it came from**
 - Why: the README's thanks put the libraries the films are made with next to projects, posts and accounts we had only read, and many docs said "from X's post" or "learned from X" in the middle of a method. Someone reading a method does not need the name, and the thanks belong in one place.
 - README's Thanks lists only the libraries and tools the films are made with, one line each with what it does, and links to `ACKNOWLEDGMENTS.md`. The related-projects table stays, without "inspired ours".

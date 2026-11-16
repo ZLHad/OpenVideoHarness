@@ -86,6 +86,7 @@ export function texts(lib) {
 - `ctx` 是 `lib.W`×`lib.H` 的 `CanvasRenderingContext2D`：横版 1920×1080，竖版 1080×1920（`lib.PORTRAIT`）。版式从 `lib.W`、`lib.H`、`lib.SAFE` 算，同一份场景画两个版本。每帧调用前运行时会执行 `ctx.reset()`，像素和状态（变换、alpha、filter、字体……）全部清空，所以 `renderAt` 必须从背景开始画满整帧。
 - `tokens` 是解析后的 `tokens.json`；`lib` 是 `lib.js` 整个模块。
 - 需要着色器时，用 `lib.shader(frag)` 在离屏 WebGL2 canvas 上跑一个全屏片元着色器，再 `ctx.drawImage(fx.render(t, uniforms, textures), 0, 0)` 合进来。输入纹理可以是任何 canvas，所以"先用 2D 画，再过一遍 shader（半调、CRT、色差）"也能做到。
+- 需要 3D 时用 three.js：仓库钉住的 r186（`engines/canvas-film/three/`，许可在它的 `NOTICE.md`）由 `render.sh` 复制进 stage 的 `three/`，场景在 `setup` 里 `THREE = await import(new URL("../../three/build/three.module.js", import.meta.url).href)`（动态导入：`foley.mjs` 在 Node 里读 `FOLEY` 时不加载它），画进一张离屏的 `WebGLRenderer`（`preserveDrawingBuffer: true`），再 `ctx.drawImage` 合进来。只带 `build/`：addons 按名字导入 `three`，stage 没有 import map。确定性模式下它在 SwiftShader 上渲，逐字节确定（`dark-studio-3d`：1 个 worker 每帧约 0.2–0.3 s）。
 - 同目录的图片等素材用模块相对路径加载：`const img = new Image(); img.src = new URL("./paper.png", import.meta.url); await img.decode();`（放在 `setup` 里）。素材必须是自己做的或许可允许的。
 - 风格文件夹里不能有 `.html` 文件（一个根目录只能有一个 composition，`render.sh` 会拒绝）。
 

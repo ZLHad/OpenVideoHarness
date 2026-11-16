@@ -1,0 +1,20 @@
+{
+  "bpm": 120, "key": "D", "mode": "minor", "seed": 63,
+  "meters": {"1": 3, "2": 3, "3": 3, "4": 5, "5": 2},
+  "stereo": true, "space": {"type": "plate", "rt60": 1.8},
+  "sections": [
+    {"name": "world", "bars": 1, "chords": ["i"]},
+    {"name": "signature", "bars": 2, "chords": ["VI", "VII"]},
+    {"name": "type", "bars": 1, "chords": ["i"]},
+    {"name": "close", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "drone", "id": "bed", "figure": "sustain", "hold": "section", "octave": 2, "gain_db": -7, "lp": 700, "send": 0.25},
+    {"inst": "polysynth", "id": "pad", "figure": "sustain", "octave": 3, "voicing": "close", "gain_db": -13, "lp": 2000, "send": 0.4, "pan": 0.1,
+     "params": {"attack": 0.4, "release": 1.0}},
+    {"inst": "sub808", "id": "low", "loop": 5, "gain_db": -6, "params": {"retrigger": true},
+     "pattern": [[0, 1.5, "D2", 0.6], [3, 1.5, "Bb1", 0.6], [6, 1.5, "C2", 0.6], [9, 2, "D2", 0.62], [14, 1, "D2", 0.5]]},
+    {"inst": "seq", "id": "pulse", "pattern": "x.x.x.x.", "step": 8, "octave": 4, "gain_db": -16, "lp": 1600, "send": 0.3, "pan": -0.2, "params": {"attack": 0.01}},
+    {"inst": "roomtone", "gain_db": -12}
+  ]
+}
