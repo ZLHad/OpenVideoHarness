@@ -8792,7 +8792,7 @@ PY
 }
 
 activity_checks() {
-  local t p a b c rc rc2 i pid want la lp
+  local t p a b c rc rc2 i pid want la lp n
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
   cp -R tools/desk/fixtures/zh "$p"
   vh review "$p" 1 >/dev/null 2>&1; rc=$?
@@ -8938,8 +8938,12 @@ PY
   # the reader: the human lines, --json, and --follow as the log grows; bin/vh new logs into the project it made
   vh review "$p" 1 >/dev/null 2>&1; vh review "$p" 9 >/dev/null 2>&1
   a=$(vh activity "$p"); b=$(vh activity "$p" --json)
+  # (no fixed sleeps: the follower has printed what the log held, then watches it; the review's end line is waited for)
   "$VH_BASH" "$ROOT/bin/vh" activity "$p" --follow --json > "$t/follow.out" 2>&1 & pid=$!
-  sleep 1; vh review "$p" 1 >/dev/null 2>&1; sleep 1.2; kill $pid 2>/dev/null; wait $pid 2>/dev/null
+  for _ in $(seq 1 300); do [ -s "$t/follow.out" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.1; done; sleep 0.2
+  n=$(grep -c '"event": "start"' "$t/follow.out"); vh review "$p" 1 >/dev/null 2>&1
+  for _ in $(seq 1 300); do [ "$(grep -c '"event": "start"' "$t/follow.out")" -gt "$n" ] && tail -n 1 "$t/follow.out" | grep -q '"event": "end"' && break; sleep 0.1; done
+  kill $pid 2>/dev/null; wait $pid 2>/dev/null
   if case "$a" in *"review . 1"*"✓"*"gate-1.html"*"review . 9"*"✗ exit 2"*) true ;; *) false ;; esac && python3 - "$b" "$t/follow.out" <<'PY'
 import json, sys
 d = json.loads(sys.argv[1]); f = [json.loads(l) for l in open(sys.argv[2], encoding="utf-8") if l.strip()]
@@ -9585,7 +9589,7 @@ film_chrome() {   # film_chrome: whether the page tools find a headless Chrome (
 # bin/vh render and patch (tools/film) on the same fixtures: chunks and keyframes, motion blur and alpha, the queue and
 # its resume, the disk floor, patch's windows, versions, --in-place, proxy and thumbs (where ffmpeg and ffprobe are)
 render_checks() {
-  local t a rc
+  local t a rc pid
   film_chrome || { no_chrome "render"; return; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
@@ -9652,22 +9656,28 @@ PY
     else bad "render --motion-blur ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 200) | $(printf '%s' "$d" | tail -c 200)"; fi
     # a render stopped with blurred chunks kept, then the same command without the blur, or with --motion-blur 1: those
     # chunks are not taken, it starts over (the record compares the keys either render has). The page hangs on a time off
-    # the frame grid after 0.1 s, so the blurred render keeps its first chunk and stops at --frame-timeout, while an
-    # unblurred one draws only grid times. One stopped render: its chunk and record copied back before each of the two
+    # the frame grid after 0.1 s: the blurred render finishes its first chunk (frames 0-2) and waits on frame 3's
+    # sub-frames, while an unblurred one draws only grid times. It is stopped as a Ctrl-C would stop it (SIGTERM, which
+    # keeps the finished chunks) once its first chunk is on disk, not by a timeout, so a slow machine stops it at the same
+    # place (a --frame-timeout of 2 s failed on CI's macOS when the first chunk took longer). bin/vh execs node, so $! is
+    # the render. One stopped render: its chunk and record copied back before each of the two
     sed 's|frame(t) {|frame(t) { if (t > 0.1 \&\& Math.abs(t * 30 - Math.round(t * 30)) > 1e-6) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/mb/stops.html"
-    vh render "$t/mb/stops.html" --motion-blur 4 --gop 3 --workers 1 --frame-timeout 2 --no-estimate --out "$t/mb/resume.mp4" >/dev/null 2>&1; rc=$?
+    "$VH_BASH" "$ROOT/bin/vh" render "$t/mb/stops.html" --motion-blur 4 --gop 3 --workers 1 --frame-timeout 600 --no-estimate --out "$t/mb/resume.mp4" >/dev/null 2>"$t/mb/stop.err" & pid=$!
+    for _ in $(seq 1 3000); do [ -s "$t/mb/.resume.mp4.parts/part0000.mp4" ] && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    kill -TERM "$pid" 2>/dev/null; wait "$pid"; rc=$?
     cp -R "$t/mb/.resume.mp4.parts" "$t/mb/stopped" 2>/dev/null
     for flag in "" "--motion-blur 1"; do
       say=${flag:-"no --motion-blur"}
       rm -rf "$t/mb/.resume.mp4.parts"; cp -R "$t/mb/stopped" "$t/mb/.resume.mp4.parts" 2>/dev/null
       # shellcheck disable=SC2086
       a=$(vh render "$t/mb/stops.html" $flag --gop 3 --workers 1 --no-estimate --out "$t/mb/resume.mp4" 2>&1); rc2=$?
-      if [ "$rc:$rc2" = 1:0 ] && grep -q "the 1 chunks kept from an earlier render are not used (changed: the motion blur); starting over" <<<"$a" \
+      if [ "$rc:$rc2" = 143:0 ] && [ -s "$t/mb/stopped/part0000.mp4" ] && [ ! -e "$t/mb/stopped/part0001.mp4" ] \
+         && grep -q "the 1 chunks kept from an earlier render are not used (changed: the motion blur); starting over" <<<"$a" \
          && python3 -c 'import subprocess, sys
 y = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-vf", "select=eq(n\\,2)", "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout
 sys.exit(0 if len(y) == 160 * 90 and not [v for v in y[45 * 160:46 * 160] if 38 < v < 213] else 1)' "$t/mb/resume.mp4"
       then ok "render, $say: the blurred chunk a stopped render kept is not taken (the motion blur changed), the film drawn sharp"
-      else bad "render, $say, over a blurred chunk a stopped render kept (exit $rc:$rc2): $(printf '%s' "$a" | head -c 400)"; fi
+      else bad "render, $say, over a blurred chunk a stopped render kept (exit $rc:$rc2; kept: $(ls "$t/mb/stopped" 2>/dev/null | tr '\n' ' ')): $(printf '%s' "$a" | grep -v '^render: ' | head -c 400) | the stopped render: $(tail -c 300 "$t/mb/stop.err")"; fi
     done
     # canvas-film's fadeOut reaches black on the last frame, which is drawn one frame before the film's end; the frames before it are not black yet
     vh new short fo --engine canvas-film --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-fo 2>/dev/null)
