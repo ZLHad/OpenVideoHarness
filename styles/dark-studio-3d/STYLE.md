@@ -87,7 +87,7 @@ camera slightly above, the object right of centre and the type in the dark at le
 
 ## 引擎做法
 
-- **引擎：Blender（Cycles）路径追踪**，场景是 `swatch.py`（`styles/_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 是另一个样板）。正式版 CPU 32 spp、自适应阈值 0.02、OIDN 降噪：这台 M3 Max 每帧约 RENDER_TIME，240 帧约 RENDER_TOTAL；草稿走 GPU，每帧约 3–5 s。确定性按仓库的口径：CPU 上逐像素相同。
+- **引擎：Blender（Cycles）路径追踪**，场景是 `swatch.py`（`styles/_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 是另一个样板）。正式版 CPU 32 spp、自适应阈值 0.02、OIDN 降噪：这台 M3 Max 每帧 12–27 s（中位数 16.6 s），240 帧 70 分钟；草稿走 GPU，每帧约 3–5 s。确定性按仓库的口径：CPU 上逐像素相同。
 - **为什么不用 Three.js**：先用 Three.js 做了一版（离屏 WebGL，SwiftShader 每帧 0.3 s），又加了逐帧的立方体贴图反射、模糊的接触阴影和景深后处理（每帧 1.2 s），和 Cycles 的同一套零件各渲几帧比过：光栅化的反射、接触阴影和景深都是近似，零件之间互相映照、孔里的底座、钢球里的齿轮这些"真"的东西做不出来。Three.js 适合卡通渲染、霓虹、点云这类不靠真实光的 3D；要"实物"的高级感走 Cycles。
 - **字在场景里**：说明卡、标题、字幕是文字曲线和面片，挂在一个跟着相机走的空物体上，放在对焦距离处（所以清楚），只对相机光线可见（不投影、不进反射、不照亮别的东西），按屏幕像素排版：1 单位 = 1920 宽画面里的 1 px。所以底座下面不能有地面挡在对焦距离之前，画面左下要空着。`bin/vh style check --text` 对 Blender 场景只量读时（`TEXTS`），安全框、遮挡、对比度要在帧上看。
 - **引线**：一根细长的方块，一头在说明卡的右边，一头在齿轮前沿的一个齿上（随转台转），两头都在对焦面附近，所以都清楚。
