@@ -1,6 +1,6 @@
 """bin/vh studio: show Studio, the console (bin/vh desk), in a window of its own: from a terminal, from an agent ("打开
 Studio"), or from the launcher icon this also installs. One window a console: not open yet, it opens; open, it comes
-to the front, never a second. (A film outside Studio's folders has a desk of its own, and so a window of its own.)
+to the front, never a second; a film outside Studio's folders joins Studio's space and opens in that same window.
 
   bin/vh studio [<project>] [--print-address] [--json]
       Studio running: its window comes to the front (or is made, when it was closed), on that film when one is named; no
@@ -8,7 +8,8 @@ to the front, never a second. (A film outside Studio's folders has a desk of its
       background first (it stops by itself 12 h after its last page closes). The window is a Chromium-family browser
       named outright (Chrome, Chromium, Edge or Brave) with Studio's own profile and no address bar (tools/desk/window.py);
       it counts as open only when its page connects back, and otherwise this tries once more, then a tab of the default
-      browser, and says what happened. A film outside Studio's folders opens in its own desk (bin/vh desk <project>).
+      browser, and says what happened. A film outside Studio's folders joins Studio's space (the last fifty such films
+      are kept beside the console's own file) and opens in the same window, not in a desk of its own.
       The same when an agent runs it: the person asked for the window. Nothing secret is printed.
       --print-address: for a browser on another machine (no screen here): show nothing; write an address that opens one
       page, once, within ten minutes, to your terminal and nowhere else (not stdout, not --json, not a log). Refused with
@@ -56,62 +57,52 @@ def _console():
     return server.running_info(None, [])
 
 
-def _in_console_roots(project):
-    import projects as PJ
-    real = os.path.realpath(str(project))
-    try:
-        return any(os.path.realpath(r["path"]) == real for r in PJ.listing([])["projects"])
-    except (Exception, SystemExit):
-        return False
-
-
-def _place(url, project, own):
-    """Where the page opens: the project's place (/p/<key>) in its own desk, or in Studio's listing; Studio's home."""
+def _place(url, project):
+    """Where the page opens: the film's place (/p/<key>) in Studio's space, joining it first when it is outside Studio's
+    folders (server.join: Studio's one window, not a desk of its own); Studio's home without a film. → (place, joined)."""
     import launch, server
-    from urllib.parse import quote
     if not project:
-        return ""
-    if own:
-        return "/p/" + quote(server.keyify(project.name, project), safe="")
-    return launch.place(url, project) or ""
+        return "", False
+    at = launch.place(url, project)
+    if at:
+        return at, False
+    joined = server.join(project)
+    return (launch.place(url, project) or "") if joined else "", joined
 
 
 def open_studio(project=None, print_address=False, owner=None):
-    """→ (record, exit code). The record: url (an address that opens nothing by itself), opened, how (front, open,
-    window, tab), started, pid, where (studio | desk). print_address: a fresh start only, its address with a one-time code
-    written to the terminal (printed: "terminal"), never into the record."""
+    """→ (record, exit code). The record: url (an address that opens nothing by itself), opened, how (front, open, app,
+    window, tab), started, pid, joined (a film outside Studio's folders, now in its space). print_address: a fresh start
+    only, its address with a one-time code written to the terminal (printed: "terminal"), never into the record."""
     import launch, server
-    console = _console()
-    own = project is not None and not (launch.place(console["url"], project) if console else _in_console_roots(project))
-    target = project if own else None   # a film outside Studio's folders: its own desk (every other film a click away there too)
-    info = server.running_info(target, [])
-    rec = {"version": 1, "tool": "bin/vh studio", "where": "desk" if own else "studio", "project": str(project) if project else None}
+    info = server.running_info(None, [])
+    rec = {"version": 1, "tool": "bin/vh studio", "where": "studio", "project": str(project) if project else None}
     if print_address:
         if not server.has_terminal():
             return dict(rec, error=server.NO_TERMINAL, refused=True), 1
         if info:
             return dict(rec, refused=True, error="Studio is running already, and an address for another computer comes only with a fresh "
                         "start; this never closes a window that is open. To start it again on purpose (its window closes): bin/vh desk link "
-                        + (f"{project} " if own else "") + "--print-address"), 1
-        url, why = launch.start(target, [], False, None, launch.IDLE, True, owner)
+                        "--print-address"), 1
+        url, why = launch.start(None, [], False, None, launch.IDLE, True, owner)
         if not url:
             return dict(rec, error=why), 1
-        info = server.running_info(target, []) or {}
-        at = _place(url, project, own)
+        info = server.running_info(None, []) or {}
+        at, joined = _place(url.partition("?")[0], project)
         printed = server.to_terminal(server.address_words(url + (f"#{at}" if at else "")))
-        return dict(rec, url=url.partition("?")[0] + (f"#{at}" if at else ""), opened=False, started=True, pid=info.get("pid"),
+        return dict(rec, url=url.partition("?")[0] + (f"#{at}" if at else ""), opened=False, started=True, pid=info.get("pid"), joined=joined,
                     printed="terminal" if printed else None), 0 if printed else 1
     started = False
     if not info:
-        url, why = launch.start(target, [], False, None, launch.IDLE, False, owner)
+        url, why = launch.start(None, [], False, None, launch.IDLE, False, owner)
         if not url:
             return dict(rec, error=why), 1
-        info, started = server.running_info(target, []) or {"url": url}, True
+        info, started = server.running_info(None, []) or {"url": url}, True
     url = info["url"]
-    at = _place(url, project, own)
+    at, joined = _place(url, project)
     shown = launch.show(url, at)
     rec.update(url=url + (f"#{at}" if at else ""), opened=bool(shown.get("opened")), how=shown.get("how"), why=shown.get("why"), started=started,
-               pid=info.get("pid"), owner=info.get("owner"))
+               pid=info.get("pid"), owner=info.get("owner"), joined=joined)
     return rec, 0 if rec["opened"] else 1
 
 
@@ -598,7 +589,7 @@ def main(argv):
         print("Studio started in the background: the address for another computer is in your terminal." if rec.get("printed")
               else "Studio started in the background, but its address could not be written to your terminal", flush=True)
     elif rec.get("opened"):
-        print(server.said(rec) + ("" if rec["where"] == "studio" else f" (on {project.name}, in its own desk: it is outside Studio's folders)")
+        print(server.said(rec) + (f" ({project.name} is outside Studio's folders: it joined Studio's space)" if rec.get("joined") else "")
               + ("\n  It started in the background; it stops by itself 12 h after its window closes." if rec.get("started") else ""), flush=True)
     else:
         _say(server.said(rec, icon=a.icon == "open"))

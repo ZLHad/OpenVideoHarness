@@ -3990,10 +3990,10 @@ studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its la
   # HOME and TMPDIR (no console or window of this machine's is found or touched), the stand-in window, no screen needed.
   # One window, always: made once, raised after (from an agent and from a terminal; two at once), made again when it was
   # closed or its console was killed; a page that never connects is tried once more, then a browser tab; no Chromium-family
-  # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders opens in
-  # its own desk; --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
+  # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders joins
+  # Studio (no desk or window of its own); --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
   # that moved, doctor's line, the picture, install.sh's question and the release's check
-  local t a b c d e rc rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p w1 w2 w3 wq tab3 tab4 left claims
+  local t a b c d e g rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p w0 w1 w2 w3 wq tab3 tab4 left claims listed
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
   mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
   cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
@@ -4087,12 +4087,25 @@ PY
   then ok "studio: a window whose page never connects is closed and tried once more, then a tab of the default browser, and that is said; with no Chromium-family browser a tab, said so; with neither, exit 1 and a sentence that says what happened and what to run (from the icon: click it again, or ask your agent; no command)"
   else bad "studio: the fallbacks (exits $rc/$rc2/$rc3/$rc4): $a | $w3 | tabs $tab3/$tab4 | $b | $c | $d"; fi
   rm -rf "$t/tab"
-  # a film outside Studio's folders opens in its own desk; the icon's open (its console) / alive / quit (the console and its
+  # a film outside Studio's folders joins Studio's space and opens in its one window (bin/vh studio <film>; bin/vh gate while
+  # Studio runs), no desk or window of its own; the icon's open (its console) / alive / quit (the console and its
   # window go; one bin/vh studio started is left); --print-address: refused with no terminal (nothing starts), the address in
   # the terminal alone (not on stdout), opening one page once; refused while Studio runs (the same console, not restarted)
   rm -rf "$t/prof"; mkdir -p "$t/prof"
   a=$(BROWSER=/usr/bin/false studio_run "$t/outside" --json < /dev/null 2>/dev/null); rc=$?
-  b=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$t/outside/out/review/.desk.json" 2>/dev/null); desk_rec "$b"
+  b=$(st_console_pid); desk_rec "$b"
+  rm -rf "$t/outside2"; cp -R tools/desk/fixtures/demo "$t/outside2"
+  g=$(TMPDIR="$t/tmp" HOME="$t/home" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" OVH_STUDIO_ACTIVATE="$t/raise" "$VH_BASH" "$ROOT/bin/vh" gate "$t/outside2" 1 --desk --json < /dev/null 2>/dev/null); rcg=$?
+  listed=$(python3 - "$t" <<'PY'
+import glob, json, os, sys, urllib.request
+t = sys.argv[1]
+info = json.load(open(glob.glob(t + "/tmp/ovh-desk-*/console-*.json")[0]))
+rows = json.loads(urllib.request.urlopen(info["url"] + "api/projects").read())["projects"]
+paths = {os.path.realpath(r["path"]) for r in rows}
+print(sum(os.path.realpath(t + "/" + x) in paths for x in ("outside", "outside2")), sum(os.path.exists(f"{t}/{x}/out/review/.desk.json") for x in ("outside", "outside2")))
+PY
+)
+  w0=$(st_win)
   studio_run < /dev/null >/dev/null 2>&1; desk_rec "$(st_console_pid)"
   studio_run --icon quit --json > "$t/q0" 2>&1; rc2=$?   # Studio was started by bin/vh studio, not the icon: left as it is
   st_stop
@@ -4120,15 +4133,17 @@ for _ in range(2):
 print(" ".join(out))
 PY
 )
-  if [ $rc = 0 ] && case "$a" in *'"where": "desk"'*'#/p/outside~'*'"opened": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
+  if [ $rc = 0 ] && case "$a" in *'"where": "studio"'*'#/p/outside~'*'"opened": true'*'"joined": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
+    && [ $rcg = 0 ] && case "$g" in *"这一站已经在 Studio 窗口里打开了"*) true ;; *) false ;; esac && [ "$listed" = "2 0" ] \
+    && [ "$(printf '%s\n' $w0 | grep -c '^launch$')" = 1 ] && ! printf '%s' "$w0" | grep -q second \
     && [ $rc2 = 0 ] && grep -q '"stopped": false' "$t/q0" && [ $rc3 = 1 ] && [ $rc4 = 0 ] && [ $rc5 = 0 ] && [ $rc6 = 0 ] && grep -q '"stopped": true' "$t/q1" && [ $rc7 = 1 ] \
     && [ "$left" = 0 ] && case "$wq" in *closed) true ;; *) false ;; esac \
     && [ $rc8 = 0 ] && [ -n "$k" ] && [ "$claims" = "200 403" ] && case "$d" in *"opens one page, once, within ten minutes"*) true ;; *) false ;; esac \
     && ! grep -q '?c=' "$t/pa" && grep -q 'is in your terminal' "$t/pa" && [ "$(grep -c '?c=' "$t/pa.tty")" = 1 ] \
     && [ $rc9 = 1 ] && [ -z "$n2" ] && case "$n" in *"writes the address to your terminal and nowhere else"*) true ;; *) false ;; esac \
     && [ $rc10 = 1 ] && [ "$(st_console_pid)" = "$pid2" ] && case "$e" in *'"refused": true'*"bin/vh desk link --print-address"*) true ;; *) false ;; esac && case "$e" in *'?c='*) false ;; *) true ;; esac
-  then ok "studio: a film outside Studio's folders opens in its own desk; the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address: refused with no terminal and nothing started, the address in the terminal alone, its code working once; refused while Studio runs, which goes on"
-  else bad "studio: its own desk, the icon's open/alive/quit, --print-address (exits $rc $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8 $rc9 $rc10, windows left $left, claims $claims): $a | $(cat "$t/q0" "$t/q1") | $c | $wq | $d | $n | $e"; fi
+  then ok "studio: a film outside Studio's folders joins Studio's space and opens in its one window (bin/vh studio <film>, and bin/vh gate while Studio runs: no desk or window of its own); the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address: refused with no terminal and nothing started, the address in the terminal alone, its code working once; refused while Studio runs, which goes on"
+  else bad "studio: a film from outside, the icon's open/alive/quit, --print-address (exits $rc $rcg $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8 $rc9 $rc10, listed/own desks $listed, windows $w0, left $left, claims $claims): $a | $g | $(cat "$t/q0" "$t/q1") | $c | $wq | $d | $n | $e"; fi
   [ -z "$pid2" ] || kill "$pid2" 2>/dev/null; [ -z "$b" ] || kill "$b" 2>/dev/null
   # Studio's own app (tools/desk/shell): the stand-in app ($OVH_STUDIO_SHELL=fixtures/studio_shell.py) in place of Electron.
   # One app, one window a desk: made once, raised after, two at once, the line handed over on stdin (no code on its command

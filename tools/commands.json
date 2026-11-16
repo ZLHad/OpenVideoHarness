@@ -1161,8 +1161,8 @@
           "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s] [--print-address] [--json]",
           "text": [
             "a stop in one command: checks out/review/gate-<n>.json, builds",
-            "the review page and makes it this round, opens the review desk when the stop is reviewed there (Studio when it runs",
-            "and has the project; the desk shows its window at the stop itself, and the message says so, with no address)",
+            "the review page and makes it this round, opens the review desk when the stop is reviewed there (Studio when it runs,",
+            "a film outside its folders joining it; the desk shows its window at the stop itself, and the message says so, with no address)",
             "(LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;",
             "--wait (desk): then waits for the submission like desk wait (tools/gate.py)"
           ]
@@ -1239,7 +1239,7 @@
       "when": "whenever the person wants to open Studio or a film in it: say it, or click the icon; --install-icon once per machine",
       "stages": ["any", "env"],
       "reads": [
-        "the running console's info file in this user's temp folder (ovh-desk-<uid>/), or <project>/out/review/.desk.json for a film outside Studio's folders",
+        "the running console's info file in this user's temp folder (ovh-desk-<uid>/), and beside it console-<…>.films.json, the films outside Studio's folders that joined its space (the last fifty)",
         "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects), to open on one"
       ],
       "writes": [
@@ -1252,7 +1252,7 @@
           "text": [
             "show Studio's one window (tools/desk/studio.py, window.py, tools/desk/README.md): raised when it is open, made when",
             "not, the console started in the background when it does not run (it stops 12 h after its window closes); a",
-            "project: on that film (one outside Studio's folders opens in its own desk, with its own window). An agent runs it too",
+            "project: on that film (one outside Studio's folders joins Studio's space, in the same window). An agent runs it too",
             "when the person asks to open Studio. --print-address: no screen here (ssh): show nothing, write an address that opens",
             "one page, once, within ten minutes, to the terminal alone; refused with no terminal and while Studio runs"
           ]

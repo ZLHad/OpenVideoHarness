@@ -590,6 +590,7 @@ class Desk(http.server.ThreadingHTTPServer):
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
         self._lock = threading.Lock()
         self._listing = (0.0, None)
+        self._joined_m = 0
         self._keys = {self.own_key: self.project} if self.project else {}
         self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
 
@@ -755,15 +756,19 @@ class Desk(http.server.ThreadingHTTPServer):
         import status as S
         with self._lock:
             when, rec = self._listing
-            if rec is not None and not fresh and time.time() - when < LISTING_TTL:
+            jm = self._joined_mtime()
+            if rec is not None and not fresh and time.time() - when < LISTING_TTL and jm == self._joined_m:
                 return rec
+            self._joined_m = jm
             if self.only:
                 rec = {"version": 1, "roots": [], "count": 1, "projects": [PJ.row(self.project, self.project.name, S, False)]}
             else:
                 rec = PJ.listing(self.roots)
-                if self.project and not any(os.path.realpath(r["path"]) == os.path.realpath(str(self.project)) for r in rec["projects"]):
-                    rec["projects"].append(PJ.row(self.project, self.project.name, S, False))
-                    rec["count"] = len(rec["projects"])
+                extra = ([str(self.project)] if self.project else []) + self.joined()
+                for x in extra:   # the project it was started for, and the films that joined this console
+                    if not any(os.path.realpath(r["path"]) == os.path.realpath(x) for r in rec["projects"]):
+                        rec["projects"].append(PJ.row(Path(x), Path(x).name, S, False))
+                rec["count"] = len(rec["projects"])
             keys = {self.own_key: self.project} if self.project else {}
             for r in rec["projects"]:
                 p = Path(r["path"])
@@ -777,6 +782,23 @@ class Desk(http.server.ThreadingHTTPServer):
                 r["key"] = k
             self._keys, self._listing = keys, (time.time(), rec)
             return rec
+
+    def joined(self):
+        """The films outside the roots that joined this console (bin/vh studio or gate on such a film: join()), each a
+        folder that is still a project (BRIEF.md). None for a desk of one project."""
+        p = joined_path(self.roots) if self.project is None else None
+        try:
+            got = json.loads(p.read_text()) if p else []
+        except (OSError, ValueError):
+            return []
+        return [x for x in got if isinstance(x, str) and os.path.isabs(x) and os.path.isfile(os.path.join(x, "BRIEF.md"))][:50]
+
+    def _joined_mtime(self):
+        p = joined_path(self.roots) if self.project is None else None
+        try:
+            return p.stat().st_mtime_ns if p else 0
+        except OSError:
+            return 0
 
     def project_of(self, key):
         """The folder a key names, or None. A key not seen yet walks the roots once more, at most once in FRESH_GAP seconds
@@ -1337,6 +1359,34 @@ def _info_path(project, roots=()):
         return None
     which = hashlib.sha1("\n".join(sorted(os.path.realpath(r) for r in roots)).encode("utf-8")).hexdigest()[:10]
     return d / f"console-{which}.json"
+
+
+def joined_path(roots=()):
+    """The films a console shows beside its roots': the last fifty opened in Studio from outside them, a list beside its
+    info file in this user's own folder in the temp folder (0700), so a restart (bin/vh desk link) keeps them."""
+    p = _info_path(None, roots)
+    return p.with_name(p.stem + ".films.json") if p else None
+
+
+def join(project, roots=()):
+    """A film outside the console's roots joins its space (bin/vh studio <film>, bin/vh gate on the desk channel while
+    Studio runs), so it opens in Studio's one window instead of a desk and window of its own. → True when it is in."""
+    p = joined_path(roots)
+    real = os.path.realpath(str(project))
+    if p is None or not os.path.isfile(os.path.join(real, "BRIEF.md")):
+        return False
+    try:
+        cur = [x for x in json.loads(p.read_text()) if isinstance(x, str)] if p.exists() else []
+    except (OSError, ValueError):
+        cur = []
+    if real not in cur:
+        try:
+            tmp = p.with_name(p.name + f".{os.getpid()}.tmp")
+            tmp.write_text(json.dumps((cur + [real])[-50:]))
+            os.replace(tmp, p)
+        except OSError:
+            return False
+    return True
 
 
 def _own_dir():

@@ -218,7 +218,7 @@ Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地
 - **在终端里**：`bin/vh studio`，或者 `bin/vh studio <项目>` 直接打开到那支片子。
 - **对 agent 说**"打开 Studio"：它运行同一条命令，窗口就出来了。
 
-不管哪种方式，里面都是同一个页面：没装 OVH Studio 时，窗口用的是你电脑上的 Chrome、Edge、Chromium 或 Brave，配一个 Studio 自己的资料目录；这几样都没有时，开在默认浏览器的一个标签页里。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点一下，窗口回来，停在原来的地方。退出 OVH Studio，Studio 就停了。放在 Studio 文件夹以外的片子，开在它自己的审阅台里，有它自己的一个窗口，和 Studio 的并排。
+不管哪种方式，里面都是同一个页面：没装 OVH Studio 时，窗口用的是你电脑上的 Chrome、Edge、Chromium 或 Brave，配一个 Studio 自己的资料目录；这几样都没有时，开在默认浏览器的一个标签页里。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点一下，窗口回来，停在原来的地方。退出 OVH Studio，Studio 就停了。放在 Studio 文件夹以外的片子，在 Studio 里打开时会加进 Studio，也在同一个窗口里。
 
 ## 工具一览
 

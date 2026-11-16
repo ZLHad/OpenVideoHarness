@@ -218,7 +218,7 @@ Studio is where you see every film, review a stop and talk to the agents on this
 - **In a terminal:** `bin/vh studio`, or `bin/vh studio <project>` to land on that film.
 - **Tell your agent** "open Studio" (or "打开 Studio"): it runs the same command, and the window appears.
 
-It is the same page whichever way it shows: without OVH Studio installed, the window is your Chrome, Edge, Chromium or Brave with a profile of Studio's own; with none of those, a tab of your default browser. Closing the window leaves Studio running in the background, so an agent at work carries on, and the next click brings the window back where it was. Quitting OVH Studio stops it. A film kept outside Studio's folders opens in a review desk of its own, with a window of its own beside Studio's.
+It is the same page whichever way it shows: without OVH Studio installed, the window is your Chrome, Edge, Chromium or Brave with a profile of Studio's own; with none of those, a tab of your default browser. Closing the window leaves Studio running in the background, so an agent at work carries on, and the next click brings the window back where it was. Quitting OVH Studio stops it. A film kept outside Studio's folders joins Studio when you open it there, so it is in the same window too.
 
 ## What's in the box
 

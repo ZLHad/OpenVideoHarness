@@ -197,8 +197,8 @@ def channel_of(project, flag=None):
 
 
 def start_desk(project, gate, port=None, print_address=False):
-    """The desk for this stop, its window shown at this stop's gate view: Studio (the console) when it runs and lists this
-    project; else the desk serving this project, or a new one started in its own session (it outlives this command). The
+    """The desk for this stop, its window shown at this stop's gate view: Studio (the console) when it runs, this project
+    joining its space when it is outside Studio's folders; else the desk serving this project, or a new one started in its own session (it outlives this command). The
     window gets its access from the desk itself; nothing secret is in this command's output. print_address: show nothing;
     a fresh desk of this project (main refuses while one runs; Studio is left alone), and its address with a one-time code
     back, which main writes to the terminal alone.
@@ -210,6 +210,8 @@ def start_desk(project, gate, port=None, print_address=False):
     if not print_address:
         console = server.running_info(None, [])
         at = launch.place(console["url"], project) if console else None
+        if console and not at and server.join(project):   # a film outside Studio's folders joins the Studio that runs
+            at = launch.place(console["url"], project)
         if at:
             return console["url"], "studio", launch.show(console["url"], at + route), None
     at = "/p/" + quote(server.keyify(project.name, project), safe="") + route
