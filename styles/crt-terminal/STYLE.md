@@ -100,6 +100,6 @@ Visual style: monochrome CRT terminal. Everything on screen is a real character 
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/ascii-crt/STYLE.md`（LemoLab，CC BY 4.0）：字符按墨量排序成密度梯度、字号即镜头、余辉 τ、单色管没有 RGB 栅格、不做芯片音乐，这几条来自它；本文把它的"字变成图"换成了更日常的终端语法（打字、日志、状态栏、窗口）。
-- `references/community-skills.md` §3：OpenMontage 的规则"CLI / 终端演示用合成录屏，不录真实屏幕"（AGPL，只读其思路）。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/ascii-crt/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：把"字变成图"换成了更日常的终端语法（打字、日志、状态栏、窗口）。
+- CLI / 终端演示用合成的录屏，不录真实屏幕（这条规则的上下文见 `references/community-skills.md` 第 3 节）。
 - `video-types/08-brutalist-meme.md`、`video-types/03-product-promo.md`；`playbook/08-vfx-and-motion-sources.md`（光效不能把字烧掉）。

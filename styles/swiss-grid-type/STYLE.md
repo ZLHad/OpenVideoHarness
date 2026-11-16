@@ -118,6 +118,6 @@ Visual style: the International Typographic Style in motion. A visible modular g
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/swiss-motion/STYLE.md`（LemoLab，CC BY 4.0）：同一语法的完整样片。"时值即时长""删除是一刀""规则加一个例外"来自它；本文改写了网格、BPM 和字体选择（本机渲染直接用系统里的 Helvetica Neue；lemo 要分发字体文件，所以选了 OFL 字体）。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/swiss-motion/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：改写了网格、BPM 和字体选择（本机渲染直接用系统里的 Helvetica Neue；原文要分发字体文件，所以选了 OFL 字体）。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Swiss Pulse。
 - `video-types/05-data-story.md`、`video-types/03-product-promo.md`、`playbook/03-motion-design.md` §4 排版。

@@ -11,7 +11,7 @@
 - 2026-09-28 Stacked sines, not epicycles — reason: 24 s, silent; one graph lets the equation and the curve share colours term by term; epicycles need a second representation to explain.
 - 2026-09-28 Colours by entity, not by harmonic: every harmonic is blue while being added and yellow once absorbed (avoids the banned rainbow; blue→yellow *is* the "adding" read).
 - 2026-09-28 Pure black bg although `templates/TASTE_CHECKLIST.md` #10 flags pure black: the type doc (`video-types/01`) prescribes #000000 and takes precedence.
-- 2026-09-28 Grid spans the whole safe box (no lecture column as in Code2Video's right-side grid). Curves/braces/magnifier are placed in *data* coordinates of grid-placed plot rects; only text and plot rects go through `GRID`.
+- 2026-09-28 Grid spans the whole safe box (no lecture column, so the grid is not confined to the right side). Curves/braces/magnifier are placed in *data* coordinates of grid-placed plot rects; only text and plot rects go through `GRID`.
 - 2026-09-28 Zoom = inset panel (parent shrinks to C1–E3 and stays, magnifier box + link lines), not a camera zoom — follows the type doc's "parent stays visible, 30–40% of frame" and avoids Cairo stroke widths scaling with camera zoom.
 - 2026-09-28 D5/D7 run faster than the type doc's "play 1–3 s + 0.5–2 s hold": third and fourth repetition of the same move, per 3b1b `animation-design-thinking.md` "tempo variation". Every hold ≥ 0.2 s.
 - 2026-09-28 Equation font 46 (glyph x-height ≈ 25 px, bbox 133 px with fractions). TASTE #6 "≥ 44 px auxiliary" is interpreted as cap/fraction line height; math needs its own rule (see showcase README friction list).

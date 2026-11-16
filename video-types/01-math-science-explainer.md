@@ -10,12 +10,12 @@
 - **首选**：Manim CE（要配旁白时再加 manim-voiceover）。公式、几何和坐标系都很精确，LLM 语料多；manim-voiceover 还能在某个词出现时触发动画。
 - **备选**：
   - HyperFrames + KaTeX，适合公式少、排版多的讲解；
-  - Remotion + KaTeX，社区案例 @dotey 的 Transformer 讲解就是用它做的。
+  - Remotion + KaTeX，`cases/community-prompts.md` 里那支 Transformer 讲解就是用它做的。
 - 安装方法见 `engines/README.md`。本机已有 MacTeX，所以 `MathTex` 可以直接用。
 
 ## 工作流
 
-1. **确定受众层级**。高中、本科、研究生和业界的写法差别很大，读 `references/repos/3brown1blue/src/three_b1b/skill/audiences/` 下对应的文件。
+1. **确定受众层级**。高中、本科、研究生和业界的写法差别很大；按层级分好的现成写法，见 `references/community-skills.md` 第 1 节"01 数学 / 科学讲解"。
 2. **写 SCRIPT.md**：
    - 从具体的问题或例子切入，再引出一般规律；
    - 开头 30 秒内讲清为什么要关心这件事；
@@ -30,7 +30,7 @@
    - 先用 `manim -ql` 快速渲染；报错按 ScopeRefine 的顺序修（`playbook/06-research-mechanisms.md`）；
    - 渲染后先打印所有对象的包围盒，检查有没有重叠，再看联系表（网格和包围盒审计的现成实现：`showcase/03-math-fourier/scenes/style.py`）；
    - 最终用 `-qh --fps 30` 出片（`-qh` 默认 60fps，`-qk` 是 4K60）。
-7. **写代码前先读**：`3brown1blue/src/three_b1b/skill/SKILL.md` 开头的 Gotchas，里面是 Manim CE 最常见的崩溃原因，比如 `MathTex` 里不要写 `$`、`Transform` 之后要换成 `ReplacementTransform`。
+7. **写代码前先过一遍 Manim CE 最常见的崩溃原因**，比如 `MathTex` 里不要写 `$`、`Transform` 之后要换成 `ReplacementTransform`。完整清单是 `references/community-skills.md` 第 1 节"01 数学 / 科学讲解"里那份 3b1b 式讲解 skill 开头的 Gotchas。
 
 ## 审美要点
 
@@ -82,23 +82,16 @@ Place objects only via a 6x6 anchor grid (A1–F6) in the animation area; print 
 - 每个场景是否只讲了一个 insight？
 - 结尾是否落在"观众现在多懂了什么"的那个画面上，而不是一张总结清单？
 - 结论文字至少完整可读 2.5 秒；放大、转场的中途，有没有不透明的底色把被放大的部分盖住？（showcase 03 的评审就抓到过这一点）
-- 画面在演示一个数学性质时，数据是不是脚本算出来、并且 assert 过的？坐标和数字不能凭记忆手填。abstract-algebra-promo 的 `e8.py` 从定义生成 E8 根系，断言正好 240 个根、8 个单根，再把投影坐标写成 JSON；`qr.py` 生成 H 级纠错的二维码，把画面上要撕掉的那块分别涂白、涂黑各渲一张，用 OpenCV 解码，断言两种情况都还读得出原文。脚本和它写出的数据一起放进项目，页面直接读这份数据（它是手工嵌进 `promo.html` 的，重跑脚本不会更新画面，这一步别学）；NOTES.md 记下断言了什么。见 `cases/opus55-gallery.md` §7。
+- 画面在演示一个数学性质时，数据是不是脚本算出来、并且 assert 过的？坐标和数字不能凭记忆手填。`cases/opus55-gallery.md` §7 那支抽象代数宣传片的 `e8.py` 从定义生成 E8 根系，断言正好 240 个根、8 个单根，再把投影坐标写成 JSON；`qr.py` 生成 H 级纠错的二维码，把画面上要撕掉的那块分别涂白、涂黑各渲一张，用 OpenCV 解码，断言两种情况都还读得出原文。脚本和它写出的数据一起放进项目，页面直接读这份数据（它是手工嵌进 `promo.html` 的，重跑脚本不会更新画面，这一步别学）；NOTES.md 记下断言了什么。
 - Manim 陷阱：传给 `self.play(..., rate_func=...)` 的 `rate_func` 会覆盖其中每个动画自己的缓动函数。想让各个动画用不同的缓动，就分开 play，或者只在动画上设置。
 - Manim 陷阱：`always_redraw` 每次重绘都会丢失 `z_index`，因为 `Mobject.become()` 只复制点和样式。结果所有动态曲线都停在图层 0，不透明面板会盖住它们。需要包一层，每次重绘后把 `z_index` 设回去，实现见 `showcase/03-math-fourier/scenes/` 里的 `live()`。showcase 03 前三版的放大转场闪黑，根源就是这个。
 
 ## 可参考的案例与源码
 
 - `cases/explainer-code2video.md`：Planner-Coder-Critic、锚点网格、ScopeRefine。
-- `cases/opus55-gallery.md` §7：abstract-algebra-promo，一支 4 分 23 秒的抽象代数宣传片（Canvas/WebGL，没有许可证，只读）。可看它按小节排的场景表、不跨切点的子帧运动模糊、脚本算出并断言的数学数据，以及代码合成的配乐。
-- `references/repos/3brown1blue/src/three_b1b/skill/`：
-  - `rules/` 下的 `animation-design-thinking.md`、`explanation-design.md`、`equations.md`、`equation-derivations.md`、`visual-design-principles.md`、`pedagogy-checklist.md`、`voiceover.md`、`troubleshooting.md`；
-  - `domains/`：数学、物理、算法、ML 各自的套路；
-  - `references/repos/3brown1blue/src/three_b1b/skill/templates/equation_explainer.py`：公式讲解的场景模板。
+- `cases/opus55-gallery.md` §7：一支 4 分 23 秒的抽象代数宣传片（Canvas/WebGL，没有许可证，只读）。可看它按小节排的场景表、不跨切点的子帧运动模糊、脚本算出并断言的数学数据，以及代码合成的配乐。
 - `references/repos/Code2Video/prompts/stage3.py`（锚点网格的 prompt）、`src/scope_refine.py`（报错修复）。
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **MathLens**（README 声明 CC BY-NC 4.0，只读）：`wait_for_narration(keyword)` 让动画等旁白说出关键词才触发；`assert_geometry()` 在动画前先校验几何事实和画布范围。见 `references/repos/MathLens/SKILL.md`、`references/repos/MathLens/templates/script_scaffold.py`。
-- **lemo-opuscar 的 `whiteboard` 风格**（MIT；2026-09-29 之前的快照为 CC BY 4.0）：一块白板一镜到底，逐笔写出，最后拉远看全板，是 3b1b 黑底之外的另一种画风。见 `references/repos/lemo-opuscar/styles/whiteboard/STYLE.md`。
+同类社区 skill（3b1b 式讲解的规则和场景模板、等旁白说到关键词再触发的动画、白板画风）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"01 数学 / 科学讲解"。只读参考；复用代码前先确认许可。

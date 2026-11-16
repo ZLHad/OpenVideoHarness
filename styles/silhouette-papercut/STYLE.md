@@ -108,8 +108,6 @@ Sound: scissors, paper slides, cardboard thuds, a music-box pluck and soft pad i
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/papercut-red/STYLE.md`（LemoLab，CC BY 4.0，https://creativecommons.org/licenses/by/4.0/）。本文的红剪纸一路改编自该文：夜里背景用靛蓝纸、主角才用红纸，阴刻 + 内轮廓分开红叠红，团花按 1/8 楔形镜像，纸边抖动和纸厚投影。数值按本仓库重定。
-- `references/repos/lemo-opuscar/styles/paper-lantern/`、`paper-popup/`（纸雕灯箱、立体书，CC BY 4.0）。
-- `references/repos/story-to-handdrawn-video/references/handdrawn-style-library.json` 的 `hs-225`（肌理剪纸拼贴绘本，MIT）。
+- 本文的红剪纸一路改写自 LemoLab 的 lemo-opuscar `styles/papercut-red/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：数值按本仓库重定。
 - `video-types/07-hand-drawn.md`（剪纸风：3–5 层、投影 4–8px、12 fps、±1–2°）、`playbook/03-motion-design.md`。
 - 相近预设：`styles/shadow-puppet/`（背光、半透明、有签子，和本预设分清）。

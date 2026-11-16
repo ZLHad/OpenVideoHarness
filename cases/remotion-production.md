@@ -1,7 +1,7 @@
-# 案例：Claude Code + Remotion 生产实践（Chris Tyson）
+# 案例：Claude Code + Remotion 生产实践
 
 **类型**：通用的生产流水线
-**来源**：[The Agent Architect，2026-08-24](https://theagentarchitect.substack.com/p/claude-code-remotion-video-rendering)。以下细节来自对原文的摘要，没有逐字核对。
+**说明**：一篇 2026-08-24 发表的生产实践长文。以下细节来自对原文的摘要，没有逐字核对。
 
 ## 流水线
 
@@ -24,7 +24,7 @@
 | 以为改好了，其实没有 | 磁盘上残留的旧输出文件被当成了新结果 | 渲染前先删旧文件，或检查修改时间 |
 | 素材缺失没有被发现 | S3 返回 403，把缺失的错误掩盖了 | 渲染前先检查所有素材 URL 是否可访问 |
 
-他的原则：Claude Code 不应该是自己作品的唯一评审。
+原文的一条原则：Claude Code 不应该是自己作品的唯一评审。
 
 ## Remotion 的确定性规则（来自官方 skills）
 

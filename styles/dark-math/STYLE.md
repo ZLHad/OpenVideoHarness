@@ -99,6 +99,4 @@ Visual style: dark mathematical explainer. Pure black background, no glow, no pa
 ## 相关资源
 
 - `video-types/01-math-science-explainer.md`（审美要点、禁止项、Prompt 增量块都以它为准）；`showcase/03-math-fourier/`（STYLE.md、`scenes/style.py`、成片）。
-- `references/repos/3brown1blue/src/three_b1b/skill/` 的 `rules/`（动画设计、公式推导、视觉原则）。
-- lemo-opuscar 没有暗底数学风格；亮底的替代口味是 `references/repos/lemo-opuscar/styles/whiteboard/STYLE.md`（LemoLab，CC BY 4.0），一块白板一镜到底。
 - `playbook/06-research-mechanisms.md`（Code2Video 的锚点网格和 ScopeRefine）。

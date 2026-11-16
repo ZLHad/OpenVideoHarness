@@ -89,6 +89,6 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 来源
 
-改写自 gongnyang/awesome-ai-motion（MIT）的卡片 toggle-slide。文字重写；时序沿用卡片，按 30 fps 换算；弹簧用本仓库 `lib.spring` 的闭式解，三个开关依次拨动的草图是本仓库写的。卡片注明的概念来源（react-bits）只是手法出处，没有代码进来。
+改写自 gongnyang/awesome-ai-motion（MIT）的卡片 toggle-slide。文字重写；时序沿用卡片，按 30 fps 换算；弹簧用本仓库 `lib.spring` 的闭式解，三个开关依次拨动的草图是本仓库写的。
 
 **许可**：本文件修改自 [awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion) 在 commit `1e3c249` 时的 `effects/toggle-slide/README.md`（Copyright (c) 2026 gongnyang，MIT），改了什么见上一段。来自上游的部分仍按 MIT 授权，许可全文见 [`LICENSES/MIT-awesome-ai-motion.txt`](../LICENSES/MIT-awesome-ai-motion.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

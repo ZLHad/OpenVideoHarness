@@ -393,7 +393,7 @@ Most of the workflow docs are in Chinese; the READMEs, the wiki and the research
 | [Code2Video](https://github.com/showlab/Code2Video) | A research pipeline for teaching videos in Manim | Takes "code as video" to many kinds of video, run by general-purpose coding agents |
 | The official [HyperFrames](https://github.com/heygen-com/hyperframes) and [Remotion](https://github.com/remotion-dev/skills) skills | How to use one engine | Sits above the engines: choosing one, the process, the look, the checks |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | A full agent video production system | Lighter: mostly markdown, templates and one CLI that any coding agent can read and change |
-| [Guizang's product-video skill](https://github.com/op7418/guizang-product-video-skill) | Release films for software products | More types, human sign-offs, a style library, sound in Chinese and English; its music and SFX approach inspired ours, the code is separate |
+| [Guizang's product-video skill](https://github.com/op7418/guizang-product-video-skill) | Release films for software products | More types, human sign-offs, a style library, sound in Chinese and English |
 
 ## Contributing
 
@@ -401,7 +401,19 @@ Pull requests are welcome: new video types, styles with their samples, recipes, 
 
 ## Thanks
 
-To HyperFrames, Remotion, Manim, p5.brush, Three.js, Blender, Qwen3-TTS, mlx-audio and FFmpeg; to research such as Code2Video, Paper2Video and TheoremExplainAgent; to open projects including ClaudeAnimationBase, PDoomVideo, functional-emotions-video, Battle-of-Austerlitz-Film, Guizang's product-video skill, lemo-opuscar, OpenMontage and awesome-opus5-5-videos; and to the creators who share experiments and prompts in public, including Movez and Eian. The full list, licenses and what each was used for: [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
+To the libraries and tools the films are made with:
+
+- HyperFrames and GSAP: the HTML engine of short, promo, data and meme films;
+- Manim Community: math, physics and paper explainers; Remotion: an alternative React route;
+- ClaudeAnimationBase, with p5.js and p5.brush: the bundled hand-drawn engine;
+- Three.js: 3D in the canvas engine; Blender: path-traced shots;
+- Chrome and Puppeteer: drawing pages into frames; FFmpeg: encoding, probing and mixing;
+- Qwen3-TTS through mlx-audio: the default local voice; mlx-whisper: word timing;
+- NumPy, SciPy and librosa: code-composed music, sound effects and beat maps; Pillow: contact sheets;
+- yt-dlp: reading video sites for scouting and reference; uv: running the Python tools;
+- Inter Tight and JetBrains Mono: the homepage's two fonts.
+
+The works we learned from, the papers, and the licences of code adapted into this repo are in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
 
 This is an independent project, not affiliated with Anthropic, HeyGen, Remotion, Show Lab or Alibaba Cloud.
 

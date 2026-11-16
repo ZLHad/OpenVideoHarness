@@ -34,7 +34,7 @@
 ## 审美要点
 
 - 在 HyperFrames 里，硬切的语义是"惊醒、打断"，本类就是要用它。
-- donald jewkes 的 prompt 里提到的方向：
+- `cases/mv-claude-pop.md` 那支 MV 的 prompt 里提到的方向：
   - 用 internet brutalism 的方式直接插入素材；
   - 融入当下时间线上的梗；
   - 面向旧金山科技推特的受众；
@@ -74,11 +74,8 @@ Recreate meme formats originally; no copyrighted images or real brand logos.
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md`：第 3 节 Deconstructed、第 4 节 Maximalist Type，以及文末的 Mood → Style Guide。
 - `references/repos/hyperframes/_upstream_claude/skills/cut-the-curve/`：速度匹配的转场技法目录；硬切之外需要一两个炫技转场时参考。
 - `cases/mv-claude-pop.md`：prompt 里的 internet brutalism 要求和面向受众的思路。
-- `cases/community-prompts.md`：@goodside 的一句话分屏 prompt。
+- `cases/community-prompts.md`：一句话的分屏梗 prompt，格式本身够具体，一句话就能成。
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **viral-video-decomposer**（MIT）：镜头级拉片 → 爆款机制 → 变量槽 → JSON brief；只借结构，不照搬原片的文案和镜头。见 `references/repos/viral-video-decomposer/skill/SKILL.md`，配合 `playbook/07-reverse-engineer.md` 使用。
-- **lemo-opuscar 的 `halftone-dossier` / `microgame` 风格**（MIT）：半调档案风的"模拟调查"，以及越来越快的微游戏快闪。见 `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`、`references/repos/lemo-opuscar/styles/microgame/STYLE.md`。
+同类社区 skill（只借结构的爆款拆解、半调档案风和越来越快的微游戏快闪等风格）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"08 野兽派 / 网络梗 / 快剪"。只读参考；复用代码前先确认许可。

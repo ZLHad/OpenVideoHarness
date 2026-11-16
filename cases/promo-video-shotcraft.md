@@ -2,7 +2,7 @@
 
 **类型**：产品宣传片（web 和桌面产品）；镜头卡也能单独用在发布片、功能演示、品牌片里
 **源码**：`references/repos/video-shotcraft/`（Apache-2.0，可复用，保留声明并注明修改；`assets/audio/` 里有来源待核的素材，音频不复用）
-**来源**：[repo](https://github.com/Vincentwei1021/video-shotcraft)（2026-10-01：10,029⭐）、[在线 Gallery](https://vincentwei1021.github.io/video-shotcraft/)、作者 Vincent Wei（[@VincentWei93](https://x.com/VincentWei93)）。同系列的 video-talkcraft、anything2explainer 是 PolyForm Noncommercial，只读
+**仓库**：2026-10-01 时 10,029⭐；另有一个在线 Gallery 能预览每张卡的动效，网址在仓库 README 里。同系列的 video-talkcraft、anything2explainer 是 PolyForm Noncommercial，只读
 **本仓库的落地**：[`recipes/`](../recipes/README.md) 镜头配方库和 [`recipes/sequences/`](../recipes/sequences/README.md) 全片骨架，大部分改写自这个仓库
 
 ## 做了什么

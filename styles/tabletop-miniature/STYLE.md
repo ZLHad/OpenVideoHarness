@@ -13,11 +13,10 @@
 | Wallace & Gromit 的第一部短片 *A Grand Day Out* | 1989 · Nick Park，Aardman Animations | 角色可以极简、可以不说话：Gromit 全片没有一句台词，靠动作和眼睛演戏；所有东西都是摆在布景里的实物，看得出材质 |
 | 《鬼妈妈》*Coraline* | 2009 · 导演 Henry Selick，Laika；摄影 Pete Kozachik；概念设计 上杉忠弘 | 用光和色温讲故事：现实世界的颜色灰淡，"另一个世界"暖而鲜艳；微缩布景按真实光照来布光 |
 | *Site Specific* 系列 | 1999 起 · Olivo Barbieri | 移轴摄影的"微缩感"：极浅的景深让真实的城市看起来像模型。尺度是靠虚化告诉观众的 |
-| 一支 Claude Opus 5.5 做的钢琴短片（[X 帖子](https://x.com/kevin_t_ngo/status/2105304249060274631)） | 2026 · Kevin Ngo；作者自述用 Python 写钢琴曲、用 Python 做 3D 动画、在 Blender 里渲染 | 一件真实尺寸的乐器当舞台，几何体角色走在琴键上，按下的键就是音符；从烛光的夜到窗光的早晨就是全片的弧线 |
 
-核实：*A Grand Day Out* 的年份、导演、工作室和 Gromit 不说话，*Coraline* 的导演、工作室、摄影、概念设计和"现实灰、另一个世界鲜"的配色，Barbieri 的系列名和起始年份，都对照了 Wikipedia 等资料（2026-10-01）。Kevin Ngo 那支片子的内容是在浏览器里逐帧看的，作者没有公开 prompt 和代码，"按下的键就是音符"是看帧得出的推测。
+核实：*A Grand Day Out* 的年份、导演、工作室和 Gromit 不说话，*Coraline* 的导演、工作室、摄影、概念设计和"现实灰、另一个世界鲜"的配色，Barbieri 的系列名和起始年份，都对照了 Wikipedia 等资料（2026-10-01）。
 
-**不照搬**：不做 Clawd、黑猫和走在琴键上的那一场；不用 Wallace & Gromit 的黏土人物造型、*Coraline* 的纽扣眼；不复制任何作品的具体镜头。角色只用最简单的几何体。
+**不照搬**：不用 Wallace & Gromit 的黏土人物造型、*Coraline* 的纽扣眼；不复制任何作品的角色和具体镜头。角色只用最简单的几何体。
 
 ## 视觉语法
 
@@ -107,6 +106,5 @@ Visual style: tabletop miniature, shot like stop-motion miniature photography. A
 
 ## 相关资源
 
-- lemo-opuscar 的 `brick-toy`（LemoLab，MIT）是同一家族：桌面、微距、一拍二、真实的房间当背景。区别是它用的是有光泽的塑料积木和摄影棚的柔光箱，这里是毛毡、木头、纸这类软材质，光只用房间里的实用光，并且拿光来计时。见 `references/repos/lemo-opuscar/styles/brick-toy/STYLE.md`。
 - `engines/blender.md`（Blender 的版本、色彩、安全、许可）；`styles/_swatch/README.md` 的"Blender 场景"。
 - `video-types/07-hand-drawn.md`（角色小片）、`video-types/03-product-promo.md`（产品小剧场）、`playbook/08-vfx-and-motion-sources.md`（声画联动）。

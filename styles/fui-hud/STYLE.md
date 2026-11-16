@@ -120,6 +120,5 @@ Visual style: a fictional film user interface (FUI) built from real data. Blue-b
 
 ## 相关资源
 
-- lemo-opuscar 里最接近的是 `blueprint`（按制图顺序画出的工程线）、`ascii-crt`（等宽网格里的真实字符）和 `dark-keynote`（界面即主角），见 `references/repos/lemo-opuscar/styles/<slug>/STYLE.md`（LemoLab，CC BY 4.0）。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Data Drift：本风格反对它的紫青粒子，但可以借"粒子汇成数字"的思路；同目录的 `data-in-motion.md`。
 - `showcase/00-promo-launch-film/`（HUD 时间码母题）、`video-types/05-data-story.md`、`templates/TASTE_CHECKLIST.md` #20。

@@ -101,7 +101,6 @@ Visual style: playful flat 2D character animation on a light ground. Cream backg
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/rubber-hose/STYLE.md`（LemoLab，CC BY 4.0）：踩拍的 idle、"预备—停—出手"、一拍二配平滑镜头；本文取其语法，改成亮底彩色平面、去掉胶片损伤。`game-show`（豆形吉祥物、卡拍网格）也可对照。
-- `references/repos/OpenMontage/styles/flat-motion-graphics.yaml`（AGPL-3.0，只读）：它的默认值是暗底 `#0F172A`、紫 `#7C3AED`、霓虹描边、处处弹性，正是本预设要反着来的口味。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/rubber-hose/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：改成亮底彩色平面，去掉了胶片损伤。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 第 7 节 Folk Frequency（亮底、back.out 入场）。
 - `engines/ClaudeAnimationBase/ANIMATION_GUIDE.md` 的 Animation principles；`playbook/03-motion-design.md` §3；`video-types/07-hand-drawn.md`、`video-types/02-knowledge-short.md`。

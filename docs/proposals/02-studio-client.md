@@ -41,12 +41,9 @@
 | Cursor 这类 AI 编辑器 | 选中的就是上下文；改完接受或退回 | 选中的单位是片子的结构，带上那一部分的 reads |
 | Premiere（2026-09） | 据报道，新的生成工具是"在轨道上划一段，描述你要什么" | 印证"选中一段再说"这条路；我们改的是代码，不是生成素材 |
 | ChatCut | 用对话改真实的时间线；动手前给一张带估计的确认卡 | 我们的计划卡写清动哪几镜、只重渲哪几段 |
-| OpenChatCut | 本地优先，接 Codex、Claude Code 和 MCP agent | AGPL 许可，只借思路，不碰代码 |
-| AutoClip | 桌面端是 Tauri 套本地 FastAPI 和 React，CLI、MCP 和桌面端共用一条流水线；候选加备选；出错按阶段报；按平台出发布包（MIT 许可） | 和"CLI 是真相、客户端是壳"一致；它有填 API key 的设置页，我们不做 |
-| OpenFilm | 桌面端用 ACP 驱动本机 agent；对话里的提问卡；Studio 里的改动写回项目 | 提案 01 已经记下，这次接着用 |
 | HyperFrames Studio | 驱动本机 Claude Code、Codex 的桌面编辑器：在画面上选中、圈画、评论，在时间轴上划一段说话，改动攒着一次发，每次运行可以单独撤销 | 交互照着学，开源的编辑器组件可以直接改来用；见第 1.1 节 |
 
-链接：[Frame.io V4 功能对照](https://help.frame.io/en/articles/9084073-frame-io-v4-legacy-feature-comparison)、[Adobe 2026-09 的 Premiere 更新](https://blog.adobe.com/en/publish/2026/09/08/generate-create-directly-in-your-timeline-with-new-ai-powered-innovations-in-premiere-after-effects)、[ChatCut 文档](https://chatcut.io/docs/quickstart)、[OpenChatCut](https://github.com/0xsline/OpenChatCut)、[AutoClip](https://github.com/zhouxiaoka/autoclip)。这几个仓库没有拉进 `references/`。
+链接：[Frame.io V4 功能对照](https://help.frame.io/en/articles/9084073-frame-io-v4-legacy-feature-comparison)、[Adobe 2026-09 的 Premiere 更新](https://blog.adobe.com/en/publish/2026/09/08/generate-create-directly-in-your-timeline-with-new-ai-powered-innovations-in-premiere-after-effects)、[ChatCut 文档](https://chatcut.io/docs/quickstart)。
 
 ### 1.1 HyperFrames Studio
 
@@ -88,7 +85,7 @@ HeyGen 的桌面应用（Mac、Linux），见 [hyperframes.dev/studio](https://h
   - 按轮撤销：一轮写入记成一条带作者的历史，作者是人、agent 或外部。要撤的那条之后，又有改动碰过同样的文件时，先报冲突，让人选只撤这一条、退回到它之前，还是保留之后的改动（`studio-server` 的 `history/projectHistory.ts`）。撤销的服务端在开源代码里，界面不在。
 - **播放器**：`<hyperframes-player>` 能播 mp4，但不认 `window.film`。canvas 片子用我们自己的页面来播更简单。
 - **要单独核的**：它依赖的 GSAP 不是开源许可，mediabunny 是 MPL-2.0；studio 里有 PostHog 的使用数据上报（`utils/studioTelemetry.ts` 和 `telemetry/`），拷代码时不带。
-- **接 agent 照 OpenFilm**：OpenFilm（MIT）用 `@agentclientprotocol/sdk` 接本机的 agent。Claude Code 和 Codex 走它们官方的 ACP 适配器（`@agentclientprotocol/claude-agent-acp`、`@agentclientprotocol/codex-acp`，Apache-2.0）；Gemini CLI、OpenCode 这些自己就讲 ACP（`gemini --acp`、`opencode acp`）。这正是第二期要做的。
+- **接 agent 用 ACP**：`@agentclientprotocol/sdk` 接本机的 agent。Claude Code 和 Codex 走它们官方的 ACP 适配器（`@agentclientprotocol/claude-agent-acp`、`@agentclientprotocol/codex-acp`，Apache-2.0）；Gemini CLI、OpenCode 这些自己就讲 ACP（`gemini --acp`、`opencode acp`）。这正是第二期要做的。
 
 ## 2. 外壳
 
@@ -191,11 +188,11 @@ agent 怎么接活，每个模块都一样：
 - **画面**：读页面合约 `window.film`（`frame(t)`、`duration`、`shots`、`chapters`、`cues`、`texts`、`events`、`music`、`timemap`），不需要先渲染。
 - **agent**：
   - 第一步走文件：人提交，客户端写反馈 JSON，`bin/vh desk wait` 交给终端里的 agent；
-  - 第二步照 OpenFilm 的做法用 ACP（`@agentclientprotocol/sdk` 加各家的适配器），把对话接进 agent 栏；接不上的用 agent 自己的无头模式。各家 agent 的接入方式变得快，开工前要核实；
+  - 第二步用 ACP（`@agentclientprotocol/sdk` 加各家的适配器），把对话接进 agent 栏；接不上的用 agent 自己的无头模式。各家 agent 的接入方式变得快，开工前要核实；
   - DeepSeek 这类模型，走能换模型的 agent（比如 OpenCode，它自己就讲 ACP）。
 - **key**：客户端不存。硬规则 7 不改。
 - **界面组件**：HyperFrames 的 `packages/studio`（Apache-2.0）评估过了（第 1.1 节末尾）。时间轴的泳道和选中按我们的结构写；时间尺、缩放、吸附、播放头、波形、节拍条和面板布局拷它的改来用，保留许可，写明改动；不依赖它的包，也不 fork。OpenFilm 的 Studio（MIT）的组件还没细看。
-- **桌面外壳**：先做本地网页；用了一阵再用 Tauri（AutoClip 走的就是这条路）或 Electron 打包。
+- **桌面外壳**：先做本地网页；用了一阵再用 Tauri 或 Electron 打包。
 
 ## 8. 不做什么
 
@@ -210,7 +207,7 @@ agent 怎么接活，每个模块都一样：
 每一期单独能用：
 
 1. **成片和关卡**：本地客户端的外壳加成片模块（画面、语义时间轴、清单、点评、按轮提交），替换现在的静态审阅页和审阅台的 10 个页签；agent 先走文件通道。时间轴按我们的结构写，拷 `packages/studio` 的几个叶子组件（第 1.1 节末尾）；三套主题从这一期就做进去（第 5 节）。
-2. **agent 栏接通**：照 OpenFilm 用 ACP 接 Claude Code 和 Codex，无头模式备用；计划卡、进度、结果卡、退回。
+2. **agent 栏接通**：用 ACP 接 Claude Code 和 Codex，无头模式备用；计划卡、进度、结果卡、退回。
 3. **从零开始**：空间、新建、立意、大纲。
 4. **其余模块**：素材、分镜、声音、交付、账本。
 5. **桌面应用**：打包，一键安装。

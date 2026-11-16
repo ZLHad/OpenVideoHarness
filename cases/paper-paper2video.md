@@ -1,7 +1,7 @@
 # 案例：Paper2Video / PaperTalker
 
 **类型**：由论文生成学术报告视频（幻灯片 + 字幕 + 语音 + 光标 + 数字人）
-**源码**：未拉取到本地；需要时直接看 [repo](https://github.com/showlab/Paper2Video)（MIT）
+**源码**：未拉取到本地（仓库是 MIT，地址见论文）
 **来源**：[论文 arXiv 2510.05096](https://arxiv.org/abs/2510.05096)
 
 ## 流水线
@@ -32,4 +32,4 @@
 - 需要讲者出镜时，用自己录的口播，按 `playbook/05-hybrid-genvideo.md` 的 B 模式叠加。
 - 相关工作：
   - PresentAgent：文档 → 幻灯片 → 讲稿 → TTS → 合成；
-  - PPTAgent（`icip-cas/PPTAgent`）：论文生成 PPT。
+  - PPTAgent：论文生成 PPT。

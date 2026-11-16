@@ -2,7 +2,7 @@
 
 **类型**：产品发布片为主，另有一支论文发布片和一支梗视频复刻
 **源码**：`references/repos/hyperframes-launches/`（Apache-2.0，打包的素材另有 NOTICE）。克隆时没有拉取 Git LFS，所以视频、音频、字体都只是指针文件，**代码和文档可以正常读**；需要素材时要先装 git-lfs，再执行 `git lfs pull`。
-**来源**：[repo](https://github.com/heygen-com/hyperframes-launches)；成片可以在 README 的 Watch 链接里看
+**成片**：仓库 README 里每支都有 Watch 链接
 
 ## 每个项目的结构
 

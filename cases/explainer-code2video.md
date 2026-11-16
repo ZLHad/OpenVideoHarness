@@ -2,7 +2,7 @@
 
 **类型**：教学讲解视频，用 Manim 实现；属于学术系统
 **源码**：`references/repos/Code2Video/`，只检出了 `prompts/` 和 `src/`（MIT）
-**来源**：[Code2Video 论文](https://arxiv.org/abs/2510.01174)（ICML 2026）、[repo](https://github.com/showlab/Code2Video)；[TheoremExplainAgent](https://arxiv.org/abs/2502.19400)（ACL 2025）
+**来源**：[Code2Video 论文](https://arxiv.org/abs/2510.01174)（ICML 2026）；[TheoremExplainAgent](https://arxiv.org/abs/2502.19400)（ACL 2025）
 
 ## Code2Video 的流水线
 
@@ -63,4 +63,4 @@
 - 在 STYLE.md 里定义锚点网格和放置函数，禁止手写坐标（`video-types/01-math-science-explainer.md` 的 prompt 增量块已经包含这一条）。
 - Manim 报错时，按 ScopeRefine 的顺序修。
 - 按节派 subagent，并行生成。
-- 写 Manim 代码前，先读 `references/repos/3brown1blue/src/three_b1b/skill/rules/troubleshooting.md`。
+- 写 Manim 代码前，先读 `video-types/01-math-science-explainer.md` 工作流里"写代码前先读"那一步指向的 Manim 常见崩溃清单。

@@ -107,5 +107,4 @@ Visual style: archival documentary built only from still photographs, letters an
 
 ## 相关资源
 
-- lemo-opuscar 里最接近的是 `halftone-dossier`（逐件出示证物的案卷叙事）和 `silent-film`（用字幕卡代替对白），见 `references/repos/lemo-opuscar/styles/<slug>/STYLE.md`（LemoLab，CC BY 4.0）。两者都偏印刷和胶片质感，本风格要的是更克制的纪录片。
 - `video-types/06-paper-explainer.md`、`video-types/05-data-story.md`、`playbook/04-audio.md`（旁白、混音时压低音乐）、CLAUDE.md 硬规则 5（事实纪律）。

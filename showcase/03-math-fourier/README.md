@@ -94,7 +94,7 @@ Then, in this repo: copy `picture.mp4` over `showcase/03-math-fourier/media/fina
 ## What the harness docs helped with
 - **Routing and the type doc** (`CLAUDE.md` route table → `video-types/01`). The whole visual grammar came from here: one colour per entity, the equation shown whole, dimmed, then lit term by term, and the parent graph kept visible at 30–40% while zoomed. The "one colour per entity" rule forced the key design choice: blue means "being added", yellow means "already in the sum", and no rainbow harmonics.
 - **3b1b Gotchas plus `equations.md` / `equation-derivations.md`.** The multi-string `MathTex` split and the dim-and-reveal pattern worked on the first try. `animation-design-thinking.md`'s tempo-variation rule justified compressing the repeated add-a-harmonic move.
-- **Code2Video anchor grid** (`prompts/stage3.py`, `base_class.py`). It turns placement into choosing cells: `A1–A5` equation, `A6` counter, `C1–E3` parent, `B4–F6` zoom panel.
+- **The anchor grid** (`video-types/01` 工作流 step 4). It turns placement into choosing cells: `A1–A5` equation, `A6` counter, `C1–E3` parent, `B4–F6` zoom panel.
 - **`playbook/01-pipeline.md` reads.** Writing reads with start and end times made the 24 s budget explicit before any code; the first render came in at 23.93 s.
 - **`playbook/02-verification.md` plus `bin/vh sheet/gif/check`.** Strips caught the colour blend in the merge. The fresh-context reviewer (layer 5) caught what I had normalised: the zoom blackout, the unshown jump of 2 behind "9%", and the short final hold. Layer 5 earned its place.
 

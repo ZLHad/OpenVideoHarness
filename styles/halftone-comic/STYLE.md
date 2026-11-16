@@ -102,6 +102,5 @@ Visual style: printed comic page in motion. Newsprint #F5EEDC, process inks only
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`（LemoLab，CC BY 4.0）：网点密度场、多网角叠印、网点擦除转场、印章砸下的节奏。本文借了网点与擦除的做法，但方向不同：它是奶油纸上的慢节奏"案卷"，本预设是动作漫画页、一拍二和分格。
-- `references/repos/lemo-opuscar/styles/risograph/STYLE.md`：分版密度 + 着色器印刷的管线。
+- 本文部分内容改写自 LemoLab 的 lemo-opuscar `styles/halftone-dossier/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）；改了什么：方向从奶油纸上的慢节奏"案卷"换成动作漫画页、一拍二和分格。
 - `video-types/08-brutalist-meme.md`、`video-types/04-lyric-music-video.md`；`playbook/08-vfx-and-motion-sources.md`（闪白每秒不超过 3 次）。

@@ -1,18 +1,18 @@
-# 案例：Applore 宣传片（viggo）
+# 案例：Applore 宣传片
 
 **类型**：15 秒的产品宣传片，由吉祥物口播介绍
 **源码**：未公开，渲染栈也没有说明
-**来源**：[viggo 的帖子](https://x.com/decohack/status/2104502625055949242)，[@achxvi 的 prompt 模板](https://x.com/achxvi/status/2103938227786654016)
+**发布**：X；prompt 套的是一份流传很广的 showreel 模板（这类模板的统计见 `opus55-gallery.md` 第 1 节"showreel 原句与人设"）
 
 ## prompt
 
-viggo 自己的输入只有一句话："Hi, Opus 5.5, 给我的产品做一个宣传视频，需要创意十足并且足够震撼 + 网址（applore.app）"。
+制作者自己的输入只有一句话："Hi, Opus 5.5, 给我的产品做一个宣传视频，需要创意十足并且足够震撼 + 网址（applore.app）"。
 
-他转发的模板来自 @achxvi。@achxvi 又是改写自 @ajith_io 的原版，大意是：
+这句话背后是一份经过两次改写的 showreel 模板，大意是：
 
 > make a dynamic 15-second motion graphics video about {product} that shows what an incredible motion designer you are, like it's your showreel for a résumé. go all out. here is elevenlabs key: … make a video where a character talks about {product} and how people can use it …
 
-viggo 说几分钟就做完了。
+制作者说几分钟就做完了。
 
 ## 画面拆解（逐帧看过）
 

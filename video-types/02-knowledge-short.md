@@ -126,7 +126,7 @@
   - 小 Lin 说：口播加图解；
   - 小红书封面：大字、高对比、系列化模板。
 - **结尾**：落在回报画面上，不放"关注我"卡片。回环按长度选【综合】：
-  - ≤ 30 s 的奇观、解压、测验：硬回环，末帧等于首帧，第 0 帧本身就是完整画面（文末 claude-faceless-shorts-creator 的做法），做循环接缝检查（`playbook/02-verification.md`）；
+  - ≤ 30 s 的奇观、解压、测验：硬回环，末帧等于首帧，第 0 帧本身就是完整画面，做循环接缝检查（`playbook/02-verification.md`）；
   - 45–90 s 的讲解：软回环，回扣开头的画面或句子，带一处变化，比如开头问"为什么……"，结尾接"所以……"；
   - 2 分钟以上或系列：软回环，或者留一个指向下一期的小缺口，前提是真的有下一期；
   - 有配乐时，音乐在小节线处回到起点。
@@ -178,7 +178,7 @@ Cover: 1080x1440 (3:4) master with all key elements inside the central 1080x1080
 
 - `showcase/02-short-leo-doppler/`：本仓库的竖屏样板，BRIEF、STORYBOARD、NOTES、源码和旁白 + 字幕 + 混音的 `tools/build_audio.sh` 都在。
 - `cases/explainer-interstellar-blackhole.md`：一个着色器贯穿全片的长讲解，拉片拆解。
-- `cases/community-prompts.md`：@AxtonLiu 的口播图解做法、@dotey 的中文讲解 prompt。
+- `cases/community-prompts.md`：口播视频加图解的三条约束，和一句话的中文讲解 prompt。
 - `cases/douyin-vibe-knowledge.md`：10 支抖音 AI 动画（9 支发于 2026-09 底）。赞数最高的四支都是横屏，长 2.5–5 分钟；案例记了它们的几处相似、实测的字幕大小、一个号连发 15 支的赞数分布，以及同一个题目（37% 法则）的两种做法。
 - `references/repos/hyperframes/skills/faceless-explainer/`：
   - `SKILL.md`：完整流程，包括 BRIEF → frame.md → STORYBOARD → 音频 → 线框草图 → 每个 frame 派一个 subagent；
@@ -188,11 +188,7 @@ Cover: 1080x1440 (3:4) master with all key elements inside the central 1080x1080
 
 ## 社区 skill 参考
 
-以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
-
-- **claude-faceless-shorts-creator**（MIT）：节拍语法 HOOK → SETUP → QUIZ → REVEAL → TWIST → LOOP；第 0 帧就是完整画面，末帧等于首帧，可以无缝循环；不放"评论区告诉我"式的 CTA。见 `references/repos/faceless-shorts-creator/_upstream_claude/skills/make-short/SKILL.md`。
-- **procedural-film**（MIT，不在 183 个 skill 的清单里）：零媒体素材的 30 秒竖屏短片，一个镜头一个 agent；六项关卡 `check.cjs` 从桩场景那一步起就必须全绿，确定性检查把首、中、尾帧按正序、倒序、冷启动分别画出来比哈希；竖屏底部 380px 留给平台 UI。见 `references/repos/procedural-film/skills/procedural-film/SKILL.md`。
-- **gbro-collage-info**（MIT）：竖屏半调纸拼贴信息动画，纯 HTML/GSAP，不用图像模型；信息只放在上 2/3，底部 640px 留给字幕。见 `references/repos/gbro-collage-info/SKILL.md`。纸拼贴 / Vox 风的三种做法对比见 `references/community-skills.md` 第 4 节。
+同类社区 skill（不露脸 Shorts 的节拍语法和无缝循环、零素材程序化短片的确定性关卡、竖屏纸拼贴信息动画）的做法、本地路径和许可，见 `references/community-skills.md` 第 1 节"02 知识 / 科普短视频"；纸拼贴 / Vox 风的三种做法对比在同一篇第 4 节。只读参考；复用代码前先确认许可。
 
 ## 来源
 

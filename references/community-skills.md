@@ -35,8 +35,9 @@
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
 | shuyicc/MathLens（360⭐） | 贴一道数学题（图或文字），8 步走完：分析 → HTML/SVG 讲解页 → 分镜 → TTS → 音频校验 → Manim 脚手架 → 动画 → 渲染 | Manim + edge-tts（免费、需联网）；无 GPU 要求；README 写的是在 Cursor 里用 | 无 LICENSE 文件；README 声明 CC BY-NC 4.0 | `MathLens/SKILL.md`、`MathLens/templates/script_scaffold.py`、`MathLens/scripts/validate_audio.py` | `wait_for_narration(keyword)`：动画等到旁白说出含该关键词的句子才触发；`assert_geometry()` 先校验题目事实和画布范围；TTS 实测时长回写分镜 |
+| AmitSubhash/3brown1blue | 3b1b 式讲解的 skill：按受众分层的写法、讲解和公式的规则、数学 / 物理 / 算法 / ML 各自的套路、场景模板；另有论文讲解规则（见 06） | Manim CE；无付费 API | MIT | `3brown1blue/src/three_b1b/skill/SKILL.md`（开头的 Gotchas）、`.../skill/audiences/`、`.../skill/rules/` 下的 `animation-design-thinking.md`、`explanation-design.md`、`equations.md`、`equation-derivations.md`、`visual-design-principles.md`、`pedagogy-checklist.md`、`voiceover.md`、`troubleshooting.md`，`.../skill/domains/`，`.../skill/templates/equation_explainer.py` | 高中、本科、研究生、业界分开写（`video-types/01` 工作流第 1 步指到 `audiences/`）；Gotchas 是 Manim CE 最常见的崩溃原因，比如 `MathTex` 里不写 `$`、`Transform` 之后换成 `ReplacementTransform`（第 7 步指到这里）；`equation_explainer.py` 是公式讲解的场景模板 |
 | adithya-s-k/manim_skill（1.1k⭐） | Manim CE 与 ManimGL 的 agent skills | Manim | MIT | 未拉取（`open-source.md` §2 已收） | 【推测】CE 和 GL 分开写，能减少 LLM 混用两套 API |
-| lemo-opuscar 的 `whiteboard` 风格 | 白板讲解样片《Einstein in Your Pocket》：GPS、原子钟、相对论每天多出 38 微秒 | Canvas2D + 无头 Chrome，无付费 API | MIT | `lemo-opuscar/styles/whiteboard/STYLE.md` | 不想要 3b1b 黑底时的替代画风：一块板一镜到底，字迹逐笔写出，最后拉远看整块板 |
+| lemo-opuscar 的 `whiteboard` 风格 | 白板讲解样片《Einstein in Your Pocket》：GPS、原子钟、相对论每天多出 38 微秒 | Canvas2D + 无头 Chrome，无付费 API | MIT；2026-09-29 之前的快照里 `STYLE.md` 和样片是 CC BY 4.0（见第 5 节） | `lemo-opuscar/styles/whiteboard/STYLE.md` | 不想要 3b1b 黑底时的替代画风：一块板一镜到底，字迹逐笔写出，最后拉远看整块板 |
 
 ### 02 知识 / 科普短视频
 
@@ -44,7 +45,7 @@
 |---|---|---|---|---|---|
 | hassancs91/claude-faceless-shorts-creator（272⭐） | 不露脸 Shorts 工厂，三条轨道：纯 TSX、视频模型、Vox 纸拼贴 | Remotion；配音、音效、音乐用 ElevenLabs（付费）；生成式轨道另需 fal.ai（付费） | MIT | `faceless-shorts-creator/_upstream_claude/skills/make-short/SKILL.md`、`faceless-shorts-creator/brand.md`、`faceless-shorts-creator/shorts/short-*/beats.json` | 节拍语法 HOOK（0–3.4s，第 0 帧就是完整画面，兼作缩略图）→ SETUP → QUIZ → REVEAL → TWIST → LOOP（末帧 = 首帧）；结尾不放"评论区告诉我"式 CTA；`<Sequence>` 内帧号是局部的，要换算 `local_f = global_s*fps − sequence_from` |
 | coding-ax/docvideoer（5⭐） | 文档 URL、文章、Markdown → 带中文旁白的 Remotion 讲解视频 | Remotion；描述写"免费 TTS" | MIT | 未拉取 | 【推测】中文文章转视频的全链路参考 |
-| pyang5166/gbro-collage-info | 从口播逐字稿挑段落，做成 1080×1920 半调纸拼贴信息动画 | 见第 4 节 | MIT | `gbro-collage-info/SKILL.md` | 信息只放在画面上 2/3（y ≤ 1280），底部 640px 留给字幕 |
+| pyang5166/gbro-collage-info | 从口播逐字稿挑段落，做成 1080×1920 半调纸拼贴信息动画，纯 HTML/GSAP，不用图像模型 | 见第 4 节（纸拼贴 / Vox 风三种做法的对比也在那里） | MIT | `gbro-collage-info/SKILL.md` | 信息只放在画面上 2/3（y ≤ 1280），底部 640px 留给字幕 |
 | kuhnhomeuk-cell/procedural-film（460⭐，清单外） | 给一个题材，出一支 30 秒上下的竖屏短片；样片是帝王蝶的一生（17 镜、32 秒、120 BPM、1080×1920、24 fps）。另有照片涂鸦和像素复古两种模式，还能做一个可玩的平台跳跃游戏 | 原生 JS Canvas 绘制、Web Audio 合成声音，零媒体素材；Playwright + ffmpeg 出片；一镜一个 agent，README 提醒一支片子很耗额度；游戏会部署到用户自己的 Vercel | MIT | `procedural-film/skills/procedural-film/SKILL.md`、`.../foundation/tools/check.cjs`、`.../reference/shot-types.md`、`procedural-film/examples/butterfly-life/docs/` | 六项关卡 `check.cjs`（媒体扫描、确定性、源码扫描、时间线、绘制、单帧耗时），从桩场景那一步起就必须全绿；确定性检查把每镜首、中、尾帧按正序、倒序、混入干扰帧、冷启动、顺序绘制几种方式分别画出来比哈希；先用桩场景把时间线、渲染和音频整条跑通再画真镜头；一个 agent 只拥有一个镜头文件，评审 subagent 分波次出 P1/P2 修改单，并在像素上量几何；竖屏底部 380px 留给平台 UI，必须读的文字不能落进去。也适合 07 |
 
 ### 03 产品宣传 / 发布片
@@ -52,10 +53,10 @@
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
 | Vincentwei1021/video-shotcraft（10k⭐，2026-10-01 为 10,029） | 电影感产品片：157 张镜头配方卡（214 个样式；清单写 152）、Ink Press 成片模板、浏览器工作台、剪映工程导出 | Remotion（README 提醒：公司使用可能要买 Remotion 许可）；真实页面用无头浏览器截图；不用生成模型 | Apache-2.0 | `video-shotcraft/SKILL.md`、`video-shotcraft/references/shots/`、`video-shotcraft/references/pipeline.md`、`video-shotcraft/references/aesthetic-rules.md` | 视觉语言从产品自身的设计系统提取 tokens，模板只继承镜头结构和节奏；复刻页面必须用真实截图；每个镜头只讲一个动效，信息落定后要"呼吸"；开工前让用户在"模板 / 自主创作 / 共同创作"三种模式里选一种。本仓库的 `recipes/`（镜头配方）和 `recipes/sequences/`（全片骨架）由它改写，拆解见 `cases/promo-video-shotcraft.md` |
-| op7418/guizang-product-video-skill（473⭐） | 接入真实产品组件做软件更新片，配原创配乐和动作音效 | React + esbuild + Playwright 出帧、FFmpeg 编码，GSAP / Three.js；也支持 HyperFrames；配乐可用代码合成 | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | `guizang-product-video/SKILL.md`、`guizang-product-video/references/direction.md`、`guizang-product-video/references/visual-vocabulary.md` | 写 `DIRECTION.md`：沿不同的轴提三个方向再选一个；列 3–5 条"因为产品有 X，所以用 Y"的专属手法；同一工作区不复用上一支片子的开场和背景；1080p 下界面正文 ≥ 22px |
+| op7418/guizang-product-video-skill（473⭐） | 接入真实产品组件做软件更新片，配原创配乐和动作音效 | React + esbuild + Playwright 出帧、FFmpeg 编码，GSAP / Three.js；也支持 HyperFrames；配乐可用代码合成 | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | `guizang-product-video/SKILL.md`、`guizang-product-video/references/direction.md`、`guizang-product-video/references/visual-vocabulary.md`、`guizang-product-video/references/audio-sourcing.md`、`guizang-product-video/assets/fx-lab/` | 写 `DIRECTION.md`：沿不同的轴提三个方向再选一个；列 3–5 条"因为产品有 X，所以用 Y"的专属手法（`playbook/08` 第 1 条原则同此）；同一工作区不复用上一支片子的开场和背景；1080p 下界面正文 ≥ 22px；配乐来源按用户提供 → 本机可用的生成模型 → 代码合成排先后；`assets/fx-lab/` 是粒子、汇聚、流线场一类的特效实验，只看思路，不复用代码 |
 | norahe0304-art/30x-video（63⭐） | 输入一个 URL，输出发布片；自带 16 条审美准则，不用模板 | Remotion + React | MIT | 未拉取 | 【推测】审美准则可对照 `templates/TASTE_CHECKLIST.md` |
 | kangarooking/promo-creator-skills（101⭐） | 从产品判断、分镜、素材、HyperFrames 剪辑到 BGM 设计的整条工作流 | HyperFrames | MIT | 未拉取 | 【推测】中文产品片全流程参考 |
-| Rieranthony/product-film-skill（358⭐，清单外） | 在产品自己的代码库里做落地页循环片、发布片、演示片，复用真实组件和设计 tokens | Remotion（README 提醒：较大的公司要买 Remotion 许可）+ Bun + uv；配乐要自带有授权的歌；不用生成模型 | MIT | `product-film-skill/plugins/product-film/skills/product-film/SKILL.md`、`.../templates/BRAND.md`、`.../reference/render.md`、`.../scripts/verify.py` | 先从设计系统（规则文件、tokens、组件、官网、能说和不能说的宣称）整理出 `videos/BRAND.md`，它优先于 skill 自带的默认值；节拍表写完先交 3 张风格帧再开工；母版按 240 fps 渲，用 ffmpeg `tmix` 每 4 个子帧平均成 60 fps，得到运动模糊；交付静音循环版、带音乐版、WebM 和海报（取标题帧，不取空白的第 0 帧）；`verify.py` 解码每个成品，核对时长、第 0 帧背景色（误差 ±2，防止 Remotion 的有限色域把 #0a0a0a 抬成 #171717）和首尾接缝 |
+| Rieranthony/product-film-skill（358⭐，清单外） | 在产品自己的代码库里做落地页循环片、发布片、演示片，复用真实组件和设计 tokens | Remotion（README 提醒：较大的公司要买 Remotion 许可）+ Bun + uv；配乐要自带有授权的歌；不用生成模型 | MIT | `product-film-skill/plugins/product-film/skills/product-film/SKILL.md`、`.../templates/BRAND.md`、`.../reference/render.md`、`.../scripts/verify.py` | 先从设计系统（规则文件、tokens、组件、官网、能说和不能说的宣称）整理出 `videos/BRAND.md`，每条注明出处，它优先于 skill 自带的默认值，审阅意见也回写进去，下一支片子从它起步；质量底线里禁止产品自己不用的特效（光晕、粒子、点击波纹、着色器），和 `video-types/03`"说不出理由就删"一致；节拍表写完先交 3 张风格帧再开工；母版按 240 fps 渲，用 ffmpeg `tmix` 每 4 个子帧平均成 60 fps，得到运动模糊；交付静音循环版、带音乐版、WebM 和海报（取标题帧，不取空白的第 0 帧）；`verify.py` 解码每个成品，核对时长、第 0 帧背景色（误差 ±2，防止 Remotion 的有限色域把 #0a0a0a 抬成 #171717）和首尾接缝 |
 
 lemo-opuscar 的 `dark-keynote`、`living-screencast`、`glass-product` 三种风格也适合本类，2026-09-29 新加的 `hologram-hud`（产品参数扫描）和 `midcentury-toon`（分步上手指南）同样适用，见第 2 节。
 
@@ -63,12 +64,12 @@ lemo-opuscar 的 `dark-keynote`、`living-screencast`、`glass-product` 三种�
 
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
-| ledbetterljoshua/functional-emotions-video | 已在 `cases/mv-functional-emotions.md` 拆解 | 自写 WebGL 笔触渲染器 | MIT（代码；歌曲、歌词和 `assets/` 音频不在内） | `functional-emotions-video/analysis/` | 歌词对齐脚本（已写进 `video-types/04-lyric-music-video.md`） |
-| lemo-opuscar 的时间线与卡点检查 | 一个 `timeline.js`（段落、BPM、拍号、卡点）导出 JSON，配乐、混音、字幕和检查脚本共用 | Node + Python，采样库 CC0 / CC BY | MIT | `lemo-opuscar/TECHNIQUE.md` §3、`lemo-opuscar/styles/microgame/demo/tools/cuecheck.py`、`lemo-opuscar/styles/game-show/STYLE.md` | 用脚本逐个比对画面卡点和音乐 cue，目标偏差 0 ms；每个风格用自己的编制，不用通用的"钢琴 + 弦乐" |
+| ledbetterljoshua/functional-emotions-video | 已在 `cases/mv-functional-emotions.md` 拆解 | 自写 WebGL 笔触渲染器 | MIT（代码；歌曲、歌词和 `assets/` 音频不在内） | `functional-emotions-video/analysis/`（`features.py`、`transcribe.py`、`align.py`、`build_data.py`）、`functional-emotions-video/js/paint.js` | 歌词对齐的整套脚本（Demucs 分离人声 → Whisper 分块转写 → 把真实歌词对齐到转写上；步骤已写进 `video-types/04-lyric-music-video.md` 和 `playbook/04-audio.md`），可以改来用；`js/paint.js` 是渲染器：先画 Canvas2D 底稿，GPU 再用约 6 万个带纹理的笔触重画，`video-types/07` 要更浓的笔触时也参考它 |
+| lemo-opuscar 的时间线与卡点检查 | 一个 `timeline.js`（段落、BPM、拍号、卡点）导出 JSON，配乐、混音、字幕和检查脚本共用 | Node + Python，采样库 CC0 / CC BY | MIT | `lemo-opuscar/TECHNIQUE.md` §3（中文版已删，只有英文）、`lemo-opuscar/styles/microgame/demo/tools/cuecheck.py`、`lemo-opuscar/styles/game-show/STYLE.md` | 用脚本逐个比对画面卡点和音乐 cue，目标偏差 0 ms；每个风格用自己的编制，不用通用的"钢琴 + 弦乐" |
 | bestagentkits/motion-video-skill（97⭐） | HyperFrames 卡点 1080p 动态图形视频，带 AI 配音、卡拉 OK 字幕、音效和生成音乐 | HyperFrames；供应商描述未写 | MIT | 未拉取 | 【推测】对应 04 的 B 路线（动态排版 / 歌词视频） |
 | ZiadAbdelkarim/beat-synced-edit（10⭐） | 给一首歌和一堆素材，分析节拍、能量和场景后自动卡点剪 | 纯 Python + ffmpeg CLI | MIT | 未拉取 | 有实拍素材的 MV 可用 |
 
-PDoomVideo 已在 `cases/mv-pdoom.md`，没有 LICENSE，只读。
+PDoomVideo（JohnHeibel/PDoomVideo）已在 `cases/mv-pdoom.md` 拆解，p5.brush 路线的完整源码：`PDoomVideo/STORYBOARD.md`、`PDoomVideo/ANIMATION_GUIDE.md`、`PDoomVideo/src/ch/c01_lab.js` 到 `c09_finale.js`。没有 LICENSE，只读。
 
 ### 05 数据叙事 / 动画图表
 
@@ -76,12 +77,14 @@ PDoomVideo 已在 `cases/mv-pdoom.md`，没有 LICENSE，只读。
 |---|---|---|---|---|---|
 | iart-ai/data-animation-skills（6⭐） | 三个 skill：`chart-animation`（bar chart race、折线、计数器、一个模板批量套多份 CSV）、`animated-infographic`、`presentation-video` | Remotion + d3-scale；README 未提付费 API | MIT | `data-animation-skills/skills/chart-animation/SKILL.md`、`.../references/bar-chart-race.md`、`.../references/data-pipeline.md` | 每个值都由当前帧算出，关掉 Chart.js / D3 的内置动画，D3 只用比例尺；计数器先取整再格式化，用 `tabular-nums` 固定数字宽度；缓动作用在"值"上；排名也插值，超车才是滑过去而不是跳 |
 | lemo-opuscar 的 `dataviz`、`iso-infographic` | 《A Hundred Summers》：一百年夏季气温，红蓝铅笔逐点画出，图表本身就是镜头和节奏；等距信息图一镜到底，最后拉远成一张可打印的信息图 | Canvas2D | MIT | `lemo-opuscar/styles/dataviz/STYLE.md`、`lemo-opuscar/styles/iso-infographic/STYLE.md` | 手写批注钉在具体数字上 |
+| AmitSubhash/3brown1blue 的 `graphs-plots.md` | 用 Manim 画图表 | Manim CE | MIT | `3brown1blue/src/three_b1b/skill/rules/graphs-plots.md` | 数据片里要用 Manim 画坐标轴、曲线和柱状图时的做法 |
 | pyang5166/gbro-collage-info | 数字冲击、清单收敛类段落 | HyperFrames | MIT | `gbro-collage-info/references/motion-grammar.md` | 屏幕文字只用稿子里有的数字，稿子没给的用空白卡占位，不替内容编数据 |
 
 ### 06 论文讲解 / 学术视频
 
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
+| AmitSubhash/3brown1blue 的论文讲解规则 | 论文讲解的写法：先写口播稿、场景表和 STYLE 再写代码（它叫 Gate 1/2/3；`video-types/06` 把它们当成步骤，并入本仓库的关卡）；Remotion 集成；场景模板 | Manim CE，可接 Remotion | MIT | `3brown1blue/src/three_b1b/skill/rules/paper-explainer.md`（`video-types/06` 的必读）、同目录的 `remotion-integration.md`、`3brown1blue/src/three_b1b/skill/templates/paper_explainer.py` | 每个场景一个 insight；五分钟讲解的详细模板，分 ML、物理/工程、生物医学给出常见套路；场景模板可以直接对照着搭 |
 | ssrajadh/paperview（9⭐） | 把论文、代码库等做成讲解视频，本地渲染 + TTS，Claude Code 插件 | 描述写"本地渲染"，引擎未写 | Apache-2.0 | 未拉取 | 【推测】清单里和本类最贴近的一个，值得拉下来细读 |
 | data-animation-skills 的 `presentation-video` | 把幻灯片重建成带旁白、自动翻页的视频，每页的元素按旁白依次出现 | Remotion（`@remotion/transitions`） | MIT | `data-animation-skills/skills/presentation-video/SKILL.md` | 对应 06 的"报告录像型"：每页标题写成一个论断而不是标签；每页时长由该页旁白实测时长决定 |
 | runesleo/claude-video-kit（120⭐） | brief/script → review receipt → 带旁白的 9:16 讲解视频 | Remotion | MIT | 未拉取 | 【推测】"review receipt"可对照 06 的三道关 |
@@ -120,7 +123,7 @@ lemo-opuscar 的蜡笔、水彩、水墨、厚涂、红色剪纸、皮影、纸�
 
 同类的 `ops120/video-recap-skills-plus` 评级为 CAUTION，不用。
 
-类型 09（`video-types/09-editing-talking-head.md`）读过的另一批仓库，许可证和借用点见 `engines/editing.md` 的"社区 skill 参考"，不在本表里。
+类型 09（`video-types/09-editing-talking-head.md`）读过的另一批仓库，每个仓库的许可证和借用点见根目录 [`ACKNOWLEDGMENTS.md`](../ACKNOWLEDGMENTS.md) 的"Editing your own footage"一节，做法本身写在 `engines/editing.md`，不在本表里。
 
 ### 数字人
 
@@ -136,9 +139,9 @@ lemo-opuscar 的蜡笔、水彩、水墨、厚涂、红色剪纸、皮影、纸�
 
 ## 2. 风格库：lemo-opuscar 的 43 种影片风格
 
-lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemomo_ai，署名 LemoLab）用 Claude Opus 5.5 做的 43 支纯代码样片：2026-09-26 首发 39 种，09-29 的 `00343a2` 加了 `engraving`、`hologram-hud`、`midcentury-toon`、`silkscreen-poster` 四种。每种风格一份风格 prompt（`STYLE.md`），另有导演指南 `DIRECTOR.md` 和技术指南 `TECHNIQUE.md`。README 说明风格按 Opus 5.5 调过，换别的模型不保证效果；一支片子 agent 大约要做 30–60 分钟。画面用 Canvas / WebGL 逐帧渲染，配乐用免费采样库，配音用 TTS（英文默认离线的 Kokoro，中文可用联网的 edge-tts），不用视频生成，也不用素材库画面。本节按 2026-09-30 拉到的 HEAD `721f0b7` 核对。
+lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是 Lemomo（署名 LemoLab）用 Claude Opus 5.5 做的 43 支纯代码样片：2026-09-26 首发 39 种，09-29 的 `00343a2` 加了 `engraving`、`hologram-hud`、`midcentury-toon`、`silkscreen-poster` 四种。每种风格一份风格 prompt（`STYLE.md`），另有导演指南 `DIRECTOR.md` 和技术指南 `TECHNIQUE.md`。README 说明风格按 Opus 5.5 调过，换别的模型不保证效果；一支片子 agent 大约要做 30–60 分钟。画面用 Canvas / WebGL 逐帧渲染，配乐用免费采样库，配音用 TTS（英文默认离线的 Kokoro，中文可用联网的 edge-tts），不用视频生成，也不用素材库画面。本节按 2026-09-30 拉到的 HEAD `721f0b7` 核对。
 
-**许可（LICENSE 原文）**：现在整个仓库都是 MIT（Copyright 2026 LemoLab），另有一句说明样片里的第三方素材（采样库、字体、音乐、人声）保留各自许可，见每个样片的 `CREDITS`。CC BY 4.0 那一段是 `02dce5b`（2026-09-29，"Slim the library"）删掉的；在那之前（例如本仓库最初读的 `81e8903`），`DIRECTOR.md`、`TECHNIQUE.md`、`docs/`、`styles/*/STYLE.md` 和成片是 CC BY 4.0，只有代码是 MIT。CC 许可不能撤回，本仓库 `styles/` 里按旧快照改写、注明了 CC BY 4.0 的出处照旧成立（一般理解，非法律意见）。GitHub 和 `skills.json` 都把它识别成 `NOASSERTION`，不准确。
+**许可（按时期）**：2026-11-12 的 2.0.0（`2ef41cc`）起，它的 LICENSE 分三块：所有 Markdown（指南和每个 `STYLE.md`、`DEMO.md`）是 CC BY-NC 4.0，样片、海报和静帧是 CC BY 4.0，代码是 MIT；第三方素材保留各自许可，见每个样片的 `CREDITS`。2026-09-29（`02dce5b`，"Slim the library"）到 2026-11-12 之间整个仓库是 MIT（本地快照停在这一段，核对到 `721f0b7`）。在那之前（例如本仓库最初读的 `81e8903`），`DIRECTOR.md`、`TECHNIQUE.md`、`docs/`、`styles/*/STYLE.md` 和成片是 CC BY 4.0，只有代码是 MIT。CC 许可不能撤回，本仓库 `styles/` 里按旧快照改写、注明了 CC BY 4.0 的出处照旧成立；MIT 时期取用的代码照旧是 MIT。2.0.0 以后的文档是非商用许可，不再改写进本仓库，只读（一般理解，非法律意见）。GitHub 和 `skills.json` 都把它识别成 `NOASSERTION`，不准确。
 
 **路径**：`02dce5b` 起每种风格拆成两份：`lemo-opuscar/styles/<slug>/STYLE.md` 只写风格本身，统一 11 节（本质与"不是什么"、材质与渲染、色彩逻辑、字体与字幕、运动质感、镜头语法、声音、原生招式、这种媒介的坑、引擎、变化空间）；同目录的 `DEMO.md` 写作者那支样片的故事、镜头、配乐、片尾和制作笔记，`style.json` 是元数据，`styles/README.md` 是由它生成的中英风格索引。新加的四种是"场景风格"，各自承担一件实际的活（参数讲解、分步指南、旅游海报等）。原来的中文版指南 `docs/zh-CN/` 在同一次提交里删掉了，`DIRECTOR.md` 和 `TECHNIQUE.md` 现在只有英文。下表"适合"一列是本文按 OpenVideoHarness 类型给的归类建议，不是原仓库的说法。
 
@@ -297,7 +300,7 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | 仓库 | 本地核对的许可 | 代码 | 文档 / 素材 | 结论 |
 |---|---|---|---|---|
 | awesome-claude-video-skills | CC0 1.0（清单本身） | — | 清单文字可自由用；条目描述引自各仓库 | 可用 |
-| lemo-opuscar | 整仓 MIT（`02dce5b` 起，2026-09-29；核对到 `721f0b7`）。更早的快照里指南、STYLE.md、成片是 CC BY 4.0 | 可复用，保留 MIT 声明（`tools/readcheck.py` 的读秒公式即改写自它的 `core/render/readcheck.mjs`） | 现版本的指南和 STYLE.md 同为 MIT，保留版权和许可声明即可；按旧快照改写的内容照旧署名 LemoLab、注明 CC BY 4.0；第三方采样、字体、音乐、人声见各样片的 `CREDITS` | 可复用（保留声明） |
+| lemo-opuscar | 按时期：2026-09-29（`02dce5b`）之前指南、STYLE.md、成片是 CC BY 4.0；之后到 2026-11-12 整仓 MIT（本地核对到 `721f0b7`）；2.0.0（2026-11-12）起 Markdown 是 CC BY-NC 4.0、样片和静帧 CC BY 4.0、代码 MIT | 代码可复用，保留 MIT 声明（`tools/readcheck.py` 的读秒公式即改写自它的 `core/render/readcheck.mjs`）；2.0.0 起的文档只读 | MIT 时期取用的内容保留版权和许可声明即可；按 CC BY 时期改写的内容照旧署名 LemoLab、注明 CC BY 4.0；第三方采样、字体、音乐、人声见各样片的 `CREDITS` | 代码可复用（保留声明）；2.0.0 起的文档只读 |
 | OpenMontage | AGPL-3.0 | 复用即传染 | 同左 | 只读 |
 | video-shotcraft | Apache-2.0 | 可复用，保留 LICENSE、标注修改 | 音频多为 Mixkit，另有 6 个音效来源未能反查（见 `assets/audio/ATTRIBUTION.md`）；Remotion 自有许可 | 可复用；音频逐条核。`recipes/` 改写卡片文字和参数、不复制代码；改编的文件按第 4 条带许可原文和修改声明，清单见 `recipes/NOTICE.md` |
 | guizang-product-video | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | 复用即传染 | BSL 部分另有使用限制 | 只读 |
@@ -328,7 +331,7 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | huashu-art-motion | MIT（核对到 `9ff5933`，2026-10-10）。README"许可证"一节列了例外：笔顺数据 `scripts/engine/reference_films/spacex/spacex_wb/assets/strokes.js` 是 Arphic Public License（README 里写的是相对 `scripts/engine/` 的路径），`scripts/engine/lib/fonts/` 的字体是 OFL | 可复用，保留声明 | 作者的卡通形象和角色帧（`scripts/engine/demos/_shared/hero/`、`scripts/engine/demos/long_scroll/frames/`、`assets/角色/`），以及总览图、示范视频里的同一形象，只用于它自己的示范，不在 MIT 内；Clawd 是 Anthropic 的吉祥物，同人示范的 GIF 和成片同样不在 MIT 内；片中画作来自大都会艺术博物馆开放获取（CC0） | 代码和文字可复用（保留声明）；笔顺数据和字体按各自的许可用，保留许可文本；角色形象、Clawd 和示范视频不用 |
 | huashu-design | MIT（2026-05-14 起；更早的版本是"个人免费、企业商用要授权"；核对到 `0830494`，2026-09-22） | 可复用，保留声明 | `assets/` 里的背景音乐和 `demos/` 的媒体没逐个核对 | 可复用（保留声明）；媒体用之前单独核对 |
 | anatomy | MIT（Copyright 2026 Ryan；核对到 `1482e84`，2026-10-18） | 可复用，保留声明 | 示例的截图在 `.github/assets/`；`publish.md` 讲的是把作品发到它的社区画廊，那是对外发布 | 可复用（保留声明）；发布到画廊只在人要求时做 |
-| anatomy-reveal | MIT（Copyright 2026 Ann Nguyen；核对到 `dd01e1c`，2026-10-15）；`template/kit/` 来自 Anatomy（MIT，见其 `THIRD_PARTY_NOTICES.md`） | 可复用，保留两份声明 | 作者在 README 里请求署名（X 上的 @ann_nnng），MIT 本身只要求保留声明；README 说示例里提到的产品名归各自的所有者 | 可复用（保留声明，署名） |
+| anatomy-reveal | MIT（Copyright 2026 Ann Nguyen；核对到 `dd01e1c`，2026-10-15）；`template/kit/` 来自 Anatomy（MIT，见其 `THIRD_PARTY_NOTICES.md`） | 可复用，保留两份声明 | 作者在 README 里请求署名，MIT 本身只要求保留声明；README 说示例里提到的产品名归各自的所有者 | 可复用（保留声明，署名） |
 
 ---
 

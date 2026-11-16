@@ -72,4 +72,4 @@ derived_from: []
 
 ## 来源
 
-立意来自ハシモトタクマ（FunTech）的 FunTech Showreel 2026（X，2026-09-30），拆解见 `cases/oneshot-five.md` 第 4 节。段位和帧数是本仓库按那支片子约每 2 s 一帧的取样和电平排的，还没有在本仓库的成片里验证过。
+立意来自一支公司 showreel《FunTech Showreel 2026》（2026-09-30），拆解见 `cases/oneshot-five.md` 第 4 节。段位和帧数是本仓库按那支片子约每 2 s 一帧的取样和电平排的，还没有在本仓库的成片里验证过。

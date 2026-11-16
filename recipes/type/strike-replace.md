@@ -87,6 +87,6 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 来源
 
-改写自 gongnyang/awesome-ai-motion（MIT）的卡片 strikethrough-replace。文字重写；参数沿用卡片的默认值和范围，按 30 fps 换算；草图是本仓库写的，价格是样例。卡片注明的概念来源是 HyperFrames。
+改写自 gongnyang/awesome-ai-motion（MIT）的卡片 strikethrough-replace。文字重写；参数沿用卡片的默认值和范围，按 30 fps 换算；草图是本仓库写的，价格是样例。
 
 **许可**：本文件修改自 [awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion) 在 commit `1e3c249` 时的 `effects/strikethrough-replace/README.md`（Copyright (c) 2026 gongnyang，MIT），改了什么见上一段。来自上游的部分仍按 MIT 授权，许可全文见 [`LICENSES/MIT-awesome-ai-motion.txt`](../LICENSES/MIT-awesome-ai-motion.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

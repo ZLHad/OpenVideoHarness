@@ -115,6 +115,6 @@ Visual style: precise product keynote film. One idea per frame on a seamless sta
 
 ## 相关资源
 
-- `references/repos/lemo-opuscar/styles/dark-keynote/STYLE.md`（界面即主角、扫光揭示、一个巨大的数字）和 `glass-product/STYLE.md`（strip light、慢爆炸图在重拍上合拢），LemoLab，CC BY 4.0。本文的"先物后字"和"一个声音家族"改写自它们。
-- `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Velvet Standard 与 Swiss Pulse；`references/repos/OpenMontage/styles/premium-minimalist.yaml`。
+- 本文的"先物后字"和"一个声音家族"两条改写自 LemoLab 的 lemo-opuscar `styles/dark-keynote/STYLE.md` 和 `styles/glass-product/STYLE.md`（<https://github.com/lemomo-ai/lemo-opuscar>，2026-09-29 之前的版本，CC BY 4.0，<https://creativecommons.org/licenses/by/4.0/>）。
+- `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Velvet Standard 与 Swiss Pulse。
 - `showcase/00-promo-launch-film/`（暗舞台、单一琥珀强调色的样板）、`video-types/03-product-promo.md`。

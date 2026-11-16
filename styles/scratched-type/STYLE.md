@@ -124,6 +124,5 @@ Visual style: hand-scratched, jittery industrial title design. Warm black film b
 
 ## 相关资源
 
-- lemo-opuscar 里没有直接对应的风格。最接近的是 `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`（逐件出示证物的案卷叙事）和 `backrooms`（找回的录像带质感），均为 LemoLab，CC BY 4.0。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Deconstructed：同样工业、粗粝，但它用数字 glitch，本风格禁止。
 - `video-types/04-lyric-music-video.md`、`video-types/08-brutalist-meme.md`、`playbook/08-vfx-and-motion-sources.md`（闪白上限、子帧运动模糊）。
