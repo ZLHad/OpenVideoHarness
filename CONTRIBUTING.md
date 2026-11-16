@@ -7,19 +7,19 @@
 ## 分支和推送
 
 - **main 只接受 PR 合并。** 谁都不能直接推 main，包括仓库主人，也包括代表主人推送的 agent。这一条由 GitHub 规则集强制执行，见文末。
-- **一批相关的改动一个分支、一个 PR。** 里面一条一个提交，每一条在 CHANGELOG 里各记一笔。合并前分支要同步到最新的 main、再跑一遍 CI；PR 叠着开、一个一个合的话，每合进一个，后面的每一个都要再同步、再跑一遍，所以放得进一个 PR 的不拆开。分支名：人用 `<名字>/<主题>`，agent 用 `claude/<主题>` 或 `codex/<主题>`。
+- **一批相关的改动一个分支、一个 PR。** 里面一条一个提交，每一条在 `changes/` 下各加一个文件记一笔（见下面第 5 条）。合并前分支要同步到最新的 main、再跑一遍 CI；PR 叠着开、一个一个合的话，每合进一个，后面的每一个都要再同步、再跑一遍，所以放得进一个 PR 的不拆开。分支名：人用 `<名字>/<主题>`，agent 用 `claude/<主题>` 或 `codex/<主题>`。
 - **PR 先开成草稿**，写清改了什么、为什么、怎么验证的。人看过以后转成正式 PR，用 squash 合并。合并后分支自动删除。
-- **合并用 `tools/land.py`。** `python3 tools/land.py ready <PR>` 把分支同步到最新的 main，核对它改了什么、加了什么，用它加的那条 CHANGELOG 写 squash 说明，再打开 auto-merge：两项检查都过了，GitHub 自己合。叠在另一个 PR 上、那个已经 squash 进 main 的，加 `--after <那个 PR 最后的 head>`，同步时不会在同样的几行上冲突。合并以后 `python3 tools/land.py done <PR> --clean`：核对 main 上落下的就是测过的那棵树，把本地的 main 往前挪，删掉这个 PR 的分支和它干净的工作树。两步都可以先加 `--dry-run`，只说要做什么。`.git/info/land-deny` 里一行一个正则，PR 加的内容、提交信息、标题、说明和 squash 说明碰上任何一条都不合；这个文件在 `.git` 里、不进版本库，各人写各人的（不想要的署名行、私人的名字和路径）。
+- **合并用 `tools/land.py`。** `python3 tools/land.py ready <PR>` 把分支同步到最新的 main，核对它改了什么、加了什么，用它在 `changes/` 下加的那个文件写 squash 说明（还按旧写法往 `CHANGELOG.md` 加条目的 PR，用它加的那条），再打开 auto-merge：两项检查都过了，GitHub 自己合。叠在另一个 PR 上、那个已经 squash 进 main 的，加 `--after <那个 PR 最后的 head>`，同步时不会在同样的几行上冲突。合并以后 `python3 tools/land.py done <PR> --clean`：核对 main 上落下的就是测过的那棵树，把本地的 main 往前挪，删掉这个 PR 的分支和它干净的工作树。两步都可以先加 `--dry-run`，只说要做什么。`.git/info/land-deny` 里一行一个正则，PR 加的内容、提交信息、标题、说明和 squash 说明碰上任何一条都不合；这个文件在 `.git` 里、不进版本库，各人写各人的（不想要的署名行、私人的名字和路径）。
 - **合并条件**：CI 的两项检查（Linux、macOS）都通过，分支已同步到最新的 main，评审里的对话都已解决。
 - **不改写已经推送的历史。** 不 rebase、不 amend、不 force push 已经推送的分支。main 往前走了，就把 main 合进自己的分支，冲突在分支上解决。只有一种例外：自己的分支在 PR 合并后还要接着用，这时从最新的 main 重开，用 `git push --force-with-lease`。
 
 ## 给 agent 的规则
 
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
-2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
+2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。改着的时候用 `tools/ci.sh --changed`，只跑这次改动用得到的组（见下面"推送前自查"）；推送前和合并前仍然整跑一次。修 bug 要先复现，再证明修好，前后对比写进 PR。
 3. PR 一律开成草稿。先核对 `LOCAL.md` 的维护偏好，区分自己账号的开发与外部贡献；外部贡献必须按下节逐个介绍并取得明确批准。用户可以长期授权自己账号的日常开发 PR 检查通过后合并；没有对应授权时交付草稿等人决定。授权范围内，agent 审过 diff 后用 `python3 tools/land.py ready <PR>` 转正式 PR、排上 squash 自动合并，必需的检查都通过后由 GitHub 合并；合并后用 `python3 tools/land.py done <PR> --clean` 核对和清理。旧批量授权不覆盖新来的外部贡献。管理员“绕过规则合并”只留给人用，agent 不碰。
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git：成片、样片集锦这类文件放在 GitHub Release `media`，新规格（规格 2）的完整风格样片放在 Release `styles-media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。例外只有 2026-11 以前的 33 个 5 秒风格样片（规格 1，各约 1 MB，下次重渲时移出去），和规格 2 留在 git 里的 2 秒小预览 `preview.mp4`（≤ 200 KB）。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
-5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
+5. 用户能感知到的改动，在 `changes/` 下加一个文件记一笔，不直接改 `CHANGELOG.md`。文件名用小写字母、数字和连字符，比如 `changes/ci-by-change.md`；内容就是一条 CHANGELOG 条目：第一行粗体标题，下面一行一条（`changes/README.md` 有例子）。两个 PR 各加各的文件，先后合并时不会在 `CHANGELOG.md` 顶上冲突。`python3 tools/changes.py show` 列出还没发版的改动，发版时它们合进 `CHANGELOG.md`（见"版本 tag 和 Release"）。过渡期两种写法都认，到第一次用 `tools/changes.py release` 发版为止：已经开着的 PR 照旧往 `CHANGELOG.md` 的 Unreleased 加条目也行，`tools/land.py` 和发版都认得。发版会删掉 `## Unreleased` 这个标题，之后还往那里加条目的 PR 会在那一行冲突，把条目挪进 `changes/` 下的一个文件就好。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
 8. 改了配方的草图（`recipes/` 里"实现"一节定义 `renderAt` 的那段代码），用 `bin/vh recipes sample <id> --draft` 重渲它的联系表：`bin/vh recipes check`（CI 也跑）要求有草图的配方都带联系表，而且 `sketch_sha` 对得上现在的草图。渲联系表要风格样片的渲染器：`styles/_swatch` 里 `npm ci`，再加 ffmpeg、uv 和 Chrome（`bin/vh doctor` 会说缺哪样）；CI 不渲，只核对。
@@ -70,7 +70,7 @@
 
 **写到别人的工作时**：真在用的库和工具，在讲用法的地方照常写，README 的致谢里一行一个。只看过、学过的作品、仓库、帖子和作者，不在主文档里署名，正文直接讲做法（"本仓库没有实测"这类提醒照留），名字和学了什么记进 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) 的"参考过的作品"。复制或改写进来的代码和文字，许可要求的声明放在许可要求的地方（例如 `recipes/` 每个文件的"许可"一段和 `NOTICE.md`）。事实的出处照硬规则 5 照写；`cases/` 只记作品本身，不写账号和来源。
 
-`skills/` 里的 skill 不在这四样里，但它是别的宿主进来的门：`bin/vh install-skill` 装出去的是短桩，只带 frontmatter 和克隆的路径，正文让 agent 回克隆里读 `skills/<名字>/SKILL.md`，所以改正文 `git pull` 就到了。改了 frontmatter（`name`、`description`，宿主靠它触发）、改了 `tools/skill_stub.md`、加了或改名了一个 skill，已装的桩要重写：CHANGELOG 里写一句要跑 `bin/vh install-skill`（它也会删掉自己为已经没有的 skill 写过的桩），`bin/vh doctor` 的 `skills` 行也会报。
+`skills/` 里的 skill 不在这四样里，但它是别的宿主进来的门：`bin/vh install-skill` 装出去的是短桩，只带 frontmatter 和克隆的路径，正文让 agent 回克隆里读 `skills/<名字>/SKILL.md`，所以改正文 `git pull` 就到了。改了 frontmatter（`name`、`description`，宿主靠它触发）、改了 `tools/skill_stub.md`、加了或改名了一个 skill，已装的桩要重写：变更记录里写一句要跑 `bin/vh install-skill`（它也会删掉自己为已经没有的 skill 写过的桩），`bin/vh doctor` 的 `skills` 行也会报。
 
 ## 推送前自查：`tools/ci.sh`
 
@@ -81,7 +81,11 @@ tools/ci.sh                        # 全部检查；没装 shellcheck、pyflakes
 tools/ci.sh --committed            # 只检查已提交的内容（HEAD），和 CI 看到的一样；推送前用这个
 LC_ALL=en_US.UTF-8 VH_BASH=/bin/bash /bin/bash tools/ci.sh   # macOS：系统自带的 bash 3.2 加 UTF-8 locale，Mac 用户默认就是这样，CI 的 macOS 也是
 tools/ci.sh --shard 1/2            # 只跑两个 shard 里的第 1 个，CI 的 macOS 就是这样分两半跑的
+tools/ci.sh --changed              # 只跑这次改动用得到的组：和 origin/main 比（也可以写别的基准，tools/ci.sh --changed <基准>）
+python3 tools/ci_select.py --why   # 只说要跑哪些组、为什么，不跑
 ```
+
+**改着的时候按改动跑，推送前和合并前整跑。** `--changed` 看这次改了哪些文件：和基准的分叉点比，工作区里没提交、没 `git add` 的文件也算。它按 `tools/ci-paths.txt` 算出要跑的组，只跑这些。这张表一行是一个路径模式和它要跑的组。拿不准就整跑：表里没有的路径整跑，一行要窄就得有依据。依据是 `python3 tools/ci_select.py --check`（`tools/ci.sh` 跑它）：它从一行对上的每个文件出发，找出 import 它或在代码里写到它名字的文件，再一层层往外找；再找写到其中任何一个的 `bin/vh` 命令和跑这些命令的组，以及 `tools/ci.sh` 里写到它们的组。一行漏了其中哪一组，或者一路通到所有组，检查就不过。`python3 tools/ci_select.py --suggest` 打印每一行该写哪些组。所以现在大多数路径都整跑：`bin/vh`、引擎、模板、`CLAUDE.md` 和 `playbook/` 这类 agent 读的文档、风格和组件、`tools/` 下的共用工具（status、review、审阅台、jsonerr 和它们用到的）都没有行，几乎每一组都会经过它们。能省下时间的是外围的改动：变更记录、落地和这套检查自己的工具、几个只有一两组用的工具、给人看的页面。语法、文档和读量表这三组每次都跑。`tools/ci.sh` 本身看改在哪个函数里：改在哪个组里就跑哪个组，改在辅助函数里就跑调用它的组，改在开头或末尾的分发里就整跑。只跑了一部分组时，末尾会说跑了全部组里的几组。它省的只是改着时的等待：推送前照旧跑 `tools/ci.sh --committed`，PR 上的 CI 也照旧整跑。
 
 跑完会打印总时长、每组检查各用了几秒，和最慢的十项。分组和每组的秒数记在 `tools/ci-shards.txt` 里，秒数按 CI 的 macOS 机器算：`--shard i/n` 照这些秒数把组分给各个 shard，长的先分，每次分给目前秒数最少的那个，同一张表永远分得一样。新加一组检查（`tools/ci.sh` 里一个 `*_checks` 函数）要在表里加一行，`tools/ci.sh` 会查表和函数对不对得上。两个 macOS shard 的用时差出一两分钟以上，就把两个 shard 日志末尾的各组秒数抄回表里，重新分匀。
 
@@ -104,6 +108,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | README 和官网的数字和链接 | 两份 README、`docs/assets/overview.*.svg`、`install.sh` 和官网写的命令数、风格数、配方数这类数字和仓库对不上（`python3 tools/readme.py` 列出现在的数）；链接或图片指向不存在的文件，`#锚点` 不是那一页的标题；中英两份 README 的小节数或链接的文件对不上；官网的风格列表不是仓库里的那些风格、中英文段数不一样，或者页面一打开就从别的网站加载字体、脚本、图片；`styles/README.md` 的表格和 `styles/families.json`、各个 `tokens.json` 对不上；入库的页面用 `<video src>` 或脚本里的 `.src =` 放 Release 的视频 |
 | 风格库 | `bin/vh style check`：一个风格的家族不在 `styles/families.json`、类型不在 `video-types/`、标签不是那几个词、`card` 缺格；样片的时长、尺寸、响度、体积、封面、预览、竖版或循环接缝不合它的规格；`tools/media.txt` 的格式不对，或者规格 2 的完整样片进了 git；`bin/vh style list` 的筛选、`tools/styles.py spec` 算出的数字、`tools/fetch_media.sh` 从别的 Release 下载、渲染器 stage 里的尺寸和时长（规格 1 的页面和改动前一样） |
 | 研究笔记两种语言对齐 | `docs/research/` 的一篇笔记缺了英文版或中文版，两版的节数（`##`、`###`）、表格行数、图的张数，或者某一节（`##`）里的列表条目数对不上；中英两份索引漏了一篇、多列了不存在的一篇，或顺序不对 |
+| 变更记录和按改动跑 | `changes/` 下的文件不是一条条目（没有粗体标题、两条挤在一个文件里、文件名不对）；`tools/changes.py release` 合出来的一节顺序不对、删了没提交的文件、说写了 `CITATION.cff` 其实没写；`tools/ci-paths.txt` 写了不存在的组或文件，或者一行漏了 import 或写到它的文件、跑它的 `bin/vh` 命令、写到它的 `tools/ci.sh` 组所在的组；`tools/ci.sh` 里有一组找不到自己的函数。拦不住的：一个工具用拼出来的名字调另一个（`bin/vh` 里的 `tools/film/$tool.mjs`），或在 Python 里经 `bin/vh <命令>` 调另一个；一个文件被读的地方从不写出它的名字 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |
 
 另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由和 quick 卡，估算每一档、每一类片子要读多少字符（`start` 一列是 `standard` 开工前读的，不含有声片才读的 `playbook/04-audio.md`；`standard` 是到第一版之前陆续读完的总量），用来看文档有没有越写越长，上限以后再定。数字本身不判失败；它要数的文件或章节不见了，CI 会报错，免得这张表悄悄变小。
@@ -151,7 +156,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 - **macOS 那一项是汇总。** macOS 的检查分两个 shard 并排跑（`macos shard 1/2`、`macos shard 2/2`），规则集要求的 `checks (macos-latest)` 是另一个 job：等所有 shard 跑完，shard 那一组 job 的结果是通过（每个 shard 都通过）才算通过。它带 `if: always()`，shard 失败、被取消、没启动时照样运行并报失败。GitHub 把被跳过的必需检查当成通过，汇总 job 要是能被跳过，红的 PR 也可能被自动合并。`tools/ci.sh` 的 doc_checks 会查：规则集要求的两项都是 ci.yml 里某个 job 的名字，`checks (macos-latest)` 带着 `if: always()`。
 - **要求分支是最新的。** [第一个 PR](https://github.com/ZLHad/OpenVideoHarness/pull/1) 开着的时候 main 发了 v0.2.1，两边改了同一个文件。要求同步到最新以后，CI 检查的是合并后的真实结果，不是过期的分支。
 - **CI 只在 PR 上跑，main 每晚跑一次。** 合进 main 的 PR 都在同步到最新 main 的分支上过了两项检查，squash 落下的就是那棵树（`tools/land.py done` 核对这一点），合并以后在 main 上再跑一遍，测的还是同一棵树。每晚跑一次为两件事：PR 只能用它自己的和 main 的缓存，main 长期不跑，缓存会过期；runner 的系统、Chrome、brew 的 ffmpeg 会变，每晚跑能早点发现。手动跑：Actions 页面的 Run workflow，或 `gh workflow run ci.yml --ref <分支>`。
-- **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，说明取自它在 CHANGELOG 里加的条目。
+- **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，说明取自它加的变更记录（`changes/` 下的文件）。
 - **打开 auto-merge。** 它只是"检查过了就合并"的排队，规则集的每一项照样要满足，合并方式也只能是 squash；好处是 CI 要跑几分钟时，人和 agent 都不用守着。
 
 **账号权限与本人操作要分开。** agent 用主人的 GitHub 凭据时，GitHub 无法区分主人和 agent；文档约定和关闭 auto-merge 都不构成凭据隔离。只去掉 Administration 也不能阻止合并：[合并 API 需要的是 Contents 写权限](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)。
@@ -169,4 +174,4 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 
 另有一个不是版本的 Release `media`（tag `media`，2026-10-04 由 agent 在维护者同意后建）：放样片和风格集锦的视频文件，规则见上面第 4 条。它的 tag 不移动，也不受上面两个规则集保护（规则集只管 `v*`）；换文件按第 4 条用新文件名，不覆盖。第二个是 `styles-media`，放规格 2 的完整风格样片（`bin/vh style register` 打印的命令第一次用时会建它，带 `--latest=false`），规则和 `media` 一样。
 
-发新版本的做法：把 `CHANGELOG.md` 的 Unreleased 改成 `## vX.Y.Z — 日期`，经 PR 合并进 main，然后由维护者在合并后的提交上建 Release（`gh release create vX.Y.Z --target <提交> --latest --notes-file <这一节>`；`media` 也是一个 Release，不写 `--latest` 它可能还标着 Latest）。这一节太长时（GitHub 的说明上限是 125,000 字符），在这一节开头写一段摘要，说明只用摘要，末尾链到这个 tag 的 `CHANGELOG.md`。tag 一旦建好就不再移动；发错了就发一个新的补丁版本。改了这两个文件以后，用 `gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input <文件>` 同步线上配置，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。
+发新版本的做法：在一个分支上跑 `python3 tools/changes.py release vX.Y.Z`（先加 `--dry-run` 看这一节）。它把 `changes/` 下的文件和 `CHANGELOG.md` 里 Unreleased 下还留着的条目合成 `## vX.Y.Z — 日期` 一节，新的在前；再删掉这些文件，把版本和日期写进 `CITATION.cff`。这个分支经 PR 合并进 main，然后由维护者在合并后的提交上建 Release（`python3 tools/changes.py show vX.Y.Z > notes.md` 取出这一节，`gh release create vX.Y.Z --target <提交> --latest --notes-file notes.md`；`media` 也是一个 Release，不写 `--latest` 它可能还标着 Latest）。这一节太长时（GitHub 的说明上限是 125,000 字符），在这一节开头写一段摘要，说明只用摘要，末尾链到这个 tag 的 `CHANGELOG.md`。tag 一旦建好就不再移动；发错了就发一个新的补丁版本。改了这两个文件以后，用 `gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input <文件>` 同步线上配置，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。

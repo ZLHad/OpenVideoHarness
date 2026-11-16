@@ -11,6 +11,7 @@
 static_checks 25
 doc_checks 2
 readpath_report 0
+plumbing_checks 10
 smoke_checks 133
 pace_checks 15
 timeline_checks 25
