@@ -19,7 +19,7 @@ A note's age is the commit that added it (on main: the PR's squash); a note not 
 Exit: 0 done · 1 a note is malformed; release found nothing to release, or the version is there already; show found
 no such release · 2 usage.
 """
-import argparse, datetime, os, re, subprocess, sys
+import argparse, datetime, os, re, signal, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,23 +38,24 @@ def note_files():
 
 
 def added_at():
-    """{path under the repo: when the newest commit that added it was made}, from git; {} without git."""
-    p = subprocess.run(["git", "-C", str(ROOT), "log", "--diff-filter=A", "--no-renames", "--format=%x00%ct",
+    """{path under the repo: how far down git log the commit that last added it is (0 the newest)}; {} without git. The
+    log's order, not the commits' times: two squashes in the same second still come child first."""
+    p = subprocess.run(["git", "-C", str(ROOT), "log", "--diff-filter=A", "--no-renames", "--format=%x00",
                         "--name-only", "--", "changes/"], capture_output=True, text=True)
-    out, when = {}, None
+    out, n = {}, -1
     for line in p.stdout.splitlines() if p.returncode == 0 else []:
         if line.startswith("\0"):
-            when = int(line[1:])
-        elif line.strip() and when is not None:
-            out.setdefault(line.strip(), when)   # git log is newest first: the first add seen is the latest
+            n += 1
+        elif line.strip() and n >= 0:
+            out.setdefault(line.strip(), n)   # newest first: the first add seen is the latest
     return out
 
 
 def ordered(files):
     """Newest first: a note not committed yet, then by the commit that added it; the name breaks a tie."""
-    when = added_at()
+    at = added_at()
     rel = lambda p: p.relative_to(ROOT).as_posix()   # noqa: E731
-    return sorted(files, key=lambda p: (-when.get(rel(p), float("inf")), p.name))
+    return sorted(files, key=lambda p: (at.get(rel(p), -1), p.name))
 
 
 def parse(text):
@@ -188,6 +189,7 @@ def cmd_release(version, date, dry):
 
 
 def main():
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)   # show | head: stop quietly
     ap = argparse.ArgumentParser(prog="tools/changes.py", description="The change notes in changes/ and CHANGELOG.md.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("show", help="what changed since the last release, or one release's section")

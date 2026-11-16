@@ -440,17 +440,17 @@ c = repo("notes", ["changes.py"])
 put(c, "CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
 put(c, "CITATION.cff", 'cff-version: 1.2.0\nversion: "0.1.0"\ndate-released: "2026-01-01"\n')
 put(c, "changes/README.md", "what the folder is for\n")
-put(c, "changes/older.md", "**Older note**\n- Why: landed first\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "a", cwd=c, when="2026-02-01T00:00:00")
-put(c, "changes/newer.md", "**Newer note**\n- Why: landed second\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "b", cwd=c, when="2026-03-01T00:00:00")
+put(c, "changes/a-first.md", "**Older note**\n- Why: landed first\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "a", cwd=c, when="2026-02-01T00:00:00")
+put(c, "changes/b-second.md", "**Newer note**\n- Why: landed second\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "b", cwd=c, when="2026-02-01T00:00:00")   # the same second
 put(c, "changes/aaa-working.md", "**Not committed yet**\n- still being written\n")
 rc, out, err = run(c, "changes.py", "check"); p = [] if rc == 0 and "3 note(s)" in out and "2 entry(ies)" in out else [f"check: exit {rc}: {out}{err}"]
 rc, out, err = run(c, "changes.py", "show", "--titles")
-want = ["- Not committed yet  (changes/aaa-working.md)", "- Newer note  (changes/newer.md)", "- Older note  (changes/older.md)",
+want = ["- Not committed yet  (changes/aaa-working.md)", "- Newer note  (changes/b-second.md)", "- Older note  (changes/a-first.md)",
         "- Old one  (CHANGELOG.md)", "- Old two  (CHANGELOG.md)"]
 if rc or out.splitlines() != want: p.append(f"show --titles: exit {rc}: {out!r}")
 rc, out, err = run(c, "changes.py", "show")
 if rc or not out.startswith("**Not committed yet**\n- still being written\n\n**Newer note**") or "**Old two**\n- two" not in out: p.append(f"show: {out[:200]!r}")
-report(p, "changes.py: check counts the notes and the Unreleased entries; show lists them newest first (a note not committed, then by the commit that added it, then ## Unreleased)")
+report(p, "changes.py: check counts the notes and the Unreleased entries; show lists them newest first (a note not committed, then by the commit that added it, two in one second the later first, then ## Unreleased)")
 put(c, "changes/Bad_Name.md", "**x**\n- y\n"); put(c, "changes/no-title.md", "just text\n"); put(c, "changes/two.md", "**One**\n- a\n\n**Two**\n- b\n"); put(c, "changes/bare.md", "**Only a title**\n")
 rc, out, err = run(c, "changes.py", "check")
 rc2, out2, err2 = run(c, "changes.py", "release", "v0.2.0")
@@ -460,7 +460,7 @@ report(p, "changes.py: check names a bad file name, a missing title, two entries
 for f in ("Bad_Name", "no-title", "two", "bare"): os.remove(os.path.join(c, "changes", f + ".md"))
 before = read(c, "CHANGELOG.md")
 rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01", "--dry-run")
-p = [] if rc == 0 and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/older.md")) and "## v0.2.0 — 2026-04-01" in out else [f"dry run: exit {rc}: {out}{err}"]
+p = [] if rc == 0 and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/a-first.md")) and "## v0.2.0 — 2026-04-01" in out else [f"dry run: exit {rc}: {out}{err}"]
 rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01")
 log, cff = read(c, "CHANGELOG.md"), read(c, "CITATION.cff")
 want = ("# Changelog\n\nWhat changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.\n\n"
