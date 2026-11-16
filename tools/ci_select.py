@@ -208,7 +208,8 @@ def select(base, why):
     mb = git("merge-base", base, "HEAD").strip()
     groups = table_groups(os.environ.get("OVH_CI_SHARDS") or ROOT / SHARDS)
     always, rows = path_table(os.environ.get("OVH_CI_PATHS") or ROOT / PATHS)
-    changed = set(git("diff", "--name-only", "--no-renames", mb).split()) | set(git("ls-files", "--others", "--exclude-standard").split())
+    # -z: names as they are (git quotes one with a space or a non-ASCII letter otherwise)
+    changed = {x for x in git("diff", "--name-only", "--no-renames", "-z", mb).split("\0") + git("ls-files", "-z", "--others", "--exclude-standard").split("\0") if x}
     say, chosen = [], set(always)
     for p in sorted(changed):
         if p == CI:
@@ -253,7 +254,7 @@ def check():
     always, rows = path_table(ROOT / PATHS)
     named = always + [g for r in rows for g in r[2]]
     problems += [f"{PATHS}: {g} is no group of {SHARDS}" for g in sorted(set(named)) if g != ALL and g not in groups]
-    tracked = git("ls-files").split("\n")
+    tracked = git("ls-files", "-z").split("\0")
     problems += [f"{PATHS}: {pat} matches no file git tracks" for pat, rx, _ in rows if not any(rx.match(f) for f in tracked)]
     text = (ROOT / CI).read_text(encoding="utf-8")
     script = Script(text, groups)

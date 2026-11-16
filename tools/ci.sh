@@ -518,6 +518,7 @@ def edit(rel, old, new): put(s, rel, read(s, rel).replace(old, new, 1))
 cases = [
     ("nothing changed", lambda: None, ["a_checks"]),
     ("a new file under docs/ (not added to git)", lambda: put(s, "docs/b.md", "b\n"), ["a_checks"]),
+    ("a file under docs/ whose name has a space and Chinese in it", lambda: put(s, "docs/立意 卡.md", "c\n"), ["a_checks"]),
     ("src/x.py", lambda: put(s, "src/x.py", "x2\n"), ["a_checks", "c_checks"]),
     ("a path no line matches", lambda: put(s, "src/other.py", "z2\n"), ["a_checks", "b_checks", "c_checks"]),
     ("a path whose line says ALL", lambda: put(s, "src/all.py", "y2\n"), ["a_checks", "b_checks", "c_checks"]),
