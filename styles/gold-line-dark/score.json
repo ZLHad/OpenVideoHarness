@@ -1,0 +1,19 @@
+{
+  "bpm": 80, "key": "E", "mode": "major", "seed": 23,
+  "meters": {"1": 2, "2": 4, "3": 4, "4": 2},
+  "stereo": true, "space": {"type": "hall", "rt60": 2.6},
+  "sections": [
+    {"name": "world", "bars": 1, "chords": ["Isus2"]},
+    {"name": "signature", "bars": 1, "chords": ["vi9"]},
+    {"name": "type", "bars": 1, "chords": ["IVmaj7"]},
+    {"name": "close", "bars": 1, "chords": ["Iadd9"]}
+  ],
+  "parts": [
+    {"inst": "harp_pm", "id": "harp", "figure": "arp-up", "rate": 2, "span": 2, "octave": 3, "gain_db": -4, "pan": -0.2, "send": 0.4,
+     "by_section": {"world": {"figure": null, "pattern": [[0.0, 2, ["c0", "c2", "c1'"], 0.55]]}}},
+    {"inst": "strings", "id": "high", "figure": "sustain", "octave": 5, "voicing": "close", "params": {"attack": 0.8, "release": 1.2}, "gain_db": -16, "lp": 3000, "pan": 0.15, "send": 0.5},
+    {"inst": "drone", "id": "floor", "figure": "sustain", "pitch": "c0,", "octave": 2, "gain_db": -15, "send": 0.2},
+    {"inst": "celesta", "id": "bell", "sections": ["type"], "octave": 5, "gain_db": -9, "pan": 0.25, "send": 0.45,
+     "pattern": [[0.5, 1, "c2", 0.6], [1.5, 1, "c1", 0.5], [2.5, 1.5, "c0'", 0.55]]}
+  ]
+}

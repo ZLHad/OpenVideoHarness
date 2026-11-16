@@ -347,6 +347,11 @@ fi
 if [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist", "role"}]; own WAVs relative to the style folder
   echo "→ foley from ${SRC#$ROOT/}/events.json"
   "$ROOT/bin/vh" sfx lib "$OUT/sfxlib" >/dev/null       # rebuilt each time, so library fixes always reach the swatch
+  # the style's own synthesised sounds (styles/<slug>/sfx/, build output, not in git): rebuilt each time too, byte for byte
+  if grep -q '"sfx/' "$SRC/events.json" && (cd "$ROOT" && uv run -q --no-project --with numpy --with scipy python styles/_swatch/custom_sfx.py --list) | grep -qx "$slug"; then
+    (cd "$ROOT" && uv run -q --no-project --with numpy --with scipy python styles/_swatch/custom_sfx.py "$slug") >/dev/null \
+      || die "could not build ${SRC#$ROOT/}/sfx/ (styles/_swatch/custom_sfx.py $slug)"
+  fi
   MIXARGS+=(events="$SRC/events.json" lib="$OUT/sfxlib" root="$SRC")
 fi
 # profile=swatch (playbook/04-audio.md, 混音): the music is the anchor; each foley event moves half way to its class's

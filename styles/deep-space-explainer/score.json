@@ -1,0 +1,19 @@
+{
+  "bpm": 80, "key": "D", "mode": "minor", "seed": 31,
+  "meters": {"1": 2, "2": 4, "3": 4, "4": 2},
+  "stereo": true, "space": {"type": "hall", "rt60": 3.2},
+  "sections": [
+    {"name": "world", "bars": 1, "chords": ["i"]},
+    {"name": "signature", "bars": 1, "chords": ["VI"]},
+    {"name": "type", "bars": 1, "chords": ["III"]},
+    {"name": "close", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "organ", "id": "organ", "figure": "sustain", "octave": 3, "voicing": "open", "params": {"drawbars": "806400000", "leslie": 0.6}, "gain_db": -8, "send": 0.5},
+    {"inst": "organ", "id": "pulse", "sections": ["signature", "type"], "figure": "ostinato", "rate": 2, "octave": 4, "params": {"drawbars": "008800000"}, "gain_db": -15, "pan": 0.2, "send": 0.45},
+    {"inst": "sub808", "id": "beat", "octave": 1, "gain_db": -6, "pattern": [[0, 0.5, "c0", 0.8], [1, 0.5, "c0", 0.5]],
+     "by_section": {"world": {"pattern": [[0, 0.5, "c0", 0.7]]}, "close": {"pattern": [[0, 1.5, "c0", 0.6]]}}},
+    {"inst": "glockenspiel", "id": "glock", "sections": ["type"], "octave": 6, "gain_db": -14, "pan": -0.25, "send": 0.5,
+     "pattern": [[0.1, 1, "c2", 0.6], [1.5, 1, "c0'", 0.5], [3, 1, "c1", 0.45]]}
+  ]
+}

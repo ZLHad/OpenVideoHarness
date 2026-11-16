@@ -1,0 +1,11 @@
+[
+  {"t":0.1,"sfx":"sfx/light_front.wav","gain_db":-6,"pan":0,"role":"hero","pan_from":-0.7,"pan_to":0.2},
+  {"t":1.7,"sfx":"tick","gain_db":-5,"pan":-0.6,"role":"detail"},
+  {"t":1.88,"sfx":"tick","gain_db":-5,"pan":-0.6,"role":"detail"},
+  {"t":2.06,"sfx":"tick","gain_db":-5,"pan":-0.6,"role":"detail"},
+  {"t":2.15,"sfx":"sfx/hole_hum.wav","gain_db":-16,"pan":0.1,"role":"ambience"},
+  {"t":2.62,"sfx":"swish_rev","gain_db":-11,"pan":0,"dur":0.5},
+  {"t":3.45,"sfx":"whoosh","gain_db":-9,"pan":0,"dur":1,"dir":"down","pan_from":-0.3,"pan_to":0.5},
+  {"t":4.58,"sfx":"sfx/detect.wav","gain_db":-5,"pan":0.2,"role":"hero"},
+  {"t":7.55,"sfx":"air","gain_db":-12,"pan":0,"dur":1.2,"dir":"down","pan_from":0.4,"pan_to":-0.4}
+]

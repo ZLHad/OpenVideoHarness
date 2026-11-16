@@ -18,3 +18,13 @@ styles/visual-investigation/media/swatch-portrait.mp4 styles-media/visual-invest
 styles/map-explainer/media/swatch.mp4 styles-media/map-explainer-d735003e.mp4 d735003e4f5b8721b23cf71259bcea270811bc2893a717d131396041bad465fb
 styles/map-explainer/media/swatch-portrait.mp4 styles-media/map-explainer-portrait-bb241267.mp4 bb241267ba4925134364423de29ebd0f3c99a97d81c4c53a26f1df6642d1f863
 styles/dark-studio-3d/media/swatch.mp4 styles-media/dark-studio-3d-814b8863.mp4 814b88635201a9cfe16e48cfe244b978f8da6f1921d0bf6e3e93ee12ee892503
+styles/whiteboard/media/swatch.mp4 styles-media/whiteboard-b8f99591.mp4 b8f99591fe8db9cbe3710156de34b6a52dcb3e4ef9957c231b351b24fa36304f
+styles/whiteboard/media/swatch-portrait.mp4 styles-media/whiteboard-portrait-525db456.mp4 525db456d438b78fe9ca70b6388d9ea492b2f908c9c01d0eb4988c267d63bcf9
+styles/chalkboard/media/swatch.mp4 styles-media/chalkboard-6ac99c95.mp4 6ac99c952b71d7fb91f80e1b0ad8ca746a2f0d6bdf5efd66fcb24d578c2d74f3
+styles/chalkboard/media/swatch-portrait.mp4 styles-media/chalkboard-portrait-08f04c49.mp4 08f04c491692abc2e7c050df5be6f655dc2073151da0c5d5b67d551d805bc9ed
+styles/era-media-relay/media/swatch.mp4 styles-media/era-media-relay-31555469.mp4 31555469a478236e71aa00f13d254fb702dd8d1f8f74a0bc5b348f11b847d621
+styles/era-media-relay/media/swatch-portrait.mp4 styles-media/era-media-relay-portrait-bd36dcb5.mp4 bd36dcb507613733a4c2cf973c096bc16fba501ac3a3ee5f172f39a69bbef843
+styles/gold-line-dark/media/swatch.mp4 styles-media/gold-line-dark-eb352358.mp4 eb352358b686a34e3184025eebbd6d92aec629f1135be8d3c2e2f6a49f53e50e
+styles/gold-line-dark/media/swatch-portrait.mp4 styles-media/gold-line-dark-portrait-6ed82b68.mp4 6ed82b68c31b5aed6284adfd20a80593094fe4f062c9aa9c86a03cdee56bac64
+styles/deep-space-explainer/media/swatch.mp4 styles-media/deep-space-explainer-55068fe0.mp4 55068fe0bdf30df86ab6bbe193f068b8601814c8d7efa032323379d7cd713da9
+styles/deep-space-explainer/media/swatch-portrait.mp4 styles-media/deep-space-explainer-portrait-1a5117cf.mp4 1a5117cf27f261dc5cf2eaa4f09227db82cfc4762b2091c2f53ffe9fad53844d

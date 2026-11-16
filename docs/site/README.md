@@ -28,7 +28,7 @@ GitHub's file view shows the HTML source, not the page. To see the page:
 Nothing from another site loads with the page, so it opens where Google Fonts, YouTube or a CDN are blocked:
 
 - **Fonts**: the display face (Inter Tight) and the mono face (JetBrains Mono) are in `fonts/`, cut down to Latin and the weights the page uses (23 kB and 12 kB, WOFF2), under the SIL Open Font License 1.1 (`fonts/OFL-*.txt`). They were taken from the google/fonts repository and cut with fontTools (`varLib.instancer`, then `pyftsubset … --flavor=woff2`). Body text and every Chinese character use the system's fonts.
-- **Pictures**: all from this repo. `img/` holds five poster frames of the showcase films; `img/styles/` a 384 × 216 copy of each style's poster (about 14 kB each), for the galaxy and the style wall. The 5-second samples (`styles/<slug>/media/swatch.mp4`) load when a tile is hovered or clicked.
+- **Pictures**: all from this repo. `img/` holds five poster frames of the showcase films; `img/styles/` a 384 × 216 copy of each style's poster (about 14 kB each), for the galaxy and the style wall. The 5-second samples (`styles/<slug>/media/swatch.mp4`) load when a tile is hovered or clicked. A spec-2 style (5–10 s, `tokens.json` `"swatch": {"spec": 2}`) has only its 2 s `preview.mp4` in git: its tile plays that, and its lightbox plays the full sample from the release `styles-media` through `<source type="video/mp4">` once `STYLES_MEDIA_UPLOADED` is set to `true` (the preview, looping, until then). `RELEASE_SAMPLES` names each one's asset as `tools/media.txt` has it; `tools/readme.py check` says when they differ.
 - **Films**: the showcase films stream from the `media` release, and only when one is played (`preload="none"`); the contact sheets behind "What Claude sees" load when it is turned on. From mainland China the release can be slow; each film's folder and file are linked.
 
 ## Languages
@@ -59,7 +59,7 @@ A count on the page is wrapped as `<span data-n="styles">33</span>`. `tools/read
 - that there are as many `lang="en"` texts as `lang="zh"` (a `<small>` gloss, like "TikTok in China" after Douyin, may stand in one language);
 - that nothing from another site loads with the page (a stylesheet, script, font, image or frame).
 
-A new style: add its row to `STYLES` and its thumbnail, `ffmpeg -i styles/<slug>/media/poster.jpg -vf scale=384:216:flags=lanczos -q:v 4 docs/site/img/styles/<slug>.jpg`.
+A new style: add its row to `STYLES` and its thumbnail, `ffmpeg -i styles/<slug>/media/poster.jpg -vf scale=384:216:flags=lanczos -q:v 4 docs/site/img/styles/<slug>.jpg`. A spec-2 style also gets its line in `RELEASE_SAMPLES` (the name `bin/vh style register` printed).
 
 ## Where the other numbers come from
 
