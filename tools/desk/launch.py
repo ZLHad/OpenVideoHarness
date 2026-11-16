@@ -2,9 +2,11 @@
 bin/vh gate and bin/vh desk link do.
 
   start(project, roots, only, port, idle, print_address)   a desk in its own session (it outlives the caller) →
-                                      (its address, None) or (None, why). The address opens a page that only looks,
-                                      unless print_address: then a one-time code is chosen here, handed to the desk on
-                                      stdin, and in the address (ten minutes, one page)
+                                      (its address, None), (its address, "running") when another start got there first
+                                      (one lock beside the info file: several starts at once give one desk), or (None,
+                                      why). The address opens a page that only looks, unless print_address: then a
+                                      one-time code is chosen here, handed to the desk on stdin, and in the address (ten
+                                      minutes, one page); a desk another start made has no code of ours: (None, why)
   show(url, at)                       the running desk shows Studio's window at that place of the page (POST /api/open)
                                       → {opened, how, why}
   place(url, project)                 that project's place in the desk's page (/p/<key>), from its own listing, or None
@@ -17,7 +19,7 @@ bin/vh gate and bin/vh desk link do.
 Nothing these print or write holds the desk's token or a code. With print_address the address they return carries one,
 and the caller writes it to the terminal alone (server.to_terminal), never to stdout, --json or a log.
 """
-import json, os, secrets, signal, subprocess, sys, time
+import fcntl, json, os, secrets, signal, subprocess, sys, time
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 
@@ -42,10 +44,37 @@ def _log(project, roots):
     return p
 
 
+def _start_lock(project, roots):
+    """The lock that makes "is one running? else start one" a single step: beside the desk's info file."""
+    info = server._info_path(project, roots)
+    if info is None:
+        return None
+    try:
+        info.parent.mkdir(parents=True, exist_ok=True)
+        f = open(info.with_name(info.name + ".lock"), "a")
+        fcntl.flock(f, fcntl.LOCK_EX)
+        return f
+    except OSError:
+        return None
+
+
 def start(project=None, roots=(), only=False, port=None, idle=IDLE, print_address=False, owner=None):
     """A desk for this project (or the console over these roots) started through bin/vh in its own session, so its run is
-    in the activity log and it outlives this command. → (its address, None), or (None, why). The address opens a page
-    with access only with print_address (a one-time code this chose, handed to the desk on stdin)."""
+    in the activity log and it outlives this command. → (its address, None); (its address, "running") when another start
+    made it while this one waited for the lock; or (None, why). The address opens a page with access only with
+    print_address (a one-time code this chose, handed to the desk on stdin)."""
+    lock = _start_lock(project, roots)
+    try:
+        url = server.running(project, roots)
+        if url:   # another start got there first
+            return (None, "Studio started meanwhile, without this address: run this again once it has stopped") if print_address else (url, "running")
+        return _start(project, roots, only, port, idle, print_address, owner)
+    finally:
+        if lock:
+            lock.close()
+
+
+def _start(project, roots, only, port, idle, print_address, owner):
     key = secrets.token_urlsafe(18) if print_address else None
     cmd = [os.environ.get("OVH_BASH") or "bash", str(ROOT / "bin" / "vh"), "desk"] + ([str(project)] if project else [])
     for r in roots:

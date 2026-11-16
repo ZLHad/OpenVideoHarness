@@ -979,8 +979,8 @@ def door_checks():
     made holds the token; the next stop raises that window and sends it to the stop, no second window, no restart; POST
     /api/open shows it with no token and answers nothing secret, twenty a minute, no other origin; after bin/vh desk link
     (refused mid-turn, --force goes ahead) the old token only reads (the page is told it can reopen) and the old window is
-    replaced by one new window; a window whose page could not trade its code is replaced and the token changes (twice a run,
-    then nothing changes); gate --print-address is refused with no terminal and while the film's desk runs (which goes
+    replaced by one new window; renew leaves a window whose page is connected alone, and replaces one whose page is gone
+    and whose code was spent, changing the token (twice a run, then nothing changes); gate --print-address is refused with no terminal and while the film's desk runs (which goes
     on), and otherwise writes an address with a code that opens one page to the terminal alone. Nothing the person reads in
     gate's message names an address or the mechanism."""
     from fixtures.agents import stage as ST
@@ -1052,24 +1052,46 @@ def door_checks():
         evil = call(port, "POST", "/api/open", {"at": ""}, origin="http://evil.example")
         if a[0] != 200 or set(a[1]) - {"ok", "opened", "how", "why", "code"} or not a[1].get("opened") or t1 in json.dumps(a[1]) or evil[0] != 403:
             return f"/api/open: {a} {evil[0]}"
-        # a window whose page could not trade its code (here: its page traded it, as a program that got to it first would):
-        # renew changes the token (the old one only reads, its presence stream ends) and replaces the window, which gets a
-        # new one; twice a run, then refused with nothing changed; a window id this run did not make is a plain show; a
-        # claim of a spent or made-up code changes nothing
+        # renew (POST /api/open {renew: w}, the window id ps shows): while that window's page is connected, refused and nothing
+        # changes, nothing counted. A window whose page is gone and whose code was spent (here: the window killed after its
+        # page traded the code, as when another program traded it first): the token changes (the old one only reads, its
+        # presence stream ends) and a new window gets a new one; twice a run, then refused with nothing changed; a window id
+        # this run did not make is a plain show; a claim of a spent or made-up code changes nothing
         def w_of(e):
             m = re.search(r"[?&]w=([a-f0-9]+)", e.get("url") or "")
             return m.group(1) if m else ""
+
+        def last_launch():
+            return [e for e in window_of(name)[0] if e["event"] == "launch"][-1]
+
+        def gone(w):   # renew once the console has noticed the killed window (its next ping: 5 s); /api/open counts twenty a minute
+            time.sleep(6)
+            r = call(port, "POST", "/api/open", {"at": "", "renew": w})
+            if r[1].get("code") == "connected":
+                time.sleep(4)
+                r = call(port, "POST", "/api/open", {"at": "", "renew": w})
+            return r
+        n0 = events().count("launch")
+        busy_r = call(port, "POST", "/api/open", {"at": "", "renew": w_of(last_launch())})
+        if busy_r[1].get("renewed") is not False or busy_r[1].get("code") != "connected" or events().count("launch") != n0 \
+                or window_of(name)[1] != t1 or call(port, "GET", "/api/hello", token=t1)[0] != 200:
+            return f"renew of a window whose page is connected: {busy_r}, the window {events()[-6:]}"
         tokens = [t1]
         for i in range(2):
-            w = w_of([e for e in window_of(name)[0] if e["event"] == "launch"][-1])
-            r = call(port, "POST", "/api/open", {"at": "", "renew": w})
+            e = last_launch()
+            w = w_of(e)
+            os.kill(int(e["pid"]), signal.SIGKILL)   # its page gone; the console notices at its next ping (5 s)
+            r = gone(w)
             tn = window_of(name)[1]
             if r[0] != 200 or not r[1].get("renewed") or not r[1].get("opened") or any(x in json.dumps(r[1]) for x in tokens + [tn]) \
                     or not tn or tn in tokens or call(port, "GET", "/api/hello", token=tokens[-1])[0] != 403 or call(port, "GET", "/api/hello", token=tn)[0] != 200:
                 return f"renew {i + 1}: {r}, the window {events()[-8:]}"
             tokens.append(tn)
-        w = w_of([e for e in window_of(name)[0] if e["event"] == "launch"][-1])
-        third, other = call(port, "POST", "/api/open", {"at": "", "renew": w}), call(port, "POST", "/api/open", {"at": "", "renew": "abc123"})
+        e = last_launch()
+        os.kill(int(e["pid"]), signal.SIGKILL)
+        third = gone(w_of(e))
+        w = w_of(e)
+        other = call(port, "POST", "/api/open", {"at": "", "renew": "abc123"})
         late = [claim(port, x)[0] for x in ("x" * 24, tokens[0])]
         if third[1].get("renewed") is not False or third[1].get("opened") or third[1].get("code") != "taken" or other[1].get("renewed") is not False \
                 or not other[1].get("opened") or late != [403, 403] or call(port, "GET", "/api/hello", token=tokens[-1])[0] != 200 \
@@ -1237,7 +1259,7 @@ if __name__ == "__main__":
           "code and a token, /answer and /mode refused; /api/open answers nothing secret", attack_checks)
     check("Studio's window: a GET gives nothing (any number of times); a code works once and only while it lives; the next stop raises the window "
           "and sends it there (no second window, no restart); /api/open needs no token and answers nothing secret (twenty a minute, no other origin); "
-          "a window whose page could not trade its code: a new token and a new window, twice a run, then nothing changes; "
+          "renew: a window whose page is connected is left alone (nothing counted); one whose page is gone and whose code was spent gets a new token and window, twice a run, then nothing changes; "
           "desk link (refused mid-turn) leaves the old token reading and one new window; gate --print-address is refused with no terminal and while "
           "the film's desk runs, and otherwise writes an address that opens one page to the terminal alone; "
           "gate's words name no address or mechanism", door_checks)

@@ -223,7 +223,7 @@ def start_desk(project, gate, port=None, print_address=False):
         url, why = launch.start(project, (), True, port, IDLE)
         if not url:
             return None, "started", {"opened": False}, why
-        how = "started"
+        how = "running" if why == "running" else "started"   # another start made it meanwhile
     return url, how, launch.show(url, at), None
 
 
