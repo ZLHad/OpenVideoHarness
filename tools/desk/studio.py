@@ -288,12 +288,20 @@ def fetch_electron(out=sys.stderr):
         r = subprocess.run([npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"], cwd=str(work), env=env,
                            capture_output=True, text=True, timeout=900)
         if r.returncode:
-            return None, f"npm ci did not finish ({(r.stderr or r.stdout).strip().splitlines()[-1:] or ['offline?']})"
+            return None, f"npm ci did not finish: {_reason(r)}"
         r = subprocess.run([node, str(work / "node_modules" / "electron" / "install.js")], cwd=str(work), env=env,
                            capture_output=True, text=True, timeout=1800)
         if r.returncode or not (dist / "version").is_file():
-            return None, f"Electron's download did not finish ({(r.stderr or r.stdout).strip().splitlines()[-1:] or ['offline?']})"
+            return None, f"Electron's download did not finish: {_reason(r)}"
     return dist, None
+
+
+def _reason(r):
+    """The line of a failed command's output that says what went wrong (an error's own line, not its stack), short."""
+    lines = [ln.strip() for ln in (r.stderr or r.stdout or "").splitlines() if ln.strip()]
+    hit = next((ln for ln in lines if ("Error" in ln or "ERR" in ln) and not ln.startswith("at ")), None) or (lines[-1] if lines else "")
+    net = re.search(r"fetch failed|ECONN|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|network", hit, re.I)
+    return ((hit[:160] + ("…" if len(hit) > 160 else "")) + (" (no network?)" if net else "")) or "no network?"
 
 
 def _tidy(dist):
@@ -314,7 +322,8 @@ def _boot(repo):
     """The app's own code (Resources/app/boot.js, from tools/desk/launcher/shell-boot.js): it runs the shell from the
     clone, with the PATH the installer saw."""
     env = {"PATH": os.environ.get("PATH") or "/usr/bin:/bin", "LANG": os.environ.get("LANG") or "en_US.UTF-8"}
-    return (HERE / "launcher" / "shell-boot.js").read_text(encoding="utf-8").replace("@@REPO@@", json.dumps(str(repo))).replace("@@ENV@@", json.dumps(env))
+    src = (HERE / "launcher" / "shell-boot.js").read_text(encoding="utf-8")
+    return src.replace('"@@REPO@@"', json.dumps(str(repo))).replace("{} /*@@ENV@@*/", json.dumps(env))
 
 
 def _app_files(res):
