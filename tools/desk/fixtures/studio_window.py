@@ -9,7 +9,7 @@ waits). Each event is one JSON line in <profile>/stand-in.log.
   --tab <url>             a tab of the default browser instead ($BROWSER="python3 <this file> --tab %s"): the same,
                           its log in $FAKE_TAB_DIR, and it returns at once (webbrowser waits for the command)
 """
-import json, os, re, signal, sys, time, urllib.parse, urllib.request
+import json, os, re, signal, socket, sys, time, urllib.parse, urllib.request
 from pathlib import Path
 
 
@@ -28,17 +28,20 @@ def main(argv):
         if os.fork():   # webbrowser waits for the command: the tab lives on in a child
             return 0
         os.setsid()
-    pidf = prof / "stand-in.pid"
-    if not tab and pidf.exists():
+    pidf = prof / "SingletonLock"   # as Chrome: a link to host-pid, left behind when the process is gone
+    if not tab:
         try:
-            old = int(pidf.read_text())
+            old = int(os.readlink(str(pidf)).rsplit("-", 1)[-1])
             os.kill(old, 0)
             note(event="second", url=re.sub(r"c=[^&#]*", "c=…", url or ""))   # Chrome would open a second window in that process
             return 0
         except (OSError, ValueError):
             pass
-    if not tab:
-        pidf.write_text(str(os.getpid()))
+        try:
+            pidf.unlink()
+        except OSError:
+            pass
+        os.symlink(f"{socket.gethostname()}-{os.getpid()}", str(pidf))
 
     def bye(*_):
         note(event="closed")

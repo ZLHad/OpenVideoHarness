@@ -1426,12 +1426,14 @@ route();
 // trades it for this run's token (a GET gives nothing: a browser may fetch an address twice), keeps the token in its
 // origin's storage, and holds a presence stream open so the desk knows its window is there and can send it somewhere.
 // Asked again every 10 s: a window whose access lapsed (the console restarted) asks for a fresh window once, by itself;
-// any other page says it can only look, with one button that brings Studio's window.
+// a window whose code was spent before its page could trade it (another program got to it first) asks for a fresh one
+// with renew: the console changes its token and replaces the window (twice a run; then this page says it can only look,
+// and why). Any other page says it can only look, with one button that brings Studio's window.
 const WIN = (() => {
   const q = new URLSearchParams(location.search).get("w") || "";
   try { if (q) sessionStorage.setItem("studio:w", q); return sessionStorage.getItem("studio:w") || ""; } catch (e) { return q; }
 })();
-let KEYSTATE = "", PRES = null, ASKED = false;
+let KEYSTATE = "", PRES = null, ASKED = false, RENEW = "";
 async function claimCode() {
   const q = new URLSearchParams(location.search), c = q.get("c") || "";
   if (q.has("c") || q.has("w") || q.has("k")) history.replaceState(null, "", location.pathname + location.hash);
@@ -1440,6 +1442,7 @@ async function claimCode() {
     const r = await fetch("/api/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ c }) });
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.token) { TOKEN = d.token; AGENT.token(d.token); try { localStorage.setItem("desk:token", d.token); } catch (e) { /* no storage */ } }
+    else if (r.status === 403 && WIN) RENEW = WIN;   // this window's code was spent, or ran out: the console replaces the window
   } catch (e) { /* the console is gone: the page says so elsewhere */ }
 }
 function presence() {
@@ -1462,15 +1465,19 @@ async function checkKey() {
   const b = $("#nokey");
   if (b) {
     b.hidden = ok;
-    b.innerHTML = ok ? "" : `<p>${esc(t("nokey"))}</p><button type="button" class="btn" id="reopen">${esc(t("reopen"))}</button>`;
+    b.innerHTML = ok ? "" : `<p>${esc(t("nokey"))}</p><p class="nokey-why" hidden></p><button type="button" class="btn" id="reopen">${esc(t("reopen"))}</button>`;
     const c = $("#reopen"); if (c) c.addEventListener("click", (e) => { if (e.isTrusted) reopen(); });
   }
   AGENT.keyOk(ok);
-  if (!ok && WIN && !ASKED) { ASKED = true; reopen(true); }   // Studio's own window, its access gone: a fresh window takes its place
+  if (!ok && WIN && !ASKED) { ASKED = true; reopen(true, RENEW); }   // Studio's own window, its access gone: a fresh window takes its place
 }
-async function reopen(quiet) {   // the desk shows Studio's window (POST /api/open: nothing secret comes back)
+async function reopen(quiet, renew) {   // the desk shows Studio's window (POST /api/open: nothing secret comes back)
   let x = null, d = {};
-  try { x = await fetch("/api/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at: location.hash.replace(/^#/, "") }) }); d = await x.json().catch(() => ({})); } catch (err) { x = null; }
+  const body = { at: location.hash.replace(/^#/, "") };
+  if (renew) body.renew = renew;
+  try { x = await fetch("/api/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); d = await x.json().catch(() => ({})); } catch (err) { x = null; }
+  const why = $("#nokey .nokey-why");
+  if (why && d.code === "taken") { why.textContent = t("taken"); why.hidden = false; }   // replaced twice already: this page stays one that only looks
   if (!quiet) toast(t(x && x.ok && d.opened ? "reopened" : "reopen_failed"));
 }
 (async () => { await claimCode(); await checkKey(); })();

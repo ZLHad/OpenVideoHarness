@@ -1205,8 +1205,9 @@
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
             "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
             "The desk shows Studio's window itself: started in a terminal it does (--no-open: not); bin/vh studio does any other",
-            "time, and a page that can only look has a button for it. Nothing it prints opens a page; --print-address prints an",
-            "address with a one-time code (ten minutes, one page), for a browser on another machine.",
+            "time, and a page that can only look has a button for it. Nothing it prints opens a page; --print-address writes an",
+            "address with a one-time code (ten minutes, one page) to the terminal alone, for a browser on another machine",
+            "(refused with no terminal).",
             "link: that desk (or the console) stops and starts again alike, and shows the new run's window.",
             "The column's other tab talks to an agent on this machine in the film's folder; agents: which are installed, and",
             "install <kind>: its pinned adapter, outside the repo (it uses the person's own login)"
@@ -1243,17 +1244,17 @@
       ],
       "writes": [
         "what bin/vh desk writes, when it starts one (in the background, owner icon when the icon started it)",
-        "--install-icon: ~/Applications/OVH Studio.app (macOS) or ~/.local/share/applications/ovh-studio.desktop and ~/.local/share/ovh-studio/ (Linux; $XDG_DATA_HOME), or --dir"
+        "--install-icon: ~/Applications/OVH Studio.app (macOS) or ~/.local/share/applications/ovh-studio.desktop and ~/.local/share/ovh-studio/ (Linux; $XDG_DATA_HOME), or all of it in --dir"
       ],
       "usage": [
         {
-          "synopsis": "studio [<project>] [--print-address [--force]] [--json]",
+          "synopsis": "studio [<project>] [--print-address] [--json]",
           "text": [
             "show Studio's one window (tools/desk/studio.py, window.py, tools/desk/README.md): raised when it is open, made when",
             "not, the console started in the background when it does not run (it stops 12 h after its window closes); a",
-            "project: on that film (one outside Studio's folders opens in its own desk). An agent runs it too when the person",
-            "asks to open Studio. --print-address: no screen here (ssh): show nothing, print an address that opens one page,",
-            "once, within ten minutes"
+            "project: on that film (one outside Studio's folders opens in its own desk, with its own window). An agent runs it too",
+            "when the person asks to open Studio. --print-address: no screen here (ssh): show nothing, write an address that opens",
+            "one page, once, within ten minutes, to the terminal alone; refused with no terminal and while Studio runs"
           ]
         },
         {
