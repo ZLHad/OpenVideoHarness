@@ -153,3 +153,31 @@ export function pen(list, t, rest, { lead = 0.35, tail = 0.45 } = {}) {
   const a = last.pts[last.pts.length - 1], u = (t - (last.t0 + last.dur)) / tail;
   return u >= 1 ? at(rest.to[0], rest.to[1], false, 0, null) : fly(a, rest.to, u);
 }
+
+/**
+ * Pen passes for writing a laid-out line (lib.layoutText) by hand: one pass per glyph, `per` seconds apart, each a
+ * zigzag over the glyph that pen() can follow. drawn(pass, t) is how much of the glyph is shown (reveal it left to right).
+ */
+export function glyphPasses(lay, size, t0, per, { busy = 0.86, rows = 6 } = {}) {
+  return lay.glyphs.map((gl, i) => {
+    const x0 = gl.x - 2, x1 = gl.x + gl.w + 2, top = lay.y - size * 0.82;
+    const pts = [];
+    for (let k = 0; k <= rows; k++) pts.push([x0 + (x1 - x0) * k / rows, top + size * (k % 2 ? 0.25 : 0.7) + (k % 3) * 4]);
+    return Object.assign(prep(pts, { step: 6 }), { t0: t0 + i * per, dur: per * busy, glyph: gl, write: true });
+  });
+}
+
+/** Draw a full-frame canvas smeared along (dx, dy) px (a running average of copies a few px apart): a camera or a
+ * board moving fast, with about half a frame of shutter. Returns how many copies it drew. */
+export function smear(ctx, canvas, dx, dy, w, h, { every = 3, max = 32 } = {}) {
+  const n = Math.min(max, Math.ceil(Math.hypot(dx, dy) / every));
+  if (n < 2) { ctx.drawImage(canvas, 0, 0, w, h); return 1; }
+  const a = ctx.globalAlpha;
+  for (let i = 0; i < n; i++) {
+    ctx.globalAlpha = a / (i + 1);
+    const u = i / (n - 1) - 0.5;
+    ctx.drawImage(canvas, u * dx, u * dy, w, h);
+  }
+  ctx.globalAlpha = a;
+  return n;
+}

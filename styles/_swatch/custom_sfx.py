@@ -126,4 +126,49 @@ for i, at in enumerate([0.0, 0.08, 0.16]): place(x, marker(0.07, 106 + i, 0.3, 1
 write(f"{WB}/marker_taps.wav", x)
 marker_run(f"{WB}/marker_write_title.wav", 9, 0.11, 120, 1150)
 marker_run(f"{WB}/marker_write_caption.wav", 10, 0.06, 140, 1300)
+# chalkboard: chalk is grit, not squeak. Each stroke sound is as long as its stroke in styles/chalkboard/swatch.js (XS 0.07,
+# S 0.14, M 0.35, L 0.5 s) and follows the same minimum-jerk speed curve: the stick's "tok" on the slate, then dense
+# little impacts of the stick skipping over the board's tooth (more and harder where the hand is fast) over a dry scrape
+def chalk(dur, seed, f_tok=1100):
+    n = int((dur + 0.02) * SR); t = np.arange(n) / SR; r = np.random.default_rng(seed)
+    u = np.clip(t / dur, 0, 1); v = 16 * u * u * (1 - u) ** 2; e = (0.2 + 0.8 * v) * np.where(t > dur, np.exp(-(t - dur) / 0.004), 1.0)
+    rate = 300 + 1700 * v                                                  # skips per second
+    hits = (r.random(n) < rate / SR).astype(float) * r.uniform(0.3, 1.0, n)
+    grit = np.convolve(hits, np.exp(-np.arange(48) / 6.0), "same")
+    grit = band(grit, 1500, 8000) * e * 1.6
+    scrape = band(r.standard_normal(n), 700, 4500) * e * 0.18
+    tok = mixed(burst(int(0.015 * SR), 1200, 6000, 0.002, r), modes(int(0.04 * SR), [f_tok, f_tok * 2.3], [0.007, 0.004], [0.6, 0.25]))
+    x = grit + scrape; x[:len(tok)] += tok * 1.3
+    x[-int(0.005 * SR):] *= np.linspace(1, 0, int(0.005 * SR))
+    return x
+def felt(dur, seed, zig, land=True):
+    """a felt eraser dragged over slate: soft low noise, louder on each pass, with a turn at each end of a zigzag"""
+    n = int((dur + 0.03) * SR); t = np.arange(n) / SR; r = np.random.default_rng(seed)
+    u = np.clip(t / dur, 0, 1)
+    passes = np.abs(np.sin(np.pi * zig * u)) ** 0.6 if zig > 1 else 16 * u * u * (1 - u) ** 2
+    e = (0.25 + 0.75 * passes) * np.minimum(1, t / 0.01) * np.where(t > dur, np.exp(-(t - dur) / 0.01), 1.0)
+    x = band(r.standard_normal(n), 220, 2600) * e * 0.5 + band(r.standard_normal(n), 2600, 6000) * e * 0.08
+    if land: x[:int(0.04 * SR)] += modes(int(0.04 * SR), [120, 310], [0.012, 0.006], [0.9, 0.4])
+    x[-int(0.008 * SR):] *= np.linspace(1, 0, int(0.008 * SR))
+    return x
+def taps(path, at, seed, dur=0.07):
+    x = np.zeros(int((at[-1] + dur + 0.03) * SR))
+    for i, a in enumerate(at): place(x, chalk(dur, seed + i, 1000 + 120 * i), a)
+    write(path, x)
+CB = "styles/chalkboard/sfx"
+write(f"{CB}/chalk_L.wav", chalk(0.5, 201, 980))
+write(f"{CB}/chalk_M_a.wav", chalk(0.35, 202, 1050))
+write(f"{CB}/chalk_M_b.wav", chalk(0.35, 203, 1180))
+write(f"{CB}/chalk_S_a.wav", chalk(0.14, 204, 1250))
+write(f"{CB}/chalk_S_b.wav", chalk(0.14, 205, 1120))
+taps(f"{CB}/chalk_taps.wav", [0.0, 0.14, 0.28], 206)
+taps(f"{CB}/chalk_taps_b.wav", [0.0, 0.12, 0.24], 210)
+write(f"{CB}/eraser_sweep.wav", felt(0.85, 220, 1))
+write(f"{CB}/eraser_scrub.wav", felt(0.6, 221, 10))
+x = np.zeros(int((9 * 0.11 + 0.03) * SR))
+for i in range(9): place(x, chalk(0.11 * 0.86, 230 + i, 1000 + 60 * (i % 4)), i * 0.11)
+write(f"{CB}/chalk_write_title.wav", x)
+x = np.zeros(int((10 * 0.06 + 0.03) * SR))
+for i in range(10): place(x, chalk(0.06 * 0.86, 250 + i, 1100 + 50 * (i % 3)) * (2.2 if i == 0 else 1.0), i * 0.06)   # the first tok leads
+write(f"{CB}/chalk_write_caption.wav", x)
 print("ok")
