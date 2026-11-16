@@ -242,4 +242,21 @@ n = int(0.5 * SR); t = np.arange(n) / SR; r = np.random.default_rng(413)     # t
 f = 500 + 1300 * np.clip(t / 0.035, 0, 1); plip = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.05) * np.minimum(1, t / 0.002)
 x = plip + band(r.standard_normal(n), 1500, 7000) * np.exp(-t / 0.06) * 0.25
 x[-int(0.01 * SR):] *= np.linspace(1, 0, int(0.01 * SR)); write(f"{EM}/drop.wav", x)
+# deep-space-explainer: the light front setting out (a long breath of air that brightens), the black hole's low hum (a
+# sub with a slow beat and a faint gravel), and the detection on Earth (a clean two-tone ping with a soft tick)
+DS = "styles/deep-space-explainer/sfx"
+n = int(1.6 * SR); t = np.arange(n) / SR; r = np.random.default_rng(501)
+u = np.clip(t / 1.5, 0, 1); env = np.sin(np.pi * u) ** 0.8 * np.minimum(1, t / 0.006)
+x = band(r.standard_normal(n), 800, 9000) * env * 0.35 + band(r.standard_normal(n), 3000, 12000) * env * u * 0.2
+x[:int(0.02 * SR)] += burst(int(0.02 * SR), 2000, 10000, 0.003, r) * 0.8
+x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR)); write(f"{DS}/light_front.wav", x)
+n = int(2.4 * SR); t = np.arange(n) / SR; r = np.random.default_rng(502)
+env = np.minimum(1, t / 0.25) * np.minimum(1, (2.4 - t) / 0.4)
+hum = (np.sin(2 * np.pi * 36.7 * t) + 0.6 * np.sin(2 * np.pi * 37.4 * t) + 0.25 * np.sin(2 * np.pi * 73.4 * t)) * env
+gravel = band(r.standard_normal(n), 80, 400) * env * 0.25
+x = hum + gravel; x[:int(0.03 * SR)] += modes(int(0.03 * SR), [60], [0.02], [0.6]); write(f"{DS}/hole_hum.wav", x)
+n = int(1.2 * SR); t = np.arange(n) / SR; r = np.random.default_rng(503)
+ping = sum(np.sin(2 * np.pi * f * t) * np.exp(-t / d) * a for f, d, a in [(1760, 0.5, 0.6), (2637, 0.35, 0.35), (5274, 0.12, 0.1)])
+x = ping * np.minimum(1, t / 0.002); x[:int(0.01 * SR)] += burst(int(0.01 * SR), 3000, 9000, 0.0015, r) * 0.5
+x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR)); write(f"{DS}/detect.wav", x)
 print("ok")
