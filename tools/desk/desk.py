@@ -19,6 +19,11 @@ comments and submits.
   bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none); it then
                                                 counts as handed over (out/review/feedback/.consumed)
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
+  bin/vh desk link [<project>] [--root DIR …] [--force]   a new link: the desk serving this project (or the console of
+                                                these roots) stops and starts again in the background, alike, on the same
+                                                port, and this prints its address with a new one-time key; every token of
+                                                the old link is void. For a link used up, lost, or opened by someone else
+                                                (the page says so). An agent mid-turn in its column: refused (--force stops it)
   bin/vh desk agents [--json]                   the agents the console's column can talk to (Claude Code, Codex, DeepSeek
                                                 Harness): installed or not, the pinned adapter version, where they live
   bin/vh desk agents install <claude|codex|dsh>   install that agent's ACP adapter, pinned, outside the repo
@@ -49,6 +54,8 @@ def find(arg):
 def main(argv):
     if argv and argv[0] == "agents":
         return agents_cmd(argv[1:])
+    if argv and argv[0] == "link":
+        return link_cmd(argv[1:])
     sub = argv[0] if argv and argv[0] in ("wait", "feedback", "data") else "serve"
     rest = argv[1:] if sub != "serve" else argv
     ap = argparse.ArgumentParser(prog="bin/vh desk" + ("" if sub == "serve" else " " + sub),
@@ -111,6 +118,37 @@ def main(argv):
         return 0
     import reader
     print(json.dumps(reader.read_project(project), ensure_ascii=False, indent=1))
+    return 0
+
+
+def link_cmd(argv):
+    """bin/vh desk link [<project>] [--root DIR …] [--force] [--json]"""
+    ap = argparse.ArgumentParser(prog="bin/vh desk link", description="a new link for the desk serving this project (or the console): it starts again with a new one-time key")
+    ap.add_argument("project", nargs="?", help="project folder, or its name under projects/; left out: the console")
+    ap.add_argument("--root", action="append", default=[], metavar="DIR", help="the console's folders, as it was started with")
+    ap.add_argument("--force", action="store_true", help="also when an agent in its column is mid-turn (that turn stops)")
+    ap.add_argument("--json", action="store_true", help="{url} on stdout")
+    a = ap.parse_args(argv)
+    for r in a.root:
+        if not Path(r).expanduser().is_dir():
+            print(f"desk link: --root {r!r}: no such folder", file=sys.stderr)
+            return 2
+    project = find(a.project) if a.project else None
+    if a.project and not project:
+        jsonerr.mark("no_project")
+        return 2
+    import launch, server
+    url, why = launch.relink(project, [str(Path(r).expanduser()) for r in a.root], a.force)
+    if not url:
+        print(f"desk link: {why}", file=sys.stderr)
+        return 1
+    base, _, q = url.partition("?")
+    from urllib.parse import quote
+    full = f"{base}?{q}" + (f"#/p/{quote(server.keyify(project.name, project), safe='')}" if project else "")
+    if a.json:
+        print(json.dumps({"version": 1, "url": full}))
+    else:
+        print(f"desk: {full}\n  open it in the browser you review in: the link works once, and the one before it is void", flush=True)
     return 0
 
 

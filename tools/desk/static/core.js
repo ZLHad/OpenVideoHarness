@@ -5,7 +5,11 @@
    these functions read (D, PKEY, SUB) and runs them. */
 const STR = {
   zh: {
-    brand: "片场", nokey: "这一页只能看：它不是从控制台启动时给的链接打开的（那个链接带着 ?k=…，只能用一次）。要提交或和 agent 说话，就用那个链接打开；找不到了，停掉控制台再启动一次。", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
+    brand: "片场", nokey: "这一页只能看：它不是从控制台打印的那条链接打开的。要提交、和 agent 说话，在终端里运行下面这一行，打开它打印的新链接（旧链接随之作废）。",
+    key_reused: "这条链接已经被用过一次：可能是你在别的浏览器或窗口里打开过，也可能是别的程序抢先用了。现在这台控制台不再接受操作。在终端里运行下面这一行，打开它打印的新链接。",
+    key_locked: "这台控制台不再接受操作：它的链接被打开了两次（可能是你在别的浏览器或窗口里打开过，也可能是别的程序抢先用了）。在终端里运行下面这一行，打开它打印的新链接。",
+    key_stale: "控制台重启过，这一页手里的令牌作废了：打开它新打印的链接；找不到就在终端里运行下面这一行。",
+    nokey_copy: "复制", nokey_copied: "复制好了：粘到终端里运行", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，复制给你的 agent",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
     f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
@@ -133,7 +137,11 @@ const STR = {
     no_play: "只有一张画面，没什么可播",
   },
   en: {
-    nokey: "This page can only look: it was not opened from the link the console printed when it started (the one with ?k=…, good once). To submit or talk to an agent, open that link; if it is gone, stop the console and start it again.",
+    nokey: "This page can only look: it was not opened from the link the console printed. To submit or talk to an agent, run the line below in a terminal and open the new link it prints (the old one stops working).",
+    key_reused: "This link was already used once: maybe you opened it in another browser or window, maybe another program got to it first. This console accepts nothing now. Run the line below in a terminal and open the new link it prints.",
+    key_locked: "This console accepts nothing now: its link was opened twice (maybe by you in another browser or window, maybe by another program first). Run the line below in a terminal and open the new link it prints.",
+    key_stale: "The console was restarted, so this page's token no longer works: open the new link it printed, or run the line below in a terminal for one.",
+    nokey_copy: "Copy", nokey_copied: "Copied: paste it into a terminal",
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, then copy it to your agent",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",

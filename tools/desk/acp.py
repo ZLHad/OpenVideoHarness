@@ -10,7 +10,7 @@ group and stops it if the desk dies without stopping it. The two sides speak JSO
                                         method, params) each request the agent sends (answer it later with reply/fail)
   peer.call(method, params, timeout)    a request; its result, or AcpError
   peer.notify(method, params)           a notification
-  peer.close()                          stdin closed, then TERM to its group after a grace, then KILL
+  peer.close()                          stdin closed, then TERM to its group after a grace, then KILL to what is left of it
 """
 import json, os, signal, subprocess, sys, threading, time
 from collections import deque
@@ -33,6 +33,17 @@ class AcpError(Exception):
     def __init__(self, message, code=None, data=None):
         super().__init__(message)
         self.code, self.data = code, data
+
+
+def _alive(group):
+    """Is any process of this process group left?"""
+    try:
+        os.killpg(group, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:   # someone's, not ours: nothing to wait for
+        return False
 
 
 def clean_env(extra=None):
@@ -189,7 +200,8 @@ class Peer:
 
     def close(self, grace=1.5, term=4.0):
         """Stop it for good: stdin closed (an adapter that ends on EOF ends), TERM to its group after grace seconds (DSH
-        does not end on EOF), KILL after term more. Safe to call twice."""
+        does not end on EOF), then KILL to whatever is left of the group once it is empty or term seconds pass, whether the
+        adapter ended by itself or not (a child of it may ignore TERM). Safe to call twice."""
         self.closing = True
         try:
             self.proc.stdin.close()
@@ -199,17 +211,22 @@ class Peer:
             self.proc.wait(timeout=grace)
         except subprocess.TimeoutExpired:
             pass
-        for sig, wait in ((signal.SIGTERM, term), (signal.SIGKILL, 2.0)):
-            try:
-                os.killpg(self.proc.pid, sig)   # the group: the adapter's own children (Claude Code, the Codex app server)
-            except (ProcessLookupError, PermissionError):
-                pass
-            if self.proc.poll() is not None and sig == signal.SIGTERM:
-                # the adapter itself is gone; its children may linger a moment in the group: one TERM reached them too
+        group = self.proc.pid   # the group: the adapter and what it started (Claude Code, the Codex app server)
+        try:
+            os.killpg(group, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+        end = time.time() + term
+        while time.time() < end:   # until the whole group is gone: an adapter that ended on EOF may leave a child behind
+            if self.proc.poll() is not None and not _alive(group):
                 break
-            try:
-                self.proc.wait(timeout=wait)
-                break
-            except subprocess.TimeoutExpired:
-                continue
+            time.sleep(0.1)
+        try:   # whatever is left of the group, the adapter gone or not: a child that ignores TERM goes too
+            os.killpg(group, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            self.proc.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            pass
         return self.proc.poll()

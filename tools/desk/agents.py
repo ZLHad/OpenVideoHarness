@@ -188,14 +188,18 @@ def _clip(s, n):
 
 def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
     """An update as the log keeps it: the project's own folder written as a relative path, the home folder as ~, long
-    strings clipped (a diff's texts less so), the bulky echoes dropped (Claude's toolResponse repeats the file)."""
+    strings clipped (a diff's texts less so), the bulky echoes dropped (Claude's toolResponse repeats the file). With cut
+    (a list): what is asked for approval, kept verbatim (root None: no path rewritten, since "cd /tmp && rm -rf <project>/x"
+    is not "rm -rf x"), and each thing clipped or dropped noted in cut."""
     if depth > 12:
+        if cut is not None:
+            cut.append(depth)
         return None
     if isinstance(obj, str):
-        if root:
+        if root and cut is None:
             obj = obj.replace(root + "/", "").replace(root, ".")
         h = str(Path.home())
-        if h and len(h) > 1:
+        if h and len(h) > 1 and cut is None:
             obj = obj.replace(h + "/", "~/")
         if cut is not None and len(obj) > n:
             cut.append(len(obj))
@@ -206,6 +210,8 @@ def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
         return [clean(x, root, n, depth + 1, cut) for x in obj[:200]]
     if isinstance(obj, dict):
         out = {}
+        if cut is not None and len(obj) > 80:
+            cut.append(len(obj))
         for k, v in list(obj.items())[:80]:
             if k in ("toolResponse", "sessionId"):
                 continue
@@ -481,14 +487,14 @@ class Session:
         return self._answer(rid, {"outcome": "selected", "optionId": option_id}, "page")   # what the server knows: the page's token and not an agent's process
 
     def reject_waiting(self, by):
-        """Each waiting request answered: rejected where the agent offered a rejection, else cancelled (timeout, the agent
-        or the desk going away); never allowed."""
+        """Each waiting request answered: rejected where the agent offered a rejection (a timeout, the desk locked), else
+        cancelled (a stop, the agent or the desk going away); never allowed."""
         for rid in list(self.pending):
             p = self.pending.get(rid)
             if not p:
                 continue
             rej = next((o["optionId"] for o in p["options"] if o.get("kind") == "reject_once"), None)
-            self._answer(rid, {"outcome": "selected", "optionId": rej} if rej and by == "timeout" else {"outcome": "cancelled"}, by)
+            self._answer(rid, {"outcome": "selected", "optionId": rej} if rej and by in ("timeout", "locked") else {"outcome": "cancelled"}, by)
 
     # ---------- from the person ----------
     def say(self, text, scope=None, despite=False):
@@ -805,6 +811,20 @@ class Manager:
                     elif now - p["detached"] >= APPROVAL_TIMEOUT:
                         s.reject_waiting("timeout")
                         break
+
+    def lockdown(self):
+        """The desk accepts nothing any more (its link was opened twice): every waiting request is refused, every turn is
+        stopped (another page may have started it), and each page's stream ends."""
+        for s in list(self.sessions.values()):
+            try:
+                s.reject_waiting("locked")
+                if s.running:
+                    s.emit("notice", code="locked")
+                    s.stop()
+            except Exception:
+                pass
+            with s.cond:
+                s.cond.notify_all()
 
     def shutdown(self):
         """The desk is stopping: waiting requests cancelled, turns cancelled, every adapter stopped (TERM to its group

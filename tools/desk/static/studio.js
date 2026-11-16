@@ -1422,10 +1422,27 @@ $("#lang").addEventListener("click", () => {
 setLang(pickLang());
 OVH.theme(document.documentElement.getAttribute("data-theme"));
 route();
-(async function checkKey() {   // the token this page holds, from the launch key: an earlier run's (or none) only reads
-  let ok = false, refused = false;
-  if (TOKEN) { try { const r = await fetch("/api/hello", { headers: { "X-Desk-Token": TOKEN }, cache: "no-store" }); ok = r.ok; refused = r.status === 403; } catch (e) { ok = false; } }
-  if (refused) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }
-  const b = $("#nokey"); if (b) { b.hidden = ok; b.textContent = ok ? "" : t("nokey"); }
-  AGENT.keyOk(ok);
+(async function checkKey() {   // the token this page holds, from the launch key: an earlier run's (or none) only reads; and why not
+  const k = new URLSearchParams(location.search).get("k") || "";   // still in the address: the page came with the key and got no token
+  let r = null, d = {}, ok = false, why = "";
+  try { r = await fetch("/api/hello", { headers: { "X-Desk-Token": TOKEN }, cache: "no-store" }); d = await r.json().catch(() => ({})); ok = r.ok; } catch (e) { r = null; }
+  if (r && !ok) {
+    if (d.locked) why = "key_locked";
+    else if (k) {   // the key was spent before this page came, and this browser holds no token of this run: someone else opened it first
+      try {
+        const x = await fetch("/api/key-reused", { method: "POST", headers: { "Content-Type": "application/json", "X-Desk-Token": TOKEN }, body: JSON.stringify({ k }) });
+        const y = await x.json().catch(() => ({}));
+        ok = x.ok && !!y.ok; why = ok ? "" : y.locked ? "key_reused" : "nokey"; d = Object.assign({}, d, y);
+      } catch (e) { why = "nokey"; }
+    } else why = TOKEN ? "key_stale" : "nokey";
+    if (!ok && TOKEN) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }
+  }
+  if (k) history.replaceState(null, "", location.pathname + location.hash);   // once is enough: a reload does not ask again
+  const b = $("#nokey");
+  if (b) {
+    b.hidden = ok || !why;
+    b.innerHTML = ok || !why ? "" : `<p>${esc(t(why))}</p>${d.link ? `<div class="nokey-cmd"><code class="mono">${esc(d.link)}</code><button type="button" class="btn" id="nokeyCopy">${esc(t("nokey_copy"))}</button></div>` : ""}`;
+    const c = $("#nokeyCopy"); if (c) c.addEventListener("click", () => copyText(d.link).then(() => toast(t("nokey_copied"))));
+  }
+  AGENT.keyOk(ok, why);
 })();

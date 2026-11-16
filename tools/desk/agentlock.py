@@ -118,38 +118,6 @@ def _under(pid, roots, tree):
     return False
 
 
-def peer_pid(port):
-    """The pid of the process whose end of a TCP connection on 127.0.0.1 is this port (lsof; ss on Linux), or None."""
-    try:
-        if shutil.which("lsof"):
-            out = subprocess.run(["lsof", "-nP", f"-iTCP@127.0.0.1:{int(port)}", "-sTCP:ESTABLISHED", "-Fpn"], capture_output=True,
-                                 text=True, timeout=5).stdout
-            pid = None
-            for line in out.splitlines():
-                if line.startswith("p") and line[1:].isdigit():
-                    pid = int(line[1:])
-                elif line.startswith("n") and line[1:].startswith(f"127.0.0.1:{int(port)}->"):
-                    return pid
-        elif shutil.which("ss"):
-            out = subprocess.run(["ss", "-tnpH", "state", "established", f"( sport = :{int(port)} )"], capture_output=True,
-                                 text=True, timeout=5).stdout
-            m = re.search(r"pid=(\d+)", out)
-            return int(m.group(1)) if m else None
-    except (OSError, subprocess.SubprocessError, ValueError):
-        return None
-    return None
-
-
-def from_agents(port, ours):
-    """Does the connection from this local port come from one of the console's own agents (a process under an adapter)?
-    The second line of defence behind the token: a process an agent starts in a session of its own escapes it."""
-    roots = {int(p) for p in ours if p}
-    if not roots:
-        return False
-    pid = peer_pid(port)
-    return bool(pid) and _under(pid, roots, _tree())
-
-
 def _agents_in(project, ours, tree):
     """[(pid, program)] of agent programs whose working folder is inside the project, not ours (lsof; [] without it)."""
     if not shutil.which("lsof"):

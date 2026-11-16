@@ -3068,8 +3068,9 @@ PY
   else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
   # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
   a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
-  DESK_KEY=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1); export DESK_KEY   # gate's own message carries the launch key
-  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?
+  ka=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)   # gate's own message carries the launch key
+  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?   # a second stop: the desk starts again with a new key (the first may be spent)
+  DESK_KEY=$(printf '%s' "$b" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1); export DESK_KEY
   pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null)
   url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
   "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
@@ -3085,17 +3086,17 @@ print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
   if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/?k="*"#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
-    && [ -n "$DESK_KEY" ] && ! grep -rqF -- "$DESK_KEY" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
+    && [ -n "$DESK_KEY" ] && [ -n "$ka" ] && [ "$ka" != "$DESK_KEY" ] && ! grep -rqF -e "$DESK_KEY" -e "$ka" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
-    && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
+    && case "$b" in *"started again with a new link"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
 gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
-sys.exit(0 if len(desk) == 1 and desk[0].get("parent") in gates and any(r["event"] == "feedback" for r in recs) else 1)
+sys.exit(0 if len(desk) == 2 and all(d.get("parent") in gates for d in desk) and any(r["event"] == "feedback" for r in recs) else 1)
 PY
-  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), serving that project and nothing else, puts its address in the message, landing on this round's gate view; --wait hands over the submission"
+  then ok "gate: the desk channel starts the desk in the background (its run's parent is the gate), serving that project and nothing else, puts its address with a launch key in the message, landing on this round's gate view; the next stop starts it again with a new key; --wait hands over the submission"
   else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
   [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
   # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it

@@ -14,7 +14,7 @@
 const ASTR = {
   zh: {
     tab_chat: "对话", tab_round: "这一轮", tab_ask: "待批准 {n}", tab_dec: "待你定 {n}", ask_bar: "{a} 在等你点头：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史", ag_hist_none: "这支片子还没有别的对话",
-    ag_idle: "空闲", ag_lookonly: "只能看", lookonly_b: "这一页不是从控制台打印的那条链接打开的，所以看不到、也发不出对话。用那条链接打开，就能在这里和 agent 说话。", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
+    ag_idle: "空闲", ag_lookonly: "只能看", lookonly_b: "这一页只能看：页面顶上写着为什么，和换一条新链接的那一行。", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
     u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
@@ -31,16 +31,20 @@ const ASTR = {
     busy_process: "终端里有 {x}（进程 {p}）开在这支片子的文件夹里，它可能正在改东西。现在让 {a} 动手，两边可能改到同一处。",
     busy_waiting: "终端里有个 agent 在等你交这一轮。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
     perm_h: "{a} 想{v}，要你点头", perm_wait: "等你点", perm_by_person: "你选了：{o}", perm_by_stop: "你点了停止，取消了", perm_by_timeout: "没有页面开着，{m} 分钟后按“不行”处理了",
-    perm_by_gone: "agent 停了，这一问作废", perm_by_restart: "控制台重启过，这一问作废", perm_by_turn: "这一轮结束了，这一问作废", perm_by_desk: "控制台关了，这一问作废",
+    perm_by_gone: "agent 停了，这一问作废", perm_by_restart: "控制台重启过，这一问作废", perm_by_turn: "这一轮结束了，这一问作废", perm_by_desk: "控制台关了，这一问作废", perm_by_locked: "控制台不再接受操作，这一问按“不行”处理了",
     o_allow_once: "允许这一次", o_allow_always: "这个对话里同类的都允许", o_reject_once: "不允许", o_reject_always: "一直不允许",
     v_read: "读", v_edit: "改", v_delete: "删", v_move: "挪", v_search: "找", v_execute: "跑", v_think: "想", v_fetch: "上网取", v_switch_mode: "换模式", v_other: "用",
     v_read_w: "读文件", v_edit_w: "改文件", v_delete_w: "删文件", v_move_w: "挪文件", v_search_w: "找文件", v_execute_w: "跑命令", v_fetch_w: "上网取东西", v_other_w: "用工具",
     st_pending: "准备中", st_in_progress: "在跑", st_asking: "等你点头", st_completed: "好了", st_failed: "没做成", st_refused: "你没允许，所以没做", out_show: "看输出", out_lines: "{n} 行",
-    new_file: "新文件", own_desc: "它自己的说明：", own_opts: "它给的选项原文：", gap: "…（中间还有 {n} 字，点下面看全部）…", see_all: "看完整的（共 {n} 字）",
+    new_file: "新文件", own_opts: "它给的选项原文：", seen_note: "这一段比框长：滚到底，或者点“全部展开”看完，才能点允许。“不行”随时能点。", seen_all: "全部展开",
+    f_title: "它给这一步的标题", f_command: "要跑的命令", f_description: "它自己的说明（是它说的，不一定准）", f_sandbox_on: "不用沙箱跑：这条命令不受沙箱限制",
+    f_sandbox_off: "照常在沙箱里跑", f_bg: "在后台跑：这一轮结束了它可能还在跑", f_timeout: "最长跑多久（毫秒）", f_file: "文件", f_content: "要写进去的内容",
+    f_old: "改之前", f_new: "改之后", f_all: "文件里每一处都换", f_cwd: "在哪个文件夹里跑", f_url: "要打开的网址", f_pattern: "要找的", f_where: "涉及的位置",
+    f_said: "它附的话", f_other: "它请求里的内容",
     too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
     turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
     turn_restart: "控制台重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
-    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_stopping: "正在停…",
+    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_locked: "控制台的链接被打开了两次，它不再接受操作：这一轮停下了。", n_stopping: "正在停…",
     unknown: "{a} 发来一条这里还显示不了的更新（点开看原样）", working_dsh: "{a} 在做，回复会整段一起到", sec: "{n} 秒", min: "{m} 分 {s} 秒",
     m_default: "改动前都问", m_acceptEdits: "改文件不问", m_plan: "只出计划", m_auto: "危险的才问", m_bypassPermissions: "什么都不问",
     "m_read-only": "只读", "m_workspace-write": "只改项目里的", m_agent: "危险的才问", "m_agent-full-access": "不设限",
@@ -51,7 +55,7 @@ const ASTR = {
   },
   en: {
     tab_chat: "Chat", tab_round: "This round", tab_ask: "{n} to allow", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History", ag_hist_none: "No other chats in this film yet",
-    ag_idle: "Idle", ag_lookonly: "Look only", lookonly_b: "This page was not opened from the link the console printed, so it cannot show or send a conversation. Open that link to talk to an agent here.", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
+    ag_idle: "Idle", ag_lookonly: "Look only", lookonly_b: "This page can only look: the note at the top says why, and gives the line for a new link.", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
     u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
@@ -68,16 +72,20 @@ const ASTR = {
     busy_process: "{x} (process {p}) is open in this film's folder in a terminal and may be editing. If {a} starts now, both may edit the same thing.",
     busy_waiting: "An agent in a terminal is waiting for you to send this round. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
     perm_h: "{a} wants to {v}", perm_wait: "Waiting for you", perm_by_person: "You chose: {o}", perm_by_stop: "Cancelled when you pressed Stop", perm_by_timeout: "No page was open; after {m} minutes it was refused",
-    perm_by_gone: "The agent stopped; this request lapsed", perm_by_restart: "The console restarted; this request lapsed", perm_by_turn: "The turn ended; this request lapsed", perm_by_desk: "The console closed; this request lapsed",
+    perm_by_gone: "The agent stopped; this request lapsed", perm_by_restart: "The console restarted; this request lapsed", perm_by_turn: "The turn ended; this request lapsed", perm_by_desk: "The console closed; this request lapsed", perm_by_locked: "The console stopped accepting anything; this request was refused",
     o_allow_once: "Allow this once", o_allow_always: "Allow the same kind in this chat", o_reject_once: "Don't allow", o_reject_always: "Never allow",
     v_read: "read", v_edit: "edit", v_delete: "delete", v_move: "move", v_search: "search", v_execute: "run", v_think: "think", v_fetch: "fetch", v_switch_mode: "switch mode", v_other: "use",
     v_read_w: "read a file", v_edit_w: "edit a file", v_delete_w: "delete a file", v_move_w: "move a file", v_search_w: "search", v_execute_w: "run a command", v_fetch_w: "fetch from the web", v_other_w: "use a tool",
     st_pending: "getting ready", st_in_progress: "running", st_asking: "waiting for you", st_completed: "done", st_failed: "failed", st_refused: "You didn't allow it, so it wasn't done", out_show: "Output", out_lines: "{n} lines",
-    new_file: "new file", own_desc: "Its own description: ", own_opts: "Its options as it wrote them: ", gap: "…({n} more characters: open the full text below)…", see_all: "See it all ({n} characters)",
+    new_file: "new file", own_opts: "Its options as it wrote them: ", seen_note: "This is longer than the box: scroll to the end, or press “Show it all”, before you can allow it. “No” works any time.", seen_all: "Show it all",
+    f_title: "Its title for this step", f_command: "The command", f_description: "Its own description (its words, maybe not accurate)", f_sandbox_on: "Without the sandbox: nothing limits this command",
+    f_sandbox_off: "In the sandbox, as usual", f_bg: "In the background: it may still run after this turn", f_timeout: "How long it may run (ms)", f_file: "File", f_content: "What it writes",
+    f_old: "Before", f_new: "After", f_all: "Every match in the file", f_cwd: "The folder it runs in", f_url: "The address it opens", f_pattern: "What it looks for", f_where: "Places it touches",
+    f_said: "What it added", f_other: "What it asks",
     too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
     turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
     turn_restart: "The console restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
-    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_stopping: "Stopping…",
+    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_locked: "The console's link was opened twice, so it accepts nothing now: this turn was stopped.", n_stopping: "Stopping…",
     unknown: "{a} sent an update this page can't show yet (open it to see it as sent)", working_dsh: "{a} is working; its reply comes in one piece", sec: "{n} s", min: "{m} min {s} s",
     m_default: "Ask before changes", m_acceptEdits: "Edit without asking", m_plan: "Plan only", m_auto: "Ask only if risky", m_bypassPermissions: "Never ask",
     "m_read-only": "Read only", "m_workspace-write": "Edit the project only", m_agent: "Ask only if risky", "m_agent-full-access": "No limits",
@@ -276,10 +284,10 @@ const AGENT = (() => {
   function inline(h) { return h.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
 
   /* ---------- the diff: line by line, from the agent's old and new text ---------- */
-  function diffLines(a, b) {
+  function diffLines(a, b, full) {   // full: every line (a request to approve shows the change whole)
     const lines = (x) => { const v = String(x).split("\n"); if (v.length > 1 && v[v.length - 1] === "") v.pop(); return v; };
     const A = a == null ? [] : lines(a), B = lines(b == null ? "" : b);
-    if (A.length * B.length > 250000) return { rows: B.slice(0, 200).map((x) => ["+", x]), cut: true };
+    if (A.length * B.length > 250000) return full ? { rows: A.map((x) => ["-", x]).concat(B.map((x) => ["+", x])), cut: false } : { rows: B.slice(0, 200).map((x) => ["+", x]), cut: true };
     const n = A.length, m = B.length, L2 = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
     for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L2[i][j] = A[i] === B[j] ? L2[i + 1][j + 1] + 1 : Math.max(L2[i + 1][j], L2[i][j + 1]);
     const rows = []; let i = 0, j = 0;
@@ -292,10 +300,10 @@ const AGENT = (() => {
     const keep = rows.map((r, k) => r[0] !== " " || rows.slice(Math.max(0, k - 2), k + 3).some((x) => x[0] !== " "));
     const out = []; let gap = false;
     rows.forEach((r, k) => { if (keep[k]) { out.push(r); gap = false; } else if (!gap) { out.push(["…", ""]); gap = true; } });
-    return { rows: out.slice(0, 400), cut: out.length > 400 };
+    return full ? { rows: out, cut: false } : { rows: out.slice(0, 400), cut: out.length > 400 };
   }
-  function diffHtml(c) {
-    const { rows, cut } = diffLines(c.oldText, c.newText);
+  function diffHtml(c, full) {
+    const { rows, cut } = diffLines(c.oldText, c.newText, full === true);
     return `<div class="ag-diff"><div class="ag-diff-h mono">${esc(c.path || "")}${c.oldText == null ? ` <em>${esc(at("new_file"))}</em>` : ""}</div><pre>${rows.map(([s, x]) => `<span class="d${s === "+" ? "a" : s === "-" ? "r" : s === "…" ? "g" : ""}">${esc(s === "…" ? "⋯" : s + " " + x)}</span>`).join("\n")}</pre>${cut ? `<p class="ag-mute">${esc(at("diff_cut"))}</p>` : ""}</div>`;
   }
   function contentHtml(d) {   // a tool's diffs, then its output folded (the text it printed, the agent's rawOutput)
@@ -426,12 +434,12 @@ const AGENT = (() => {
       const d = it.d, v = verbOf(d), ti = toolTitle(d), st = d.status || "pending";
       const refused = st === "failed" && pm && pm.answered && !/^allow/.test(pm.answered.kind || "");   // its failure is the person's no
       const fail = st === "failed" && !refused ? String((typeof d.rawOutput === "string" && d.rawOutput) || "").split("\n")[0] : "";
-      if (refused) return `<div class="ag-tool st-refused"><div class="ag-tool-h"><span class="ag-verb">${esc(at("v_" + v))}</span><span class="ag-st">${esc(/^(page|person)$/.test(pm.answered.by) ? at("st_refused") : at("st_failed"))}</span></div>${ti ? whole(ti) : ""}${/^(page|person)$/.test(pm.answered.by) ? "" : answerHtml(pm)}</div>`;
+      if (refused) return `<div class="ag-tool st-refused"><div class="ag-tool-h"><span class="ag-verb">${esc(at("v_" + v))}</span><span class="ag-st">${esc(/^(page|person)$/.test(pm.answered.by) ? at("st_refused") : at("st_failed"))}</span></div>${askBox("", Object.assign({}, d, pm.tool))}${/^(page|person)$/.test(pm.answered.by) ? "" : answerHtml(pm)}</div>`;
       return `<div class="ag-tool st-${esc(st)}"><div class="ag-tool-h"><span class="ag-verb">${esc(at("v_" + v))}</span><span class="ag-ti mono" title="${esc(ti)}">${esc(ti ? cut(ti, 120) : verbWords(d))}</span><span class="ag-st">${esc(at("st_" + st) !== "st_" + st ? at("st_" + st) : st)}</span></div>${fail ? `<p class="ag-fail">${esc(cut(fail, 200))}</p>` : ""}${contentHtml(Object.assign({}, pm ? { content: pm.tool.content } : {}, d))}${pm ? answerHtml(pm) : ""}</div>`;
     }
     if (it.kind === "perm") {   // a request about no tool on screen: a card of its own
       if (S.tools[(it.tool || {}).toolCallId]) return "";
-      return it.answered ? `<div class="ag-perm done">${askHead(it)}${askBody(it.tool || {})}${answerHtml(it)}</div>` : askHtml(it, it.tool || {});
+      return it.answered ? `<div class="ag-perm done">${askHead(it)}${askBox("", it.tool || {})}${answerHtml(it)}</div>` : askHtml(it, it.tool || {});
     }
     if (it.kind === "plan") return `<div class="ag-plan"><div class="ag-who"><i></i>${esc(at("plan_h"))}</div><ol>${it.entries.map((p) => `<li class="ps-${esc(p.status || "")}">${esc(p.content || "")}</li>`).join("")}</ol></div>`;
     if (it.kind === "end") {
@@ -444,30 +452,77 @@ const AGENT = (() => {
     }
     if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
     if (it.kind === "notice" && it.code === "restarted") return `<p class="ag-note warn">${esc(at("n_restarted", { a: label() }))}</p>`;
+    if (it.kind === "notice" && it.code === "locked") return `<p class="ag-note bad">${esc(at("n_locked"))}</p>`;
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
     if (it.kind === "unknown") return `<details class="ag-unknown"><summary>${esc(at("unknown", { a: label() }))}</summary><pre>${esc(cut(JSON.stringify(it.u, null, 1), 2000))}</pre></details>`;
     return "";
   }
   function permOf(toolId) { let out = null; for (const p of Object.values(S.perms)) if (p.tool && p.tool.toolCallId === toolId) out = p; return out; }
   function askHead(pm) { return `<div class="ag-perm-h"><b>${esc(at("perm_h", { a: label(), v: verbWords(pm.tool || {}) }))}</b>${pm.answered ? "" : `<span class="chip warn">${esc(at("perm_wait"))}</span>`}</div>`; }
-  function whole(s) {   // a command or a path, every character of it: a long one folded to its head and its tail, the rest one click away
-    s = String(s || "");
-    if (s.length <= 600) return `<code class="ag-cmdline mono">${esc(s)}</code>`;
-    const n = cps(s).length, head = cps(s).slice(0, 300).join(""), tail = cps(s).slice(-200).join("");
-    return `<code class="ag-cmdline mono">${esc(head)}<span class="ag-gap">${esc(at("gap", { n: n - 500 }))}</span>${esc(tail)}</code><details class="ag-out"><summary>${esc(at("see_all", { n }))}</summary><pre>${esc(s)}</pre></details>`;
+  const FIELD = { command: "f_command", description: "f_description", timeout: "f_timeout", file_path: "f_file", path: "f_file", notebook_path: "f_file",
+    content: "f_content", old_string: "f_old", new_string: "f_new", cwd: "f_cwd", url: "f_url", pattern: "f_pattern" };
+  function gloss(k, v) {   // a field we know, in words: [word key, class]
+    if (k === "dangerouslyDisableSandbox") return v === true ? ["f_sandbox_on", "warn"] : ["f_sandbox_off", ""];
+    if (k === "run_in_background") return v === true ? ["f_bg", "warn"] : ["", ""];
+    if (k === "replace_all") return v === true ? ["f_all", ""] : ["", ""];
+    return [FIELD[k] || "", ""];
   }
-  function askBody(d) {   // what it wants to do: the command or file in full, its own description (as its words), the change
-    const ti = toolTitle(d);
-    return `${ti ? whole(ti) : ""}${d.rawInput && d.rawInput.description ? `<p class="ag-mute">${esc(at("own_desc"))}${esc(d.rawInput.description)}</p>` : ""}${(Array.isArray(d.content) ? d.content : []).filter((c) => c && c.type === "diff").map(diffHtml).join("")}`;
+  function fieldRow(k, v, word) {   // one field of the request: its key and its value as the agent sent them (escaped), and what it means when we know
+    const [g, cls] = word ? [word, ""] : gloss(k, v);
+    return `<div class="ag-f${cls ? " " + cls : ""}"><div class="ag-fk"><span class="mono">${esc(k)}</span>${g ? `<span>${esc(at(g))}</span>` : ""}</div><pre class="ag-fv mono">${esc(typeof v === "string" ? v : JSON.stringify(v, null, 1))}</pre></div>`;
+  }
+  function askFields(d) {   // everything the request carries: its title, every field of its input in the agent's order (the command first),
+    const ri = d.rawInput, rows = [];   // the places, what it added, the change: each whole
+    const obj = ri && typeof ri === "object" && !Array.isArray(ri);
+    const ti = String(d.title || "");
+    if (ti && !(obj && String(ri.command) === ti) && !PLACEHOLDER.test(ti.trim())) rows.push(fieldRow("title", ti, "f_title"));
+    if (obj) Object.keys(ri).sort((x, y) => (y === "command") - (x === "command")).forEach((k) => rows.push(fieldRow(k, ri[k])));
+    else if (ri != null) rows.push(fieldRow("rawInput", ri, "f_other"));
+    const locs = (d.locations || []).map((l) => l && l.path).filter(Boolean);
+    if (locs.length && !(obj && locs.every((x) => Object.values(ri).includes(x)))) rows.push(fieldRow("locations", locs.join("\n"), "f_where"));
+    const cs = Array.isArray(d.content) ? d.content : [];
+    const said = cs.filter((c) => c && c.type === "content" && c.content && c.content.type === "text").map((c) => c.content.text).join("\n");
+    if (said) rows.push(fieldRow("content", said, "f_said"));
+    return rows.join("") + cs.filter((c) => c && c.type === "diff").map((c) => diffHtml(c, true)).join("");
+  }
+  function askBox(rid, d) {   // in a box of its own height: with rid, "allow" waits until the person has seen the end of it
+    return `<div class="ag-askbox${rid && OPENED.has(rid) ? " open" : ""}"${rid ? ` data-rid="${esc(rid)}"` : ""} tabindex="0">${askFields(d)}</div>`
+      + (rid ? `<p class="ag-seenote" hidden>${esc(at("seen_note"))} <button type="button" class="btn ghost" data-expand="${esc(rid)}">${esc(at("seen_all"))}</button></p>` : "");
   }
   function askHtml(pm, d) {   // the options in this page's words, the agent's own wording beside them (it may say what an option reaches)
-    const own = pm.options.map((o) => o.name).filter(Boolean);
-    return `<div class="ag-perm">${askHead(pm)}${askBody(d)}${pm.clipped ? `<p class="ag-note bad">${esc(at("too_long"))}</p>` : ""}<div class="ag-opts">${pm.options.map((o) => `<button type="button" class="btn${/^allow/.test(o.kind) ? "" : " ghost"}${o.kind === "allow_once" ? " btn-primary" : ""}" data-rid="${esc(pm.rid)}" data-opt="${esc(o.optionId)}"${pm.clipped && /^allow/.test(o.kind) ? " disabled" : ""}>${esc(optWords(o))}</button>`).join("")}</div>${own.length ? `<p class="ag-mute">${esc(at("own_opts"))}${own.map((x) => `「${esc(x)}」`).join(" ")}</p>` : ""}</div>`;
+    const own = pm.options.map((o) => o.name).filter(Boolean), seen = SEEN.has(pm.rid);
+    return `<div class="ag-perm">${askHead(pm)}${askBox(pm.rid, d)}${pm.clipped ? `<p class="ag-note bad">${esc(at("too_long"))}</p>` : ""}<div class="ag-opts">${pm.options.map((o) => {
+      const allow = /^allow/.test(o.kind || "");
+      return `<button type="button" class="btn${allow ? "" : " ghost"}${o.kind === "allow_once" ? " btn-primary" : ""}" data-rid="${esc(pm.rid)}" data-opt="${esc(o.optionId)}"${allow ? ` data-allow="1"${pm.clipped ? ' data-clip="1"' : ""}${pm.clipped || !seen ? " disabled" : ""}` : ""}>${esc(optWords(o))}</button>`;
+    }).join("")}</div>${own.length ? `<p class="ag-mute">${esc(at("own_opts"))}${own.map((x) => `「${esc(x)}」`).join(" ")}</p>` : ""}</div>`;
+  }
+  const SEEN = new Set(), OPENED = new Set();   // requests whose whole text the person has had on screen; those unfolded
+  let RO = null;
+  function unlock(box) {
+    const card = box.closest(".ag-perm"); if (!card) return;
+    card.querySelectorAll("button[data-allow]").forEach((b) => { if (!b.dataset.clip) b.disabled = false; });
+    const n = card.querySelector(".ag-seenote"); if (n) n.hidden = true;
+  }
+  function judge(box) {   // seen when it all fits, once scrolled to its end, or unfolded; a box with no size yet (a hidden pane) waits
+    const rid = box.dataset.rid; if (!rid) return;
+    if (SEEN.has(rid)) return unlock(box);
+    if (!box.clientHeight) return;
+    if (box.scrollHeight - box.clientHeight <= 2 || box.scrollTop + box.clientHeight >= box.scrollHeight - 2) { SEEN.add(rid); return unlock(box); }
+    const n = box.closest(".ag-perm") && box.closest(".ag-perm").querySelector(".ag-seenote"); if (n) n.hidden = false;
+  }
+  function gateAsks(th) {
+    th.querySelectorAll(".ag-askbox[data-rid]").forEach((box) => {
+      if (box.dataset.wired) return judge(box);
+      box.dataset.wired = "1";
+      box.addEventListener("scroll", () => judge(box), { passive: true });
+      if (typeof ResizeObserver !== "undefined") { RO = RO || new ResizeObserver((es) => es.forEach((e) => judge(e.target))); RO.observe(box); }
+      judge(box);
+    });
   }
   function answerHtml(pm) {   // how the request was answered, and by whom
     const ans = pm.answered; if (!ans) return "";
     const by = ans.by === "page" || ans.by === "person" ? at("perm_by_person", { o: optWords(pm.options.find((o) => o.optionId === ans.option) || { kind: ans.kind, name: ans.option }) })
-      : at({ stop: "perm_by_stop", timeout: "perm_by_timeout", agent_gone: "perm_by_gone", desk_restart: "perm_by_restart", turn_end: "perm_by_turn", desk_stop: "perm_by_desk" }[ans.by] || "perm_by_turn", { m: Math.round(((INFO && INFO.approval_timeout) || 600) / 60) });
+      : at({ stop: "perm_by_stop", timeout: "perm_by_timeout", agent_gone: "perm_by_gone", desk_restart: "perm_by_restart", turn_end: "perm_by_turn", desk_stop: "perm_by_desk", locked: "perm_by_locked" }[ans.by] || "perm_by_turn", { m: Math.round(((INFO && INFO.approval_timeout) || 600) / 60) });
     return `<p class="ag-ans ${/^allow/.test(ans.kind || "") ? "ok" : "no"}">${esc(by)}</p>`;
   }
   const DOM = new Map();   // an item's key → [its version, its element]: only what changed is drawn again
@@ -494,6 +549,7 @@ const AGENT = (() => {
     if (S.running) th.insertAdjacentHTML("beforeend", workingHtml());
     wireThread(th);
     if (stick) th.scrollTop = th.scrollHeight;
+    gateAsks(th);
   }
   function workingHtml() {   // the turn is on and nothing new is on screen: say so (DeepSeek Harness sends its reply whole)
     const st = stateNow();
@@ -509,7 +565,10 @@ const AGENT = (() => {
   }
   function wireThread(th) {
     th.onclick = (e) => {
+      const x = e.target.closest("button[data-expand]");
+      if (x && e.isTrusted) { const box = x.closest(".ag-perm").querySelector(".ag-askbox"); OPENED.add(x.dataset.expand); SEEN.add(x.dataset.expand); if (box) { box.classList.add("open"); unlock(box); } return; }
       const b = e.target.closest("button[data-rid]");
+      if (b && b.dataset.allow && !SEEN.has(b.dataset.rid)) return;   // not before its whole text was on screen
       if (b) { b.disabled = true; answer(e, b.dataset.rid, b.dataset.opt); return; }
       const c = e.target.closest("button[data-copy]");
       if (c) { copyText(c.dataset.copy).then(() => toast(at("copied"))); return; }
@@ -594,9 +653,9 @@ const AGENT = (() => {
     },
     leave() { close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
     scope() { if (KEYP) renderFoot(); },
-    keyOk(ok) { KEYOK = !!ok; if (!KEYOK) close(); if (KEYP) render(); },   // without this run's token the conversation is not opened at all
+    keyOk(ok) { KEYOK = !!ok; if (!KEYOK) close(); if (KEYP) render(); },   // without this run's token the conversation is not opened at all (the note at the top says why)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab,
-    _md: md, _diff: diffLines, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
+    _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };
 })();

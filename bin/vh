@@ -383,7 +383,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
   case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
-    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|desk:agents|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|desk:agents|desk:link|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
   esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
