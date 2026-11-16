@@ -7,8 +7,8 @@
   {"t":2.66,"sfx":"impact","gain_db":-15,"pan":0.15,"pitch":9},
   {"t":3.05,"sfx":"paper","gain_db":-19,"pan":-0.25,"dur":0.38,"bright":0.8,"tone":0.1},
   {"t":3.77,"sfx":"paper","gain_db":-19,"pan":-0.05,"dur":0.4,"bright":0.9,"tone":0.1},
-  {"t":4.55,"sfx":"air","gain_db":-12,"pan":0,"dur":0.6,"pan_from":0.5,"pan_to":-0.5},
-  {"t":4.85,"sfx":"paper","gain_db":-10,"pan":0,"dur":0.2,"bright":-0.3},
-  {"t":5.4,"sfx":"paper","gain_db":-20,"pan":0,"dur":0.35,"bright":0.9,"tone":0.1},
-  {"t":7.6,"sfx":"paper","gain_db":-10,"pan":0,"dur":0.75,"pan_from":0.4,"pan_to":-0.7}
+  {"t":4.8,"sfx":"air","gain_db":-12,"pan":0,"dur":1.1,"pan_from":0.5,"pan_to":-0.5},
+  {"t":5.37,"sfx":"paper","gain_db":-10,"pan":0,"dur":0.2,"bright":-0.3},
+  {"t":5.95,"sfx":"paper","gain_db":-20,"pan":0,"dur":0.35,"bright":0.9,"tone":0.1},
+  {"t":8.5,"sfx":"paper","gain_db":-10,"pan":0,"dur":0.9,"pan_from":0.4,"pan_to":-0.7}
 ]

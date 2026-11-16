@@ -10,11 +10,11 @@ showcase/03-math-fourier/media/final.mp4 03-math-explainer.mp4 f6eff1bcd133f6c9f
 showcase/04-intro-film/media/final.mp4 intro-film-1080p.mp4 c763ab78c704294a02d2ccd56c792d13f76077cbb86f7949f973d2946ef5447a
 showcase/04-intro-film/v3/final.mp4 intro-film-v3-81s.mp4 c1aea967f79b33d4892010805a1dc4d2b8c1653593ab5076047ac72889328f03
 styles/gallery.mp4 styles-gallery-v2.mp4 4d338e84772c65c69398e9cdf980472080bcd680fa03080ce5da28875bedadb0
-styles/lacquer-screen/media/swatch.mp4 styles-media/lacquer-screen-61d3004f.mp4 61d3004fe2706e0d7f413eced394ac0c329215c164f2885242b25127cad298cc
 styles/map-explainer/media/swatch.mp4 styles-media/map-explainer-d735003e.mp4 d735003e4f5b8721b23cf71259bcea270811bc2893a717d131396041bad465fb
 styles/map-explainer/media/swatch-portrait.mp4 styles-media/map-explainer-portrait-bb241267.mp4 bb241267ba4925134364423de29ebd0f3c99a97d81c4c53a26f1df6642d1f863
 styles/dark-studio-3d/media/swatch.mp4 styles-media/dark-studio-3d-b1851050.mp4 b1851050ea094667ea7c73bb0057dd74cdcec242565bc0caceeb6fecebf39c76
-styles/paper-desk-dossier/media/swatch.mp4 styles-media/paper-desk-dossier-b094b4b1.mp4 b094b4b1a416a87be8df050d87ad1482b1b37fc03d33dc2f05c971135eb27106
-styles/paper-desk-dossier/media/swatch-portrait.mp4 styles-media/paper-desk-dossier-portrait-748d7d0a.mp4 748d7d0a9d891d1b5c1d5776bc1342d6ec5c71c8cc76a2b46bb1262edcc6f0a7
-styles/visual-investigation/media/swatch.mp4 styles-media/visual-investigation-fba1260f.mp4 fba1260f56c964596ca74369e4252388986cbdfd1804b14a2afff6315dd5abcf
-styles/visual-investigation/media/swatch-portrait.mp4 styles-media/visual-investigation-portrait-836f94df.mp4 836f94df17a4ee552e22911e3e64c37e12924bae97e6fd506b61fc363a7e6546
+styles/paper-desk-dossier/media/swatch.mp4 styles-media/paper-desk-dossier-848f9533.mp4 848f9533550510e756b3cf9b470daabc14c5f6531cdc22fc8f4fcf67443ffb5f
+styles/paper-desk-dossier/media/swatch-portrait.mp4 styles-media/paper-desk-dossier-portrait-356e1df2.mp4 356e1df27339d7edad52794bc88b3d206b2471b1b3a224d58823584a76c6e9ac
+styles/visual-investigation/media/swatch.mp4 styles-media/visual-investigation-132fc548.mp4 132fc5487838ee42289436e1ebd5b0cdc32379c7dc85f53a5ba2ad54a4192070
+styles/visual-investigation/media/swatch-portrait.mp4 styles-media/visual-investigation-portrait-11c8693c.mp4 11c8693cd6681774ba4bc732ca8ce18c6a8f41da3d09674abe29dae75306ccfb
+styles/lacquer-screen/media/swatch.mp4 styles-media/lacquer-screen-394981ac.mp4 394981ac313c3f52503075662418ca23f2ed32d2a3c1041aca0613b339dc1d6c

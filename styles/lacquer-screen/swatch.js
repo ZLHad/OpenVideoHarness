@@ -153,14 +153,14 @@ function lineAt(u) {
 /** Mother-of-pearl plum blossoms on the branch: each petal a shell piece (placed once). */
 function blossoms(lib) {
   const at = [[1745, 62], [1610, 128], [1505, 182], [1385, 250], [1520, 98], [1480, 60], [1688, 182], [1650, 250], [1400, 320], [1340, 262]];
-  return at.map(([x, y], k) => ({ x, y, r: 13 + lib.hash(k, 3) * 7, rot: lib.hash(k, 4) * Math.PI }));
+  return at.map(([x, y], k) => ({ x, y, r: 17 + lib.hash(k, 3) * 8, rot: lib.hash(k, 4) * Math.PI }));
 }
 
 // ── shimmer ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 /** Mother-of-pearl colour at a face point: the hue walks with position, the panels' angle and a slow 8 s cycle. */
 function nacre(lib, x, y, k, theta, t) {
   const ph = 0.0042 * x + 0.006 * y + k * 1.7 + theta * 0.06 + Math.sin((2 * Math.PI * t) / 8) * 0.9;
-  const hue = 190 + 95 * Math.sin(ph), light = 74 + 10 * Math.sin(ph * 1.7 + 1), sat = 38 + 18 * Math.cos(ph * 0.8);
+  const hue = 190 + 100 * Math.sin(ph), light = 71 + 12 * Math.sin(ph * 1.7 + 1), sat = 50 + 20 * Math.cos(ph * 0.8);
   return `hsl(${hue.toFixed(1)} ${sat.toFixed(1)}% ${light.toFixed(1)}%)`;
 }
 function shell(x, cx, cy, r, rot, fill, lib) {          // one irregular shell piece
@@ -260,17 +260,28 @@ function face(t, theta, tokens, lib) {
     const pts = LINE.pts, [hx, hy, hi] = lineAt(lib.ease.inOutSine(u));
     const part = pts.slice(0, hi).concat([[hx, hy]]);
     x.save(); x.globalAlpha = sink; x.lineCap = "round"; x.lineJoin = "round";
-    x.shadowColor = lib.rgba(P("gold"), 0.55); x.shadowBlur = 16;
-    x.strokeStyle = L.gold(x); x.lineWidth = 12; strokePts(x, part);
-    x.shadowBlur = 0; x.strokeStyle = lib.rgba(P("gold_hi"), 0.8); x.lineWidth = 3;
-    x.translate(-1, -2); strokePts(x, part); x.translate(1, 2);
+    // the glow under it, then the stroke with a brush's pressure: pressed into the start (起笔), breathing along the
+    // way, tapering to the end of the line (收笔) and to a point at the wet tip while it is being written
+    x.shadowColor = lib.rgba(P("gold"), 0.5); x.shadowBlur = 16;
+    x.strokeStyle = lib.rgba(P("gold"), 0.35); x.lineWidth = 7; strokePts(x, part);
+    x.shadowBlur = 0; x.strokeStyle = L.gold(x);
+    const n = part.length, total = LINE.pts.length - 1;
+    for (let i = 1; i < n; i++) {
+      const g = i / total, toHead = (n - 1 - i) / Math.max(1, total);
+      const press = g < 0.035 ? 1.35 - 4 * (0.035 - g) * 4 : 1 + 0.16 * Math.sin(g * 23) + 0.08 * Math.sin(g * 61);
+      const end = 1 - 0.75 * lib.smoothstep(0.9, 1.0, g), tip = lib.smoothstep(0, 0.035, toHead) * 0.75 + 0.25;
+      x.lineWidth = Math.max(1.5, 11.5 * press * end * tip);
+      x.beginPath(); x.moveTo(...part[i - 1]); x.lineTo(...part[i]); x.stroke();
+    }
+    x.strokeStyle = lib.rgba(P("gold_hi"), 0.85); x.lineWidth = 2.2;
+    x.translate(-1, -2); strokePts(x, part.slice(0, Math.max(2, n - 3))); x.translate(1, 2);
     // the nodes: mother-of-pearl set in where the line turns, a flash as each goes in
     LINE.turns.forEach((nu, k) => {
       const tn = reach(nu);
       if (t < tn) return;
       const [nx, ny] = lineAt(nu), s = lib.spring(t - tn, { w: 22, zeta: 0.5 });
       for (let p = 0; p < 4; p++) {
-        const a = p * Math.PI / 2 + 0.3, r = 21 * s;
+        const a = p * Math.PI / 2 + 0.3, r = 29 * s;
         shell(x, nx + Math.cos(a) * r * 0.75, ny + Math.sin(a) * r * 0.75, r * 0.8, a + Math.PI / 2, nacre(lib, nx, ny, k * 3 + p, theta, t), lib);
       }
       const flash = Math.exp(-(t - tn) * 7);
@@ -312,11 +323,11 @@ function panels(ctx, t, G, tokens, lib) {
     vg.addColorStop(0, `rgba(255,228,190,${(0.025 + 0.05 * lit).toFixed(3)})`); vg.addColorStop(0.3, "rgba(255,228,190,0)");
     vg.addColorStop(0.85, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(255,210,150,${(0.03 + 0.04 * lit).toFixed(3)})`);
     ctx.fillStyle = vg; ctx.globalCompositeOperation = "screen"; ctx.fill(); ctx.globalCompositeOperation = "source-over";
-    const us = 0.5 + 1.6 * (nx + 0.18), k = 0.2 * lit;
+    const us = 0.5 + 1.6 * (nx + 0.18), k = 0.26 * lit;
     if (k > 0.005) {
       const gr = ctx.createLinearGradient(a.x, 0, b.x, 0);
       const st = (q, al) => gr.addColorStop(Math.max(0, Math.min(1, q)), `rgba(255,236,205,${al.toFixed(3)})`);
-      st(0, 0); st(us - 0.16, 0); st(us - 0.04, k * 0.8); st(us + 0.01, k * 2.2); st(us + 0.05, k * 0.8); st(us + 0.18, 0); st(1, 0);
+      st(0, 0); st(us - 0.14, 0); st(us - 0.035, k * 0.55); st(us - 0.012, k * 0.9); st(us - 0.006, k * 2.6); st(us + 0.006, k * 2.6); st(us + 0.012, k * 0.9); st(us + 0.035, k * 0.55); st(us + 0.14, 0); st(1, 0);
       ctx.fillStyle = gr; ctx.globalCompositeOperation = "screen"; ctx.fill();
     }
     // the near edge of each fold catches a thin line of light

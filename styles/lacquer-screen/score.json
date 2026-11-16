@@ -9,11 +9,11 @@
     {"name": "close", "bars": 1, "chords": ["i"]}
   ],
   "parts": [
-    {"inst": "guqin_pm", "id": "qin", "loop": 5, "scale": "yu", "send": 0.3, "pan": -0.15,
+    {"inst": "guqin_pm", "id": "qin", "note_map": true, "loop": 5, "scale": "yu", "send": 0.3, "pan": -0.15,
      "pattern": [
        [0, 1.5, "D3", 0.62, {"slide": -2}], [1.5, 1.5, "A3", 0.5, {"yin": true}],
        [3, 1, "F3", 0.5], [4, 1, "G3", 0.5], [5, 1, "A3", 0.55, {"bend": 2}],
-       [6, 1.5, "C4", 0.6], [7.5, 1.5, "D4", 0.62, {"harm": true}],
+       [6, 1.5, "C4", 0.6], [7.5, 1.5, "D4", 0.56, {"yin": true}],
        [9, 2, "F4", 0.58, {"yin": true}], [11, 1, "D4", 0.5], [12, 2, "C4", 0.5, {"slide": 2}],
        [14, 2, "D3", 0.55, {"harm": true}]
      ]},

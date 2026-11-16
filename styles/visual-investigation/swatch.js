@@ -83,7 +83,7 @@ function camera(t, lib) {
   return { pitch: lerp(p0, p1, u) * Math.PI / 180, yaw: lerp(y0, y1, u) * Math.PI / 180 };
 }
 function projector(cam, lib) {
-  const { W, H, PORTRAIT } = lib, D = PORTRAIT ? 46 : 45, f = PORTRAIT ? 1640 : 1700;
+  const { W, H, PORTRAIT } = lib, D = PORTRAIT ? 54 : 45, f = PORTRAIT ? 1640 : 1700;
   const cx = W / 2, cy = H * (PORTRAIT ? 0.5 : 0.54), sp = Math.sin(cam.pitch), cp = Math.cos(cam.pitch);
   const yaw = cam.yaw + (PORTRAIT ? Math.PI / 2 : 0), cs = Math.cos(yaw), sn = Math.sin(yaw);   // portrait: the long side runs up the frame
   return (x, y, z = 0) => {
@@ -220,9 +220,16 @@ function route(ctx, t, pr, tokens, lib) {
   ctx.setLineDash([]);
   const [x, y] = pts[pts.length - 1], pulse = (t * 1.6) % 1;
   ctx.strokeStyle = lib.rgba(P("subject"), 0.8 * (1 - pulse)); ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(x, y, 10 + 34 * pulse, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = P("subject"); ctx.shadowColor = P("subject"); ctx.shadowBlur = 18;
-  ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, 14 + 34 * pulse, 0, Math.PI * 2); ctx.stroke();
+  // the subject is an arrow that points where it is going (its heading over the last two seconds of story time)
+  let [ax, ay] = pr(...subjectAt(s - 2)), hx = x - ax, hy = y - ay;
+  if (Math.hypot(hx, hy) < 1) { const [bx, by] = pr(...subjectAt(s + 2)); hx = bx - x; hy = by - y; }
+  if (Math.hypot(hx, hy) < 1) { const [bx, by] = pr(...ROUTE[1]); const [cx, cy] = pr(...ROUTE[0]); hx = bx - cx; hy = by - cy; }
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(hy, hx));
+  ctx.beginPath(); ctx.moveTo(19, 0); ctx.lineTo(-12, -13); ctx.lineTo(-5, 0); ctx.lineTo(-12, 13); ctx.closePath();
+  ctx.fillStyle = P("subject"); ctx.shadowColor = P("subject"); ctx.shadowBlur = 16; ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = lib.rgba(P("bright"), 0.9); ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.restore();
   ctx.restore();
 }
 

@@ -1,5 +1,6 @@
-// 纸桌档案 · paper-desk-dossier — swatch spec 2 (8 s, four beats, landscape and portrait).
+// 纸桌档案 · paper-desk-dossier — swatch spec 2 (9 s, four beats, landscape and portrait).
 //
+// (9 s: a longer swatch than the default 8, so the slide along the sheet can take 1.2 s.)
 // A long cream sheet on a dark wooden desk, seen from above; the camera travels along it. Real things land on the sheet
 // one after another with their weight (a big soft shadow that tightens as they touch down): an archival photograph,
 // an index card that types itself, a rubber stamp, a second photograph under a clip, and a red pen that circles the
@@ -9,8 +10,8 @@
 //
 //   0.0–1.25  world      the camera runs in from bare desk; the sheet's head comes into view and settles
 //   1.5–4.2   signature  photo · card (typed) · stamp · second photo · red pen circle, arrow, note
-//   4.25–7.15 type       the camera slides on (4.25–4.85); the title slip lands; title and caption read once
-//   7.15–7.95 close      the camera runs past the tail of the sheet to bare desk (= frame 0)
+//   4.2–7.78  type       the camera slides on (4.2–5.4, slow enough to follow); the title slip lands; title and caption read once
+//   7.78–8.95 close      the camera runs past the tail of the sheet to bare desk (= frame 0)
 //
 // Photographs: Carleton E. Watkins, "Half Dome, Yosemite Valley" and "Merced River, Yosemite Valley" (ca. 1865), public
 // domain, via the Library of Congress / Wikimedia Commons (STYLE.md, "素材"). Everything else is drawn here.
@@ -21,9 +22,9 @@ const T = {
   photo: 1.12, tape: 1.34, card: 1.6, type: [1.8, 3.2], photo2: 2.25,
   stampDown: [2.45, 2.66], stamp: 2.66, stampUp: [2.66, 2.9],
   penIn: [2.72, 3.0], circle: [3.0, 3.42], arrow: [3.42, 3.66], note: [3.72, 4.12], penOut: [4.12, 4.42],
-  slide: [4.25, 4.85], slip: 4.6, caption: 4.84, read: [4.95, 7.15],
-  penIn2: [4.98, 5.35], underline: [5.35, 5.75], penOut2: [5.75, 6.1],
-  out: [7.15, 7.95],
+  slide: [4.2, 5.4], slip: 5.12, caption: 5.38, read: [5.5, 7.75],   // the slide takes 1.2 s: the change stays legible
+  penIn2: [5.55, 5.9], underline: [5.9, 6.3], penOut2: [6.3, 6.65],
+  out: [7.78, 8.95],
 };
 const WRITE = "约 1865 年";        // the red note: the date the photograph was taken (Library of Congress: "ca. 1865")
 const CARD = ["HALF DOME, YOSEMITE", "C. E. WATKINS, CA. 1865", "LIBRARY OF CONGRESS"];
@@ -40,10 +41,10 @@ export const FOLEY = [
   { t: T.stamp, sfx: "impact", gain_db: -15, pitch: 9, pan: 0.15 },                                 // the stamp's thud
   { t: T.circle[0] + 0.05, sfx: "paper", gain_db: -19, dur: 0.38, bright: 0.8, tone: 0.1, pan: -0.25 },   // pen on the photo
   { t: T.note[0] + 0.05, sfx: "paper", gain_db: -19, dur: 0.4, bright: 0.9, tone: 0.1, pan: -0.05 },      // pen writes the note
-  { t: (T.slide[0] + T.slide[1]) / 2, sfx: "air", gain_db: -12, dur: 0.6, pan_from: 0.5, pan_to: -0.5 },  // the camera slides on
+  { t: (T.slide[0] + T.slide[1]) / 2, sfx: "air", gain_db: -12, dur: 1.1, pan_from: 0.5, pan_to: -0.5 },  // the camera slides on
   { t: T.slip + 0.25, sfx: "paper", gain_db: -10, dur: 0.2, bright: -0.3, pan: 0 },               // the title slip lands
   { t: T.underline[0] + 0.05, sfx: "paper", gain_db: -20, dur: 0.35, bright: 0.9, tone: 0.1, pan: 0 },    // the red underline
-  { t: 7.6, sfx: "paper", gain_db: -10, dur: 0.75, pan_from: 0.4, pan_to: -0.7 },                 // the sheet runs out
+  { t: 8.5, sfx: "paper", gain_db: -10, dur: 0.9, pan_from: 0.4, pan_to: -0.7 },                  // the sheet runs out
 ];
 
 /** The reads of the type beat (readcheck's format: start = fully shown). */
@@ -229,7 +230,7 @@ function camera(t, lib) {
   const { seg, lerp, ease } = lib;
   if (t < T.run[1]) return lerp(C0, C1, ease.outCubic(seg(t, T.run[0], T.run[1])));
   if (t < T.slide[0]) return lerp(C1, C2, ease.inOutSine(seg(t, T.run[1], T.slide[0])));
-  if (t < T.slide[1]) return lerp(C2, C3, ease.inOutCubic(seg(t, T.slide[0], T.slide[1])));
+  if (t < T.slide[1]) return lerp(C2, C3, ease.inOutSine(seg(t, T.slide[0], T.slide[1])));
   if (t < T.out[0]) return lerp(C3, C4, ease.inOutSine(seg(t, T.slide[1], T.out[0])));
   return lerp(C4, C5, ease.inCubic(seg(t, T.out[0], T.out[1])));
 }
@@ -243,7 +244,9 @@ function lift(t, t0, lib) {
 
 // ── frame ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 export function renderAt(t, ctx, tokens, lib) {
-  if (moving(t)) lib.motionBlur(ctx, t, (ts, x) => world(x, ts, tokens, lib, false), { samples: 6, shutter: 0.55 });
+  // a little motion blur where the camera moves fast; through the slide only a quarter shutter, so the sheet stays legible
+  const sliding = t > T.slide[0] && t < T.slide[1];
+  if (moving(t)) lib.motionBlur(ctx, t, (ts, x) => world(x, ts, tokens, lib, false), { samples: sliding ? 4 : 6, shutter: sliding ? 0.25 : 0.5 });
   else world(ctx, t, tokens, lib, true);
   // the lamp: a warm pool of light upper left, the corners falling off; then a fine grain
   const { W, H } = lib;
