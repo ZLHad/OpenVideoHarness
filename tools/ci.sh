@@ -3993,7 +3993,7 @@ studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its la
   # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders joins
   # Studio (no desk or window of its own); --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
   # that moved, doctor's line, the picture, install.sh's question and the release's check
-  local t a b c d e g rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p w0 w1 w2 w3 wq tab3 tab4 left claims listed
+  local t a b c d e g rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p p1 p2 p3 cpid w0 w1 w2 w3 wq tab3 tab4 left claims listed
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
   mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
   cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
@@ -4057,6 +4057,19 @@ sys.exit(1 if bad else 0)
 PY
   then ok "studio: from an agent (no terminal) and from a terminal, one window: made once (its page connected and got the token), then raised and sent to the film, two runs at once included; one console; no output says an address, a code or the token, and no file but the window's own profile holds it"
   else bad "studio: opening it (exits $rc/$rc2): $a | $b | $c | $w1 | $(cat "$t/two1" "$t/two2")"; fi
+  # three cold starts at once (no console running): one console, one window, and only one of them says it started it
+  mkdir -p "$t/tmp3" "$t/prof3"
+  cold() { TMPDIR="$t/tmp3" HOME="$t/home" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof3" OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" \
+    "$VH_BASH" "$ROOT/bin/vh" studio < /dev/null > "$t/cold$1" 2>&1; }
+  cold 1 & p1=$!; cold 2 & p2=$!; cold 3 & p3=$!; wait $p1 $p2 $p3
+  cpid=$(python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["pid"])' "$t/tmp3" 2>/dev/null); desk_rec "$cpid"
+  n=$(cat "$t/tmp3"/ovh-desk-*/console-*.log 2>/dev/null | grep -c '^desk: ')
+  n2=$(cat "$t/cold1" "$t/cold2" "$t/cold3" | grep -c 'started in the background')
+  w0=$(cat "$t/prof3"/console-*/stand-in.log 2>/dev/null | grep -c '"launch"')
+  if [ "$n" = 1 ] && [ "$n2" = 1 ] && [ "$w0" = 1 ] && [ "$(cat "$t/cold1" "$t/cold2" "$t/cold3" | grep -c 'Studio is open')" = 3 ]
+  then ok "studio: three cold starts at once give one console (a lock around looking and starting) and one window; one of them says it started Studio"
+  else bad "studio: three cold starts at once (consoles started $n, said started $n2, windows $w0): $(cat "$t/cold1" "$t/cold2" "$t/cold3" | tr '\n' ' ')"; fi
+  [ -z "$cpid" ] || { kill "$cpid" 2>/dev/null; for i in $(seq 50); do kill -0 "$cpid" 2>/dev/null || break; sleep 0.1; done; }
   # the window closed, then studio: a new one; the console killed outright under its window, then studio: one window again
   for p in $(pgrep -f "$t/prof/console-"); do kill "$p" 2>/dev/null; done; for i in $(seq 30); do pgrep -f "$t/prof/console-" >/dev/null || break; sleep 0.1; done
   a=$(studio_run < /dev/null 2>&1); rc=$?

@@ -97,7 +97,7 @@ def open_studio(project=None, print_address=False, owner=None):
         url, why = launch.start(None, [], False, None, launch.IDLE, False, owner)
         if not url:
             return dict(rec, error=why), 1
-        info, started = server.running_info(None, []) or {"url": url}, True
+        info, started = server.running_info(None, []) or {"url": url}, why != "running"   # another start made it meanwhile
     url = info["url"]
     at, joined = _place(url, project)
     shown = launch.show(url, at)

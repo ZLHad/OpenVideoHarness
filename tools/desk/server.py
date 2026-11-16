@@ -65,7 +65,8 @@ What this is, said plainly: a guardrail, not a wall. It keeps an agent from appr
 reading files, logs and command output, calling the server. It does not stop a program of the same user that sets out to
 dig: one that reads the window's profile (the token is in its storage), races the window for its code in the second
 between the window's start and its page's claim (ps shows the code; the window whose page then finds its code spent
-asks for renew, and the console changes the token and replaces the window, twice a run), makes itself a terminal to read
+asks for renew, and the console changes the token and replaces the window, twice a run, never while that window's page
+is connected; a program that also holds the window's presence stream blocks that), makes itself a terminal to read
 --print-address (script(1) does), or synthesizes input. Against those the boundary is the agent's own mode and sandbox.
 """
 import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
@@ -625,7 +626,12 @@ class Desk(http.server.ThreadingHTTPServer):
         """POST /api/open {renew: w}: the page of a window this desk made could not trade its code (spent by someone else
         first, or run out). When its code was spent, the token changes (whoever holds it can only look; its streams end);
         then a fresh window takes that one's place. Twice a run at most, then the page stays one that can only look. A
-        window this run did not make: a plain show. → show()'s answer, and renewed."""
+        window whose page is connected is never renewed (nothing changes, nothing counted: a plain POST with the window's
+        id from ps cannot replace a working window). A window this run did not make: a plain show. → show()'s answer, and
+        renewed."""
+        with self.pcond:
+            if self.present.get(w, 0) > 0:
+                return {"opened": True, "renewed": False, "code": "connected", "why": "that window's page is connected"}
         with self._lock:
             known = w in self.windows
             if known and self.renewed >= 2:
