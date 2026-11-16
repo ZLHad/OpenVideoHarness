@@ -37,7 +37,8 @@ import jsonerr   # noqa: E402
 APP = "OVH Studio"                       # the name in the Dock and Finder: short, and no other app's
 BUNDLE_ID = "io.github.zlhad.ovh-studio"
 DESKTOP = "ovh-studio.desktop"
-LAUNCHER = 1                             # the launcher's own version: what the applet or the script does around bin/vh studio
+LAUNCHER = 2                             # the launcher's own version: what the app, the applet or the script does around bin/vh studio
+SHELL = HERE / "shell"                   # Studio's own window (Electron): its source, run from the clone; its lockfile pins Electron
 MARK = "ovh-studio.json"                 # in the app's Resources (Linux: beside its script): which clone, which launcher, which picture
 
 
@@ -250,12 +251,173 @@ def build_desktop(entry, data):
     return None
 
 
-def install(platform, dir_=None):
+def shell_version():
+    return json.loads((SHELL / "package.json").read_text())["dependencies"]["electron"]
+
+
+def _shell_cache():
+    return Path(os.environ.get("OVH_STUDIO_SHELL_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "studio-shell")
+
+
+def _record_path():
+    return _data_home() / "ovh-studio" / "shell.json"
+
+
+def fetch_electron(out=sys.stderr):
+    """The pinned Electron, unpacked → (its dist folder, None) or (None, why). npm ci from the committed lockfile (every
+    package with its integrity hash, no install scripts), then Electron's own download step, which checks the archive
+    against the checksums in that package; the archive stays in the cache, so making the app again works offline.
+    $OVH_STUDIO_ELECTRON_DIST: a dist folder to use instead; $OVH_STUDIO_NO_DOWNLOAD: never download (the checks)."""
+    given = os.environ.get("OVH_STUDIO_ELECTRON_DIST")
+    if given:
+        return (Path(given), None) if Path(given).is_dir() else (None, f"{given} is no folder")
+    npm, node = shutil.which("npm"), shutil.which("node")
+    if not (npm and node):
+        return None, "no npm here (it comes with Node.js)"
+    if os.environ.get("OVH_STUDIO_NO_DOWNLOAD"):   # tools/ci.sh: no check downloads Electron
+        return None, "no download here (OVH_STUDIO_NO_DOWNLOAD)"
+    ver = shell_version()
+    work = _shell_cache() / ver
+    work.mkdir(parents=True, exist_ok=True)
+    for f in ("package.json", "package-lock.json"):
+        shutil.copyfile(SHELL / f, work / f)
+    dist = work / "node_modules" / "electron" / "dist"
+    if not (dist / "version").is_file() or (dist / "version").read_text().strip().lstrip("v") != ver:
+        print(f"studio: getting Electron {ver} (about 130 MB the first time; kept in {_shown(_shell_cache())}) …", file=out, flush=True)
+        env = dict(os.environ, npm_config_update_notifier="false", electron_config_cache=str(_shell_cache() / "downloads"))
+        r = subprocess.run([npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"], cwd=str(work), env=env,
+                           capture_output=True, text=True, timeout=900)
+        if r.returncode:
+            return None, f"npm ci did not finish ({(r.stderr or r.stdout).strip().splitlines()[-1:] or ['offline?']})"
+        r = subprocess.run([node, str(work / "node_modules" / "electron" / "install.js")], cwd=str(work), env=env,
+                           capture_output=True, text=True, timeout=1800)
+        if r.returncode or not (dist / "version").is_file():
+            return None, f"Electron's download did not finish ({(r.stderr or r.stdout).strip().splitlines()[-1:] or ['offline?']})"
+    return dist, None
+
+
+def _tidy(dist):
+    """After the app is made, only Electron's download stays in the cache (about 130 MB): enough to make it again offline."""
+    if os.environ.get("OVH_STUDIO_ELECTRON_DIST"):
+        return
+    nm = dist.parent.parent   # <cache>/<version>/node_modules
+    if nm.name == "node_modules" and nm.is_dir():
+        shutil.rmtree(nm, ignore_errors=True)
+
+
+def _shown(p):
+    h = str(Path.home())
+    return "~" + str(p)[len(h):] if str(p).startswith(h + os.sep) else str(p)
+
+
+def _boot(repo):
+    """The app's own code (Resources/app/boot.js, from tools/desk/launcher/shell-boot.js): it runs the shell from the
+    clone, with the PATH the installer saw."""
+    env = {"PATH": os.environ.get("PATH") or "/usr/bin:/bin", "LANG": os.environ.get("LANG") or "en_US.UTF-8"}
+    return (HERE / "launcher" / "shell-boot.js").read_text(encoding="utf-8").replace("@@REPO@@", json.dumps(str(repo))).replace("@@ENV@@", json.dumps(env))
+
+
+def _app_files(res):
+    """Resources/app (macOS) or resources/app (Linux): the boot and its package.json."""
+    app = res / "app"
+    app.mkdir(parents=True, exist_ok=True)
+    (app / "package.json").write_text(json.dumps({"name": "ovh-studio", "productName": APP, "version": "1.0.0", "main": "boot.js", "private": True}) + "\n")
+    (app / "boot.js").write_text(_boot(ROOT), encoding="utf-8")
+    (res / "default_app.asar").unlink(missing_ok=True)
+
+
+def _write_record(exe, app):
+    rp = _record_path()
+    rp.parent.mkdir(parents=True, exist_ok=True)
+    rp.write_text(json.dumps({"exe": str(exe), "app": str(app), "electron": shell_version(), "repo": str(ROOT)}) + "\n")
+
+
+def build_shell_app(dest, out=sys.stderr):
+    """OVH Studio.app at dest, Studio's own window: Electron with its own name, bundle id and icon, its code the boot that
+    runs the shell from this clone; signed ad hoc (made here, no quarantine: Gatekeeper does not stop it). → None, or why."""
+    import icon
+    dist, why = fetch_electron(out)
+    if not dist:
+        return why
+    src = dist / "Electron.app"
+    if not (src / "Contents" / "Info.plist").is_file():
+        return f"no Electron.app in {dist}"
+    with tempfile.TemporaryDirectory(prefix="ovh-studio-") as t:
+        app = Path(t) / f"{APP}.app"
+        r = subprocess.run(["ditto", str(src), str(app)], capture_output=True, text=True, timeout=600)
+        if r.returncode:
+            return f"ditto: {r.stderr.strip()[-200:]}"
+        res = app / "Contents" / "Resources"
+        (res / "ovh-studio.icns").write_bytes(icon.icns())
+        _app_files(res)
+        plist_p = app / "Contents" / "Info.plist"
+        with open(plist_p, "rb") as f:
+            pl = plistlib.load(f)
+        pl.pop("ElectronAsarIntegrity", None)
+        pl.update({"CFBundleName": APP, "CFBundleDisplayName": APP, "CFBundleIdentifier": BUNDLE_ID, "CFBundleIconFile": "ovh-studio.icns",
+                   "CFBundleShortVersionString": str(LAUNCHER), "CFBundleVersion": str(LAUNCHER), "LSApplicationCategoryType": "public.app-category.video",
+                   "NSHumanReadableCopyright": "OpenVideoHarness: Studio's own window", "LSMultipleInstancesProhibited": True})
+        with open(plist_p, "wb") as f:
+            plistlib.dump(pl, f)
+        (res / MARK).write_text(json.dumps(dict(_mark(), kind="shell", electron=shell_version())))
+        r = subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(app)], capture_output=True, text=True, timeout=600)
+        if r.returncode:
+            return f"codesign: {(r.stderr or r.stdout).strip()[-300:]}"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.move(str(app), str(dest))
+    os.utime(dest)
+    lsr = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+    if os.access(lsr, os.X_OK):
+        subprocess.run([lsr, "-f", str(dest)], capture_output=True, timeout=60)
+    _write_record(dest / "Contents" / "MacOS" / "Electron", dest)
+    _tidy(dist)
+    return None
+
+
+def build_shell_linux(entry, data, out=sys.stderr):
+    """Studio's own window on Linux: Electron copied to <data>/shell with the boot, a desktop entry that runs it. → None, or why."""
+    import icon
+    dist, why = fetch_electron(out)
+    if not dist:
+        return why
+    if not (dist / "electron").is_file():
+        return f"no electron program in {dist}"
+    target = data / "shell"
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(dist, target, symlinks=True)
+    _app_files(target / "resources")
+    pic = data / "ovh-studio.png"
+    pic.write_bytes(icon.png(256, 256, icon.render(256)))
+    (data / MARK).write_text(json.dumps(dict(_mark(), kind="shell", electron=shell_version())))
+    d = (HERE / "launcher" / DESKTOP).read_text(encoding="utf-8")
+    d = d.replace("@@EXEC@@", _desktop_arg(str(target / "electron"))).replace("@@ICON@@", str(pic)).replace("@@REPO@@", str(ROOT))
+    d = d.replace("Terminal=false", "Terminal=false\nStartupWMClass=OVH Studio")
+    entry.parent.mkdir(parents=True, exist_ok=True)
+    entry.write_text(d, encoding="utf-8")
+    entry.chmod(0o755)
+    _write_record(target / "electron", target)
+    _tidy(dist)
+    return None
+
+
+def install(platform, dir_=None, use_shell=True, out=sys.stderr):
+    """→ (path, kind, note) or (None, None, why). kind: shell (Studio's own window) or launcher (the applet or the script,
+    which open a browser's window). use_shell False, or no way to get Electron here: the launcher, and the note says why."""
     path, data = where(platform, dir_)
     if path.exists() and _ours(platform, path) is None:
-        return None, f"{path} is there and is not one bin/vh studio wrote: left as it is (--dir puts the icon somewhere else)"
+        return None, None, f"{path} is there and is not one bin/vh studio wrote: left as it is (--dir puts the icon somewhere else)"
+    note = None
+    if use_shell:
+        why = build_shell_app(path, out) if platform == "macos" else build_shell_linux(path, data, out)
+        if not why:
+            return path, "shell", None
+        note = f"Studio's own window was not made ({why}): this launcher opens it in a browser's window instead"
+    _record_path().unlink(missing_ok=True)
     why = build_app(path) if platform == "macos" else build_desktop(path, data)
-    return (None, why) if why else (path, None)
+    return (None, None, why) if why else (path, "launcher", note)
 
 
 def remove(platform, dir_=None):
@@ -270,6 +432,7 @@ def remove(platform, dir_=None):
         path.unlink()
         if data and data.is_dir():
             shutil.rmtree(data)
+    _record_path().unlink(missing_ok=True)
     return path, None
 
 
@@ -292,10 +455,13 @@ def status(platform=None, dir_=None):
             return {"state": "elsewhere", "path": str(p), "repo": repo,
                     "note": ("runs another clone" if there else "runs a clone that is no longer there")
                     + ": bin/vh studio --install-icon here makes it run this one"}
-        if mark.get("launcher", LAUNCHER) != LAUNCHER or mark.get("icon", _icon_hash()) != _icon_hash():
-            return {"state": "outdated", "path": str(p), "note": "made by an earlier bin/vh studio: --install-icon makes it again"}
-        return {"state": "ok", "path": str(p), "note": "runs this clone (a git pull needs no reinstall)"}
-    return {"state": "missing", "note": "not installed (optional): bin/vh studio --install-icon puts a launcher in "
+        kind = "Studio's own window (Electron " + mark["electron"] + ")" if mark.get("kind") == "shell" else "a launcher that opens a browser's window"
+        if mark.get("launcher", LAUNCHER) != LAUNCHER or mark.get("icon", _icon_hash()) != _icon_hash() \
+                or (mark.get("kind") == "shell" and mark.get("electron") != shell_version()):
+            return {"state": "outdated", "path": str(p), "kind": mark.get("kind") or "launcher",
+                    "note": f"{kind}, made by an earlier bin/vh studio: --install-icon makes it again"}
+        return {"state": "ok", "path": str(p), "kind": mark.get("kind") or "launcher", "note": f"{kind}; runs this clone (a git pull needs no reinstall)"}
+    return {"state": "missing", "note": "not installed (optional): bin/vh studio --install-icon puts OVH Studio, Studio's own window, in "
             + ("~/Applications" if platform == "macos" else "your applications menu")}
 
 
@@ -310,15 +476,19 @@ def main(argv):
     ap.add_argument("--force", action="store_true", help="with --print-address or --icon quit: also while an agent in the column is mid-turn")
     ap.add_argument("--json", action="store_true", help="the record on stdout")
     g = ap.add_mutually_exclusive_group()
-    g.add_argument("--install-icon", action="store_true", help="put the launcher icon in your applications")
+    g.add_argument("--install-icon", action="store_true", help="put OVH Studio in your applications: Studio's own window (Electron, about 130 MB "
+                                                               "downloaded once, 260 MB on disk), or with --no-shell a small launcher that opens a browser's window")
     g.add_argument("--remove-icon", action="store_true", help="take the launcher icon away")
     g.add_argument("--icon-status", action="store_true", help="is the launcher icon installed, and does it run this clone")
     g.add_argument("--icon", choices=["open", "alive", "quit"], help="what the launcher icon runs")
+    ap.add_argument("--no-shell", action="store_true", help="with --install-icon: the small launcher, not Studio's own window (no download)")
     ap.add_argument("--dir", help="with --install-icon, --remove-icon, --icon-status: this folder instead of your applications folder")
     ap.add_argument("--as", dest="as_", choices=["macos", "linux"], help=argparse.SUPPRESS)   # the other platform's icon (a check, on one machine)
     a = ap.parse_args(argv)
     if a.json:
         jsonerr.force()
+    if a.no_shell and not a.install_icon:
+        return jsonerr.fail("usage", "studio: --no-shell goes with --install-icon")
     if a.dir and not (a.install_icon or a.remove_icon or a.icon_status):
         return jsonerr.fail("usage", "studio: --dir goes with --install-icon, --remove-icon or --icon-status")
     if (a.install_icon or a.remove_icon or a.icon_status or a.icon) and (a.project or a.print_address):
@@ -333,15 +503,16 @@ def main(argv):
             print(json.dumps(dict(st, version=1)) if a.json else f"icon: {st['state']}" + (f" · {st['path']}" if st.get("path") else "") + f" · {st['note']}")
             return 0
         if a.install_icon:
-            path, why = install(platform, a.dir)
+            path, kind, why = install(platform, a.dir, not a.no_shell)
             if not path:
                 return jsonerr.fail("failed", f"studio: the icon was not made: {why}", rc=1)
             if a.json:
-                print(json.dumps({"version": 1, "installed": str(path)}))
+                print(json.dumps({"version": 1, "installed": str(path), "kind": kind, "note": why}))
             else:
-                print(f"✓ {APP}: {path}\n  " + ("click it in Finder or Launchpad, or drag it to the Dock. Clicked again, it brings Studio back; quitting it "
-                                               "stops the Studio it started. It runs bin/vh studio in this clone: a git pull needs no reinstall."
-                                               if platform == "macos" else "it is in your applications menu. It runs bin/vh studio in this clone: a git pull needs no reinstall."))
+                what = ("Studio's own window: click it in Finder or Launchpad, or keep it in the Dock. Clicked again, the same window comes "
+                        "to the front; quitting it stops the Studio it started." if kind == "shell" else
+                        "a launcher: click it and Studio opens in a browser's window; clicked again, that window comes to the front.")
+                print(f"✓ {APP}: {path}\n  {what} It runs this clone: a git pull needs no reinstall." + (f"\n  ({why})" if why else ""))
             return 0
         path, why = remove(platform, a.dir)
         if why:

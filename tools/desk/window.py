@@ -1,5 +1,13 @@
-"""Studio's window: the one place that knows how a window is made, raised and closed. A desktop shell (Electron, later)
-replaces this file and nothing else: the desk gives it an address with a one-time code and asks it to show, raise or close.
+"""Studio's window: the one place that knows how a window is made, raised and closed. Two kinds, the desk tries them in
+this order (server.Desk.show): Studio's own app (the Electron shell, tools/desk/shell, when bin/vh studio --install-icon
+installed it), then a window of a Chromium-family browser; a tab of the default browser is the last way.
+
+  shell()                   the installed shell's program → (path, None), or (None, why it cannot run) ((None, None):
+                            not installed). $OVH_STUDIO_SHELL (a path, or "none") stands in for it in the checks
+  shell_send(prog, line)    start it with one line of JSON on stdin: {url, role, w, fresh} shows a desk's window (a running
+                            shell takes the line through Electron's single-instance lock, so there is one app and one
+                            window a desk, which raises itself), {close: role} closes it. Nothing on its command line
+  shell_pid(prog)           its running main process, or None
 
   browser()                 the visible Chromium-family program to make the window with: $OVH_STUDIO_BROWSER (a path, or
                             "none"), else Google Chrome, Chromium, Microsoft Edge or Brave where they install, else
@@ -20,7 +28,7 @@ Why a program named outright and a profile of its own (2026-11-16): an address h
 headless Chrome another tool had left running, and nobody saw a window. The desk then waits for the page to connect back,
 and only that counts as open (server.Desk.show).
 """
-import os, shutil, signal, subprocess, sys, time
+import json, os, shutil, signal, subprocess, sys, time
 from pathlib import Path
 
 MAC_APPS = ("Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser")
@@ -48,6 +56,58 @@ def browser():
     if os.environ.get("CHROME_PATH"):
         cands.append(os.environ["CHROME_PATH"])
     return next((c for c in cands if c and _visible(c)), None)
+
+
+def _data_home():
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+
+
+def shell_record():
+    """Where bin/vh studio --install-icon put the shell: {exe, electron, repo, app} (ovh-studio/shell.json in the data folder)."""
+    try:
+        return json.loads((_data_home() / "ovh-studio" / "shell.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def shell():
+    given = os.environ.get("OVH_STUDIO_SHELL")
+    if given is not None:
+        return (None, None) if given.strip().lower() in ("", "none") else (given, None)
+    exe = shell_record().get("exe")
+    if not exe:
+        return None, None
+    if not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
+        return None, "Studio's own app is not where it was installed"
+    return exe, None
+
+
+def shell_send(prog, line):
+    env = {k: v for k, v in os.environ.items() if k != "ELECTRON_RUN_AS_NODE"}
+    try:
+        p = subprocess.Popen(_argv(prog) + ["--ovh-from-console"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True, env=env)
+        p.stdin.write((json.dumps(line) + "\n").encode())
+        p.stdin.close()
+    except OSError:
+        return False
+    try:   # a running shell takes the line and this one ends at once (0); one that cannot start ends with an error
+        return p.wait(timeout=1.5) == 0
+    except subprocess.TimeoutExpired:
+        return True   # it is the running one now
+
+
+def shell_pid(prog):
+    """The shell's main process: its command line starts with the program and is no helper (--type=)."""
+    try:
+        out = subprocess.run(["ps", "-ax", "-o", "pid=,command="], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in out.splitlines():
+        pid, _, cmd = line.strip().partition(" ")
+        if prog in cmd and "--type=" not in cmd and pid.isdigit() and int(pid) != os.getpid() and not cmd.startswith("ps "):
+            return int(pid)
+    return None
 
 
 def profile(name):

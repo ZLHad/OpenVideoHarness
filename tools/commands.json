@@ -1257,9 +1257,11 @@
           ]
         },
         {
-          "synopsis": "studio --install-icon [--dir DIR] | --remove-icon [--dir DIR] | --icon-status [--dir DIR] [--json]",
+          "synopsis": "studio --install-icon [--no-shell] [--dir DIR] | --remove-icon [--dir DIR] | --icon-status [--dir DIR] [--json]",
           "text": [
-            "the launcher icon, made here with what the system has (osacompile and codesign on macOS, stdlib Python for the picture):",
+            "OVH Studio, Studio's own window (tools/desk/shell: Electron pinned from a committed lockfile, about 130 MB downloaded",
+            "once, the app running the shell from this clone; ad-hoc signed). --no-shell, or no npm and nothing cached: the launcher",
+            "that opens a browser's window, made with what the system has (osacompile and codesign on macOS, stdlib Python for the picture):",
             "click it to bring up Studio's window, again to bring it to the front; on macOS quitting it stops the Studio it started",
             "and closes its window. It runs",
             "bin/vh studio in this clone, so a git pull needs no reinstall; a clone that moved says which command to run again"

@@ -602,9 +602,11 @@ class Desk(http.server.ThreadingHTTPServer):
         return bool(v) and v[0] > time.time()
 
     def live_window(self):
-        """The id of this desk's window whose page is connected with the token, or None."""
+        """(id, kind) of this desk's window whose page is connected with the token, or (None, None). kind: shell (Studio's
+        own app) or window (a browser's)."""
         with self.pcond:
-            return next((w for w, n in self.present.items() if n > 0 and self.windows.get(w) == "window"), None)
+            w = next((w for w, n in self.present.items() if n > 0 and self.windows.get(w) in ("shell", "window")), None)
+        return (w, self.windows.get(w)) if w else (None, None)
 
     def _wait_present(self, w, secs):
         end = time.time() + secs
@@ -625,31 +627,51 @@ class Desk(http.server.ThreadingHTTPServer):
         return f"{self.url}?c={code}&w={w}" + (f"#{at}" if at else "")
 
     def show(self, at=""):
-        """Show Studio's window at that place of the page: the one whose page is connected comes to the front (and goes
-        there); else one new window (a leftover of ours with no page in it goes first, so there is never a second), counted
-        as open only once its page connects; once more if not; then a tab of the default browser. → {opened, how, why}:
-        how is front (raised), open (there, but the system would not raise it), window (made), tab (the fallback)."""
+        """Show Studio's window at that place of the page. The one whose page is connected comes to the front (and goes
+        there). Else one new window, counted as open only once its page connects: Studio's own app when it is installed
+        (tools/desk/shell: it raises itself, one window a desk), once more if its page does not connect; then a window of a
+        Chromium-family browser (a leftover of ours with no page in it goes first, so there is never a second), once more;
+        then a tab of the default browser. → {opened, how, why, code}: how is front (raised), open (there, but the system
+        would not raise it), app (Studio's own app), window (a browser's), tab (the fallback); why and code say what did not
+        work on the way."""
         import window as WIN
         with self.window_lock:
             prof = WIN.profile(self.window_name)
-            w = self.live_window()
-            if w and WIN.main_pid(prof) is None:   # its stream has not noticed yet (a ping every 5 s), but the window is gone
+            app, app_why = WIN.shell()
+            w, kind = self.live_window()
+            if kind == "shell" and not (app and WIN.shell_pid(app)):   # its stream has not noticed yet (a ping every 5 s), but it is gone
+                w = None
+            if kind == "window" and WIN.main_pid(prof) is None:
                 w = None
             if w:
                 if at:
                     self.push(w, {"go": at})
+                if kind == "shell":   # the running app takes the line and raises its window itself
+                    return {"opened": True, "how": "front" if WIN.shell_send(app, {"url": self.url, "role": self.window_name}) else "open"}
                 return {"opened": True, "how": "front" if WIN.raise_(prof) else "open"}
+            why, code = None, None
+            if app:
+                for _ in range(2):
+                    w = secrets.token_hex(6)
+                    self.windows[w] = "shell"
+                    line = {"url": self._entry(self.mint(60, w), w, at), "role": self.window_name, "w": w, "fresh": True}
+                    if WIN.shell_send(app, line) and self._wait_present(w, 15):
+                        return {"opened": True, "how": "app"}
+                why, code = "Studio's own app did not open", "no_app"
+            elif app_why:
+                why, code = app_why, "no_app"
             WIN.close(prof)
             prog = WIN.browser()
-            why, code = "no Chrome, Chromium, Edge or Brave here for a window of its own", "no_browser"
             if prog:
                 for _ in range(2):
                     w = secrets.token_hex(6)
                     self.windows[w] = "window"
                     if WIN.launch(prog, prof, self._entry(self.mint(60, w), w, at)) and self._wait_present(w, 12):
-                        return {"opened": True, "how": "window"}
+                        return {"opened": True, "how": "window", "why": why, "code": code}
                     WIN.close(prof)
-                why, code = "its window started, but the page in it did not connect", "no_connect"
+                why, code = (why + "; " if why else "") + "its window started, but the page in it did not connect", code or "no_connect"
+            else:
+                why, code = (why + "; " if why else "") + "no Chrome, Chromium, Edge or Brave here for a window of its own", code or "no_browser"
             w = secrets.token_hex(6)
             self.windows[w] = "tab"
             if WIN.tab(self._entry(self.mint(60, w), w, at)) and self._wait_present(w, 12):
@@ -657,12 +679,18 @@ class Desk(http.server.ThreadingHTTPServer):
             return {"opened": False, "how": None, "why": why + ", and no browser tab connected either", "code": code}
 
     def close_window(self):
-        """This desk's window goes with it (it is no use without the desk)."""
+        """This desk's window goes with it (it is no use without the desk): the app's (it quits when it was its last) or
+        the browser's."""
         if not self.windows:
             return
         try:
             import window as WIN
-            WIN.close(WIN.profile(self.window_name), wait=4)
+            if "shell" in self.windows.values():
+                app, _ = WIN.shell()
+                if app and WIN.shell_pid(app):
+                    WIN.shell_send(app, {"close": self.window_name})
+            if "window" in self.windows.values():
+                WIN.close(WIN.profile(self.window_name), wait=4)
         except Exception:
             pass
 
@@ -1339,8 +1367,10 @@ def ask_open(url, at=""):
 def said(r):
     """What a person reads after a show: what happened, and what to do when it did not."""
     if r.get("opened"):
+        if r.get("how") == "window" and r.get("why"):   # Studio's own app is installed and did not open: a browser's window instead
+            return f"Studio is open in a browser window ({r['why']})."
         return {"front": "Studio is open: its window is in front.", "open": "Studio is open in its window.",
-                "window": "Studio is open in its own window.",
+                "app": "Studio is open in its own window.", "window": "Studio is open in its own window.",
                 "tab": "Studio is open in a tab of your browser (" + (r.get("why") or "no window of its own") + ")."}.get(r.get("how"), "Studio is open.")
     return f"Studio's window did not open ({r.get('why') or 'no reason given'}). Run bin/vh studio again; on a computer with no screen, bin/vh studio --print-address"
 

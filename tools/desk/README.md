@@ -9,7 +9,7 @@
 ```bash
 bin/vh studio [<项目>]                          # 给人用的那个名字：叫出 Studio 的窗口（就是不带项目的控制台，一个自己的窗口，没有地址栏，永远只有一个）；没在跑就先在后台起控制台（窗口关掉 12 小时后自己停），开着就把那个窗口带到最前，带项目就转到那支片子（不在控制台 roots 下的片子，开在它自己的审阅台里）。agent 运行时也一样（人让它打开的）；输出只说发生了什么，不带地址
 bin/vh studio --print-address                  # 没有屏幕的机器（远程、ssh）：不开窗口，打印一个开门地址给另一台机器的浏览器用（十分钟内、只能打开一页一次）
-bin/vh studio --install-icon [--dir 文件夹]      # 启动图标：macOS 是 ~/Applications 里的 OVH Studio.app，Linux 是 ~/.local/share/applications 里的一个桌面项；--remove-icon 拿掉，--icon-status 看装没装、指的是不是这份仓库
+bin/vh studio --install-icon [--no-shell] [--dir 文件夹]   # OVH Studio：Studio 自己的窗口（Electron，第一次下载约 130 MB），macOS 是 ~/Applications 里的 OVH Studio.app，Linux 是 ~/.local/share/applications 里的一个桌面项；--no-shell 装轻量启动器（打开浏览器的窗口）；--remove-icon 拿掉，--icon-status 看装的是哪种、指的是不是这份仓库
 bin/vh gate <项目> <n> [--desk|--page|--chat] [--wait] [--print-address]   # 一次停一条命令：查 gate-<n>.json，出静态页并记成这一轮，审阅方式是审阅台时把这一站开在 Studio 的窗口里（Studio 在跑而且有这个项目就用它，不然在后台起这个项目的审阅台，12 小时没人访问自己停），打印聊天消息；--wait 再像 desk wait 一样等
 bin/vh desk [--root 文件夹 …] [--port N] [--no-open] [--print-address]   # 控制台：bin/vh projects 找得到的所有项目（$OVH_PROJECTS、<仓库>/projects、每个 --root）；在终端里起时，起好就叫出它的窗口（--no-open 不开），agent 起的不开；打印的地址打开的页面只能看（--print-address 才打印开门地址）；同样的 roots 已经有一个在跑，就只打印它的地址
 bin/vh desk <项目> [--root 文件夹 …] [--port N] [--idle 秒] [--only]   # 同一个页面，打开在这个项目上，空间里照样有 roots 下的每一支片子；只听 127.0.0.1；默认 8780–8799 里第一个空闲端口；这个项目已经有一个在跑，就只打印它的地址；--idle：这么久没人访问就自己停；--only：只服务这一个项目（bin/vh gate 在后台起的就是 --only --idle 43200）
@@ -31,22 +31,30 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 
 **一站的数据就是 `out/review/gate-<n>.json` 这一个文件。** 静态页（`bin/vh review`）、审阅台和以后的客户端都只渲染它（审阅台另外读下面这些项目文件），各自不另存一份。
 
-## 打开 Studio：`bin/vh studio`、启动图标和窗口
+## 打开 Studio：`bin/vh studio`、OVH Studio 和窗口
 
 人不用懂上面这些机制：Studio 是一个自己的窗口，永远只有一个，三种办法都一样，没开就开，开着就带到最前：
 
-- **点图标**：`bin/vh studio --install-icon` 装一次（`install.sh` 装完会问）。macOS 上是 `~/Applications/OVH Studio.app`，拖进 Dock 就行；Linux 上是应用菜单里的 OVH Studio。
+- **点图标**：`bin/vh studio --install-icon` 装一次（`install.sh` 装完会问）。macOS 上是 `~/Applications/OVH Studio.app`，Linux 上是应用菜单里的 OVH Studio。
 - **终端里**：`bin/vh studio`，或者 `bin/vh studio <项目>` 直接转到那支片子。
 - **对 agent 说"打开 Studio"**：它运行同一条命令（轻量 skill 里写着）。
 
+窗口有两种，同一个页面（`tools/desk/window.py` 是唯一知道怎么开窗口的地方，服务按这个顺序试）：
+
+1. **Studio 自己的窗口（OVH Studio，Electron）**，装了就用它。没有系统标题栏：macOS 上红绿灯三个按钮在页面自己的顶栏里（主题换了，按钮的位置和窗口的颜色跟着换），顶栏就是拖窗口的地方（里面能点的照样能点）；Linux 上是 Electron 的标题栏覆盖层，按钮画在顶栏右端。窗口先用主题的底色、画好了才显示，开的时候不闪白。Dock 上只有它一个图标，名字是 OVH Studio。有自己的菜单（中英文跟系统：关于、退出；编辑；重新载入、缩放、全屏；窗口）。别的网站的链接在默认浏览器里开。
+   - **一个应用，一个窗口**：服务启动它时在标准输入里给它一行（窗口的地址带一次性开门码、哪个服务、窗口 id），命令行里什么都没有；它已经在跑时，新启动的那一个通过 Electron 的单实例锁把这一行交给在跑的那个，自己退出，在跑的那个把窗口带到最前（不用 osascript）。一个服务一个窗口（控制台一个，不在控制台下的项目各自的审阅台各一个）。
+   - **加固**：`contextIsolation`、无 Node、`sandbox`、不许 webview、只开控制台自己的页面（别的地址交给默认浏览器）、相机麦克风这类权限一律不给；preload 只给页面两样东西：`ovhShell.platform` 和 `ovhShell.theme()`。页面看到 `ovhShell` 才给自己加上 `html.shell`（顶栏留出按钮的位置、可以拖），在浏览器里一切照旧。
+   - **代码在仓库里**：`tools/desk/shell/`（`main.js`、`preload.js`、`package.json` 和提交进来的锁文件：Electron 钉死在一个版本，全部从 registry.npmjs.org 来、带完整性校验、不跑安装脚本）。应用本身只带一个小小的 boot（`tools/desk/launcher/shell-boot.js` 生成的 `Resources/app/boot.js`），它从这份仓库里跑 `main.js`，所以 `git pull` 以后不用重装。
+   - **装它**：`bin/vh studio --install-icon` 在缓存目录（`~/.cache/ovh/studio-shell/`）里 `npm ci --ignore-scripts`，再跑 Electron 自己的下载（下载的压缩包按包里自带的校验和核对，留在缓存里，以后重装不用联网），拷一份 `Electron.app` 改成 `OVH Studio.app`：自己的名字、bundle id、图标和 boot，再临时签名（`codesign --sign -`）。本机做的、不是下载来的应用，没有"隔离"标记，Gatekeeper 不检查它；拷到别的机器不能用。实测：下载约 130 MB（这里 10 秒左右），应用约 254 MB，第一次打开（连起控制台）约 2 秒，之后点图标约 1 秒、带到最前约 0.5 秒。没有 npm、离线又没缓存时，装上 #213 那个轻量启动器并说明原因；`--no-shell` 直接装轻量启动器。
+2. **浏览器的窗口**：没装 OVH Studio（或它打不开）时，用电脑上的 Chrome、Chromium、Edge 或 Brave，配 Studio 自己的资料目录和 `--app`（没有地址栏）。OVH Studio 装了却打不开（Electron 被删了、坏了），服务一秒左右就发现，换成这种窗口，输出里说一句为什么。
+3. **默认浏览器的一个标签页**：这几样浏览器都没有时。
+
 几件事是这样定的：
 
-- **窗口是什么**：电脑上已有的 Chrome、Chromium、Edge 或 Brave，配 Studio 自己的资料目录和 `--app`，标题是 Studio，没有地址栏、没有标签页。Dock 上它显示的是那个浏览器的图标，不是我们的：真正有自己 Dock 图标和名字的窗口要一个桌面壳（比如 Electron），那是以后的事。"开窗口"整件事都在 `tools/desk/window.py` 一处，换成桌面壳只动它。这几样浏览器都没有时，退到默认浏览器的一个标签页，用法一样，只是有地址栏，再叫一次会多开一个标签页。
-- **关窗口和退出**：关掉窗口，控制台照旧在后台开着（agent 可能还在干活），再点图标窗口回来、对话接着；控制台照旧在没人访问 12 小时后自己停，停的时候它的窗口一起关。macOS 上从 Dock 退出 OVH Studio，停掉它自己起的那个控制台，窗口一起关；agent 正做着一轮时先问一句。在终端里起的控制台它不动。
-- **图标只是一个入口，事情都在仓库里做**：它记着这份仓库的位置，每一下都是在这里运行 `bin/vh studio --icon …`，所以 `git pull` 以后不用重装；仓库挪了地方，点它会弹一句"找不到了，到新位置运行 `bin/vh studio --install-icon`"，`bin/vh doctor` 也会说。图标的画面或外壳本身改了（`tools/desk/icon.py`、`tools/desk/launcher/`），doctor 说"旧了"，再装一次就好。
-- **macOS 上的启动器**是一个常驻的 AppleScript 小程序（`osacompile -s`，每台 Mac 自带）：再点一次时它收到"重开"，叫出窗口；控制台停了，它每分钟看一次，跟着退出，所以 Dock 上它亮不亮就是 Studio 在不在。它自己不存任何东西（控制台的信息文件里记着 `owner: icon`）。
-- **不签名，为什么不会被拦**：这个 `.app` 是在这台机器上现做的（`osacompile` 出的小程序自带临时签名，改完图标和名字再用 `codesign --sign -` 临时签一次），不是下载来的，没有"隔离"标记，Gatekeeper 不检查它。拷到别的机器上就不行了：那边会当成来路不明的程序拦下，而且它记的是这台机器上仓库的路径。别的机器在那边运行一次 `bin/vh studio --install-icon`。仓库在"文稿""桌面"这类文件夹里时，第一次点开 macOS 可能会问"OVH Studio 想访问'文稿'文件夹"，点允许。
-- **Linux 上**是一个桌面项加一个小脚本（`~/.local/share/ovh-studio/`），点一下运行 `bin/vh studio`；它不常驻，所以没有"退出"。
+- **开好了才算开好**：页面换到权限、连上 `GET /api/presence` 才算开了；没连上就再试一次，然后换下一种，输出里照实说是哪一种、为什么。
+- **关窗口和退出**：关掉窗口，控制台照旧在后台开着（agent 可能还在干活），再点图标窗口回来、对话接着；macOS 上 OVH Studio 关了窗口还留在 Dock 里，Linux 上关了窗口应用就退出。退出 OVH Studio（菜单、Dock 或 ⌘Q）时，图标起的那个控制台一起停（终端里起的不动），agent 正做着一轮时先问一句；控制台停了，它的窗口一起关，没有窗口了应用就退出。
+- **图标只是一个入口，事情都在仓库里做**：仓库挪了地方，点它会弹一句"找不到了，到新位置运行 `bin/vh studio --install-icon`"，`bin/vh doctor` 也会说。外壳的代码随 `git pull` 更新；Electron 的版本或图标改了，doctor 说"旧了"，再装一次就好。
+- **轻量启动器**（`--no-shell`，或者装不了 Electron 时）：macOS 上是一个常驻的 AppleScript 小程序（`osacompile -s`）：再点一次叫出窗口；退出时停掉它起的控制台；控制台停了它每分钟看一次，跟着退出。Linux 上是一个桌面项加一个小脚本。它们打开的是浏览器的窗口，所以 Dock 里会多一个浏览器图标。
 - **画面**是控制台的字标那一家：深色底，青色方块（控制台 favicon 的那一块），外面一圈取景框的四个角；16 和 32 像素时只留方块，边缘落在整像素上。`tools/desk/icon.py` 用标准库画出各个尺寸的 PNG 和 `.icns`，装图标时现画，不进 git；三个方案的对比在 `docs/assets/studio-icon-designs.png`（`python3 tools/desk/icon.py sheet <文件>` 重画）。
 - 只做了 macOS 和 Linux；Windows 没测过，`--install-icon` 在那里直接说不支持。
 

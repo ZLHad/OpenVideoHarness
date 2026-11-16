@@ -25,7 +25,7 @@ Newest first: by the commit that added a note (on main: the PR's squash), or the
 Exit: 0 done · 1 a note is malformed; release found nothing to release, or the version is there already; show found
 no such release · 2 usage.
 """
-import argparse, datetime, os, re, signal, subprocess, sys
+import argparse, datetime, json, os, re, signal, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -176,10 +176,11 @@ def cmd_check():
 
 
 def launcher_check():
-    """Studio's launcher icon goes out with every release: it is not a file of its own but what bin/vh studio
-    --install-icon makes on the user's machine (install.sh offers it). So a release makes it here first, into a temp
-    folder, as that machine would: the Linux desktop entry everywhere, the macOS app on a Mac. → [] or what is wrong. A
-    tree without tools/desk/studio.py (a test's copy) has nothing to make."""
+    """Studio's launcher goes out with every release: it is not a file of its own but what bin/vh studio --install-icon
+    makes on the user's machine (install.sh offers it). So a release makes it here first, into a temp folder, as that
+    machine would: the Linux launcher everywhere, and on a Mac the launcher and OVH Studio, Studio's own window (Electron
+    from the committed lockfile, downloaded into the real cache once). → [] or what is wrong. A tree without
+    tools/desk/studio.py (a test's copy) has nothing to make."""
     studio = ROOT / "tools" / "desk" / "studio.py"
     if not studio.is_file():
         return []
@@ -188,13 +189,18 @@ def launcher_check():
     if inst.is_file() and "studio --install-icon" not in inst.read_text(encoding="utf-8"):
         problems.append("install.sh does not offer the icon (bin/vh studio --install-icon)")
     import tempfile
+    cache = os.environ.get("OVH_STUDIO_SHELL_CACHE") or os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "ovh", "studio-shell")
     with tempfile.TemporaryDirectory(prefix="ovh-release-icon-") as t:
-        env = dict(os.environ, HOME=t, XDG_DATA_HOME=os.path.join(t, "share"))
-        for plat in ["linux"] + (["macos"] if sys.platform == "darwin" else []):
-            r = subprocess.run([sys.executable, str(studio), "--install-icon", "--dir", os.path.join(t, plat), "--as", plat],
-                               env=env, capture_output=True, text=True, timeout=300)
-            if r.returncode:
-                problems.append(f"bin/vh studio --install-icon ({plat}): {(r.stderr or r.stdout).strip()[-200:]}")
+        # Electron's download goes to the real cache (once, then offline); everything made goes into the temp folder
+        env = dict(os.environ, HOME=t, XDG_DATA_HOME=os.path.join(t, "share"), OVH_STUDIO_SHELL_CACHE=cache)
+        env.pop("OVH_STUDIO_NO_DOWNLOAD", None)
+        runs = [("linux", ["--no-shell"])] + ([("macos", ["--no-shell"]), ("macos", [])] if sys.platform == "darwin" else [])
+        for plat, extra in runs:
+            r = subprocess.run([sys.executable, str(studio), "--install-icon", "--dir", os.path.join(t, plat + "".join(extra)), "--as", plat, "--json"] + extra,
+                               env=env, capture_output=True, text=True, timeout=1800)
+            kind = (json.loads(r.stdout or "{}") if r.returncode == 0 else {}).get("kind")
+            if r.returncode or (not extra and kind != "shell"):
+                problems.append(f"bin/vh studio --install-icon {' '.join(extra)} ({plat}): {(r.stderr or r.stdout).strip()[-200:]}")
     return problems
 
 

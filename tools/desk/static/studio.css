@@ -13,8 +13,20 @@ body{overflow:hidden}
 :root[data-theme=prism] .topbar,:root[data-theme=bridge] .topbar{border:1px solid var(--rule);padding:0 12px 0 0;background:var(--glass),var(--panel);border-radius:var(--r-panel)}
 :root[data-theme=prism] .topbar{backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
 .topbar .mark{flex:0 0 64px;text-align:center}
+/* Studio's own window (tools/desk/shell, html.shell from its preload): no system title bar. The top bar is what the window
+   is dragged by (what can be clicked in it still clicks), and on a Mac it leaves room for the window buttons, which sit in
+   it (main.js places them for each theme); full screen hides them. Elsewhere (Linux) the window's buttons are drawn over
+   the bar's right end. In a browser tab none of this applies. */
+html.shell .topbar{-webkit-app-region:drag;-webkit-user-select:none;user-select:none}
+html.shell .topbar :is(a,button,input,select,textarea,summary,details,label,[role=button],[tabindex]){-webkit-app-region:no-drag}
+html.shell-mac .topbar{padding-left:78px}
+html.shell-mac[data-theme=prism] .topbar,html.shell-mac[data-theme=bridge] .topbar{padding-left:74px}
+html.shell-mac .topbar .mark{flex:0 0 auto;padding:0 6px}
+html.shell-mac.shell-full .topbar{padding-left:0}
+html.shell-mac.shell-full .topbar .mark{flex:0 0 64px;padding:0}
+html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 140px)))}
 .topbar .crumbs{flex:0 1 auto;max-width:34%}
-.flow{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:0;list-style:none;margin:0;padding:0;min-width:0;overflow-x:auto;scrollbar-width:none}
+.flow{flex:1 1 auto;display:flex;align-items:center;justify-content:safe center;gap:0;list-style:none;margin:0;padding:0;min-width:0;overflow-x:auto;scrollbar-width:none}
 .flow li{display:flex;align-items:center;flex:0 0 auto}
 .flow li+li::before{content:"";width:16px;height:1px;margin:0 8px;background:var(--rule-2)}
 .stn{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;cursor:pointer;font-size:var(--fs-small);line-height:1.25;color:var(--ink-3);padding:4px 10px;border-radius:var(--r-card);white-space:nowrap}

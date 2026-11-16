@@ -202,6 +202,15 @@ def check_module(m, found_by, today):
             r.update(state="missing", note=f"not installed (bin/vh desk agents install {ck['desk_agent']}; the console's column says so too)")
             return r
         r["found"], r["version"] = got["path"], got["version"]
+    elif ck.get("studio_shell"):   # Studio's own window, made by bin/vh studio --install-icon outside the repo (tools/desk/studio.py)
+        sys.path.insert(0, str(ROOT / "tools" / "desk"))
+        import window as W
+        rec = W.shell_record()
+        prog, why = W.shell()
+        if not rec or not prog:
+            r.update(state="missing", note=why or "not installed (optional): bin/vh studio --install-icon makes Studio's own window; without it Studio opens in a browser's window")
+            return r
+        r["found"], r["version"] = shown(rec.get("app") or prog), rec.get("electron")
     elif ck.get("npm"):
         pj = ROOT / ck["npm"]["in"] / "node_modules" / ck["npm"]["package"] / "package.json"
         try:
@@ -233,7 +242,7 @@ def check_module(m, found_by, today):
     v = r["version"]
     if v and ver.get("min") and vtuple(v) < vtuple(ver["min"]):
         r["state"] = "outdated"; notes.append(f"{ver['min']} or newer needed")
-    if v and ver.get("pin") and (ck.get("npm") or ck.get("program") or ck.get("desk_agent")) and v != ver["pin"].split()[0]:
+    if v and ver.get("pin") and (ck.get("npm") or ck.get("program") or ck.get("desk_agent") or ck.get("studio_shell")) and v != ver["pin"].split()[0]:
         r["state"] = "outdated"; notes.append(f"not {ver['pin'].split()[0]}, the pinned version")
     if v and ver.get("max_age_days"):
         mm = re.fullmatch(r"(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?", v)
@@ -756,7 +765,7 @@ def problems(t, commands=None):
         if m.get("status") == "planned" and cmds:
             bad.append(f"{at}: planned, yet commands use it")
         ck = m.get("check")
-        if not isinstance(ck, dict) or set(ck) - {"program", "env", "paths", "version", "pattern", "also", "features", "finder", "npm", "uv", "hf_model", "files", "per_project", "desk_agent"}:
+        if not isinstance(ck, dict) or set(ck) - {"program", "env", "paths", "version", "pattern", "also", "features", "finder", "npm", "uv", "hf_model", "files", "per_project", "desk_agent", "studio_shell"}:
             bad.append(f"{at}: check has a key doctor does not know")
         elif ck.get("desk_agent") is not None and ck["desk_agent"] not in ("claude", "codex", "dsh"):
             bad.append(f"{at}: desk_agent {ck['desk_agent']!r} is not one of the console's agents (claude, codex, dsh)")

@@ -4118,9 +4118,115 @@ PY
   then ok "studio: a film outside Studio's folders opens in its own desk; the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address prints an address whose code works once"
   else bad "studio: its own desk, the icon's open/alive/quit, --print-address (exits $rc $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8, windows left $left, claims $claims): $a | $(cat "$t/q0" "$t/q1") | $c | $wq | $d"; fi
   [ -z "$pid2" ] || kill "$pid2" 2>/dev/null; [ -z "$b" ] || kill "$b" 2>/dev/null
+  # Studio's own app (tools/desk/shell): the stand-in app ($OVH_STUDIO_SHELL=fixtures/studio_shell.py) in place of Electron.
+  # One app, one window a desk: made once, raised after, two at once, the line handed over on stdin (no code on its command
+  # line), closed when the console stops; an app that cannot start: the browser's window, said plainly
+  rm -rf "$t/prof" "$t/shellprof"; mkdir -p "$t/prof"
+  shell_run() { OVH_STUDIO_SHELL="$ROOT/tools/desk/fixtures/studio_shell.py" OVH_STUDIO_SHELL_PROFILE="$t/shellprof" studio_run "$@"; }
+  a=$(BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); rc=$?; pid=$(st_console_pid); desk_rec "$pid"
+  b=$(shell_run demo < /dev/null 2>&1); rc2=$?
+  shell_run < /dev/null > "$t/s1" 2>&1 & i=$!; shell_run demo < /dev/null > "$t/s2" 2>&1; wait $i
+  st_stop; for i in $(seq 50); do [ -e "$t/shellprof/shell.pid" ] || break; sleep 0.1; done
+  c=$(FAKE_SHELL=broken BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); rc3=$?; desk_rec "$(st_console_pid)"
+  st_stop
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$t" "$a" "$b" "$(cat "$t/s1" "$t/s2")" "$c" <<'PY'
+import json, sys
+t, a, b, two, c = sys.argv[1:6]
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+ev = [json.loads(l) for l in open(t + "/shellprof/shell.log")]
+kinds = [e["event"] for e in ev]
+starts = [e for e in ev if e["event"] == "start"]
+want(len(starts) == 1 and not starts[0]["code_in_argv"], f"the app started {len(starts)} times, or with a code on its command line: {starts}")
+want(kinds.count("window") == 1 and kinds.count("raised") >= 3 and "claimed" in kinds and "present" in kinds, f"one window, raised after: {kinds}")
+want(any(e["event"] == "told" and e["data"].get("go", "").startswith("/p/demo~") for e in ev), "the window was not sent to the film")
+want(kinds[-2:] == ["closed", "quit"] or kinds[-1] == "quit", f"the console stopped, the app did not close its window and quit: {kinds[-3:]}")
+want("Studio is open in its own window" in a and "its window is in front" in b and two.count("its window is in front") == 2, f"said: {a!r} | {b!r} | {two!r}")
+want("Studio is open in a browser window (Studio's own app did not open)" in c, f"an app that cannot start: {c!r}")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "studio, its own app: started once with its line on stdin (no code on its command line), one window made and raised after (two runs at once included) and sent to the film; the console's end closes it and the app quits; an app that cannot start gives the browser's window, said plainly"
+  else bad "studio, its own app (exits $rc/$rc2/$rc3): $a | $b | $(cat "$t/s1" "$t/s2") | $c | $(tail -c 600 "$t/shellprof/shell.log" 2>/dev/null)"; fi
+  # the app made (an Electron stand-in folder: no download): its own name, bundle id, icon and boot, signed, the record the
+  # console finds it by; Linux the same; --no-shell and no way to get Electron: the launcher, and the note says why
+  mkdir -p "$t/edist/Electron.app/Contents/MacOS" "$t/edist/Electron.app/Contents/Resources" "$t/edist/resources"
+  printf '#!/bin/sh\nexit 0\n' > "$t/edist/Electron.app/Contents/MacOS/Electron"; cp "$t/edist/Electron.app/Contents/MacOS/Electron" "$t/edist/electron"
+  chmod +x "$t/edist/Electron.app/Contents/MacOS/Electron" "$t/edist/electron"; printf 'asar' > "$t/edist/Electron.app/Contents/Resources/default_app.asar"
+  python3 -c 'import plistlib, sys; plistlib.dump({"CFBundleExecutable": "Electron", "CFBundleName": "Electron", "CFBundleIdentifier": "com.github.Electron", "CFBundlePackageType": "APPL", "CFBundleIconFile": "electron.icns", "ElectronAsarIntegrity": {}}, open(sys.argv[1], "wb"))' "$t/edist/Electron.app/Contents/Info.plist"
+  rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
+  a=$(OVH_STUDIO_ELECTRON_DIST="$t/edist" studio_run --install-icon --dir "$t/apps" --as linux --json 2>&1); rc=$?
+  b=$(cat "$t/home/.share/ovh-studio/shell.json" 2>/dev/null)
+  c=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
+  d=$(PATH=/usr/bin:/bin OVH_STUDIO_SHELL_CACHE="$t/nocache" studio_run --install-icon --dir "$t/apps2" --as linux --json 2>&1); rc2=$?
+  e=$(studio_run --install-icon --dir "$t/apps3" --as linux --no-shell --json 2>&1); rc3=$?
+  if [ $rc = 0 ] && case "$a" in *'"kind": "shell"'*) true ;; *) false ;; esac && case "$b" in *'/shell/electron"'*'"electron": "'*) true ;; *) false ;; esac \
+    && grep -q '"main": "boot.js"' "$t/home/.share/ovh-studio/shell/resources/app/package.json" && grep -qF "$(cd "$ROOT" && pwd -P)" "$t/home/.share/ovh-studio/shell/resources/app/boot.js" \
+    && grep -q '^StartupWMClass=OVH Studio' "$t/apps/ovh-studio.desktop" && grep -q '/shell/electron"$' "$t/apps/ovh-studio.desktop" \
+    && case "$c" in *"icon: ok"*"Studio's own window (Electron "*) true ;; *) false ;; esac \
+    && [ $rc2 = 0 ] && case "$d" in *'"kind": "launcher"'*"no npm here"*) true ;; *) false ;; esac \
+    && [ $rc3 = 0 ] && case "$e" in *'"kind": "launcher"'*) true ;; *) false ;; esac
+  then ok "studio --install-icon, Linux: Studio's own window (Electron copied beside its boot, which runs the shell from this clone; the desktop entry runs it; the record the console finds it by; status says which); with no npm and nothing cached, or --no-shell, the launcher, and the note says why"
+  else bad "studio --install-icon with the shell, Linux (exits $rc/$rc2/$rc3): $a | $b | $c | $d | $e"; fi
+  if [ "$(uname -s)" = Darwin ]; then
+    rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
+    a=$(OVH_STUDIO_ELECTRON_DIST="$t/edist" studio_run --install-icon --dir "$t/apps" --json 2>&1); rc=$?
+    app="$t/apps/OVH Studio.app"
+    if [ $rc = 0 ] && case "$a" in *'"kind": "shell"'*) true ;; *) false ;; esac && codesign --verify --strict "$app" 2>/dev/null \
+      && [ "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.zlhad.ovh-studio ] \
+      && [ "$(plutil -extract CFBundleName raw "$app/Contents/Info.plist")" = "OVH Studio" ] && [ "$(plutil -extract CFBundleIconFile raw "$app/Contents/Info.plist")" = ovh-studio.icns ] \
+      && ! plutil -extract ElectronAsarIntegrity raw "$app/Contents/Info.plist" >/dev/null 2>&1 && [ ! -e "$app/Contents/Resources/default_app.asar" ] \
+      && iconutil -c iconset -o "$t/y.iconset" "$app/Contents/Resources/ovh-studio.icns" && [ "$(ls "$t/y.iconset" | wc -l | tr -d ' ')" = 10 ] \
+      && grep -q '"main": "boot.js"' "$app/Contents/Resources/app/package.json" && grep -q 'tools", "desk", "shell", "main.js"' "$app/Contents/Resources/app/boot.js" \
+      && grep -q 'Contents/MacOS/Electron"' "$t/home/.share/ovh-studio/shell.json" \
+      && studio_run --remove-icon --dir "$t/apps" >/dev/null 2>&1 && [ ! -e "$app" ] && [ ! -e "$t/home/.share/ovh-studio/shell.json" ]
+    then ok "studio --install-icon, macOS: OVH Studio.app is Electron with its own name, bundle id and icon (ten sizes), no default app and no asar check, its code the boot that runs the shell from this clone, signed ad hoc and valid; the record the console finds it by; removed with it"
+    else bad "studio --install-icon with the shell, macOS (exit $rc): $a"; fi
+  fi
+  # the shell's source: Electron pinned from a committed lockfile (registry.npmjs.org, integrity, no install script), the
+  # window hardened (isolated, no Node, sandboxed, no webview, its own pages only, nothing asked for), a preload with two
+  # things in it; the page marks itself only when the preload is there, and the frame's rules apply only then
+  if python3 - <<'PY'
+import json, re, subprocess
+bad = []
+d = "tools/desk/shell/"
+pkg, lock = json.load(open(d + "package.json")), json.load(open(d + "package-lock.json"))
+ver = pkg["dependencies"].get("electron", "")
+if not re.fullmatch(r"\d+\.\d+\.\d+", ver) or lock["packages"][""]["dependencies"] != {"electron": ver} or lock["packages"]["node_modules/electron"]["version"] != ver:
+    bad.append(f"electron not pinned exactly in both: {ver}")
+if [m["version"].get("pin") for m in json.load(open("tools/modules.json"))["modules"] if m["name"] == "electron"] != [ver]:
+    bad.append("tools/modules.json's electron pin is not the lockfile's")
+hosts = {v["resolved"].split("/")[2] for k, v in lock["packages"].items() if k and v.get("resolved")}
+if hosts != {"registry.npmjs.org"} or any(k and v.get("resolved") and not v.get("integrity") for k, v in lock["packages"].items()):
+    bad.append(f"lockfile: hosts {hosts}, or a package without its integrity hash")
+if any(v.get("hasInstallScript") for v in lock["packages"].values()):
+    bad.append("a package with an install script (the install runs npm ci --ignore-scripts)")
+main, pre = open(d + "main.js").read(), open(d + "preload.js").read()
+for need in ("contextIsolation: true", "nodeIntegration: false", "sandbox: true", "webviewTag: false", "setWindowOpenHandler", '"will-navigate"',
+             "setPermissionRequestHandler", "requestSingleInstanceLock", "will-attach-webview", 'titleBarStyle: "hidden"', "show: false", "backgroundColor"):
+    if need not in main:
+        bad.append(f"main.js lacks {need}")
+if re.findall(r"exposeInMainWorld\(\"(\w+)\"", pre) != ["ovhShell"] or set(re.findall(r"^\s+(\w+):", pre, re.M)) != {"platform", "theme"}:
+    bad.append("preload exposes more than ovhShell {platform, theme}")
+for f in ("main.js", "preload.js"):
+    if subprocess.run(["node", "--check", d + f]).returncode:
+        bad.append(f"{f} does not parse")
+css = re.sub(r"/\*.*?\*/", "", open("tools/desk/static/studio.css").read(), flags=re.S)
+frame = [r for r in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if "app-region" in r[1]]
+if not frame or any(not s.strip().startswith("html.shell") for sel, _ in frame for s in re.sub(r":is\([^)]*\)", ":is()", sel).split(",")):
+    bad.append("an -webkit-app-region rule outside html.shell")
+if "if (window.ovhShell)" not in open("tools/desk/static/ui.js").read():
+    bad.append("ui.js does not mark the page only in the shell")
+print("; ".join(bad))
+raise SystemExit(1 if bad else 0)
+PY
+  then ok "studio's shell source: Electron pinned exactly from a committed lockfile (registry.npmjs.org, integrity hashes, no install scripts); its window isolated, without Node, sandboxed, no webview, its own pages only (others to the default browser), no permissions, one instance; a preload with ovhShell {platform, theme} alone; the page takes the frame only in the shell"
+  else bad "studio's shell source"; fi
   # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
   # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
-  a=$(studio_run --install-icon --dir "$t/apps" --as linux 2>&1); rc=$?
+  a=$(studio_run --install-icon --no-shell --dir "$t/apps" --as linux 2>&1); rc=$?
   b=$(studio_run --icon-status --dir "$t/apps" --as linux --json 2>&1)
   cp "$t/apps/ovh-studio.desktop" "$t/apps/ovh-studio.desktop.bak"   # (as it was made)
   python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^REPO=.*$", "REPO=/no/such/clone", s))' "$t/home/.share/ovh-studio/studio-launch.sh"
@@ -4132,7 +4238,7 @@ PY
   python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^X-OVH-Repo=.*$", "X-OVH-Repo=/no/such/clone", s))' "$t/apps/ovh-studio.desktop"
   d=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
   mkdir -p "$t/apps2" && printf 'not ours\n' > "$t/apps2/ovh-studio.desktop"
-  e=$(studio_run --install-icon --dir "$t/apps2" --as linux 2>&1); rc3=$?
+  e=$(studio_run --install-icon --no-shell --dir "$t/apps2" --as linux 2>&1); rc3=$?
   studio_run --remove-icon --dir "$t/apps" --as linux >/dev/null 2>&1; rc4=$?
   if [ $rc = 0 ] && case "$b" in *'"state": "ok"'*) true ;; *) false ;; esac && grep -q '^Exec="' "$t/apps/ovh-studio.desktop.bak" \
     && [ "$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak")")" = "$(cd "$ROOT" && pwd -P)" ] \
@@ -4143,7 +4249,7 @@ PY
   then ok "studio icon (Linux): a desktop entry and its script run bin/vh studio in this clone; status ok; a clone that moved says which command to run again (the click and the status); a file it did not write is left alone; removed with its script and picture"
   else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4; Exec $(grep -c '^Exec="' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null), repo line $(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null) for $(cd "$ROOT" && pwd -P), foreign kept $(grep -cx 'not ours' "$t/apps2/ovh-studio.desktop" 2>/dev/null), entry left $([ -e "$t/apps/ovh-studio.desktop" ] && echo yes || echo no), data left $([ -e "$t/home/.share/ovh-studio" ] && echo yes || echo no)): $a | $b | $c | $d | $e"; fi
   if [ "$(uname -s)" = Darwin ]; then
-    a=$(studio_run --install-icon --dir "$t/apps" 2>&1); rc=$?
+    a=$(studio_run --install-icon --no-shell --dir "$t/apps" 2>&1); rc=$?
     app="$t/apps/OVH Studio.app"
     b=$(osadecompile "$app" 2>/dev/null)
     if [ $rc = 0 ] && codesign --verify --strict "$app" 2>/dev/null && [ ! -e "$app/Contents/Resources/Assets.car" ] \
@@ -12315,12 +12421,13 @@ esac
 # run ends, also when a signal ends it: a run stopped half-way used to leave a desk running for its 12 h --idle. Only the
 # recorded pids, and only while each is still a desk (a pid reused since is someone else's process)
 CI_DESKS=$(mktemp "${TMPDIR:-/tmp}/vh-ci-desks.XXXXXX") || exit 2
-# a desk shows Studio's window itself (bin/vh gate, bin/vh studio, a terminal start): in a run the window is the stand-in
+# a desk shows Studio's window itself (bin/vh gate, bin/vh studio, a terminal start): in a run Studio's own app is off and the window is the stand-in
 # (tools/desk/fixtures/studio_window.py: it fetches the page, trades its code, holds the presence stream), raising it is a
 # script that notes the pid, its profiles are in a folder of this run's, and $BROWSER (the fallback tab) only notes the
 # address: a run opens no window and no tab on the machine it runs on, and never touches the person's own Studio window
 CI_WIN=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-windows.XXXXXX") || exit 2
 export OVH_STUDIO_PROFILES="$CI_WIN/profiles" OVH_STUDIO_BROWSER="$ROOT/tools/desk/fixtures/studio_window.py" OVH_STUDIO_ACTIVATE="$CI_WIN/raise"
+export OVH_STUDIO_SHELL=none OVH_STUDIO_SHELL_PROFILE="$CI_WIN/shell" OVH_STUDIO_NO_DOWNLOAD=1   # Studio's own app: never the one installed on this machine (studio_checks stands one in)
 CI_BROWSER_LOG="$CI_WIN/browser.log"; : > "$CI_BROWSER_LOG"; export CI_BROWSER_LOG
 printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$CI_WIN/raised" > "$CI_WIN/raise"
 printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "$CI_BROWSER_LOG"\n' > "$CI_WIN/open"; chmod +x "$CI_WIN/raise" "$CI_WIN/open"; export BROWSER="$CI_WIN/open"

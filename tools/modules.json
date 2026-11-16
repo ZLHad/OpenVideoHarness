@@ -501,6 +501,23 @@
       "install": {"macos": "bin/vh desk agents install dsh (about 1.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install dsh (about 1.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
     },
     {
+      "name": "electron",
+      "kind": "npm",
+      "purpose": "Studio's own window (tools/desk/shell): the console page in a window with its own frame, Dock icon and name, one window always. Optional: without it Studio opens in a window of a Chromium-family browser.",
+      "version": {"pin": "45.2.3"},
+      "license": "MIT (Electron); Chromium's own licences in its LICENSES.chromium.html",
+      "needs": {"programs": ["node"]},
+      "adapter": ["tools/desk/shell/ (main.js, preload.js, its lockfile)", "tools/desk/window.py (shell, shell_send, shell_pid)",
+                  "tools/desk/studio.py (fetch_electron, build_shell_app, build_shell_linux)", "tools/desk/launcher/shell-boot.js"],
+      "commands": ["studio"],
+      "required": false,
+      "check": {"studio_shell": true},
+      "install": {
+        "macos": "bin/vh studio --install-icon (about 130 MB downloaded once, 260 MB on disk; the download kept in $XDG_CACHE_HOME/ovh/studio-shell)",
+        "linux": "bin/vh studio --install-icon (about 130 MB downloaded once; Electron in $XDG_DATA_HOME/ovh-studio/shell)"
+      }
+    },
+    {
       "name": "yt-dlp",
       "kind": "program",
       "purpose": "Reads video sites: scout and ref take a search's, a channel's or one video's metadata from YouTube with it (-J, never a download; OVH_YTDLP runs another, uvx yt-dlp). Sites change often, so an old one is the first thing to update when a site fails.",

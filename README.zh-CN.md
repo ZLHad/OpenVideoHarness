@@ -212,13 +212,13 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 ### 打开 Studio
 
-Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地方。它是一个自己的窗口，没有地址栏，永远只有一个。三种办法都能把它叫出来：
+Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地方。它是一个自己的窗口，永远只有一个。三种办法都能把它叫出来：
 
-- **点图标**：`bin/vh studio --install-icon` 把 **OVH Studio** 放进你的应用程序（安装脚本装完会问一次）。再点一次，还是那个窗口，回到最前面。
+- **点图标**：`bin/vh studio --install-icon` 把 **OVH Studio** 放进你的应用程序（安装脚本装完会问一次）：Studio 自己的窗口，有自己的边框、Dock 图标和菜单（Electron，第一次下载约 130 MB）。再点一次，还是那个窗口，回到最前面。
 - **在终端里**：`bin/vh studio`，或者 `bin/vh studio <项目>` 直接打开到那支片子。
 - **对 agent 说**"打开 Studio"：它运行同一条命令，窗口就出来了。
 
-关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点一下，窗口回来，停在原来的地方。在 Mac 上从 Dock 退出 OVH Studio，Studio 就停了，窗口也一起关掉。这个窗口用的是你电脑上的 Chrome、Edge、Chromium 或 Brave，配一个 Studio 自己的资料目录（所以 Dock 上它显示的是那个浏览器的图标）；这几样都没有时，Studio 开在默认浏览器的一个标签页里。
+不管哪种方式，里面都是同一个页面：没装 OVH Studio 时，窗口用的是你电脑上的 Chrome、Edge、Chromium 或 Brave，配一个 Studio 自己的资料目录；这几样都没有时，开在默认浏览器的一个标签页里。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点一下，窗口回来，停在原来的地方。退出 OVH Studio，Studio 就停了。
 
 ## 工具一览
 
@@ -252,7 +252,7 @@ Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地
 | | `artifacts` | 项目里每种文件是什么、谁写的；这支片子有什么、缺什么、什么过期了 |
 | | `projects` · `cancel` · `history` | 所有项目和各自到哪了；停下一条正在跑的命令，并在记录里写清楚；你和 agent 写的文本的退路 |
 
-`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 43 个外接模块（程序、包、模型和联网服务）里的哪些。
+`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 44 个外接模块（程序、包、模型和联网服务）里的哪些。
 
 ## 引擎、类型和素材库
 
