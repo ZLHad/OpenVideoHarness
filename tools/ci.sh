@@ -385,7 +385,8 @@ readpath_report() {   # how much an agent reads before it starts, per effort lev
   if out=$(python3 tools/readpath.py 2>&1); then printf '%s\n' "$out" | sed 's/^/  /'; ok "read path printed above (a baseline; no limit yet)"
   else echo "$out"; bad "tools/readpath.py"; fi
   # what a standard film reads before it starts is less than what it reads by the first draft, and the headings CLAUDE.md's
-  # step 2 names are the ones it counts: a renamed one stops the table, it does not shrink it
+  # step 2 names are the ones it counts (playbook/01's 总表 and 规格, nothing of the stops): a renamed one stops the table,
+  # it does not shrink it
   if out=$(python3 - <<'PY'
 import json, subprocess, sys
 sys.path.insert(0, "tools")
@@ -393,9 +394,10 @@ import readpath
 rows = json.loads(subprocess.run([sys.executable, "tools/readpath.py", "--json"], capture_output=True, text=True).stdout)
 bad = [r["type"] for r in rows if not 0 < r["start"] < r["standard"]]
 step = next(line for line in open("CLAUDE.md", encoding="utf-8") if line.startswith("2. **读流程和自查**"))
-bad += [w for w in ('规格', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'bin/vh know --show') if w not in step]
-head = readpath.upto("playbook/01-pipeline.md", "### 导演模式")
-bad += [f"playbook/01 before 导演模式 lacks {w}" for w in ("## 总表", "## 努力程度", "## 项目目录约定", "## reads", "## 人工关卡", "### 规格") if w not in head]
+bad += [w for w in ('总表', '规格', '每处交什么', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'next:', 'bin/vh know --show') if w not in step]
+head = readpath.upto("playbook/01-pipeline.md", "## 努力程度")
+bad += [f"playbook/01 before 努力程度 lacks {w}" for w in ("## 总表", "## 规格") if w not in head]
+bad += [f"playbook/01 before 努力程度 has {w}, which is read at its stop" for w in ("## 人工关卡", "### ") if w in head]
 print("; ".join(bad) or f"start is under standard for all {len(rows)} types, and CLAUDE.md's step 2 names the sections it counts")
 sys.exit(1 if bad else 0)
 PY
@@ -8545,10 +8547,10 @@ PY
   then ok "status next, quick: a thing the person keeps is a stop even so (no gate of its own is added but its), said first; once on record the film goes on; gate ① then asks only for what they kept"
   else bad "status next, Director x=own on a quick project: $a | $b | $c | $e | $f"; fi
   python3 -c 'import re, sys; sys.path.insert(0, "tools"); import status as S; d = S.director_own
-named = set(re.findall(r"`(\w+)`", next(x for x in open("CLAUDE.md", encoding="utf-8") if x.startswith("- **能点名的事**")).split("。")[0]))
+named = set(re.findall(r"`(\w+)`", next(x for x in open("playbook/01-pipeline.md", encoding="utf-8") if x.startswith("- **能点名的事**")).split("。")[0]))
 sys.exit(0 if d("hook=own, stop=E1, rest=delegate") == {"hook": "1"} and d("Voice = OWN，script=own") == {"voice": "E1", "script": "E1"} and d("default") == {} and d("hook=review") == {} and d("nope=own") == {"nope": None} \
   and set(d("hook=review, rest=own")) == set(S.OWN_STOP) - {"hook"} and set(S.OWN_STOP.values()) <= set(S.ORDER) and named == set(S.OWN_STOP) else 1)' \
-    && ok "status: the Director line's x=own items, a word it does not name without a stop, and rest=own; what CLAUDE.md lets a person name each has a stop" || bad "status: the Director line's x=own items"
+    && ok "status: the Director line's x=own items, a word it does not name without a stop, and rest=own; what playbook/01 lets a person name each has a stop" || bad "status: the Director line's x=own items"
   # quick skips the gates, not a stop the person asked for; a link to a film that is gone breaks nothing
   OVH_PROJECTS="$t" vh new math nd --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nd)
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: stop=E3", 1))' "$d"
@@ -8919,7 +8921,7 @@ PY
   c=$(vh know --show "playbook/03-motion-design.md#4." --json 2>/dev/null); q=$(vh know --show playbook/01-pipeline.md --json 2>/dev/null)
   case "$(vh know --show "playbook/09-narrative.md#5." 2>/dev/null)" in "## 5. 长片的节奏"*"### 5.3"*) ;; *) rc=9 ;; esac
   if [ "$rc:$rc2" = 0:0 ] && case "$a" in "### 审阅页"*"out/review/gate-<n>.json"*) true ;; *) false ;; esac && case "$a" in *"### 审阅台"*) false ;; *) true ;; esac \
-    && case "$b" in "## 人工关卡"*"### 规格"*"### 审阅页"*"### 授权的无人值守模式"*) true ;; *) false ;; esac && case "$b" in *"## 长片"*) false ;; *) true ;; esac \
+    && case "$b" in "## 人工关卡"*"### 每处交什么"*"### 审阅页"*"### 授权的无人值守模式"*) true ;; *) false ;; esac && case "$b" in *"## 长片"*) false ;; *) true ;; esac \
     && python3 - "$c" "$q" <<'PY'
 import json, sys
 c, q = (json.loads(x) for x in sys.argv[1:3])
@@ -8933,8 +8935,8 @@ import sys
 sys.path.insert(0, "tools")
 import know, readpath
 sec = know.show("playbook/01-pipeline.md#..规格")[1]
-head = readpath.upto("playbook/01-pipeline.md", "### 导演模式")
-print("" if sec and sec["text"].rstrip() == head.rstrip() and sec["line"] == 1 and "### 规格" in sec["text"] else f"not what readpath counts: {sec and sec['chars']} against {len(head)}")
+head = readpath.upto("playbook/01-pipeline.md", "## 努力程度")
+print("" if sec and sec["text"].rstrip() == head.rstrip() and sec["line"] == 1 and "## 规格" in sec["text"] else f"not what readpath counts: {sec and sec['chars']} against {len(head)}")
 PY
 )
   [ -z "$a" ] && ok "know --show #..规格: from the file's start through that section, what tools/readpath.py counts as read before starting" || bad "know --show #..规格: $a"

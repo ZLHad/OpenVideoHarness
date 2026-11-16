@@ -81,6 +81,7 @@ PLACEHOLDER = re.compile(r"(?<!\$)\{[^{}\n]*\}")
 NOT_BLANK = re.compile(r"""\s*(?:(?:none)?\s*$|["']|[\w-]+\s*:)""", re.I)   # the template's {none}, and braces that hold a value: {}, {"a": 1}, {fill: #e33}
 # what the next step sends an agent to read, each for bin/vh know --show (tools/ci.sh checks each is there)
 R_PAGE, R_DESK, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES = (f"playbook/01-pipeline.md#{x}" for x in ("审阅页", "审阅台", "导演模式", "animatic", "长片", "look-dev", "子代理分工"))
+R_STOPS, R_READS = "playbook/01-pipeline.md#每处交什么", "playbook/01-pipeline.md#reads"   # what each stop hands over and how it goes on record; reads, before a storyboard
 R_RECORD = "templates/REVIEW.md"   # how a stop goes on record
 R_SAID = "playbook/01-pipeline.md#交付前"   # before the delivery: what the person said, line by line against the film
 R_IDEAS, R_CARDS = "playbook/12-ideation.md#3.", "playbook/12-ideation.md#7."
@@ -92,7 +93,7 @@ R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "eng
 R_4K = "engines/README.md#出 4K"   # read only for a film delivered in 4K (the BRIEF's Resolution)
 TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas"}
 OWN_STOP = G.OWN_STOP   # what a Director line can keep for the person (x=own), and its stop (tools/gatecheck.py)
-READS = (R_PAGE, R_DESK, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
+READS = (R_PAGE, R_DESK, R_STOPS, R_READS, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
          R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K)
 
 
@@ -639,8 +640,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + f"bin/vh gate refused the page for {s['name']}, so the person got nothing: fix it ({'; '.join(refused[:3])}), then send it again", [f"bin/vh gate {p} {pid}"], [R_PAGE])
     film, fstate, fails = film_state(project, by_video)
     check = [f"bin/vh check {p}"]
-    # what the scenes need to be right: the sections of 02 after the frame commands (quick reads less: playbook/quick.md)
-    writing = [] if quick else [R_PURE, R_SILENT, R_COLOUR, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS, R_PITFALLS,
+    # what the scenes need to be right: 02's seven layers and budget, and its sections after the frame commands (quick reads less: playbook/quick.md)
+    writing = [] if quick else [R_LAYERS, R_BUDGET, R_PURE, R_SILENT, R_COLOUR, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS, R_PITFALLS,
                                 R_ROLES if long_film or proj["effort"] == "studio" else None]
     also = P.film_of(project)[1]
     named = film and film + (f" (also here: {P.also_here(project, also)})" if also else "")   # the film in a sentence
@@ -679,17 +680,17 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
                                                          else "NOTES.md's material first, then concept cards that really differ, a frame each, and the outline (the user's own words already settle the concept: no cards, "
                                                          "their words and 定了 under 关卡 ① in REVIEW.md, one message that says what you will make and where it stops, and carry on); "
                                                          "bin/vh gate's message tells the person where this film stops", say) if x),
-                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
+                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, None if quick else R_STOPS, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
     if key == "2":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),
-                   [f"bin/vh storyboard {p}", f"bin/vh rhythm {p}"] + cmds, [R_PAGE, R_ANIMATIC, R_LOOKDEV if proj["effort"] == "studio" else None, R_FRAMES, R_LONG if long_film else None, R_NARRATIVE if long_film else None])
+                   [f"bin/vh storyboard {p}", f"bin/vh rhythm {p}"] + cmds, [R_STOPS, R_READS, R_PAGE, R_ANIMATIC, R_LOOKDEV if proj["effort"] == "studio" else None, R_FRAMES, R_LONG if long_film else None, R_NARRATIVE if long_film else None])
     if key == "3":
         if fstate == "none":
             plan_first = "the shots and their reads in STORYBOARD.md or shots.json before the scenes (no stop for it: the person sees it on gate ③'s page)" if two_stop else ""
             return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]) if quick else fill(["STYLE.md", "STORYBOARD.md"]) if two_stop else "", plan_first, first_scenes()) if x),
                        [engine_setup(project, proj), frame_cmd(project, proj), render_cmd(project, proj, False)],
-                       [*engine_docs(project, proj), R_FRAMES, *writing, R_LONG if long_film else None])
+                       [*engine_docs(project, proj), R_READS if two_stop else None, R_FRAMES, *writing, R_LONG if long_film else None])
         if fstate in ("unchecked", "stale"):
             return out("agent", busy + f"check {named} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_BUDGET, R_FRAMES, R_PHONE, R_SILENT])
         if fstate == "failed":
@@ -699,7 +700,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
             return out("agent", busy + f"put {mine or 'what they asked to see'} to the person beside {film}; {say}", cmds, [R_PAGE])
         board = "; the storyboard goes on this page too, each shot passed unless the person says otherwise (bin/vh storyboard draws a frame a shot, and the page includes it)" if two_stop else ""
         return out("agent", busy + f"a fresh reviewer scores {film}, fix the worst of it (at most 3 places), write down what you like least{board}; {say}",
-                   ([f"bin/vh storyboard {p}"] if two_stop else []) + cmds, [R_SCORES, R_LAYERS, R_PAGE])
+                   ([f"bin/vh storyboard {p}"] if two_stop else []) + cmds, [R_SCORES, R_LAYERS, R_STOPS, R_PAGE])
     if s["kind"] != "deliver":
         say, cmds = page()
         return out("agent", busy + f"prepare {s['name']}{f' for {mine}' if mine else ''}, a stop the director mode asks for; {say}", cmds, [R_DIRECTOR, R_LOOKDEV if key == "E0" else None, R_PAGE])

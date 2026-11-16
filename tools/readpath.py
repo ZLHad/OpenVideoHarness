@@ -7,9 +7,9 @@ an agent actually opened. Every level counts the same base: CLAUDE.md, §4 of pl
 every level), templates/TASTE_CHECKLIST.md (hard rule 4) and the engine docs (below). On top of it:
   quick     playbook/quick.md and what its steps name: the type doc's 工作流, 禁止 and Prompt 增量块 sections,
             playbook/12 §3 and §7, and playbook/02's 手机测试 section
-  start     what a standard film reads before it starts (CLAUDE.md steps 1, 2 and 4): the whole type doc, playbook/01 up to
-            规格, playbook/02's 七层检查 and 预算, and playbook/12. The rest comes at the stop that needs it (bin/vh status, next:).
-            Not playbook/04-audio.md: a film with sound reads that before it starts too (+sound counts it)
+  start     what a standard film reads before it starts (CLAUDE.md steps 1, 2 and 4): the type doc, playbook/01's 总表 and
+            规格 (its start up to 努力程度), and playbook/12. The rest, playbook/02 included, comes at the stop that needs it
+            (bin/vh status, next:). Not playbook/04-audio.md: a film with sound reads that before it starts too (+sound counts it)
   standard  all of that with the whole of playbook/01 and 02: what is read by the first draft
   +sound    standard + playbook/04-audio.md (narration or music)
   max       +sound + playbook/09, 10 and 11 (long or story-driven films, publishing, a themed score). A ceiling of the
@@ -19,6 +19,7 @@ engine    the engine docs counted at every level: the section of engines/README.
           engines/canvas-film/README.md for 10 and 11, and engines/EDIT.md for 11, whose film goes through an edit list).
           04 and 06 show one engine though their type docs allow two (04: HyperFrames for type-led videos; 06: Manim
           and HyperFrames mixed). A film that spans two types reads both type docs.
+type doc  without its 来源 section (CLAUDE.md step 1: a list of sources, looked up when checking a fact), at every level.
 tools/ci.sh prints this table as a baseline. It never fails on the numbers; it fails when a file or a section it
 counts is missing, so the table cannot quietly shrink.
 """
@@ -81,6 +82,15 @@ def outline(rel, levels=(2, 3)):
         cur[3].append(line)
     return [(lv, h, n, "\n".join(body)) for lv, h, n, body in out]
 
+def body(rel):
+    """A type doc as an agent reads it: without its ## 来源 section (the list of sources, looked up when a fact is checked)."""
+    out, keep = [], True
+    for line in text(rel).splitlines(keepends=True):
+        if line.startswith("## "):
+            keep = not line[3:].startswith("来源")
+        if keep: out.append(line)
+    return "".join(out)
+
 def table():
     base = len(text("CLAUDE.md")) + len(sections("playbook/03-motion-design.md", "4.")) + len(text("templates/TASTE_CHECKLIST.md"))
     docs = sorted((ROOT / "video-types").glob("[0-9][0-9]-*.md"))
@@ -93,10 +103,9 @@ def table():
         quick = base + engine + sum(len(x) for x in (
             text("playbook/quick.md"), sections(rel, "工作流", "禁止", "Prompt 增量块"),
             sections("playbook/12-ideation.md", "3.", "7."), sections("playbook/02-verification.md", "手机测试")))
-        standard = base + engine + len(text(rel)) + sum(len(text(f"playbook/{f}")) for f in
+        standard = base + engine + len(body(rel)) + sum(len(text(f"playbook/{f}")) for f in
                                                          ("01-pipeline.md", "02-verification.md", "12-ideation.md"))
-        start = base + engine + len(text(rel)) + len(text("playbook/12-ideation.md")) + len(upto("playbook/01-pipeline.md", "### 导演模式")) \
-            + len(sections("playbook/02-verification.md", "七层检查", "预算"))
+        start = base + engine + len(body(rel)) + len(text("playbook/12-ideation.md")) + len(upto("playbook/01-pipeline.md", "## 努力程度"))
         sound = standard + len(text("playbook/04-audio.md"))
         top = sound + sum(len(text(f"playbook/{f}")) for f in ("09-narrative.md", "10-hooks-and-packaging.md", "11-composition.md"))
         rows.append({"type": doc.stem, "quick": quick, "start": start, "standard": standard, "sound": sound, "max": top, "engine": engine})
