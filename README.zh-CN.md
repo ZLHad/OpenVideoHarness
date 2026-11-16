@@ -70,7 +70,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 </tr>
 </table>
 
-**而且不是同一张 AI 脸。** 放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里是 33 种风格里的 32 种，下面每一格说的都是同一句话：
+**而且不是同一张 AI 脸。** 放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里是 38 种风格里的 32 种，下面每一格说的都是同一句话：
 
 <a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="所有风格同时动起来，每种都在渲同一句话：每一帧，都是代码"></a>
 
@@ -143,7 +143,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 </tr>
 <tr>
 <td valign="top"><video src="https://github.com/user-attachments/assets/3ecb0f0c-5602-496b-aebc-4848a918a74c" controls width="100%"></video></td>
-<td valign="top"><b><a href="styles/">风格连播</a></b><br><sub>33 种风格里的 32 种 · 每种约 1.5 秒</sub><br>同一段内容，用风格库里的每一种风格各渲一遍，每种配自己的音乐。</td>
+<td valign="top"><b><a href="styles/">风格连播</a></b><br><sub>38 种风格里的 32 种 · 每种约 1.5 秒</sub><br>同一段内容，用风格库里的每一种风格各渲一遍，每种配自己的音乐。</td>
 </tr>
 </table>
 
@@ -242,7 +242,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | | `artifacts` | 项目里每种文件是什么、谁写的；这支片子有什么、缺什么、什么过期了 |
 | | `projects` · `cancel` · `history` | 所有项目和各自到哪了；停下一条正在跑的命令，并在记录里写清楚；你和 agent 写的文本的退路 |
 
-`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 40 个外接模块（程序、包、模型和联网服务）里的哪些。
+`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 43 个外接模块（程序、包、模型和联网服务）里的哪些。
 
 ## 引擎、类型和素材库
 

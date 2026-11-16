@@ -27,7 +27,7 @@ no desk, and bin/vh status counts it as not sent until a run of it goes through 
 --wait without the desk, --init over a file, gate ③'s page while gate ① is not on record (standard, studio), or gate ② (in the plan, a BRIEF with a
 Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out.
 """
-import argparse, contextlib, json, os, re, subprocess, sys, time
+import argparse, contextlib, json, re, sys
 from pathlib import Path
 from urllib.parse import quote
 
@@ -42,9 +42,13 @@ from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
 SAY = {"zh": {"desk_wait": "审阅台：{url}（勾选、点评、提交；我在后台等着，你一提交我就接着做）",
-              "desk": "审阅台：{url}（勾选、点评、提交，然后回到这里说一声“看审阅台”）"},
+              "desk": "审阅台：{url}（勾选、点评、提交，然后回到这里说一声“看审阅台”）",
+              "terminal": "（这个审阅台是在终端里起的：用终端里那条控制台地址打开。要换个浏览器，或者这一页只能看，在终端里运行 {cmd}，它会给一个新地址）",
+              "busy": "（控制台里的 agent 正在这个项目上做事，审阅台没有重启，地址还是原来那条。这一页只能看的话，等它做完在终端里运行 {cmd}，它会给一个新地址）"},
        "en": {"desk_wait": "Review desk: {url} (tick, comment, submit; I'm waiting and carry on as soon as you submit)",
-              "desk": "Review desk: {url} (tick, comment, submit, then tell me here: “check the desk”)"}}
+              "desk": "Review desk: {url} (tick, comment, submit, then tell me here: “check the desk”)",
+              "terminal": "(This desk was started in a terminal: open the console address it printed there. For another browser, or if the page can only look, run {cmd} in a terminal; it gives a new address)",
+              "busy": "(An agent in the console is working on this project, so the desk kept its address. If the page can only look, run {cmd} in a terminal once it's done; it gives a new address)"}}
 
 
 CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/01-pipeline.md, 导演模式)
@@ -185,28 +189,20 @@ def channel_of(project, flag=None):
 
 
 def start_desk(project, port=None):
-    """The desk's address for this project: the one serving it, else a new one started in its own session (it outlives
-    this command) through bin/vh, so its run is in the activity log. None when it did not come up within 20 s."""
+    """The desk's address for this stop, with a launch key: a new desk started in its own session (it outlives this
+    command), or the running one started again with a new key (the earlier key may be spent, or opened by someone else:
+    bin/vh desk link). The running one is kept, and its address goes out without a key, when the person started it in a
+    terminal (the address it printed there has the key) or an agent in its column is mid-turn. → (url, how, why): how is
+    started, restarted, terminal or busy; url None when it did not come up (why)."""
     sys.path.insert(0, str(HERE / "desk"))
-    import server
-    url = server.running(project)
-    if url:
-        return url, False
-    log = project / "out" / "review" / ".desk.log"
-    log.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [os.environ.get("OVH_BASH") or "bash", str(ROOT / "bin" / "vh"), "desk", str(project), "--idle", str(IDLE), "--only"]   # this stop's project only
-    if port is not None:
-        cmd += ["--port", str(port)]
-    with open(log, "ab") as out:
-        p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True)
-    for _ in range(200):
-        url = server.running(project)
-        if url:
-            return url, True
-        if p.poll() is not None:
-            break
-        time.sleep(0.1)
-    return None, True
+    import server, launch
+    info = server.running_info(project)
+    if info and not info.get("background", True):
+        return info.get("url"), "terminal", None
+    if info and launch.turn_running(project, info):
+        return info.get("url"), "busy", None
+    url, why = launch.relink(project, port=port) if info else launch.start(project, (), True, port, IDLE)
+    return url, ("restarted" if info else "started"), why
 
 
 def main(argv):
@@ -259,19 +255,24 @@ def main(argv):
     url = None
     if channel == "desk":
         import server
-        url, started = start_desk(project, a.port)
+        url, how, why = start_desk(project, a.port)
         if not url:
-            return jsonerr.fail("failed", f"gate: the review desk did not start (out/review/.desk.log says why); the page is {page_path}. "
-                                f"Start it by hand: bin/vh desk {a.project}")
-        print(f"✓ review desk {url} ({'started, in the background' if started else 'already serving this project'})", file=sys.stderr)
-        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url.rstrip("/") + "/#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
+            return jsonerr.fail("failed", f"gate: the review desk did not start ({why or 'out/review/.desk.log says why'}); the page is {page_path}. "
+                                f"Start it by hand: bin/vh desk link {a.project}")
+        base, _, query = url.partition("?")   # ?k=…: the launch key, when this command started the desk
+        print(f"✓ review desk {base} (" + {"started": "started, in the background, with a new link", "restarted": "started again with a new link: the earlier one is void",
+                                           "terminal": "already serving: started in a terminal, whose own address is the one to open",
+                                           "busy": "already serving: an agent in its column is mid-turn, so it kept its address"}[how] + ")", file=sys.stderr)
+        lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=base.rstrip("/") + "/" + (f"?{query}" if query else "") + "#/p/" + quote(server.keyify(project.name, project), safe="") + "/gate/" + page.gate))
+        if how in ("terminal", "busy"):
+            lines.append(SAY[page.lang][how].format(cmd=server.link_cmd(project)))
     print(f"  this stop is reviewed on the {channel} ({why})", file=sys.stderr)
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": page.gate, "page": str(page_path), "channel": channel, "url": url,
                           "message": "\n".join(lines)}, ensure_ascii=False), flush=True)
     else:
         print("\n".join(lines), flush=True)
-    activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url}" if url else ""), [page_path])
+    activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url.partition('?')[0]}" if url else ""), [page_path])   # the log is in the project: never the launch key
     try:   # the text as it was when the page went out (tools/history.py); a failure to save never stops the page, nor does a lock held elsewhere for long
         import history
         for x in history.save(project, f"gate {page.gate}: the page went out", wait=2)[1]:

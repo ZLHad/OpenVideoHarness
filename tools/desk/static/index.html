@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/ui.css">
 <link rel="stylesheet" href="/static/studio.css">
 <link rel="stylesheet" href="/static/modules.css">
+<link rel="stylesheet" href="/static/agent.css">
 <script src="/static/ui.js"></script>
 </head>
 <body>
@@ -32,6 +33,13 @@
   <nav class="rail" id="rail" aria-label="模块"></nav>
   <main class="stage-area" id="stage" tabindex="-1"><p class="loading">…</p></main>
   <aside class="col" id="col" aria-label="这一轮">
+    <div class="nokey" id="nokey" role="alert" hidden></div>
+    <div class="col-tabs" id="colTabs" role="tablist" hidden></div>
+    <section class="agent" id="agentPane" aria-label="agent">
+      <div class="ag-head" id="agHead"></div>
+      <div class="ag-thread" id="agThread" aria-live="polite"></div>
+      <div class="ag-foot" id="agFoot"></div>
+    </section>
     <div class="col-head" id="colHead"></div>
     <div class="col-body" id="colBody"></div>
     <div class="composer" id="composer" hidden></div>
@@ -45,6 +53,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/static/core.js"></script>
 <script src="/static/modules.js"></script>
+<script src="/static/agent.js"></script>
 <script src="/static/studio.js"></script>
 </body>
 </html>

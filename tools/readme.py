@@ -368,6 +368,28 @@ def site_problems(have):
         for f in (base / "img" / "styles" / f"{slug}.jpg", ROOT / "styles" / slug / "media" / "swatch.mp4"):
             if not f.is_file() and str(f.relative_to(ROOT)) not in fetched:
                 bad.append(f"{SITE}: the style {slug} has no {f.relative_to(ROOT)}")
+    # a spec-2 style's tile plays its preview.mp4 (in git) and its lightbox the release asset: RELEASE_SAMPLES names them
+    rel = re.search(r"const RELEASE_SAMPLES = \{(.*?)\};", html, re.S)
+    named = dict(re.findall(r"'([a-z0-9-]+)': '([^']+)'", rel.group(1))) if rel else {}
+    assets = {}
+    for line in (ROOT / "tools" / "media.txt").read_text(encoding="utf-8").splitlines():
+        f = line.split()
+        if len(f) == 3 and re.fullmatch(r"styles/[a-z0-9-]+/media/swatch\.mp4", f[0]) and f[1].startswith("styles-media/"):
+            assets[f[0].split("/")[1]] = f[1].split("/", 1)[1]
+    for slug, _, _ in listed:
+        if slug not in repo:
+            continue
+        try:
+            spec = (json.loads((repo[slug].parent / "tokens.json").read_text(encoding="utf-8")).get("swatch") or {}).get("spec", 1)
+        except (OSError, ValueError):
+            continue
+        if spec >= 2:
+            if not (repo[slug].parent / "media" / "preview.mp4").is_file():
+                bad.append(f"{SITE}: the spec-2 style {slug} has no styles/{slug}/media/preview.mp4 for its tile")
+            if named.get(slug) != assets.get(slug):
+                bad.append(f"{SITE}: RELEASE_SAMPLES gives {slug} {named.get(slug)!r}, tools/media.txt {assets.get(slug)!r}: write '{slug}': '{assets.get(slug)}'")
+        elif slug in named:
+            bad.append(f"{SITE}: RELEASE_SAMPLES names {slug}, a spec-1 style whose sample is in git")
     body = html[html.find("<body"):]
     tags = re.findall(r"<(\w+)\b[^>]*\blang=\"(en|zh)\"", body)
     en, zh = (sum(1 for tag, lang in tags if lang == want and tag != "small") for want in ("en", "zh"))

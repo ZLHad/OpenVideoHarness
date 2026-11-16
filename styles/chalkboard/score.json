@@ -1,0 +1,26 @@
+{
+  "bpm": 120, "key": "D", "mode": "dorian", "seed": 57,
+  "meters": {"1": 3, "2": 3, "3": 3, "4": 3, "5": 3, "6": 3, "7": 2},
+  "stereo": true, "space": {"type": "hall", "rt60": 1.6}, "humanize": 0.4, "swing": 0.58, "swing_unit": 8,
+  "sections": [
+    {"name": "world", "bars": 1, "chords": ["i7"]},
+    {"name": "signature", "bars": 2, "chords": ["IV7", "i7"]},
+    {"name": "type", "bars": 3, "chords": ["IV7", "VIImaj7", "v7"]},
+    {"name": "close", "bars": 1, "chords": ["i9"]}
+  ],
+  "parts": [
+    {"inst": "piano", "id": "comp", "octave": 4, "gain_db": -4, "pan": -0.1, "send": 0.3,
+     "pattern": [[0, 0.9, ["c0", "c1", "c2", "c3"], 0.6], [1.5, 0.5, ["c1", "c2", "c3"], 0.45]],
+     "by_section": {
+       "world": {"pattern": [[0.2, 2.6, ["c0", "c1", "c2", "c3"], 0.55]]},
+       "close": {"pattern": [[0, 1.9, ["c0", "c2", "c3", "c1'"], 0.5]]}
+     }},
+    {"inst": "piano", "id": "melody", "sections": ["signature", "type"], "octave": 5, "gain_db": -6, "pan": 0.15, "send": 0.35,
+     "pattern": [[0, 0.5, "c3", 0.55], [0.5, 0.5, "c2", 0.45], [1, 1.5, "c1", 0.5]]},
+    {"inst": "upright_pm", "id": "bass", "octave": 2, "gain_db": -3, "pan": 0.05, "send": 0.1,
+     "pattern": [[0, 1, "c0", 0.75], [1, 1, "c2", 0.55], [2, 1, "c1", 0.6]],
+     "by_section": {"world": {"pattern": [[0.1, 2.8, "c0", 0.7]]}, "close": {"pattern": [[0, 1.9, "c0", 0.6]]}}},
+    {"inst": "bongo", "id": "bongo", "sections": ["signature", "type"], "pattern": "x..ox.x..o..", "gain_db": -14, "pan": 0.35, "send": 0.15},
+    {"inst": "roomtone", "id": "hall", "gain_db": -30, "quiet": true}
+  ]
+}

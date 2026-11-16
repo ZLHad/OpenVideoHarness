@@ -1176,7 +1176,7 @@
     },
     {
       "name": "desk",
-      "summary": "The console and review desk, Studio without the agent: a rail of modules, the film's stops on top, and a right column with what waits for the person, their notes and one submit; with no project, the space of every film, waiting ones first; a project opens on the module of the stop that waits (the cut module lays the film, shots, narration, music, checks and notes on one timeline); wait blocks until the person submits, feedback prints the latest submission, data what the desk reads.",
+      "summary": "The console and review desk, Studio's shell: a rail of modules, the film's stops on top, and a right column with two tabs: a conversation with an agent installed on this machine (Claude Code, Codex, DeepSeek Harness: its words, each tool call as a card, the requests it asks the person to approve, a stop) and this round (what waits for the person, their notes and one submit); with no project, the space of every film, waiting ones first; a project opens on the module of the stop that waits (the cut module lays the film, shots, narration, music, checks and notes on one timeline); wait blocks until the person submits, feedback prints the latest submission, data what the desk reads.",
       "when": "whenever the person wants to see every film; studio's stops, or whenever the person wants to review item by item",
       "stages": ["1", "3", "8"],
       "reads": [
@@ -1188,18 +1188,27 @@
       "writes": [
         "<project>/out/review/feedback/<round>-<time>.json and .md",
         "<project>/REVIEW.md (a submission, as a dated section)",
-        "<project>/out/review/feedback/.consumed (what an agent has been handed)"
+        "<project>/out/review/feedback/.consumed (what an agent has been handed)",
+        "<project>/.ovh/agents/<id>.jsonl and .json (a conversation in the agent column: its events, appended)",
+        "<project>/.ovh/agent.lock (while a turn of the column's agent runs)",
+        "$OVH_AGENTS_DIR or $XDG_CACHE_HOME/ovh/agents/<kind>/ (desk agents install: the pinned adapter)"
       ],
       "usage": [
         {
-          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
           "text": [
-            "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio without the agent: modules on",
-            "the left, the film's stops on top, what waits for the person and their notes on the right. No project: the space,",
+            "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio's shell: modules on the left,",
+            "the film's stops on top, on the right a conversation with an agent and what waits for the person. No project: the space,",
             "every project bin/vh projects finds (--root: more folders), a card a film, waiting ones first. A project: the page",
             "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
-            "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON"
+            "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
+            "The address it prints is the console address: the browser that opens it can submit and talk to agents. Started in a",
+            "terminal it opens your browser there (--no-open: not); an agent gives the person the address instead.",
+            "link: that desk (or the console) stops and starts again alike, and this prints its new address (and opens it, in a",
+            "terminal): for an address lost, or opened somewhere else first (the page says so); the old address no longer works.",
+            "The column's other tab talks to an agent on this machine in the film's folder; agents: which are installed, and",
+            "install <kind>: its pinned adapter, outside the repo (it uses the person's own login)"
           ]
         }
       ],
@@ -1211,6 +1220,10 @@
         {
           "name": "feedback",
           "summary": "the latest submission"
+        },
+        {
+          "name": "agents",
+          "summary": "the agents the console's column can talk to; install <kind> puts the pinned adapter outside the repo"
         },
         {
           "name": "data",

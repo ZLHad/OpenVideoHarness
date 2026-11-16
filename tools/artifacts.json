@@ -2236,6 +2236,42 @@
    "clean": "stays",
    "doc": "tools/desk/README.md#活动记录",
    "note": "A client reads this file, not writers: \"*\" there means every bin/vh command that works on a project (new, once the project is made), all but the read-only ones (bin/vh's list before act_start: setup, install-skill, sync-agents, types, effort, recipes, doctor, commands, status, activity, know, artifacts, projects). Each appends a start line and an end line; a command may add notes between them."
+  },
+  {
+   "id": "agent-conversations",
+   "path": ".ovh/agents/",
+   "kind": "folder",
+   "format": "jsonl, json",
+   "stages": ["any"],
+   "purpose": "控制台右栏和 agent 的对话：一个对话一份只追加的事件记录（<id>.jsonl）和它的头（<id>.json：哪家 agent、它自己的会话号、带没带个人设置）",
+   "made_by": "tool",
+   "writers": ["desk"],
+   "readers": ["desk"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/desk/agents.py",
+   "note": "What the person typed, every update the agent sent (paths made relative to the project, long output clipped, the person's skills only counted), each request to approve and its answer, each turn. A page reads it back over Server-Sent Events; a desk restarted reads it back from here."
+  },
+  {
+   "id": "agent-lock",
+   "path": ".ovh/agent.lock",
+   "kind": "file",
+   "format": "lock",
+   "stages": ["any"],
+   "purpose": "控制台里的 agent 正在这个项目上做一轮时拿着的锁：谁、哪个对话、从什么时候",
+   "made_by": "tool",
+   "writers": ["desk"],
+   "readers": ["desk"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/desk/agentlock.py",
+   "note": "Made with O_EXCL, gone when the turn ends; one whose process is gone is stale and taken over. It shares no file with the other locks of bin/vh."
   }
  ]
 }

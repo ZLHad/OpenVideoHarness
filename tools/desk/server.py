@@ -6,7 +6,10 @@ every project under the roots (bin/vh projects': $OVH_PROJECTS, <repo>/projects,
 started for wherever that is. The project files and bin/vh are the truth: every answer is read fresh from them, and the page
 keeps nothing of its own but the reviewer's draft (in the browser) until it is submitted.
 
-  GET  /                          the page (static/index.html, with this run's token and the project it opens on)
+  GET  /?k=<launch key>           the page (static/index.html, and the project it opens on); with this run's token for the
+                                  first GET that brings the key (a HEAD spends nothing)
+  GET  /api/hello                 does the page hold this run's token? 403 with the line for a new link (and why: locked)
+  POST /api/key-reused            {k}: the key came back to a page with no token of this run; the right key locks the desk
   GET  /static/<file>             ui.css and ui.js (the gate view's: the static review page inlines the same two files),
                                   studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
                                   (the other modules), core.js (the words and helpers a static page shares)
@@ -21,12 +24,30 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   POST /api/p/<key>/feedback      a submission: checked, saved to out/review/feedback/, copied into REVIEW.md
   GET  /f/<key>/<path>            a file inside that project (HTTP Range, so video and audio can seek); nothing outside
                                   it, no hidden files
+  GET  /api/p/<key>/agents        the column's agents (installed or how to install), the project's conversations, its lock
+  GET  /api/p/<key>/agent/<id>/events?token=   one conversation's events, as Server-Sent Events (agents.py)
+  POST /api/p/<key>/agent/new · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
+                                  the typed text, an answer among the agent's own options, stop (waiting requests cancelled
+                                  first), a setting among those the agent offered
   The desk's first addresses stay, for the project it was started for: /api/data (reader.read_project alone, as bin/vh desk
   data prints it), /api/status, /api/feedback, /p/<path>.
 
-Only requests whose Host is this server's own address are answered (no DNS rebinding); a POST also needs the token
-printed into the page, a JSON body and, when the browser sends one, a same-origin Origin. So another web page open
-in the same browser can neither read a project nor submit feedback in the reviewer's name.
+Only requests whose Host is this server's own address are answered (no DNS rebinding); a POST also needs this run's token,
+a JSON body and, when the browser sends one, a same-origin Origin. So another web page open in the same browser can neither
+read a project nor submit feedback in the reviewer's name.
+
+The token goes to one browser only, and it is the only door. The desk starts with a one-time launch key, printed in the
+address it prints (http://127.0.0.1:N/?k=…) and nowhere in the project: not in .desk.json, not in a log bin/vh gate keeps
+there (gate hands its desk the key on stdin and prints it in its own message). The first page that GETs it gets the token
+and keeps it in its origin's storage (one port's; a cookie would reach every port of 127.0.0.1); the key is spent. A page
+without it gets no token: it reads, but cannot submit, talk to an agent or answer one. So a command an agent runs in the
+project, which can read every file there and reach 127.0.0.1, finds no credential there. The key is outside the project:
+in gate's output, so in the terminal agent's own transcript or task output under HOME, which an agent's command may read.
+Who opens the link before the person holds the token; when the person's page then brings the spent key with no token of
+this run, the desk locks (lockdown): every token given out is void, and nothing is accepted until bin/vh desk link starts it
+again with a new key. Which process sent a request on the loopback the server cannot tell (a peer-port lookup is beaten by
+a double fork or a half-closed socket), so it does not try. What stays outside: a process of the same user that reads the
+terminal's output, an agent's transcript, or the browser's profile, or that can synthesize input.
 """
 import datetime, hashlib, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, tempfile, threading, time
 from pathlib import Path
@@ -38,10 +59,12 @@ sys.path.insert(0, str(HERE.parent))
 import feedback as F   # noqa: E402
 import reader          # noqa: E402
 import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
+import agents as A     # noqa: E402  (the agents the column talks to: one adapter process a kind, a session a conversation)
 
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
-          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8"}
+          "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8",
+          "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8"}
 DEFAULT_PORTS = range(8780, 8800)
 LISTING_TTL = 4.0   # seconds a project listing is reused: the home page asks every few seconds, a walk of the roots is not free
 FRESH_GAP = 10.0    # seconds between two walks of the roots that unknown keys ask for
@@ -531,12 +554,32 @@ class Desk(http.server.ThreadingHTTPServer):
         self._fresh_at = 0.0   # the last walk an unknown key asked for
         self.roots = [str(r) for r in roots]
         self.token = secrets.token_urlsafe(24)
+        self.key = secrets.token_urlsafe(18)   # the launch key: one use, then the page holds the token (a key given on stdin replaces it)
+        self.key_spent = False
+        self.locked = None     # why this desk accepts nothing any more ("key_reused"): until a new key, bin/vh desk link
+        self.link_cmd = ""     # the line that stops this desk and starts it again with a new link (serve sets it)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
         self._lock = threading.Lock()
         self._listing = (0.0, None)
         self._keys = {self.own_key: self.project} if self.project else {}
+        self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
+
+    def lockdown(self, why):
+        """Its launch key came back to a page that holds no token of this run: whoever opened it first (another browser
+        of the person's, or another program) may hold the token. Every token given out is void from now on, what waits is
+        refused, turns stop, and nothing is accepted until a new key (bin/vh desk link). False when it was locked already."""
+        with self._lock:
+            if self.locked:
+                return False
+            self.locked = why
+            self.token = secrets.token_urlsafe(24)   # held by nobody
+        self.agents.lockdown()
+        sys.stderr.write(f"desk: its link was opened a second time, by a page without its token: every token is void and nothing is "
+                         f"accepted any more; {self.link_cmd or 'bin/vh desk link'} gives a new link\n")
+        sys.stderr.flush()
+        return True
 
     def server_bind(self):
         # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
@@ -638,13 +681,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         srv = self.server
         if path in ("/", "/index.html"):
-            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token) \
+            k = (parse_qs(urlsplit(self.path).query).get("k") or [""])[0]
+            give = False
+            with srv._lock:   # the launch key opens one page, once (a GET: a HEAD or any other address never spends it)
+                if k and self.command == "GET" and not srv.key_spent and not srv.locked \
+                        and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii")):
+                    srv.key_spent, give = True, True
+            page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", srv.token if give else "") \
                 .replace("{{HOME}}", srv.own_key or "")
             return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
         if path.startswith("/static/") and path[8:] in STATIC:
             return self._send(200, (HERE / "static" / path[8:]).read_bytes(), STATIC[path[8:]])
         if path == "/api/projects":
             return self._projects()
+        if path == "/api/hello":   # does the page hold this run's token? (one from an earlier run does not count); if not, why, and the way out
+            given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
+            ok = not srv.locked and secrets.compare_digest(given, srv.token.encode("ascii"))
+            return self._json({"ok": True} if ok else {"ok": False, "link": srv.link_cmd, **({"locked": srv.locked} if srv.locked else {})},
+                              200 if ok else 403)
         m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
         if m:
             key = unquote(m.group(1))
@@ -661,6 +715,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]
             return self._gate(project, key, m.group(3), lang if lang in ("zh", "en") else None)
+        m = re.fullmatch(r"/api/p/([^/]+)/agents|/api/p/([^/]+)/agent/([a-f0-9]{32})/events", path)
+        if m:
+            key = unquote(m.group(1) or m.group(2))
+            project = srv.project_of(key)
+            if project is None:
+                return self._error(404, f"no project {key!r} under this desk's roots")
+            if m.group(1):
+                return self._agents(project, key)
+            return self._events(project, key, m.group(3))
         if path.startswith("/f/"):
             key, _, rel = path[3:].partition("/")
             project = srv.project_of(unquote(key))
@@ -679,6 +742,73 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if srv.project and path.startswith("/p/"):
             return self._file(srv.project, path[3:])
         self._error(404, "not found")
+
+    # ---------- the agent column ----------
+    def _agents(self, project, key):
+        """The agents this machine has (installed or how to install), the project's conversations, and who holds it."""
+        mgr = self.server.agents
+        try:
+            sessions = mgr.listing(project)
+        except OSError as e:
+            sessions, err = [], str(e)
+        else:
+            err = None
+        lock = A.agentlock.read(project)
+        auth = mgr.auth
+        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"]))) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
+                           "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
+                           **({"error": err} if err else {})})
+
+    def _events(self, project, key, sid):
+        """One conversation's events as Server-Sent Events: those after Last-Event-ID (or ?after=), then each as it comes;
+        a comment every 5 s keeps the line (and the desk's --idle) alive, and finds a page that went away. Needs the page's token (?token=): the events are
+        the conversation, file contents and commands included."""
+        q = parse_qs(urlsplit(self.path).query)
+        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        if not secrets.compare_digest(given, self.server.token.encode("ascii")):
+            return self._error(403, "missing or wrong desk token: reload the page")
+        s = self.server.agents.get(sid, project, key)
+        if s is None:
+            return self._error(404, "no such conversation in this project")
+        try:
+            after = int(self.headers.get("Last-Event-ID") or (q.get("after") or ["0"])[0])
+        except ValueError:
+            after = 0
+        self.send_response(200)
+        for k, v in (("Content-Type", "text/event-stream; charset=utf-8"), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
+                     ("X-Accel-Buffering", "no"), ("Referrer-Policy", "no-referrer")):
+            self.send_header(k, v)
+        self.end_headers()
+        self.close_connection = True
+        mgr = self.server.agents
+        tok = self.server.token   # a lockdown voids it: the stream ends
+        with s.cond:
+            s.subscribers += 1
+        try:
+            self.wfile.write(("retry: 2000\nevent: hello\ndata: " + json.dumps(dict(s.summary(), config=A.clean(s.config, s.root),
+                                                                                   caps=mgr.caps.get(s.kind) or {}), ensure_ascii=False) + "\n\n").encode("utf-8"))
+            self.wfile.flush()
+            while not mgr.closed and self.server.token == tok:
+                evs = s.after(after)
+                if evs:
+                    out = "".join(f"id: {e['seq']}\ndata: {json.dumps(e, ensure_ascii=False)}\n\n" for e in evs)
+                    after = evs[-1]["seq"]
+                    self.wfile.write(out.encode("utf-8"))
+                    self.wfile.flush()
+                    self.server.last = time.time()
+                    continue
+                with s.cond:
+                    if s.seq <= after and not mgr.closed:
+                        s.cond.wait(5)
+                if s.seq <= after:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    self.server.last = time.time()
+        except (OSError, ValueError):
+            pass   # the page went away
+        finally:
+            with s.cond:
+                s.subscribers -= 1
 
     def _projects(self):
         try:
@@ -811,17 +941,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         m = re.fullmatch(r"/api/p/([^/]+)/feedback", path)
-        if m:
-            project = self.server.project_of(unquote(m.group(1)))
+        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
+        if m or a:
+            project = self.server.project_of(unquote((m or a).group(1)))
             if project is None:
                 return self._error(404, "no such project")
         elif path == "/api/feedback" and self.server.project:
             project = self.server.project
+        elif path == "/api/key-reused":
+            return self._key_reused()
         else:
             return self._error(404, "not found")
+        if a:
+            return self._agent_post(project, unquote(a.group(1)), a.group(3), a.group(4) or "new")
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             return self._error(403, "cross-origin request refused")
+        if self.server.locked:
+            return self._error(403, f"this desk accepts nothing any more (its link was opened twice): {self.server.link_cmd} gives a new link")
         given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")   # bytes: a non-ASCII str would raise
         if not secrets.compare_digest(given, self.server.token.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
@@ -853,6 +990,128 @@ class Handler(http.server.BaseHTTPRequestHandler):
         sys.stderr.write(f"desk: feedback saved → {saved} (also in REVIEW.md)\n")
         sys.stderr.flush()
         self._json(dict(F.listening(project), saved=os.path.relpath(saved, project)))
+
+    def _key_reused(self):
+        """POST /api/key-reused {k}: a page came with the launch key and got no token (the key was spent), and the token
+        it may hold is not this run's. The key is this desk's: someone else opened the link first, or the person opened it
+        in another browser. The desk locks (lockdown). A page that holds the token changes nothing (the person clicked the
+        link again); a wrong key changes nothing either."""
+        raw = self._body(4096, token=False)
+        if raw is None:
+            return
+        srv = self.server
+        given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
+        if not srv.locked and secrets.compare_digest(given, srv.token.encode("ascii")):
+            return self._json({"ok": True})
+        k = raw.get("k") if isinstance(raw.get("k"), str) else ""
+        if not (k and srv.key_spent and secrets.compare_digest(k.encode("utf-8", "replace"), srv.key.encode("ascii"))):
+            return self._error(403, "not this desk's link")
+        srv.lockdown("key_reused")
+        return self._json({"ok": False, "locked": srv.locked, "link": srv.link_cmd}, 403)
+
+    def _body(self, max_bytes=None, token=True):
+        """The checks every POST passes (same origin, this run's token, JSON, a whole body) → the parsed JSON, or None
+        after the refusal is sent. token False: all but the token (a page that came with the spent key has none)."""
+        origin = self.headers.get("Origin")
+        if origin and urlsplit(origin).netloc not in self.server.hosts:
+            self._error(403, "cross-origin request refused")
+            return None
+        if token and self.server.locked:
+            self._error(403, f"this desk accepts nothing any more (its link was opened twice): {self.server.link_cmd} gives a new link")
+            return None
+        given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
+        if token and not secrets.compare_digest(given, self.server.token.encode("ascii")):
+            self._error(403, "missing or wrong desk token: reload the page")
+            return None
+        if not self.headers.get("Content-Type", "").startswith("application/json"):
+            self._error(415, "send JSON")
+            return None
+        limit = max_bytes or F.MAX_BODY
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        if n <= 0 or n > limit:
+            self._error(413 if n > 0 else 400, f"empty, or larger than {limit // 1024} KiB")
+            return None
+        try:
+            body = self.rfile.read(n)
+        except OSError:
+            self.close_connection = True
+            self._error(408, "the request body did not arrive")
+            return None
+        if len(body) < n:
+            self.close_connection = True
+            self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says")
+            return None
+        try:
+            raw = json.loads(body.decode("utf-8"))
+        except (ValueError, RecursionError) as e:
+            self._error(400, str(e) or type(e).__name__)
+            return None
+        if not isinstance(raw, dict):
+            self._error(400, "send a JSON object")
+            return None
+        return raw
+
+    def _agent_post(self, project, key, sid, what):
+        """The person's actions in the agent column. Each carries the folder's identity (pid), like a submission: a page
+        opened on another folder under this address is refused. Only the text in "text" is ever sent as the person's
+        words; an answer must be one of the options the agent offered for a request that still waits."""
+        raw = self._body(64 * 1024)
+        if raw is None:
+            return
+        if raw.get("pid") != pid_of(project):
+            return self._error(409, "this address names another project now than the page was opened on: reload it")
+        mgr = self.server.agents
+        try:
+            if what == "new":
+                kind = raw.get("kind")
+                if kind not in A.ADAPTERS:
+                    return self._error(400, "unknown agent")
+                s = mgr.open(project, key, kind, personal=raw.get("personal", True) is not False)
+                try:
+                    s.attach()   # the agent's mode, model and effort are on the page before the first word
+                except A.Unavailable as e:
+                    return self._json(dict(s.summary(), error=e.code, detail=str(e)[:500]), 503 if e.code != "not_installed" else 424)
+                return self._json(dict(s.summary(), config=A.clean(s.config, s.root)))
+            s = mgr.get(sid, project, key)
+            if s is None:
+                return self._error(404, "no such conversation in this project")
+            if what == "attach":
+                s.attach()
+                return self._json(dict(s.summary(), config=A.clean(s.config, s.root)))
+            if what == "say":
+                text = raw.get("text")
+                if not isinstance(text, str) or not text.strip():
+                    return self._error(400, "say something")
+                if len(text) > A.MAX_PROMPT:
+                    return self._error(413, f"at most {A.MAX_PROMPT} characters at once")
+                text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text).strip()
+                scope = raw.get("scope") if isinstance(raw.get("scope"), dict) else None
+                scope = {k: scope.get(k) for k in ("kind", "id", "t", "t1", "module", "label") if scope.get(k) is not None} if scope else None
+                if scope and isinstance(scope.get("label"), str):
+                    scope["label"] = scope["label"][:80]   # shown in the page with the message, never sent to the agent
+                s.say(text, scope, despite=raw.get("despite") is True)
+                return self._json({"ok": True})
+            if what == "answer":
+                s.answer(str(raw.get("request") or ""), str(raw.get("option") or ""))
+                return self._json({"ok": True})
+            if what == "stop":
+                return self._json({"ok": True, "stopped": s.stop()})
+            if what == "mode":
+                s.set_mode(str(raw.get("mode") or ""))
+                return self._json({"ok": True})
+            if what == "config":
+                s.set_config(str(raw.get("id") or ""), raw.get("value"))
+                return self._json({"ok": True})
+        except A.Busy as e:
+            return self._json({"error": "busy", "who": e.who}, 409)
+        except A.Unavailable as e:
+            return self._json({"error": e.code, "detail": str(e)[:500]}, 424 if e.code == "not_installed" else 503)
+        except ValueError as e:
+            return self._error(400, str(e))
+        return self._error(404, "not found")
 
 
 # ---------- start: once per project, or one console ----------
@@ -889,6 +1148,13 @@ def running(project=None, roots=None):
     """The URL of a desk already serving this project (out/review/.desk.json names this very folder, its process is
     alive and its port answers), else None. A copied project carries the original's file; the path tells them apart.
     project None: a console already running with the same roots."""
+    info = running_info(project, roots)
+    return info.get("url") if info else None
+
+
+def running_info(project=None, roots=None):
+    """What a running desk of this project (or console of these roots) wrote about itself: url, port, pid, how it was
+    started (only, roots, idle, background); None when none runs."""
     info_p = _info_path(project, roots or ())
     if info_p is None:
         return None
@@ -905,18 +1171,46 @@ def running(project=None, roots=None):
             pass
     except (OSError, ValueError, KeyError, TypeError):   # PermissionError too: a process this user cannot signal is not its desk
         return None
-    return info.get("url")
+    return info
 
 
-def serve(project=None, port=None, idle=None, roots=(), only=False):
+def link_cmd(project=None, roots=()):
+    """The line that gives this desk a new link (bin/vh desk link): the project as a path, ~ for the home folder."""
+    import shlex
+    home = str(Path.home())
+
+    def short(x):
+        x = os.path.realpath(str(x))
+        return "~" + x[len(home):] if home and len(home) > 1 and (x == home or x.startswith(home + os.sep)) and " " not in x else shlex.quote(x)
+    return " ".join(["bin/vh desk link"] + ([short(project)] if project else []) + [w for r in roots for w in ("--root", short(r))])
+
+
+def open_in_browser(url):
+    """Open the console address in the person's default browser (a start from a terminal), and say whether it did. The
+    address may pass through a child process's arguments for a moment (xdg-open, open), which ps can see."""
+    try:
+        import webbrowser
+        ok = webbrowser.open(url, new=2)
+    except Exception:
+        ok = False
+    print("desk: opened it in your browser" if ok else "desk: no browser opened: open the address above", flush=True)
+    return ok
+
+
+def serve(project=None, port=None, idle=None, roots=(), only=False, key=None, open_browser=False):
     """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. project None: the console.
     port None: the first free of 8780–8799; 0: any free port. only: this project and nothing else under the roots (the desk
-    bin/vh gate starts). → exit code."""
+    bin/vh gate starts). key: the launch key, given by the one who prints it (bin/vh gate, on stdin); then the address this
+    prints has none. open_browser: open the address in the person's browser once it serves (a start from a terminal).
+    → exit code."""
     project = Path(project).resolve() if project else None
     url = running(project, roots)
     if url:
         what = project.name if project else "the console"
-        print(f"desk: already serving {what} at {url} (stop that process to start another)", flush=True)
+        print(f"desk: already serving {what} at {url} (open the address it printed when it started; {link_cmd(project, roots)} "
+              "gives a new one)", flush=True)
+        if open_browser:   # this browser may already work in it; if not, the page says what to do
+            open_in_browser(url)
         return 0
     srv, last = None, None
     for p in ([port] if port is not None else DEFAULT_PORTS):
@@ -929,11 +1223,12 @@ def serve(project=None, port=None, idle=None, roots=(), only=False):
         print(f"desk: no free port ({last}); pick one with --port N", file=sys.stderr)
         return 2
     info_p = _info_path(project, roots)
-    info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds")}
+    # how it was started, so that bin/vh desk link can start it again alike: never the key or the token
+    info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds"),
+            "roots": [os.path.realpath(r) for r in roots], "only": bool(only and project), "idle": idle, "background": bool(key)}
     if project:
         info["project"] = os.path.realpath(str(project))
-    else:
-        info["roots"] = [os.path.realpath(r) for r in roots]
+    srv.link_cmd = link_cmd(project, roots)
     try:   # without it this desk still serves; a second start just cannot find it
         if info_p is None:
             raise OSError("no folder of this user's own in the temp folder")
@@ -958,13 +1253,19 @@ def serve(project=None, port=None, idle=None, roots=(), only=False):
                     return
         threading.Thread(target=watch, daemon=True).start()
     what = (f"{project.name}" + (" only" if only else "")) if project else "console (every project)"
-    print(f"desk: {srv.url}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    if key:
+        srv.key = key
+    shown = srv.url if key else f"{srv.url}?k={srv.key}"   # the one place the key is written, when nobody else prints it
+    print(f"desk: {shown}  ·  {what}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    if open_browser and not key:   # a start from a terminal: the person's browser opens the console address, and nobody need copy it
+        threading.Thread(target=open_in_browser, args=(f"{srv.url}?k={srv.key}",), daemon=True).start()
     code = 0
     try:
         srv.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:
         code = 130
     finally:
+        srv.agents.shutdown()   # waiting requests cancelled, every adapter stopped (TERM to its group if it lingers)
         srv.server_close()
         try:
             if info_p is not None and json.loads(info_p.read_text()).get("pid") == os.getpid():

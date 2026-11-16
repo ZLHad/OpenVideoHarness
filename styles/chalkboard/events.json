@@ -1,0 +1,15 @@
+[
+  {"t":0.1,"sfx":"sfx/eraser_sweep.wav","gain_db":-5,"pan":-0.2,"role":"hero"},
+  {"t":0.92,"sfx":"sfx/chalk_M_a.wav","gain_db":-8,"pan":-0.46,"role":"detail"},
+  {"t":1.22,"sfx":"sfx/chalk_M_b.wav","gain_db":-8,"pan":-0.21,"role":"detail"},
+  {"t":1.62,"sfx":"sfx/chalk_S_a.wav","gain_db":-10,"pan":-0.48,"role":"detail"},
+  {"t":1.8,"sfx":"sfx/chalk_S_b.wav","gain_db":-10,"pan":0.1,"role":"detail"},
+  {"t":2,"sfx":"sfx/chalk_M_a.wav","gain_db":-7,"pan":-0.22,"role":"detail"},
+  {"t":2.45,"sfx":"sfx/eraser_scrub.wav","gain_db":-5,"pan":-0.22,"role":"hero"},
+  {"t":3.12,"sfx":"sfx/chalk_L.wav","gain_db":-7,"pan":-0.2,"role":"detail"},
+  {"t":3.7,"sfx":"sfx/chalk_taps.wav","gain_db":-8,"pan":-0.2,"role":"detail"},
+  {"t":4.08,"sfx":"sfx/chalk_taps_b.wav","gain_db":-10,"pan":-0.2,"role":"detail"},
+  {"t":4.6,"sfx":"sfx/chalk_write_title.wav","gain_db":-8,"pan":0.28,"role":"detail"},
+  {"t":6.09,"sfx":"sfx/chalk_write_caption.wav","gain_db":-6,"pan":0,"role":"detail"},
+  {"t":9.05,"sfx":"whoosh","gain_db":-9,"pan":0,"dur":0.9,"center":380,"dir":"down","tone":0.2}
+]

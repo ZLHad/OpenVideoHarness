@@ -383,7 +383,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
   case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
-    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|desk:agents|desk:link|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
   esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
@@ -1397,7 +1397,7 @@ esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words) ;;   # (new: once the project is made; words only reads)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
-  desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
+  desk) case "${2:-}" in data|agents) ;; *) act_start "$@" || true ;; esac ;;   # agents: no project (it installs into a cache)
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   sfx) [ "${2:-}" = search ] || act_start "$@" || true ;;   # search only reads
   bgm|sound) case "${2:-}" in pick|add) act_start "$@" || true ;; esac ;;   # search and list only read

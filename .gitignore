@@ -43,6 +43,9 @@ showcase/04-intro-film/opening/node_modules
 # and each leaves git (git rm --cached) the first time it is rendered under spec 2.
 styles/*/media/swatch.mp4
 styles/*/media/swatch-portrait.mp4
+# A style's own synthesised foley (styles/_swatch/custom_sfx.py, seeded, byte-identical): render.sh builds it before the
+# mix. The 14 WAVs committed before 2026-11-16 stay tracked until their styles are rendered again.
+styles/*/sfx/*.wav
 showcase/*/media/final.mp4
 showcase/04-intro-film/v3/final.mp4
 styles/gallery.mp4
