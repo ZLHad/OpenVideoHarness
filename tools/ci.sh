@@ -440,10 +440,10 @@ def repo(name, tools):
 c = repo("notes", ["changes.py"])
 put(c, "CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
 put(c, "CITATION.cff", 'cff-version: 1.2.0\nversion: "0.1.0"\ndate-released: "2026-01-01"\n')
-put(c, "changes/README.md", "what the folder is for\n")
+put(c, "changes/README.md", "what the folder is for\n"); put(c, ".gitignore", ".DS_Store\n")
 put(c, "changes/a-first.md", "**Older note**\n- Why: landed first\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "a", cwd=c, when="2026-02-01T00:00:00")
 put(c, "changes/b-second.md", "**Newer note**\n- Why: landed second\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "b", cwd=c, when="2026-02-01T00:00:00")   # the same second
-put(c, "changes/aaa-working.md", "**Not committed yet**\n- still being written\n")
+put(c, "changes/aaa-working.md", "**Not committed yet**\n- still being written\n"); put(c, "changes/.DS_Store", "Finder's\n")   # (ignored: no note)
 rc, out, err = run(c, "changes.py", "check"); p = [] if rc == 0 and "3 note(s)" in out and "2 entry(ies)" in out else [f"check: exit {rc}: {out}{err}"]
 rc, out, err = run(c, "changes.py", "show", "--titles")
 want = ["- Not committed yet  (changes/aaa-working.md)", "- Newer note  (changes/b-second.md)", "- Older note  (changes/a-first.md)",
@@ -451,7 +451,7 @@ want = ["- Not committed yet  (changes/aaa-working.md)", "- Newer note  (changes
 if rc or out.splitlines() != want: p.append(f"show --titles: exit {rc}: {out!r}")
 rc, out, err = run(c, "changes.py", "show")
 if rc or not out.startswith("**Not committed yet**\n- still being written\n\n**Newer note**") or "**Old two**\n- two" not in out: p.append(f"show: {out[:200]!r}")
-report(p, "changes.py: check counts the notes and the Unreleased entries; show lists them newest first (a note not committed, then by the commit that added it, two in one second the later first, then ## Unreleased)")
+report(p, "changes.py: check counts the notes (a file git ignores is none) and the Unreleased entries; show lists them newest first (a note not committed, then by the commit that added it, two in one second the later first, then ## Unreleased)")
 put(c, "changes/Bad_Name.md", "**x**\n- y\n"); put(c, "changes/no-title.md", "just text\n"); put(c, "changes/two.md", "**One**\n- a\n\n**Two**\n- b\n"); put(c, "changes/bare.md", "**Only a title**\n")
 rc, out, err = run(c, "changes.py", "check")
 rc2, out2, err2 = run(c, "changes.py", "release", "v0.2.0")
@@ -460,6 +460,10 @@ if rc2 != 1 or "malformed" not in err2 or read(c, "CHANGELOG.md").count("## Unre
 report(p, "changes.py: check names a bad file name, a missing title, two entries in one note and a title alone; release refuses while one is there")
 for f in ("Bad_Name", "no-title", "two", "bare"): os.remove(os.path.join(c, "changes", f + ".md"))
 before = read(c, "CHANGELOG.md")
+rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01")
+report([] if rc == 1 and "not committed" in err and "changes/aaa-working.md" in err and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/aaa-working.md"))
+       else [f"exit {rc}: {err[-200:]}"], "changes.py release: a note not committed is refused (release deletes what it takes), nothing written")
+git("add", "-A", cwd=c); git("commit", "-q", "-m", "c", cwd=c)
 rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01", "--dry-run")
 p = [] if rc == 0 and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/a-first.md")) and "## v0.2.0 — 2026-04-01" in out else [f"dry run: exit {rc}: {out}{err}"]
 rc, out, err = run(c, "changes.py", "release", "v0.2.0", "--date", "2026-04-01")
@@ -468,16 +472,31 @@ want = ("# Changelog\n\nWhat changed since the last release is in `changes/`, on
         "## v0.2.0 — 2026-04-01\n\n**Not committed yet**\n- still being written\n\n**Newer note**\n- Why: landed second\n\n**Older note**\n- Why: landed first\n\n"
         "**Old one**\n- Why: before notes\n\n**Old two**\n- two\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n")
 if rc or log != want: p.append(f"release: exit {rc}: {log!r}")
-if sorted(os.listdir(os.path.join(c, "changes"))) != ["README.md"]: p.append(f"left in changes/: {os.listdir(os.path.join(c, 'changes'))}")
+if sorted(os.listdir(os.path.join(c, "changes"))) != [".DS_Store", "README.md"]: p.append(f"left in changes/: {os.listdir(os.path.join(c, 'changes'))}")
 if 'version: "0.2.0"' not in cff or 'date-released: "2026-04-01"' not in cff: p.append(f"CITATION.cff: {cff!r}")
-report(p, "changes.py release: --dry-run writes nothing; then CHANGELOG.md has the version with the notes newest first and the Unreleased entries after them, a line saying where changes go now, no ## Unreleased; the notes deleted, README.md kept; CITATION.cff has the version and day")
+git("add", "-A", cwd=c); git("commit", "-q", "-m", "release v0.2.0", cwd=c)
+report(p, "changes.py release: --dry-run writes nothing; then CHANGELOG.md has the version with the notes newest first and the Unreleased entries after them, a line saying where changes go now, no ## Unreleased; the notes deleted, README.md and the ignored .DS_Store kept; CITATION.cff has the version and day")
 rc, out, err = run(c, "changes.py", "release", "v0.2.0"); rc2, out2, err2 = run(c, "changes.py", "release", "v0.3.0")
 rc3, out3, err3 = run(c, "changes.py", "show", "v0.2.0"); rc4, out4, err4 = run(c, "changes.py", "show")
-put(c, "changes/next.md", "**Next**\n- after\n"); rc5, out5, err5 = run(c, "changes.py", "release", "v0.3.0", "--date", "2026-05-01")
+put(c, "changes/next.md", "**Next**\n- after\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "next", cwd=c)
+rc5, out5, err5 = run(c, "changes.py", "release", "v0.3.0", "--date", "2026-05-01")
 p = [] if (rc, rc2, rc3, rc4, rc5) == (1, 1, 0, 0, 0) and "already" in err and "nothing to release" in err2 else [f"exits {rc}, {rc2}, {rc3}, {rc4}, {rc5}: {err}{err2}"]
 if not out3.startswith("**Not committed yet**") or "## " in out3 or "nothing has changed since the last release (v0.2.0)" not in out4: p.append(f"show: {out3[:80]!r} | {out4!r}")
 if read(c, "CHANGELOG.md").count("What changed since the last release") != 1 or "## v0.3.0 — 2026-05-01\n\n**Next**\n- after\n\n## v0.2.0" not in read(c, "CHANGELOG.md"): p.append("a second release: " + read(c, "CHANGELOG.md")[:300])
 report(p, "changes.py: a version there already and nothing to release are exit 1; show vX.Y.Z prints that section alone; a second release goes on top and says where changes go once")
+git("add", "-A", cwd=c); git("commit", "-q", "-m", "release v0.3.0", cwd=c)
+put(c, "CITATION.cff", 'cff-version: 1.2.0\nversion: "0.3.0"\n'); put(c, "changes/later.md", "**Later**\n- l\n"); git("add", "-A", cwd=c); git("commit", "-q", "-m", "later", cwd=c)
+before = read(c, "CHANGELOG.md"); rc, out, err = run(c, "changes.py", "release", "v0.4.0")
+report([] if rc == 1 and "no date-released: line" in err and read(c, "CHANGELOG.md") == before and os.path.exists(os.path.join(c, "changes/later.md"))
+       else [f"exit {rc}: {err[-200:]}"], "changes.py release: a CITATION.cff without its date-released line is refused, nothing written (it never says it wrote what it could not)")
+o = repo("order", ["changes.py"])
+put(o, "CHANGELOG.md", "# Changelog\n\n## Unreleased\n\n## v0.1.0 — 2026-01-01\n\n**First**\n- first\n"); git("add", "-A", cwd=o); git("commit", "-q", "-m", "start", cwd=o)
+put(o, "changes/n1.md", "**Note one**\n- 1\n"); git("add", "-A", cwd=o); git("commit", "-q", "-m", "n1", cwd=o)
+put(o, "CHANGELOG.md", read(o, "CHANGELOG.md").replace("## Unreleased\n\n", "## Unreleased\n\n**Landed the old way**\n- later than note one\n\n")); git("add", "-A", cwd=o); git("commit", "-q", "-m", "old", cwd=o)
+put(o, "changes/n3.md", "**Note three**\n- 3\n"); git("add", "-A", cwd=o); git("commit", "-q", "-m", "n3", cwd=o)
+rc, out, err = run(o, "changes.py", "show", "--titles")
+report([] if rc == 0 and out.splitlines() == ["- Note three  (changes/n3.md)", "- Landed the old way  (CHANGELOG.md)", "- Note one  (changes/n1.md)"] else [f"exit {rc}: {out!r}"],
+       "changes.py: an Unreleased entry goes by the commit that wrote its title (git blame), so one that landed between two notes is listed between them")
 
 # ---- tools/ci_select.py ----
 s = repo("select", ["ci_select.py"])
@@ -543,6 +562,49 @@ rc, out, err = run(s, "ci_select.py", base, "--why"); rc2, out2, err2 = run(s, "
 p = [] if rc == 0 and "src/other.py" in err and "every group: no line of tools/ci-paths.txt matches it" in err and "src/x.py" in err and "c_checks" in err and "so: every group" in err else [f"--why: {err}"]
 if rc2 != 2 or "no commit no-such-ref" not in err2: p.append(f"a base that is not there: exit {rc2}: {err2}")
 report(p, "ci_select.py: --why says what each path runs and why; a base that is not there is exit 2")
+# --check follows a narrow line's files to what reaches them: a module a tool imports that a bin/vh command runs, a
+# folder that tool names, a module the top of bin/vh reaches (every command), a tool only tools/ci.sh runs
+d = repo("reach", ["ci_select.py"])
+put(d, "tools/ci.sh", "".join(x[1:] + "\n" for x in """
+|#!/usr/bin/env bash
+|vh() { bash bin/vh "$@"; }
+|a_checks() {
+|  vh other
+|}
+|b_checks() {
+|  vh use x
+|}
+|c_checks() {
+|  python3 tools/solo.py
+|}
+|usage="usage"
+""".splitlines() if x))
+put(d, "bin/vh", "".join(x[1:] + "\n" for x in """
+|#!/usr/bin/env bash
+|set -euo pipefail
+|cmd_use() { python3 "$ROOT/tools/user.py" "$@"; }
+|helper() { python3 "$ROOT/tools/hub.py"; }
+|cmd_other() { echo other; }
+|helper
+|case "${1:-help}" in
+|  use) shift; cmd_use "$@" ;;
+|  other) shift; cmd_other "$@" ;;
+|esac
+""".splitlines() if x))
+put(d, "tools/commands.json", '{"commands": [{"name": "use"}, {"name": "other"}]}\n')
+put(d, "tools/ci-shards.txt", "a_checks 1\nb_checks 1\nc_checks 1\n")
+put(d, "tools/lib.py", "X = 1\n"); put(d, "tools/user.py", "import lib\nfrom pathlib import Path\nprint(Path('.') / 'docs', lib.X)\n")
+put(d, "tools/hubbed.py", "Y = 2\n"); put(d, "tools/hub.py", "import hubbed\n"); put(d, "tools/solo.py", "print(1)\n"); put(d, "docs/a.md", "a\n")
+put(d, "tools/ci-paths.txt", "always a_checks\ntools/lib.py\ndocs/**\ntools/hubbed.py c_checks\ntools/solo.py c_checks\n")
+git("add", "-A", cwd=d); git("commit", "-q", "-m", "reach", cwd=d)
+rc, out, err = run(d, "ci_select.py", "--check"); rc2, out2, err2 = run(d, "ci_select.py", "--suggest")
+p = [] if rc == 1 else [f"--check: exit {rc}"]
+p += [f"--check said nothing of: {w}" for w in ("tools/lib.py also reaches b_checks (b_checks: tools/lib.py ← tools/user.py ← bin/vh use)",
+      "docs/** also reaches b_checks", "tools/hubbed.py reaches every group (tools/hubbed.py ← tools/hub.py ← bin/vh, outside any one command)") if w not in out]
+if "tools/solo.py" in out: p.append(f"--check flagged tools/solo.py, which only c_checks runs: {out}")
+if rc2 or [x.split() for x in out2.splitlines()] != [["tools/lib.py", "b_checks", "#", "was:"], ["docs/**", "b_checks", "#", "was:"], ["tools/hubbed.py", "ALL"], ["tools/solo.py", "c_checks"]]:
+    p.append(f"--suggest: exit {rc2}: {out2!r}")
+report(p, "ci_select.py --check: a narrow line misses the group whose bin/vh command runs a tool that imports its module, or names its folder; a module the top of bin/vh reaches reaches every group; --suggest says what each line must name")
 print("end")
 PY
   python3 "$t/test.py" "$t" "$ROOT" > "$t/out" 2>&1; r=$?
@@ -9158,7 +9220,9 @@ PY
   # the reader: the human lines, --json, and --follow as the log grows; bin/vh new logs into the project it made
   vh review "$p" 1 >/dev/null 2>&1; vh review "$p" 9 >/dev/null 2>&1
   a=$(vh activity "$p"); b=$(vh activity "$p" --json)
-  # (no fixed sleeps: the follower has printed what the log held, then watches it; the review's end line is waited for)
+  # (it waits for output, not for time, but for one window: the follower prints what the log held and only then reads
+  # the log's size, so a line written between the two is never printed (tools/activity.py's follow). The review starts
+  # 0.2 s after the first lines; a machine that stalls the follower longer than that between the two can still fail it)
   "$VH_BASH" "$ROOT/bin/vh" activity "$p" --follow --json > "$t/follow.out" 2>&1 & pid=$!
   for _ in $(seq 1 300); do [ -s "$t/follow.out" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.1; done; sleep 0.2
   n=$(grep -c '"event": "start"' "$t/follow.out"); vh review "$p" 1 >/dev/null 2>&1
@@ -11841,6 +11905,11 @@ rc, out = land("ready", "14", cwd=c); rc2, out2 = land("ready", "15", cwd=c)
 report([] if (rc, rc2) == (0, 0) and queued(14) == {"auto": True, "subject": "Batch fourteen (#14)", "match": k1, "body": "Fourteenth note\n- x\n\nFourteenth entry\n- y"}
        and queued(15) == {"auto": True, "subject": "Fifteenth (#15)", "match": l1, "body": ""} else [f"exit {rc}, {rc2}, queued {queued(14)}, {queued(15)}"],
        "change notes: a note and a CHANGELOG entry together are a batch (the PR's title, both the body); editing a note already on main, or adding changes/README.md, is no note (the PR's title)")
+branch("pm", sq12); git("mv", "changes/tenth.md", "changes/mine.md", cwd=w); note("说明", "Sixteenth note", "sixteen"); m1 = commit("sixteenth"); push("pm")
+pr(16, "pm", m1, title="Sixteenth")
+rc, out = land("ready", "16", cwd=c)
+report([] if rc == 0 and queued(16) == {"auto": True, "subject": "Sixteenth note (#16)", "match": m1, "body": "- sixteen"} else [f"exit {rc}, queued {queued(16)}: {out[-200:]}"],
+       "change notes: a note moved to another name (git mv) is not the PR's own; a note named in Chinese is read as it is (the squash message from it)")
 
 pr(10, "pe", e1, baseRefName="pb"); pr(11, "pc", c1, state="CLOSED")
 r10, o10 = land("ready", "10", cwd=c); r11, o11 = land("ready", "11", cwd=c)

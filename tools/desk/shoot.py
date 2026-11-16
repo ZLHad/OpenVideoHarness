@@ -18,7 +18,8 @@ machine has (channel "chrome": nothing is downloaded). Every picture is <n>-<nam
 Nothing is sent: every POST to the desk's feedback is blocked, so a summary opened by mistake cannot submit. Buttons
 are found by their words (both languages, a few names each, in LABELS) or their role, never by where they sit, so a
 page laid out anew still works; a step whose button is not there is written in index.json as skipped, with why, and
-the rest go on. Exit: 0 the pictures taken (some may be skipped) · 1 the desk did not answer · 2 usage.
+the rest go on. Exit: 0 the pictures taken (some may be skipped) · 1 the desk did not answer · 2 usage, or no
+Playwright or no Chrome (said in a line).
 """
 import argparse, json, re, sys, time, urllib.request
 from pathlib import Path
@@ -160,7 +161,13 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     s = Shooter(base, out)
     with sync_playwright() as p:
-        browser = p.chromium.launch(channel="chrome", headless=True)
+        try:
+            browser = p.chromium.launch(channel="chrome", headless=True)
+        except Exception as e:   # Playwright's own error: no Chrome where it looks, or one that would not start
+            first = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+            print(f"shoot: needs Google Chrome installed (Playwright starts the system Chrome, channel \"chrome\"; it downloads "
+                  f"none): {first[:200]}", file=sys.stderr)
+            sys.exit(2)
 
         def context(size, **k):
             w, h, dpr = size

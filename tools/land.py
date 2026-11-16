@@ -125,10 +125,21 @@ def changelog_entries(lines):
 
 def note_entries(base, head):
     """The change notes the PR adds: each file new under changes/ but its README.md, [(title, [line…])] by name. One
-    that it only edits (another PR's) is not its own; one without a bold first line is left out (tools/changes.py check
-    fails it in CI)."""
-    out = []
-    for f in sorted(git("diff", "--name-only", "--diff-filter=A", "--no-renames", base, head, "--", "changes/").split("\n")):
+    that it only edits or moves to another name (another PR's, git mv) is not its own; one without a bold first line is
+    left out (tools/changes.py check fails it in CI)."""
+    out, added = [], []
+    # -z: names as they are; renames found, so a note moved from another name (git mv) is no new one
+    parts = git("diff", "--name-status", "-z", "--find-renames", base, head, "--", "changes/").split("\0")
+    i = 0
+    while i < len(parts) and parts[i]:
+        status = parts[i]
+        if status[0] in "RC":
+            i += 3
+            continue
+        if status == "A":
+            added.append(parts[i + 1])
+        i += 2
+    for f in sorted(added):
         if not NOTE.match(f):
             continue
         lines = git("show", f"{head}:{f}").strip("\n").split("\n")

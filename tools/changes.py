@@ -1,21 +1,25 @@
 """The change notes: one file a change in changes/, gathered into CHANGELOG.md when a version is released (stdlib only).
 
 usage: python3 tools/changes.py show [--titles]     what changed since the last release, newest first: the notes in
-                                                    changes/, then the entries still under CHANGELOG.md's ## Unreleased
+                                                    changes/ and the entries still under CHANGELOG.md's ## Unreleased
        python3 tools/changes.py show vX.Y.Z         that release's section of CHANGELOG.md (for gh release --notes-file)
        python3 tools/changes.py check               each note's name and shape (tools/ci.sh runs it)
        python3 tools/changes.py release vX.Y.Z [--date YYYY-MM-DD] [--dry-run]
                                                     CHANGELOG.md gets "## vX.Y.Z — <date>" with every note and every
-                                                    Unreleased entry; the notes are deleted; CITATION.cff takes the
-                                                    version and the date
+                                                    Unreleased entry, newest first; the notes are deleted;
+                                                    CITATION.cff takes the version and the date. Only notes as they
+                                                    are in a commit: one not committed, or changed since, stops it
 
 A note is changes/<name>.md, <name> in lower-case letters, digits and hyphens. It holds one entry, written as a
 CHANGELOG entry is: the first line the bold title (**…**), then its lines (- Why: …). changes/README.md tells someone
 browsing the folder what it is for, and is not a note. Two PRs that each add a note never touch the same file, so they
 land one after the other without a conflict; tools/land.py takes a PR's squash message from the note it adds.
 CHANGELOG.md's ## Unreleased is the older way, kept while PRs written before changes/ land: show and release take its
-entries too, after the notes (they are older).
-A note's age is the commit that added it (on main: the PR's squash); a note not committed yet is the newest.
+entries too. That lasts until the first release: release takes the ## Unreleased heading away, and a PR that still adds
+an entry under it then conflicts there (it moves its entry into a note).
+The notes are the files of changes/ that git tracks, or would (one it ignores, such as .DS_Store, is none of them).
+Newest first: by the commit that added a note (on main: the PR's squash), or the line of an Unreleased entry's title
+(git blame), in the order of git log; one not committed yet is the newest; a tie keeps the notes first.
 Exit: 0 done · 1 a note is malformed; release found nothing to release, or the version is there already; show found
 no such release · 2 usage.
 """
@@ -33,29 +37,38 @@ POINTER = ("What changed since the last release is in `changes/`, one file a cha
            "`python3 tools/changes.py show` prints it.")
 
 
+def git(*a):
+    p = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True)
+    return p.stdout if p.returncode == 0 else None
+
+
+def known_files():
+    """The files of changes/ git tracks, or would track (not ignored); every file there without git."""
+    out = git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "changes/")
+    if out is None:
+        return sorted(p for p in NOTES.iterdir() if p.is_file()) if NOTES.is_dir() else []
+    return sorted({ROOT / x for x in out.split("\0") if x and (ROOT / x).is_file()})
+
+
 def note_files():
-    return sorted(p for p in NOTES.glob("*.md") if p.name != "README.md") if NOTES.is_dir() else []
+    return [p for p in known_files() if p.parent == NOTES and p.suffix == ".md" and p.name != "README.md"]
+
+
+def log_order():
+    """{commit: how far down git log it is (0 the newest)}."""
+    return {sha: i for i, sha in enumerate((git("log", "--format=%H") or "").split())}
 
 
 def added_at():
     """{path under the repo: how far down git log the commit that last added it is (0 the newest)}; {} without git. The
     log's order, not the commits' times: two squashes in the same second still come child first."""
-    p = subprocess.run(["git", "-C", str(ROOT), "log", "--diff-filter=A", "--no-renames", "--format=%x00",
-                        "--name-only", "--", "changes/"], capture_output=True, text=True)
-    out, n = {}, -1
-    for line in p.stdout.splitlines() if p.returncode == 0 else []:
+    order, out, n = log_order(), {}, None
+    for line in (git("log", "--diff-filter=A", "--no-renames", "--format=%x00%H", "--name-only", "--", "changes/") or "").splitlines():
         if line.startswith("\0"):
-            n += 1
-        elif line.strip() and n >= 0:
+            n = order.get(line[1:].strip())   # its place in the whole log, as an Unreleased entry's commit is counted
+        elif line.strip() and n is not None:
             out.setdefault(line.strip(), n)   # newest first: the first add seen is the latest
     return out
-
-
-def ordered(files):
-    """Newest first: a note not committed yet, then by the commit that added it; the name breaks a tie."""
-    at = added_at()
-    rel = lambda p: p.relative_to(ROOT).as_posix()   # noqa: E731
-    return sorted(files, key=lambda p: (at.get(rel(p), -1), p.name))
 
 
 def parse(text):
@@ -74,26 +87,48 @@ def parse(text):
     return title, "\n".join(lines[1:]).strip("\n"), problems
 
 
-def unreleased():
-    """CHANGELOG.md's ## Unreleased entries, in the file's order, each its text from the title line on."""
+def unreleased(with_lines=False):
+    """CHANGELOG.md's ## Unreleased entries, in the file's order, each its text from the title line on (and, with_lines,
+    the line number of its title)."""
     text = LOG.read_text(encoding="utf-8") if LOG.is_file() else ""
     m = re.search(r"^## Unreleased[ \t]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
     if not m:
         return []
+    first = text[:m.start(1)].count("\n") + 1
     entries, cur = [], None
-    for line in m.group(1).splitlines():
+    for i, line in enumerate(m.group(1).splitlines()):
         if TITLE.match(line):
-            cur = [line]
+            cur = [first + i, line]
             entries.append(cur)
         elif cur is not None:
             cur.append(line)
-    return ["\n".join(e).strip("\n") for e in entries]
+    return [(e[0], "\n".join(e[1:]).strip("\n")) if with_lines else "\n".join(e[1:]).strip("\n") for e in entries]
+
+
+def blamed(lines):
+    """{line of CHANGELOG.md: the commit that wrote it}; a line not committed yet has none."""
+    if not lines:
+        return {}
+    out, cur = {}, None
+    for x in (git("blame", "--porcelain", "-L", f"{min(lines)},{max(lines)}", "--", "CHANGELOG.md") or "").splitlines():
+        m = re.match(r"^([0-9a-f]{40}) \d+ (\d+)", x)
+        if m:
+            cur = (m.group(1), int(m.group(2)))
+            if set(cur[0]) != {"0"}:
+                out[cur[1]] = cur[0]
+    return out
 
 
 def pending():
-    """[(where, text)], newest first: the notes, then the Unreleased entries."""
-    out = [(p.relative_to(ROOT).as_posix(), p.read_text(encoding="utf-8").strip("\n")) for p in ordered(note_files())]
-    return out + [("CHANGELOG.md", e) for e in unreleased()]
+    """[(where, text)], newest first by the commit that added each (a note's file, an Unreleased entry's title line); a
+    note not committed is the newest; a tie keeps the notes first, then each in its own order."""
+    order, at = log_order(), added_at()
+    items = [((at.get(p.relative_to(ROOT).as_posix(), -1), 0, p.name), p.relative_to(ROOT).as_posix(), p.read_text(encoding="utf-8").strip("\n"))
+             for p in note_files()]
+    old = unreleased(with_lines=True)
+    who = blamed([n for n, _ in old])
+    items += [((order.get(who.get(n), -1) if n in who else -1, 1, i), "CHANGELOG.md", e) for i, (n, e) in enumerate(old)]
+    return [(where, text) for _, where, text in sorted(items, key=lambda x: x[0])]
 
 
 def cmd_show(version, titles):
@@ -121,10 +156,10 @@ def cmd_show(version, titles):
 
 def cmd_check():
     problems = []
-    for p in sorted(NOTES.iterdir()) if NOTES.is_dir() else []:
-        if p.name == "README.md":
+    for p in known_files():
+        if p.name == "README.md" and p.parent == NOTES:
             continue
-        if p.is_dir() or not NAME.match(p.name):
+        if p.parent != NOTES or not NAME.match(p.name):
             problems.append(f"changes/{p.name}: a note is changes/<name>.md, the name in lower-case letters, digits and hyphens")
             continue
         problems += [f"changes/{p.name}: {x}" for x in parse(p.read_text(encoding="utf-8"))[2]]
@@ -151,16 +186,22 @@ def cmd_release(version, date, dry):
     if re.search(rf"^## {re.escape(version)}\b", text, re.M):
         print(f"changes: CHANGELOG.md has ## {version} already", file=sys.stderr)
         return 1
-    files = ordered(note_files())
+    files = note_files()
     bad = [f"{p.relative_to(ROOT).as_posix()}: {x}" for p in files for x in parse(p.read_text(encoding="utf-8"))[2]]
     if bad:
         print("changes: not released, a note is malformed:\n  " + "\n  ".join(bad), file=sys.stderr)
         return 1
-    notes, old = [p.read_text(encoding="utf-8").strip("\n") for p in files], unreleased()
-    if not notes and not old:
+    dirty = (git("status", "--porcelain", "--untracked-files=all", "--", "changes/") or "").splitlines()
+    if dirty:
+        print("changes: not released, a note is not committed as it stands (release deletes what it takes, so it takes only "
+              "what a commit keeps):\n  " + "\n  ".join(x[3:] for x in dirty), file=sys.stderr)
+        return 1
+    items = pending()
+    if not items:
         print("changes: nothing to release: no note in changes/ and nothing under ## Unreleased", file=sys.stderr)
         return 1
-    section = f"## {version} — {date}\n\n" + "\n\n".join(notes + old) + "\n"
+    notes, old = [i for i in items if i[0] != "CHANGELOG.md"], [i for i in items if i[0] == "CHANGELOG.md"]
+    section = f"## {version} — {date}\n\n" + "\n\n".join(text for _, text in items) + "\n"
     body = re.sub(r"^## Unreleased[ \t]*\n.*?(?=^## |\Z)", "", text, count=1, flags=re.M | re.S)
     first = re.search(r"^## ", body, re.M)
     head, rest = (body[:first.start()], body[first.start():]) if first else (body, "")
@@ -170,6 +211,10 @@ def cmd_release(version, date, dry):
     new = head + "\n\n" + section + ("\n" + rest if rest else "")
     cff = CITATION.read_text(encoding="utf-8") if CITATION.is_file() else None
     if cff is not None:
+        lack = [k for k in ("version", "date-released") if not re.search(rf"(?m)^{k}: ", cff)]
+        if lack:
+            print(f"changes: not released, CITATION.cff has no {' or '.join(k + ':' for k in lack)} line to set", file=sys.stderr)
+            return 1
         cff = re.sub(r'(?m)^version: .*$', f'version: "{version[1:]}"', cff, count=1)
         cff = re.sub(r'(?m)^date-released: .*$', f'date-released: "{date}"', cff, count=1)
     say = (f"CHANGELOG.md: ## {version} — {date}, {len(notes) + len(old)} entries ({len(notes)} note(s) from changes/, "
