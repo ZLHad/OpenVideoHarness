@@ -3993,7 +3993,7 @@ studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its la
   # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders joins
   # Studio (no desk or window of its own); --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
   # that moved, doctor's line, the picture, install.sh's question and the release's check
-  local t a b c d e g rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p p1 p2 p3 cpid w0 w1 w2 w3 wq tab3 tab4 left claims listed
+  local t a b c d e g m r s0 up last rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p p1 p2 p3 cpid w0 w1 w2 w3 wq tab3 tab4 left claims listed
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
   mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
   cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
@@ -4169,9 +4169,11 @@ PY
   st_stop; for i in $(seq 50); do [ -e "$t/shellprof/shell.pid" ] || break; sleep 0.1; done
   c=$(FAKE_SHELL=broken BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); rc3=$?; desk_rec "$(st_console_pid)"
   st_stop
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$t" "$a" "$b" "$(cat "$t/s1" "$t/s2")" "$c" <<'PY'
+  s0=$(date +%s); m=$(FAKE_SHELL=moved BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); s0=$(( $(date +%s) - s0 )); desk_rec "$(st_console_pid)"   # the clone gone
+  st_stop
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ "$s0" -le 6 ] && python3 - "$t" "$a" "$b" "$(cat "$t/s1" "$t/s2")" "$c" "$m" <<'PY'
 import json, sys
-t, a, b, two, c = sys.argv[1:6]
+t, a, b, two, c, m = sys.argv[1:7]
 bad = []
 def want(cond, what):
     if not cond: bad.append(what)
@@ -4184,11 +4186,13 @@ want(any(e["event"] == "told" and e["data"].get("go", "").startswith("/p/demo~")
 want(kinds[-2:] == ["closed", "quit"] or kinds[-1] == "quit", f"the console stopped, the app did not close its window and quit: {kinds[-3:]}")
 want("Studio is open in its own window" in a and "its window is in front" in b and two.count("its window is in front") == 2, f"said: {a!r} | {b!r} | {two!r}")
 want("Studio is open in a browser window (Studio's own app did not open)" in c, f"an app that cannot start: {c!r}")
+want("Studio is open in a browser window (Studio's own app no longer finds OpenVideoHarness where it was installed: ask your agent to put the Studio icon back)" in m
+     and "bin/vh" not in m, f"an app whose clone is gone: {m!r}")
 if bad:
     print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "studio, its own app: started once with its line on stdin (no code on its command line), one window made and raised after (two runs at once included) and sent to the film; the console's end closes it and the app quits; an app that cannot start gives the browser's window, said plainly"
+  then ok "studio, its own app: started once with its line on stdin (no code on its command line), one window made and raised after (two runs at once included) and sent to the film; the console's end closes it and the app quits; an app that cannot start gives the browser's window, said plainly; an app whose clone is gone exits at once with no alert, and the browser's window comes within seconds with a sentence for a person (no command)"
   else bad "studio, its own app (exits $rc/$rc2/$rc3): $a | $b | $(cat "$t/s1" "$t/s2") | $c | $(tail -c 600 "$t/shellprof/shell.log" 2>/dev/null)"; fi
   # the app made (an Electron stand-in folder: no download): its own name, bundle id, icon and boot, signed, the record the
   # console finds it by; Linux the same; --no-shell and no way to get Electron: the launcher, and the note says why
@@ -4211,6 +4215,18 @@ PY
     && [ $rc3 = 0 ] && case "$e" in *'"kind": "launcher"'*) true ;; *) false ;; esac
   then ok "studio --install-icon, Linux: Studio's own window (Electron copied beside its boot, which runs the shell from this clone; the desktop entry runs it; its record; status says which), all of it inside --dir; with no npm and nothing cached, or --no-shell, the launcher, and the note says why"
   else bad "studio --install-icon with the shell, Linux (exits $rc/$rc2/$rc3): $a | $b | $c | $d | $e"; fi
+  # removing it while it runs: the app quits first (the stand-in app as the one this install recorded), then goes
+  rm -rf "$t/shellprof"
+  python3 -c 'import json, sys; p = sys.argv[1]; d = json.load(open(p)); d["exe"] = sys.argv[2]; json.dump(d, open(p, "w"))' "$t/apps/ovh-studio/shell.json" "$ROOT/tools/desk/fixtures/studio_shell.py"
+  shell_run < /dev/null > /dev/null 2>&1; desk_rec "$(st_console_pid)"
+  up=$([ -e "$t/shellprof/shell.pid" ] && echo up || echo down)
+  r=$(OVH_STUDIO_SHELL_PROFILE="$t/shellprof" studio_run --remove-icon --dir "$t/apps" --as linux 2>&1); rc=$?
+  last=$(tail -n 1 "$t/shellprof/shell.log" 2>/dev/null)
+  st_stop
+  if [ "$up" = up ] && [ $rc = 0 ] && [ ! -e "$t/shellprof/shell.pid" ] && case "$last" in *'"event": "quit"'*) true ;; *) false ;; esac \
+    && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/apps/ovh-studio" ]
+  then ok "studio --remove-icon while the app runs: the app is told to quit and goes before its files do (no window left on a dead page)"
+  else bad "studio --remove-icon while the app runs ($up, exit $rc): $r | $last"; fi
   if [ "$(uname -s)" = Darwin ]; then
     rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
     a=$(OVH_STUDIO_ELECTRON_DIST="$t/edist" studio_run --install-icon --dir "$t/apps" --json 2>&1); rc=$?
@@ -4266,6 +4282,35 @@ raise SystemExit(1 if bad else 0)
 PY
   then ok "studio's shell source: Electron pinned exactly from a committed lockfile (registry.npmjs.org, integrity hashes, no install scripts); its window isolated, without Node, sandboxed, no webview, its own pages only (others to the default browser), no permissions, one instance; a preload with ovhShell {platform, access, theme} alone; the token added by the app to the page's requests (the page never holds it); the page takes the frame only in the shell"
   else bad "studio's shell source"; fi
+  # the app's decisions (tools/desk/shell/rules.js) under plain node: which requests get the token (never a page from
+  # elsewhere, never a request to elsewhere, never a frame inside the page), which lines are taken, which navigations stay,
+  # where a new page opens, which permission a page gets, what a line to show does to the window there; and the boot,
+  # its clone gone, started by the console: exit 3 at once, nothing said
+  python3 -c 'import sys; sys.path.insert(0, "tools/desk"); import studio; open(sys.argv[1], "w").write(studio._boot("/no/such/clone"))' "$t/boot.js"
+  if a=$(node "$t/boot.js" --ovh-from-console < /dev/null 2>&1; echo "rc=$?"); [ "$a" = "rc=3" ] && a=$(node - "$ROOT/tools/desk/shell/rules.js" <<'JS'
+const R = require(process.argv[2]);
+const bad = [];
+const want = (ok, what) => { if (!ok) bad.push(what); };
+const C = "http://127.0.0.1:8780", A = { origin: C, token: "T" };
+want(R.tokenFor(A, C + "/api/hello", C + "/#/p/x", true) === "T", "the console's own page asking its console");
+want(R.tokenFor(A, C + "/api/hello", "http://127.0.0.1:9999/", true) === null, "a page from elsewhere asking the console");
+want(R.tokenFor(A, "http://127.0.0.1:9999/x", C + "/", true) === null, "the console's page asking elsewhere");
+want(R.tokenFor(A, C + "/api/hello", C + "/", false) === null, "a frame inside the page");
+want(R.tokenFor(null, C + "/api/hello", C + "/", true) === null, "no code traded");
+want(R.line({ url: C + "/?c=x&w=1", role: "console-a", fresh: true }).fresh === true && R.line({ url: C + "/" }).role === "console", "a line to show");
+want([{ url: "https://example.com/" }, { url: "http://localhost:8780/" }, "x", [1], null, { quit: "yes" }].every((x) => R.line(x) === null), "lines that are not the console's");
+want(R.line({ close: "console-a" }).close === "console-a" && R.line({ quit: true }).quit === true, "close and quit");
+want(R.navigation(C + "/#/p/x", C + "/f/x/a.html") === "stay" && R.navigation(C + "/", "https://example.com/") === "browser", "the same console stays, a site elsewhere goes to the browser");
+want(["http://127.0.0.1:9/", "http://localhost:8780/", "javascript:alert(1)", "file:///etc/hosts"].every((u) => R.navigation(C + "/", u) === "deny"), "another local address, javascript: and file: go nowhere");
+want(R.newPage(C + "/#/p/x", C + "/f/x/t.html") === "inside" && R.newPage(C + "/", "https://example.com/") === "browser", "a new page: the same console inside, a site elsewhere outside");
+want(R.permission("fullscreen", C + "/", C + "/#/p/x") && !R.permission("fullscreen", "http://127.0.0.1:9/", C + "/") && !R.permission("media", C + "/", C + "/"), "full screen for the console's page, nothing else");
+want(R.show(null, { url: C + "/" }) === "make" && R.show(C + "/#/p", { url: C + "/?c=x" }) === "raise" && R.show(C + "/", { url: C + "/?c=x", fresh: true }) === "load"
+  && R.show(C + "/", { url: "http://127.0.0.1:8781/?c=x" }) === "check", "a line to show: make, raise, load, or check another console");
+console.log(bad.join("; "));
+process.exit(bad.length ? 1 : 0);
+JS
+); then ok "studio's shell rules under node: the token only on the console page's own requests to its own console (not a page from elsewhere, not elsewhere, not a frame); only the console's lines; the same console stays, sites elsewhere in the browser, other local addresses nowhere; same-console pages in the app; full screen only; another console's address only after a check; a boot whose clone is gone exits 3 at once when the console starts it"
+  else bad "studio's shell rules under node: $a"; fi
   # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
   # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
   a=$(studio_run --install-icon --no-shell --dir "$t/apps" --as linux 2>&1); rc=$?

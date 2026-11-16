@@ -7,6 +7,8 @@ console), whose page trades its code and holds the presence stream; {close: role
 Each event is one JSON line in <profile>/shell.log, with the program's own command line in the first.
 
   FAKE_SHELL=broken       exit 1 at once (an app that cannot start)
+  FAKE_SHELL=moved        started by the console, exit 3 at once with no alert (an app whose clone is gone: shell-boot.js)
+{quit: true} ends it, as the app quits (bin/vh studio --remove-icon asks it first).
 """
 import json, os, re, signal, sys, threading, time, urllib.parse, urllib.request
 from pathlib import Path
@@ -15,6 +17,8 @@ from pathlib import Path
 def main(argv):
     if os.environ.get("FAKE_SHELL") == "broken":
         return 1
+    if os.environ.get("FAKE_SHELL") == "moved" and "--ovh-from-console" in argv:
+        return 3
     prof = Path(os.environ.get("OVH_STUDIO_SHELL_PROFILE") or ".")
     prof.mkdir(parents=True, exist_ok=True)
     log, pidf, fwd = prof / "shell.log", prof / "shell.pid", prof / "forward.jsonl"
@@ -78,6 +82,8 @@ def main(argv):
     def handle(m):
         if not isinstance(m, dict):
             return
+        if m.get("quit") is True:
+            bye()
         if isinstance(m.get("close"), str):
             w = windows.pop(m["close"], None)
             if w:

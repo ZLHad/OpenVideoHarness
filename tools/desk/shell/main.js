@@ -5,17 +5,23 @@
 //   {url, role, w}: url is the console page with a one-time code; role names the desk (one window a desk); w is the
 //   window's id for the console's presence stream.
 // Access: this process trades the code for the console's token itself (POST /api/claim) and keeps the token in memory
-// alone; it adds it to the page's own requests to that console (X-Desk-Token) and the page holds only a placeholder
-// ("shell"). So the token is in no command line, no page, no storage and no file. A second start (the console again, a second click) hands its line
-// to the running one through Electron's single-instance lock and exits: one app, one window a desk, raised by itself.
+// alone, tied to the window it was traded for; it adds it (X-Desk-Token) to that window's own page's requests to that same
+// console (rules.tokenFor), and the page holds only a placeholder ("shell"). So the token is in no command line, no page,
+// no storage and no file. A link to a page of the same console opens in a plain second window of the app (no token,
+// closing with its opener); other sites open in the default browser. A second start (the console again, a second click)
+// hands its line to the running one through Electron's single-instance lock and exits: one app, one window a desk,
+// raised by itself.
 // Started by a click (no stdin), it asks the clone to show Studio (bin/vh studio --icon open), which starts it as above.
-// {close: role} closes that desk's window (the desk is stopping); with no window left, the app quits.
+// {close: role} closes that desk's window (the desk is stopping); with no window left, the app quits. {quit: true}: the app
+// quits (bin/vh studio --remove-icon, before it takes the app away). Any local program can hand the app a line: a window
+// whose console still answers with the app's token is never pointed at another console (rules.show).
 // Quitting it: the console the icon started stops too (bin/vh studio --icon quit; it asks first while an agent is mid-turn).
 "use strict";
 const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell, session } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const R = require("./rules.js");   // the decisions, which plain node checks (tools/ci.sh)
 
 const T = (zh, en) => (/^zh/i.test((app.isReady() && app.getLocale()) || Intl.DateTimeFormat().resolvedOptions().locale || "") ? zh : en);
 const MAC = process.platform === "darwin";
@@ -24,8 +30,8 @@ const BUTTONS = { darkfield: { x: 18, y: 19 }, prism: { x: 22, y: 27 }, bridge: 
 const BG = { darkfield: "#111111", prism: "#04060b", bridge: "#06080a" };
 
 let opts = { repo: path.resolve(__dirname, "..", "..", ".."), env: {} };
-const windows = new Map();   // role → BrowserWindow
-const access = new Map();    // a console's origin → its token: in this process's memory and nowhere else
+const windows = new Map();   // role → BrowserWindow (one a desk)
+const access = new Map();    // role → {origin, token}: what the app traded that window's code for, in this process's memory alone
 let quitting = false;
 
 function settingsPath() { return path.join(app.getPath("userData"), "ovh-studio.json"); }
@@ -45,34 +51,61 @@ function vh(args, done) {   // bin/vh in the clone, with the PATH the installer 
   p.on("close", (code) => done(code, out.trim()));
 }
 
-function originOf(u) { try { return new URL(u).origin; } catch (e) { return ""; } }
+const live = (role) => { const w = windows.get(role); return w && !w.isDestroyed() ? w : null; };
+const roleOf = (id) => { for (const [r, w] of windows) if (!w.isDestroyed() && w.webContents.id === id) return r; return null; };
 
-async function claim(url) {   // the window's one-time code traded here, not by the page → the address without it
+async function claim(url) {   // the window's one-time code traded here, not by the page → {url without it, token or ""}
   let u;
-  try { u = new URL(url); } catch (e) { return url; }
+  try { u = new URL(url); } catch (e) { return { url, token: "" }; }
   const c = u.searchParams.get("c");
   u.searchParams.delete("c");
+  let token = "";
   if (c) {
     try {
       const r = await net.fetch(u.origin + "/api/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ c }) });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && typeof d.token === "string") access.set(u.origin, d.token);
+      if (r.ok && typeof d.token === "string") token = d.token;
     } catch (e) { /* the console is gone: the page says so */ }
   }
-  return u.toString();
+  return { url: u.toString(), token };
 }
 
-function guard(ses) {   // the token on the console page's own requests to its console; never on anything else
+async function answers(a) {   // does the console this window shows still take the app's token?
+  if (!a || !a.token) return false;
+  try { return (await net.fetch(a.origin + "/api/hello", { headers: { "X-Desk-Token": a.token }, cache: "no-store" })).status === 200; } catch (e) { return false; }
+}
+
+function guard(ses) {   // the token on a console page's own requests to its own console (rules.tokenFor); never on anything else
   ses.webRequest.onBeforeSendHeaders({ urls: ["http://127.0.0.1/*", "http://127.0.0.1:*/*"] }, (d, cb) => {
     const h = d.requestHeaders;
+    if (d.webContentsId === undefined) return cb({ requestHeaders: h });   // the app's own (its code trade, its check)
     for (const k of Object.keys(h)) if (k.toLowerCase() === "x-desk-token") delete h[k];
-    const t = access.get(originOf(d.url));
-    const ours = [...windows.values()].some((w) => !w.isDestroyed() && w.webContents.id === d.webContentsId);
-    const top = !d.frame || !d.frame.parent;   // the page itself, not a project's file inside it
-    if (t && ours && top) h["X-Desk-Token"] = t;
+    const role = roleOf(d.webContentsId);
+    const t = role && R.tokenFor(access.get(role), d.url, windows.get(role).webContents.getURL(), !d.frame || !d.frame.parent);
+    if (t) h["X-Desk-Token"] = t;
     cb({ requestHeaders: h });
   });
 }
+
+function rules(win) {   // where its page may go (decided against the page it shows now), and where a new page opens
+  win.webContents.on("will-navigate", (e, to) => {
+    const n = R.navigation(win.webContents.getURL(), to);
+    if (n !== "stay") { e.preventDefault(); if (n === "browser") shell.openExternal(to); }
+  });
+  win.webContents.setWindowOpenHandler(({ url: to }) => {
+    const n = R.newPage(win.webContents.getURL(), to);
+    if (n === "browser") shell.openExternal(to);
+    if (n !== "inside") return { action: "deny" };
+    return { action: "allow", overrideBrowserWindowOptions: { width: 1200, height: 820, minWidth: 600, minHeight: 400, title: "Studio",
+      backgroundColor: settings().bg || BG.darkfield, autoHideMenuBar: true, webPreferences: HARD } };
+  });
+  win.webContents.on("did-create-window", (child) => {   // a plain window on the same console (no token: the pages it opens need none); it goes with its opener
+    rules(child);
+    win.once("closed", () => { if (!child.isDestroyed()) child.destroy(); });
+  });
+}
+const HARD = { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, allowRunningInsecureContent: false,
+  spellcheck: false, webviewTag: false, navigateOnDragDrop: false };
 
 function makeWindow(role, url) {
   const s = settings();
@@ -83,22 +116,14 @@ function makeWindow(role, url) {
     show: false, backgroundColor: s.bg || BG[theme], title: "Studio",
     titleBarStyle: "hidden",
     ...(MAC ? { trafficLightPosition: BUTTONS[theme] } : { titleBarOverlay: { color: s.bg || BG[theme], symbolColor: "#b4b0a8", height: 52 } }),
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
-      allowRunningInsecureContent: false, spellcheck: false, webviewTag: false, navigateOnDragDrop: false,
-    },
+    webPreferences: Object.assign({ preload: path.join(__dirname, "preload.js") }, HARD),
   });
-  const origin = originOf(url);
   win.once("ready-to-show", () => { win.show(); win.focus(); });
-  win.webContents.on("will-navigate", (e, to) => {   // the console's own pages only; anything else in the default browser
-    if (originOf(to) !== origin) { e.preventDefault(); if (/^https?:/.test(to)) shell.openExternal(to); }
-  });
-  win.webContents.setWindowOpenHandler(({ url: to }) => { if (/^https?:/.test(to)) shell.openExternal(to); return { action: "deny" }; });
+  rules(win);
   win.on("close", () => { if (!win.isFullScreen()) save({ bounds: win.getBounds() }); });
   win.on("enter-full-screen", () => win.webContents.send("ovh:fullscreen", true));
   win.on("leave-full-screen", () => win.webContents.send("ovh:fullscreen", false));
-  win.on("closed", () => { if (windows.get(role) === win) windows.delete(role); });
+  win.on("closed", () => { if (windows.get(role) === win) { windows.delete(role); access.delete(role); } });
   windows.set(role, win);
   win.loadURL(url);
   return win;
@@ -111,22 +136,28 @@ function raise(win) {
   if (MAC) app.focus({ steal: true });
 }
 
-function handle(msg) {   // a line from the console: show a desk's window, or close it
-  if (!msg || typeof msg !== "object") return;
-  if (typeof msg.close === "string") {
-    const w = windows.get(msg.close);
-    if (w && !w.isDestroyed()) w.destroy();
+async function handle(raw) {   // a line from the console: show a desk's window, close it, or quit (rules.line)
+  const msg = R.line(raw);
+  if (!msg) return;
+  if (msg.quit) { quitting = true; app.exit(0); return; }
+  if (msg.close) {
+    const w = live(msg.close);
+    if (w) w.destroy();
     if (!windows.size) { quitting = true; app.exit(0); }
     return;
   }
-  if (typeof msg.url !== "string" || !/^http:\/\/127\.0\.0\.1:\d+\//.test(msg.url)) return;
-  const role = typeof msg.role === "string" ? msg.role : "console";
-  const win = windows.get(role);
-  if (win && !win.isDestroyed() && originOf(win.webContents.getURL()) === originOf(msg.url) && !msg.fresh) { raise(win); return; }
-  claim(msg.url).then((url) => {   // a new window, or the same one on a console started again
-    const w = windows.get(role);
-    if (w && !w.isDestroyed()) { w.loadURL(url); raise(w); } else makeWindow(role, url);
-  });
+  const role = msg.role, win = live(role), old = access.get(role);
+  const act = R.show(win && win.webContents.getURL(), msg);
+  if (act === "raise") { raise(win); return; }
+  // another console's address: taken only when the console this window shows no longer answers (any local program can
+  // hand the app a line; it never points a working window elsewhere)
+  if (act === "check" && await answers(old)) { raise(win); return; }
+  const got = await claim(msg.url);
+  if (act === "load" && !got.token && await answers(old)) { raise(win); return; }   // a fresh address whose code did not trade: keep what works
+  if (got.token) access.set(role, { origin: R.originOf(msg.url), token: got.token });
+  else access.delete(role);
+  const w = live(role);
+  if (w) { w.loadURL(got.url); raise(w); } else makeWindow(role, got.url);
 }
 
 function readStdin(done) {   // one line of JSON from the console that started this
@@ -141,7 +172,8 @@ function askClone() {   // a click: ask the clone to show Studio; it starts this
   vh(["studio", "--icon", "open"], (code, out) => {
     if (code !== 0 && !windows.size) {
       dialog.showMessageBoxSync({ type: "warning", buttons: [T("好", "OK")], message: T("Studio 没有打开", "Studio did not open"),
-        detail: out.split("\n").slice(-3).join("\n") });
+        detail: T("再点一次 OVH Studio 图标；还是不行，就让 agent 打开 Studio，它会说是哪里出了问题。",
+          "Click the OVH Studio icon again; if it still does not open, ask your agent to open Studio, and it will say what went wrong.") });
       quitting = true;
       app.exit(1);
     }
@@ -166,7 +198,8 @@ function menu() {
       { role: "togglefullscreen", label: T("进入全屏", "Toggle Full Screen") }] },
     { label: T("窗口", "Window"), submenu: [
       { role: "minimize", label: T("最小化", "Minimize") }, { role: "zoom", label: T("缩放", "Zoom") },
-      ...(MAC ? [{ type: "separator" }, { role: "front", label: T("前置全部窗口", "Bring All to Front") }] : [{ role: "close", label: T("关闭", "Close") }])] },
+      { role: "close", label: T("关闭窗口", "Close Window") },   // ⌘W / Ctrl+W
+      ...(MAC ? [{ type: "separator" }, { role: "front", label: T("前置全部窗口", "Bring All to Front") }] : [])] },
     ...(MAC ? [] : [{ label: T("文件", "File"), submenu: [{ role: "quit", label: T("退出", "Quit") }] }]),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(m));
@@ -184,7 +217,8 @@ function start(given) {
       else { const w = [...windows.values()].find((x) => !x.isDestroyed()); if (w) raise(w); else askClone(); }
     });
     app.whenReady().then(() => {
-      session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));   // no camera, microphone, location …
+      // full screen for the console's own page (the player's button); no camera, microphone, location or anything else
+      session.defaultSession.setPermissionRequestHandler((wc, perm, cb, d) => cb(R.permission(perm, (d && d.requestingUrl) || wc.getURL(), wc.getURL())));
       guard(session.defaultSession);
       app.setAboutPanelOptions({ applicationName: "OVH Studio", applicationVersion: "Electron " + process.versions.electron,
         copyright: "OpenVideoHarness", credits: T("Studio：看片子、审一站、和本机的 agent 说话。", "Studio: every film, each stop, the agents on this machine.") });

@@ -20,7 +20,9 @@ to the front, never a second; a film outside Studio's folders joins Studio's spa
       is touched (not the system's list of apps either: a test copy, or a folder you add yourself). It runs bin/vh studio in this
       clone, so a git pull needs no reinstall; a clone that moved says which command to run again. Made here, with what
       every macOS has (osacompile, codesign) and stdlib Python (the picture: tools/desk/icon.py)
-  bin/vh studio --remove-icon [--dir DIR]     take it away again (only one this wrote)
+  bin/vh studio --remove-icon [--dir DIR]     take it away again (only one this wrote); OVH Studio quits first when it
+      runs; a default removal also takes Electron's download and the app's own profile when they are its own, and says
+      what it left
   bin/vh studio --icon-status [--dir DIR] [--json]   installed or not, and whether it runs this clone (bin/vh doctor says it too)
   bin/vh studio --icon open | alive | quit [--force]   what the icon runs: open (above; the console it starts is the
       icon's own), alive (exit 0 while a Studio runs, 1 when none), quit (stop the console the icon started, and with it
@@ -29,7 +31,7 @@ to the front, never a second; a film outside Studio's folders joins Studio's spa
 Exit: 0 done · 1 the window did not open, nothing came up, the icon could not be made, or --print-address refused (no
 terminal, Studio running) · 2 usage · 3 quit refused (an agent mid-turn).
 """
-import argparse, hashlib, json, os, plistlib, re, shlex, shutil, subprocess, sys, tempfile
+import argparse, hashlib, json, os, plistlib, re, shlex, shutil, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -274,6 +276,41 @@ def _shell_cache(dir_=None):
     return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "studio-shell"
 
 
+CACHE_MARK = "ovh-studio-cache.json"   # in the download cache: what removal takes away is ours
+
+
+def _app_profile():
+    """The app's own profile (Electron's userData for "OVH Studio"): its window size and theme, the page's storage."""
+    if os.environ.get("OVH_STUDIO_SHELL_PROFILE"):
+        return Path(os.environ["OVH_STUDIO_SHELL_PROFILE"])
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / APP
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / APP
+
+
+def _quit_app(dir_=None):
+    """The app this install made, if it runs: told to quit (a line it takes, as the console's are), and if it is still
+    there after five seconds, its own process (window.shell_pid) ends. So removing it leaves no window on a dead page."""
+    import window as WIN
+    try:
+        exe = json.loads(_record_path(dir_).read_text()).get("exe")
+    except (OSError, ValueError):
+        return
+    if not exe or not WIN.shell_pid(exe):
+        return
+    WIN.shell_send(exe, {"quit": True})
+    for _ in range(50):
+        if not WIN.shell_pid(exe):
+            return
+        time.sleep(0.1)
+    pid = WIN.shell_pid(exe)
+    if pid:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+
+
 def _record_path(dir_=None):
     """How the console finds the app (window.shell_record): the default install's only. A --dir install keeps its record
     in that folder, so the console never picks up a test's or a copy's app."""
@@ -297,13 +334,14 @@ def fetch_electron(out=sys.stderr, dir_=None):
     cache = _shell_cache(dir_)
     work = cache / ver
     work.mkdir(parents=True, exist_ok=True)
+    (cache / CACHE_MARK).write_text(json.dumps({"what": "Electron for OVH Studio (bin/vh studio --install-icon)"}) + "\n")
     for f in ("package.json", "package-lock.json"):
         shutil.copyfile(SHELL / f, work / f)
     dist = work / "node_modules" / "electron" / "dist"
     if not (dist / "version").is_file() or (dist / "version").read_text().strip().lstrip("v") != ver:
         print(f"studio: getting Electron {ver} (about 130 MB the first time; kept in {_shown(cache)}) …", file=out, flush=True)
         env = dict(os.environ, npm_config_update_notifier="false", electron_config_cache=str(cache / "downloads"))
-        r = subprocess.run([npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"], cwd=str(work), env=env,
+        r = subprocess.run([npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error", "--cache", str(cache / "npm")], cwd=str(work), env=env,
                            capture_output=True, text=True, timeout=900)
         if r.returncode:
             return None, f"npm ci did not finish: {_reason(r)}"
@@ -351,6 +389,13 @@ def _app_files(res):
     (app / "package.json").write_text(json.dumps({"name": "ovh-studio", "productName": APP, "version": "1.0.0", "main": "boot.js", "private": True}) + "\n")
     (app / "boot.js").write_text(_boot(ROOT), encoding="utf-8")
     (res / "default_app.asar").unlink(missing_ok=True)
+
+
+def _boot_ours(p):
+    try:
+        return "bin/vh studio --install-icon wrote this" in p.read_text(encoding="utf-8")[:400]
+    except OSError:
+        return False
 
 
 def _write_record(exe, app, dir_=None):
@@ -412,6 +457,8 @@ def build_shell_linux(entry, data, out=sys.stderr, dir_=None):
         return f"no electron program in {dist}"
     target = data / "shell"
     if target.exists():
+        if not _boot_ours(target / "resources" / "app" / "boot.js"):
+            return f"{target} is there and is not one bin/vh studio made: left as it is"
         shutil.rmtree(target)
     shutil.copytree(dist, target, symlinks=True)
     _app_files(target / "resources")
@@ -446,12 +493,15 @@ def install(platform, dir_=None, use_shell=True, out=sys.stderr):
     return (None, None, why) if why else (path, "launcher", note)
 
 
-def remove(platform, dir_=None):
+def remove(platform, dir_=None, left=None):
+    """Take the icon away (only one this wrote): the app quits first when it runs. A default removal also takes Electron's
+    download and the app's own profile, when they are ours; what stays is named in left."""
     path, data = where(platform, dir_)
     if not path.exists():
         return None, None
     if _ours(platform, path, data) is None:
         return None, f"{path} is not one bin/vh studio wrote: left as it is"
+    _quit_app(dir_)
     if platform == "macos":
         if not dir_:
             _lsregister("-u", path)
@@ -461,13 +511,24 @@ def remove(platform, dir_=None):
         if data and data.is_dir():
             shutil.rmtree(data)
     _record_path(dir_).unlink(missing_ok=True)
-    if dir_ and platform == "macos":   # what the app kept beside it in that folder: its record and Electron's download
-        mine = Path(dir_).expanduser() / "ovh-studio"
-        shutil.rmtree(mine / "cache", ignore_errors=True)
+    left = left if left is not None else []
+    cache = Path(dir_).expanduser() / "ovh-studio" / "cache" if dir_ else _shell_cache()   # never a cache another install shares
+    if cache.is_dir():   # Electron's download (and npm's cache beside it): only a folder this made
+        if (cache / CACHE_MARK).is_file():
+            shutil.rmtree(cache, ignore_errors=True)
+        else:
+            left.append(f"Electron's download in {_shown(cache)} (not one this made)")
+    if dir_ and platform == "macos":   # the folder that held the app's record beside it
         try:
-            mine.rmdir()
+            (Path(dir_).expanduser() / "ovh-studio").rmdir()
         except OSError:
             pass
+    if not dir_:   # the app's own profile (a --dir copy shares the installed one's: left alone)
+        prof = _app_profile()
+        if (prof / "ovh-studio.json").is_file():
+            shutil.rmtree(prof, ignore_errors=True)
+        elif prof.is_dir():
+            left.append(f"the app's profile in {_shown(prof)} (it holds nothing of Studio's own)")
     return path, None
 
 
@@ -514,7 +575,7 @@ def main(argv):
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--install-icon", action="store_true", help="put OVH Studio in your applications: Studio's own window (Electron, about 130 MB "
                                                                "downloaded once, 260 MB on disk), or with --no-shell a small launcher that opens a browser's window")
-    g.add_argument("--remove-icon", action="store_true", help="take the launcher icon away")
+    g.add_argument("--remove-icon", action="store_true", help="take the launcher icon away (a running OVH Studio quits first)")
     g.add_argument("--icon-status", action="store_true", help="is the launcher icon installed, and does it run this clone")
     g.add_argument("--icon", choices=["open", "alive", "quit"], help="what the launcher icon runs")
     ap.add_argument("--no-shell", action="store_true", help="with --install-icon: the small launcher, not Studio's own window (no download)")
@@ -550,11 +611,12 @@ def main(argv):
                         "a launcher: click it and Studio opens in a browser's window; clicked again, that window comes to the front.")
                 print(f"✓ {APP}: {path}\n  {what} It runs this clone: a git pull needs no reinstall." + (f"\n  ({why})" if why else ""))
             return 0
-        path, why = remove(platform, a.dir)
+        left = []
+        path, why = remove(platform, a.dir, left)
         if why:
             return jsonerr.fail("refused", f"studio: {why}", rc=1)
-        print(json.dumps({"version": 1, "removed": str(path) if path else None}) if a.json else
-              (f"✓ removed {path}" if path else "studio: no icon to remove there"))
+        print(json.dumps({"version": 1, "removed": str(path) if path else None, "left": left}) if a.json else
+              (f"✓ removed {path}" + "".join(f"\n  left: {x}" for x in left) if path else "studio: no icon to remove there"))
         return 0
 
     if a.icon == "alive":

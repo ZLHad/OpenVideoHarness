@@ -41,18 +41,19 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 
 窗口有两种，同一个页面（`tools/desk/window.py` 是唯一知道怎么开窗口的地方，服务按这个顺序试）：
 
-1. **Studio 自己的窗口（OVH Studio，Electron）**，装了就用它。没有系统标题栏：macOS 上红绿灯三个按钮在页面自己的顶栏里（主题换了，按钮的位置和窗口的颜色跟着换），顶栏就是拖窗口的地方（里面能点的照样能点）；Linux 上是 Electron 的标题栏覆盖层，按钮画在顶栏右端。窗口先用主题的底色、画好了才显示，开的时候不闪白。Dock 上只有它一个图标，名字是 OVH Studio。有自己的菜单（中英文跟系统：关于、退出；编辑；重新载入、缩放、全屏；窗口）。别的网站的链接在默认浏览器里开。
-   - **一个应用，一个窗口**：服务启动它时在标准输入里给它一行（窗口的地址带一次性开门码、哪个服务、窗口 id），命令行里什么都没有；它已经在跑时，新启动的那一个通过 Electron 的单实例锁把这一行交给在跑的那个，自己退出，在跑的那个把窗口带到最前（不用 osascript）。一个服务一个窗口（控制台一个，不在控制台下的项目各自的审阅台各一个）。
-   - **加固**：`contextIsolation`、无 Node、`sandbox`、不许 webview、只开控制台自己的页面（别的地址交给默认浏览器）、相机麦克风这类权限一律不给；preload 只给页面两样东西：`ovhShell.platform` 和 `ovhShell.theme()`。页面看到 `ovhShell` 才给自己加上 `html.shell`（顶栏留出按钮的位置、可以拖），在浏览器里一切照旧。
+1. **Studio 自己的窗口（OVH Studio，Electron）**，装了就用它。没有系统标题栏：macOS 上红绿灯三个按钮在页面自己的顶栏里（主题换了，按钮的位置和窗口的颜色跟着换），顶栏就是拖窗口的地方（里面能点的照样能点）；Linux 上是 Electron 的标题栏覆盖层，按钮画在顶栏右端。窗口先用主题的底色、画好了才显示，开的时候不闪白。Dock 上只有它一个图标，名字是 OVH Studio。有自己的菜单（中英文跟系统：关于、退出；编辑；重新载入、缩放、全屏；窗口，含"关闭窗口" ⌘W）。播放器的全屏按钮可用（只给控制台自己的页面）。点开同一个控制台的另一页（静态的关卡页、转写稿、放大的图）开在应用自己的第二个窗口里，跟着主窗口一起关；别的网站的链接在默认浏览器里开。
+   - **一个应用，一个窗口**：服务启动它时在标准输入里给它一行（窗口的地址带一次性开门码、哪个服务、窗口 id），命令行里什么都没有；它已经在跑时，新启动的那一个通过 Electron 的单实例锁把这一行交给在跑的那个，自己退出，在跑的那个把窗口带到最前（不用 osascript）。一个服务一个窗口（控制台一个；Studio 没开着时 `bin/vh gate` 起的单个项目的审阅台各一个）。这台电脑上的任何程序都能递给它一行；它不做认证（那属于存心攻击，上面"安全"说了边界），只守一条：窗口所在的控制台还认它的令牌时，不会被一行话指到别的控制台去。
+   - **加固**：`contextIsolation`、无 Node、`sandbox`、不许 webview、只开控制台自己的页面（别的地址交给默认浏览器）、除了控制台页面的全屏，相机麦克风这类权限一律不给；preload 只给页面三样东西：`ovhShell.platform`、`ovhShell.access` 和 `ovhShell.theme()`。令牌只在应用主进程的内存里，跟着换到它的那个窗口，只加在那个窗口自己的页面发给同一个控制台的请求上（`tools/desk/shell/rules.js` 里这几条判断用普通的 node 测）。页面看到 `ovhShell` 才给自己加上 `html.shell`（顶栏留出按钮的位置、可以拖），在浏览器里一切照旧。
    - **代码在仓库里**：`tools/desk/shell/`（`main.js`、`preload.js`、`package.json` 和提交进来的锁文件：Electron 钉死在一个版本，全部从 registry.npmjs.org 来、带完整性校验、不跑安装脚本）。应用本身只带一个小小的 boot（`tools/desk/launcher/shell-boot.js` 生成的 `Resources/app/boot.js`），它从这份仓库里跑 `main.js`，所以 `git pull` 以后不用重装。
-   - **装它**：`bin/vh studio --install-icon` 在缓存目录（`~/.cache/ovh/studio-shell/`）里 `npm ci --ignore-scripts`，再跑 Electron 自己的下载（下载的压缩包按包里自带的校验和核对，留在缓存里，以后重装不用联网），拷一份 `Electron.app` 改成 `OVH Studio.app`：自己的名字、bundle id、图标和 boot，再临时签名（`codesign --sign -`）。本机做的、不是下载来的应用，没有"隔离"标记，Gatekeeper 不检查它；拷到别的机器不能用。实测：下载约 130 MB（这里 10 秒左右），应用约 254 MB，第一次打开（连起控制台）约 2 秒，之后点图标约 1 秒、带到最前约 0.5 秒。没有 npm、离线又没缓存时，装上 #213 那个轻量启动器并说明原因；`--no-shell` 直接装轻量启动器。
+   - **装它**：`bin/vh studio --install-icon` 在缓存目录（`~/.cache/ovh/studio-shell/`，npm 自己的缓存也放在这里面）里 `npm ci --ignore-scripts`，再跑 Electron 自己的下载（下载的压缩包按包里自带的校验和核对，留在缓存里，以后重装不用联网；第一次装、和 `tools/changes.py release` 第一次做应用时要联网），拷一份 `Electron.app` 改成 `OVH Studio.app`：自己的名字、bundle id、图标和 boot，再临时签名（`codesign --sign -`）。本机做的、不是下载来的应用，没有"隔离"标记，Gatekeeper 不检查它；拷到别的机器不能用。实测：下载约 130 MB（这里 10 秒左右），占的磁盘是应用约 254 MB 加留着的下载约 130 MB，第一次打开（连起控制台）约 2 秒，之后点图标约 1 秒、带到最前约 0.5 秒。没有 npm、离线又没缓存时，装上轻量启动器并说明原因；`--no-shell` 直接装轻量启动器。`--dir` 时应用、它的记录、下载和 npm 的缓存全在那个文件夹里。`--remove-icon` 先让在跑的应用退出，再拿掉应用；默认安装的还一起拿掉下载缓存和应用自己的资料目录（`~/Library/Application Support/OVH Studio`），不是它做的就留着，并在输出里说留了什么、在哪。
+   - **仓库挪了地方**：服务启动它时，它立刻退出（不弹窗），服务一秒内换成浏览器的窗口，并说一句"让 agent 把 Studio 图标重新装一次"；点图标时只弹一个提示，可以点"找到它"选仓库现在所在的文件夹（它确认是 OpenVideoHarness 后，在那里重新装好应用并打开 Studio），或者让 agent 重装。
 2. **浏览器的窗口**：没装 OVH Studio（或它打不开）时，用电脑上的 Chrome、Chromium、Edge 或 Brave，配 Studio 自己的资料目录和 `--app`（没有地址栏）。OVH Studio 装了却打不开（Electron 被删了、坏了），服务一秒左右就发现，换成这种窗口，输出里说一句为什么。
 3. **默认浏览器的一个标签页**：这几样浏览器都没有时。
 
 几件事是这样定的：
 
 - **开好了才算开好**：页面换到权限、连上 `GET /api/presence` 才算开了；没连上就再试一次，然后换下一种，输出里照实说是哪一种、为什么。
-- **不在 Studio 文件夹里的片子**（`bin/vh studio <项目>`，或者 Studio 开着时的 `bin/vh gate`）：加进 Studio 的空间，开在同一个窗口里，不另起审阅台、不另开窗口。加进来的片子记在控制台信息文件旁边的一份清单里（这个用户在临时文件夹里自己的 0700 文件夹，`console-…films.json`，最多五十支，重起控制台也还在；没有 `BRIEF.md` 了的就不列）。Studio 没开着时，`bin/vh gate` 照旧在后台起这支片子自己的审阅台。
+- **不在 Studio 文件夹里的片子**（`bin/vh studio <项目>`，或者 Studio 开着时的 `bin/vh gate`）：加进 Studio 的空间，开在同一个窗口里，不另起审阅台、不另开窗口。加进来的片子记在控制台信息文件旁边的一份清单里（这个用户在临时文件夹里自己的 0700 文件夹，`console-….films`，最多五十支，重起控制台也还在；没有 `BRIEF.md` 了的就不列）。Studio 没开着时，`bin/vh gate` 照旧在后台起这支片子自己的审阅台。
 - **关窗口和退出**：关掉窗口，控制台照旧在后台开着（agent 可能还在干活），再点图标窗口回来、对话接着；macOS 上 OVH Studio 关了窗口还留在 Dock 里，Linux 上关了窗口应用就退出。退出 OVH Studio（菜单、Dock 或 ⌘Q）时，图标起的那个控制台一起停（终端里起的不动），agent 正做着一轮时先问一句；控制台停了，它的窗口一起关，没有窗口了应用就退出。
 - **图标只是一个入口，事情都在仓库里做**：仓库挪了地方，点它会弹一句"找不到了，到新位置运行 `bin/vh studio --install-icon`"，`bin/vh doctor` 也会说。外壳的代码随 `git pull` 更新；Electron 的版本或图标改了，doctor 说"旧了"，再装一次就好。
 - **轻量启动器**（`--no-shell`，或者装不了 Electron 时）：macOS 上是一个常驻的 AppleScript 小程序（`osacompile -s`）：再点一次叫出窗口；退出时停掉它起的控制台；控制台停了它每分钟看一次，跟着退出。Linux 上是一个桌面项加一个小脚本。它们打开的是浏览器的窗口，所以 Dock 里会多一个浏览器图标。

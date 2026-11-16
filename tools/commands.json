@@ -1239,7 +1239,7 @@
       "when": "whenever the person wants to open Studio or a film in it: say it, or click the icon; --install-icon once per machine",
       "stages": ["any", "env"],
       "reads": [
-        "the running console's info file in this user's temp folder (ovh-desk-<uid>/), and beside it console-<…>.films.json, the films outside Studio's folders that joined its space (the last fifty)",
+        "the running console's info file in this user's temp folder (ovh-desk-<uid>/), and beside it console-<…>.films, the films outside Studio's folders that joined its space (the last fifty)",
         "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects), to open on one"
       ],
       "writes": [

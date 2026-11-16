@@ -696,13 +696,18 @@ class Desk(http.server.ThreadingHTTPServer):
                 return {"opened": True, "how": "front" if WIN.raise_(prof) else "open"}
             why, code = None, None
             if app:
+                why, code = "Studio's own app did not open", "no_app"
                 for _ in range(2):
                     w = secrets.token_hex(6)
                     self.windows[w] = "shell"
                     line = {"url": self._entry(self.mint(60, w), w, at), "role": self.window_name, "w": w, "fresh": True}
-                    if WIN.shell_send(app, line) and self._wait_present(w, 15):
+                    said_ = []
+                    if WIN.shell_send(app, line, said_) and self._wait_present(w, 15):
                         return {"opened": True, "how": "app"}
-                why, code = "Studio's own app did not open", "no_app"
+                    if said_ == ["moved"]:   # the app no longer finds this clone: no second try, and say what a person can do
+                        why, code = ("Studio's own app no longer finds OpenVideoHarness where it was installed: ask your agent to "
+                                     "put the Studio icon back"), "app_moved"
+                        break
             elif app_why:
                 why, code = app_why, "no_app"
             WIN.close(prof)
@@ -1371,7 +1376,7 @@ def joined_path(roots=()):
     """The films a console shows beside its roots': the last fifty opened in Studio from outside them, a list beside its
     info file in this user's own folder in the temp folder (0700), so a restart (bin/vh desk link) keeps them."""
     p = _info_path(None, roots)
-    return p.with_name(p.stem + ".films.json") if p else None
+    return p.with_name(p.stem + ".films") if p else None   # (not *.json: what looks for console-*.json finds only info files)
 
 
 def join(project, roots=()):
@@ -1381,17 +1386,20 @@ def join(project, roots=()):
     real = os.path.realpath(str(project))
     if p is None or not os.path.isfile(os.path.join(real, "BRIEF.md")):
         return False
+    import fcntl
     try:
-        cur = [x for x in json.loads(p.read_text()) if isinstance(x, str)] if p.exists() else []
-    except (OSError, ValueError):
-        cur = []
-    if real not in cur:
-        try:
-            tmp = p.with_name(p.name + f".{os.getpid()}.tmp")
-            tmp.write_text(json.dumps((cur + [real])[-50:]))
-            os.replace(tmp, p)
-        except OSError:
-            return False
+        with open(p.with_name(p.name + ".lock"), "a") as lock:   # two opens at once: neither loses the other's film
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                cur = [x for x in json.loads(p.read_text()) if isinstance(x, str)] if p.exists() else []
+            except (OSError, ValueError):
+                cur = []
+            if cur[-1:] != [real]:   # opened again: the newest, so the list is the last fifty opened
+                tmp = p.with_name(p.name + f".{os.getpid()}.tmp")
+                tmp.write_text(json.dumps(([x for x in cur if x != real] + [real])[-50:]))
+                os.replace(tmp, p)
+    except OSError:
+        return False
     return True
 
 

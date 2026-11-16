@@ -84,7 +84,12 @@ def shell():
     return exe, None
 
 
-def shell_send(prog, line):
+MOVED = 3   # the app's exit when it no longer finds its clone (tools/desk/launcher/shell-boot.js)
+
+
+def shell_send(prog, line, why=None):
+    """Hand the app one line on stdin. → True when it took it (a running app, or this one starting); False when it could
+    not start, with "moved" appended to why when it no longer finds its clone (it says so at once, with no alert)."""
     env = {k: v for k, v in os.environ.items() if k != "ELECTRON_RUN_AS_NODE"}
     try:
         p = subprocess.Popen(_argv(prog) + ["--ovh-from-console"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -94,9 +99,12 @@ def shell_send(prog, line):
     except OSError:
         return False
     try:   # a running shell takes the line and this one ends at once (0); one that cannot start ends with an error
-        return p.wait(timeout=1.5) == 0
+        rc = p.wait(timeout=1.5)
     except subprocess.TimeoutExpired:
         return True   # it is the running one now
+    if rc == MOVED and why is not None:
+        why.append("moved")
+    return rc == 0
 
 
 def shell_pid(prog):
