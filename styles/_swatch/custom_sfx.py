@@ -181,6 +181,7 @@ def spark(dur, seed, f0=1800):
     hits = (r.random(n) < (150 + 900 * v) / SR).astype(float) * r.uniform(0.2, 1.0, n)
     crackle = band(np.convolve(hits, np.exp(-np.arange(30) / 4.0), "same"), 4000, 12000) * e
     f = f0 * (0.7 + 0.6 * v); ph = 2 * np.pi * np.cumsum(f) / SR
+    r.standard_normal(n)                                                   # a draw the committed takes were made with
     whistle = np.sin(ph) * e * 0.18
     air = band(r.standard_normal(n), 1500, 7000) * e * 0.25
     x = crackle * 0.9 + whistle + air
@@ -198,4 +199,47 @@ for k, f in enumerate([2637, 3136, 3951, 4699, 5274]):     # E7-ish partials, en
 x += band(r.standard_normal(n), 5000, 12000) * np.exp(-t / 0.25) * np.minimum(1, t / 0.005) * 0.3
 x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR))
 write(f"{GL}/gleam.wav", x)
+# era-media-relay: each era's tool makes its own sound (styles/era-media-relay/swatch.js: brush strokes 0.46, 0.40, 0.26 s;
+# the roller 0.75 s; the scan beam; the pixels; the drop of water)
+def brush(dur, seed):
+    """soft hair on rice paper: a hush shaped by the stroke's speed, a soft touch at the start"""
+    n = int((dur + 0.03) * SR); t = np.arange(n) / SR; r = np.random.default_rng(seed)
+    u = np.clip(t / dur, 0, 1); v = 16 * u * u * (1 - u) ** 2
+    e = (0.2 + 0.8 * v) * np.minimum(1, t / 0.006) * np.where(t > dur, np.exp(-(t - dur) / 0.01), 1.0)
+    x = band(r.standard_normal(n), 300, 3200) * e * 0.5 + band(r.standard_normal(n), 3200, 8000) * e * v * 0.12
+    x[:int(0.03 * SR)] += modes(int(0.03 * SR), [160, 420], [0.01, 0.005], [0.9, 0.35]) + burst(int(0.03 * SR), 1500, 6000, 0.004, r) * 0.6
+    x[-int(0.008 * SR):] *= np.linspace(1, 0, int(0.008 * SR))
+    return x
+EM = "styles/era-media-relay/sfx"
+write(f"{EM}/brush_L.wav", brush(0.46, 401))
+write(f"{EM}/brush_M.wav", brush(0.40, 402))
+write(f"{EM}/brush_S.wav", brush(0.26, 403))
+n = int(0.8 * SR); t = np.arange(n) / SR; r = np.random.default_rng(410)     # the roller: rumble, the ink's tack
+v = np.sin(np.pi * np.clip(t / 0.75, 0, 1)) ** 0.7
+rum = band(r.standard_normal(n), 60, 500) * (1 + 0.4 * np.sin(2 * np.pi * 11 * t)) * v
+tack = band((r.random(n) < 300 / SR).astype(float) * r.uniform(0.3, 1, n), 1800, 6000) * v * 2.0
+x = rum * 0.8 + tack; x[:int(0.04 * SR)] += modes(int(0.04 * SR), [110, 240], [0.015, 0.008], [0.8, 0.3])
+x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR)); write(f"{EM}/roller.wav", x)
+r = np.random.default_rng(411)                                                # the seal: wood on paper
+write(f"{EM}/seal.wav", mixed(modes(int(0.2 * SR), [210, 560, 1300], [0.03, 0.015, 0.008], [0.9, 0.4, 0.2]), burst(int(0.05 * SR), 900, 4000, 0.006, r) * 0.5))
+n = int(0.6 * SR); t = np.arange(n) / SR; r = np.random.default_rng(412)     # the tube coming on: a thunk, a rising whine, static
+thunk = np.sin(2 * np.pi * 55 * t) * np.exp(-t / 0.08) * np.minimum(1, t / 0.003)
+f = 300 + 2700 * np.clip(t / 0.5, 0, 1) ** 2; whine = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.08 * np.minimum(1, t / 0.05) * np.exp(-np.maximum(0, t - 0.45) / 0.05)
+static = band(r.standard_normal(n), 2000, 9000) * np.exp(-t / 0.15) * 0.3
+x = thunk + whine + static; x[-int(0.01 * SR):] *= np.linspace(1, 0, int(0.01 * SR)); write(f"{EM}/crt_on.wav", x)
+def square(f, dur, duty=0.25):
+    n = int(dur * SR); t = np.arange(n) / SR; ph = (f * t) % 1.0
+    y = np.where(ph < duty, 1.0, -1.0) * 0.3; k = int(0.003 * SR); y[:k] *= np.linspace(0, 1, k); y[-k:] *= np.linspace(1, 0, k)
+    return y
+x = np.zeros(int(0.62 * SR))                                                  # the pixels: a stepped fall in square waves
+for i, semi in enumerate([24, 19, 15, 12, 7, 3, 0, -5]): place(x, square(440 * 2 ** (semi / 12), 0.07, 0.125 if i % 2 else 0.25), i * 0.07)
+write(f"{EM}/pixel_down.wav", x)
+x = np.zeros(int(1.0 * SR))                                                   # typing in pixels: a blip per glyph, title then caption
+for i in range(9): place(x, square(880 * (1 + 0.06 * (i % 3)), 0.03) * (2.0 if i == 0 else 1.0), i * 0.055)   # the first key leads
+for i in range(10): place(x, square(660 * (1 + 0.05 * (i % 2)), 0.025, 0.125), 0.45 + i * 0.04)
+write(f"{EM}/chip_type.wav", x)
+n = int(0.5 * SR); t = np.arange(n) / SR; r = np.random.default_rng(413)     # the drop: a plip and a small splash
+f = 500 + 1300 * np.clip(t / 0.035, 0, 1); plip = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.05) * np.minimum(1, t / 0.002)
+x = plip + band(r.standard_normal(n), 1500, 7000) * np.exp(-t / 0.06) * 0.25
+x[-int(0.01 * SR):] *= np.linspace(1, 0, int(0.01 * SR)); write(f"{EM}/drop.wav", x)
 print("ok")
