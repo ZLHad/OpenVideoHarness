@@ -171,4 +171,31 @@ write(f"{CB}/chalk_write_title.wav", x)
 x = np.zeros(int((10 * 0.06 + 0.03) * SR))
 for i in range(10): place(x, chalk(0.06 * 0.86, 250 + i, 1100 + 50 * (i % 3)) * (2.2 if i == 0 else 1.0), i * 0.06)   # the first tok leads
 write(f"{CB}/chalk_write_caption.wav", x)
+# gold-line-dark: the light pen's head. A faint sparkler crackle and an airy whistle whose pitch and level follow the same
+# minimum-jerk speed curve as the line (styles/gold-line-dark/swatch.js: ridge 1.15 s, shore 0.62 s, boat 0.42 s); the gold
+# leaf's gleam is a bright metallic shimmer sweeping up
+def spark(dur, seed, f0=1800):
+    n = int((dur + 0.03) * SR); t = np.arange(n) / SR; r = np.random.default_rng(seed)
+    u = np.clip(t / dur, 0, 1); v = 16 * u * u * (1 - u) ** 2
+    e = (0.15 + 0.85 * v) * np.minimum(1, t / 0.01) * np.where(t > dur, np.exp(-(t - dur) / 0.01), 1.0)
+    hits = (r.random(n) < (150 + 900 * v) / SR).astype(float) * r.uniform(0.2, 1.0, n)
+    crackle = band(np.convolve(hits, np.exp(-np.arange(30) / 4.0), "same"), 4000, 12000) * e
+    f = f0 * (0.7 + 0.6 * v); ph = 2 * np.pi * np.cumsum(f) / SR
+    whistle = np.sin(ph) * e * 0.18
+    air = band(r.standard_normal(n), 1500, 7000) * e * 0.25
+    x = crackle * 0.9 + whistle + air
+    x[:int(0.012 * SR)] += burst(int(0.012 * SR), 3000, 11000, 0.002, r) * 0.9      # the spark catching
+    x[-int(0.008 * SR):] *= np.linspace(1, 0, int(0.008 * SR))
+    return x
+GL = "styles/gold-line-dark/sfx"
+write(f"{GL}/spark_L.wav", spark(1.15, 301, 1500))
+write(f"{GL}/spark_M.wav", spark(0.62, 302, 1700))
+write(f"{GL}/spark_S.wav", spark(0.42, 303, 2000))
+n = int(1.1 * SR); t = np.arange(n) / SR; r = np.random.default_rng(310); x = np.zeros(n)
+for k, f in enumerate([2637, 3136, 3951, 4699, 5274]):     # E7-ish partials, entering one after another as the band moves up
+    at = 0.03 + k * 0.1; env = np.where(t >= at, np.exp(-(t - at) / 0.35) * np.minimum(1, (t - at) / 0.004), 0)
+    x += np.sin(2 * np.pi * f * t * (1 + 0.001 * k)) * env * (0.5 - 0.06 * k)
+x += band(r.standard_normal(n), 5000, 12000) * np.exp(-t / 0.25) * np.minimum(1, t / 0.005) * 0.3
+x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR))
+write(f"{GL}/gleam.wav", x)
 print("ok")

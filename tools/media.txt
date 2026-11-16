@@ -14,3 +14,5 @@ styles/whiteboard/media/swatch.mp4 styles-media/whiteboard-b8f99591.mp4 b8f99591
 styles/whiteboard/media/swatch-portrait.mp4 styles-media/whiteboard-portrait-525db456.mp4 525db456d438b78fe9ca70b6388d9ea492b2f908c9c01d0eb4988c267d63bcf9
 styles/chalkboard/media/swatch.mp4 styles-media/chalkboard-6ac99c95.mp4 6ac99c952b71d7fb91f80e1b0ad8ca746a2f0d6bdf5efd66fcb24d578c2d74f3
 styles/chalkboard/media/swatch-portrait.mp4 styles-media/chalkboard-portrait-08f04c49.mp4 08f04c491692abc2e7c050df5be6f655dc2073151da0c5d5b67d551d805bc9ed
+styles/gold-line-dark/media/swatch.mp4 styles-media/gold-line-dark-e7e5d075.mp4 e7e5d07576d9b71618241d3445aac682b864c699af79a16bd77a6aa768fb7d73
+styles/gold-line-dark/media/swatch-portrait.mp4 styles-media/gold-line-dark-portrait-17abc1df.mp4 17abc1df90350cb39697e497201d7a771e716853964134cbd9c4a223d7fe02f8

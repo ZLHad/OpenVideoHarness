@@ -82,6 +82,12 @@ export function pointAt(st, s) {
   const f = (s * st.len - c[i]) / Math.max(1e-6, c[i + 1] - c[i]);
   return [P[i][0] + (P[i + 1][0] - P[i][0]) * f, P[i][1] + (P[i + 1][1] - P[i][1]) * f];
 }
+/** when the hand passed arclength share s of the stroke (seconds) */
+export function timeAtS(st, s) {
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 18; k++) { const m = (lo + hi) / 2; if (mj(m) < s) lo = m; else hi = m; }
+  return st.t0 + st.dur * (lo + hi) / 2;
+}
 /** the hand's speed (0..1 of its peak) when it passed arclength share s: invert the profile by bisection */
 export function speedAtS(s) {
   let lo = 0, hi = 1;
@@ -94,19 +100,29 @@ export function speedAtS(s) {
  * style(ctx, i, s, v) sets them, with i the segment, s its arclength share and v the hand's speed there (0..1).
  * With `whole: true` the path is stroked once (style is called once with v = 0.5): for a pattern brush (chalk).
  */
-export function drawStroke(ctx, st, t, style, { whole = false, upto } = {}) {
+export function drawStroke(ctx, st, t, style, { whole = false, upto, from = 0 } = {}) {
   const s = upto ?? drawn(st, t);
-  if (s <= 0) return 0;
+  if (s <= 0 || s <= from) return 0;
   const P = st.pts, n = indexAt(st, s), end = pointAt(st, s);
+  const i0 = from > 0 ? indexAt(st, from) + 1 : 0, start = from > 0 ? pointAt(st, from) : P[0];
   ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
   if (whole) {
     style(ctx, 0, s, 0.5);
-    ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]);
-    for (let i = 1; i <= n; i++) ctx.lineTo(P[i][0], P[i][1]);
+    ctx.beginPath(); ctx.moveTo(start[0], start[1]);
+    for (let i = i0; i <= n; i++) ctx.lineTo(P[i][0], P[i][1]);
     ctx.lineTo(end[0], end[1]); ctx.stroke();
   } else {
     const every = 3;   // segments of three resampled steps: smooth enough, a third of the calls
-    for (let i = 0; i < n || i === 0; i += every) {
+    if (i0 > n) {      // `from` and the head inside one resampled step
+      style(ctx, i0, from, speedAtS(from));
+      ctx.beginPath(); ctx.moveTo(start[0], start[1]); ctx.lineTo(end[0], end[1]); ctx.stroke();
+      ctx.restore(); return s;
+    }
+    if (i0 > 0) {      // the piece from `from` to the next resampled point
+      style(ctx, i0, from, speedAtS(from));
+      ctx.beginPath(); ctx.moveTo(start[0], start[1]); ctx.lineTo(...(i0 <= n ? P[i0] : end)); ctx.stroke();
+    }
+    for (let i = i0; i < n || i === i0; i += every) {
       const j = Math.min(i + every, n);
       const sj = st.cum[i] / st.len;
       style(ctx, i, sj, speedAtS(sj));
