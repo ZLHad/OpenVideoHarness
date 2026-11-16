@@ -7,7 +7,7 @@
 
 ## Checklist · 自查
 - [ ] `tools/ci.sh --committed` passes · 通过
-- [ ] User-visible change noted in `CHANGELOG.md` → Unreleased · 用户能感知的改动已记进 CHANGELOG
+- [ ] User-visible change noted in a new file `changes/<name>.md` (one entry, as in `changes/README.md`) · 用户能感知的改动已在 `changes/` 下加了一个文件
 - [ ] Changed `CLAUDE.md` → ran `bin/vh sync-agents` · 改了 CLAUDE.md 已同步 AGENTS.md
 - [ ] No API keys, `LOCAL.md`, `projects/` or render output committed · 没有提交 key、LOCAL.md、projects/ 和渲染产物
 - [ ] Swatch media under `styles/<slug>/media/` changed only on purpose · 样片媒体只在有意更新时才改

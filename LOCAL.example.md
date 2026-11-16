@@ -7,7 +7,7 @@
 - 可用的 API key（只写变量名，不写值）：{ELEVENLABS_API_KEY / FAL_KEY / …}
 - 个人资料目录：{论文、数据、素材放在哪里}
 - 默认努力程度：{quick | standard | studio}（不填就是 standard；规则见 CLAUDE.md"努力程度"，对话里说的优先）
-- 默认导演模式：{例如 hook=own, packaging=own；不填就按档位的默认}（规则见 CLAUDE.md"导演模式"，对话里说的优先）
+- 默认导演模式：{例如 hook=own, packaging=own；不填就按档位的默认}（规则见 playbook/01-pipeline.md 的"导演模式"，对话里说的优先）
 - 审阅方式：{对话 | 审阅页 | 审阅台}（不填按档位：standard 审阅页，studio 审阅台；只管在哪看、怎么回，关卡不减；对话里说的优先）
 - 子代理模型：{例如：默认便宜一档；3D 段落和整片评审用最强档}（不填就用便宜一档的；对话里说的优先）
 - 默认预算：{例如每支片子 20 美元；写 不限 就是不设上限}（付费接口按它停；BRIEF 的 `Budget:` 优先，两处都没写就不调付费接口，见 CLAUDE.md 的底线）
