@@ -40,7 +40,7 @@ const ASTR = {
     f_title: "它给这一步的标题", f_command: "要跑的命令", f_description: "它自己的说明（是它说的，不一定准）", f_sandbox_on: "不用沙箱跑：这条命令不受沙箱限制",
     f_sandbox_off: "照常在沙箱里跑", f_bg: "在后台跑：这一轮结束了它可能还在跑", f_timeout: "最长跑多久（毫秒）", f_file: "文件", f_content: "要写进去的内容",
     f_old: "改之前", f_new: "改之后", f_all: "文件里每一处都换", f_cwd: "在哪个文件夹里跑", f_url: "要打开的网址", f_pattern: "要找的", f_where: "涉及的位置",
-    f_said: "它附的话", f_other: "它请求里的内容",
+    f_said: "它附的话", f_other: "它请求里的内容", f_in_diff: "（就是下面改动里的那一段，一字不差）",
     too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
     turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
     turn_restart: "控制台重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
@@ -81,7 +81,7 @@ const ASTR = {
     f_title: "Its title for this step", f_command: "The command", f_description: "Its own description (its words, maybe not accurate)", f_sandbox_on: "Without the sandbox: nothing limits this command",
     f_sandbox_off: "In the sandbox, as usual", f_bg: "In the background: it may still run after this turn", f_timeout: "How long it may run (ms)", f_file: "File", f_content: "What it writes",
     f_old: "Before", f_new: "After", f_all: "Every match in the file", f_cwd: "The folder it runs in", f_url: "The address it opens", f_pattern: "What it looks for", f_where: "Places it touches",
-    f_said: "What it added", f_other: "What it asks",
+    f_said: "What it added", f_other: "What it asks", f_in_diff: "(the very text of the change below)",
     too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
     turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
     turn_restart: "The console restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
@@ -467,20 +467,21 @@ const AGENT = (() => {
     if (k === "replace_all") return v === true ? ["f_all", ""] : ["", ""];
     return [FIELD[k] || "", ""];
   }
-  function fieldRow(k, v, word) {   // one field of the request: its key and its value as the agent sent them (escaped), and what it means when we know
-    const [g, cls] = word ? [word, ""] : gloss(k, v);
-    return `<div class="ag-f${cls ? " " + cls : ""}"><div class="ag-fk"><span class="mono">${esc(k)}</span>${g ? `<span>${esc(at(g))}</span>` : ""}</div><pre class="ag-fv mono">${esc(typeof v === "string" ? v : JSON.stringify(v, null, 1))}</pre></div>`;
+  function fieldRow(k, v, word, inDiff) {   // one field of the request: its key and its value as the agent sent them (escaped), and what it means when
+    const [g, cls] = word ? [word, ""] : gloss(k, v);   // we know; a text that is the change's own (Write's content) is shown once, in the change
+    return `<div class="ag-f${cls ? " " + cls : ""}"><div class="ag-fk"><span class="mono">${esc(k)}</span>${g ? `<span>${esc(at(g))}</span>` : ""}</div>${inDiff ? `<p class="ag-fv ag-mute">${esc(at("f_in_diff"))}</p>` : `<pre class="ag-fv mono">${esc(typeof v === "string" ? v : JSON.stringify(v, null, 1))}</pre>`}</div>`;
   }
   function askFields(d) {   // everything the request carries: its title, every field of its input in the agent's order (the command first),
     const ri = d.rawInput, rows = [];   // the places, what it added, the change: each whole
     const obj = ri && typeof ri === "object" && !Array.isArray(ri);
     const ti = String(d.title || "");
     if (ti && !(obj && String(ri.command) === ti) && !PLACEHOLDER.test(ti.trim())) rows.push(fieldRow("title", ti, "f_title"));
-    if (obj) Object.keys(ri).sort((x, y) => (y === "command") - (x === "command")).forEach((k) => rows.push(fieldRow(k, ri[k])));
+    const cs = Array.isArray(d.content) ? d.content : [];
+    const diffText = new Set(cs.filter((c) => c && c.type === "diff").flatMap((c) => [c.oldText, c.newText]).filter((x) => typeof x === "string" && x.length > 0));
+    if (obj) Object.keys(ri).sort((x, y) => (y === "command") - (x === "command")).forEach((k) => rows.push(fieldRow(k, ri[k], "", typeof ri[k] === "string" && diffText.has(ri[k]))));
     else if (ri != null) rows.push(fieldRow("rawInput", ri, "f_other"));
     const locs = (d.locations || []).map((l) => l && l.path).filter(Boolean);
     if (locs.length && !(obj && locs.every((x) => Object.values(ri).includes(x)))) rows.push(fieldRow("locations", locs.join("\n"), "f_where"));
-    const cs = Array.isArray(d.content) ? d.content : [];
     const said = cs.filter((c) => c && c.type === "content" && c.content && c.content.type === "text").map((c) => c.content.text).join("\n");
     if (said) rows.push(fieldRow("content", said, "f_said"));
     return rows.join("") + cs.filter((c) => c && c.type === "diff").map((c) => diffHtml(c, true)).join("");

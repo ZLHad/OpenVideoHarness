@@ -93,7 +93,7 @@
 .ag-perm-h b{font-weight:600;color:var(--ink-hi)}
 .ag-perm-h .chip{margin-left:auto}
 .ag-perm .chip.warn{color:var(--wait);border-color:var(--wait-line);background:var(--wait-soft)}
-.ag-askbox{max-height:min(18em,45vh);overflow:auto;border:1px solid var(--rule);background:var(--panel);border-radius:var(--r-ctl);padding:6px 8px;display:grid;gap:7px;align-content:start}
+.ag-askbox{max-height:min(26em,48vh);overflow:auto;border:1px solid var(--rule);background:var(--panel);border-radius:var(--r-ctl);padding:6px 8px;display:grid;gap:7px;align-content:start}
 .ag-askbox.open{max-height:none}
 .ag-askbox:focus-visible{outline:2px solid var(--wait-line);outline-offset:1px}
 .ag-askbox .ag-diff,.ag-askbox .ag-diff pre{max-height:none;overflow:visible}

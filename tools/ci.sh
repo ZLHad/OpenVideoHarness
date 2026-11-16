@@ -3070,11 +3070,12 @@ PY
   a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
   ka=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)   # gate's own message carries the launch key
   b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?   # a second stop: the desk starts again with a new key (the first may be spent)
-  DESK_KEY=$(printf '%s' "$b" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1); export DESK_KEY
+  kb=$(printf '%s' "$b" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)
+  "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!   # and the stop that waits: its own new link
+  for rc3 in $(seq 100); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
+  DESK_KEY=$(sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/gw.out" | head -n 1); export DESK_KEY
   pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null)
   url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
-  "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
-  for rc3 in $(seq 50); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
   python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
   only=$(python3 - "$url" <<'PY' 2>/dev/null
 import http.client, json, sys, urllib.parse
@@ -3086,7 +3087,8 @@ print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
   if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"/?k="*"#/p/g~"*"/gate/1（"*"然后回到这里说一声"*) true ;; *) false ;; esac \
-    && [ -n "$DESK_KEY" ] && [ -n "$ka" ] && [ "$ka" != "$DESK_KEY" ] && ! grep -rqF -e "$DESK_KEY" -e "$ka" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
+    && [ -n "$DESK_KEY" ] && [ -n "$ka" ] && [ -n "$kb" ] && [ "$ka" != "$kb" ] && [ "$kb" != "$DESK_KEY" ] \
+    && ! grep -rqF -e "$DESK_KEY" -e "$ka" -e "$kb" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
     && case "$b" in *"started again with a new link"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
@@ -3094,7 +3096,7 @@ import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
 gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
 desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
-sys.exit(0 if len(desk) == 2 and all(d.get("parent") in gates for d in desk) and any(r["event"] == "feedback" for r in recs) else 1)
+sys.exit(0 if len(desk) == 3 and all(d.get("parent") in gates for d in desk) and any(r["event"] == "feedback" for r in recs) else 1)
 PY
   then ok "gate: the desk channel starts the desk in the background (its run's parent is the gate), serving that project and nothing else, puts its address with a launch key in the message, landing on this round's gate view; the next stop starts it again with a new key; --wait hands over the submission"
   else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
