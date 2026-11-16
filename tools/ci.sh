@@ -3068,7 +3068,7 @@ PY
   else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
   # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
   a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
-  export DESK_KEY=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)   # gate's own message carries the launch key
+  DESK_KEY=$(printf '%s' "$a" | sed -n 's#.*?k=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1); export DESK_KEY   # gate's own message carries the launch key
   b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?
   pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null)
   url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
@@ -3268,7 +3268,7 @@ PY
   printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
   "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 > "$t/console.log" 2>&1 & pid=$!
   for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log"); [ -n "$url" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
-  export DESK_KEY=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log")
+  DESK_KEY=$(sed -n 's#^desk: http://127\.0\.0\.1:[0-9]*/?k=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); export DESK_KEY
   if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
   if python3 - "$url" "$t/root" "$t/root2" <<'PY'
 import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
