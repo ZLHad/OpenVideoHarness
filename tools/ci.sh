@@ -4134,13 +4134,14 @@ PY
   mkdir -p "$t/apps2" && printf 'not ours\n' > "$t/apps2/ovh-studio.desktop"
   e=$(studio_run --install-icon --dir "$t/apps2" --as linux 2>&1); rc3=$?
   studio_run --remove-icon --dir "$t/apps" --as linux >/dev/null 2>&1; rc4=$?
-  if [ $rc = 0 ] && case "$b" in *'"state": "ok"'*) true ;; *) false ;; esac && grep -q '^Exec="' "$t/apps/ovh-studio.desktop.bak" && grep -q "^X-OVH-Repo=$ROOT\$" "$t/apps/ovh-studio.desktop.bak" \
+  if [ $rc = 0 ] && case "$b" in *'"state": "ok"'*) true ;; *) false ;; esac && grep -q '^Exec="' "$t/apps/ovh-studio.desktop.bak" \
+    && [ "$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak")")" = "$(cd "$ROOT" && pwd -P)" ] \
     && [ $rc2 = 1 ] && case "$c" in *"/no/such/clone"*"bin/vh studio --install-icon"*) true ;; *) false ;; esac \
     && case "$d" in *"icon: elsewhere"*"no longer there"*"--install-icon here"*) true ;; *) false ;; esac \
     && [ $rc3 = 1 ] && grep -qx 'not ours' "$t/apps2/ovh-studio.desktop" && case "$e" in *"not one bin/vh studio wrote"*) true ;; *) false ;; esac \
     && [ $rc4 = 0 ] && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/home/.share/ovh-studio" ]
   then ok "studio icon (Linux): a desktop entry and its script run bin/vh studio in this clone; status ok; a clone that moved says which command to run again (the click and the status); a file it did not write is left alone; removed with its script and picture"
-  else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4): $a | $b | $c | $d | $e"; fi
+  else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4; Exec $(grep -c '^Exec="' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null), repo line $(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null) for $(cd "$ROOT" && pwd -P), foreign kept $(grep -cx 'not ours' "$t/apps2/ovh-studio.desktop" 2>/dev/null), entry left $([ -e "$t/apps/ovh-studio.desktop" ] && echo yes || echo no), data left $([ -e "$t/home/.share/ovh-studio" ] && echo yes || echo no)): $a | $b | $c | $d | $e"; fi
   if [ "$(uname -s)" = Darwin ]; then
     a=$(studio_run --install-icon --dir "$t/apps" 2>&1); rc=$?
     app="$t/apps/OVH Studio.app"
