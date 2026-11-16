@@ -273,15 +273,23 @@ def shell_version():
     return json.loads((SHELL / "package.json").read_text())["dependencies"]["electron"]
 
 
-def _shell_cache():
-    return Path(os.environ.get("OVH_STUDIO_SHELL_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "studio-shell")
+def _shell_cache(dir_=None):
+    """Where Electron's download is kept: $OVH_STUDIO_SHELL_CACHE, else ~/.cache/ovh/studio-shell; with --dir, inside that
+    folder (a --dir install touches nothing outside it; set $OVH_STUDIO_SHELL_CACHE to share one download)."""
+    if os.environ.get("OVH_STUDIO_SHELL_CACHE"):
+        return Path(os.environ["OVH_STUDIO_SHELL_CACHE"])
+    if dir_:
+        return Path(dir_).expanduser() / "ovh-studio" / "cache"
+    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "studio-shell"
 
 
-def _record_path():
-    return _data_home() / "ovh-studio" / "shell.json"
+def _record_path(dir_=None):
+    """How the console finds the app (window.shell_record): the default install's only. A --dir install keeps its record
+    in that folder, so the console never picks up a test's or a copy's app."""
+    return (Path(dir_).expanduser() if dir_ else _data_home()) / "ovh-studio" / "shell.json"
 
 
-def fetch_electron(out=sys.stderr):
+def fetch_electron(out=sys.stderr, dir_=None):
     """The pinned Electron, unpacked → (its dist folder, None) or (None, why). npm ci from the committed lockfile (every
     package with its integrity hash, no install scripts), then Electron's own download step, which checks the archive
     against the checksums in that package; the archive stays in the cache, so making the app again works offline.
@@ -295,14 +303,15 @@ def fetch_electron(out=sys.stderr):
     if os.environ.get("OVH_STUDIO_NO_DOWNLOAD"):   # tools/ci.sh: no check downloads Electron
         return None, "no download here (OVH_STUDIO_NO_DOWNLOAD)"
     ver = shell_version()
-    work = _shell_cache() / ver
+    cache = _shell_cache(dir_)
+    work = cache / ver
     work.mkdir(parents=True, exist_ok=True)
     for f in ("package.json", "package-lock.json"):
         shutil.copyfile(SHELL / f, work / f)
     dist = work / "node_modules" / "electron" / "dist"
     if not (dist / "version").is_file() or (dist / "version").read_text().strip().lstrip("v") != ver:
-        print(f"studio: getting Electron {ver} (about 130 MB the first time; kept in {_shown(_shell_cache())}) …", file=out, flush=True)
-        env = dict(os.environ, npm_config_update_notifier="false", electron_config_cache=str(_shell_cache() / "downloads"))
+        print(f"studio: getting Electron {ver} (about 130 MB the first time; kept in {_shown(cache)}) …", file=out, flush=True)
+        env = dict(os.environ, npm_config_update_notifier="false", electron_config_cache=str(cache / "downloads"))
         r = subprocess.run([npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"], cwd=str(work), env=env,
                            capture_output=True, text=True, timeout=900)
         if r.returncode:
@@ -353,17 +362,17 @@ def _app_files(res):
     (res / "default_app.asar").unlink(missing_ok=True)
 
 
-def _write_record(exe, app):
-    rp = _record_path()
+def _write_record(exe, app, dir_=None):
+    rp = _record_path(dir_)
     rp.parent.mkdir(parents=True, exist_ok=True)
     rp.write_text(json.dumps({"exe": str(exe), "app": str(app), "electron": shell_version(), "repo": str(ROOT)}) + "\n")
 
 
-def build_shell_app(dest, out=sys.stderr):
+def build_shell_app(dest, out=sys.stderr, dir_=None):
     """OVH Studio.app at dest, Studio's own window: Electron with its own name, bundle id and icon, its code the boot that
     runs the shell from this clone; signed ad hoc (made here, no quarantine: Gatekeeper does not stop it). → None, or why."""
     import icon
-    dist, why = fetch_electron(out)
+    dist, why = fetch_electron(out, dir_)
     if not dist:
         return why
     src = dist / "Electron.app"
@@ -395,18 +404,17 @@ def build_shell_app(dest, out=sys.stderr):
             shutil.rmtree(dest)
         shutil.move(str(app), str(dest))
     os.utime(dest)
-    lsr = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-    if os.access(lsr, os.X_OK):
-        subprocess.run([lsr, "-f", str(dest)], capture_output=True, timeout=60)
-    _write_record(dest / "Contents" / "MacOS" / "Electron", dest)
+    if not dir_:   # not for --dir: the system's list of apps is outside that folder
+        _lsregister("-f", dest)
+    _write_record(dest / "Contents" / "MacOS" / "Electron", dest, dir_)
     _tidy(dist)
     return None
 
 
-def build_shell_linux(entry, data, out=sys.stderr):
+def build_shell_linux(entry, data, out=sys.stderr, dir_=None):
     """Studio's own window on Linux: Electron copied to <data>/shell with the boot, a desktop entry that runs it. → None, or why."""
     import icon
-    dist, why = fetch_electron(out)
+    dist, why = fetch_electron(out, dir_)
     if not dist:
         return why
     if not (dist / "electron").is_file():
@@ -425,7 +433,7 @@ def build_shell_linux(entry, data, out=sys.stderr):
     entry.parent.mkdir(parents=True, exist_ok=True)
     entry.write_text(d, encoding="utf-8")
     entry.chmod(0o755)
-    _write_record(target / "electron", target)
+    _write_record(target / "electron", target, dir_)
     _tidy(dist)
     return None
 
@@ -438,11 +446,11 @@ def install(platform, dir_=None, use_shell=True, out=sys.stderr):
         return None, None, f"{path} is there and is not one bin/vh studio wrote: left as it is (--dir puts the icon somewhere else)"
     note = None
     if use_shell:
-        why = build_shell_app(path, out) if platform == "macos" else build_shell_linux(path, data, out)
+        why = build_shell_app(path, out, dir_) if platform == "macos" else build_shell_linux(path, data, out, dir_)
         if not why:
             return path, "shell", None
         note = f"Studio's own window was not made ({why}): this launcher opens it in a browser's window instead"
-    _record_path().unlink(missing_ok=True)
+    _record_path(dir_).unlink(missing_ok=True)
     why = build_app(path, register=not dir_) if platform == "macos" else build_desktop(path, data, register=not dir_)
     return (None, None, why) if why else (path, "launcher", note)
 
@@ -461,7 +469,14 @@ def remove(platform, dir_=None):
         path.unlink()
         if data and data.is_dir():
             shutil.rmtree(data)
-    _record_path().unlink(missing_ok=True)
+    _record_path(dir_).unlink(missing_ok=True)
+    if dir_ and platform == "macos":   # what the app kept beside it in that folder: its record and Electron's download
+        mine = Path(dir_).expanduser() / "ovh-studio"
+        shutil.rmtree(mine / "cache", ignore_errors=True)
+        try:
+            mine.rmdir()
+        except OSError:
+            pass
     return path, None
 
 

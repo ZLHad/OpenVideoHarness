@@ -2,15 +2,17 @@
 // OVH Studio.app (bin/vh studio --install-icon) runs this file from the clone, so a git pull changes it with no reinstall.
 //
 // How it is reached: the console starts this program with --ovh-from-console and one line of JSON on stdin,
-//   {url, role, w}: url is the console page with a one-time code (the page's script trades it for access); role names
-//   the desk (one window a desk); w is the window's id for the console's presence stream.
-// Nothing secret is on its command line or in a file. A second start (the console again, a second click) hands its line
+//   {url, role, w}: url is the console page with a one-time code; role names the desk (one window a desk); w is the
+//   window's id for the console's presence stream.
+// Access: this process trades the code for the console's token itself (POST /api/claim) and keeps the token in memory
+// alone; it adds it to the page's own requests to that console (X-Desk-Token) and the page holds only a placeholder
+// ("shell"). So the token is in no command line, no page, no storage and no file. A second start (the console again, a second click) hands its line
 // to the running one through Electron's single-instance lock and exits: one app, one window a desk, raised by itself.
 // Started by a click (no stdin), it asks the clone to show Studio (bin/vh studio --icon open), which starts it as above.
 // {close: role} closes that desk's window (the desk is stopping); with no window left, the app quits.
 // Quitting it: the console the icon started stops too (bin/vh studio --icon quit; it asks first while an agent is mid-turn).
 "use strict";
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell, session } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, shell, session } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -23,6 +25,7 @@ const BG = { darkfield: "#111111", prism: "#04060b", bridge: "#06080a" };
 
 let opts = { repo: path.resolve(__dirname, "..", "..", ".."), env: {} };
 const windows = new Map();   // role → BrowserWindow
+const access = new Map();    // a console's origin → its token: in this process's memory and nowhere else
 let quitting = false;
 
 function settingsPath() { return path.join(app.getPath("userData"), "ovh-studio.json"); }
@@ -43,6 +46,33 @@ function vh(args, done) {   // bin/vh in the clone, with the PATH the installer 
 }
 
 function originOf(u) { try { return new URL(u).origin; } catch (e) { return ""; } }
+
+async function claim(url) {   // the window's one-time code traded here, not by the page → the address without it
+  let u;
+  try { u = new URL(url); } catch (e) { return url; }
+  const c = u.searchParams.get("c");
+  u.searchParams.delete("c");
+  if (c) {
+    try {
+      const r = await net.fetch(u.origin + "/api/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ c }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && typeof d.token === "string") access.set(u.origin, d.token);
+    } catch (e) { /* the console is gone: the page says so */ }
+  }
+  return u.toString();
+}
+
+function guard(ses) {   // the token on the console page's own requests to its console; never on anything else
+  ses.webRequest.onBeforeSendHeaders({ urls: ["http://127.0.0.1/*", "http://127.0.0.1:*/*"] }, (d, cb) => {
+    const h = d.requestHeaders;
+    for (const k of Object.keys(h)) if (k.toLowerCase() === "x-desk-token") delete h[k];
+    const t = access.get(originOf(d.url));
+    const ours = [...windows.values()].some((w) => !w.isDestroyed() && w.webContents.id === d.webContentsId);
+    const top = !d.frame || !d.frame.parent;   // the page itself, not a project's file inside it
+    if (t && ours && top) h["X-Desk-Token"] = t;
+    cb({ requestHeaders: h });
+  });
+}
 
 function makeWindow(role, url) {
   const s = settings();
@@ -92,12 +122,11 @@ function handle(msg) {   // a line from the console: show a desk's window, or cl
   if (typeof msg.url !== "string" || !/^http:\/\/127\.0\.0\.1:\d+\//.test(msg.url)) return;
   const role = typeof msg.role === "string" ? msg.role : "console";
   const win = windows.get(role);
-  if (win && !win.isDestroyed()) {
-    if (originOf(win.webContents.getURL()) !== originOf(msg.url) || msg.fresh) win.loadURL(msg.url);   // a console started again
-    raise(win);
-  } else {
-    makeWindow(role, msg.url);
-  }
+  if (win && !win.isDestroyed() && originOf(win.webContents.getURL()) === originOf(msg.url) && !msg.fresh) { raise(win); return; }
+  claim(msg.url).then((url) => {   // a new window, or the same one on a console started again
+    const w = windows.get(role);
+    if (w && !w.isDestroyed()) { w.loadURL(url); raise(w); } else makeWindow(role, url);
+  });
 }
 
 function readStdin(done) {   // one line of JSON from the console that started this
@@ -156,6 +185,7 @@ function start(given) {
     });
     app.whenReady().then(() => {
       session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));   // no camera, microphone, location …
+      guard(session.defaultSession);
       app.setAboutPanelOptions({ applicationName: "OVH Studio", applicationVersion: "Electron " + process.versions.electron,
         copyright: "OpenVideoHarness", credits: T("Studio：看片子、审一站、和本机的 agent 说话。", "Studio: every film, each stop, the agents on this machine.") });
       menu();

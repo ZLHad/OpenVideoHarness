@@ -29,7 +29,7 @@ Why a program named outright and a profile of its own (2026-11-16): an address h
 headless Chrome another tool had left running, and nobody saw a window. The desk then waits for the page to connect back,
 and only that counts as open (server.Desk.show).
 """
-import json, os, shutil, signal, subprocess, sys, time
+import json, os, re, shutil, signal, subprocess, sys, time
 from pathlib import Path
 
 MAC_APPS = ("Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser")
@@ -100,14 +100,15 @@ def shell_send(prog, line):
 
 
 def shell_pid(prog):
-    """The shell's main process: its command line starts with the program and is no helper (--type=)."""
+    """The shell's main process: its command line is that program's own (_runs: never one that merely names it) and no
+    helper (--type=)."""
     try:
         out = subprocess.run(["ps", "-ax", "-o", "pid=,command="], capture_output=True, text=True, timeout=10).stdout
     except (OSError, subprocess.SubprocessError):
         return None
     for line in out.splitlines():
         pid, _, cmd = line.strip().partition(" ")
-        if prog in cmd and "--type=" not in cmd and pid.isdigit() and int(pid) != os.getpid() and not cmd.startswith("ps "):
+        if pid.isdigit() and int(pid) != os.getpid() and "--type=" not in cmd and _runs(cmd.strip(), prog):
             return int(pid)
     return None
 
@@ -133,12 +134,17 @@ def _is_window(pid, prof, prog):
         cmd = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True, timeout=10).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return False
-    exe = cmd.split(" --", 1)[0].strip()   # the program (its path may hold spaces; every argument after it starts with --)
+    return bool(cmd) and _runs(cmd, prog, wrapped=True) and f"--user-data-dir={prof}" in cmd and "--type=" not in cmd
+
+
+def _runs(cmd, prog, wrapped=False):
+    """Is this command line that program's own: the program first (its path may hold spaces; every argument after it
+    starts with -- , or -psn_ when macOS's LaunchServices started it), a stand-in script after its interpreter; wrapped:
+    also the browser a wrapper script started (Linux: /usr/bin/google-chrome runs .../chrome)."""
+    exe = re.split(r" --| -psn_", cmd, maxsplit=1)[0].strip()
     if prog.endswith(".py"):
-        starts = exe.endswith(" " + prog) and "python" in exe[:-len(prog)].lower()
-    else:   # the program itself, or the browser a wrapper script started (Linux: /usr/bin/google-chrome runs .../chrome)
-        starts = exe in (prog, os.path.realpath(prog)) or os.path.basename(exe) in EXES
-    return bool(cmd) and starts and f"--user-data-dir={prof}" in cmd and "--type=" not in cmd
+        return exe.endswith(" " + prog) and "python" in exe[:-len(prog)].lower()
+    return exe in (prog, os.path.realpath(prog)) or (wrapped and os.path.basename(exe) in EXES)
 
 
 def main_pid(prof, prog=None):

@@ -4170,17 +4170,18 @@ PY
   python3 -c 'import plistlib, sys; plistlib.dump({"CFBundleExecutable": "Electron", "CFBundleName": "Electron", "CFBundleIdentifier": "com.github.Electron", "CFBundlePackageType": "APPL", "CFBundleIconFile": "electron.icns", "ElectronAsarIntegrity": {}}, open(sys.argv[1], "wb"))' "$t/edist/Electron.app/Contents/Info.plist"
   rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
   a=$(OVH_STUDIO_ELECTRON_DIST="$t/edist" studio_run --install-icon --dir "$t/apps" --as linux --json 2>&1); rc=$?
-  b=$(cat "$t/home/.share/ovh-studio/shell.json" 2>/dev/null)
+  b=$(cat "$t/apps/ovh-studio/shell.json" 2>/dev/null)
   c=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
   d=$(PATH=/usr/bin:/bin OVH_STUDIO_SHELL_CACHE="$t/nocache" studio_run --install-icon --dir "$t/apps2" --as linux --json 2>&1); rc2=$?
   e=$(studio_run --install-icon --dir "$t/apps3" --as linux --no-shell --json 2>&1); rc3=$?
   if [ $rc = 0 ] && case "$a" in *'"kind": "shell"'*) true ;; *) false ;; esac && case "$b" in *'/shell/electron"'*'"electron": "'*) true ;; *) false ;; esac \
-    && grep -q '"main": "boot.js"' "$t/home/.share/ovh-studio/shell/resources/app/package.json" && grep -qF "$(cd "$ROOT" && pwd -P)" "$t/home/.share/ovh-studio/shell/resources/app/boot.js" \
+    && grep -q '"main": "boot.js"' "$t/apps/ovh-studio/shell/resources/app/package.json" && grep -qF "$(cd "$ROOT" && pwd -P)" "$t/apps/ovh-studio/shell/resources/app/boot.js" \
+    && [ ! -e "$t/home/.share/ovh-studio" ] && [ ! -e "$t/home/.cache/ovh/studio-shell" ] \
     && grep -q '^StartupWMClass=OVH Studio' "$t/apps/ovh-studio.desktop" && grep -q '/shell/electron"$' "$t/apps/ovh-studio.desktop" \
     && case "$c" in *"icon: ok"*"Studio's own window (Electron "*) true ;; *) false ;; esac \
     && [ $rc2 = 0 ] && case "$d" in *'"kind": "launcher"'*"no npm here"*) true ;; *) false ;; esac \
     && [ $rc3 = 0 ] && case "$e" in *'"kind": "launcher"'*) true ;; *) false ;; esac
-  then ok "studio --install-icon, Linux: Studio's own window (Electron copied beside its boot, which runs the shell from this clone; the desktop entry runs it; the record the console finds it by; status says which); with no npm and nothing cached, or --no-shell, the launcher, and the note says why"
+  then ok "studio --install-icon, Linux: Studio's own window (Electron copied beside its boot, which runs the shell from this clone; the desktop entry runs it; its record; status says which), all of it inside --dir; with no npm and nothing cached, or --no-shell, the launcher, and the note says why"
   else bad "studio --install-icon with the shell, Linux (exits $rc/$rc2/$rc3): $a | $b | $c | $d | $e"; fi
   if [ "$(uname -s)" = Darwin ]; then
     rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
@@ -4192,9 +4193,9 @@ PY
       && ! plutil -extract ElectronAsarIntegrity raw "$app/Contents/Info.plist" >/dev/null 2>&1 && [ ! -e "$app/Contents/Resources/default_app.asar" ] \
       && iconutil -c iconset -o "$t/y.iconset" "$app/Contents/Resources/ovh-studio.icns" && [ "$(ls "$t/y.iconset" | wc -l | tr -d ' ')" = 10 ] \
       && grep -q '"main": "boot.js"' "$app/Contents/Resources/app/package.json" && grep -q 'tools", "desk", "shell", "main.js"' "$app/Contents/Resources/app/boot.js" \
-      && grep -q 'Contents/MacOS/Electron"' "$t/home/.share/ovh-studio/shell.json" \
-      && studio_run --remove-icon --dir "$t/apps" >/dev/null 2>&1 && [ ! -e "$app" ] && [ ! -e "$t/home/.share/ovh-studio/shell.json" ]
-    then ok "studio --install-icon, macOS: OVH Studio.app is Electron with its own name, bundle id and icon (ten sizes), no default app and no asar check, its code the boot that runs the shell from this clone, signed ad hoc and valid; the record the console finds it by; removed with it"
+      && grep -q 'Contents/MacOS/Electron"' "$t/apps/ovh-studio/shell.json" && [ ! -e "$t/home/.share/ovh-studio" ] \
+      && studio_run --remove-icon --dir "$t/apps" >/dev/null 2>&1 && [ ! -e "$app" ] && [ ! -e "$t/apps/ovh-studio" ]
+    then ok "studio --install-icon, macOS: OVH Studio.app is Electron with its own name, bundle id and icon (ten sizes), no default app and no asar check, its code the boot that runs the shell from this clone, signed ad hoc and valid; its record inside --dir, nothing outside it; removed with it"
     else bad "studio --install-icon with the shell, macOS (exit $rc): $a"; fi
   fi
   # the shell's source: Electron pinned from a committed lockfile (registry.npmjs.org, integrity, no install script), the
@@ -4217,11 +4218,12 @@ if any(v.get("hasInstallScript") for v in lock["packages"].values()):
     bad.append("a package with an install script (the install runs npm ci --ignore-scripts)")
 main, pre = open(d + "main.js").read(), open(d + "preload.js").read()
 for need in ("contextIsolation: true", "nodeIntegration: false", "sandbox: true", "webviewTag: false", "setWindowOpenHandler", '"will-navigate"',
-             "setPermissionRequestHandler", "requestSingleInstanceLock", "will-attach-webview", 'titleBarStyle: "hidden"', "show: false", "backgroundColor"):
+             "setPermissionRequestHandler", "requestSingleInstanceLock", "will-attach-webview", 'titleBarStyle: "hidden"', "show: false", "backgroundColor",
+             "onBeforeSendHeaders", 'net.fetch(u.origin + "/api/claim"'):
     if need not in main:
         bad.append(f"main.js lacks {need}")
-if re.findall(r"exposeInMainWorld\(\"(\w+)\"", pre) != ["ovhShell"] or set(re.findall(r"^\s+(\w+):", pre, re.M)) != {"platform", "theme"}:
-    bad.append("preload exposes more than ovhShell {platform, theme}")
+if re.findall(r"exposeInMainWorld\(\"(\w+)\"", pre) != ["ovhShell"] or set(re.findall(r"^\s+(\w+):", pre, re.M)) != {"platform", "access", "theme"}:
+    bad.append("preload exposes more than ovhShell {platform, access, theme}")
 for f in ("main.js", "preload.js"):
     if subprocess.run(["node", "--check", d + f]).returncode:
         bad.append(f"{f} does not parse")
@@ -4234,7 +4236,7 @@ if "if (window.ovhShell)" not in open("tools/desk/static/ui.js").read():
 print("; ".join(bad))
 raise SystemExit(1 if bad else 0)
 PY
-  then ok "studio's shell source: Electron pinned exactly from a committed lockfile (registry.npmjs.org, integrity hashes, no install scripts); its window isolated, without Node, sandboxed, no webview, its own pages only (others to the default browser), no permissions, one instance; a preload with ovhShell {platform, theme} alone; the page takes the frame only in the shell"
+  then ok "studio's shell source: Electron pinned exactly from a committed lockfile (registry.npmjs.org, integrity hashes, no install scripts); its window isolated, without Node, sandboxed, no webview, its own pages only (others to the default browser), no permissions, one instance; a preload with ovhShell {platform, access, theme} alone; the token added by the app to the page's requests (the page never holds it); the page takes the frame only in the shell"
   else bad "studio's shell source"; fi
   # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
   # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries

@@ -1437,7 +1437,7 @@ let KEYSTATE = "", PRES = null, ASKED = false, RENEW = "";
 async function claimCode() {
   const q = new URLSearchParams(location.search), c = q.get("c") || "";
   if (q.has("c") || q.has("w") || q.has("k")) history.replaceState(null, "", location.pathname + location.hash);
-  if (!c) return;
+  if (!c || (window.ovhShell && window.ovhShell.access)) return;   // Studio's own app traded it already, and holds the token
   try {
     const r = await fetch("/api/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ c }) });
     const d = await r.json().catch(() => ({}));

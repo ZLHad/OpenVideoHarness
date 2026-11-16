@@ -268,6 +268,7 @@ const STR = {
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 function deskToken() {   // the console's token, kept in this origin's storage (one port's) once the page traded its window's
+  if (window.ovhShell && window.ovhShell.access) return "shell";   // Studio's own app holds it and adds it to the page's requests
   // one-time code for it (studio.js), so a reload of the window has it too. The static review page never calls this
   const given = (document.querySelector('meta[name="desk-token"]') || {}).content || "";
   try {

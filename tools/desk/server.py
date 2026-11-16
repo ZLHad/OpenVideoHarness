@@ -917,7 +917,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """GET /api/presence?token=&w=: a page with the token, as Server-Sent Events: while it is connected the desk knows
         that page (its window) is there; it is told where to go ({go}); a comment every 5 s finds a page that went away."""
         q = parse_qs(urlsplit(self.path).query)
-        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        given = (self.headers.get("X-Desk-Token") or (q.get("token") or [""])[0]).encode("utf-8", "replace")   # Studio's own app sends a header
         srv = self.server
         if not secrets.compare_digest(given, srv.token.encode("ascii")):
             return self._error(403, "no access")
@@ -956,7 +956,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         a comment every 5 s keeps the line (and the desk's --idle) alive, and finds a page that went away. Needs the page's token (?token=): the events are
         the conversation, file contents and commands included."""
         q = parse_qs(urlsplit(self.path).query)
-        given = (q.get("token") or [""])[0].encode("utf-8", "replace")
+        given = (self.headers.get("X-Desk-Token") or (q.get("token") or [""])[0]).encode("utf-8", "replace")   # Studio's own app sends a header
         mine = self.server.token
         if not secrets.compare_digest(given, mine.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
