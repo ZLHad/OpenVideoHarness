@@ -98,7 +98,7 @@ const ASTR = {
 const at = (k, vars) => { const s = (ASTR[LANG] || ASTR.zh)[k]; return s == null ? t(k, vars) : String(s).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : "")); };
 
 const AGENT = (() => {
-  const TOKEN_ = deskToken();
+  let TOKEN_ = deskToken();
   let KEYOK = true;   // the page holds this run's token (studio.js asks /api/hello); without it the box is not offered
   let KEYP = "", INFO = null, KIND = "", S = null, ES = null, BUSY = null, TAB = "", ERR = null, NEWBOX = false, tick = null, raf = 0;
   const kinds = () => ((INFO && INFO.agents) || []);
@@ -654,6 +654,7 @@ const AGENT = (() => {
     leave() { close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
     scope() { if (KEYP) renderFoot(); },
     keyOk(ok) { KEYOK = !!ok; if (!KEYOK) close(); if (KEYP) render(); },   // without this run's token the conversation is not opened at all (the note at the top says why)
+    token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab,
     _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page

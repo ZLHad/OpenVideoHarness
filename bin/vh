@@ -1386,7 +1386,7 @@ case " $* " in *" --json "*) VH_JSON=1 ;; esac
 # with --json, no python3 is said as any failure is (bin/vh doctor --json has its own record for it)
 if [ -n "$VH_JSON" ] && [ "${1:-}" != doctor ] && ! command -v python3 >/dev/null 2>&1; then vh_fail missing_tool 127 "bin/vh ${1:-}: python3 not found: most commands need it" "bin/vh doctor says how to get it"; fi
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel|peaks|history) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel|peaks|history|studio) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     words) cmd_usage words; echo; exec python3 "$ROOT/tools/words.py" -h ;;   # + what it reads, the checks and the --json fields
@@ -1395,7 +1395,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words) ;;   # (new: once the project is made; words only reads)
+  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words|studio) ;;   # (new: once the project is made; words only reads; studio opens a page, and the desk it starts logs its own run)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) case "${2:-}" in data|agents) ;; *) act_start "$@" || true ;; esac ;;   # agents: no project (it installs into a cache)
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
@@ -1437,6 +1437,7 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   concept) shift; cmd_concept "$@" ;;
   desk) shift; cmd_desk "$@" ;;
+  studio) shift; export OVH_BASH=$BASH; exec python3 "$ROOT/tools/desk/studio.py" "$@" ;;   # stdlib only; the desk it starts runs under this same bash
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only

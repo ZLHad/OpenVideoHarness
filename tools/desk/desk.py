@@ -5,9 +5,9 @@ comments and submits.
                                                 <repo>/projects, each --root), a card a film, waiting ones first; a project's
                                                 page (its stops, its film with the ruler, what to decide, its checks and
                                                 documents); a stop's gate view, where the options are cards to pick and
-                                                one button submits. Started in a terminal it opens your browser at the
-                                                console address it prints (--no-open: not). Already running with these
-                                                roots: print its URL
+                                                one button submits. Started in a terminal it shows Studio's window
+                                                (--no-open: not); bin/vh studio shows it any other time. Already running
+                                                with these roots: print its URL
   bin/vh desk <project> [--root DIR …] [--port N] [--idle s] [--only]   the same page, opened on that project, every
                                                 other film a click away in the space. Default port: the first free of
                                                 8780–8799 (--port 0: any free port). Already serving this project: print
@@ -21,12 +21,11 @@ comments and submits.
   bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none); it then
                                                 counts as handed over (out/review/feedback/.consumed)
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
-  bin/vh desk link [<project>] [--root DIR …] [--force]   a new console address: the desk serving this project (or the
-                                                console of these roots) stops and starts again in the background, alike, on
-                                                the same port, and this prints the new address (in a terminal it opens your
-                                                browser there too); the old address no longer works. For an address lost, or
-                                                opened somewhere else first (the page says so). An agent mid-turn in its
-                                                column: refused (--force stops it)
+  bin/vh desk link [<project>] [--root DIR …] [--force] [--print-address]   start it again: the desk serving this
+                                                project (or the console of these roots) stops and starts again in the
+                                                background, alike, on the same port, and shows its window; pages of the
+                                                earlier run can only look (each has a button that brings the window). An
+                                                agent mid-turn in its column: refused (--force stops it)
   bin/vh desk agents [--json]                   the agents the console's column can talk to (Claude Code, Codex, DeepSeek
                                                 Harness): installed or not, the pinned adapter version, where they live
   bin/vh desk agents install <claude|codex|dsh>   install that agent's ACP adapter, pinned, outside the repo
@@ -35,6 +34,11 @@ comments and submits.
 The desk reads the same out/review/gate-<n>.json as bin/vh review, and shows a stop with the same markup (tools/review.py,
 tools/desk/static/ui.css and ui.js), plus the project's markdown and bin/vh status (the contract is in tools/desk/README.md). A submission goes to out/review/feedback/<round>-<time>.json and .md, and its text into
 REVIEW.md as a dated section. <project> is a folder, or a name under $OVH_PROJECTS / projects/ (date prefix optional).
+
+The address a desk prints opens a page that can only look: the desk makes Studio's window itself (a start from a
+terminal, bin/vh studio, bin/vh gate, the launcher icon, a page's button), and that window's page gets the access with a
+one-time code. --print-address prints an address with such a code (ten minutes, one page), for a browser on another
+machine: whoever sees that output first can work in the console while it runs.
 """
 import argparse, json, re, sys
 from pathlib import Path
@@ -71,12 +75,15 @@ def main(argv):
         ap.add_argument("--port", type=int, help="port on 127.0.0.1 (default: the first free of 8780–8799; 0: any free)")
         ap.add_argument("--idle", type=float, help="stop after this many seconds without a request (an open desk page asks every "
                                                    "few seconds); default: never. bin/vh gate starts it with 43200 (12 h)")
-        ap.add_argument("--key-stdin", action="store_true", help="read the launch key from the first line of stdin (bin/vh gate "
-                                                                 "prints it in its message; the address the desk prints then has none)")
+        ap.add_argument("--code-stdin", action="store_true", help="a one-time code on the first line of stdin, good for ten minutes "
+                                                                  "(the one who starts it prints the address: bin/vh studio --print-address)")
+        ap.add_argument("--print-address", action="store_true", help="print an address that opens one page, for a browser on another "
+                                                                     "machine: whoever sees this output can work in the console while it runs")
         ap.add_argument("--only", action="store_true", help="serve this project and nothing else under the roots (bin/vh gate's "
                                                             "desk); without it the space has every film")
-        ap.add_argument("--no-open", action="store_true", help="started in a terminal it opens your browser at its address; this leaves "
-                                                               "it to you (started otherwise it never opens one)")
+        ap.add_argument("--owner", choices=["icon"], help=argparse.SUPPRESS)   # who started it, in its info file: Studio's icon stops only its own
+        ap.add_argument("--no-open", action="store_true", help="started in a terminal it shows Studio's window; this leaves it to "
+                                                               "bin/vh studio (started otherwise it never shows one)")
     elif sub == "wait":
         ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100, under Claude Code's 2 h)")
     elif sub == "feedback":
@@ -99,13 +106,13 @@ def main(argv):
             print("desk: --only needs a project (it serves that project and nothing else)", file=sys.stderr)
             return 2
         import server
-        key = sys.stdin.readline().strip() if a.key_stdin else None
-        if a.key_stdin and not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", key or ""):
-            print("desk: --key-stdin: no key on stdin", file=sys.stderr)
+        key = sys.stdin.readline().strip() if a.code_stdin else None
+        if a.code_stdin and not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", key or ""):
+            print("desk: --code-stdin: no code on stdin", file=sys.stderr)
             return 2
-        opened = sys.stdout.isatty() and not a.no_open and not a.key_stdin   # a person's terminal; an agent or a background start prints only
+        opened = sys.stdout.isatty() and not a.no_open and not a.code_stdin   # a person's terminal; an agent or a background start prints only
         return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None, [str(Path(r).expanduser()) for r in a.root], a.only, key,
-                            opened)
+                            opened, a.print_address, a.owner)
     project = find(a.project)
     if not project:
         jsonerr.mark("no_project")
@@ -129,13 +136,16 @@ def main(argv):
 
 
 def link_cmd(argv):
-    """bin/vh desk link [<project>] [--root DIR …] [--force] [--json]"""
-    ap = argparse.ArgumentParser(prog="bin/vh desk link", description="a new link for the desk serving this project (or the console): it starts again with a new one-time key")
+    """bin/vh desk link [<project>] [--root DIR …] [--force] [--no-open] [--print-address] [--json]"""
+    ap = argparse.ArgumentParser(prog="bin/vh desk link", description="start the desk serving this project (or the console) again, "
+                                 "and show its window")
     ap.add_argument("project", nargs="?", help="project folder, or its name under projects/; left out: the console")
     ap.add_argument("--root", action="append", default=[], metavar="DIR", help="the console's folders, as it was started with")
     ap.add_argument("--force", action="store_true", help="also when an agent in its column is mid-turn (that turn stops)")
-    ap.add_argument("--no-open", action="store_true", help="in a terminal it opens your browser at the new address; this leaves it to you")
-    ap.add_argument("--json", action="store_true", help="{url} on stdout")
+    ap.add_argument("--no-open", action="store_true", help="show no window (bin/vh studio shows it later)")
+    ap.add_argument("--print-address", action="store_true", help="print an address that opens one page instead of showing the window, "
+                                                                 "for a browser on another machine: whoever sees it first can work in the console")
+    ap.add_argument("--json", action="store_true", help="{url, opened} on stdout")
     a = ap.parse_args(argv)
     for r in a.root:
         if not Path(r).expanduser().is_dir():
@@ -146,19 +156,20 @@ def link_cmd(argv):
         jsonerr.mark("no_project")
         return 2
     import launch, server
-    url, why = launch.relink(project, [str(Path(r).expanduser()) for r in a.root], a.force)
+    url, why = launch.relink(project, [str(Path(r).expanduser()) for r in a.root], a.force, None, a.print_address)
     if not url:
         print(f"desk link: {why}", file=sys.stderr)
         return 1
-    base, _, q = url.partition("?")
     from urllib.parse import quote
-    full = f"{base}?{q}" + (f"#/p/{quote(server.keyify(project.name, project), safe='')}" if project else "")
+    at = f"/p/{quote(server.keyify(project.name, project), safe='')}" if project else ""
+    r = {"opened": False} if a.print_address or a.no_open else launch.show(url, at)
     if a.json:
-        print(json.dumps({"version": 1, "url": full}))
+        print(json.dumps({"version": 1, "url": url + (f"#{at}" if at else ""), "opened": r.get("opened"), "how": r.get("how")}))
         return 0
-    print(f"desk: {full}\n  the console's new address: the one before it no longer works", flush=True)
-    if sys.stdout.isatty() and not a.no_open:
-        server.open_in_browser(full)
+    if a.print_address:
+        print(f"desk: {url}{'#' + at if at else ''}\n  started again; that address opens one page, once, in the next ten minutes", flush=True)
+    else:
+        print(f"desk: started again · " + (server.said(r) if not a.no_open else "bin/vh studio shows its window"), flush=True)
     return 0
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # OpenVideoHarness one-line installer.
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-#   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all] [--obscura]
+#   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all] [--obscura] [--icon | --no-icon]
 # What it does, and where it puts things:
 #   1. clone the repo into --dir, newest commit only (about 200 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
 #   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.202), both inside --dir (about 210 MB of
@@ -14,6 +14,10 @@
 #      into ~/.local/share/ovh/obscura, linked from ~/.local/bin; bin/vh web checks facts against web pages with it
 #   5. run bin/vh doctor --fill-local as a final check: it also writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎)
 #      where they still hold the template, never a line you wrote
+#   6. ask whether to put Studio's launcher icon in your applications (macOS: ~/Applications/OVH Studio.app; Linux: a
+#      desktop entry in ~/.local/share/applications), which brings up Studio's window with a click. Asked in a terminal
+#      only (also under curl | bash); otherwise, and with --no-icon, it only prints the command (bin/vh studio --install-icon);
+#      --icon installs it without asking
 # It never runs sudo and leaves your PATH and shell profile alone. Not done here: the first use of the tools downloads more, into caches under
 # your home directory, without asking:
 #   - the first hyperframes render: HyperFrames' own chrome-headless-shell (about 200 MB, ~/.cache/hyperframes)
@@ -24,12 +28,26 @@
 # The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
-DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all; OBSCURA=0
+DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all; OBSCURA=0; ICON=ask
 while [ $# -gt 0 ]; do case "$1" in
   --dir) DIR="$2"; shift 2 ;; --no-refs) REFS=0; shift ;; --no-skill) SKILL=none; shift ;; --skill) SKILL="${2:?--skill needs claude|codex|all|none}"; shift 2 ;; --obscura) OBSCURA=1; shift ;;
-  -h|--help) sed -n '2,23p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
+  --icon) ICON=yes; shift ;; --no-icon) ICON=no; shift ;;
+  -h|--help) sed -n '2,27p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
 case "$SKILL" in claude|codex|all|none) ;; *) echo "unknown --skill '$SKILL' (claude|codex|all|none)"; exit 1 ;; esac
 say() { printf '\033[1m→ %s\033[0m\n' "$*"; }
+offer_icon() {   # Studio's launcher icon: asked only with a person at a terminal (/dev/tty: curl | bash too); else the command is printed
+  local a=""
+  case "$(uname -s)" in Darwin|Linux) ;; *) return 0 ;; esac
+  case "$ICON" in
+    yes) bin/vh studio --install-icon || echo "! icon not made; bin/vh studio --install-icon tries again" ;;
+    no) ICON_LATER=1 ;;
+    *) if [ -t 1 ] && { exec 3</dev/tty; } 2>/dev/null; then
+         printf '\033[1m→ Put an "OVH Studio" icon in your applications, to bring up Studio with a click? [y/N] \033[0m'
+         read -r a <&3 || a=""; exec 3<&-
+         case "$a" in y|Y|yes|Yes) bin/vh studio --install-icon || echo "! icon not made; bin/vh studio --install-icon tries again" ;; *) ICON_LATER=1 ;; esac
+       else ICON_LATER=1; fi ;;
+  esac
+}
 need() { command -v "$1" >/dev/null 2>&1 || { echo "✗ $1 is required ($2)"; MISSING=1; }; }
 MISSING=0
 need git "https://git-scm.com"; need node "Node.js ≥ 22: https://nodejs.org"; need ffmpeg "macOS: brew install ffmpeg"
@@ -68,6 +86,7 @@ say "installing the style swatch renderer (HyperFrames, for bin/vh style)"
 [ "$SKILL" = none ] || { say "registering the skills"; bin/vh install-skill "$SKILL"; }
 [ "$OBSCURA" = 0 ] || { say "installing Obscura (bin/vh web)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
 say "final check (and this machine's lines in LOCAL.md)"; bin/vh doctor --fill-local || true
+ICON_LATER=""; offer_icon
 arm=""   # Linux arm64: HyperFrames has no Chrome of its own there (engines/README.md, its notes), so a missing browser is said again below
 if [ "$(uname -s)" = Linux ]; then case "$(uname -m)" in aarch64|arm64)
   bin/vh doctor --json 2>/dev/null | python3 -c 'import json, sys; sys.exit(0 if any(c["name"] == "browser" and c["state"] == "ok" for c in json.load(sys.stdin)["checks"]) else 1)' 2>/dev/null || arm=1 ;; esac; fi
@@ -76,10 +95,12 @@ cat <<MSG
 ✓ OpenVideoHarness is ready at $DIR
   Next:  cd "$DIR" && claude        (or: codex)
          then say what you want, e.g. "做一个 30 秒的竖屏科普：为什么低轨卫星的信号会变调"
+  Studio: bin/vh studio brings up its window (or click the OVH Studio icon, or tell your agent "打开 Studio" / "open Studio")
   Or scaffold first:  bin/vh new short my-first-video
   Docs:  README.md · CLAUDE.md · bin/vh help
   Note:  the first render downloads Chrome (about 200 MB) and the first sound commands download Python packages (about 700 MB)
          into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG
+[ -z "$ICON_LATER" ] || echo "  Icon:  bin/vh studio --install-icon puts OVH Studio in your applications, to open Studio with a click"
 [ "$REFS" = 1 ] || echo "  Refs:  not fetched (--no-refs). Where a doc points into references/repos/<dir>/, bash references/fetch.sh <dir> fetches that one"
 [ -z "$arm" ] || echo "  ! Linux arm64: no browser yet, and HyperFrames has none of its own here; set one up before the first render (engines/README.md, \"Linux：渲染前要先备好的三样\")"

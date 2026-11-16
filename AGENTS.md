@@ -19,7 +19,7 @@
    - ② **分镜**（计划里有它时）：按大纲的段落拆页，每镜一张关键帧，没把握的镜头标出来，逐镜默认通过；长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表、reviewer 的分数，再写你自己最不满意的地方（有几处写几处，最要紧的在前）；没有单独停分镜的片子，分镜也放在这一页，逐镜默认通过。
 
-   每次停最多要人定 3 件事。`bin/vh gate <项目> <n> --init` 写一份 gate JSON 骨架，填好后运行 `bin/vh gate <项目> <n>` 出页（`studio` 默认在审阅台停，加 `--wait` 在后台等提交）。然后**停下来等人回复**，不要自己往下做（用户的话已经把立意定了的关卡 ① 除外，见"停在哪"）；人回了以后，原话逐字记进 `REVIEW.md`，同一轮接着做下一步。只有用户在对话里亲口说"不用审、直接出"才能跳过，原话和日期抄进 REVIEW.md：没提档位就按 `quick` 做；说了要 `standard` 或 `studio` 的，由独立 reviewer 代审（`playbook/01-pipeline.md` 的"授权的无人值守模式"）。
+   每次停最多要人定 3 件事。`bin/vh gate <项目> <n> --init` 写一份 gate JSON 骨架，填好后运行 `bin/vh gate <项目> <n>` 出页（`studio` 默认在审阅台停，加 `--wait` 在后台等提交；人说"打开 Studio"时运行 `bin/vh studio`）。然后**停下来等人回复**，不要自己往下做（用户的话已经把立意定了的关卡 ① 除外，见"停在哪"）；人回了以后，原话逐字记进 `REVIEW.md`，同一轮接着做下一步。只有用户在对话里亲口说"不用审、直接出"才能跳过，原话和日期抄进 REVIEW.md：没提档位就按 `quick` 做；说了要 `standard` 或 `studio` 的，由独立 reviewer 代审（`playbook/01-pipeline.md` 的"授权的无人值守模式"）。
 
 ## 努力程度（effort）
 
@@ -134,7 +134,7 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件；AGENTS.md 由 bin/vh sync-agents 生成，内容相同）
 ├── README.md / README.zh-CN.md  给人看的说明；CONTRIBUTING.md 是改本仓库时的规则；install.sh 一键安装
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · sound · commands · status · projects · cancel · history · activity · know · artifacts · types · effort · new · footage · assets · scout · ref · web · review · gate · desk · concept · breakdown · cast · style · recipes · storyboard · rhythm · words · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · peaks · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
+├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · sound · commands · status · projects · cancel · history · activity · know · artifacts · studio · types · effort · new · footage · assets · scout · ref · web · review · gate · desk · concept · breakdown · cast · style · recipes · storyboard · rhythm · words · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · peaks · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
 ├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/                   轻量 skill（`bin/vh install-skill` 装上的是指回这里的短桩，`git pull` 后不用重装）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用已装浏览器查网页事实、存参考页
 ├── video-types/              11 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例

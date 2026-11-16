@@ -210,9 +210,19 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | 快速试一版 | "快速出一版 15 秒的草稿，看看赛博故障风适不适合我的游戏预告，不用问我。" |
 | 深度参与 | "做一支 90 秒的知识视频，讲卫星怎么避免相撞，要精品。开头钩子、主角、主旋律、标题和封面我来定，其余你定。" |
 
+### 打开 Studio
+
+Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地方。它是一个自己的窗口，没有地址栏，永远只有一个。三种办法都能把它叫出来：
+
+- **点图标**：`bin/vh studio --install-icon` 把 **OVH Studio** 放进你的应用程序（安装脚本装完会问一次）。再点一次，还是那个窗口，回到最前面。
+- **在终端里**：`bin/vh studio`，或者 `bin/vh studio <项目>` 直接打开到那支片子。
+- **对 agent 说**"打开 Studio"：它运行同一条命令，窗口就出来了。
+
+关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点一下，窗口回来，停在原来的地方。在 Mac 上从 Dock 退出 OVH Studio，Studio 就停了，窗口也一起关掉。这个窗口用的是你电脑上的 Chrome、Edge、Chromium 或 Brave，配一个 Studio 自己的资料目录（所以 Dock 上它显示的是那个浏览器的图标）；这几样都没有时，Studio 开在默认浏览器的一个标签页里。
+
 ## 工具一览
 
-工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 72 条命令，每条命令加 `-h` 看用法。
+工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 73 条命令，每条命令加 `-h` 看用法。
 
 | | 命令 | 做什么 |
 |---|---|---|
@@ -361,6 +371,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 bash install.sh --dir ~/code/OpenVideoHarness   # 装到别的位置
 bash install.sh --no-refs                        # 先不拉参考仓库（之后用 references/fetch.sh 拉）
 bash install.sh --no-skill                       # 不注册全局 skill
+bash install.sh --icon                           # 不问，直接把 OVH Studio 图标放进应用程序（--no-icon：不问也不装）
 ```
 
 - 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。

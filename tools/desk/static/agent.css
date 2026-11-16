@@ -4,8 +4,7 @@
 .col-tabs[hidden]{display:none}
 .nokey{margin:0;padding:9px 16px;border-bottom:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);font-size:var(--fs-label);line-height:1.6}
 .nokey p{margin:0}
-.nokey-cmd{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
-.nokey-cmd code{font:12px var(--mono);color:var(--ink-hi);background:var(--panel-3);padding:3px 8px;border-radius:var(--r-ctl);overflow-wrap:anywhere}
+.nokey .btn{margin-top:6px}
 .nokey[hidden]{display:none}
 .col-tabs button{border:0;background:none;cursor:pointer;padding:0 0 9px;margin-bottom:-1px;font-size:var(--fs-small);color:var(--ink-3);border-bottom:1px solid transparent;display:inline-flex;align-items:center;gap:6px}
 .col-tabs button[aria-selected=true]{color:var(--ink-hi);border-bottom-color:var(--ink)}

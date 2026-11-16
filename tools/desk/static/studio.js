@@ -8,7 +8,7 @@
    goes to /api/p/<key>/feedback, the desk's one submission channel. No framework, no CDN. Every text from a project is escaped
    before it reaches the page (documents arrive as HTML that reader.py has already escaped). The words and the helpers a
    static review page shares are in core.js, the other modules in modules.js; both load before this file. */
-const TOKEN = deskToken();
+let TOKEN = deskToken();   // this run's when the page has it (its code traded, POST /api/claim), else an earlier run's or none: then it only reads
 const HOME = (document.querySelector('meta[name="desk-home"]') || {}).content || "";
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
@@ -1422,21 +1422,56 @@ $("#lang").addEventListener("click", () => {
 setLang(pickLang());
 OVH.theme(document.documentElement.getAttribute("data-theme"));
 route();
-async function checkKey() {   // the token this page holds, from the launch key: an earlier run's (or none) only reads; and why not
-  const k = new URLSearchParams(location.search).get("k") || "";   // still in the address: the page came with the key and got no token
-  let r = null, d = {}, ok = false, why = "";
-  try { r = await fetch("/api/hello", { headers: { "X-Desk-Token": TOKEN }, cache: "no-store" }); d = await r.json().catch(() => ({})); ok = r.ok; } catch (e) { r = null; }
-  if (r && !ok) {
-    why = "nokey";   // opened without the address, or the console restarted since
-    if (TOKEN) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }
-  }
-  if (k) history.replaceState(null, "", location.pathname + location.hash);   // once is enough: a reload does not ask again
+// The page's access. Studio's window comes with a one-time code in its address (?c=, and ?w=: which window it is); the page
+// trades it for this run's token (a GET gives nothing: a browser may fetch an address twice), keeps the token in its
+// origin's storage, and holds a presence stream open so the desk knows its window is there and can send it somewhere.
+// Asked again every 10 s: a window whose access lapsed (the console restarted) asks for a fresh window once, by itself;
+// any other page says it can only look, with one button that brings Studio's window.
+const WIN = (() => {
+  const q = new URLSearchParams(location.search).get("w") || "";
+  try { if (q) sessionStorage.setItem("studio:w", q); return sessionStorage.getItem("studio:w") || ""; } catch (e) { return q; }
+})();
+let KEYSTATE = "", PRES = null, ASKED = false;
+async function claimCode() {
+  const q = new URLSearchParams(location.search), c = q.get("c") || "";
+  if (q.has("c") || q.has("w") || q.has("k")) history.replaceState(null, "", location.pathname + location.hash);
+  if (!c) return;
+  try {
+    const r = await fetch("/api/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ c }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.token) { TOKEN = d.token; AGENT.token(d.token); try { localStorage.setItem("desk:token", d.token); } catch (e) { /* no storage */ } }
+  } catch (e) { /* the console is gone: the page says so elsewhere */ }
+}
+function presence() {
+  if (PRES || !TOKEN) return;
+  PRES = new EventSource(`/api/presence?token=${encodeURIComponent(TOKEN)}&w=${encodeURIComponent(WIN)}`);
+  PRES.onmessage = (e) => { let d = {}; try { d = JSON.parse(e.data); } catch (x) { return; } if (typeof d.go === "string" && d.go.startsWith("/")) location.hash = d.go; };
+  PRES.onerror = () => { if (PRES && PRES.readyState === 2) { PRES = null; } };   // refused (no access any more): checkKey sees why
+}
+async function checkKey() {
+  const hello = async (tok) => { try { return (await fetch("/api/hello", { headers: { "X-Desk-Token": tok }, cache: "no-store" })).status; } catch (e) { return 0; } };
+  let stored = ""; try { stored = localStorage.getItem("desk:token") || ""; } catch (e) { /* no storage */ }
+  let st = await hello(TOKEN);
+  if (st === 403 && stored && stored !== TOKEN && await hello(stored) === 200) { TOKEN = stored; AGENT.token(stored); st = 200; }   // another tab's, of this run
+  if (st === 200) presence();
+  if (!st || KEYSTATE === (st === 200 ? "ok" : "only")) return;   // no console to ask (the page says so elsewhere), or nothing changed
+  const ok = st === 200;
+  KEYSTATE = ok ? "ok" : "only";
+  if (!ok && TOKEN && stored === TOKEN) { try { localStorage.removeItem("desk:token"); } catch (e) { /* no storage */ } }   // an earlier run's
+  if (!ok && PRES) { PRES.close(); PRES = null; }
   const b = $("#nokey");
   if (b) {
-    b.hidden = ok || !why;
-    b.innerHTML = ok || !why ? "" : `<p>${esc(t(why))}</p>${d.link ? `<div class="nokey-cmd"><code class="mono">${esc(d.link)}</code><button type="button" class="btn" id="nokeyCopy">${esc(t("nokey_copy"))}</button></div>` : ""}`;
-    const c = $("#nokeyCopy"); if (c) c.addEventListener("click", () => copyText(d.link).then(() => toast(t("nokey_copied"))));
+    b.hidden = ok;
+    b.innerHTML = ok ? "" : `<p>${esc(t("nokey"))}</p><button type="button" class="btn" id="reopen">${esc(t("reopen"))}</button>`;
+    const c = $("#reopen"); if (c) c.addEventListener("click", (e) => { if (e.isTrusted) reopen(); });
   }
-  AGENT.keyOk(ok, why);
+  AGENT.keyOk(ok);
+  if (!ok && WIN && !ASKED) { ASKED = true; reopen(true); }   // Studio's own window, its access gone: a fresh window takes its place
 }
-checkKey();
+async function reopen(quiet) {   // the desk shows Studio's window (POST /api/open: nothing secret comes back)
+  let x = null, d = {};
+  try { x = await fetch("/api/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at: location.hash.replace(/^#/, "") }) }); d = await x.json().catch(() => ({})); } catch (err) { x = null; }
+  if (!quiet) toast(t(x && x.ok && d.opened ? "reopened" : "reopen_failed"));
+}
+(async () => { await claimCode(); await checkKey(); })();
+setInterval(checkKey, 10000);
