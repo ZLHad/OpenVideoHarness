@@ -75,7 +75,7 @@ Place objects only via a 6x6 anchor grid (A1–F6) in the animation area; print 
 
 ## 自查重点
 
-在 `TASTE_CHECKLIST.md` 之外，另外检查：
+在 `templates/TASTE_CHECKLIST.md` 之外，另外检查：
 - 同一个实体在全片是否始终同一个颜色？
 - 放大细节时，父对象是否还在画面里？
 - 公式有没有超出安全区或和图形重叠？

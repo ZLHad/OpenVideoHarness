@@ -627,9 +627,14 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         delivered = st[-1]["state"] == "done"
         return out("nobody" if delivered and not working else "agent", busy + ("delivered: what this film taught goes into LESSONS.md" if delivered else "carry on"))
     todo = scaffold_todo(project, proj)
-    if todo and s["id"] != "1":
+
+    def scaffold_first():
         return out("agent", busy + "the engine's scaffold is not there: this makes it", [todo], [R_HF] if "hf-init" in todo else [])
-    later = todo   # gate ①'s cards, BRIEF and outline need no engine (bin/vh new --no-install, or a scaffold that failed offline): it is made before the scenes
+    # what needs no engine goes first (bin/vh new --no-install, or a scaffold that failed offline): gate ①'s cards, BRIEF and
+    # outline, and a quick film's BRIEF and storyboard table; the scaffold comes before the scenes
+    if todo and s["id"] != "1" and not (quick and s["kind"] == "deliver"):
+        return scaffold_first()
+    later = todo
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
@@ -644,6 +649,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if refused is not None:
         return out("agent", busy + f"bin/vh gate refused the page for {s['name']}, so the person got nothing: fix it ({'; '.join(refused[:3])}), then send it again", [f"bin/vh gate {p} {pid}"], [R_PAGE])
     film, fstate, fails = film_state(project, by_video)
+    if later and s["kind"] == "deliver" and fstate != "none":
+        return scaffold_first()
     check = [f"bin/vh check {p}"]
     # what the scenes need to be right: 02's seven layers and budget, and its sections after the frame commands (quick reads less: playbook/quick.md)
     writing = [] if quick else [R_LAYERS, R_BUDGET, R_PURE, R_SILENT, R_COLOUR, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS, R_PITFALLS,
@@ -716,8 +723,9 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + f"prepare {s['name']}{f' for {mine}' if mine else ''}, a stop the director mode asks for; {say}", cmds, [R_DIRECTOR, R_LOOKDEV if key == "E0" else None, R_PAGE])
     # delivery: quick's whole path, and the end of the others'
     if fstate == "none":
-        return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final") if x),
-                   [effort if quick else None, engine_setup(project, proj), render_cmd(project, proj, not quick)],
+        unset = f"the engine is not installed yet: {later} (it needs the network) before the scenes" if later else None
+        return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final", unset) if x),
+                   [effort if quick else None, engine_setup(project, proj) or later, render_cmd(project, proj, not quick)],
                    [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, R_TYPE, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
     if fstate in ("unchecked", "stale"):
         return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),

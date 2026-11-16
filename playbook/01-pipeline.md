@@ -15,7 +15,7 @@
 | 4 时间依据 | `audio/*`、`timeline.json`（词级时间）、`beats.json`，或事件表 | 见 `04-audio.md` | 用实测或定下的时间回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 新做和改过的场景过 lint，按问题看 sheet、strip、crop |
-| 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 底线条目全 PASS；整片 draft 过 1 轮打分层，修最重要的至多 3 处（`studio` 至少 3 轮、最多 10 轮，做工五项都 ≥ 7）；小修只做局部复查 |
+| 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `templates/TASTE_CHECKLIST.md` | 底线条目全 PASS；整片 draft 过 1 轮打分层，修最重要的至多 3 处（`studio` 至少 3 轮、最多 10 轮，做工五项都 ≥ 7）；小修只做局部复查 |
 | 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe` 通过，`blackdetect`、`freezedetect` 的命中逐条看过；**人工关卡 ③**（draft） |
 | 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | `bin/vh assets check`、`credits`（署名和 AI 标识） | 交付前把人说过的话逐条核对过（下面的"交付前"）；用户完整看一遍、听一遍 |
 
@@ -53,7 +53,7 @@
 | 风格 | 从立意推出来，可以参考 `styles/` 的预设，写明借了什么 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
 | 自查 | 整片一张联系表、一张按目标屏缩的联系表、前 2 s 的 strip，20 条清单速查一遍 | 新做和改过的场景及交界：联系表、关键动作 strip、局部 crop，按问题取，没动的抽查；20 条清单 | 同左，再加目标屏尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
-| 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer（默认用便宜一档的模型）打 8 项分，修最重要的至多 3 处，改过的段落做局部复查；不设分数线，分数和没修好的几处带进关卡 ③（`TASTE_CHECKLIST.md` 打分层） | ≥ 3 轮、最多 10 轮，做工五项都 ≥ 7 才出片；同一类问题最多改 5 次；到上限还没过线，就带着分数进关卡 ③（打分层） |
+| 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer（默认用便宜一档的模型）打 8 项分，修最重要的至多 3 处，改过的段落做局部复查；不设分数线，分数和没修好的几处带进关卡 ③（`templates/TASTE_CHECKLIST.md` 打分层） | ≥ 3 轮、最多 10 轮，做工五项都 ≥ 7 才出片；同一类问题最多改 5 次；到上限还没过线，就带着分数进关卡 ③（打分层） |
 | 声音 | 片子需要的都配上：配乐或配音 + 关键动作音效 + 按视频类型的混音 profile + `bin/vh qa`（和 standard 一样，只是不多轮复听） | 配乐或配音 + 关键动作音效 + 按视频类型的混音 profile（`bin/vh mix … profile=`）+ `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check + 混音报告（`bin/vh qa mix`）没有硬失败 |
 | 渲染与交付 | 正式画质 mp4 + 联系表（draft 只用来自查） | 正式画质 mp4 + 联系表 | 同左 + 网页版、GIF、封面，按需出 9:16 |
 | draft 版数 | 1–2 版 | 一般 3–5 版 | 不设上限，直到过线（整片评审的轮数另有上限，见"独立评审"一行） |
@@ -107,7 +107,7 @@ projects/2026-10-01-leo-doppler/
 - **用户的话已经把立意定了**：不出立意卡，把他给立意的那几句原话记在 REVIEW.md 的关卡 ① 下，"定了"写照 brief 做什么；发一条消息，说你照这个会做成什么样、打算在哪几处停，不等回复接着做。只给了题目、立意要你来想的，不算；拿不准就出卡。
 - **多停一次**不用谁批准：给关卡 ② 出一页，它就是一停。计划里的停只有用户在对话里的原话能拿掉，照下面"授权的无人值守模式"的格式记在那一关下面。片子本身贵而 `Stops:` 一行没写 2，关卡 ② 仍在计划里。
 - **工具怎么把关**（`tools/gatecheck.py`；这是给 agent 的护栏，不是锁）：
-  - 关卡 ①：`standard` 和 `studio` 的项目，`bin/vh render` 渲项目自己的整片（不带 `--range`、`--frames`；`out/` 下面的立意草图、look-dev 页不管）和 `bin/vh check` 之前，`REVIEW.md` 的关卡 ① 下（审阅台写的"审阅台反馈 · 关卡 1"一节也算）要有人的原话和"定了：…"一行；缺哪行，它就拒绝并说补哪一行。关卡的记录只写在 REVIEW.md 这一处：`DECISIONS.md` 那张表的 concept 一行不用改状态，`bin/vh status` 从 REVIEW.md 读立意定了什么。用户的跳过授权记在案的（下面"授权的无人值守模式"），放行。
+  - 关卡 ①：`standard` 和 `studio` 的项目，`bin/vh render` 渲项目自己的整片（不带 `--range`、`--frames`；`out/` 下面的立意草图、look-dev 页不管）和 `bin/vh check` 之前，`REVIEW.md` 的关卡 ① 下（审阅台写的"审阅台反馈 · 关卡 1"一节也算）要有人的原话和"定了：…"一行；缺哪行，它就拒绝并说补哪一行。`bin/vh gate` 也照这一条，关卡 ① 没有记录就不发关卡 ③ 的页。关卡的记录只写在 REVIEW.md 这一处：`DECISIONS.md` 那张表的 concept 一行不用改状态，`bin/vh status` 从 REVIEW.md 读立意定了什么。用户的跳过授权记在案的（下面"授权的无人值守模式"），放行。
   - 关卡 ②：计划里有它而没有记录时，`bin/vh gate` 不发关卡 ③ 的页，`bin/vh check` 不放整片，draft 也算，因为 draft 本来就在分镜之后；不查这一条的是 animatic（放在 `out/animatic.mp4`）、`out/review/` 下的小样，和不到片长一半的片段。记录和关卡 ① 一样要两行：人的原话和"定了"；只跳过关卡 ① 的授权管不到关卡 ②。
   - BRIEF 里没有 `Stops:` 一行的项目（这一行加进模板之前建的）照旧是三道关卡，只查关卡 ①。
 

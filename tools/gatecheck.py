@@ -32,7 +32,7 @@ Where a film stops is its own (CLAUDE.md, 停在哪): plan_of() reads it for bin
     Then, --for check on a film that comes after the storyboard (any whole film, a draft too; not out/animatic*, a sample under
     out/review/ or out/check/, one Manim scene at draft quality, or a part: under half the BRIEF's length), gate ② needs what
     gate ① needs, the person's words and a decision in a gate ② section, or that waiver; a waiver of gate ① alone does not
-    reach it. bin/vh gate asks the same before it sends gate ③'s page (tools/gate.py), and bin/vh status reads it the same way.
+    reach it. bin/vh gate asks the same before it sends gate ③'s page (tools/gate.py), and gate ① too (not_on_record), and bin/vh status reads it the same way.
 Exit: 0 on record, or not checked (the line printed says which) · 1 a record is missing: each missing line is named,
 with what to write · 2 not inside a project.
 """
@@ -270,7 +270,7 @@ def row_decided(dec, word):
 def gate1_words(review):
     """What gate ① settled, in REVIEW.md's words: the last 定了 / Decided line of its gate ① sections that says something (what
     comes before 改了 on it), or the list under an empty one, or an older template's ticked box; None when there is none.
-    bin/vh status gives it as the concept, so DECISIONS.md need not say it again."""
+    bin/vh status gives it as record.concept: the line as written ("通过" when that is all it says), not a reading of it."""
     last = None
     for title, lines in sections(review)[1:]:
         if not GATE1.search(title) or BEFORE.search(title):
@@ -549,14 +549,18 @@ def asks_gate2(path, seconds=None, planned=None):
 
 
 def not_on_record(project, before):
-    """The gates of this film's plan between gate ① and a stop ("3": gate ②) that are not behind it yet: [gate]. [] for a quick
-    film, a BRIEF with no Stops line and a project with no REVIEW.md. Gate ① is main()'s to ask, of the whole render and the check."""
+    """The gates of this film's plan before a stop ("3": gate ①, and gate ② when the plan has it) that are not behind it yet:
+    [gate]. [] for a quick film and a project with no REVIEW.md. Gate ① by main()'s own rule (the person's words and a decision,
+    or the user's waiver), with or without a Stops line; gate ② only with one (a BRIEF from before the line is held to gate ① alone)."""
     project = Path(project)
     plan = plan_of(project)
-    if plan["quick"] or plan["line"] is None or not (project / "REVIEW.md").is_file():
+    if plan["quick"] or not (project / "REVIEW.md").is_file():
         return []
     review = strip_comments(read(project / "REVIEW.md"))
-    return [g for g in plan["gates"] if "1" < g < before and not stop_on_record(review, g)]
+    out = [] if before <= "1" or stop_on_record(review, "1") else ["1"]
+    if plan["line"] is not None:
+        out += [g for g in plan["gates"] if "1" < g < before and not stop_on_record(review, g)]
+    return out
 
 
 def is_final(path):

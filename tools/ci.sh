@@ -2178,7 +2178,7 @@ PY
 import sys
 from pathlib import Path
 p = Path(sys.argv[1])
-d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | 待定 |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
+d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | 见 REVIEW.md 关卡 ① |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
 (p / "DECISIONS.md").write_text(d, encoding="utf-8")
 PY
   e=$(python3 tools/gatecheck.py "$p"); rc7=$?
@@ -2305,6 +2305,21 @@ PY
     && [ "$rc" = 0 ] && [ "$d" = "1:done 3:in_progress deliver:not_started | 1,3 | " ]
   then ok "stop plan: gate ①'s message ends with where this film stops and that a sentence changes it (twice; three times and why; in the review language); the concept on record with no page (the user's own brief) passes gate ①"
   else bad "stop plan in gate ①'s message (gatecheck $rc): $a || $b || $c || $d"; fi
+  # gate ③'s page waits for gate ① on record too, as render and check do (a BRIEF with no Stops line as well): not sent, nothing
+  # written; with the person's words and decision, or the user's waiver of gate ①, it goes; a quick film's page goes
+  e=""
+  for k in g31:"" g32:g1 g33:waive1-scope g34:Effort=quick; do
+    OVH_PROJECTS="$t" vh new math "${k%%:*}" >/dev/null 2>&1; q=$(ls -d "$t"/*-"${k%%:*}"); rec "$q" len=4 nostops ${k#*:}
+    vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"; a=$(vh gate "$q" 3 --page 2>&1); rc=$?
+    case "${k%%:*}:$rc" in
+      g31:2) case "$a" in *"Gate ① concept and outline is in this film's plan"*"no record of it"*"bin/vh gate $q 1"*) [ ! -e "$q/out/review/gate-3.html" ] || e="$e | g31 wrote a page" ;; *) e="$e | g31 said: $(printf '%s' "$a" | head -c 300)" ;; esac ;;
+      g31:*) e="$e | gate ③ with no record of gate ① exited $rc" ;;
+      *:0) ;;
+      *) e="$e | ${k%%:*} (${k#*:}) exited $rc: $(printf '%s' "$a" | tail -c 200)" ;;
+    esac
+  done
+  [ -z "$e" ] && ok "stop plan: gate ③'s page is not sent while gate ① has no record (a BRIEF with no Stops line too), and goes with the person's words and decision, the user's waiver of gate ①, or Effort quick" \
+    || bad "stop plan, gate ③ before gate ①:$e"
   if ! command -v ffmpeg >/dev/null; then skip "stop plan: a short film to its delivery, a long one held at its storyboard" "no ffmpeg"; return; fi
   mk() { ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x303030:s=1920x1080:r=30:d=$2" -pix_fmt yuv420p "$1"; }
   # a short film: gate ③'s skeleton includes the storyboard, and its page is refused until bin/vh storyboard has written it;
@@ -2451,6 +2466,13 @@ PY
     && python3 -c 'import json, sys; d = json.loads(sys.argv[1]); s, c = d["scaffold"], d["next"]["commands"]; sys.exit(0 if s["ok"] is False and s["skipped"] is True and s["finish"].endswith(" portrait") and c[0].startswith("bin/vh effort") and c[-1] == s["finish"] and "before the scenes" in d["next"]["do"] else 1)' "$a"
   then ok "new --no-install: HyperFrames' init is not tried, the project is made, the command that installs it later is said, exit 0; status keeps gate ①'s work and names it last"
   else bad "new --no-install (exit $rc): $(cat "$t/o.err" | head -c 400) | $(printf '%s' "$a" | head -c 400)"; fi
+  # and on quick, which has no gate ①: its first step (BRIEF, the quick card, the size floors) comes first, the install just
+  # before the scenes' render; bin/vh new says that too, not "first: install"
+  a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/o" vh new short oq --no-install --effort quick --json 2>"$t/oq.err"); rc=$?
+  if [ "$rc" = 0 ] && [ ! -e "$t/npx-ran" ] && grep -q "engine   : not installed (--no-install)" "$t/oq.err" && ! grep -q "first    :" "$t/oq.err" \
+    && python3 -c 'import json, sys; d = json.loads(sys.argv[1]); n = d["next"]; c, r = n["commands"], n["read"]; i = [k for k, x in enumerate(c) if x.startswith("bin/vh hf-init")]; sys.exit(0 if c[0] == "bin/vh effort quick" and len(i) == 1 and 0 < i[0] < len(c) - 1 and "playbook/quick.md" in r and "playbook/03-motion-design.md#4." in r and "BRIEF.md (" in n["do"] and "before the scenes" in n["do"] else 1)' "$a"
+  then ok "new --no-install --effort quick: status's first step is the BRIEF and the quick card, with the install just before the render; new says it the same way"
+  else bad "new --no-install on quick (exit $rc): $(head -c 400 "$t/oq.err") | $(printf '%s' "$a" | head -c 400)"; fi
   printf '#!/bin/sh\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo "npx line $i"; done\nexit 1\n' > "$t/bad/npx"; chmod +x "$t/bad/npx"
   a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/h" vh new handdrawn hd 2>&1); rc=$?; p=$(ls -d "$t"/h/*-hd 2>/dev/null)
   if [ "$rc" = 1 ] && [ -f "$p/ANIMATION_GUIDE.md" ] && case "$a" in *"✓"*) false ;; *"did not finish"*"npm install"*) true ;; *) false ;; esac
