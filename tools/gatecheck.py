@@ -12,17 +12,16 @@ project's own page is checked: the project folder itself, or a page directly in 
 folder under it (a concept sketch in out/review/, a look-dev variant) is not. The effort is the BRIEF's "- Effort:"
 line, else a 默认努力程度 / Effort line in the harness's LOCAL.md, else standard. A quick project, and one without
 REVIEW.md (made before the templates had one), is not checked. A standard or studio project is on record when
-  - REVIEW.md has, in a gate ① section ("## 关卡 ① …", "## Gate 1 …", the desk's "## 审阅台反馈 · 关卡 1 · …"; not
+REVIEW.md has, in a gate ① section ("## 关卡 ① …", "## Gate 1 …", the desk's "## 审阅台反馈 · 关卡 1 · …"; not
     "## 关卡 ① 之前…"), the person's words (a "原话：" / "Verbatim:" line with them, the desk's quoted block under it, or
     quoted words in the section) and a decision: a "定了：…" / "决定：" / "Decided: …" line (bold, numbered or nested too)
     that says something settled (not the template's {…}, an empty "定了：　改了：", "待…", "等…", "未…" or "?"), or one
-    left empty with a list right under it, or the older template's ticked "- [x] 通过 / 按意见修改 / 推翻重来"; and
-  - DECISIONS.md has, outside code blocks and not struck through, a concept 立意 row whose 状态 / status column says it is
-    decided (已定, 定了, 选定, 改了, 通过, decided, chosen, settled, approved) and does not start with 待, 等, 未 or pending,
-    or a dated "- YYYY-MM-DD concept · …" (立意 · …) line that is not struck through and not pending (待, 等, 未定, 推荐…);
+    left empty with a list right under it, or the older template's ticked "- [x] 通过 / 按意见修改 / 推翻重来";
 or when REVIEW.md records the user's own words waiving the gates: "用户授权跳过（YYYY-MM-DD）。原话："…"" ("Waived by the
 user (YYYY-MM-DD). Verbatim: "…"") with the words in it, outside code blocks, the reference sections and the 关卡 ② or ③
 sections, and without a "范围：" / "Scope:" line right under it that names only gate ② or ③.
+The record is REVIEW.md's alone: DECISIONS.md's concept row is not asked for (bin/vh status reads the concept from REVIEW.md;
+concept_decided() still reads an older project's row, for status). Until 2026-11 the row was asked for too.
 Where a film stops is its own (CLAUDE.md, 停在哪): plan_of() reads it for bin/vh status, gate, artifacts and this check.
   - A BRIEF with no "- Stops:" line (a project from before the templates had one): gates ① ② ③, and only gate ① is checked.
   - With the line: gates ① and ③ always; gate ② when the step after the storyboard is expensive for this film (longer than
@@ -33,7 +32,7 @@ Where a film stops is its own (CLAUDE.md, 停在哪): plan_of() reads it for bin
     Then, --for check on a film that comes after the storyboard (any whole film, a draft too; not out/animatic*, a sample under
     out/review/ or out/check/, one Manim scene at draft quality, or a part: under half the BRIEF's length), gate ② needs what
     gate ① needs, the person's words and a decision in a gate ② section, or that waiver; a waiver of gate ① alone does not
-    reach it. bin/vh gate asks the same before it sends gate ③'s page (tools/gate.py), and bin/vh status reads it the same way.
+    reach it. bin/vh gate asks the same before it sends gate ③'s page (tools/gate.py), and gate ① too (not_on_record), and bin/vh status reads it the same way.
 Exit: 0 on record, or not checked (the line printed says which) · 1 a record is missing: each missing line is named,
 with what to write · 2 not inside a project.
 """
@@ -266,6 +265,39 @@ def row_decided(dec, word):
                 if YES.match(status) and not NOT_YET.match(status):
                     return True
     return False
+
+
+def gate1_words(review):
+    """What gate ① settled, in REVIEW.md's words: the last 定了 / Decided line of its gate ① sections that says something (what
+    comes before 改了 on it), or the list under an empty one, or an older template's ticked box; None when there is none.
+    bin/vh status gives it as record.concept: the line as written ("通过" when that is all it says), not a reading of it."""
+    last = None
+    for title, lines in sections(review)[1:]:
+        if not GATE1.search(title) or BEFORE.search(title):
+            continue
+        for i, (line, code) in enumerate(lines):
+            if code:
+                continue
+            b = BOXES.match(line)
+            if b:
+                last = b.group(1); continue
+            m = DECIDED.match(line)
+            if not m or PLACEHOLDER.search(m.group(1)):
+                continue   # the template's "定了：{…}": nothing under it counts either (as record() reads it)
+            v = re.split(r"[\s　]+(?:改了|Changed)\s*[：:]", m.group(1))[0].strip(" \t　*`")
+            if says(v):
+                last = v; continue
+            items = []
+            for nxt, ncode in lines[i + 1:]:
+                if not nxt.strip():
+                    continue
+                lm = re.match(rf"^\s*{LIST}\s+(.*)$", nxt)
+                if ncode or not lm or LABEL.match(nxt) or SAID.match(nxt) or DECIDED.match(nxt):
+                    break
+                items.append(lm.group(1).strip())
+            if any(says(x) for x in items):
+                last = "；".join(x for x in items if says(x))
+    return last
 
 
 def concept_decided(dec):
@@ -517,14 +549,18 @@ def asks_gate2(path, seconds=None, planned=None):
 
 
 def not_on_record(project, before):
-    """The gates of this film's plan between gate ① and a stop ("3": gate ②) that are not behind it yet: [gate]. [] for a quick
-    film, a BRIEF with no Stops line and a project with no REVIEW.md. Gate ① is main()'s to ask, of the whole render and the check."""
+    """The gates of this film's plan before a stop ("3": gate ①, and gate ② when the plan has it) that are not behind it yet:
+    [gate]. [] for a quick film and a project with no REVIEW.md. Gate ① by main()'s own rule (the person's words and a decision,
+    or the user's waiver), with or without a Stops line; gate ② only with one (a BRIEF from before the line is held to gate ① alone)."""
     project = Path(project)
     plan = plan_of(project)
-    if plan["quick"] or plan["line"] is None or not (project / "REVIEW.md").is_file():
+    if plan["quick"] or not (project / "REVIEW.md").is_file():
         return []
     review = strip_comments(read(project / "REVIEW.md"))
-    return [g for g in plan["gates"] if "1" < g < before and not stop_on_record(review, g)]
+    out = [] if before <= "1" or stop_on_record(review, "1") else ["1"]
+    if plan["line"] is not None:
+        out += [g for g in plan["gates"] if "1" < g < before and not stop_on_record(review, g)]
+    return out
 
 
 def is_final(path):
@@ -575,7 +611,7 @@ def main():
         if where != proj:
             done(0, "not checked", f"gate record: {args[0]} is not the project's own page (a sketch or look-dev page): not checked")
     effort, src = effort_of(proj)
-    review_f, dec_f = proj / "REVIEW.md", proj / "DECISIONS.md"
+    review_f = proj / "REVIEW.md"
     if effort == "quick":
         done(0, "no gates", f"gate record: Effort quick ({src}): no gates to record", effort=effort)
     if not review_f.is_file():
@@ -589,10 +625,6 @@ def main():
             missing.append('REVIEW.md: under "## 关卡 ① 立意和大纲", the person\'s words: "- 原话：“…”" (verbatim, as they wrote them)')
         if not decided:
             missing.append('REVIEW.md: under "## 关卡 ① 立意和大纲", the decision: "- 定了：…" (which concept card, and what else was settled)')
-        if not dec_f.is_file():
-            missing.append("DECISIONS.md is missing: copy templates/DECISIONS.md and fill in its concept 立意 row")
-        elif not concept_decided(read(dec_f)):
-            missing.append('DECISIONS.md: the concept 立意 row\'s status, "已定（关卡 ①）：<the concept>" (it is still 待定, the template\'s {…}, or struck through)')
     if not missing:
         # gate ②, for a film whose plan has it (a BRIEF with a Stops line): asked of every film that comes after the storyboard,
         # whatever became of gate ① (a waiver of gate ① is gate ①'s: waived_stop says whether it reaches gate ②, as bin/vh gate
@@ -622,7 +654,7 @@ def main():
                  effort=effort, missing=miss, stops=stops)
         if w:
             done(0, "waived", f"gate record: {effort} ({src}), the gates waived in the user's own words ({w}, REVIEW.md)", effort=effort, waived=w, stops=stops)
-        done(0, "on record", f"gate record: {effort} ({src}), gate ① decided in the person's words (REVIEW.md) and the concept on record (DECISIONS.md)", effort=effort, stops=stops)
+        done(0, "on record", f"gate record: {effort} ({src}), gate ① decided in the person's words (REVIEW.md)", effort=effort, stops=stops)
     done(1, "missing", "\n".join([f"gate record: a {effort} project ({src}) with no record of gate ① — the person decides the concept before the film is made whole:"]
                                   + [f"    {m}" for m in missing]
                                   + ['    or, if the user said in chat to skip the reviews, their words: "- 用户授权跳过（YYYY-MM-DD）。原话：“…”" (templates/REVIEW.md)']),

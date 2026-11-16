@@ -24,7 +24,7 @@ The page and the desk read the same out/review/gate-<n>.json: it is the one file
 a snapshot of the project's text (bin/vh history); a failure to save it never stops the page.
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
---wait without the desk, --init over a file, gate ③'s page while gate ② is in the film's plan and not on record (a BRIEF with a
+--wait without the desk, --init over a file, gate ③'s page while gate ① is not on record (standard, studio), or gate ② (in the plan, a BRIEF with a
 Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out.
 """
 import argparse, contextlib, json, re, sys
@@ -60,20 +60,38 @@ CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/0
     "E5": ("锁画面：bin/vh qa 的结果和请听的几处", "the picture lock: bin/vh qa's result and the places to listen to")}
 
 
-def skeleton(gate, lang, plan=None):
+PACKAGED = ("02",)   # the types whose concept cards carry 2 titles and a cover layout (video-types/02, playbook/10 §1)
+
+
+def type_of(project):
+    """The project's type number ("02"), as its BRIEF names its type doc or bin/vh new marked it; None when it says none."""
+    try:
+        s = (Path(project) / "BRIEF.md").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    m = re.search(r"video-types/(\d\d)-[\w-]+\.md", s) or re.search(r"<!-- from (\d\d)-[\w-]+\.md -->", s)
+    return m.group(1) if m else None
+
+
+def skeleton(gate, lang, plan=None, kind=None):
     """A gate JSON to fill in, for this stop. Each {填：…} says what goes there; bin/vh gate takes it once none is left.
-    plan: the film's stops (gatecheck.plan_of); with no gate ② in it, gate ③'s page carries the storyboard."""
+    plan: the film's stops (gatecheck.plan_of); with no gate ② in it, gate ③'s page carries the storyboard.
+    kind: the project's type number (type_of); a type in PACKAGED gets each concept card's titles and cover."""
     zh = lang != "en"
 
     def f(a, b):
         return f"{{填：{a}}}" if zh else f"{{fill in: {b}}}"   # a shape no stylesheet can write (.bar {fill: #e33} is a page's own text)
 
     def card(k):
-        return {"id": k, "label": f(f"立意卡 {k}：核心想法，不超过 20 个字", f"concept card {k}: the idea, in at most 50 characters"),
-                "frame": f(f"立意卡 {k} 那一帧画面的路径（卡上就放这一帧）", f"the path of card {k}'s frame (the card shows it)"),
-                "pro": f("推出的画面、钩子、首尾，各一句一行（JSON 里用 \\n 换行）",
-                         "the picture, the hook and the ending it leads to, a sentence a line (\\n in the JSON)"),
-                "con": f("风险或代价，一句", "its risk or cost, in a sentence")}
+        c = {"id": k, "label": f(f"立意卡 {k}：核心想法，不超过 20 个字", f"concept card {k}: the idea, in at most 50 characters"),
+             "frame": f(f"立意卡 {k} 那一帧画面的路径（卡上就放这一帧）", f"the path of card {k}'s frame (the card shows it)"),
+             "pro": f("推出的画面、钩子、首尾，各一句一行（JSON 里用 \\n 换行）",
+                      "the picture, the hook and the ending it leads to, a sentence a line (\\n in the JSON)"),
+             "con": f("风险或代价，一句", "its risk or cost, in a sentence")}
+        if kind in PACKAGED:   # what goes out with the film: two draft titles and a cover layout a card (playbook/10 §5, §6)
+            c["titles"] = [f(f"立意卡 {k} 的标题 {n}（数字和断言在 NOTES.md 有出处）", f"card {k}'s title {n} (its numbers and claims sourced in NOTES.md)") for n in (1, 2)]
+            c["cover"] = f(f"立意卡 {k} 的封面版式：playbook/10 第 6 节的 C1–C5 之一，加主文案", f"card {k}'s cover layout: one of playbook/10 §6's C1–C5, and its main words")
+        return c
     d = {"version": 1, "summary": f("这页要人定什么、看完要多久，不超过 40 个字：人第一眼读的就是这句",
                                     "what this page asks the person and how long it takes, in at most 100 characters: the first thing they read")}
     stop = stop_of(gate)
@@ -131,7 +149,7 @@ def init_page(project, gate_arg, shown, as_json=False):
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "x", encoding="utf-8") as out:   # "x": never over a page someone wrote
-            out.write(json.dumps(skeleton(g, lang, gatecheck.plan_of(project)), ensure_ascii=False, indent=2) + "\n")
+            out.write(json.dumps(skeleton(g, lang, gatecheck.plan_of(project), type_of(project)), ensure_ascii=False, indent=2) + "\n")
     except FileExistsError:
         return jsonerr.fail("exists", f"gate: {path} is already there, and --init does not overwrite: edit it, then bin/vh gate {shown} {g}")
     except OSError as e:
@@ -216,7 +234,7 @@ def main(argv):
         return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
                             "the chat. Leave --wait out, or use --desk if they want the desk")
     asked = stop_of(re.sub(r"\.json$", "", re.sub(r"^gate-", "", (a.gate or review.current_page(project) or "").strip())))
-    if asked == "3":   # gate ② before it, when this film's plan has it (a BRIEF with a Stops line)
+    if asked == "3":   # gate ① before it (standard, studio: as render and check ask it), and gate ② when this film's plan has it (a BRIEF with a Stops line)
         lacking = gatecheck.not_on_record(project, asked)
         if lacking:
             names = " and ".join(review.gate_title(g, "en") for g in lacking)

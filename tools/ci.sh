@@ -2108,10 +2108,11 @@ PY
 
 # scaffolding and the decision pictures (bin/vh storyboard, rhythm, style compare/apply, cover-preview, music --roll/--length)
 # the gate ① record (tools/gatecheck.py): a standard project made from the templates is refused by bin/vh render (before
-# any browser) and failed by bin/vh check until REVIEW.md has the decision and DECISIONS.md the concept; the user's
-# waiver counts unless it sits under gate ② or ③; quick is not checked
+# any browser) and failed by bin/vh check until REVIEW.md has the person's words and the decision under gate ① (the one
+# record: DECISIONS.md's concept row is not asked for, an older project's is no error); the user's waiver counts unless it
+# sits under gate ② or ③; quick is not checked
 gate_checks() {
-  local t p a b c d e g rc rc2 rc3 rc4
+  local t p a b c d e g rc rc2 rc3 rc4 rc5 rc6 rc7
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh new math ci-gate --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-ci-gate 2>/dev/null)
   if [ -z "$p" ] || [ ! -f "$p/REVIEW.md" ]; then bad "gate checks: bin/vh new made no project"; rm -rf "$t"; return; fi
@@ -2119,7 +2120,8 @@ gate_checks() {
   c=$(vh render "$p" --range 0:1 2>&1)
   mkdir -p "$p/out/review/sketch" && printf '<!doctype html><title>a concept sketch</title>\n' > "$p/out/review/sketch/index.html"
   d=$(vh render "$p/out/review/sketch/index.html" 2>&1)
-  case "$rc:$a" in 1:*"no record of gate ①"*"the person's words"*"the decision"*"DECISIONS.md: the concept 立意 row"*"--range a:b"*)
+  case "$rc:$a" in *DECISIONS*) bad "render without the gate record asks for DECISIONS.md, the second record gate ① no longer has: $(printf '%s' "$a" | head -c 600)" ;;
+    1:*"no record of gate ①"*"the person's words"*"the decision"*"--range a:b"*)
     case "$c|$d" in *"no record of gate"*) bad "render of a part or of a sketch page was held by the gate: $c | $d" ;;
       *) ok "gate record: render refuses a whole standard film made from the templates, naming the lines to write; a part (--range) and a sketch page under out/ still render" ;; esac ;;
     *) bad "render without the gate record (exit $rc): $(printf '%s' "$a" | head -c 600)" ;; esac
@@ -2151,21 +2153,35 @@ from pathlib import Path
 p = Path(sys.argv[1])
 r = (p / "REVIEW.md").read_text(encoding="utf-8").replace('- 原话："……"', '- 原话："选 B"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：{…}　改了：{…}\n- 改了：结尾短一点", 1)
 (p / "REVIEW.md").write_text(r, encoding="utf-8")
-d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
-(p / "DECISIONS.md").write_text(d, encoding="utf-8")
 PY
   python3 tools/gatecheck.py "$p" >/dev/null; rc4=$?
-  cp "$ROOT/templates/REVIEW.md" "$p/"
+  # a decision with no words of the person's is no record (an agent can write that line alone), and a decision still pending is none
+  rev() { cp "$ROOT/templates/REVIEW.md" "$p/" && python3 - "$p" "$1" "$2" <<'PY'
+import sys
+from pathlib import Path
+p, said, decided = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+r = (p / "REVIEW.md").read_text(encoding="utf-8")
+if said: r = r.replace('- 原话："……"', f'- 原话："{said}"', 1)
+if decided: r = r.replace("- 定了：{…}　改了：{…}", f"- 定了：{decided}　改了：无", 1)
+(p / "REVIEW.md").write_text(r, encoding="utf-8")
+PY
+  }
+  rev "" "立意卡 B"; c=$(python3 tools/gatecheck.py "$p"); rc5=$?
+  rev "选 B" "待定"; d=$(python3 tools/gatecheck.py "$p"); rc6=$?
+  case "$rc5:$c" in 1:*"the person's words"*) case "$c" in *"the decision"*) rc5="5 (names the decision too)" ;; esac ;; *) rc5="5 ($rc5)" ;; esac
+  case "$rc6:$d" in 1:*"the decision"*) case "$d" in *"the person's words"*) rc6="6 (names the words too)" ;; esac ;; *) rc6="6 ($rc6)" ;; esac
+  # the one record: REVIEW.md's words and decision pass with DECISIONS.md as the template leaves it; an older project's concept
+  # row, written as the template asked until 2026-11, is read as before and is no error
+  rev "选 B，结尾再短一点" "立意卡 B"; cp "$ROOT/templates/DECISIONS.md" "$p/"
+  a=$(python3 tools/gatecheck.py "$p"); rc2=$?
   python3 - "$p" <<'PY'
 import sys
 from pathlib import Path
 p = Path(sys.argv[1])
-r = (p / "REVIEW.md").read_text(encoding="utf-8").replace("- 定了：{…}　改了：{…}", "- 定了：立意卡 B　改了：结尾短一点", 1).replace('- 原话："……"', '- 原话："选 B，结尾再短一点"', 1)
-(p / "REVIEW.md").write_text(r, encoding="utf-8")
-d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
+d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | 见 REVIEW.md 关卡 ① |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
 (p / "DECISIONS.md").write_text(d, encoding="utf-8")
 PY
-  a=$(python3 tools/gatecheck.py "$p"); rc2=$?
+  e=$(python3 tools/gatecheck.py "$p"); rc7=$?
   cp "$ROOT/templates/REVIEW.md" "$ROOT/templates/DECISIONS.md" "$p/" && python3 - "$p" <<'PY'
 import sys
 from pathlib import Path
@@ -2174,9 +2190,10 @@ r = (p / "REVIEW.md").read_text(encoding="utf-8")
 (p / "REVIEW.md").write_text(r.replace("## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 用户授权跳过（2026-10-12）。原话：“你直接做，中间不用我看”\n", 1), encoding="utf-8")
 PY
   b=$(python3 tools/gatecheck.py "$p"); rc3=$?
-  if [ $rc = 1 ] && [ "$rc4" = 1 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && printf '%s' "$a" | grep -q "gate ① decided" && printf '%s' "$b" | grep -q "waived in the user's own words (2026-10-12"
-  then ok "gate record: the decision and the concept row pass; an unfilled 定了：{…} with a line after it does not; the user's waiver passes under gate ①, not under gate ③ alone"
-  else bad "gate record with the lines filled in ($rc/$rc4/$rc2/$rc3): $a | $b"; fi
+  if [ $rc = 1 ] && [ "$rc4" = 1 ] && [ "$rc5" = 1 ] && [ "$rc6" = 1 ] && [ $rc2 = 0 ] && [ "$rc7" = 0 ] && [ $rc3 = 0 ] && printf '%s' "$a" | grep -q "gate ① decided" \
+    && ! printf '%s' "$a" | grep -q DECISIONS && printf '%s' "$e" | grep -q "gate ① decided" && printf '%s' "$b" | grep -q "waived in the user's own words (2026-10-12"
+  then ok "gate record: REVIEW.md's words and decision pass, with DECISIONS.md as the template leaves it and with an older project's concept row; a decision without the person's words does not, nor one still 待定, nor an unfilled 定了：{…} with a line after it; the user's waiver passes under gate ①, not under gate ③ alone"
+  else bad "gate record with the lines filled in ($rc/$rc4/$rc5/$rc6/$rc2/$rc7/$rc3): $a | $c | $d | $e | $b"; fi
   python3 -c "import sys, re; f = sys.argv[1]; s = open(f, encoding='utf-8').read(); open(f, 'w', encoding='utf-8').write(re.sub(r'(?m)^- Effort: standard', '- Effort: quick', s))" "$p/BRIEF.md" && cp "$ROOT/templates/REVIEW.md" "$p/"
   a=$(python3 tools/gatecheck.py "$p"); rc=$?
   [ $rc = 0 ] && printf '%s' "$a" | grep -q "Effort quick" && ok "gate record: a quick project is not checked" || bad "gate record on quick (exit $rc): $a"
@@ -2234,7 +2251,6 @@ for w in sys.argv[2:]:
     if w.startswith("len="): sub("BRIEF.md", "exactly {N}s ({frames} frames)", f"exactly {w[4:]}s ({int(w[4:]) * 30} frames)")
     elif w == "g1":
         sub("REVIEW.md", '- 原话："……"', '- 原话："选 A"'); sub("REVIEW.md", "- 定了：{…}　改了：{…}", "- 定了：立意卡 A　改了：无")
-        sub("DECISIONS.md", "{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A")
     elif w == "g2": sub("REVIEW.md", "## 关卡 ② 分镜\n", '## 关卡 ② 分镜\n- 原话："通过"\n- 定了：照分镜做\n')
     elif w == "g2-decided-only": sub("REVIEW.md", "## 关卡 ② 分镜\n", "## 关卡 ② 分镜\n- 定了：照分镜做\n")
     elif w == "g2-words": sub("REVIEW.md", "## 关卡 ② 分镜\n- 定了：照分镜做\n", '## 关卡 ② 分镜\n- 原话："可以，照这个做"\n- 定了：照分镜做\n')
@@ -2289,6 +2305,21 @@ PY
     && [ "$rc" = 0 ] && [ "$d" = "1:done 3:in_progress deliver:not_started | 1,3 | " ]
   then ok "stop plan: gate ①'s message ends with where this film stops and that a sentence changes it (twice; three times and why; in the review language); the concept on record with no page (the user's own brief) passes gate ①"
   else bad "stop plan in gate ①'s message (gatecheck $rc): $a || $b || $c || $d"; fi
+  # gate ③'s page waits for gate ① on record too, as render and check do (a BRIEF with no Stops line as well): not sent, nothing
+  # written; with the person's words and decision, or the user's waiver of gate ①, it goes; a quick film's page goes
+  e=""
+  for k in g31:"" g32:g1 g33:waive1-scope g34:Effort=quick; do
+    OVH_PROJECTS="$t" vh new math "${k%%:*}" >/dev/null 2>&1; q=$(ls -d "$t"/*-"${k%%:*}"); rec "$q" len=4 nostops ${k#*:}
+    vh gate "$q" 3 --init >/dev/null 2>&1; fill3 "$q"; a=$(vh gate "$q" 3 --page 2>&1); rc=$?
+    case "${k%%:*}:$rc" in
+      g31:2) case "$a" in *"Gate ① concept and outline is in this film's plan"*"no record of it"*"bin/vh gate $q 1"*) [ ! -e "$q/out/review/gate-3.html" ] || e="$e | g31 wrote a page" ;; *) e="$e | g31 said: $(printf '%s' "$a" | head -c 300)" ;; esac ;;
+      g31:*) e="$e | gate ③ with no record of gate ① exited $rc" ;;
+      *:0) ;;
+      *) e="$e | ${k%%:*} (${k#*:}) exited $rc: $(printf '%s' "$a" | tail -c 200)" ;;
+    esac
+  done
+  [ -z "$e" ] && ok "stop plan: gate ③'s page is not sent while gate ① has no record (a BRIEF with no Stops line too), and goes with the person's words and decision, the user's waiver of gate ①, or Effort quick" \
+    || bad "stop plan, gate ③ before gate ①:$e"
   if ! command -v ffmpeg >/dev/null; then skip "stop plan: a short film to its delivery, a long one held at its storyboard" "no ffmpeg"; return; fi
   mk() { ffmpeg -nostdin -v error -y -f lavfi -i "color=c=0x303030:s=1920x1080:r=30:d=$2" -pix_fmt yuv420p "$1"; }
   # a short film: gate ③'s skeleton includes the storyboard, and its page is refused until bin/vh storyboard has written it;
@@ -2367,9 +2398,10 @@ new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails 
     grep -q '^- Type doc: `video-types/01-math-science-explainer.md`' "$t"/ty/*-ty/BRIEF.md 2>/dev/null || a="$a | $x: the BRIEF's type doc"
   done
   grep -q '^- Engine: Manim CE$' "$t"/ty/*-ty/BRIEF.md || a="$a | the BRIEF's Engine line is not the type's"
+  [ ! -e "$(ls -d "$t"/ty/*-ty)/TASTE_CHECKLIST.md" ] || a="$a | a TASTE_CHECKLIST.md was copied in (the checklist is read from templates/)"
   b=$(vh new knowledge-short ci-x --watch feed 2>&1); rc=$?; c=$(vh new 02 ci-x --aspect 4:3 2>&1); rc2=$?; vh new 99 ci-x >/dev/null 2>&1; rc3=$?
   if [ -z "$a" ] && [ "$rc:$rc2:$rc3" = 2:2:2 ] && case "$b|$c" in *"already --watch phone"*"|"*"unknown aspect"*) true ;; *) false ;; esac && [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ]
-  then ok "new: the type by its short name, number, doc name, that name's stem or the doc's path, and the same rules apply after it; another word is a usage error; the BRIEF's Engine line is the type's"
+  then ok "new: the type by its short name, number, doc name, that name's stem or the doc's path, and the same rules apply after it; another word is a usage error; the BRIEF's Engine line is the type's; no TASTE_CHECKLIST.md is copied in"
   else bad "new, the ways to write a type:$a ($rc/$rc2/$rc3): $b | $c"; fi
   # long and recap: canvas-film without asking, their frame, where they are watched and their pace; each type in bin/vh's
   # table has its doc and a row in CLAUDE.md's routing table
@@ -2422,10 +2454,26 @@ PY
   b=$(vh status "$p" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; print(n["who"], "|".join(n["commands"]))')
   c=$(PATH="$t/good:$PATH" vh hf-init "$p" portrait 2>&1); rc2=$?
   if [ "$rc" = 1 ] && [ -f "$p/BRIEF.md" ] && case "$a" in *"✓"*|*"npx line 6"$'\n'*) false ;; *"npx line 12"*"retry later: bin/vh hf-init"*"created "*"did not finish"*"first    : bin/vh hf-init"*" portrait"*) true ;; *) false ;; esac \
-    && case "$b" in "agent bin/vh hf-init "*" portrait") true ;; *) false ;; esac && [ "$rc2" = 0 ] && [ -f "$p/hyperframes.json" ] && grep -q '"exit":1' "$p/.ovh/activity.jsonl" \
+    && case "$b" in "agent bin/vh effort "*"|bin/vh hf-init "*" portrait") true ;; *) false ;; esac && [ "$rc2" = 0 ] && [ -f "$p/hyperframes.json" ] && grep -q '"exit":1' "$p/.ovh/activity.jsonl" \
     && [ "$(vh status "$p" --json | python3 -c 'import json, sys; print("hf-init" in " ".join(json.load(sys.stdin)["next_step"]["commands"]))')" = False ]
-  then ok "new: a failed HyperFrames init keeps the project, npx's last lines and the command that finishes it, no ✓, exit 1 (in the log too); status says it first; hf-init finishes it"
+  then ok "new: a failed HyperFrames init keeps the project, npx's last lines and the command that finishes it, no ✓, exit 1 (in the log too); status names it at gate ①, whose cards need no engine, last; hf-init finishes it"
   else bad "new with a failed init (exit $rc, then $rc2): $a | $b | $c"; fi
+  # --no-install: no network now; HyperFrames' init is not tried, the project is made, the command that installs it is said, exit 0;
+  # status gives gate ①'s work and names it last, and before the scenes it comes first
+  printf '#!/bin/sh\ntouch "%s/npx-ran"\nexit 1\n' "$t" > "$t/bad/npx"; chmod +x "$t/bad/npx"
+  a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/o" vh new short oo --no-install --json 2>"$t/o.err"); rc=$?; p=$(ls -d "$t"/o/*-oo 2>/dev/null)
+  if [ "$rc" = 0 ] && [ ! -e "$t/npx-ran" ] && [ -f "$p/BRIEF.md" ] && [ ! -f "$p/hyperframes.json" ] && grep -q "without its engine (--no-install); with the network, this installs it: bin/vh hf-init" "$t/o.err" \
+    && python3 -c 'import json, os, sys; d = json.loads(sys.argv[1]); s, c = d["scaffold"], d["next"]["commands"]; same = lambda a, b: a.split(" ")[:2] == b.split(" ")[:2] and a.split(" ")[-1] == b.split(" ")[-1] and os.path.realpath(a.split(" ")[2]) == os.path.realpath(b.split(" ")[2]); sys.exit(0 if s["ok"] is False and s["skipped"] is True and s["finish"].endswith(" portrait") and c[0].startswith("bin/vh effort") and same(c[-1], s["finish"]) and "before the scenes" in d["next"]["do"] else 1)' "$a"   # (one path may be /var/…, the other /private/var/…)
+  then ok "new --no-install: HyperFrames' init is not tried, the project is made, the command that installs it later is said, exit 0; status keeps gate ①'s work and names it last"
+  else bad "new --no-install (exit $rc): $(cat "$t/o.err" | head -c 400) | $(printf '%s' "$a" | head -c 400)"; fi
+  # and on quick, which has no gate ①: its first step (BRIEF, the quick card, the size floors) comes first, the install just
+  # before the scenes' render; bin/vh new says that too, not "first: install"
+  a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/o" vh new short oq --no-install --effort quick --json 2>"$t/oq.err"); rc=$?
+  if [ "$rc" = 0 ] && [ ! -e "$t/npx-ran" ] && grep -q "engine   : not installed (--no-install)" "$t/oq.err" && ! grep -q "first    :" "$t/oq.err" \
+    && python3 -c 'import json, sys; d = json.loads(sys.argv[1]); n = d["next"]; c, r = n["commands"], n["read"]; i = [k for k, x in enumerate(c) if x.startswith("bin/vh hf-init")]; sys.exit(0 if c[0] == "bin/vh effort quick" and len(i) == 1 and 0 < i[0] < len(c) - 1 and "playbook/quick.md" in r and "playbook/03-motion-design.md#4." in r and "BRIEF.md (" in n["do"] and "before the scenes" in n["do"] else 1)' "$a"
+  then ok "new --no-install --effort quick: status's first step is the BRIEF and the quick card, with the install just before the render; new says it the same way"
+  else bad "new --no-install on quick (exit $rc): $(head -c 400 "$t/oq.err") | $(printf '%s' "$a" | head -c 400)"; fi
+  printf '#!/bin/sh\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo "npx line $i"; done\nexit 1\n' > "$t/bad/npx"; chmod +x "$t/bad/npx"
   a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/h" vh new handdrawn hd 2>&1); rc=$?; p=$(ls -d "$t"/h/*-hd 2>/dev/null)
   if [ "$rc" = 1 ] && [ -f "$p/ANIMATION_GUIDE.md" ] && case "$a" in *"✓"*) false ;; *"did not finish"*"npm install"*) true ;; *) false ;; esac
   then ok "new: a failed npm install in the hand-drawn engine keeps the project and says what finishes it, no ✓, exit 1"
@@ -2440,9 +2488,9 @@ d, f, p, vh = sys.argv[1:5]
 d, f = json.loads(d), json.loads(f)
 st = json.loads(subprocess.run([*vh.split("|"), "status", p, "--json"], capture_output=True, text=True).stdout)
 ok = d["version"] == 1 and Path(d["project"]).resolve() == Path(p).resolve() and d["type"] == "short" and d["doc"] == "video-types/02-knowledge-short.md" and d["effort"] == "quick" and d["engine"] == "hyperframes"
-ok = ok and d["frame"] == "1080x1920" and d["watch"] == "phone" and d["scaffold"] == {"ok": True, "finish": None}
+ok = ok and d["frame"] == "1080x1920" and d["watch"] == "phone" and d["scaffold"] == {"ok": True, "finish": None, "skipped": False}
 ok = ok and d["next"] == st["next_step"] and d["next"]["who"] == "agent" and "BRIEF.md (" in d["next"]["do"] and "playbook/quick.md" in d["next"]["read"]
-ok = ok and f["scaffold"]["ok"] is False and "hf-init" in f["scaffold"]["finish"] and any("hf-init" in c for c in f["next"]["commands"])
+ok = ok and f["scaffold"]["ok"] is False and f["scaffold"]["skipped"] is False and "hf-init" in f["scaffold"]["finish"] and any("hf-init" in c for c in f["next"]["commands"])
 sys.exit(0 if ok else 1)
 PY
   then ok "new --json: the record on stdout (project, type, doc, effort, engine, scaffold, next as status's next_step), the human lines on stderr; a failed scaffold says so, exit 1"
@@ -3177,7 +3225,7 @@ PY
 # desk channel starts the desk in the background (once), adds its address, and with --wait hands over the submission;
 # desk --idle stops a desk nobody asks anything
 gate_stop_checks() {
-  local t=$1 g a b c rc rc2 rc3 i pid url
+  local t=$1 g k a b c rc rc2 rc3 i pid url
   # --init: a skeleton for the stop in the review language, "version": 1; refused until filled in, with nothing written and
   # no page as far as status and the desk go; never overwritten; a quick project is told it has no gates, and can have a stop
   OVH_PROJECTS="$t" vh new math gi >/dev/null 2>&1; g=$(ls -d "$t"/*-gi)
@@ -3192,10 +3240,34 @@ sys.path.insert(0, "tools")
 import review
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 2
-         and all(review.placeholders(o.get("frame")) for o in d["decisions"][0]["options"]) and "assets" not in d else 1)
+         and all(review.placeholders(o.get("frame")) for o in d["decisions"][0]["options"]) and "assets" not in d
+         and not any("titles" in o or "cover" in o for o in d["decisions"][0]["options"]) else 1)
 PY
   then ok "gate: no JSON points to --init and the section of the playbook; --init writes a skeleton with version 1, and does not overwrite"
   else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
+  # a knowledge short's concept cards carry 2 titles and a cover layout (video-types/02, playbook/10 §1): the skeleton asks for
+  # them, and the page shows them on the card
+  OVH_PROJECTS="$t" vh new short gk --no-install >/dev/null 2>&1; k=$(ls -d "$t"/*-gk); vh gate "$k" 1 --init >/dev/null 2>&1
+  a=$(python3 - "$k" <<'PY'
+import json, sys
+from pathlib import Path
+g = Path(sys.argv[1]); f = g / "out/review/gate-1.json"
+d = json.loads(f.read_text(encoding="utf-8"))
+opts = d["decisions"][0]["options"]
+if not all(len(o.get("titles", [])) == 2 and "C1–C5" in o.get("cover", "") for o in opts):
+    sys.exit("the skeleton's cards have no titles or cover: " + json.dumps(opts, ensure_ascii=False)[:300])
+for o in opts:
+    o.update(label=f"卡 {o['id']}", pro="画面", con="风险", titles=[f"标题{o['id']}一", f"标题{o['id']}二"], cover=f"C1 大字报：封面{o['id']}")
+    del o["frame"]
+d["decisions"][0].update(question="选哪张？", recommend="A", why="理由"); d["summary"] = "选立意"; d["delegated"] = ["规格"]
+d["appendix"] = [{"title": "BRIEF", "path": "BRIEF.md"}]
+f.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+PY
+)
+  vh gate "$k" 1 --page >/dev/null 2>&1; rc=$?
+  if [ -z "$a" ] && [ $rc = 0 ] && grep -q '标题A一 / 标题A二' "$k/out/review/gate-1.html" && grep -q 'C1 大字报：封面B' "$k/out/review/gate-1.html"
+  then ok "gate: a knowledge short's concept cards ask for 2 titles and a cover layout, and the page shows them on the card"
+  else bad "gate, a card's titles and cover (exit $rc): $a"; fi
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?; b=$(vh review "$g" 1 2>&1); rc2=$?
   c=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["stations"][0]["state"], d["review"]["current"], d["stations"][0]["pages"])')
   if [ "$rc:$rc2" = 2:2 ] && case "$a" in *"placeholder(s) still to fill in"*"summary"*"Nothing was written"*) true ;; *) false ;; esac && [ ! -e "$g/out/review/gate-1.html" ] && [ ! -e "$g/out/review/index.html" ] \
@@ -7180,17 +7252,18 @@ PY
     '[(i["target"], i["label"]) for i in d["open"]["review_items"]] == [("range:3-4.5", "片段 0:03.0–0:04.5")]')
   vh desk feedback "$p" >/dev/null
   c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')
+  python3 tools/gatecheck.py "$p" >/dev/null 2>&1; rc=$?   # gate ① as render and check read it: no decision yet
   python3 -c 'import sys; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); i = s.index("## 审阅台反馈"); open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 定了：　改了：", "- 定了：L2，开头放慢　改了：0:03–0:04.5", 1))' "$p"   # under the desk's section
-  d=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" '"DECISIONS.md" in d["stations"][0]["note"] and d["stations"][0]["record"]["from"] == "gate1"')
-  python3 tools/gatecheck.py "$p" >/dev/null 2>&1; rc=$?   # gate ① as render and check read it: the concept is still missing
-  python3 -c 'import sys; f = sys.argv[1] + "/DECISIONS.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：L2", 1))' "$p"
-  q=$(st "$p" "1:done 2:in_progress 3:not_started deliver:not_started | agent" 'd["open"]["review_items"] == []')
+  # the decision and the words in REVIEW.md are the record: done, the concept read from there (DECISIONS.md as the template leaves it)
+  q=$(st "$p" "1:done 2:in_progress 3:not_started deliver:not_started | agent" 'd["open"]["review_items"] == []' \
+    'd["stations"][0]["record"]["from"] == "gate1" and d["stations"][0]["record"]["concept_on_record"] is True and d["stations"][0]["record"]["concept_from"] == "REVIEW.md"' \
+    'd["stations"][0]["record"]["concept"] == "L2，开头放慢"')
   python3 tools/gatecheck.py "$p" >/dev/null 2>&1; rc2=$?
   if [ "$a" = "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" ] && [ "$b" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] \
-    && [ "$c" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] && [ "$d" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] \
+    && [ "$c" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] \
     && [ $rc = 1 ] && [ "$q" = "1:done 2:in_progress 3:not_started deliver:not_started | agent" ] && [ $rc2 = 0 ]
-  then ok "status: a page out waits for the person; a submission waits for the agent (pending, then handed over) with its open items; gate ① is done when gatecheck says so (the decision, the words, DECISIONS.md's concept), then gate ② is in progress"
-  else bad "status through gate ① (gatecheck $rc/$rc2): $a || $b || $c || $d || $q"; fi
+  then ok "status: a page out waits for the person; a submission waits for the agent (pending, then handed over) with its open items; gate ① is done when gatecheck says so (the decision and the words in REVIEW.md, its one record; the concept read from its 定了 line), then gate ② is in progress"
+  else bad "status through gate ① (gatecheck $rc/$rc2): $a || $b || $c || $q"; fi
   # a Director stop, a running command, a delivery record
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: hook=own, stop=E3", 1))' "$p"
   printf '{"v":1,"event":"start","run":"9-1","t":%s,"cmd":"render","args":["%s"],"pid":%s}\n' "$(date +%s)" "$p" "$$" >> "$p/.ovh/activity.jsonl"
@@ -7301,7 +7374,6 @@ f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
 s = s.replace('- 原话："……"', '- 原话："选 B"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：B　改了：无", 1)
 i = s.index("## 关卡 ② 分镜")
 open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", '- 原话："分镜可以"\n', 1).replace("- 定了：　改了：", "- 定了：通过　改了：无", 1))
-d = p + "/DECISIONS.md"; s = open(d, encoding="utf-8").read(); open(d, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：B", 1))
 os.makedirs(p + "/out/review", exist_ok=True)
 for n in ("gate-2.json", "gate-2.html"): open(p + "/out/review/" + n, "w").write("{}")
 os.utime(f, (time.time() - 100,) * 2)   # REVIEW.md older than the page
@@ -8846,7 +8918,7 @@ PY
   OVH_PROJECTS="$t" vh new math ns >/dev/null 2>&1; p=$(ls -d "$t"/*-ns); stops_line "$p" "1, 2, 3"
   a=$(ns "$p" 'n["who"] == "agent"' 'n["unfilled"]["BRIEF.md"] > 10' '"BRIEF.md (" in n["do"] and "{…} left" in n["do"]' '"--init" in c and c.endswith(" 1") and c.startswith("bin/vh effort standard")' \
     '"video-types/01-math-science-explainer.md" in r and "playbook/01-pipeline.md#审阅页" in r and "playbook/12-ideation.md#7." in r and "各引擎的取帧命令" in r' \
-    '"playbook/01-pipeline.md#每处交什么" in r and "playbook/01-pipeline.md#导演模式" in r')
+    '"playbook/01-pipeline.md#每处交什么" in r and "playbook/01-pipeline.md#导演模式" in r' '"playbook/03-motion-design.md#4." in r')
   b=$(vh status "$p"); c=$(printf '%s\n' "$b" | grep -c '^next: agent — ')
   vh gate "$p" 1 --init >/dev/null 2>&1
   d=$(ns "$p" '"placeholders left" in n["do"]' '"--init" not in c and c.endswith(" 1")')
@@ -8874,7 +8946,6 @@ p = sys.argv[1]
 f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
 s = s.replace('- 原话："……"', '- 原话："选 A"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：A　改了：无", 1)
 open(f, "w", encoding="utf-8").write(s)
-d = p + "/DECISIONS.md"; s = open(d, encoding="utf-8").read(); open(d, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A", 1))
 PY
   a=$(ns "$p" 'n["who"] == "agent"' '"STORYBOARD.md (" in n["do"]' '"bin/vh storyboard" in c and "bin/vh rhythm" in c and "2 --init" in c' '"playbook/01-pipeline.md#animatic" in r and "#长片" not in r')
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("30 fps, exactly {N}s ({frames} frames)", "30 fps, exactly 600s (18000 frames)", 1))' "$p"
@@ -8917,7 +8988,7 @@ PY
   else bad "status next through gates ② and ③: $a | $b | $c | $d | $e"; fi
   # quick's path: no film, a draft, a final; a Director's checkpoint; a long film; a pause
   OVH_PROJECTS="$t" vh new math nq --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-nq)
-  a=$(ns "$q" 'n["who"] == "agent"' '"BRIEF.md (" in n["do"] and "short storyboard table" in n["do"]' '"manim" in c and c.startswith("bin/vh effort quick")' 'r.startswith("playbook/quick.md")' '"video-types/01-math-science-explainer.md#工作流" in r' '"#导演模式" not in r')
+  a=$(ns "$q" 'n["who"] == "agent"' '"BRIEF.md (" in n["do"] and "short storyboard table" in n["do"]' '"manim" in c and c.startswith("bin/vh effort quick")' 'r.startswith("playbook/quick.md")' '"video-types/01-math-science-explainer.md#工作流" in r' '"#导演模式" not in r' '"playbook/03-motion-design.md#4." in r')
   mkdir -p "$q/out/check"; : > "$q/out/draft.mp4"
   b=$(ns "$q" '"check out/draft.mp4" in n["do"]')
   printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/draft.check.json"
@@ -8938,7 +9009,7 @@ PY
   PATH="$t/sbn:$PATH" vh hf-init "$e" portrait >/dev/null 2>&1
   a="$a$(ns "$e" '"hf-init" not in c and "hyperframes render" in c')"
   OVH_PROJECTS="$t" vh new math nb >/dev/null 2>&1; e=$(ls -d "$t"/*-nb); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: HyperFrames", 1))' "$e"
-  a="$a$(ns "$e" 'n["commands"][0].startswith("bin/vh hf-init ") and c.endswith(" landscape")')"
+  a="$a$(ns "$e" 'n["commands"][-1].startswith("bin/vh hf-init ") and c.endswith(" landscape")' '"1 --init" in c')"   # at gate ①, after its own work (the cards need no engine)
   mkdir -p "$t/badnpx"; printf '#!/bin/sh\nexit 1\n' > "$t/badnpx/npx"; chmod +x "$t/badnpx/npx"
   PATH="$t/badnpx:$PATH" OVH_PROJECTS="$t" vh new short nh >/dev/null 2>&1; e=$(ls -d "$t"/*-nh)
   a="$a$(ns "$e" '"hf-init" in c')"
@@ -8946,7 +9017,7 @@ PY
   a="$a$(ns "$e" '"hf-init" not in c and "1 --init" in c')"
   OVH_PROJECTS="$t" vh new math nr --effort quick >/dev/null 2>&1; e=$(ls -d "$t"/*-nr); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: Remotion", 1))' "$e"
   a="$a$(ns "$e" 'n["commands"] == []')"
-  [ -z "$a" ] && ok "status next: type 09 gets hf-init at the first picture, not at gate ①; the BRIEF's Engine line comes before the type's own" || bad "status next, the engine at hand: $a"
+  [ -z "$a" ] && ok "status next: type 09 gets hf-init at the first picture, not at gate ①; a HyperFrames film not set up gets it at gate ①, after that stop's own work; the BRIEF's Engine line comes before the type's own" || bad "status next, the engine at hand: $a"
   # Manim: its pieces of a scene are no film; 480p15 and 720p30 are drafts, and next says to render at high quality; 1080p30 and
   # a vertical 1920p30 are the final. A record of a passing film (rec): the same film, by its path
   rec() { printf '{"version": 1, "video": "%s", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$2" "$(($(date +%s) + 5))" > "$1/out/check/$3.check.json"; }
@@ -9003,7 +9074,6 @@ import sys
 p = sys.argv[1]
 f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
 open(f, "w", encoding="utf-8").write(s.replace('- 原话："……"', '- 原话："选 A"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：A　改了：无", 1))
-f = p + "/DECISIONS.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A", 1))
 PY
   c=$(st "$d" "1:done E1:in_progress 2:not_started 3:not_started deliver:not_started | agent")
   e=$(ns "$d" 'n["do"].startswith("the Director line keeps voice (at 检查点 E1 脚本), packaging (at 关卡 ③ 初版)")' '"prepare 检查点 E1 脚本 for voice" in n["do"]' '"E1 --init" in c' '"#导演模式" in r')

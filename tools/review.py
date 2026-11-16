@@ -59,7 +59,7 @@ T = {
                unanswered="没回的决定按推荐走；", submit="交给 agent", live_note="不选就按推荐；没意见的地方不用写。",
                changed="改了：{x}", least="agent 没把握的", listen="请你听这几处", decided="已经定了", delegated="agent 替你定了",
                not_reviewed="<b>没看的</b> {x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
-               pro="好处", con="代价", seg="{i} / {n}", shots="{n} 镜", avg="平均一镜 {s} 秒", unsure="没把握", n_unsure="{n} 镜没把握",
+               pro="好处", con="代价", titles="标题", cover="封面", seg="{i} / {n}", shots="{n} 镜", avg="平均一镜 {s} 秒", unsure="没把握", n_unsure="{n} 镜没把握",
                plan="打算改", pass_all="没意见的镜头不用写，只写要改的，比如“{shot} 改：……”。", no_frame="没有关键帧",
                gone="找不到这个文件（挪走或改了名）", gone_n="这一页发出以后，有 {n} 个文件找不到了（挪走或改了名）",
                others="其他审阅页", src="审阅页", warn="这一页有 {n} 处没按规矩写，修好以前不会发给人：",
@@ -79,7 +79,7 @@ T = {
                live_note="Left alone, a decision goes with the recommendation; write only what to change.",
                changed="changed: {x}", least="Where the agent is unsure", listen="Please listen to these", decided="Already decided",
                delegated="Decided for you", not_reviewed="<b>Not looked at</b> {x}", material="Material", appendix="Appendix",
-               board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", seg="{i} / {n}", shots="{n} shots",
+               board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", titles="Titles", cover="Cover", seg="{i} / {n}", shots="{n} shots",
                avg="{s} s a shot", unsure="unsure", n_unsure="{n} unsure", plan="will change",
                pass_all="A shot you don't mention is fine; only write what to change, e.g. “{shot} change: …”.", no_frame="no key frame",
                gone="File not found (moved or renamed)", gone_n="Since this page went out, {n} file(s) can't be found (moved or renamed)",
@@ -419,8 +419,10 @@ class Page:
             opts = []
             for j, o in enumerate(as_list(dec.get("options"), f"decisions[{i - 1}].options"), 1):
                 o = dict(o) if isinstance(o, dict) else {"id": scalar(o, f"decisions[{i - 1}].options[{j - 1}]")}
-                for k in ("id", "label", "pro", "con", "frame"):   # frame: the card's picture (a concept card's frame)
+                for k in ("id", "label", "pro", "con", "frame", "cover"):   # frame: the card's picture (a concept card's frame); cover: its cover layout
                     o[k] = scalar(o.get(k), f"decisions[{i - 1}].options[{j - 1}].{k}").strip()
+                o["titles"] = [t for t in (scalar(x, f"decisions[{i - 1}].options[{j - 1}].titles[{n}]").strip()   # a card's draft titles (playbook/10 §1)
+                                           for n, x in enumerate(as_list(o.get("titles"), f"decisions[{i - 1}].options[{j - 1}].titles"))) if t]
                 if not o["id"]:
                     self.err(f"decision {i}: option {j} has no `id`")
                 opts.append(o)
@@ -785,10 +787,13 @@ class Page:
                     pic = f'<span class="pic"><img src="{u}" alt="{esc(o["id"])} {self.alt(o["label"], o["frame"])}" loading="lazy"></span>'
             pc = ""
             oid = re.sub(r"[^A-Za-z0-9_-]", "_", f'o-{dec["id"]}-{o["id"]}')   # an id that aria-describedby can name
-            if o["pro"] or o["con"]:
+            titles = " / ".join(o.get("titles") or [])
+            if o["pro"] or o["con"] or titles or o.get("cover"):
                 pc = (f'<span class="pc" id="{oid}">' + (f'<span><span class="k">{pro_k}</span>{self.text(o["pro"])}</span>' if o["pro"] else "")
-                      + (f'<span><span class="k">{con_k}</span>{self.text(o["con"])}</span>' if o["con"] else "") + "</span>")
-            full = re.sub(r"[`*]", "", " · ".join(x for x in (o["label"], o["pro"], o["con"]) if x))
+                      + (f'<span><span class="k">{con_k}</span>{self.text(o["con"])}</span>' if o["con"] else "")
+                      + (f'<span><span class="k">{t["titles"]}</span>{self.text(titles)}</span>' if titles else "")
+                      + (f'<span><span class="k">{t["cover"]}</span>{self.text(o["cover"])}</span>' if o.get("cover") else "") + "</span>")
+            full = re.sub(r"[`*]", "", " · ".join(x for x in (o["label"], o["pro"], o["con"], titles, o.get("cover", "")) if x))
             name = re.sub(r"[`*]", "", f'{o["id"]} {o["label"]}'.strip()) + (f' · {t["rec"]}' if pick else "")
             opts.append(f'<label class="g-opt" title="{esc(full)}"><input type="radio" name="dec-{esc(dec["id"])}" value="{esc(o["id"])}"'
                         f'{" checked" if pick and not self.settled else ""}{" disabled" if self.settled else ""} data-rec="{"1" if pick else ""}" aria-label="{esc(name)}"'

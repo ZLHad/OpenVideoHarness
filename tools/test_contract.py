@@ -263,9 +263,10 @@ def main(argv):
             wrong = error_problems(sch, vh(*args), want, code)
             bad += [f"{' '.join(args[2:])}: {'; '.join(wrong)}"] if wrong else []
         # a page that breaks a rule is refused; one that goes out says where, as a record, the lines a person reads on stderr
+        # (a checkpoint's page: gate ③'s would be refused first, with no gate ① on record in this project)
         n += 2
-        shutil.copy(f"{z}/out/review/gate-1.json", f"{p}/out/review/gate-3b.json")
-        wrong = error_problems(sch, vh("gate", p, "3b", "--json"), 1, "refused")
+        shutil.copy(f"{z}/out/review/gate-1.json", f"{p}/out/review/gate-E3b.json")
+        wrong = error_problems(sch, vh("gate", p, "E3b", "--json"), 1, "refused")
         bad += [f"gate with a page that breaks a rule: {'; '.join(wrong)}"] if wrong else []
         r = vh("gate", z, "1", "--page", "--json")
         d = json.loads(r.stdout) if r.returncode == 0 else {}
