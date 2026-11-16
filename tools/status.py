@@ -673,14 +673,17 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         if n:
             return f"fill out/review/gate-{key}.json ({n} placeholders left), then send it", [send]
         return (f"send the page for {s['name']}", [send]) if f.is_file() else (f"then the page for {s['name']}", [f"bin/vh gate {p} {key} --init", send])
+    effort = f"bin/vh effort {proj['effort']}"   # what this level does, item by item: run before the first stop's work (CLAUDE.md step 2)
     if key == "1":
         say, cmds = page()
+        if any(c.endswith("--init") for c in cmds):   # the first stop, not begun: what this level does comes first
+            cmds = [effort, *cmds]
         own_only = quick and mine and "concept" not in own   # quick's concept is the agent's: a page only for what the person kept
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"NOTES.md's material first, your own concept (a quick film's), then options for {mine} with a frame each" if own_only
                                                          else "NOTES.md's material first, then concept cards that really differ, a frame each, and the outline (the user's own words already settle the concept: no cards, "
                                                          "their words and 定了 under 关卡 ① in REVIEW.md, one message that says what you will make and where it stops, and carry on); "
                                                          "bin/vh gate's message tells the person where this film stops", say) if x),
-                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, None if quick else R_STOPS, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
+                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
     if key == "2":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),
@@ -707,7 +710,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     # delivery: quick's whole path, and the end of the others'
     if fstate == "none":
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final") if x),
-                   [engine_setup(project, proj), render_cmd(project, proj, not quick)],
+                   [effort if quick else None, engine_setup(project, proj), render_cmd(project, proj, not quick)],
                    [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
     if fstate in ("unchecked", "stale"):
         return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),

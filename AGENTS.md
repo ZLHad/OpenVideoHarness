@@ -11,8 +11,8 @@
 
 0. **定档位、停在哪和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），在哪几处停下来给人看，人要亲自拍板哪些事，规则见下面三节。`quick` 照 `playbook/quick.md` 做。
 1. **判断类型**：用路由表找到类型文档，整篇读（文末的"来源"是出处列表，核对事实时再查）；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题（`quick` 没有关卡，需求有歧义时最多问 1 个）。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
-2. **读流程和自查**：开工前只读 `playbook/01-pipeline.md` 的"总表"和"规格"（`bin/vh know --show "playbook/01-pipeline.md#..规格"` 打印这两节）；有配音或音乐时再读 `playbook/04-audio.md`。别的现在不用读：建好项目以后，每到一站先跑 `bin/vh status <项目>`，读 `next:` 下面 `read:` 列的那几节（`bin/vh know --show "<文件>#<节>"` 只打印一节），以它为准。比如：第一道关卡读 01 的"每处交什么"和"审阅页"（用审阅台再读"审阅台"），写场景前读 `playbook/02-verification.md` 的"七层检查""预算"和"各引擎的取帧命令"，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。
-3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令：`bin/vh commands --stage <阶段> --brief`（阶段即 01 总表的 0–9）。用户不用中文时加 `--lang en`（审阅页的语言），旁白稿和字幕也用用户的语言；字幕一行多长、读多快见 `video-types/02-knowledge-short.md` 第 5 步和 `playbook/03-motion-design.md` 第 2 节。
+2. **读流程和自查**：开工前只读 `playbook/01-pipeline.md` 的"总表"和"规格"（`bin/vh know --show "playbook/01-pipeline.md#..规格"` 打印这两节）；有配音或音乐时再读 `playbook/04-audio.md`。建好项目，先跑 `bin/vh effort <档位>`：它只打印这一档在每一项上做多少（"努力程度"表里的一列）和底线。别的现在不用读：每到一站先跑 `bin/vh status <项目>`，读 `next:` 下面 `read:` 列的那几节（`bin/vh know --show "<文件>#<节>"` 只打印一节），以它为准。比如：第一道关卡读 01 的"每处交什么"和"审阅页"（用审阅台再读"审阅台"），写场景前读 `playbook/02-verification.md` 的"七层检查""预算"和"各引擎的取帧命令"，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。
+3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令：`bin/vh commands --stage <阶段> --brief`（阶段即 01 总表的 0–9）。用户不用中文时加 `--lang en`（审阅页的语言），旁白稿和字幕也用用户的语言；字幕一行多长、读多快见 `video-types/02-knowledge-short.md` 第 5 步（英文一行 ≤ 42 字符、≤ 20 字符/秒）和 `playbook/03-motion-design.md` 第 2 节，命令见 `playbook/04-audio.md` 的"配音"。
 4. **先想立意，再看参考**：先读材料，把只属于它的数字、原话、物件记进 NOTES.md 的素材清单，再自己想几个方向（方法见 `playbook/12-ideation.md` 第 3 节，按需用）。直接、准确、有情绪地组织材料本身就是立意；装置让内容变难懂时，退回直接讲。先自己想，再看 Prompt 增量块、`styles/`、`recipes/` 和案例，点子不容易往看过的东西上靠。要人选方向时，收敛成几张有实际差异的立意卡（够人选就行，通常两三张）；人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考在类型文档的"可参考的案例"和"社区 skill 参考"两节；`showcase/` 是本仓库自己做的片子，各带 BRIEF、STORYBOARD、NOTES 和源码；`references/repos/` 是只读的源码，文档指向的目录没拉下来时，`bash references/fetch.sh <目录>` 只拉那一个。分镜时拿不准的镜头和全片节奏可以查 `recipes/`（`bin/vh recipes list`）；用了配方就把 id 写进 STORYBOARD，写代码前读全文。
 5. **停下来给人审**：在哪几处停，见下面的"停在哪"；每处交什么、怎么出页、怎么记，见 `playbook/01-pipeline.md` 的"每处交什么"。三处大致是：
    - ① **立意和大纲**：几张有实际差异的立意卡，每张写明推出的画面和钩子，配一帧画面；选一张卡，立意、风格方向和钩子就一起定了。再附按推荐立意写的 BRIEF、大纲（一段一句）、引擎和费用；
@@ -64,7 +64,7 @@
 
 ## 导演模式：谁来拍板
 
-这是进阶写法，大多数片子用不到，用户点名要亲自定某件事时才用。effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个开关互不影响："quick 出片，但钩子我定"说得通。用户在对话里说的优先，其次是 BRIEF 的 `Director:` 行（例如 `hook=own, packaging=own, rest=delegate`；"配音配乐定稿前也停一下"就加 `stop=E3`）。
+这是进阶写法，大多数片子用不到，用户点名要亲自定某件事时才用。effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个开关互不影响："quick 出片，但钩子我定"说得通。谁说了算：用户在对话里说的 > BRIEF 的 `Director:` 行 > `LOCAL.md` 的默认 > 档位默认（例如 `Director: hook=own, packaging=own, rest=delegate`；"配音配乐定稿前也停一下"就加 `stop=E3`）。
 
 **关卡是底线**：导演模式只加停、不减停（`storyboard=own` 会让短片的分镜也单独停）；要全程不停，只能由用户本人说"不用审、直接出"。能点名哪些事，`own` / `review` / `delegate` 各怎么做，没点名的按档位怎么定，见 `playbook/01-pipeline.md` 的"导演模式"。
 

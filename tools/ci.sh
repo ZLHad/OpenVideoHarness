@@ -394,11 +394,16 @@ import readpath
 rows = json.loads(subprocess.run([sys.executable, "tools/readpath.py", "--json"], capture_output=True, text=True).stdout)
 bad = [r["type"] for r in rows if not 0 < r["start"] < r["standard"]]
 step = next(line for line in open("CLAUDE.md", encoding="utf-8") if line.startswith("2. **读流程和自查**"))
-bad += [w for w in ('总表', '规格', '每处交什么', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'next:', 'bin/vh know --show') if w not in step]
+bad += [w for w in ('总表', '规格', 'bin/vh effort', '每处交什么', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'next:', 'bin/vh know --show') if w not in step]
+# what bin/vh new prints as the next step says the same as step 2: the effort print, 01's 总表 and 规格, no part of 02
+for line in (x for x in open("bin/vh", encoding="utf-8") if '"   next     : the agent' in x):
+    bad += [f"bin/vh new's next line lacks {w}" for w in ("bin/vh effort",) if w not in line]
+    bad += [f"bin/vh new's next line names {w}, which step 2 leaves for later" for w in ("七层检查", "02-verification") if w in line]
+    if "quick" not in line.split(")")[0]: bad += [f"bin/vh new's next line lacks {w}" for w in ("总表", "规格") if w not in line]
 head = readpath.upto("playbook/01-pipeline.md", "## 努力程度")
 bad += [f"playbook/01 before 努力程度 lacks {w}" for w in ("## 总表", "## 规格") if w not in head]
 bad += [f"playbook/01 before 努力程度 has {w}, which is read at its stop" for w in ("## 人工关卡", "### ") if w in head]
-print("; ".join(bad) or f"start is under standard for all {len(rows)} types, and CLAUDE.md's step 2 names the sections it counts")
+print("; ".join(bad) or f"start is under standard for all {len(rows)} types, and CLAUDE.md's step 2 names the sections it counts; bin/vh new's next line says the same")
 sys.exit(1 if bad else 0)
 PY
   ); then ok "read path: $out"; else bad "read path: $out"; fi
@@ -8363,8 +8368,9 @@ PY
   [ -z "$a" ] && ok "status: every section the next step sends an agent to is there for bin/vh know --show" || bad "status, sections to read that are not there: $a"
   # a new standard project: BRIEF's placeholders counted, the gate ① commands; the skeleton's own count; the page out is the person's
   OVH_PROJECTS="$t" vh new math ns >/dev/null 2>&1; p=$(ls -d "$t"/*-ns); stops_line "$p" "1, 2, 3"
-  a=$(ns "$p" 'n["who"] == "agent"' 'n["unfilled"]["BRIEF.md"] > 10' '"BRIEF.md (" in n["do"] and "{…} left" in n["do"]' '"--init" in c and c.endswith(" 1")' \
-    '"video-types/01-math-science-explainer.md" in r and "playbook/01-pipeline.md#审阅页" in r and "playbook/12-ideation.md#7." in r and "各引擎的取帧命令" in r')
+  a=$(ns "$p" 'n["who"] == "agent"' 'n["unfilled"]["BRIEF.md"] > 10' '"BRIEF.md (" in n["do"] and "{…} left" in n["do"]' '"--init" in c and c.endswith(" 1") and c.startswith("bin/vh effort standard")' \
+    '"video-types/01-math-science-explainer.md" in r and "playbook/01-pipeline.md#审阅页" in r and "playbook/12-ideation.md#7." in r and "各引擎的取帧命令" in r' \
+    '"playbook/01-pipeline.md#每处交什么" in r and "playbook/01-pipeline.md#导演模式" in r')
   b=$(vh status "$p"); c=$(printf '%s\n' "$b" | grep -c '^next: agent — ')
   vh gate "$p" 1 --init >/dev/null 2>&1
   d=$(ns "$p" '"placeholders left" in n["do"]' '"--init" not in c and c.endswith(" 1")')
@@ -8435,7 +8441,7 @@ PY
   else bad "status next through gates ② and ③: $a | $b | $c | $d | $e"; fi
   # quick's path: no film, a draft, a final; a Director's checkpoint; a long film; a pause
   OVH_PROJECTS="$t" vh new math nq --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-nq)
-  a=$(ns "$q" 'n["who"] == "agent"' '"BRIEF.md (" in n["do"] and "short storyboard table" in n["do"]' '"manim" in c' 'r.startswith("playbook/quick.md")' '"video-types/01-math-science-explainer.md#工作流" in r')
+  a=$(ns "$q" 'n["who"] == "agent"' '"BRIEF.md (" in n["do"] and "short storyboard table" in n["do"]' '"manim" in c and c.startswith("bin/vh effort quick")' 'r.startswith("playbook/quick.md")' '"video-types/01-math-science-explainer.md#工作流" in r' '"#导演模式" not in r')
   mkdir -p "$q/out/check"; : > "$q/out/draft.mp4"
   b=$(ns "$q" '"check out/draft.mp4" in n["do"]')
   printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/draft.check.json"
@@ -8452,7 +8458,7 @@ PY
   OVH_PROJECTS="$t" vh new edit ne >/dev/null 2>&1; d=$(ls -d "$t"/*-ne)
   a=$(ns "$d" '"hf-init" not in c and "1 --init" in c')
   OVH_PROJECTS="$t" vh new edit neq --effort quick >/dev/null 2>&1; e=$(ls -d "$t"/*-neq)
-  a="$a$(ns "$e" '"hf-init" in c and c.endswith("--output out/draft.mp4)") and c.index("hf-init") < c.index("hyperframes render")' 'n["commands"][0].endswith(" portrait")' '"engines/editing.md" in r')"
+  a="$a$(ns "$e" '"hf-init" in c and c.endswith("--output out/draft.mp4)") and c.index("hf-init") < c.index("hyperframes render")' '[x for x in n["commands"] if not x.startswith("bin/vh effort")][0].endswith(" portrait")' '"engines/editing.md" in r')"
   PATH="$t/sbn:$PATH" vh hf-init "$e" portrait >/dev/null 2>&1
   a="$a$(ns "$e" '"hf-init" not in c and "hyperframes render" in c')"
   OVH_PROJECTS="$t" vh new math nb >/dev/null 2>&1; e=$(ls -d "$t"/*-nb); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: HyperFrames", 1))' "$e"

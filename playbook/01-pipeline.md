@@ -1,10 +1,10 @@
 # 01 十阶段流程（阶段 0–9）
 
-开工前只读"总表"和"规格"两节（`bin/vh know --show "playbook/01-pipeline.md#..规格"`）。其余到用的那一站再读：`bin/vh status <项目>` 的 `next:` 会列出节名，`bin/vh know --show "playbook/01-pipeline.md#审阅页"` 只打印一节。
+开工前只读"总表"和"规格"两节（`bin/vh know --show "playbook/01-pipeline.md#..规格"`）；建好项目跑 `bin/vh effort <档位>`，它打印"努力程度"表里这一档的一列。其余到用的那一站再读：`bin/vh status <项目>` 的 `next:` 会列出节名，`bin/vh know --show "playbook/01-pipeline.md#审阅页"` 只打印一节。
 
 ## 总表
 
-下表是 `standard` 的做法。`quick` 和 `studio` 各做多少，见下面的"努力程度"（`bin/vh effort <档位>` 打印一列）；在哪几处停看这支片子贵不贵，不跟档位走（CLAUDE.md"停在哪"）。
+下表是 `standard` 的做法。`quick` 和 `studio` 各做多少，建好项目后跑 `bin/vh effort <档位>`（打印下面"努力程度"表里那一档的一列）；在哪几处停看这支片子贵不贵，不跟档位走（CLAUDE.md"停在哪"）。
 
 | 阶段 | 产物 | 工具 | 通过条件 |
 |---|---|---|---|
@@ -125,7 +125,7 @@ projects/2026-10-01-leo-doppler/
 
 ### 导演模式：每一站能定什么
 
-人点名要亲自定某件事时才用到这一节（CLAUDE.md"导演模式"）。
+人点名要亲自定某件事时用到这一节；`standard` 和 `studio` 在关卡 ① 填 DECISIONS.md 那张表的"谁拍板"一列时，照下面"没点名的按档位"填。
 
 - **怎么定**：用户在对话里说的 > BRIEF 的 `Director:` 行 > `LOCAL.md` 的默认 > 档位默认。例如 `Director: hook=own, packaging=own, rest=delegate`；人说"配音配乐定稿前也停一下"，就加 `stop=E3`。
 - **三种拍板方式**：`own` agent 出选项、附推荐，停下来等人选；`review` agent 出一个结果放进下一页（没有下一页就随交付给），不为它单独停，人不说话就算通过；`delegate` agent 自己定，写进 `DECISIONS.md`，人随时能翻案。
