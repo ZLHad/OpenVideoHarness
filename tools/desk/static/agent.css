@@ -106,6 +106,7 @@
 .ag-seenote{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:var(--fs-label);color:var(--ink-2)}
 .ag-seenote[hidden]{display:none}
 .ag-opts{display:flex;gap:6px;flex-wrap:wrap}
+:root[data-theme] .ag-perm .btn[disabled],:root .ag-perm .btn[disabled]{background:var(--panel-3);border-color:var(--rule);color:var(--ink-3);box-shadow:none;filter:none;opacity:1;cursor:not-allowed}   /* an "allow" not yet open: it must not look pressable in any theme (暗场's light primary would) */
 .ag-ans{margin:0;font-size:var(--fs-label);color:var(--ink-3)}.ag-ans.ok{color:var(--ok)}
 .ag-tool .ag-ans{padding-top:2px;border-top:1px solid var(--rule)}
 .ag-plan ol{margin:0;padding-left:20px;font-size:var(--fs-small);color:var(--ink-2)}
