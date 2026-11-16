@@ -1,17 +1,17 @@
 # BRIEF
 
-<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。工具会读 Spec 里这几行：Effort、Director、Stops、Budget、Assets、Output、Watch on、Pace、Resolution、Review language；其中 bin/vh artifacts list <项目> 只把 Output 的画面尺寸和帧率、Resolution 算作必填（bin/vh check 拿成片和 Output 比，按 Resolution 认交付哪几种），其余的花括号写给人和 agent 看。 -->
+<!-- 由 agent 根据用户需求填写，花括号里的都要替换；standard / studio 在关卡 ① 给人看。工具读 Spec 里的 Effort、Director、Stops、Budget、Assets、Output、Watch on、Pace、Resolution、Review language 几行；必填的只有 Output 的画面尺寸和帧率、Resolution（bin/vh check 拿成片对这两行），其余的花括号写给人和 agent 看。 -->
 
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
-- Director: default  <!-- 进阶写法，多数片子留 default。谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
-- Stops: default  <!-- 这支片子在哪几处停下来给人看（CLAUDE.md "停在哪"）：default = 按片子算，停 1 立意和 3 初版，分镜随初版那一页给；片长超过 90 s、3D 渲染重、要调付费接口的片子再加 2 分镜。人说了就照写："看方向和初版"是 `1, 3`，"每步都看"是 `1, 2, 3`，检查点也写在这（`1, E3, 3`）；"直接出"不写在这一行，按 CLAUDE.md 走 quick 或无人值守。加停随时可以；片子本身贵（长、3D、付费）时，这一行不写 2 也照样停，少停只认用户本人的原话（REVIEW.md）。工具读这一行：bin/vh status 的 stops: 说现在的计划 -->
+- Director: default  <!-- 进阶写法，多数片子留 default（按 Effort 的默认）。人点名的写成 hook=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 playbook/01 "导演模式"，对话里说的优先 -->
+- Stops: default  <!-- 这支片子在哪几处停下来给人看，规则见 CLAUDE.md "停在哪"。default = 工具按片子算（bin/vh status 的 stops: 说现在的计划）。人说了就照写："看方向和初版"是 `1, 3`，"每步都看"是 `1, 2, 3`，检查点也写在这（`1, E3, 3`）；"直接出"不写在这一行。片子本身贵（长、3D、付费）时，这一行不写 2 也照样停，少停只认用户本人的原话（REVIEW.md） -->
 - Budget: default  <!-- 付费接口这支片子最多花多少：$5、¥30、不限；0 是不花钱。default 用 LOCAL.md 的"默认预算"，都没写就不调付费接口（tools/assets/budget.py） -->
 - Assets: default  <!-- strict | record：strict 下 NC、ND、BY-SA 和许可不明的素材 bin/vh assets check 判失败；record 都能用，记清并列出风险。default 用 LOCAL.md 的"素材许可"，再没有就是 strict -->
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)  <!-- 合成尺寸（代码按它写，4K 也照写 1080p 的尺寸）、帧率、时长；时长没定时写范围 {60–90}s。bin/vh check 拿成片对这一行和 Resolution 一行，对不上就失败（playbook/01 "规格"） -->
 - Watch on: {watch}  <!-- 主要在哪看，定字号下限和可读性检查缩到多宽（playbook/03 §4）：phone 手机竖屏；feed 横屏片放在手机信息流里，竖着拿、不转屏；desktop 电脑，或手机转成横屏全屏。bin/vh new 按画幅填了默认值，人说了发在哪就照着改 -->
 - Pace: normal  <!-- relaxed | normal | brisk：画面文字读得多从容，定 bin/vh readcheck 的目标（playbook/03 §2）。relaxed 讲解、论文、书信体，观众边读边想；normal 大多数片子；brisk 快剪、梗、卡点 MV。bin/vh new 给 math、paper 写 relaxed，meme 写 brisk，其余 normal。底线（够快读一遍）不随它变；某一段要换挡，在合成里标 data-pace -->
-- Resolution: {res}  <!-- 交付哪几种，可以写多个：1080p、4k、1080p, 4k；4k 就是合成尺寸的 2 倍。默认 1080p。4k：照常按 1080p 写合成和字号，出片时渲成 4K（HyperFrames `render --resolution 4k`，竖屏 `portrait-4k`，方形 `square-4k`，4:5 没有 4K 预设；Manim `-qk --fps 30`；Remotion `--scale=2`）；canvas、Three.js 要按像素密度开大，否则会糊（engines/README.md"出 4K"）；手绘引擎暂不支持 4K；draft 用 1080p，出 4K 前先渲 4K draft 跑 bin/vh check --against <1080p 成片>，再裁帧看锐度 -->
+- Resolution: {res}  <!-- 交付哪几种：1080p、4k、1080p, 4k（4k 是合成尺寸的 2 倍），默认 1080p。4k 照常按 1080p 写合成和字号，出片时渲成 4K（HyperFrames `render --resolution 4k`，竖屏 `portrait-4k`，方形 `square-4k`，4:5 没有 4K 预设；Manim `-qk --fps 30`；Remotion `--scale=2`）；canvas、Three.js、手绘引擎和出 4K 前的检查见 playbook/01 "规格"、engines/README.md "出 4K" -->
 - Review language: zh  <!-- zh | en：审阅页和审阅台的界面语言，按用户第一句话的语言定（bin/vh new --lang）；字幕和项目文档照旧用项目自己的语言 -->
 - Engine: {HyperFrames | Remotion | Manim CE | ClaudeAnimationBase (p5.brush) | other}
 - Platform / audience: {where it plays, who watches, sound-on or muted}
