@@ -59,7 +59,9 @@
        "said": {"type": "boolean"},
        "waived": {},
        "from": {"type": ["string", "null"]},
-       "concept_on_record": {"type": "boolean"}
+       "concept_on_record": {"type": "boolean"},
+       "concept_from": {"enum": ["REVIEW.md", "DECISIONS.md", null]},
+       "concept": {"type": ["string", "null"]}
       }
      },
      "feedback": {

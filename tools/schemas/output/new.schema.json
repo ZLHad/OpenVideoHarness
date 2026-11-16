@@ -68,13 +68,17 @@
    "type": "object",
    "required": [
     "ok",
-    "finish"
+    "finish",
+    "skipped"
    ],
    "properties": {
     "ok": {
      "type": "boolean"
     },
-    "finish": {}
+    "finish": {},
+    "skipped": {
+     "type": "boolean"
+    }
    }
   },
   "next": {

@@ -8959,7 +8959,7 @@ PY
   PATH="$t/sbn:$PATH" vh hf-init "$e" portrait >/dev/null 2>&1
   a="$a$(ns "$e" '"hf-init" not in c and "hyperframes render" in c')"
   OVH_PROJECTS="$t" vh new math nb >/dev/null 2>&1; e=$(ls -d "$t"/*-nb); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: HyperFrames", 1))' "$e"
-  a="$a$(ns "$e" 'n["commands"][0].startswith("bin/vh hf-init ") and c.endswith(" landscape")')"
+  a="$a$(ns "$e" 'n["commands"][-1].startswith("bin/vh hf-init ") and c.endswith(" landscape")' '"1 --init" in c')"   # at gate ①, after its own work (the cards need no engine)
   mkdir -p "$t/badnpx"; printf '#!/bin/sh\nexit 1\n' > "$t/badnpx/npx"; chmod +x "$t/badnpx/npx"
   PATH="$t/badnpx:$PATH" OVH_PROJECTS="$t" vh new short nh >/dev/null 2>&1; e=$(ls -d "$t"/*-nh)
   a="$a$(ns "$e" '"hf-init" in c')"
@@ -8967,7 +8967,7 @@ PY
   a="$a$(ns "$e" '"hf-init" not in c and "1 --init" in c')"
   OVH_PROJECTS="$t" vh new math nr --effort quick >/dev/null 2>&1; e=$(ls -d "$t"/*-nr); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: Remotion", 1))' "$e"
   a="$a$(ns "$e" 'n["commands"] == []')"
-  [ -z "$a" ] && ok "status next: type 09 gets hf-init at the first picture, not at gate ①; the BRIEF's Engine line comes before the type's own" || bad "status next, the engine at hand: $a"
+  [ -z "$a" ] && ok "status next: type 09 gets hf-init at the first picture, not at gate ①; a HyperFrames film not set up gets it at gate ①, after that stop's own work; the BRIEF's Engine line comes before the type's own" || bad "status next, the engine at hand: $a"
   # Manim: its pieces of a scene are no film; 480p15 and 720p30 are drafts, and next says to render at high quality; 1080p30 and
   # a vertical 1920p30 are the final. A record of a passing film (rec): the same film, by its path
   rec() { printf '{"version": 1, "video": "%s", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$2" "$(($(date +%s) + 5))" > "$1/out/check/$3.check.json"; }
