@@ -948,7 +948,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _presence(self):
         """GET /api/presence?token=&w=: a page with the token, as Server-Sent Events: while it is connected the desk knows
-        that page (its window) is there; it is told where to go ({go}); a comment every 5 s finds a page that went away."""
+        that page (its window) is there; it is told where to go ({go}); a page that went away is noticed within a second
+        (its connection, looked at each second: closed is readable and empty), and a comment every 5 s keeps the line."""
         q = parse_qs(urlsplit(self.path).query)
         given = (self.headers.get("X-Desk-Token") or (q.get("token") or [""])[0]).encode("utf-8", "replace")   # Studio's own app sends a header
         srv = self.server
@@ -968,14 +969,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             self.wfile.write(b"retry: 2000\nevent: hello\ndata: {}\n\n")
             self.wfile.flush()
+            pinged = time.time()
             while not srv.agents.closed and srv.token == mine:
                 with srv.pcond:
                     if not srv.events.get(w):
-                        srv.pcond.wait(5)
+                        srv.pcond.wait(1)
                     evs = srv.events.pop(w, [])
+                if not evs and time.time() - pinged < 5:
+                    if _closed(self.connection):
+                        break
+                    continue
                 self.wfile.write(("".join(f"data: {json.dumps(e)}\n\n" for e in evs) if evs else ": ping\n\n").encode("utf-8"))
                 self.wfile.flush()
-                srv.last = time.time()
+                pinged = srv.last = time.time()
         except (OSError, ValueError):
             pass   # the page went away: its window closed, or it reloaded
         finally:
@@ -1359,6 +1365,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 # ---------- start: once per project, or one console ----------
+
+def _closed(conn):
+    """Has the other end of this connection gone (a page that closed sends nothing more on a stream: readable means EOF)?"""
+    import select
+    try:
+        if not select.select([conn], [], [], 0)[0]:
+            return False
+        return conn.recv(1, socket.MSG_PEEK) == b""
+    except (OSError, ValueError):
+        return True
+
 
 def _info_path(project, roots=()):
     """Where a running desk says so: out/review/.desk.json in its project; a console's in the temp folder, one per user and
