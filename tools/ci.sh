@@ -6060,9 +6060,10 @@ console.log(bad.join("; ")); process.exit(bad.length ? 1 : 0);' 2>&1); then
     ok "style stage: a spec-1 page is the shell plus the spec line; a spec-2 portrait page has 1080×1920, 8 s and the spec; lib.js gives 1920×1080, 5 s without a spec and the portrait frame, beats and type sizes with one"
   else bad "style stage: $a $b"; fi
   # a made-up repo: one style copied from styles/, families.json, the type names, tools/media.txt and .gitignore
+  # (tools/media.txt without the real styles' swatches: their folders are not in the made-up repo)
   fx="$t/fx"; mkdir -p "$fx/styles/fx-one/media" "$fx/tools" "$fx/video-types"
   ( cd "$fx" && git init -q . ) || bad "style fixture: git init"
-  cp styles/families.json styles/README.md "$fx/styles/"; cp tools/media.txt "$fx/tools/"; cp .gitignore "$fx/"
+  cp styles/families.json styles/README.md "$fx/styles/"; grep -Ev '^styles/[^/]+/media/' tools/media.txt > "$fx/tools/media.txt"; cp .gitignore "$fx/"
   for v in video-types/[0-9][0-9]-*.md; do : > "$fx/$v"; done
   cp styles/ink-wash/STYLE.md styles/ink-wash/swatch.js styles/ink-wash/score.json "$fx/styles/fx-one/"
   cp styles/ink-wash/media/poster.jpg styles/ink-wash/media/swatch.mp4 "$fx/styles/fx-one/media/"
