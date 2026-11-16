@@ -3,7 +3,7 @@ runs fake_acp.py, and the package's package.json carries the pinned version. Poi
 
   python3 stage.py <home> [--speed S] [--only claude,codex]
 """
-import json, os, shlex, stat, sys
+import json, shlex, stat, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
