@@ -106,10 +106,10 @@ function renderRail() {   // the space and a new film; a film's modules only whi
     const dot = waitsIn(m) ? '<i class="dot" aria-hidden="true"></i>' : "";
     return `<a class="mod" href="${projHash(PKEY, m)}" aria-current="${MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`;
   };
-  const fresh = `<a class="mod" href="#/" data-new title="${esc(t("new_tip"))}">${svg("new")}<span>${esc(t("m_new"))}</span></a>`;   // its place kept: it needs the agent
+  const fresh = `<a class="mod" href="#/" data-new title="${esc(t("new_tip"))}">${svg("new")}<span>${esc(t("m_new"))}</span></a>`;   // the space's column, a fresh sentence
   $("#rail").innerHTML = item("space") + fresh + (proj ? "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("") : "");
 }
-$("#rail").addEventListener("click", (e) => { if (e.target.closest("[data-new]")) setTimeout(() => { const x = $("#oneLine"); if (x) x.focus(); }, 300); });   // 新建: the space's sentence box
+$("#rail").addEventListener("click", (e) => { if (e.target.closest("[data-new]")) setTimeout(() => AGENT.fresh(), parse().view === "home" ? 0 : 300); });   // 新建: the space's column, a sentence for a new film
 $("#flow").addEventListener("click", (e) => { const b = e.target.closest("[data-go-mod]"); if (b && PKEY) go(projHash(PKEY, b.dataset.goMod)); });
 
 /* ---------- the space: the films waiting for you first and biggest, then the ones in progress, then the ones done ---------- */
@@ -238,28 +238,21 @@ function hoverClips(root) {   // a film's card plays 4 s of it, muted, while the
     c.addEventListener("mouseleave", () => { clearTimeout(timer); v.pause(); try { v.currentTime = v.duration / 2; } catch (e) { /* not loaded */ } });
   });
 }
-function spaceColumn() {   // the column is where you talk to the agent: on the space, the sentence that starts a new film
-  AGENT.leave();   // an agent works in a film's folder: the conversation is there, not on the space
+function spaceColumn() {   // the column is where you talk to the agent: on the space, the sentence that starts a new film, and its conversation
   $("#colRound").hidden = true; $("#composer").hidden = true; $("#confirm").hidden = true;
-  $("#colHead").innerHTML = `<b>${esc(t("new_film"))}</b>`;
-  $("#colBody").innerHTML = `<section class="ask"><label class="blk-h" for="oneLine"><b>${esc(t("ask_h"))}</b></label>
-      <textarea id="oneLine" rows="2" placeholder="${esc(t("ask_ph"))}">${esc(store.get("desk:oneLine") || "")}</textarea>
-      <div class="row"><span>${esc(t("ask_note"))}</span><button type="button" class="btn btn-primary" id="copyAsk">${esc(t("ask_copy"))}</button></div></section>
-    <section id="spaceRun"></section>`;
-  $("#oneLine").addEventListener("input", (e) => store.set("desk:oneLine", e.target.value));
-  $("#copyAsk").addEventListener("click", () => {
-    const s = $("#oneLine").value.trim();
-    if (!s) { toast(t("ask_empty")); $("#oneLine").focus(); return; }
-    copyText(t("ask_prefix") + s).then(() => toast(t("ask_copied")));
-  });
-  spaceRunning();
+  $("#colHead").innerHTML = ""; $("#colBody").innerHTML = "";
+  AGENT.enter(SPACE);   // the same column as a film's (agent.js), one step earlier: once the agent makes the film, it goes there
 }
-function spaceRunning() {   // what the agent is doing now, a film a line, in words; nothing running: one quiet line
+function spacePlaced(key) {   // the conversation begun on the space made its film: the window goes to it (the conversation opens there)
+  if (parse().view !== "home") return;
+  listing().then(() => go(projHash(key)));
+}
+function spaceRunning() {   // what the agent is doing now, a film a line, in words, under the sentence; nothing running: nothing
   const el = $("#spaceRun"); if (!el) return;
   const agent = ((LIST && LIST.projects) || []).filter((x) => (x.running || []).length);
-  el.innerHTML = `<h3 class="blk-h"><b>${esc(t("agent_list"))}</b>${agent.length ? `<span class="n mono">${agent.length}</span>` : ""}</h3>`
-    + (agent.length ? `<ul class="film-list agent">${agent.map((r) => `<li><a href="${projHash(r.key)}"><b>${esc(filmName(r))}</b><span class="q">${esc(cmdWords(r.running[0]))}</span></a></li>`).join("")}</ul>`
-      : `<p class="quiet-line">${esc(t("agent_idle"))}</p>`);
+  if (!agent.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<h3 class="blk-h"><b>${esc(t("agent_list"))}</b><span class="n mono">${agent.length}</span></h3>`
+    + `<ul class="film-list agent">${agent.map((r) => `<li><a href="${projHash(r.key)}"><b>${esc(filmName(r))}</b><span class="q">${esc(cmdWords(r.running[0]))}</span></a></li>`).join("")}</ul>`;
 }
 
 /* ---------- search: / anywhere ---------- */

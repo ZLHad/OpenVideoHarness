@@ -2,7 +2,9 @@
 Code, Codex, DeepSeek Harness) through their ACP adapters (acp.py), one long-running adapter process per kind of agent,
 started the first time someone talks to it.
 
-A conversation is a Session: one project folder (the agent's working folder), one kind of agent. Everything that happens in
+A conversation is a Session: one project folder (the agent's working folder), one kind of agent. One begun on Studio's space
+has no film yet: its record is the space's, the agent works in the workspace (the clone, where CLAUDE.md is), and when
+bin/vh new in it makes a film (made_film) it becomes that film's conversation (Manager.adopt). Everything that happens in
 it is an event, appended to <project>/.ovh/agents/<id>.jsonl and pushed to the open pages (server.py, SSE): what the person
 typed, every update the agent sends (its text as it comes, its thoughts, each tool call and its changes, its plan, the
 context it uses and what it costs), each request to approve something and how it was answered, each turn's start and end.
@@ -370,6 +372,7 @@ class Session:
         self.seq = max((e["seq"] for e in self.events), default=0)   # the largest: a log with a line out of order loses nothing new
         self._buf = None           # the agent's text not written yet: {"u", "text"}; written when CHUNK_GAP passes or anything else comes
         self.header = header or {}
+        self.cwd = self.header.get("cwd") or self.root   # the agent's working folder: the film's, or the workspace's for one begun on the space
         self.acp_id = self.header.get("acp_id")
         self.personal = self.header.get("personal", True)
         self.live = False          # attached to a session in the running adapter
@@ -389,6 +392,16 @@ class Session:
             if e.get("type") == "state":
                 self.config.update({k: v for k, v in e.items() if k in ("modes", "configOptions", "models")})
 
+    @property
+    def unplaced(self):
+        """Begun on Studio's space and no film made yet: its record is the space's, no project lock is taken."""
+        return bool(self.header.get("space")) and not self.header.get("placed")
+
+    @property
+    def rel(self):
+        """The folder the log writes paths relative to: the film's, or the workspace's while there is no film yet."""
+        return self.cwd if self.unplaced else self.root
+
     # ---------- the log ----------
     def emit(self, type_, **fields):
         with self.cond:
@@ -399,13 +412,13 @@ class Session:
         """Write the agent's text gathered so far as one event."""
         b, self._buf = self._buf, None
         if b:
-            self._emit("update", u=clean(dict(b["u"], content={"type": "text", "text": b["text"]}), self.root, MAX_ASK))   # its words whole
+            self._emit("update", u=clean(dict(b["u"], content={"type": "text", "text": b["text"]}), self.rel, MAX_ASK))   # its words whole
 
     def chunk(self, u):
         """A piece of the agent's text: gathered with the pieces that follow within CHUNK_GAP, of the same message."""
         text = (u.get("content") or {}).get("text") if isinstance(u.get("content"), dict) else None
         if not isinstance(text, str):
-            return self.emit("update", u=clean(u, self.root))
+            return self.emit("update", u=clean(u, self.rel))
         with self.cond:
             b = self._buf
             if b and (b["u"].get("sessionUpdate"), b["u"].get("messageId")) == (u.get("sessionUpdate"), u.get("messageId")) and len(b["text"]) < 8000:
@@ -445,6 +458,7 @@ class Session:
         first = next((e.get("text") for e in self.events if e.get("type") == "user"), None)
         last = self.events[-1]["t"] if self.events else self.header.get("created")
         return {"id": self.id, "kind": self.kind, "label": ADAPTERS[self.kind]["label"], "title": title, "first": (first or "")[:80],
+                "space": bool(self.header.get("space")), "placed": self.header.get("placed"),
                 "created": self.header.get("created"), "last": last, "live": self.live, "running": self.running,
                 "pending": len(self.pending), "personal": self.personal, "turns": sum(1 for e in self.events if e.get("type") == "user")}
 
@@ -456,7 +470,7 @@ class Session:
             if self.live and self.mgr.peers.get(self.kind) is not None:
                 return
             peer, caps = self.mgr.peer(self.kind)
-            params = {"cwd": self.root, "mcpServers": []}
+            params = {"cwd": self.cwd, "mcpServers": []}
             meta = self._meta()
             res, how = None, "new"
             if self.acp_id:
@@ -500,7 +514,7 @@ class Session:
         return None
 
     def _header(self):
-        self.header.update(kind=self.kind, acp_id=self.acp_id, personal=self.personal, created=self.header.get("created") or time.time())
+        self.header.update(kind=self.kind, acp_id=self.acp_id, personal=self.personal, created=self.header.get("created") or time.time(), cwd=self.cwd)
         try:
             folder(self.log.parent)
             (self.log.parent / f"{self.id}.json").write_text(json.dumps(dict(self.header, id=self.id), ensure_ascii=False))
@@ -515,7 +529,7 @@ class Session:
             if seen:
                 self.mgr.seen[self.kind] = seen   # what this kind offers, for the next new conversation's pickers
             shown = dict(st, **({"configOptions": private_options(st["configOptions"])} if "configOptions" in st else {}))
-            self.emit("state", **clean(shown, self.root))
+            self.emit("state", **clean(shown, self.rel))
 
     def _defaults(self):
         """A new conversation's model, then effort: what the person chose for it when starting it (self.asked, then
@@ -557,7 +571,11 @@ class Session:
             u = dict(u, configOptions=private_options(u["configOptions"]))
         if kind in ("agent_message_chunk", "agent_thought_chunk"):
             return self.chunk(u)
-        self.emit("update", u=clean(u, self.root))
+        self.emit("update", u=clean(u, self.rel))
+        if kind in ("tool_call", "tool_call_update") and self.unplaced:
+            made = made_film(u, self.cwd, self.header.get("created") or 0)
+            if made:   # (another thread: placing it reads the projects, and this one carries every agent's messages)
+                threading.Thread(target=self.mgr.adopt, args=(self, made), name=f"place-{self.id[:6]}", daemon=True).start()
 
     def on_permission(self, agent_rid, params):
         """The agent asks before it does something: a card on the page, the agent waiting until the person answers."""
@@ -615,22 +633,26 @@ class Session:
         with self._say_lock:
             if self.running:
                 raise Busy([{"why": "turn", "label": ADAPTERS[self.kind]["label"]}])
-            who = agentlock.occupants(self.project, self.mgr.adapter_pids(), self.id)
+            space = self.unplaced   # no film yet: nothing to lock (two new films at once are two folders)
+            who = [] if space else agentlock.occupants(self.project, self.mgr.adapter_pids(), self.id)
             if who and not (despite and all(w["why"] in ("waiting", "process") for w in who)):
                 raise Busy(who)
             self.attach()
             self.turn += 1
-            got = agentlock.acquire(self.project, {"kind": self.kind, "label": ADAPTERS[self.kind]["label"], "session": self.id,
-                                                   "turn": self.turn})   # no address: nothing an agent reads there reaches the desk
+            got = True if space else agentlock.acquire(self.project, {"kind": self.kind, "label": ADAPTERS[self.kind]["label"], "session": self.id,
+                                                                      "turn": self.turn})   # no address: nothing an agent reads there reaches the desk
             if got is not True:
                 self.turn -= 1
                 raise Busy([dict(got, why="console")])
             self.running, self.stopping = True, False
+            first = self.header.get("space") and not any(e.get("type") == "user" for e in self.events)
         self.emit("user", text=text, **({"scope": scope} if scope else {}))
         self.emit("turn", state="start")
         prompt = [{"type": "text", "text": text}]
         if scope:   # what the person had selected in the console: named by the page's own words, not the project's
             prompt.append({"type": "text", "text": scope_note(scope)})
+        if first and self.mgr.space_note:   # a film begun on the space: Studio's own line, once (never words from the page or a file)
+            prompt.append({"type": "text", "text": self.mgr.space_note})
         threading.Thread(target=self._turn, args=(prompt, self.turn), name=f"turn-{self.id[:6]}", daemon=True).start()
 
     def _end(self, n, **fields):
@@ -655,7 +677,7 @@ class Session:
         except acp.AcpError as e:
             err = str(e)[:300]
         res = res if isinstance(res, dict) else {}
-        self._end(n, stop=res.get("stopReason") or ("error" if err else None), usage=clean(res.get("usage") or {}, self.root),
+        self._end(n, stop=res.get("stopReason") or ("error" if err else None), usage=clean(res.get("usage") or {}, self.rel),
                   **({"error": err} if err else {}))
 
     def stop(self):
@@ -694,7 +716,7 @@ class Session:
         except (acp.AcpError, KeyError) as e:
             raise Unavailable("refused", str(e))
         self.config["modes"] = dict(modes, currentModeId=mode_id)
-        self.emit("state", modes=clean(self.config["modes"], self.root), by="page")
+        self.emit("state", modes=clean(self.config["modes"], self.rel), by="page")
 
     def set_config(self, config_id, value, by="page"):
         opts = self.config.get("configOptions") or []
@@ -719,7 +741,7 @@ class Session:
         if by == "page" and role:   # the person's pick: the next new conversation with this kind starts with it
             remember(self.kind, role, value)
         self.mgr.seen[self.kind] = {r: offered(option_of(self.config, r)) for r, _c in ROLES if option_of(self.config, r)}
-        self.emit("state", configOptions=clean(self.config["configOptions"], self.root), by=by)
+        self.emit("state", configOptions=clean(self.config["configOptions"], self.rel), by=by)
 
     def gone(self, code):
         """The adapter stopped: what waited is cancelled, the turn ends, the next word starts it again."""
@@ -749,6 +771,43 @@ def scope_note(scope):
     return "(In the console the person had selected: " + ", ".join(parts) + ".)" if parts else ""
 
 
+# ---------- a film begun on the space: which one this conversation made ----------
+
+MADE_RE = re.compile(r"\bcreated\s+([^\n`'\"]+)|\"project\"\s*:\s*\"([^\"]+)\"")   # bin/vh new's own line (a folder may have spaces), and its --json
+
+
+def _strings(o, depth=0):
+    if isinstance(o, str):
+        yield o
+    elif isinstance(o, (list, tuple)) and depth < 6:
+        for x in o[:50]:
+            yield from _strings(x, depth + 1)
+    elif isinstance(o, dict) and depth < 6:
+        for k, v in list(o.items())[:50]:
+            if k not in ("rawInput", "locations"):   # what it ran, not what it said: only the output names the film made
+                yield from _strings(v, depth + 1)
+
+
+def made_film(u, cwd, since):
+    """The folder of the film this tool call made, or None: one bin/vh new says it created (its "created <folder>" line, or
+    "project" in its --json) in the call's output, a folder that is a project (BRIEF.md) and was made after the conversation
+    began. Only the agent's own call, in its own conversation: another agent's new film at the same time is in another one."""
+    for text in _strings({k: v for k, v in u.items() if k in ("content", "rawOutput")}):
+        for m in MADE_RE.finditer(text[:200000]):
+            rest = (m.group(2) or m.group(1) or "").strip()   # "<folder>", "<folder>, but its engine's …", "<folder> without its engine …"
+            for raw in ([rest] if m.group(2) else [rest.split(", but ")[0].split(" without its engine")[0], rest.split()[0] if rest else ""]):
+                p = Path(os.path.expanduser(raw.strip().rstrip(".,;:)]}")))
+                p = p if p.is_absolute() else Path(cwd) / p
+                try:
+                    st = (p / "BRIEF.md").stat()
+                except OSError:
+                    continue
+                # (its change time: a copy keeps the template's birth time on macOS)
+                if p.is_dir() and st.st_ctime >= since - 5 and os.path.realpath(str(p)) != os.path.realpath(str(cwd)):
+                    return Path(os.path.realpath(str(p)))
+    return None
+
+
 # ---------- the manager: one per desk ----------
 
 class Manager:
@@ -765,6 +824,8 @@ class Manager:
         self._closing = []     # adapters being stopped (a restart): shutdown waits for them
         self.installs = {}     # kind → the install the person started from the column: {state, since, took, said}
         self.seen = {}         # kind → {model, effort: [{value, name}]}: what its last session offered (this run)
+        self.place = None      # the desk's: a film's folder → its key in the console (joining it when it is outside the roots), or None
+        self.space_note = ""   # the desk's: Studio's line after the first words of a film begun on the space
         threading.Thread(target=self._watch, name="agents-watch", daemon=True).start()
 
     def install(self, kind, cancel=False):
@@ -919,24 +980,31 @@ class Manager:
                 s.gone(code)
 
     # ---------- sessions ----------
-    def open(self, project, key, kind, personal=True, asked=None):
+    def open(self, project, key, kind, personal=True, asked=None, cwd=None):
+        """A new conversation in a film's folder; with cwd, one begun on the space: its record in project (the space's
+        folder), the agent working in cwd (the workspace, where CLAUDE.md is) until the film it makes takes it (adopt)."""
         if kind not in ADAPTERS:
             raise ValueError("unknown agent")
-        s = Session(self, kind, project, key, header={"created": time.time(), "personal": bool(personal)})
+        header = {"created": time.time(), "personal": bool(personal)}
+        if cwd:
+            header.update(space=True, cwd=os.path.realpath(str(cwd)))
+        s = Session(self, kind, project, key, header=header)
         s.asked = {r: v for r, v in (asked or {}).items() if r in ("model", "effort") and isinstance(v, str) and v} or None
         s._header()
         with self._lock:
             self.sessions[s.id] = s
         return s
 
-    def get(self, sid, project=None, key=None):
-        """A session by id: live in this desk, or read back from its project's log (project given)."""
+    def get(self, sid, project=None, key=None, space=False):
+        """A session by id: live in this desk, or read back from its project's log (project given). space: asked at the
+        space's address, which also reaches one begun there that has since made its film (a page still on the space can
+        stop it)."""
         if not isinstance(sid, str) or not ID_RE.match(sid):
             return None
         with self._lock:
             s = self.sessions.get(sid)
             if s is not None:
-                return s if project is None or os.path.realpath(str(project)) == s.root else None
+                return s if project is None or os.path.realpath(str(project)) == s.root or space and s.header.get("space") else None
             if project is None:
                 return None
             d = Path(project) / ".ovh" / "agents"
@@ -987,6 +1055,36 @@ class Manager:
                 out.append(s.summary())
         out.sort(key=lambda x: x.get("last") or 0, reverse=True)
         return out[:30]
+
+    def adopt(self, s, film):
+        """The film a conversation begun on the space made: it becomes that film's conversation. Its record moves into the
+        film (<film>/.ovh/agents/), a turn in flight takes the film's lock, and the page hears where it is now (a notice
+        with the film's key: the window goes there). The agent is not touched: same session, same working folder."""
+        key = self.place(film) if self.place else None
+        if key is None:
+            return False
+        with s._say_lock:   # (a turn ending meanwhile: it lets go of the lock it took here, or of none)
+            if not s.unplaced:
+                return False
+            with s.cond:
+                s._flush()
+                old = s.log.parent
+                new = Path(film) / ".ovh" / "agents"
+                try:
+                    folder(new)
+                    for ext in (".jsonl", ".json"):
+                        if (old / f"{s.id}{ext}").exists():
+                            shutil.move(str(old / f"{s.id}{ext}"), str(new / f"{s.id}{ext}"))
+                except OSError:
+                    return False   # a film that cannot be written: the conversation stays on the space
+                s.project, s.root, s.key = Path(film), os.path.realpath(str(film)), key
+                s.log = new / f"{s.id}.jsonl"
+                s.header["placed"] = Path(film).name
+                s._header()
+            if s.running:
+                agentlock.acquire(s.project, {"kind": s.kind, "label": ADAPTERS[s.kind]["label"], "session": s.id, "turn": s.turn})
+        s.emit("notice", code="placed", key=key, name=Path(film).name)
+        return True
 
     def _watch(self):
         """A request with no page to answer it: after APPROVAL_TIMEOUT seconds without one, it is rejected."""

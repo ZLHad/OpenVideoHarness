@@ -87,12 +87,6 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .banner b{color:var(--wait);font-weight:500}
 
 /* ---------- the space ---------- */
-.ask{display:grid;gap:8px}   /* the space's column: the sentence that starts a new film */
-.ask textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--rule-2);background:var(--panel-2);padding:10px 12px;font:var(--fs-text)/1.5 var(--prose);border-radius:var(--r-card)}
-.ask textarea:focus{outline:none;border-color:var(--you)}
-.ask .row{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;font-size:var(--fs-label);color:var(--ink-3)}
-.ask .row span{flex:1 1 12em}
-.ask .row .btn-primary{margin-left:auto}
 .heroes{display:grid;gap:16px}   /* a film waiting for you: a row of its own, its picture big, its questions, one button */
 .hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px 24px;align-items:stretch;padding:14px;text-decoration:none;color:inherit;border:1px solid var(--wait-line);background:var(--wait-soft);border-radius:var(--r-panel)}
 .hero .well{aspect-ratio:16/9;border-radius:var(--r-card)}
@@ -568,7 +562,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .blk.shot.sel{box-shadow:inset 0 0 0 2px var(--you)}
 .wav path{fill:var(--ink-3);opacity:.3;stroke:var(--ink-2);stroke-width:1;vector-effect:non-scaling-stroke}   /* the sound's outline, not a block */
 .transport .p-btn[disabled]{opacity:.35;cursor:default}
-.ask textarea{min-height:56px}
+
 .col-round>span:first-child{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* the count in one line, whatever the language */
 .col-body .blk-h{text-transform:none;letter-spacing:normal}   /* a label with "agent" in it is not set in capitals (舰桥) */
 @media (max-width:900px){.rail .mod{width:36px;min-height:40px}.rail .mod span{display:none}.rail{justify-content:space-between}}   /* a phone: the modules as icons, all in one row */

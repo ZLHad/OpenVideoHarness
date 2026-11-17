@@ -105,7 +105,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 </tr>
 </table>
 
-右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。第一次和某个 agent 说话前要装一个适配器：在右边一列点「装上」，Studio 自己装好。
+右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。在空间里，同一列就是开新片子的地方：写一句想做什么、发送，agent 一建好片子，这段对话就跟着进去。第一次和某个 agent 说话前要装一个适配器：在右边一列点「装上」，Studio 自己装好。
 
 点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都是这一个窗口（见[打开 Studio](#打开-studio)）。精品档默认就在 Studio 里停，你一提交，agent 接着做；标准档默认给一页审阅页，想在 Studio 里定，跟 agent 说一声就行。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。Studio 读写的就是项目里的文件，读什么、写什么见 [tools/desk/README.md](tools/desk/README.md)。
 
@@ -231,7 +231,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 > 做一个 30 秒的竖屏科普：为什么低轨卫星的信号会"变调"。中文配音，中英双语字幕。
 
-新片子都从这样一句话开始：说给终端里的 agent，或者写在 Studio 的空间里、复制给它。片子一建好就出现在 Studio 里，之后在哪边接着都行。
+新片子都从这样一句话开始：说给终端里的 agent，或者写在 Studio 空间右边那一列里、点发送。Studio 在这个文件夹里起你选的那个 agent；它一建好片子，窗口就转到那支片子，同一段对话在那里接着往下，停下来等你定的事也在这个窗口里。之后在哪边接着都行。
 
 接下来它会：
 

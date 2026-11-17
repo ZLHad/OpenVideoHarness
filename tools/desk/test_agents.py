@@ -236,11 +236,12 @@ def reap():
 
 
 class Desk:
-    def __init__(self, project, agents, timeout="2", extra=None):
+    def __init__(self, project, agents, timeout="2", extra=None, roots=()):
         self.log = T / f"desk-{time.time_ns()}.log"
         env = window_env(dict(os.environ, OVH_AGENTS_DIR=str(agents), OVH_AGENT_APPROVAL_TIMEOUT=timeout, HOME=str(T / "home"), OVH_AGENT_STOP_GRACE="1.5",
                               FAKE_ACP_LOG=str(T / "prompts.jsonl"), **(extra or {})))
-        self.proc = subprocess.Popen([sys.executable, WITH_TTY, sys.executable, str(HERE / "desk.py"), str(project), "--port", "0", "--print-address"],
+        args = ([str(project)] if project else []) + [x for r in roots for x in ("--root", str(r))]   # no project: the console, its space
+        self.proc = subprocess.Popen([sys.executable, WITH_TTY, sys.executable, str(HERE / "desk.py"), *args, "--port", "0", "--print-address"],
                                      stdout=open(self.log, "w"), stderr=subprocess.STDOUT, env=env, cwd=str(T))
         BG.add(self.proc.pid)
         for _ in range(150):
@@ -255,7 +256,7 @@ class Desk:
         page = urllib.request.urlopen(self.url + "?c=" + self.key).read().decode()   # the printed address: a GET gives nothing
         self.token = claim(self.port, self.key)[1]   # the page's script trades its code for the token
         self.key = re.search(r'name="desk-home" content="([^"]*)"', page).group(1)
-        self.info = self.get(f"/api/p/{self.key}/agents")[1]
+        self.info = self.get(f"/api/p/{self.key}/agents" if self.key else "/api/space/agents")[1]
         self.pid = self.info["pid"]
 
     def get(self, path):
@@ -300,12 +301,12 @@ class Desk:
 
 
 class Listen:
-    """One page's view of a conversation: its events, as the SSE stream sends them."""
-    def __init__(self, desk, sid, after=0, last_id=None):
+    """One page's view of a conversation: its events, as the SSE stream sends them (base: /api/space for the space's)."""
+    def __init__(self, desk, sid, after=0, last_id=None, base=None):
         self.events, self.hello, self.closed = [], None, False
         self.c = http.client.HTTPConnection("127.0.0.1", desk.port, timeout=30)
         h = {"Last-Event-ID": str(last_id)} if last_id is not None else {}
-        self.c.request("GET", f"/api/p/{desk.key}/agent/{sid}/events?token={desk.token}&after={after}", headers=h)
+        self.c.request("GET", f"{base or '/api/p/' + desk.key}/agent/{sid}/events?token={desk.token}&after={after}", headers=h)
         self.sock = self.c.sock   # http.client lets go of it once the response owns the stream: close() needs it
         self.r = self.c.getresponse()
         self.status = self.r.status
@@ -916,6 +917,196 @@ print(json.dumps({"tokens": len(tokens), "candidates": len(cands), "rid": rid, "
 """
 
 
+def space_checks():
+    """A film begun on the space (a console over a folder of films, the stand-ins): the sentence starts a conversation at
+    the space; the agent works in the workspace and makes the film; the conversation becomes that film's; it waits at the
+    first stop and the person's submission lets it go on; two at once, one that asks first, and stops before and after
+    the folder exists."""
+    import agents as A
+    films = T / "films"
+    films.mkdir(exist_ok=True)
+    (T / "home").mkdir(exist_ok=True)
+    d = Desk(None, T / "agents", roots=[films])
+    SP = "/api/space"
+    sp = lambda sid, what, body=None, **kw: d.post(f"{SP}/agent/{sid}/{what}", body or {}, **kw)   # noqa: E731
+    space_of = lambda: [x["id"] for x in d.get(f"{SP}/agents")[1]["sessions"]]   # noqa: E731
+
+    def made(name):
+        return next(iter(sorted(films.glob(f"*-{name}"))), None)
+
+    def fpid(folder):   # a film's identity, as its page carries it (server.pid_of)
+        import hashlib
+        return hashlib.sha1(os.path.realpath(str(folder)).encode()).hexdigest()
+
+    def project_key(folder):
+        return next((r["key"] for r in d.get("/api/projects")[1]["projects"] if os.path.realpath(r["path"]) == os.path.realpath(str(folder))), None)
+    try:
+        def refusals():
+            bad = []
+            if d.post(f"{SP}/agent/new", {"kind": "claude"}, token=False)[0] != 403: bad.append("no token")
+            if d.post(f"{SP}/agent/new", {"kind": "claude"}, origin="http://evil.example")[0] != 403: bad.append("another origin")
+            if d.post(f"{SP}/agent/new", {"kind": "claude"}, pid="0" * 40)[0] != 409: bad.append("another folder's page")
+            if d.post(f"{SP}/agent/new", {"kind": "gpt"})[0] != 400: bad.append("an unknown agent")
+            if d.get(f"{SP}/agent/{'0' * 32}/events")[0] != 403: bad.append("events without the token")
+            if d.info.get("sessions") != [] or d.info.get("lock") is not None: bad.append(f"a space that starts with {d.info}")
+            return "; ".join(bad) or None
+        check("the space's column: the same doors as a film's (the page's token, its origin, its folder, a known agent), no conversations yet", refusals)
+
+        st, s = d.post(f"{SP}/agent/new", {"kind": "claude"})
+        sid = s.get("id")
+        L = Listen(d, sid, base=SP)
+        r = sp(sid, "say", {"text": "做一支新片子 tide-film，停一下"})
+        perm = L.wait(lambda e: e["type"] == "permission")
+        first = prompts()[-1] if prompts() else []
+
+        def started():
+            if st != 200 or r[0] != 200 or not perm:
+                return f"new {st}, say {r}, permission {perm}"
+            texts = [b.get("text") for b in first]
+            if texts[0] != "做一支新片子 tide-film，停一下" or len(texts) != 2 or "Studio" not in texts[1] or f"--dir {os.path.realpath(str(films))}" not in texts[1]:
+                return f"what reached the agent: {texts}"
+            hd = json.loads(next((T / "tmp").rglob(f"{sid}.json")).read_text())
+            if hd.get("cwd") != os.path.realpath(str(ROOT)) or not hd.get("space"):
+                return f"the record's head: {hd}"
+            if sid not in space_of() or made("tide-film"):
+                return "not listed at the space, or a folder before the approval"
+        check("a sentence on the space starts a conversation there: the agent in the workspace (where CLAUDE.md is), the person's words and Studio's own "
+              "line (where to make the film, review in Studio), a request to approve as in a film's column", started)
+
+        sp(sid, "answer", {"request": perm["rid"], "option": "allow-once"})
+        moved = L.wait(lambda e: e["type"] == "notice" and e.get("code") == "placed", 20)
+        film = made("tide-film")
+        lock_mid = json.loads((film / ".ovh" / "agent.lock").read_text()) if film and (film / ".ovh" / "agent.lock").exists() else None
+        listening = None
+        for _ in range(100):
+            if film and (film / "out" / "review" / "feedback" / ".listening").exists():
+                listening = True
+                break
+            time.sleep(0.1)
+
+        def placed():
+            if not moved or not film:
+                return f"placed {moved}, folder {film}"
+            if moved.get("key") != project_key(film) or moved.get("name") != film.name:
+                return f"the notice names {moved}, the film's key is {project_key(film)}"
+            rec = film / ".ovh" / "agents" / f"{sid}.jsonl"
+            if not rec.exists() or list((T / "tmp").rglob(f"{sid}.jsonl")):
+                return "the record did not move into the film"
+            if sid in space_of() or sid not in [x["id"] for x in d.get(f"/api/p/{moved['key']}/agents")[1]["sessions"]]:
+                return "still at the space, or not the film's"
+            if not lock_mid or lock_mid.get("session") != sid:
+                return f"the turn in flight does not hold the film's lock: {lock_mid}"
+            if not any(e["type"] == "user" for e in [json.loads(x) for x in rec.read_text().splitlines()]):
+                return "the moved record lost the first words"
+        check("the agent makes the film (bin/vh new's 'created' line): the conversation becomes the film's (its record moves in, the turn in flight takes "
+              "the film's lock, the page hears the film's key and name)", placed)
+
+        K = (moved or {}).get("key", "")
+        fb = d.post(f"/api/p/{K}/feedback", {"round": "1", "general": "就这个方向"}, pid=fpid(film)) if listening else (0, None)
+        end = L.wait(ended, 30)
+
+        def stop_and_go():
+            if not listening:
+                return "the agent never waited at the stop"
+            if fb[0] != 200 or not end or end.get("stop") != "end_turn" or "收到你的提交" not in text_of(L.events):
+                return f"submitted {fb}, end {end}"
+            if (film / ".ovh" / "agent.lock").exists():
+                return "the lock stayed after the turn"
+            L2 = Listen(d, sid, base=f"/api/p/{K}")   # the film's own address now: the same conversation, from its start
+            r2 = d.post(f"/api/p/{K}/agent/{sid}/say", {"text": "读一下 BRIEF"}, pid=fpid(film))
+            e2 = L2.wait(lambda e: ended(e) and e["seq"] > end["seq"], 20)
+            L2.close()
+            if r2[0] != 200 or not e2 or not any(e["type"] == "user" and "tide-film" in e["text"] for e in L2.events):
+                return f"the film's column: say {r2}, end {e2}"
+        check("it waits at the first stop (the stop's page in Studio) and the person's submission lets it go on; the film's column carries the same conversation on", stop_and_go)
+        L.close()
+
+        st_a, a = d.post(f"{SP}/agent/new", {"kind": "claude"})
+        st_b, b = d.post(f"{SP}/agent/new", {"kind": "claude"})
+        LA, LB = Listen(d, a["id"], base=SP), Listen(d, b["id"], base=SP)
+        ra = sp(a["id"], "say", {"text": "做一支新片子 moon-film，先问我"})
+        rb = sp(b["id"], "say", {"text": "做一支新片子 star-film，慢一点"})
+        qa = LA.wait(ended, 20)
+        pb = LB.wait(lambda e: e["type"] == "permission")
+        if pb:
+            sp(b["id"], "answer", {"request": pb["rid"], "option": "allow-once"})
+        mb = LB.wait(lambda e: e["type"] == "notice" and e.get("code") == "placed", 20)
+
+        def two():
+            if (ra[0], rb[0]) != (200, 200) or not qa or "三件事" not in text_of(LA.events):
+                return f"say {ra} {rb}, the asking one ended {qa}"
+            if a["id"] not in space_of() or made("moon-film"):
+                return "the one that asked is not waiting at the space"
+            if not mb or mb.get("key") != project_key(made("star-film")):
+                return f"the second's film: {mb}"
+            r3 = sp(a["id"], "say", {"text": "竖屏，一分钟，发抖音"})
+            p3 = LA.wait(lambda e: e["type"] == "permission")
+            if r3[0] != 200 or not p3:
+                return f"the answer: {r3}"
+            sp(a["id"], "answer", {"request": p3["rid"], "option": "allow-once"})
+            ma = LA.wait(lambda e: e["type"] == "notice" and e.get("code") == "placed", 20)
+            LA.wait(ended, 20)
+            moon, star = made("moon-film"), made("star-film")
+            if not ma or ma.get("key") != project_key(moon) or ma["key"] == mb["key"]:
+                return f"the first's film: {ma}"
+            if {p.stem for p in (moon / ".ovh" / "agents").glob("*.json")} != {a["id"]} or {p.stem for p in (star / ".ovh" / "agents").glob("*.json")} != {b["id"]}:
+                return "a film took the other's conversation"
+        check("two new films at once, one asking its questions first: each conversation becomes its own film's, the one that asked waits at the space "
+              "and goes on from the person's answer", two)
+
+        def stop_after():
+            r4 = sp(b["id"], "stop")   # the space's address still reaches it after it moved
+            e4 = LB.wait(ended, 15)
+            star = made("star-film")
+            if r4[0] != 200 or not e4 or e4.get("stop") != "cancelled" or (star / ".ovh" / "agent.lock").exists():
+                return f"stop {r4}, end {e4}"
+        check("stop after the folder exists (from the space's page that started it): the turn ends cancelled and the film's lock goes", stop_after)
+        LA.close(); LB.close()
+
+        st_c, c = d.post(f"{SP}/agent/new", {"kind": "claude"})
+        LC = Listen(d, c["id"], base=SP)
+        sp(c["id"], "say", {"text": "做一支新片子 sun-film，先等"})
+        LC.wait(lambda e: e["type"] == "update" and "照 CLAUDE.md" in json.dumps(e, ensure_ascii=False), 15)
+
+        def stop_before():
+            r5 = sp(c["id"], "stop")
+            e5 = LC.wait(ended, 15)
+            if r5[0] != 200 or not e5 or e5.get("stop") != "cancelled" or made("sun-film") or c["id"] not in space_of():
+                return f"stop {r5}, end {e5}, folder {made('sun-film')}"
+        check("stop before the folder exists: the turn ends cancelled, nothing is made, the conversation stays at the space", stop_before)
+        LC.close()
+
+        far = T / "elsewhere"
+        st_f, f = d.post(f"{SP}/agent/new", {"kind": "claude"})
+        LF = Listen(d, f["id"], base=SP)
+        sp(f["id"], "say", {"text": f"做一支新片子 far-film --dir {far}"})
+        pf = LF.wait(lambda e: e["type"] == "permission")
+        if pf:
+            sp(f["id"], "answer", {"request": pf["rid"], "option": "allow-once"})
+        mf = LF.wait(lambda e: e["type"] == "notice" and e.get("code") == "placed", 20)
+        LF.wait(ended, 20)
+        LF.close()
+        check("a film made outside the console's folders (the person named another) joins the space, and the conversation is its",
+              lambda: None if mf and next(iter(far.glob("*-far-film")), None) and mf.get("key") == project_key(next(far.glob("*-far-film"))) else (st_f, pf, mf))
+
+        def unit():
+            film = made("tide-film")
+            out = {"content": [{"type": "content", "content": {"type": "text", "text": f"✓ created {film}"}}]}
+            if A.made_film(out, ROOT, 0) != Path(os.path.realpath(str(film))):
+                return "the created line"
+            if A.made_film(out, ROOT, time.time() + 60) is not None:
+                return "a film older than the conversation"
+            if A.made_film({"rawInput": {"command": f"echo created {film}"}}, ROOT, 0) is not None:
+                return "words in the command, not its output"
+            if A.made_film({"rawOutput": json.dumps({"version": 1, "project": str(film)})}, ROOT, 0) is None:
+                return "bin/vh new --json"
+            if A.made_film({"content": [{"type": "content", "content": {"type": "text", "text": f"created {films}"}}]}, ROOT, 0) is not None:
+                return "a folder that is no film"
+        check("which film a conversation made: only bin/vh new's own line or --json in its output, a folder with BRIEF.md made after it began", unit)
+    finally:
+        d.stop()
+
+
 def attack_checks():
     """The review's attack, as a check: an agent's shell in the project (no terminal of its own) reads every file there, the
     console's info folder and the process list (Studio's window is open, its address with the one-time code in its command
@@ -1507,6 +1698,10 @@ if __name__ == "__main__":
         server_checks()
     except Exception as e:
         say(False, "the agent column's server checks", f"{type(e).__name__}: {e}")
+    try:
+        space_checks()
+    except Exception as e:
+        say(False, "the space's column checks", f"{type(e).__name__}: {e}")
     try:
         choice_checks()
     except Exception as e:

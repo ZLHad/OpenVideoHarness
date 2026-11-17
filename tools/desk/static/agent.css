@@ -119,6 +119,9 @@
 .ag-sys.bad{color:var(--live);border-color:var(--live-line)}
 .ag-note{margin:0;padding:8px 10px;border:1px solid var(--wait-line);background:var(--wait-soft);color:var(--ink);font-size:var(--fs-small);line-height:1.6;border-radius:var(--r-card)}
 .ag-note.bad{border-color:var(--live-line);background:var(--live-soft)}
+.ag-note.ok{border-color:var(--rule-2);background:var(--agent-soft)}   /* the film a conversation begun on the space made: news, not a warning */
+#spaceRun .blk-h{display:flex;align-items:baseline;gap:8px;margin:14px 0 8px;font-size:var(--fs-label);color:var(--ink-3);letter-spacing:var(--label-track);text-transform:var(--label-case)}
+#spaceRun .blk-h b{font-weight:600;color:var(--ink-2)}
 .ag-mute{margin:0;font-size:var(--fs-label);color:var(--ink-3)}
 .ag-working{display:flex;align-items:center;gap:8px;font-size:var(--fs-label);color:var(--agent)}
 .ag-dots{display:inline-flex;gap:3px}
