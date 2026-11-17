@@ -1032,7 +1032,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             err = None
         lock = A.agentlock.read(project)
         auth = mgr.auth
-        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
+        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"]), choices=mgr.choices(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
                            "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
                            **({"error": err} if err else {})})
 
@@ -1446,7 +1446,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 kind = raw.get("kind")
                 if kind not in A.ADAPTERS:
                     return self._error(400, "unknown agent")
-                s = mgr.open(project, key, kind, personal=raw.get("personal", True) is not False)
+                s = mgr.open(project, key, kind, personal=raw.get("personal", True) is not False,   # model, effort: the person's choice in the new box
+                             asked={r: raw.get(r) for r in ("model", "effort") if isinstance(raw.get(r), str)})
                 try:
                     s.attach()   # the agent's mode, model and effort are on the page before the first word
                 except A.Unavailable as e:

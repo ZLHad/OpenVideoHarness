@@ -12596,7 +12596,8 @@ reap_desks() {
 trap reap_desks EXIT; trap 'exit 143' TERM; trap 'exit 129' HUP; trap 'exit 130' INT
 # no group to run is never a pass: a table gone, emptied or unreadable would make every run "all checks passed"
 [ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
-python3 "$ROOT/tools/desk/fixtures/decoy_studio.py" "$CI_WIN/decoy.log" > "$CI_WIN/decoy.out" 2>&1 & CI_DECOY=$!
+# (started from a subshell, so it is no child of this shell: a check's bare `wait` would wait for it for ever)
+CI_DECOY=$( (python3 "$ROOT/tools/desk/fixtures/decoy_studio.py" "$CI_WIN/decoy.log" > "$CI_WIN/decoy.out" 2>&1 < /dev/null & echo $!) )
 for i in $(seq 100); do [ -f "$CI_WIN/decoy.log.ready" ] || ! kill -0 "$CI_DECOY" 2>/dev/null && break; sleep 0.1; done
 # shellcheck disable=SC2086   # one group a word
 run_groups $list

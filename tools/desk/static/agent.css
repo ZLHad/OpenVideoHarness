@@ -42,7 +42,10 @@
 .ag-more summary{cursor:pointer}
 .ag-more[open]{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px 12px}
 .ag-more[open] summary{flex-basis:100%}
-.ag-line{display:flex;align-items:center;gap:10px;min-width:0}
+.ag-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
+.ag-pick{display:inline-flex;align-items:center;gap:5px;flex:none;font-size:var(--fs-label);color:var(--ink-3)}
+.ag-pick select{max-width:140px;border:1px solid var(--rule);background:var(--panel-2);color:var(--ink);font:var(--fs-label) var(--sans);padding:2px 4px;border-radius:var(--r-ctl);cursor:pointer}
+.ag-start{margin:2px 0 4px}
 .ag-sum{display:inline-flex;align-items:center;gap:6px;min-width:0;border:1px solid var(--rule);background:var(--panel-2);color:var(--ink-2);font:var(--fs-label) var(--sans);padding:3px 8px;border-radius:var(--r-ctl);cursor:pointer}
 .ag-sum span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-sum i{font-style:normal;color:var(--ink-3)}

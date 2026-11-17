@@ -128,7 +128,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .pcard .err{font-size:var(--fs-label);color:var(--live)}
 .roots{margin-top:26px;font-size:var(--fs-label);color:var(--ink-3)}
 .lacks{margin:-4px 0 22px;padding:10px 14px;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--panel);font-size:var(--fs-small);color:var(--ink-2);max-width:62em}
-.lacks h2{margin:0 0 4px;font:500 var(--fs-label)/1.4 var(--sans);letter-spacing:var(--label-track);text-transform:var(--label-case);color:var(--ink-3)}
+.lacks h2{margin:0 0 4px;font:500 var(--fs-label)/1.4 var(--sans);color:var(--ink-3)}
 .lacks ul{margin:0;padding:0;list-style:none;display:grid;gap:3px}
 .lacks b{font-weight:500;color:var(--ink)}
 .lacks .do{color:var(--ink)}

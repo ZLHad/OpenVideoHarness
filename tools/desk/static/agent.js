@@ -17,6 +17,7 @@ const ASTR = {
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
+    eff_tip: "推理档越高，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时用：{x}。开始以后，在上面随时可以换。", own_default: "{a} 自己的默认",
     u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
     w_seven_day: "7 天", u_reset: "，{at} 恢复", w_five_hour: "5 小时", w_daily: "今天的", w_weekly: "这周的",
     ph_say: "对{x}说点什么…", ph_say0: "跟 {a} 说点什么…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
@@ -61,6 +62,7 @@ const ASTR = {
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
+    eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts with: {x}. You can change it above any time after.", own_default: "{a}'s own default",
     u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
     w_seven_day: "7-day", u_reset: "; it resets {at}", w_five_hour: "5-hour", w_daily: "daily", w_weekly: "weekly",
     ph_say: "Say something about {x}…", ph_say0: "Say something to {a}…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
@@ -107,6 +109,7 @@ const AGENT = (() => {
   let TOKEN_ = deskToken();
   let KEYOK = true;   // the page holds this run's token (studio.js asks /api/hello); without it the box is not offered
   let KEYP = "", INFO = null, KIND = "", S = null, ES = null, BUSY = null, TAB = "", ERR = null, NEWBOX = false, tick = null, raf = 0;
+  let NEWASK = {};   // the model and effort the person chose for the conversation they are about to start (only what they changed)
   const kinds = () => ((INFO && INFO.agents) || []);
   const meta = (k) => kinds().find((a) => a.kind === k) || { kind: k, label: k };
   const label = () => meta(KIND).label || KIND;
@@ -216,7 +219,8 @@ const AGENT = (() => {
   function close() { if (ES) { ES.close(); ES = null; } clearInterval(tick); S = null; }
   async function start(kind, personal) {   // a new conversation: the agent starts (its settings show before the first word)
     KIND = kind; BUSY = null; ERR = { code: "starting" }; S = null; render();
-    const r = await post("new", { kind, personal: personal !== false });
+    const r = await post("new", Object.assign({ kind, personal: personal !== false }, kind === KIND ? NEWASK : {}));
+    NEWASK = {};
     if (r.data && r.data.id) {
       INFO.sessions = [r.data].concat((INFO.sessions || []).filter((x) => x.id !== r.data.id));
       if (r.ok) { open(r.data); ERR = null; } else { ERR = { code: r.data.error, detail: r.data.detail }; S = null; }
@@ -224,7 +228,7 @@ const AGENT = (() => {
     render();
   }
   async function pickKind(kind) {
-    KIND = kind; NEWBOX = false; ERR = null; close();
+    KIND = kind; NEWBOX = false; ERR = null; NEWASK = {}; close();
     store_.set(`desk:agent:${KEYP}`, { kind });
     const m = meta(kind);
     if (!m.installed) { ERR = { code: "not_installed" }; render(); return; }
@@ -364,9 +368,13 @@ const AGENT = (() => {
     if (S.gone) return { k: "ag_gone", cls: "" };
     return { k: S.items.length ? "ag_idle" : "ag_ready", cls: "" };
   }
+  function optWord(cat, x) {   // a value of the agent's settings in our words when we know it, else its own name
+    const w = cat === "mode" ? at("m_" + x.value) : cat === "thought_level" ? at("e_" + x.value) : cat === "model" && x.value === "default" ? at("mdl_default") : "";
+    return w && !/^(m|e|mdl)_/.test(w) ? w : x.name || x.value;
+  }
   function selectOf(o, cat) {   // one of the agent's settings as a menu, in its own words (the known ones in ours)
     const flat = []; (o.options || []).forEach((x) => (Array.isArray(x.options) ? x.options.map((y) => Object.assign({ group: x.name }, y)) : [x]).forEach((y) => flat.push(y)));
-    const name = (x) => { const w = cat === "mode" ? at("m_" + x.value) : cat === "thought_level" ? at("e_" + x.value) : cat === "model" && x.value === "default" ? at("mdl_default") : ""; return w && !/^(m|e|mdl)_/.test(w) ? w : (x.group && flat.filter((y) => y.name === x.name).length > 1 ? `${x.name} · ${x.group}` : x.name || x.value); };
+    const name = (x) => { const w = optWord(cat, x); return w !== (x.name || x.value) ? w : (x.group && flat.filter((y) => y.name === x.name).length > 1 ? `${x.name} · ${x.group}` : x.name || x.value); };
     return `<select data-cfg="${esc(o.id)}" title="${esc((flat.find((x) => x.value === o.currentValue) || {}).description || o.description || "")}">${flat.map((x) => `<option value="${esc(x.value)}"${x.value === o.currentValue ? " selected" : ""}>${esc(name(x))}</option>`).join("")}</select>`;
   }
   function settingsHtml() {
@@ -377,9 +385,8 @@ const AGENT = (() => {
     const mode = byCat("mode");
     if (mode) parts.push(["set_mode", selectOf(mode, "mode")]);
     else if (C.modes && (C.modes.availableModes || []).length) parts.push(["set_mode", `<select data-mode="1">${C.modes.availableModes.map((m) => `<option value="${esc(m.id)}"${m.id === C.modes.currentModeId ? " selected" : ""} title="${esc(m.description || "")}">${esc(at("m_" + m.id) !== "m_" + m.id ? at("m_" + m.id) : m.name)}</option>`).join("")}</select>`]);
-    const model = byCat("model"); if (model) parts.push(["set_model", selectOf(model, "model")]);
-    const eff = byCat("thought_level"); if (eff) parts.push(["set_effort", selectOf(eff, "thought_level")]);
     const more = opts.filter((o) => o.type === "select" && !["mode", "model", "thought_level"].includes(o.category) && (o.options || []).length > 1);
+    if (!parts.length && !more.length && S.personal) return "";
     return `<div class="ag-set">${parts.map(([k, sel]) => `<label><span>${esc(at(k))}</span>${sel}</label>`).join("")}${more.length ? `<details class="ag-more"><summary>${esc(at("set_more"))}</summary>${more.map((o) => `<label><span>${esc(o.name || o.id)}</span>${selectOf(o, o.category)}</label>`).join("")}</details>` : ""}${S.personal ? "" : `<span class="chip quiet">${esc(at("set_personal_off"))}</span>`}</div>`;
   }
   let SETOPEN = false;   // the settings unfolded (one line otherwise)
@@ -392,9 +399,14 @@ const AGENT = (() => {
       return w && !/^(m|e|mdl)_/.test(w) ? w : x.name || x.value || ""; };
     let mode = nameOf(byCat("mode"), "mode");
     if (!mode && C.modes) { const m = (C.modes.availableModes || []).find((x) => x.id === C.modes.currentModeId) || {}; mode = at("m_" + m.id) !== "m_" + m.id ? at("m_" + m.id) : m.name || ""; }
-    const sum = [mode, nameOf(byCat("model"), "model"), nameOf(byCat("thought_level"), "thought_level")].filter(Boolean).join(" · ");
+    // the model and the effort are plain menus (the choice a person makes most); the mode and the rest fold behind one button
+    const model = byCat("model"), eff = byCat("thought_level");
+    const picks = (model ? `<label class="ag-pick"><span>${esc(at("set_model"))}</span>${selectOf(model, "model")}</label>` : "")
+      + (eff ? `<label class="ag-pick" title="${esc(at("eff_tip"))}"><span>${esc(at("set_effort"))}</span>${selectOf(eff, "thought_level")}</label>` : "");
+    const sum = mode || (model || eff ? "" : [nameOf(model, "model"), nameOf(eff, "thought_level")].filter(Boolean).join(" · "));
     const use = [S.usage && S.usage.used != null && S.usage.size ? `${kilo(S.usage.used)} / ${kilo(S.usage.size)}` : "", S.cost ? money(S.cost) : ""].filter(Boolean).join(" · ");
-    return `<div class="ag-line"><button type="button" class="ag-sum" id="agSum" aria-expanded="${SETOPEN}" title="${esc(at(SETOPEN ? "set_close" : "set_open"))}"><span>${esc(sum || at("set_open"))}</span><i aria-hidden="true">${SETOPEN ? "▴" : "▾"}</i></button>${use ? `<span class="ag-usetxt mono" title="${esc([S.usage && S.usage.used != null ? at("u_ctx", { u: kilo(S.usage.used), s: kilo(S.usage.size || 0) }) : "", S.cost ? at("u_cost", { c: money(S.cost) }) : ""].filter(Boolean).join(" · "))}">${esc(use)}</span>` : ""}</div>${SETOPEN ? settingsHtml() : ""}`;
+    const extra = settingsHtml();   // the mode and the rest: a button only when there is something behind it
+    return `<div class="ag-line">${picks}${extra || !picks ? `<button type="button" class="ag-sum" id="agSum" aria-expanded="${SETOPEN}" title="${esc(at(SETOPEN ? "set_close" : "set_open"))}"><span>${esc(sum || at("set_more"))}</span><i aria-hidden="true">${SETOPEN ? "▴" : "▾"}</i></button>` : ""}${use ? `<span class="ag-usetxt mono" title="${esc([S.usage && S.usage.used != null ? at("u_ctx", { u: kilo(S.usage.used), s: kilo(S.usage.size || 0) }) : "", S.cost ? at("u_cost", { c: money(S.cost) }) : ""].filter(Boolean).join(" · "))}">${esc(use)}</span>` : ""}</div>${SETOPEN ? extra : ""}`;
   }
   function usageHtml() {
     if (!S) return "";
@@ -423,7 +435,7 @@ const AGENT = (() => {
     if (part("agTop", top)) {
       DRAWN.agState = null;
       $("#agKind").addEventListener("change", (e) => pickKind(e.target.value));
-      $("#agNew").addEventListener("click", () => { NEWBOX = true; render(); const b = $("#agNewGo"); if (b) b.focus(); });
+      $("#agNew").addEventListener("click", async () => { NEWBOX = true; NEWASK = {}; await load(); render(); const b = $("#agNewGo"); if (b) b.focus(); });   // (load: the agent's list as this run last saw it)
       $$("#agTop [data-sid]").forEach((b) => b.addEventListener("click", () => { const s = sessionsOf(KIND).find((x) => x.id === b.dataset.sid); if (s) { open(s); render(); } }));
     }
     $("#agOrb").className = "ag-orb " + st.cls;
@@ -451,7 +463,7 @@ const AGENT = (() => {
     }
     if (!KEYOK) return "";   // the note above the column says it once, with what to do
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
-    return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3><p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
+    return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3>${S ? "" : startPicks()}<p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
   }
   function itemHtml(it) {
     const a = esc(label());
@@ -590,9 +602,22 @@ const AGENT = (() => {
     if (!quiet && last && last.kind !== "user") return "";   // the head says what it is doing; the row only fills the silence after your words
     return `<div class="ag-working"><span class="ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(quiet ? at("working_dsh", { a: label() }) : at(st.k, { v: st.v, x: st.x }))}</span></div>`;
   }
+  function startPicks() {   // where a conversation starts: the model and effort it will start with, as menus when this run has seen the agent's list
+    const m = meta(KIND), ch = m.choices || {}, off = ch.offered || null, own = at("own_default", { a: m.label });
+    const menus = [["model", "model", "set_model"], ["effort", "thought_level", "set_effort"]].map(([role, cat, k]) => {
+      const list = off && Array.isArray(off[role]) ? off[role] : [];
+      if (!list.length) return "";
+      const cur = NEWASK[role] || (ch[role] && ch[role].value) || "";
+      return `<label class="ag-pick"${role === "effort" ? ` title="${esc(at("eff_tip"))}"` : ""}><span>${esc(at(k))}</span><select data-new="${role}">${cur ? "" : `<option value="" selected>${esc(own)}</option>`}${list.map((x) => `<option value="${esc(x.value)}"${x.value === cur ? " selected" : ""}>${esc(optWord(cat, x))}</option>`).join("")}</select></label>`;
+    }).join("");
+    if (menus) return `<div class="ag-line ag-start">${menus}</div>`;
+    const word = (role, cat) => { const c = ch[role] || {}; return c.name ? optWord(cat, { value: c.value || c.name, name: c.name }) : ""; };
+    const x = [word("model", "model"), word("effort", "thought_level")].filter(Boolean);
+    return `<p class="ag-mute">${esc(at("new_with", { x: x.length ? x.join(" · ") : own }))}</p>`;
+  }
   function newBoxHtml() {
     const m = meta(KIND);
-    return `<div class="ag-new"><h3>${esc(at("new_h"))} · ${esc(m.label)}</h3>${m.settings_toggle ? `<label class="ag-check" title="${esc(at("personal_tip"))}"><input type="checkbox" id="agPersonal" checked> ${esc(at("personal_on"))}</label>` : ""}<div class="ag-opts"><button type="button" class="btn btn-primary" id="agNewGo">${esc(at("new_go"))}</button><button type="button" class="btn ghost" id="agNewNo">${esc(at("cancel"))}</button></div></div>`;
+    return `<div class="ag-new"><h3>${esc(at("new_h"))} · ${esc(m.label)}</h3>${startPicks()}${m.settings_toggle ? `<label class="ag-check" title="${esc(at("personal_tip"))}"><input type="checkbox" id="agPersonal" checked> ${esc(at("personal_on"))}</label>` : ""}<div class="ag-opts"><button type="button" class="btn btn-primary" id="agNewGo">${esc(at("new_go"))}</button><button type="button" class="btn ghost" id="agNewNo">${esc(at("cancel"))}</button></div></div>`;
   }
   function wireThread(th) {
     th.onclick = (e) => {
@@ -607,6 +632,7 @@ const AGENT = (() => {
       if (e.target.closest("#agNewGo")) { const p = $("#agPersonal"); NEWBOX = false; start(KIND, p ? p.checked : true); return; }
       if (e.target.closest("#agNewNo")) { NEWBOX = false; render(); }
     };
+    th.onchange = (e) => { const x = e.target.closest("select[data-new]"); if (x && e.isTrusted) { if (x.value) NEWASK[x.dataset.new] = x.value; else delete NEWASK[x.dataset.new]; } };
   }
   function renderFoot() {
     const f = $("#agFoot"); if (!f) return;

@@ -1250,6 +1250,85 @@ def open_checks():
             pass
 
 
+def choice_checks():
+    """Model and effort in Studio (the stand-in adapters, a folder of picks of these checks' own): a new Claude Code
+    conversation starts at Opus 5.5 and xhigh when the agent offers them; Codex keeps its own; what the person picks on the
+    page is remembered for this kind (picks.json beside the adapters, never in the project) and the next new conversation
+    starts with it, a running one is left as it is; a choice made when starting one is taken when the agent offers it and
+    dropped when not; an agent that offers neither keeps its own; only values the agent reported are ever sent to it."""
+    from fixtures.agents import stage as ST
+    fx = {k: json.loads((HERE / "fixtures" / "agents" / f"{k}.json").read_text(encoding="utf-8")) for k in ("claude", "codex")}
+    allowed = {}
+    for k, f in fx.items():
+        for o in f["session"]["configOptions"]:
+            allowed.setdefault(k, {})[o["id"]] = {y["value"] for x in o.get("options") or [] for y in (x["options"] if isinstance(x.get("options"), list) else [x])}
+    cur = lambda s, cat: next((o.get("currentValue") for o in s["config"]["configOptions"] if o.get("category") == cat), None)   # noqa: E731
+
+    def sent(log):
+        return [json.loads(x)["set"] for x in log.read_text().splitlines() if x.startswith('{"set"')] if log.exists() else []
+
+    proj, log = T / "choice", T / "choice.jsonl"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
+    home = ST.stage(T / "agents-choice", 0.02, only=["claude", "codex"], log=log)
+    d = Desk(proj, home)
+    K = d.key
+    try:
+        ch0 = {a["kind"]: a.get("choices") for a in d.info["agents"]}
+        st, s = d.new("claude")
+        stc, sc = d.new("codex")
+        check("model and effort: a new Claude Code conversation starts at Opus 5.5 and xhigh, which the agent offers (the column named them before it "
+              "started); Codex starts with its own",
+              lambda: None if st == stc == 200 and (cur(s, "model"), cur(s, "thought_level")) == ("opus", "xhigh")
+              and (ch0["claude"]["model"]["name"], ch0["claude"]["effort"]["name"], ch0["claude"]["model"]["from"]) == ("Opus 5.5", "xhigh", "default")
+              and (cur(sc, "model"), cur(sc, "thought_level")) == tuple(next(o["currentValue"] for o in fx["codex"]["session"]["configOptions"] if o["id"] == i) for i in ("model", "reasoning_effort"))
+              and ch0["codex"]["model"]["from"] == "agent" and not [x for x in sent(log) if x["id"] == "reasoning_effort" or x["value"].startswith("gpt")]
+              else (st, stc, cur(s, "model"), cur(s, "thought_level"), cur(sc, "model"), ch0))
+
+        def picked():
+            a = d.a(s["id"], "config", {"id": "model", "value": "sonnet"})[0]
+            b = d.a(s["id"], "config", {"id": "effort", "value": "high"})[0]
+            pk = json.loads((home / "picks.json").read_text()) if (home / "picks.json").exists() else None
+            if (a, b) != (200, 200) or pk != {"claude": {"model": "sonnet", "effort": "high"}}:
+                return f"set {a} {b}, picks {pk}"
+            if any(proj.rglob("picks*")):
+                return "a pick in the project"
+            st2, s2 = d.new("claude")
+            ch = next(x["choices"] for x in d.get(f"/api/p/{K}/agents")[1]["agents"] if x["kind"] == "claude")
+            if st2 != 200 or (cur(s2, "model"), cur(s2, "thought_level")) != ("sonnet", "high"):
+                return f"the next conversation: {cur(s2, 'model')} {cur(s2, 'thought_level')}"
+            if (ch["model"]["value"], ch["model"]["from"], ch["effort"]["value"]) != ("sonnet", "picked", "high") or "opus" not in [x["value"] for x in ch["offered"]["model"]]:
+                return f"the column's choices: {ch}"
+            return None
+        check("model and effort: what the person picks is remembered for this kind of agent on this machine (beside the adapters, not in the project); "
+              "the next new conversation starts with it, and the column lists it with the agent's options", picked)
+
+        def asked():
+            st3, s3 = d.post(f"/api/p/{K}/agent/new", {"kind": "claude", "model": "haiku", "effort": "ultra-max"})
+            pk = json.loads((home / "picks.json").read_text())
+            if st3 != 200 or (cur(s3, "model"), cur(s3, "thought_level")) != ("haiku", "high") or pk["claude"] != {"model": "haiku", "effort": "high"}:
+                return f"{st3} {cur(s3, 'model')} {cur(s3, 'thought_level')} {pk}"
+            bad = [x for x in sent(log) if x["value"] not in allowed["claude" if x["id"] in allowed["claude"] else "codex"].get(x["id"], set())]
+            return f"sent what the agent never offered: {bad}" if bad or any(x["value"] == "ultra-max" for x in sent(log)) else None
+        check("model and effort: a choice made when starting a conversation is taken when the agent offers it and dropped when not; only values the agent "
+              "reported are ever sent to it", asked)
+    finally:
+        d.stop()
+    proj2, log2 = T / "choice2", T / "choice2.jsonl"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj2)
+    home2 = ST.stage(T / "agents-noopus", 0.02, only=["claude"], args={"claude": ["--no-opus"]}, log=log2)
+    d2 = Desk(proj2, home2)
+    try:
+        st4, s4 = d2.new("claude")
+        ch = next(x["choices"] for x in d2.get(f"/api/p/{d2.key}/agents")[1]["agents"] if x["kind"] == "claude")
+        rec = fx["claude"]["session"]["configOptions"]
+        own = (next(o["currentValue"] for o in rec if o["id"] == "model"), next(o["currentValue"] for o in rec if o["id"] == "effort"))
+        check("model and effort: an agent that offers neither Opus 5.5 nor xhigh keeps its own (nothing set), and the column says it is the agent's",
+              lambda: None if st4 == 200 and (cur(s4, "model"), cur(s4, "thought_level")) == own and not sent(log2)
+              and ch["model"]["from"] == ch["effort"]["from"] == "agent" else (st4, cur(s4, "model"), cur(s4, "thought_level"), sent(log2), ch))
+    finally:
+        d2.stop()
+
+
 if __name__ == "__main__":
     import atexit
     atexit.register(reap)
@@ -1279,4 +1358,8 @@ if __name__ == "__main__":
         server_checks()
     except Exception as e:
         say(False, "the agent column's server checks", f"{type(e).__name__}: {e}")
+    try:
+        choice_checks()
+    except Exception as e:
+        say(False, "the agent column's model and effort checks", f"{type(e).__name__}: {e}")
     print("end", flush=True)
