@@ -4428,19 +4428,36 @@ sys.exit(1 if bad else 0)
 PY
   then ok "studio icon's picture: stdlib Python draws it at 16, 32, 128 and 512 px, the same bytes each time, the console's cyan square in the middle at 16; the .icns has its ten entries"
   else bad "studio icon's picture"; fi
-  sed -n '/^put_icon() {/,/^}/p' install.sh > "$t/put.sh"
-  mkdir -p "$t/inst/bin" && printf '#!/bin/sh\necho "$*" >> "%s"\n' "$t/inst/ran" > "$t/inst/bin/vh" && chmod +x "$t/inst/bin/vh"
-  put() { (cd "$t/inst" && env "$@" bash -c 'say() { echo "said: $*"; }; . "$1"; ICON_LATER=""; ICON_DONE=""; put_icon; echo "done=$ICON_DONE later=$ICON_LATER"' _ "$t/put.sh" < /dev/null 2>&1); }
-  a=$(put DISPLAY=:0 ICON=yes); n1=$(wc -l < "$t/inst/ran" 2>/dev/null | tr -d ' ')
-  b=$(put DISPLAY=:0 ICON=no); n2=$(wc -l < "$t/inst/ran" 2>/dev/null | tr -d ' ')
-  c=$(put DISPLAY= WAYLAND_DISPLAY= ICON=yes)   # no desktop: Linux makes none, macOS does
-  case "$(uname -s)" in Darwin) want_c="done=1 later=" ;; *) want_c="done= later=1" ;; esac
-  if [ -s "$t/put.sh" ] && case "$a" in "said: putting OVH Studio in your applications"*"130 MB"*"--no-icon skips this"*"done=1 later=") true ;; *) false ;; esac \
-    && [ "$n1" = 1 ] && [ "$(head -n 1 "$t/inst/ran")" = "studio --install-icon" ] && [ "$b" = "done= later=1" ] && [ "$n2" = 1 ] && case "$c" in *"$want_c") true ;; *) false ;; esac \
+  { grep '^NOAPP=' install.sh; sed -n '/^put_icon() {/,/^}/p' install.sh; } > "$t/put.sh"
+  mkdir -p "$t/inst/bin" && cat > "$t/inst/bin/vh" <<'SH'
+#!/bin/sh
+echo "$*" >> "$T/inst/ran"
+case "$*" in *--icon-status*) cat "$T/inst/state" 2>/dev/null ;; *--install-icon*) printf '{"version": 1, "installed": "x", "kind": "%s", "note": "no npm here"}\n' "${KIND:-shell}" ;; esac
+SH
+  chmod +x "$t/inst/bin/vh"
+  put() { : > "$t/inst/ran"; (cd "$t/inst" && env T="$t" XDG_DATA_HOME="$t/data" "$@" bash -c 'say() { echo "said: $*"; }; . "$1"; ICON_LATER=""; ICON_DONE=""; ICON_HEADLESS=""; put_icon; echo "done=$ICON_DONE later=$ICON_LATER headless=$ICON_HEADLESS"' _ "$t/put.sh" < /dev/null 2>&1); }
+  ran() { tr '\n' '|' < "$t/inst/ran"; }
+  rm -f "$t/inst/state"; a=$(put DISPLAY=:0 ICON=default); ra=$(ran)                       # not there: made, said once with its size
+  printf '{"state": "ok", "running": false}' > "$t/inst/state"; b=$(put DISPLAY=:0 ICON=default); rb=$(ran)   # there and current: left alone
+  printf '{"state": "outdated", "running": true}' > "$t/inst/state"; c=$(put DISPLAY=:0 ICON=default); rc_=$(ran)   # open: never replaced
+  rm -f "$t/inst/state"; d=$(put DISPLAY=:0 ICON=no); rd=$(ran); e=$(put DISPLAY=:0 ICON=default); re=$(ran)   # --no-icon sticks
+  f=$(put DISPLAY=:0 ICON=yes); rf=$(ran)                                                     # --icon puts it in again
+  g=$(put DISPLAY=:0 ICON=default KIND=launcher)                                              # the small launcher, said
+  h=$(put DISPLAY= WAYLAND_DISPLAY= ICON=default); rh=$(ran)                                  # no desktop: Linux makes none, macOS does
+  case "$(uname -s)" in Darwin) want_h="done=1 later= headless=" ;; *) want_h="done= later= headless=1" ;; esac
+  if [ -s "$t/put.sh" ] && case "$a" in "said: putting OVH Studio in your applications"*"130 MB"*"--no-icon leaves it out"*"done=1 later= headless=") true ;; *) false ;; esac \
+    && [ "$ra" = "studio --icon-status --json|studio --install-icon --json|" ] \
+    && case "$b" in *"already, and up to date"*"done=1"*) true ;; *) false ;; esac && [ "$rb" = "studio --icon-status --json|" ] \
+    && case "$c" in *"is open, so it was left as it is"*"done=1"*) true ;; *) false ;; esac && [ "$rc_" = "studio --icon-status --json|" ] \
+    && [ "$d" = "done= later=1 headless=" ] && [ -z "$rd" ] && [ -f "$t/data/ovh-studio/no-app" ] \
+    && case "$e" in *"stays out of your applications"*"later=1"*) true ;; *) false ;; esac && [ -z "$re" ] \
+    && case "$f" in *"said: putting OVH Studio"*"done=1"*) true ;; *) false ;; esac && [ ! -e "$t/data/ovh-studio/no-app" ] && [ "$rf" = "$ra" ] \
+    && case "$g" in *"a small launcher was made instead"*"no npm here"*) true ;; *) false ;; esac && case "$h" in *"$want_h") true ;; *) false ;; esac \
     && ! grep -q '/dev/tty\|read -r a\|\[y/N\]' install.sh && grep -q 'Two ways to start' install.sh && grep -q 'Click OVH Studio' install.sh \
+    && grep -q 'bin/vh studio --print-address (this machine has no desktop)' install.sh && grep -q 'xcode-select --install' install.sh \
     && grep -q 'studio --install-icon' tools/changes.py
-  then ok "install.sh: OVH Studio goes into the applications without a question (macOS, a Linux desktop), said in one line with its size; --no-icon skips it; nothing asks; its last lines are the two ways to start; a release makes the icon first (tools/changes.py)"
-  else bad "install.sh's icon: $a | $b | $c ($n1, $n2 runs)"; fi
+  then ok "install.sh: OVH Studio goes into the applications without a question (macOS, a Linux desktop), said once with its size, its own lines shown; run again it is left alone when current and never replaced while open; --no-icon keeps it out on every later run, --icon puts it back; the launcher it falls back to is said; nothing asks; no desktop: no app and no applications menu in the last lines; a Mac without Apple's command line tools is told; a release makes the icon first (tools/changes.py)"
+  else bad "install.sh's icon: $a | $b | $c | $d | $e | $f | $g | $h (runs: $ra / $rb / $rc_ / $rd / $re / $rf / $rh)"; fi
   rm -rf "$t"
 }
 

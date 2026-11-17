@@ -197,14 +197,14 @@ async function showHome(quiet) {
   area.innerHTML = html;
   if (quiet) area.scrollTop = y;
   midFrames(area); hoverClips(area); spaceRunning();
-  if (!MACHINE) machine();
+  machine();
   clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000);
 }
 /* what this machine still lacks (bin/vh doctor, asked once a run by the console): a quiet panel on the space, nothing when all is there */
-let MACHINE = null, machineAsked = false;
-async function machine() {
-  if (machineAsked) return;
-  machineAsked = true;
+let MACHINE = null, machineAt = 0;
+async function machine() {   // asked once a page; again (a minute later at most) while something is missing: the person may have fixed it
+  if (machineAt && !((MACHINE && (MACHINE.lacks || []).length || !MACHINE) && Date.now() - machineAt > 60000)) return;
+  machineAt = Date.now();
   const r = await getJSON("/api/machine");
   MACHINE = r.ok && r.data ? r.data : { lacks: [] };
   const el = $("#lacks"); if (el) el.innerHTML = lacksHtml();
@@ -1225,10 +1225,10 @@ function CutModule(area) {
     if (s !== lastShot || !$("#readout", area).innerHTML) {
       lastShot = s;
       const size = video && video.videoWidth ? `${video.videoWidth}×${video.videoHeight}` : (String(specGet("output")).match(/\d{3,5}\s*[x×]\s*\d{3,5}/) || [""])[0].replace(/\s/g, "").replace("x", "×");
-      const ver = curV ? vnum(curV.id) : (D.status && D.status.media && D.status.media.version) ? vnum(D.status.media.version) : "";
+      const ver = ST.film_instead ? "" : curV ? vnum(curV.id) : (D.status && D.status.media && D.status.media.version) ? vnum(D.status.media.version) : "";   // (another cut plays: its version is not status's)
       const isProxy = film && D.status && D.status.media && film === D.status.media.proxy && film !== D.status.media.film;
       $("#readout", area).innerHTML = (s ? `<span><b>${esc(shotName(s.id))}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
-        + `<span class="ver">${video && ST.film_sound === false ? `<b class="nosound">${esc(t("no_sound"))}</b> · ` : ""}${esc([size, t("fps_n", { n: fps }), ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
+        + `<span class="ver">${video && ST.film_instead ? `<b class="nosound" title="${esc(film)}">${esc(t("playing_instead", { f: film.split("/").pop(), g: String(ST.film_instead).split("/").pop() }))}</b> · ` : ""}${video && ST.film_sound === false ? `<b class="nosound">${esc(t("no_sound"))}</b> · ` : ""}${esc([size, t("fps_n", { n: fps }), ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
       if (!video) { const img = $("#cimg", frame); const pic = s ? shotPic(s) : ""; if (img && shots.some(shotPic)) { if (pic) { if (img.getAttribute("src") !== pic) img.src = pic; img.hidden = false; } else img.hidden = true; } }
       if (tab === "shots") $$("#lbody .lrow", area).forEach((r) => r.classList.toggle("now", !!s && r.dataset.pick === "shot:" + s.id));
     }

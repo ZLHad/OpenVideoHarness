@@ -312,6 +312,24 @@ def film_sound(project, rel):
     return got
 
 
+SILENT = re.compile(r"无声片|无声|不要声音|不带音轨|silent film|\bsilent\b|no sound|no audio", re.I)
+
+
+def silent_by_brief(project):
+    """The BRIEF asks for a film without sound (无声片, silent, no audio): its silent cut is the film, not a draft without sound."""
+    try:
+        return bool(SILENT.search(re.sub(r"<!--.*?-->", "", (Path(project) / "BRIEF.md").read_text(encoding="utf-8"), flags=re.S)))
+    except OSError:
+        return False
+
+
+def _mtime(project, rel):
+    try:
+        return os.stat(os.path.join(str(project), rel)).st_mtime
+    except (OSError, TypeError):
+        return 0.0
+
+
 def studio_extras(project, data):
     """What the cut module lays out, from what bin/vh has already made (nothing is run here): the resolved timeline (bin/vh
     timeline --resolved: shots, chapters, narration, captions, beats), the film's thumbnails and waveform peaks when bin/vh
@@ -320,7 +338,7 @@ def studio_extras(project, data):
     st = data.get("status") or {}
     media = st.get("media") or {}
     out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None, "film": None, "film_missing": None, "sheet": None,
-           "film_sound": None}
+           "film_sound": None, "film_instead": None}
     # the film: this round's when its stop is the cut's (gate ③, E4, E5), else the one bin/vh status names, else its proxy
     named, want = [], []
     rounds = data.get("rounds") or []
@@ -335,15 +353,20 @@ def studio_extras(project, data):
     out["film"] = next((w for w in named + want if _inside(project, w)), None)
     if not out["film"] and named + want:
         out["film_missing"] = (named + want)[0]
-    elif out["film"] and not any(_inside(project, w) for w in named) and film_sound(project, out["film"]) is False:
-        # the stop names no film and bin/vh status's has no sound: a cut of the film that has (the storyboard's animatic, a
-        # gate page's film or animatic, newest page first) plays instead; bin/vh status itself is left as it is
+    elif out["film"] and not any(_inside(project, w) for w in named) and film_sound(project, out["film"]) is False and not silent_by_brief(project):
+        # the stop names no film and bin/vh status's has no sound (and the BRIEF does not want a silent film): a cut of the
+        # film that has, at least as new as that one (the storyboard's animatic, a gate page's film or animatic, newest page
+        # first), plays instead; what describes status's film (thumbs, peaks, findings, its version) is left out below.
+        # bin/vh status itself is left as it is
         more = [(data.get("shots") or {}).get("video") if isinstance(data.get("shots"), dict) else None]
         for r in reversed(rounds):
             g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
             more += [g.get("film"), g.get("animatic")]
         more = [w for w in clean(more) if w.lower().endswith(VID) and _inside(project, w) and w not in want]
-        out["film"] = next((w for w in dict.fromkeys(more) if film_sound(project, w)), out["film"])
+        newest = _mtime(project, out["film"])
+        pick = next((w for w in dict.fromkeys(more) if _mtime(project, w) >= newest and film_sound(project, w)), None)
+        if pick:
+            out["film_instead"], out["film"] = out["film"], pick
     if out["film"]:
         out["film_sound"] = film_sound(project, out["film"])
     out["sheet"] = _newest(project, [f"out/check/*sheet*{e}" for e in IMG] + [f"out/check/*/*sheet*{e}" for e in IMG])   # a picture when there is no film
@@ -355,6 +378,8 @@ def studio_extras(project, data):
                 sh["frame"] = None
     except (Exception, SystemExit) as e:   # one part's trouble is said, the rest is shown
         data["warnings"].append(f"bin/vh timeline --resolved: {type(e).__name__}: {e}")
+    if out["film_instead"]:   # status's thumbs, peaks and check are of the film that does not play
+        return out
     if media.get("thumbs"):
         t = _json_in(project, media["thumbs"])[0]   # inside the project only, as /f/ serves
         if isinstance(t, dict) and all(_inside(project, sh.get("file")) for sh in t.get("sheets") or [] if isinstance(sh, dict)):
@@ -740,21 +765,27 @@ class Desk(http.server.ThreadingHTTPServer):
     def _entry(self, code, w, at):
         return f"{self.url}?c={code}&w={w}" + (f"#{at}" if at else "")
 
+    MACHINE_AGAIN = 60   # s: while something is missing, a later page asks doctor again at most this often (the person may have fixed it)
+
     def machine(self):
-        """{lacks, platform} for the space page, from bin/vh doctor --json, asked once a run (it takes a few seconds; the
-        page asks for it after it has drawn). An agent adapter installed from the column since is taken off at once.
-        {lacks: [], error} when doctor could not tell."""
+        """{lacks, platform} for the space page, from bin/vh doctor --json (it takes a few seconds; the page asks for it
+        after it has drawn). Kept for the run when nothing is missing; while something is, asked again at most once a
+        MACHINE_AGAIN; a run that could not tell is not kept ({lacks: [], error}). An agent adapter installed from the
+        column since is taken off at once."""
         with self._machine_lock:
-            if self._machine is None:
+            m = self._machine
+            if m is None or m["lacks"] and time.time() - m["at"] > self.MACHINE_AGAIN:
                 import subprocess
                 try:
                     r = subprocess.run([os.environ.get("OVH_BASH") or "bash", str(HERE.parent.parent / "bin" / "vh"), "doctor", "--json"],   # (bin/vh hands it the browser its finders find)
                                        capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
                     d = json.loads(r.stdout)
-                    self._machine = {"lacks": lacks(d), "platform": d.get("platform")}
+                    if not isinstance(d, dict) or not isinstance(d.get("modules"), list):
+                        raise ValueError("no modules in what doctor said")
+                    m = self._machine = {"lacks": lacks(d), "platform": d.get("platform"), "at": time.time()}
                 except (OSError, ValueError, subprocess.SubprocessError) as e:
-                    self._machine = {"lacks": [], "platform": None, "error": f"{type(e).__name__}: {e}"[:200]}
-            got = dict(self._machine)
+                    return {"lacks": [], "platform": None, "error": f"doctor could not tell ({type(e).__name__})"}
+            got = {k: v for k, v in m.items() if k != "at"}
         if any(A.installed(k) for k in A.ADAPTERS):
             got["lacks"] = [x for x in got["lacks"] if x["what"] != "agent"]
         return got
@@ -1438,13 +1469,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._error(409, "this address names another project now than the page was opened on: reload it")
         mgr = self.server.agents
         try:
-            if what == "install":   # the person's click: the console installs the adapter itself (bin/vh desk agents install)
-                if raw.get("kind") not in A.ADAPTERS:
+            if what == "install":   # the person's click: the console installs the adapter itself (bin/vh desk agents install); cancel stops it
+                if not isinstance(raw.get("kind"), str) or raw["kind"] not in A.ADAPTERS:
                     return self._error(400, "unknown agent")
-                return self._json({"ok": True, "installing": mgr.install(raw["kind"])})
+                return self._json({"ok": True, "installing": mgr.install(raw["kind"], cancel=raw.get("cancel") is True)})
             if what == "new":
                 kind = raw.get("kind")
-                if kind not in A.ADAPTERS:
+                if not isinstance(kind, str) or kind not in A.ADAPTERS:
                     return self._error(400, "unknown agent")
                 s = mgr.open(project, key, kind, personal=raw.get("personal", True) is not False,   # model, effort: the person's choice in the new box
                              asked={r: raw.get(r) for r in ("model", "effort") if isinstance(raw.get(r), str)})

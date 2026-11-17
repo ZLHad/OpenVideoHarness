@@ -36,6 +36,7 @@ import agentlock   # noqa: E402
 PROTOCOL = 1
 APPROVAL_TIMEOUT = float(os.environ.get("OVH_AGENT_APPROVAL_TIMEOUT") or 600)   # s without a page before a request is rejected
 TURN_TIMEOUT = 6 * 3600.0
+INSTALL_LIMIT = float(os.environ.get("OVH_AGENT_INSTALL_LIMIT") or 1800)   # s an install from the column may take before it is stopped
 STOP_GRACE = float(os.environ.get("OVH_AGENT_STOP_GRACE") or 8)   # s after a cancel before the desk ends the turn itself
 MAX_TEXT = 4000      # characters: what a page sees of a tool's output, a command's text …
 MAX_DIFF = 40000     # characters of a diff's old or new text
@@ -141,14 +142,17 @@ def picks():
 
 def remember(kind, role, value):
     """The person picked this model or effort: the next new conversation with this kind starts with it."""
-    d = picks()
-    d.setdefault(kind, {})[role] = value
+    import fcntl
     p = picks_path()
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_name(f"picks.{os.getpid()}.{threading.get_ident()}.tmp")
-        tmp.write_text(json.dumps(d, indent=1) + "\n", encoding="utf-8")
-        os.replace(tmp, p)
+        with open(p.with_name("picks.json.lock"), "a") as lock:   # two consoles, two picks: neither loses the other's
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            d = picks()
+            d.setdefault(kind, {})[role] = value
+            tmp = p.with_name(f"picks.{os.getpid()}.{threading.get_ident()}.tmp")
+            tmp.write_text(json.dumps(d, indent=1) + "\n", encoding="utf-8")
+            os.replace(tmp, p)
     except OSError:
         pass
 
@@ -195,8 +199,29 @@ def dsh_profile(base):
     return prof
 
 
+def _stop_group(p):
+    """TERM to a process's own group (an install: bash, bin/vh, npm and what npm runs), then, after a grace, KILL to the
+    whole group: what is under it may ignore TERM and outlive its leader (and hold its output open)."""
+    if p is None:
+        return
+    try:
+        os.killpg(p.pid, 15)
+    except OSError:
+        return
+    try:
+        p.wait(5)
+    except subprocess.TimeoutExpired:
+        pass
+    time.sleep(0.2)
+    try:
+        os.killpg(p.pid, 9)
+    except OSError:
+        pass
+
+
 def install(kind, out=sys.stdout):
-    """npm install the pinned adapter into home()/<kind> (outside the repo). → exit code."""
+    """npm install the pinned adapter into home()/<kind> (outside the repo), one install at a time into that folder (a
+    second, from another console or a terminal, is refused while the first runs). → exit code."""
     a = ADAPTERS[kind]
     npm = shutil.which("npm")
     if not npm:
@@ -204,6 +229,13 @@ def install(kind, out=sys.stdout):
         return 2
     base = home() / kind
     base.mkdir(parents=True, exist_ok=True)
+    import fcntl
+    lock = open(base / ".install.lock", "a")   # held until this process ends
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print(f"desk agents: another install of {a['label']} is running into {base}: wait for it to finish", file=sys.stderr)
+        return 3
     locks = HERE / "agent-locks" / kind   # the whole tree pinned, each package with its integrity hash: npm ci installs exactly it
     pinned = json.loads((locks / "package-lock.json").read_text(encoding="utf-8"))["packages"][""].get("dependencies") or {}
     if pinned != {a["package"]: a["version"]}:
@@ -457,7 +489,7 @@ class Session:
             self._state(res if isinstance(res, dict) else {})
             if self.mgr.auth.get(self.kind) == "unauthenticated":
                 self.emit("notice", code="signed_out")
-            if how == "new":
+            if how in ("new", "fresh"):   # a conversation that could not be picked up starts fresh, as a new one does
                 self._defaults()
 
     def _meta(self):
@@ -500,13 +532,15 @@ class Session:
             if want is None and self.kind == "dsh" and role == "effort":
                 want = dsh_user_defaults().get("reasoningEffort")
                 want = want if want in vals else None
-            if want is not None and asked.get(role) == want:
-                remember(self.kind, role, want)
-            if want is not None and want != o.get("currentValue"):
+            if want is None:
+                continue
+            if want != o.get("currentValue"):
                 try:
                     self.set_config(o.get("id"), want, by="defaults")
                 except (Unavailable, ValueError):
-                    pass
+                    continue
+            if asked.get(role) == want:   # taken by the agent: the person's choice for the next one too
+                remember(self.kind, role, want)
         self.asked = None
 
     # ---------- from the agent ----------
@@ -733,31 +767,50 @@ class Manager:
         self.seen = {}         # kind → {model, effort: [{value, name}]}: what its last session offered (this run)
         threading.Thread(target=self._watch, name="agents-watch", daemon=True).start()
 
-    def install(self, kind):
+    def install(self, kind, cancel=False):
         """The person's click on "set it up" in the column: bin/vh desk agents install <kind> in the background, one at a
-        time a kind (a second click while it runs is the same install). → its state, as the column polls it."""
+        time a kind (a click while it runs is the same install; cancel stops it). It stops by itself after INSTALL_LIMIT
+        seconds, and with the console. → its state, as the column polls it."""
         with self._lock:
             j = self.installs.get(kind)
-            if self.closed or j and j["state"] == "running":
+            alive = bool(j and j.get("proc") is not None and j["proc"].poll() is None)
+            if cancel:
+                if j and j["state"] == "running":
+                    j["cancel"] = True   # (stopped outside the lock: its grace takes seconds)
+                    threading.Thread(target=_stop_group, args=(j.get("proc"),), name=f"stop-install-{kind}", daemon=True).start()
                 return self.install_state(kind)
-            j = self.installs[kind] = {"state": "running", "since": time.time(), "took": None, "said": "", "proc": None}
+            if self.closed or alive or j and j["state"] == "running":
+                return self.install_state(kind)
+            j = self.installs[kind] = {"state": "running", "since": time.time(), "took": None, "said": "", "proc": None, "limit": INSTALL_LIMIT}
         threading.Thread(target=self._install, args=(kind, j), name=f"install-{kind}", daemon=True).start()
         return self.install_state(kind)
 
     def _install(self, kind, j):
+        out, code, why = "", -1, None
         try:
             p = subprocess.Popen([os.environ.get("OVH_BASH") or "bash", str(HERE.parent.parent / "bin" / "vh"), "desk", "agents", "install", kind],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",
                                  start_new_session=True)   # its own group: npm under it stops with it
             j["proc"] = p
-            out = p.communicate(timeout=3600)[0]
+            try:
+                out = p.communicate(timeout=INSTALL_LIMIT)[0]
+            except subprocess.TimeoutExpired:   # too long: the whole group stops, and the handle is kept until it has
+                _stop_group(p)
+                why = "timeout"
+                try:
+                    out = p.communicate(timeout=10)[0] or ""
+                except subprocess.TimeoutExpired:
+                    out = ""
             code = p.returncode
-        except (OSError, subprocess.SubprocessError) as e:
-            out, code = str(e), -1
+        except OSError:
+            why = "failed"
         lines = [x.strip() for x in (out or "").splitlines() if x.strip()]
-        why = "no_npm" if "npm not found" in (out or "") else "failed"
-        with self._lock:
-            j.update(state="done" if code == 0 and installed(kind) else why, took=round(time.time() - j["since"]), said="\n".join(lines[-3:])[-600:], proc=None)
+        if why is None:
+            why = "cancelled" if j.get("cancel") else "no_npm" if "npm not found" in out else "busy" if "another install" in out else "failed"
+        home_ = str(Path.home())
+        with self._lock:   # (what it printed is kept for whoever looks into it, the home folder as ~; the page says a sentence)
+            j.update(state="done" if code == 0 and installed(kind) else why, took=round(time.time() - j["since"]),
+                     said="\n".join(lines[-3:])[-600:].replace(home_, "~"), proc=None)
 
     def choices(self, kind):
         """What a new conversation with this kind starts with, for the column: {model, effort: {value, name, from} or None,
@@ -784,7 +837,7 @@ class Manager:
 
     def install_state(self, kind):
         j = self.installs.get(kind)
-        return {k: v for k, v in j.items() if k != "proc"} if j else None
+        return {k: v for k, v in j.items() if k not in ("proc", "cancel")} if j else None
 
     def adapter_pids(self):
         return [p.proc.pid for p in self.peers.values() if p is not None]
@@ -955,11 +1008,7 @@ class Manager:
         when it does not end on its own)."""
         self.closed = True
         for j in list(self.installs.values()):   # an install the person started here stops with the console (npm ci begins afresh next time)
-            if j.get("proc") is not None and j["proc"].poll() is None:
-                try:
-                    os.killpg(j["proc"].pid, 15)
-                except OSError:
-                    pass
+            _stop_group(j.get("proc"))
         for s in list(self.sessions.values()):
             try:
                 s.reject_waiting("desk_stop")

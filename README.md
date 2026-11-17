@@ -214,7 +214,7 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 Studio is where you see every film, review a stop and talk to the agents on this machine. It is one window of its own, with no address bar, and asking again brings that same window forward rather than a second. Three ways bring it up:
 
-- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer asks once): Studio's own window, with its own frame, Dock icon and menu (Electron, about 130 MB downloaded once). Click it again and the same window comes to the front.
+- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer does it for you on macOS and a Linux desktop): Studio's own window, with its own frame, Dock icon and menu (Electron, about 130 MB downloaded once). Click it again and the same window comes to the front.
 - **In a terminal:** `bin/vh studio`, or `bin/vh studio <project>` to land on that film.
 - **Tell your agent** "open Studio" (or "打开 Studio"): it runs the same command, and the window appears.
 

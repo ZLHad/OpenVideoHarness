@@ -16,8 +16,9 @@
 #      where they still hold the template, never a line you wrote
 #   6. put OVH Studio, Studio's own window, in your applications (macOS: ~/Applications/OVH Studio.app; a Linux desktop: a
 #      desktop entry in ~/.local/share/applications): Electron, about 130 MB downloaded once and 260 MB on disk (without npm or
-#      a network, a small launcher that opens a browser's window instead). No question: --no-icon skips it (--icon is the
-#      default, still accepted); a Linux machine with no desktop gets none, and bin/vh studio --install-icon makes it later
+#      a network, a small launcher that opens a browser's window instead). No question. A run again leaves it alone when it is
+#      there and up to date, and never replaces it while it is open. --no-icon leaves it out, this time and every later run
+#      (kept as ~/.local/share/ovh-studio/no-app); --icon puts it in again. A Linux machine with no desktop gets none
 # Nothing asks a question: a missing tool or a failed step says what to do next in one sentence.
 # It never runs sudo and leaves your PATH and shell profile alone. Not done here: the first use of the tools downloads more, into caches under
 # your home directory, without asking:
@@ -29,21 +30,38 @@
 # The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
-DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all; OBSCURA=0; ICON=yes
+DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all; OBSCURA=0; ICON=default
 while [ $# -gt 0 ]; do case "$1" in
   --dir) DIR="$2"; shift 2 ;; --no-refs) REFS=0; shift ;; --no-skill) SKILL=none; shift ;; --skill) SKILL="${2:?--skill needs claude|codex|all|none}"; shift 2 ;; --obscura) OBSCURA=1; shift ;;
   --icon) ICON=yes; shift ;; --no-icon) ICON=no; shift ;;
-  -h|--help) sed -n '2,29p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
+  -h|--help) sed -n '2,30p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
 case "$SKILL" in claude|codex|all|none) ;; *) echo "unknown --skill '$SKILL' (claude|codex|all|none)"; exit 1 ;; esac
 say() { printf '\033[1m→ %s\033[0m\n' "$*"; }
-put_icon() {   # OVH Studio in the applications, without a question: macOS and a Linux desktop; --no-icon skips it
-  local err
-  case "$(uname -s)" in Darwin) ;; Linux) [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { ICON_LATER=1; return 0; } ;; *) return 0 ;; esac
-  [ "$ICON" = no ] && { ICON_LATER=1; return 0; }
-  say "putting OVH Studio in your applications (Studio's own window: about 130 MB to download once, 260 MB on disk; --no-icon skips this)"
-  err=$(bin/vh studio --install-icon 2>&1 >/dev/null) && { ICON_DONE=1; return 0; }
-  ICON_LATER=1; echo "! OVH Studio was not put in your applications ($(printf '%s' "$err" | tail -n 1)); bin/vh studio --install-icon tries again"
+NOAPP="${XDG_DATA_HOME:-$HOME/.local/share}/ovh-studio/no-app"   # --no-icon once: kept here, so an update leaves OVH Studio out too (--icon clears it)
+put_icon() {   # OVH Studio in the applications, unasked (macOS, a Linux desktop): left alone when it is there and current, never
+  # replaced while it is open, left out once --no-icon said so; its own lines (the download) show as it goes
+  local st out
+  case "$(uname -s)" in Darwin) ;; Linux) [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { ICON_HEADLESS=1; return 0; } ;; *) return 0 ;; esac
+  case "$ICON" in
+    no) mkdir -p "$(dirname "$NOAPP")" && : > "$NOAPP"; ICON_LATER=1; return 0 ;;
+    yes) rm -f "$NOAPP" ;;
+    *) if [ -f "$NOAPP" ]; then echo "  OVH Studio stays out of your applications, as --no-icon asked before (--icon puts it in)"; ICON_LATER=1; return 0; fi ;;
+  esac
+  st=$(bin/vh studio --icon-status --json 2>/dev/null) || st=""
+  case "$st" in *'"state": "ok"'*) echo "  OVH Studio is in your applications already, and up to date"; ICON_DONE=1; return 0 ;; esac
+  case "$st" in *'"running": true'*)
+    echo "  OVH Studio is open, so it was left as it is: quit it, then bin/vh studio --install-icon brings it up to date"; ICON_DONE=1; return 0 ;; esac
+  say "putting OVH Studio in your applications (Studio's own window: about 130 MB to download once, 260 MB on disk; --no-icon leaves it out)"
+  if ! out=$(bin/vh studio --install-icon --json); then   # (its progress and, on a failure, its reason go to the terminal)
+    ICON_LATER=1; echo "! OVH Studio was not put in your applications (the line above says why); bin/vh studio --install-icon tries again"; return 0
+  fi
+  ICON_DONE=1
+  case "$out" in *'"kind": "launcher"'*)
+    echo "  a small launcher was made instead, which opens Studio in a browser's window: $(printf '%s' "$out" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("note") or "")' 2>/dev/null)" ;; esac
 }
+if [ "$(uname -s)" = Darwin ] && [ "$(command -v git)" = /usr/bin/git ] && ! xcode-select -p >/dev/null 2>&1; then   # git is Apple's stub until they are there
+  echo "✗ First this Mac needs Apple's command line tools (git comes with them): run xcode-select --install, then run this installer again."; exit 1
+fi
 missing=""
 for t in git node ffmpeg; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
 if [ -n "$missing" ]; then
@@ -89,7 +107,7 @@ say "installing the style swatch renderer (HyperFrames, for bin/vh style)"
 [ "$SKILL" = none ] || { say "registering the skills"; bin/vh install-skill "$SKILL" || echo "! the skills were not registered; bin/vh install-skill $SKILL registers them"; }
 [ "$OBSCURA" = 0 ] || { say "installing Obscura (bin/vh web)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
 say "final check (and this machine's lines in LOCAL.md)"; bin/vh doctor --fill-local || true
-ICON_LATER=""; ICON_DONE=""; put_icon
+ICON_LATER=""; ICON_DONE=""; ICON_HEADLESS=""; put_icon
 arm=""   # Linux arm64: HyperFrames has no Chrome of its own there (engines/README.md, its notes), so a missing browser is said again below
 if [ "$(uname -s)" = Linux ]; then case "$(uname -m)" in aarch64|arm64)
   bin/vh doctor --json 2>/dev/null | python3 -c 'import json, sys; sys.exit(0 if any(c["name"] == "browser" and c["state"] == "ok" for c in json.load(sys.stdin)["checks"]) else 1)' 2>/dev/null || arm=1 ;; esac; fi
@@ -104,5 +122,6 @@ MSG
 echo
 echo "✓ OpenVideoHarness is ready at $DIR. Two ways to start:"
 if [ -n "$ICON_DONE" ]; then echo "  1. Click OVH Studio in your applications: your films, their stops and the agent, in one window."
+elif [ -n "$ICON_HEADLESS" ]; then echo "  1. Studio, in a browser on another computer: cd \"$DIR\" && bin/vh studio --print-address (this machine has no desktop)"
 else echo "  1. Studio, your films in one window: cd \"$DIR\" && bin/vh studio$([ -z "$ICON_LATER" ] || printf ' (bin/vh studio --install-icon puts it in your applications)')"; fi
 echo "  2. Open Claude Code or Codex in that folder (cd \"$DIR\" && claude) and say what film you want, e.g. \"做一个 30 秒的竖屏科普：为什么低轨卫星的信号会变调\""

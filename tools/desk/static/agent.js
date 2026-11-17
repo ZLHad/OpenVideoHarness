@@ -17,16 +17,18 @@ const ASTR = {
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
-    eff_tip: "推理档越高，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时用：{x}。开始以后，在上面随时可以换。", own_default: "{a} 自己的默认",
+    eff_tip: "推理档越高，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时请它用 {x}；它没有的话，用它自己的默认。开始以后，上面写着用的是哪个，随时可以换。", new_own: "开始时用 {a} 自己的默认。开始以后，上面写着用的是哪个，随时可以换。", own_default: "{a} 自己的默认",
     u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
     w_seven_day: "7 天", u_reset: "，{at} 恢复", w_five_hour: "5 小时", w_daily: "今天的", w_weekly: "这周的",
     ph_say: "对{x}说点什么…", ph_say0: "跟 {a} 说点什么…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
     you: "你", t_on: "对着 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你点。", empty_c: "这里说的话会直接发给它；“这一轮”页上记的意见，要点“交给 agent”才一起交出去。可以先问一句，比如：读一下 BRIEF，告诉我还缺什么。",
     empty_dsh: "DeepSeek Harness 的回复是整段一起到的：它在做的时候，这里只显示它正在用的工具。",
     not_inst_h: "{a} 还没装到控制台里", not_inst_b: "点「装上」，控制台自己把它装好（会下载约 {s}，不放进这个项目）。它用你自己的登录，不用另外设置；没登录的话，{l}。",
-    inst_go: "装上", inst_again: "再试一次", inst_run: "正在装 {a}（约 {s}），已经 {t}。装好以前可以先做别的。", inst_done: "{a} 装好了",
-    inst_no_npm: "这台电脑上还没有 Node（装 {a} 要用它带的 npm）。装好 Node 以后，再点一次「装上」。",
+    inst_go: "装上", inst_again: "再试一次", inst_stop: "停下", inst_run: "正在装 {a}（约 {s}），已经 {t}，最多等 {m} 分钟。装好以前可以先做别的。", inst_done: "{a} 装好了",
+    inst_no_npm: "这台电脑上还没有 Node（装 {a} 要用它带的 npm）：跟你的 agent 说“帮我装上 Node 22”，装好以后再点一次「装上」。",
     inst_fail: "没装上，多半是网络断了。再点一次试试；还不行，把下面这一行复制到终端里运行，看它说什么。",
+    inst_timeout: "装了 {m} 分钟还没装好，停下了，多半是网络太慢。网络好的时候再点一次「装上」。", inst_cancelled: "停下了。想装的时候再点一次「装上」。",
+    inst_busy: "另一处（别的 Studio 窗口或终端）正在装 {a}。等它装完，再回来看这一页。",
     login_claude: "在终端里运行 claude，输入 /login", login_codex: "在终端里运行 codex login", login_dsh: "在 DeepSeek Harness 桌面版里登录一次",
     copy: "复制", copied: "复制好了", no_start_h: "{a} 没有启动起来", no_start_b: "常见的原因是还没登录：{l}。它说的是：",
     busy_turn: "{a} 还在做上一句。等它做完，或者点停止。",
@@ -62,16 +64,18 @@ const ASTR = {
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
-    eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts with: {x}. You can change it above any time after.", own_default: "{a}'s own default",
+    eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts by asking it for {x}; if it doesn't offer that, its own default. Once started, the menus above show what is in use, and you can change it any time.", new_own: "Starts with {a}'s own default. Once started, the menus above show what is in use, and you can change it any time.", own_default: "{a}'s own default",
     u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
     w_seven_day: "7-day", u_reset: "; it resets {at}", w_five_hour: "5-hour", w_daily: "daily", w_weekly: "weekly",
     ph_say: "Say something about {x}…", ph_say0: "Say something to {a}…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
     you: "You", t_on: "on {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here goes to it at once; the notes on “This round” go only when you press “Send to agent”. Try: read the BRIEF and tell me what is missing.",
     empty_dsh: "DeepSeek Harness sends its reply in one piece: while it works, only the tool it is using shows here.",
     not_inst_h: "{a} isn't set up for the console yet", not_inst_b: "Press “Set it up” and the console installs it (it downloads about {s}, kept out of this project). It uses your own login, nothing else to set up; if it isn't signed in, {l}.",
-    inst_go: "Set it up", inst_again: "Try again", inst_run: "Setting up {a} (about {s}): {t} so far. You can do other things meanwhile.", inst_done: "{a} is set up",
-    inst_no_npm: "This computer has no Node yet ({a} installs with the npm that comes with it). Install Node, then press “Set it up” again.",
+    inst_go: "Set it up", inst_again: "Try again", inst_stop: "Stop", inst_run: "Setting up {a} (about {s}): {t} so far, {m} minutes at most. You can do other things meanwhile.", inst_done: "{a} is set up",
+    inst_no_npm: "This computer has no Node yet ({a} installs with the npm that comes with it): tell your agent “install Node 22 for me”, then press “Set it up” again.",
     inst_fail: "It didn't install; most often the network dropped. Try again; if it still fails, copy this line into a terminal to see what it says.",
+    inst_timeout: "After {m} minutes it still wasn't set up, so it was stopped; most likely the network is too slow. Press “Set it up” again when it's better.", inst_cancelled: "Stopped. Press “Set it up” again when you want it.",
+    inst_busy: "{a} is being set up somewhere else (another Studio window or a terminal). Wait for that, then come back to this page.",
     login_claude: "run claude in a terminal and type /login", login_codex: "run codex login in a terminal", login_dsh: "sign in once in the DeepSeek Harness desktop app",
     copy: "Copy", copied: "Copied", no_start_h: "{a} did not start", no_start_b: "Usually it isn't signed in yet: {l}. What it said:",
     busy_turn: "{a} is still on your last message. Wait for it, or press Stop.",
@@ -183,8 +187,8 @@ const AGENT = (() => {
     return true;
   }
   let INSTWATCH = 0;
-  async function installKind() {   // the person's click: the console installs this kind's adapter, and the column follows it
-    const kind = KIND, r = await post("install", { kind });
+  async function installKind(cancel) {   // the person's click: the console installs this kind's adapter (or stops it), and the column follows it
+    const kind = KIND, r = await post("install", cancel ? { kind, cancel: true } : { kind });
     if (r.ok && r.data && r.data.installing) meta(kind).installing = r.data.installing;
     else toast(at("err_send", { e: (r.data && r.data.error) || r.status }));
     render(); followInstall();
@@ -455,11 +459,12 @@ const AGENT = (() => {
       const cmd = m.install || `bin/vh desk agents install ${KIND}`, j = m.installing || null, about = String(m.size || "").replace(/^≈\s*/, ""), h = `<h3>${esc(at("not_inst_h", { a: m.label }))}</h3>`;
       if (j && j.state === "running") {
         const s = Math.max(0, Math.round(Date.now() / 1000 - j.since)), took = s < 60 ? at("sec", { n: s }) : at("min", { m: Math.floor(s / 60), s: s % 60 });
-        return `<div class="ag-empty">${h}<div class="ag-working ag-inst" role="status"><span class="ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(at("inst_run", { a: m.label, s: about, t: took }))}</span></div></div>`;
+        return `<div class="ag-empty">${h}<div class="ag-working ag-inst" role="status"><span class="ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(at("inst_run", { a: m.label, s: about, t: took, m: Math.round((j.limit || 1800) / 60) }))}</span></div>${KEYOK ? `<div class="ag-opts"><button type="button" class="btn ghost" id="agInstallStop">${esc(at("inst_stop"))}</button></div>` : ""}</div>`;
       }
-      const failed = j && (j.state === "failed" || j.state === "no_npm");
-      const fall = j && j.state === "failed" ? `<div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div>${j.said ? `<pre>${esc(j.said)}</pre>` : ""}` : "";
-      return `<div class="ag-empty">${h}<p${failed ? ' class="ag-bad"' : ""}>${failed ? esc(at(j.state === "no_npm" ? "inst_no_npm" : "inst_fail", { a: m.label })) : at("not_inst_b", { s: esc(about), l })}</p>${fall}${KEYOK ? `<div class="ag-opts"><button type="button" class="btn btn-primary" id="agInstall">${esc(at(failed ? "inst_again" : "inst_go"))}</button></div>` : ""}</div>`;
+      const SAY = { failed: "inst_fail", no_npm: "inst_no_npm", timeout: "inst_timeout", cancelled: "inst_cancelled", busy: "inst_busy" };   // a sentence each, never what it printed
+      const failed = !!(j && SAY[j.state]);
+      const fall = j && j.state === "failed" ? `<div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div>` : "";
+      return `<div class="ag-empty">${h}<p${failed ? ' class="ag-bad"' : ""}>${failed ? esc(at(SAY[j.state], { a: m.label, m: Math.round((j.limit || 1800) / 60) })) : at("not_inst_b", { s: esc(about), l })}</p>${fall}${KEYOK ? `<div class="ag-opts"><button type="button" class="btn btn-primary" id="agInstall">${esc(at(failed && j.state !== "cancelled" ? "inst_again" : "inst_go"))}</button></div>` : ""}</div>`;
     }
     if (!KEYOK) return "";   // the note above the column says it once, with what to do
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
@@ -613,7 +618,7 @@ const AGENT = (() => {
     if (menus) return `<div class="ag-line ag-start">${menus}</div>`;
     const word = (role, cat) => { const c = ch[role] || {}; return c.name ? optWord(cat, { value: c.value || c.name, name: c.name }) : ""; };
     const x = [word("model", "model"), word("effort", "thought_level")].filter(Boolean);
-    return `<p class="ag-mute">${esc(at("new_with", { x: x.length ? x.join(" · ") : own }))}</p>`;
+    return `<p class="ag-mute">${esc(x.length ? at("new_with", { x: x.join(" · ") }) : at("new_own", { a: m.label }))}</p>`;
   }
   function newBoxHtml() {
     const m = meta(KIND);
@@ -629,6 +634,7 @@ const AGENT = (() => {
       const c = e.target.closest("button[data-copy]");
       if (c) { copyText(c.dataset.copy).then(() => toast(at("copied"))); return; }
       if (e.target.closest("#agInstall") && e.isTrusted) { installKind(); return; }
+      if (e.target.closest("#agInstallStop") && e.isTrusted) { installKind(true); return; }
       if (e.target.closest("#agNewGo")) { const p = $("#agPersonal"); NEWBOX = false; start(KIND, p ? p.checked : true); return; }
       if (e.target.closest("#agNewNo")) { NEWBOX = false; render(); }
     };
