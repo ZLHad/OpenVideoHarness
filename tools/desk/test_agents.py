@@ -923,7 +923,7 @@ def space_checks():
     first stop and the person's submission lets it go on; two at once, one that asks first, and stops before and after
     the folder exists."""
     import agents as A
-    films = T / "films"
+    films = T / "my films"   # (a space in its path: Studio's line quotes it for the agent's shell)
     films.mkdir(exist_ok=True)
     (T / "home").mkdir(exist_ok=True)
     d = Desk(None, T / "agents", roots=[films])
@@ -963,7 +963,7 @@ def space_checks():
             if st != 200 or r[0] != 200 or not perm:
                 return f"new {st}, say {r}, permission {perm}"
             texts = [b.get("text") for b in first]
-            if texts[0] != "做一支新片子 tide-film，停一下" or len(texts) != 2 or "Studio" not in texts[1] or f"--dir {os.path.realpath(str(films))}" not in texts[1]:
+            if texts[0] != "做一支新片子 tide-film，停一下" or len(texts) != 2 or "Studio" not in texts[1] or f"--dir '{os.path.realpath(str(films))}'" not in texts[1]:
                 return f"what reached the agent: {texts}"
             hd = json.loads(next((T / "tmp").rglob(f"{sid}.json")).read_text())
             if hd.get("cwd") != os.path.realpath(str(ROOT)) or not hd.get("space"):
@@ -1090,7 +1090,20 @@ def space_checks():
               lambda: None if mf and next(iter(far.glob("*-far-film")), None) and mf.get("key") == project_key(next(far.glob("*-far-film"))) else (st_f, pf, mf))
 
         def unit():
+            import server as SV
+            keep = os.environ.get("OVH_PROJECTS")
+            try:
+                os.environ["OVH_PROJECTS"] = str(T / "other films")
+                note = SV.space_note(())
+            finally:
+                os.environ.pop("OVH_PROJECTS") if keep is None else os.environ.update(OVH_PROJECTS=keep)
+            if f"--dir '{os.path.realpath(str(T / 'other films'))}'" not in note or SV.space_note(()).count("--dir"):
+                return f"Studio's line for $OVH_PROJECTS with a space, or for none: {note}"
             film = made("tide-film")
+            rec = [json.loads(x) for x in (film / ".ovh" / "agents" / f"{sid}.jsonl").read_text().splitlines()]
+            said = json.dumps(rec, ensure_ascii=False)
+            if f"项目在 {film.name}。" not in said or "项目在 .。" in said:
+                return "the film's folder in the record is not written by its name"
             out = {"content": [{"type": "content", "content": {"type": "text", "text": f"✓ created {film}"}}]}
             if A.made_film(out, ROOT, 0) != Path(os.path.realpath(str(film))):
                 return "the created line"

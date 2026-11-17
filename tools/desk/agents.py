@@ -281,7 +281,7 @@ def _clip(s, n):
     return s if len(s) <= n else s[:n] + f"\n…（还有 {len(s) - n} 字）"
 
 
-def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
+def clean(obj, root, n=MAX_TEXT, depth=0, cut=None, also=None):
     """An update as the log keeps it: the project's own folder written as a relative path, the home folder as ~, long
     strings clipped (a diff's texts less so), the bulky echoes dropped (Claude's toolResponse repeats the file). With cut
     (a list): what is asked for approval, kept verbatim (root None: no path rewritten, since "cd /tmp && rm -rf <project>/x"
@@ -291,6 +291,8 @@ def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
             cut.append(depth)
         return None
     if isinstance(obj, str):
+        for p, name in (also or {}).items() if cut is None else ():   # a folder written by its name (inside root, or not)
+            obj = obj.replace(p + "/", name + "/").replace(p, name)
         if root and cut is None:
             obj = obj.replace(root + "/", "").replace(root, ".")
         h = str(Path.home())
@@ -302,7 +304,7 @@ def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
     if isinstance(obj, list):
         if cut is not None and len(obj) > 200:
             cut.append(len(obj))
-        return [clean(x, root, n, depth + 1, cut) for x in obj[:200]]
+        return [clean(x, root, n, depth + 1, cut, also) for x in obj[:200]]
     if isinstance(obj, dict):
         out = {}
         if cut is not None and len(obj) > 80:
@@ -310,7 +312,7 @@ def clean(obj, root, n=MAX_TEXT, depth=0, cut=None):
         for k, v in list(obj.items())[:80]:
             if k in ("toolResponse", "sessionId"):
                 continue
-            out[k] = clean(v, root, max(n, MAX_DIFF) if k in ("oldText", "newText") else n, depth + 1, cut)
+            out[k] = clean(v, root, max(n, MAX_DIFF) if k in ("oldText", "newText") else n, depth + 1, cut, also)
         return out
     return obj
 
@@ -397,10 +399,11 @@ class Session:
         """Begun on Studio's space and no film made yet: its record is the space's, no project lock is taken."""
         return bool(self.header.get("space")) and not self.header.get("placed")
 
-    @property
-    def rel(self):
-        """The folder the log writes paths relative to: the film's, or the workspace's while there is no film yet."""
-        return self.cwd if self.unplaced else self.root
+    def _c(self, obj, n=MAX_TEXT):
+        """An update as the log keeps it (clean): paths relative to where the agent works; for one begun on the space, that
+        is the workspace before and after its film is made, and the film's own folder is written by its name (never ".")."""
+        named = {self.root: self.project.name} if self.header.get("placed") and self.cwd != self.root else None
+        return clean(obj, self.cwd, n, also=named)
 
     # ---------- the log ----------
     def emit(self, type_, **fields):
@@ -412,13 +415,13 @@ class Session:
         """Write the agent's text gathered so far as one event."""
         b, self._buf = self._buf, None
         if b:
-            self._emit("update", u=clean(dict(b["u"], content={"type": "text", "text": b["text"]}), self.rel, MAX_ASK))   # its words whole
+            self._emit("update", u=self._c(dict(b["u"], content={"type": "text", "text": b["text"]}), MAX_ASK))   # its words whole
 
     def chunk(self, u):
         """A piece of the agent's text: gathered with the pieces that follow within CHUNK_GAP, of the same message."""
         text = (u.get("content") or {}).get("text") if isinstance(u.get("content"), dict) else None
         if not isinstance(text, str):
-            return self.emit("update", u=clean(u, self.rel))
+            return self.emit("update", u=self._c(u))
         with self.cond:
             b = self._buf
             if b and (b["u"].get("sessionUpdate"), b["u"].get("messageId")) == (u.get("sessionUpdate"), u.get("messageId")) and len(b["text"]) < 8000:
@@ -529,7 +532,7 @@ class Session:
             if seen:
                 self.mgr.seen[self.kind] = seen   # what this kind offers, for the next new conversation's pickers
             shown = dict(st, **({"configOptions": private_options(st["configOptions"])} if "configOptions" in st else {}))
-            self.emit("state", **clean(shown, self.rel))
+            self.emit("state", **self._c(shown))
 
     def _defaults(self):
         """A new conversation's model, then effort: what the person chose for it when starting it (self.asked, then
@@ -571,7 +574,7 @@ class Session:
             u = dict(u, configOptions=private_options(u["configOptions"]))
         if kind in ("agent_message_chunk", "agent_thought_chunk"):
             return self.chunk(u)
-        self.emit("update", u=clean(u, self.rel))
+        self.emit("update", u=self._c(u))
         if kind in ("tool_call", "tool_call_update") and self.unplaced:
             made = made_film(u, self.cwd, self.header.get("created") or 0)
             if made:   # (another thread: placing it reads the projects, and this one carries every agent's messages)
@@ -677,7 +680,7 @@ class Session:
         except acp.AcpError as e:
             err = str(e)[:300]
         res = res if isinstance(res, dict) else {}
-        self._end(n, stop=res.get("stopReason") or ("error" if err else None), usage=clean(res.get("usage") or {}, self.rel),
+        self._end(n, stop=res.get("stopReason") or ("error" if err else None), usage=self._c(res.get("usage") or {}),
                   **({"error": err} if err else {}))
 
     def stop(self):
@@ -716,7 +719,7 @@ class Session:
         except (acp.AcpError, KeyError) as e:
             raise Unavailable("refused", str(e))
         self.config["modes"] = dict(modes, currentModeId=mode_id)
-        self.emit("state", modes=clean(self.config["modes"], self.rel), by="page")
+        self.emit("state", modes=self._c(self.config["modes"]), by="page")
 
     def set_config(self, config_id, value, by="page"):
         opts = self.config.get("configOptions") or []
@@ -741,7 +744,7 @@ class Session:
         if by == "page" and role:   # the person's pick: the next new conversation with this kind starts with it
             remember(self.kind, role, value)
         self.mgr.seen[self.kind] = {r: offered(option_of(self.config, r)) for r, _c in ROLES if option_of(self.config, r)}
-        self.emit("state", configOptions=clean(self.config["configOptions"], self.rel), by=by)
+        self.emit("state", configOptions=self._c(self.config["configOptions"]), by=by)
 
     def gone(self, code):
         """The adapter stopped: what waited is cancelled, the turn ends, the next word starts it again."""

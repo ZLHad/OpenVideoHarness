@@ -10,7 +10,7 @@ const STR = {
     taken: "这台电脑上有别的程序抢在这个窗口前面连上了 Studio，已经换过两次窗口。让 agent 重启 Studio 再试。", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
     m_new: "新建", new_tip: "写一句想做什么，交给 agent 开一支新片子",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
-    f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
+    f_done: "已定", f_wait: "等你", f_agent: "agent 在做", f_todo: "没开始", f_open: "还没定", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
     search: "搜片子", search_ph: "片名、文件夹或类型，回车打开", no_match: "没有对上的片子", lang: "EN", lang_tip: "Switch to English", themes: "主题",
     th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥", skip: "跳到内容", rail: "模块", flow: "这支片子的几站",
     ask_prefix: "用 OpenVideoHarness 做一支片子：",
@@ -145,7 +145,7 @@ const STR = {
     brand: "Studio", noServer: "Can't read this film's data. Open this page from the desk on this computer.", loading: "…", gate: "Gate",
     m_new: "New", new_tip: "Write what you want to make, and an agent starts the film",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",
-    f_done: "decided", f_wait: "waiting for you", f_agent: "agent working", f_todo: "not started", f_skip: "skipped", f_off: "with the draft", f_norec: "no record",
+    f_done: "decided", f_wait: "waiting for you", f_agent: "agent working", f_todo: "not started", f_open: "not decided yet", f_skip: "skipped", f_off: "with the draft", f_norec: "no record",
     search: "Find a film", search_ph: "Title, folder or type; Enter opens it", no_match: "No film matches", lang: "中", lang_tip: "切换到中文", themes: "Theme",
     th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge", skip: "Skip to content", rail: "Modules", flow: "This film's stops", ask_prefix: "Make a film with OpenVideoHarness: ",
     films: "Films", home_meta: "{n} · {w} waiting for you", home_meta0: "{n}", g_wait: "Waiting for you",
@@ -441,13 +441,17 @@ const projHash = (key, rest) => `#/p/${enc(key)}${rest ? "/" + rest : ""}`;
 
 function stations() { return (D && D.status && D.status.stations) || []; }
 function filmDelivered() { const s = stations().find((x) => x.id === "deliver"); return !!s && s.state === "done"; }   // bin/vh status says it went out
+function agentWorking() {   // an agent at work on this film right now: a bin/vh command running in it, or a turn in its column
+  const run = (D && D.status && D.status.activity && D.status.activity.running) || [];
+  return run.length > 0 || (typeof AGENT !== "undefined" && typeof AGENT.busy === "function" && AGENT.busy());
+}
 function flowState(f) {   // a flow item's lamp: from the film's own stops; none of them in the plan: not a stop
   const S = stations().filter((s) => f.st.includes(s.id));
   const gone = filmDelivered() && !f.st.includes("deliver");   // it went out: a stop it skipped, never had, or left open waits for no one (no word, not 跳过)
   if (!S.length) return { state: gone ? "past" : "off", S };
   if (S.some((s) => s.state === "waiting_person")) return { state: "wait", S };
   if (gone && (S.every((s) => s.state === "skipped") || !S.every((s) => s.state === "done" || s.state === "skipped"))) return { state: "past", S };
-  if (S.some((s) => s.state === "waiting_agent" || s.state === "in_progress")) return { state: "agent", S };
+  if (S.some((s) => s.state === "waiting_agent" || s.state === "in_progress")) return agentWorking() ? { state: "agent", S } : { state: "todo", open: true, S };   // the agent's lamp only while it works: else not decided yet
   if (S.every((s) => s.state === "skipped")) return { state: "skip", S };
   if (S.every((s) => s.state === "done" || s.state === "skipped")) return { state: "done", S };
   if (S.some((s) => s.state === "no_record")) return { state: "norec", S };
@@ -481,6 +485,7 @@ function stopDate(S) {   // the day a flow item was settled: the delivery's, els
   return ((D && D.history) || []).filter((h) => h.date && keys.includes(gateKey(h.title))).map((h) => h.date).sort().pop() || "";
 }
 function flowWord(fs) {   // a flow item's state in words: 已定 11-14, 已交付 10-23, 等你, agent 在做, 没开始, 跳过
+  if (fs.open) return t("f_open");
   if (fs.state !== "done") return t(STATE_WORD[fs.state]);
   const d = shortDate(stopDate(fs.S)), ship = fs.S.some((s) => s.id === "deliver");
   return t(ship ? (d ? "f_delivered_d" : "f_delivered") : (d ? "f_done_d" : "f_done"), { d });

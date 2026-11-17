@@ -1568,8 +1568,9 @@ def space_note(roots=()):
     environment does not carry). Built from the console's own settings, never from the page."""
     where = roots[0] if roots else os.environ.get("OVH_PROJECTS") or ""
     where = os.path.realpath(os.path.expanduser(where)) if where else ""
+    import shlex   # (a folder with a space in its name reaches the agent as one argument)
     return ("(From Studio: the person wrote this in Studio's space to start a new film, and follows this conversation in "
-            "Studio; review its stops there (bin/vh gate … --desk)." + (f" Make the film's folder under {where} (bin/vh new … --dir {where})." if where else "") + ")")
+            "Studio; review its stops there (bin/vh gate … --desk)." + (f" Make the film's folder under {where} (bin/vh new … --dir {shlex.quote(where)})." if where else "") + ")")
 
 
 def _closed(conn):

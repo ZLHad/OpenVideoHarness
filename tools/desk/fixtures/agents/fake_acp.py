@@ -121,8 +121,8 @@ def new_film(rid, sid, text):
     end = lambda why="end_turn": send({"jsonrpc": "2.0", "id": rid, "result": {"stopReason": why}})   # noqa: E731
     m = re.search(r"\b([a-z][a-z0-9]*-film)\b", text)   # (the first words name it; an answer to its questions goes on with it)
     slug = s["slug"] = m.group(1) if m else s.get("slug") or "tide-film"
-    d = re.search(r"--dir ([^\s)]+)", text)   # Studio's line; never the checkout's own projects/ (the temp folder instead)
-    where = s["where"] = Path(d.group(1)) if d else s.get("where") or Path(os.environ.get("TMPDIR") or "/tmp") / "stand-in-films"
+    d = re.search(r"--dir ('[^']+'|[^\s)]+)", text)   # Studio's line (quoted, as a shell takes it); never the checkout's own projects/ (the temp folder instead)
+    where = s["where"] = Path(d.group(1).strip("'")) if d else s.get("where") or Path(os.environ.get("TMPDIR") or "/tmp") / "stand-in-films"
     if any(w in text for w in ("先问我", "ask me")) and not s.get("asked"):
         s["asked"] = True
         words(sid, "m-q", "开工前问你三件事：\n1. 竖屏还是横屏？\n2. 大概多长？\n3. 发在哪个平台？")
@@ -130,7 +130,7 @@ def new_film(rid, sid, text):
     words(sid, "m-a", "好，照 CLAUDE.md 来：先定类型，建好项目。")
     if any(w in text for w in ("先等", "wait first")) and held(s):
         return end("cancelled")
-    cmd = f"bin/vh new short {slug.removesuffix('-film')} --dir {where}"
+    cmd = f"bin/vh new short {slug.removesuffix('-film')} --dir '{where}'"
     tc = {"toolCallId": "t-new", "title": cmd, "kind": "execute", "status": "pending", "rawInput": {"command": cmd, "description": "Make the film's folder"}}
     upd(sid, dict(tc, sessionUpdate="tool_call"))
     got = ask(sid, {"toolCall": tc, "options": [{"optionId": "allow-once", "name": "Yes", "kind": "allow_once"}, {"optionId": "reject", "name": "No", "kind": "reject_once"}]})
@@ -156,7 +156,7 @@ def new_film(rid, sid, text):
                 return end("cancelled")
         upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-gate", "status": "completed",
                   "content": [{"type": "content", "content": {"type": "text", "text": (p.stdout.read() or "")[:400]}}]})
-        words(sid, "m-c", "收到你的提交，接着做。")
+        words(sid, "m-c", f"收到你的提交，接着做。项目在 {dest}。")
     return end()
 
 

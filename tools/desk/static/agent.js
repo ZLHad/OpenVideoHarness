@@ -141,6 +141,7 @@ const AGENT = (() => {
     else if (ty === "turn") {
       if (e.state === "start") { S.running = true; S.stopping = false; S.turnAt = e.t; S.cur = null; }
       else { const stopped = S.stopping || S.stopAsked; S.running = false; S.stopping = false; S.stopAsked = false; item("e" + e.seq, () => ({ kind: "end", stop: stopped && !e.error ? "cancelled" : e.stop, asked: stopped, error: e.error, took: S.turnAt ? e.t - S.turnAt : null })); S.turnAt = null; }
+      if (KEYP !== SPACE && typeof renderFlow === "function") setTimeout(renderFlow, 0);   // the stops' lamps: the agent's while its turn runs
     } else if (ty === "state") { Object.assign(S.config, e); }
     else if (ty === "permission") { const it = item("p" + e.rid, () => ({ kind: "perm", rid: e.rid, tool: e.tool || {}, options: e.options || [], answered: null, clipped: !!e.clipped })); S.perms[e.rid] = it; const tl = e.tool && S.tools[e.tool.toolCallId]; if (tl) tl.v++; }
     else if (ty === "answered") { const it = S.perms[e.rid]; if (it) { it.answered = e; it.v++; const tl = it.tool && S.tools[it.tool.toolCallId]; if (tl) tl.v++; } }
@@ -756,6 +757,7 @@ const AGENT = (() => {
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab, fresh,
+    busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
     _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };
 })();
