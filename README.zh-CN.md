@@ -16,10 +16,9 @@
 
 <sub>十二段都出自用它做的真片子。下面还有更多，一部分带声音。</sub>
 
-<!-- Studio 的宣传片做好以后，换掉下面这一张和它的说明 -->
-<a href="#studio"><img src="docs/assets/studio/cut.zh.webp" width="960" alt="Studio 的窗口：左边一列是做片子的几站，中间是一支片子的初版和它的时间线，右边一列在和 agent 说话"></a>
+<a href="#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop.gif" width="960" alt="Studio 的短片：装着本仓库介绍片的 Studio 窗口向后倾成桌上的一块屏；看、指、说、定四个字依次亮起，指针拖过时间线、标出一秒、写下“这里再推近一点”、在关卡上选一张卡；最后画面铺满全屏，收成 OVH Studio 的图标"></a>
 
-<sub><b>Studio</b>：做片子的每一站都在这一个窗口里。成片、镜头、声音和你的点评排在一条时间线上，右边一列和 agent 说话。</sub>
+<sub><b>Studio</b>：做一支片子的每一站，都在这一个窗口里看、指、说、定。<a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio">官网上有带声音的版本（17 秒）</a></sub>
 
 </div>
 

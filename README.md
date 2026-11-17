@@ -16,10 +16,9 @@ A video workbench for Claude Code and Codex. You say what you want in one senten
 
 <sub>Twelve moments from real films made with it. More below, some with sound.</sub>
 
-<!-- when Studio's promo film is made, it replaces the picture below and its caption -->
-<a href="#studio"><img src="docs/assets/studio/cut.en.webp" width="960" alt="Studio's window: the stops of making a film down the left, a film's first draft and its timeline in the middle, a conversation with the agent on the right"></a>
+<a href="#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop.gif" width="960" alt="Studio's short film: the Studio window, with this repo's intro film in it, tips back into a screen on a desk; the words look, point, say and decide light up one by one in Chinese as a pointer scrubs the timeline, marks a second, types the note “push in a little closer here” and picks a card at a stop; then the picture fills the screen and settles into the OVH Studio icon"></a>
 
-<sub><b>Studio</b>: every stop of making a film, in this one window. The cut, its shots, its sound and your notes lie on one timeline; the column on the right talks to the agent.</sub>
+<sub><b>Studio</b>: every stop of making a film, in one window where you look, point, say and decide (the four words in the film). <a href="https://zlhad.top/OpenVideoHarness/docs/site/#studio">With sound, 17 s, on the website</a></sub>
 
 </div>
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download the showcase, style-gallery and style-swatch videos from the GitHub releases to the paths the build scripts and
+# Download the showcase, style and homepage videos from the GitHub releases to the paths the build scripts and
 # READMEs use (tools/media.txt lists them; git doesn't keep videos, so a clone stays small). An asset written <tag>/<name>
 # is in that release (the full style swatches are in "styles-media"); a bare name is in "media". A file already present
 # with the right checksum is skipped; one that differs (a local render, say) is kept unless you pass --force.
