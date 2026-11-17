@@ -4440,7 +4440,7 @@ SH
   rm -f "$t/inst/state"; a=$(put DISPLAY=:0 ICON=default); ra=$(ran)                       # not there: made, said once with its size
   printf '{"state": "ok", "running": false}' > "$t/inst/state"; b=$(put DISPLAY=:0 ICON=default); rb=$(ran)   # there and current: left alone
   printf '{"state": "outdated", "running": true}' > "$t/inst/state"; c=$(put DISPLAY=:0 ICON=default); rc_=$(ran)   # open: never replaced
-  rm -f "$t/inst/state"; d=$(put DISPLAY=:0 ICON=no); rd=$(ran); e=$(put DISPLAY=:0 ICON=default); re=$(ran)   # --no-icon sticks
+  rm -f "$t/inst/state"; d=$(put DISPLAY=:0 ICON=no); rd=$(ran); kd=$([ -f "$t/data/ovh-studio/no-app" ] && echo kept); e=$(put DISPLAY=:0 ICON=default); re=$(ran)   # --no-icon sticks
   f=$(put DISPLAY=:0 ICON=yes); rf=$(ran)                                                     # --icon puts it in again
   g=$(put DISPLAY=:0 ICON=default KIND=launcher)                                              # the small launcher, said
   h=$(put DISPLAY= WAYLAND_DISPLAY= ICON=default); rh=$(ran)                                  # no desktop: Linux makes none, macOS does
@@ -4449,7 +4449,7 @@ SH
     && [ "$ra" = "studio --icon-status --json|studio --install-icon --json|" ] \
     && case "$b" in *"already, and up to date"*"done=1"*) true ;; *) false ;; esac && [ "$rb" = "studio --icon-status --json|" ] \
     && case "$c" in *"is open, so it was left as it is"*"done=1"*) true ;; *) false ;; esac && [ "$rc_" = "studio --icon-status --json|" ] \
-    && [ "$d" = "done= later=1 headless=" ] && [ -z "$rd" ] && [ -f "$t/data/ovh-studio/no-app" ] \
+    && [ "$d" = "done= later=1 headless=" ] && [ -z "$rd" ] && [ "$kd" = kept ] \
     && case "$e" in *"stays out of your applications"*"later=1"*) true ;; *) false ;; esac && [ -z "$re" ] \
     && case "$f" in *"said: putting OVH Studio"*"done=1"*) true ;; *) false ;; esac && [ ! -e "$t/data/ovh-studio/no-app" ] && [ "$rf" = "$ra" ] \
     && case "$g" in *"a small launcher was made instead"*"no npm here"*) true ;; *) false ;; esac && case "$h" in *"$want_h") true ;; *) false ;; esac \
