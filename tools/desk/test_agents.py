@@ -11,6 +11,15 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))
 T = Path(sys.argv[1]).resolve()
+# a temp folder of these checks' own, for everything they start: a running Studio says where it is in the temp folder
+# (server._info_path), so no desk, gate or agent here finds the person's own Studio, run alone or under tools/ci.sh; the
+# person's projects and installed adapters stay out too (each check stages its own)
+(T / "tmp").mkdir(parents=True, exist_ok=True)
+os.environ["TMPDIR"] = str(T / "tmp")
+os.environ.pop("OVH_PROJECTS", None)
+os.environ["OVH_AGENTS_DIR"] = str(T / "no-agents")
+import tempfile  # noqa: E402
+tempfile.tempdir = None
 
 
 def say(ok, what, why=""):
@@ -1241,6 +1250,234 @@ def open_checks():
             pass
 
 
+def choice_checks():
+    """Model and effort in Studio (the stand-in adapters, a folder of picks of these checks' own): a new Claude Code
+    conversation starts at Opus 5.5 and xhigh when the agent offers them; Codex keeps its own; what the person picks on the
+    page is remembered for this kind (picks.json beside the adapters, never in the project) and the next new conversation
+    starts with it, a running one is left as it is; a choice made when starting one is taken when the agent offers it and
+    dropped when not; an agent that offers neither keeps its own; only values the agent reported are ever sent to it."""
+    from fixtures.agents import stage as ST
+    fx = {k: json.loads((HERE / "fixtures" / "agents" / f"{k}.json").read_text(encoding="utf-8")) for k in ("claude", "codex")}
+    allowed = {}
+    for k, f in fx.items():
+        for o in f["session"]["configOptions"]:
+            allowed.setdefault(k, {})[o["id"]] = {y["value"] for x in o.get("options") or [] for y in (x["options"] if isinstance(x.get("options"), list) else [x])}
+    cur = lambda s, cat: next((o.get("currentValue") for o in s["config"]["configOptions"] if o.get("category") == cat), None)   # noqa: E731
+
+    def sent(log):
+        return [json.loads(x)["set"] for x in log.read_text().splitlines() if x.startswith('{"set"')] if log.exists() else []
+
+    proj, log = T / "choice", T / "choice.jsonl"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
+    home = ST.stage(T / "agents-choice", 0.02, only=["claude", "codex"], log=log)
+    d = Desk(proj, home)
+    K = d.key
+    try:
+        ch0 = {a["kind"]: a.get("choices") for a in d.info["agents"]}
+        st, s = d.new("claude")
+        stc, sc = d.new("codex")
+        check("model and effort: a new Claude Code conversation starts at Opus 5.5 and xhigh, which the agent offers (the column named them before it "
+              "started); Codex starts with its own",
+              lambda: None if st == stc == 200 and (cur(s, "model"), cur(s, "thought_level")) == ("opus", "xhigh")
+              and (ch0["claude"]["model"]["name"], ch0["claude"]["effort"]["name"], ch0["claude"]["model"]["from"]) == ("Opus 5.5", "xhigh", "default")
+              and (cur(sc, "model"), cur(sc, "thought_level")) == tuple(next(o["currentValue"] for o in fx["codex"]["session"]["configOptions"] if o["id"] == i) for i in ("model", "reasoning_effort"))
+              and ch0["codex"]["model"]["from"] == "agent" and not [x for x in sent(log) if x["id"] == "reasoning_effort" or x["value"].startswith("gpt")]
+              else (st, stc, cur(s, "model"), cur(s, "thought_level"), cur(sc, "model"), ch0))
+
+        def picked():
+            a = d.a(s["id"], "config", {"id": "model", "value": "sonnet"})[0]
+            b = d.a(s["id"], "config", {"id": "effort", "value": "high"})[0]
+            pk = json.loads((home / "picks.json").read_text()) if (home / "picks.json").exists() else None
+            if (a, b) != (200, 200) or pk != {"claude": {"model": "sonnet", "effort": "high"}}:
+                return f"set {a} {b}, picks {pk}"
+            if any(proj.rglob("picks*")):
+                return "a pick in the project"
+            st2, s2 = d.new("claude")
+            ch = next(x["choices"] for x in d.get(f"/api/p/{K}/agents")[1]["agents"] if x["kind"] == "claude")
+            if st2 != 200 or (cur(s2, "model"), cur(s2, "thought_level")) != ("sonnet", "high"):
+                return f"the next conversation: {cur(s2, 'model')} {cur(s2, 'thought_level')}"
+            if (ch["model"]["value"], ch["model"]["from"], ch["effort"]["value"]) != ("sonnet", "picked", "high") or "opus" not in [x["value"] for x in ch["offered"]["model"]]:
+                return f"the column's choices: {ch}"
+            return None
+        check("model and effort: what the person picks is remembered for this kind of agent on this machine (beside the adapters, not in the project); "
+              "the next new conversation starts with it, and the column lists it with the agent's options", picked)
+
+        def asked():
+            st3, s3 = d.post(f"/api/p/{K}/agent/new", {"kind": "claude", "model": "haiku", "effort": "ultra-max"})
+            pk = json.loads((home / "picks.json").read_text())
+            if st3 != 200 or (cur(s3, "model"), cur(s3, "thought_level")) != ("haiku", "high") or pk["claude"] != {"model": "haiku", "effort": "high"}:
+                return f"{st3} {cur(s3, 'model')} {cur(s3, 'thought_level')} {pk}"
+            bad = [x for x in sent(log) if x["value"] not in allowed["claude" if x["id"] in allowed["claude"] else "codex"].get(x["id"], set())]
+            return f"sent what the agent never offered: {bad}" if bad or any(x["value"] == "ultra-max" for x in sent(log)) else None
+        check("model and effort: a choice made when starting a conversation is taken when the agent offers it and dropped when not; only values the agent "
+              "reported are ever sent to it", asked)
+    finally:
+        d.stop()
+    proj2, log2 = T / "choice2", T / "choice2.jsonl"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj2)
+    home2 = ST.stage(T / "agents-noopus", 0.02, only=["claude"], args={"claude": ["--no-opus"]}, log=log2)
+    d2 = Desk(proj2, home2)
+    try:
+        st4, s4 = d2.new("claude")
+        ch = next(x["choices"] for x in d2.get(f"/api/p/{d2.key}/agents")[1]["agents"] if x["kind"] == "claude")
+        rec = fx["claude"]["session"]["configOptions"]
+        own = (next(o["currentValue"] for o in rec if o["id"] == "model"), next(o["currentValue"] for o in rec if o["id"] == "effort"))
+        check("model and effort: an agent that offers neither Opus 5.5 nor xhigh keeps its own (nothing set), and the column says it is the agent's",
+              lambda: None if st4 == 200 and (cur(s4, "model"), cur(s4, "thought_level")) == own and not sent(log2)
+              and ch["model"]["from"] == ch["effort"]["from"] == "agent" else (st4, cur(s4, "model"), cur(s4, "thought_level"), sent(log2), ch))
+    finally:
+        d2.stop()
+
+
+def install_checks():
+    """The column's "set it up" (POST …/agent/install), against a stand-in npm: refused without the page's token, from
+    another origin, for a kind that is not a string or not one of ours; a click while it runs is the same install (one
+    npm); it stops by itself after its limit, taking npm with it, and says so; the person's stop ends it the same way; a
+    good one ends installed. The page is told a state and a sentence's worth, never what npm printed."""
+    proj = T / "inst"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
+    fb, home, pids = T / "inst-bin", T / "agents-inst", T / "inst-npm.pids"
+    fb.mkdir(exist_ok=True)
+    (fb / "npm").write_text("#!/bin/sh\n# a stand-in npm: dsh installs at once; the others hang (until stopped)\n[ \"$1\" = ci ] || exit 0\n"
+                            f"echo $$ >> '{pids}'\n"
+                            "case \"$(basename \"$PWD\")\" in dsh) mkdir -p node_modules/.bin node_modules/@deepseek-ai/dsh && printf '#!/bin/sh\\n' > node_modules/.bin/dsh && chmod +x node_modules/.bin/dsh "
+                            "&& printf '{\"version\": \"0.2.2-rc.3\"}' > node_modules/@deepseek-ai/dsh/package.json; exit 0 ;; esac\n"
+                            "trap '' TERM; sleep 300\n")
+    (fb / "npm").chmod(0o755)
+    d = Desk(proj, home, extra={"PATH": f"{fb}:{os.environ.get('PATH', '')}", "OVH_AGENT_INSTALL_LIMIT": "3"})
+    K = d.key
+    path = f"/api/p/{K}/agent/install"
+
+    def state(kind):
+        return next(a.get("installing") for a in d.get(f"/api/p/{K}/agents")[1]["agents"] if a["kind"] == kind)
+
+    def wait(kind, until, t=20):
+        t0 = time.time()
+        while time.time() - t0 < t:
+            st_ = state(kind)
+            if st_ and st_["state"] not in ("running",) and until(st_):
+                return st_
+            time.sleep(0.2)
+        return state(kind)
+
+    def alive(pid):
+        try:
+            os.kill(int(pid), 0)
+            return True
+        except (OSError, ValueError):
+            return False
+    try:
+        def refusals():
+            bad = []
+            if d.post(path, {"kind": "claude"}, token=False)[0] != 403: bad.append("no token")
+            if d.post(path, {"kind": "claude"}, origin="http://evil.example")[0] != 403: bad.append("another origin")
+            for k in (5, ["claude"], None, "gpt"):
+                c = d.post(path, {"kind": k})[0]
+                if c != 400: bad.append(f"kind {k!r}: {c}")
+            if d.post(f"/api/p/{K}/agent/new", {"kind": ["claude"]})[0] != 400: bad.append("a new conversation of a kind that is a list")
+            return "; ".join(bad) or (f"npm ran: {pids.read_text()}" if pids.exists() else None)
+        check("set it up: refused without the page's token, from another origin, and for a kind that is not a string or not one of the three (a new conversation too)", refusals)
+
+        def limit():
+            a = d.post(path, {"kind": "claude"})
+            time.sleep(0.8)
+            b = d.post(path, {"kind": "claude"})   # a second click while it runs
+            st_ = wait("claude", lambda x: True, 25)
+            ran = pids.read_text().split() if pids.exists() else []
+            if a[0] != 200 or b[0] != 200 or (b[1].get("installing") or {}).get("state") != "running" or len(ran) != 1:
+                return f"clicks {a} {b}, npm started {len(ran)} time(s)"
+            if not st_ or st_["state"] != "timeout" or st_.get("limit") != 3.0 or any(alive(x) for x in ran):
+                return f"after the limit: {st_}, npm alive: {[x for x in ran if alive(x)]}"
+            if set(st_) - {"state", "since", "took", "said", "limit"} or str(Path.home()) in json.dumps(st_):
+                return f"what the page is told: {st_}"
+        check("set it up: a click while it runs is the same install (one npm); past its limit it stops with npm and everything under it, and says timeout", limit)
+
+        def cancel():
+            n0 = len(pids.read_text().split()) if pids.exists() else 0
+            d.post(path, {"kind": "codex"})
+            for _ in range(50):
+                if pids.exists() and len(pids.read_text().split()) > n0:
+                    break
+                time.sleep(0.1)
+            npm = pids.read_text().split()[n0:] if pids.exists() else []
+            c = d.post(path, {"kind": "codex", "cancel": True})
+            st_ = wait("codex", lambda x: True, 15)
+            if c[0] != 200 or not st_ or st_["state"] != "cancelled" or not npm or any(alive(x) for x in npm):
+                return f"stop {c}, then {st_}, npm alive: {[x for x in npm if alive(x)]}"
+        check("set it up: the person's stop ends a running install, npm and all, and says it was stopped", cancel)
+
+        def good():
+            d.post(path, {"kind": "dsh"})
+            st_ = wait("dsh", lambda x: True, 30)
+            inst = next(a["installed"] for a in d.get(f"/api/p/{K}/agents")[1]["agents"] if a["kind"] == "dsh")
+            return None if st_ and st_["state"] == "done" and inst else f"{st_}, installed {inst}"
+        check("set it up: an install that works ends done, and the column lists that agent as installed", good)
+    finally:
+        d.stop()
+
+
+def machine_checks():
+    """What the space page says this machine lacks (GET /api/machine, server.lacks): the needed programs missing or too
+    old, a browser, and an agent when no adapter is there; nothing optional. bin/vh doctor's answer is kept while nothing
+    is missing, asked again (at most once a minute) while something is, and never kept when doctor could not tell."""
+    import server
+    mods = lambda **st: [{"name": n, "state": st.get(n.replace("-", "_"), "ok")} for n in ("node", "ffmpeg", "uv", "git", "manimgx", "claude-agent-acp", "codex-acp", "dsh-acp")]   # noqa: E731
+
+    def unit():
+        bad = []
+        if server.lacks({"modules": mods(), "checks": [{"name": "browser", "state": "ok"}]}) != []:
+            bad.append("all there: not nothing")
+        got = server.lacks({"modules": mods(ffmpeg="missing", node="outdated", manimgx="missing", claude_agent_acp="missing", codex_acp="missing", dsh_acp="missing"),
+                            "checks": [{"name": "browser", "state": "missing"}]})
+        if got != [{"what": "ffmpeg", "state": "missing"}, {"what": "node", "state": "outdated"}, {"what": "browser", "state": "missing"}, {"what": "agent", "state": "missing"}]:
+            bad.append(f"what is missing: {got}")
+        if server.lacks({"modules": mods(claude_agent_acp="missing", codex_acp="ok", dsh_acp="missing"), "checks": []}) != []:
+            bad.append("one adapter there: still an agent missing")
+        return "; ".join(bad) or None
+    check("what this machine lacks: the needed programs missing or too old, a browser, an agent when no adapter is there; nothing optional (manimgx); nothing when all is there", unit)
+
+    def cached():
+        import subprocess as sp
+        real, calls = sp.run, []
+        answers = [OSError("no bash"), {"modules": mods(ffmpeg="missing"), "checks": []}, {"modules": mods(), "checks": []}]
+
+        def fake(*a, **k):
+            x = answers[min(len(calls), len(answers) - 1)]
+            calls.append(1)
+            if isinstance(x, Exception):
+                raise x
+            return sp.CompletedProcess(a[0], 0, json.dumps(x), "")
+        srv = server.Desk(0)
+        try:
+            sp.run = fake
+            one = srv.machine()                       # doctor could not tell: said, not kept
+            two = srv.machine()                       # asked again: FFmpeg missing, kept
+            three = srv.machine()                     # within a minute: the same answer, doctor not asked
+            srv._machine["at"] -= srv.MACHINE_AGAIN + 1
+            four = srv.machine()                      # a minute on and still something missing: asked again (now all there)
+            srv._machine["at"] -= srv.MACHINE_AGAIN + 1
+            five = srv.machine()                      # nothing missing: kept for the run
+        finally:
+            sp.run = real
+            srv.agents.shutdown()
+            srv.server_close()
+        if not (one.get("error") and one["lacks"] == [] and two["lacks"] == [{"what": "ffmpeg", "state": "missing"}] and three == two
+                and four["lacks"] == [] and five == four and len(calls) == 3 and "at" not in two):
+            return f"{one} | {two} | {three} | {four} | {five}, doctor asked {len(calls)} times"
+    check("what this machine lacks: a doctor run that could not tell is not kept; an answer with something missing is asked again a minute on, one with nothing missing is kept", cached)
+
+    proj = T / "mach"
+    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
+    d = Desk(proj, T / "agents-none")
+    try:
+        st_, m = d.get("/api/machine")
+        check("GET /api/machine answers what this machine lacks, a list (bin/vh doctor's, as the space page shows it)",
+              lambda: None if st_ == 200 and isinstance(m.get("lacks"), list) and all(set(x) == {"what", "state"} for x in m["lacks"])
+              and any(x["what"] == "agent" for x in m["lacks"]) else (st_, m))
+    finally:
+        d.stop()
+
+
 if __name__ == "__main__":
     import atexit
     atexit.register(reap)
@@ -1270,4 +1507,13 @@ if __name__ == "__main__":
         server_checks()
     except Exception as e:
         say(False, "the agent column's server checks", f"{type(e).__name__}: {e}")
+    try:
+        choice_checks()
+    except Exception as e:
+        say(False, "the agent column's model and effort checks", f"{type(e).__name__}: {e}")
+    for name, fn in (("set it up", install_checks), ("what this machine lacks", machine_checks)):
+        try:
+            fn()
+        except Exception as e:
+            say(False, f"the {name} checks", f"{type(e).__name__}: {e}")
     print("end", flush=True)

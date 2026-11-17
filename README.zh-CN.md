@@ -105,7 +105,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 </tr>
 </table>
 
-右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。第一次用要装一个适配器，Studio 里会写出要运行的那一行。
+右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。第一次和某个 agent 说话前要装一个适配器：在右边一列点「装上」，Studio 自己装好。
 
 点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都是这一个窗口（见[打开 Studio](#打开-studio)）。精品档默认就在 Studio 里停，你一提交，agent 接着做；标准档默认给一页审阅页，想在 Studio 里定，跟 agent 说一声就行。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。Studio 读写的就是项目里的文件，读什么、写什么见 [tools/desk/README.md](tools/desk/README.md)。
 
@@ -409,9 +409,10 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 bash install.sh --dir ~/code/OpenVideoHarness   # 装到别的位置
 bash install.sh --no-refs                        # 先不拉参考仓库（之后用 references/fetch.sh 拉）
 bash install.sh --no-skill                       # 不注册全局 skill
-bash install.sh --icon                           # 不问，直接把 OVH Studio 图标放进应用程序（--no-icon：不问也不装）
+bash install.sh --no-icon                        # 不把 OVH Studio 放进应用程序（以后 bin/vh studio --install-icon 再放）
 ```
 
+- 安装时什么都不问。macOS 和 Linux 桌面上，它会把 OVH Studio（Studio 自己的窗口）放进应用程序（Electron：第一次下载约 130 MB，占约 260 MB 磁盘）；哪一步没成，它用一句话说接下来做什么。最后告诉你两种开始的办法：点 OVH Studio，或者在这个文件夹里打开 Claude Code 或 Codex，说你想做什么片子。
 - 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
 - 更新：用同样的参数再运行一次安装命令（或者 `git pull`）；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。装出去的 skill 是指回克隆里 `skills/` 的短桩，跟着一起更新；少数要重装的时候（`bin/vh install-skill`），`bin/vh doctor` 会说。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。

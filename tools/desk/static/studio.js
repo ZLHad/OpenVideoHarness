@@ -41,6 +41,7 @@ const ICON = {
   assets: '<path d="M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   ledger: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7M9 7h3"/>',
   play: '<path d="M8 5v14l11-7z"/>', pause: '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>', prev: '<path d="M6 5v14M18 5L9 12l9 7z"/>', next: '<path d="M18 5v14M6 5l9 7-9 7z"/>',
+  vol: '<path d="M4 9.5h4l5-4v13l-5-4H4z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>', vol_off: '<path d="M4 9.5h4l5-4v13l-5-4H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>',
 };
 const svg = (k, cls) => `<svg viewBox="0 0 24 24" aria-hidden="true"${cls ? ` class="${cls}"` : ""}>${ICON[k]}</svg>`;
 
@@ -186,6 +187,7 @@ async function showHome(quiet) {
   const roots = LIST.roots || [];
   const html = `<section class="module space">
     <div class="mh"><h1>${esc(t("films"))}</h1><span class="meta">${esc(meta)}</span></div>
+    <div id="lacks">${lacksHtml()}</div>
     ${rows.length ? "" : `<p class="void">${esc(t("no_projects"))}</p>`}
     ${sect("g_wait", wait, `<div class="heroes">${wait.map(heroCard).join("")}</div>`)}
     ${sect("g_doing", doing, `<div class="cards">${doing.map(card).join("")}</div>`)}
@@ -195,7 +197,22 @@ async function showHome(quiet) {
   area.innerHTML = html;
   if (quiet) area.scrollTop = y;
   midFrames(area); hoverClips(area); spaceRunning();
+  machine();
   clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000);
+}
+/* what this machine still lacks (bin/vh doctor, asked once a run by the console): a quiet panel on the space, nothing when all is there */
+let MACHINE = null, machineAt = 0;
+async function machine() {   // asked once a page; again (a minute later at most) while something is missing: the person may have fixed it
+  if (machineAt && !((MACHINE && (MACHINE.lacks || []).length || !MACHINE) && Date.now() - machineAt > 60000)) return;
+  machineAt = Date.now();
+  const r = await getJSON("/api/machine");
+  MACHINE = r.ok && r.data ? r.data : { lacks: [] };
+  const el = $("#lacks"); if (el) el.innerHTML = lacksHtml();
+}
+function lacksHtml() {
+  const L = (MACHINE && MACHINE.lacks) || [];
+  if (!L.length) return "";
+  return `<aside class="lacks" aria-label="${esc(t("lacks_h"))}"><h2>${esc(t("lacks_h"))}</h2><ul>${L.map((x) => `<li><b>${esc(t("lk_" + x.what + "_n"))}</b>${esc(COLON())}${esc(x.what === "agent" ? t("lk_agent_s") : t(x.state === "outdated" ? "lk_old" : "lk_missing", { s: t("lk_" + x.what + "_s") }))} <span class="do">${esc(t("lk_" + x.what + "_d"))}</span></li>`).join("")}</ul></aside>`;
 }
 function copyText(s) {
   return new Promise((ok) => {
@@ -964,6 +981,7 @@ function CutModule(area) {
         <button type="button" class="p-btn play" id="cPlay" title="${esc(t("play"))}" aria-label="${esc(t("play"))}">${svg("play")}</button>
         <button type="button" class="p-btn" id="cNext" title="${esc(t("next_shot"))}" aria-label="${esc(t("next_shot"))}">${svg("next")}</button>
         <span class="tc" id="cTc"></span>
+        ${film ? `<span class="vol" id="cVolBox"${ST.film_sound === false ? ` title="${esc(t("no_sound"))}"` : ""}><button type="button" class="p-btn" id="cMute"></button><input type="range" id="cVol" min="0" max="1" step="0.05" aria-label="${esc(t("volume"))}"></span>` : ""}
         <button type="button" class="btn" id="cN" title="${esc(t("next_tip"))}" hidden></button>
         <button type="button" class="btn toggle" id="cSafe" aria-pressed="false">${esc(t("safe"))}</button>
         ${prevV ? `<button type="button" class="btn toggle" id="cCmp" aria-pressed="false">${esc(t("compare", { v: vnum(prevV.id) }))}</button>` : ""}
@@ -983,6 +1001,21 @@ function CutModule(area) {
   if (film) {
     frame.innerHTML = `<video id="cv" src="${esc(src(film))}" preload="metadata" playsinline></video>${prevV ? `<video class="vb" id="cvb" src="${esc(src(prevV.file))}" preload="metadata" playsinline muted hidden></video><div class="wipe-line" id="wl" hidden></div><span class="wipe-l" hidden>${esc(t("ver_now", { v: vnum(curV.id) }))}</span><span class="wipe-r" hidden>${esc(vnum(prevV.id))}</span>` : ""}<div class="safe" hidden></div>`;
     video = $("#cv", frame); vb = $("#cvb", frame);
+    // its sound: the volume and mute this browser had last; a cut with no sound track says so and has nothing to turn up
+    const mb = $("#cMute", area), vr = $("#cVol", area), silent = ST.film_sound === false;
+    let vol = +store.get("desk:cut-volume"); if (!(vol >= 0 && vol <= 1) || store.get("desk:cut-volume") == null) vol = 1;
+    video.volume = vol; video.muted = !!store.get("desk:cut-muted");
+    const paintVol = () => {
+      const off = silent || video.muted || video.volume === 0;
+      mb.innerHTML = svg(off ? "vol_off" : "vol");
+      const say = silent ? t("no_sound") : video.muted ? t("unmute") : t("mute");
+      mb.title = say; mb.setAttribute("aria-label", say); mb.setAttribute("aria-pressed", String(!silent && video.muted));
+      vr.value = String(video.muted ? 0 : video.volume);
+    };
+    mb.disabled = vr.disabled = silent;
+    mb.addEventListener("click", () => { video.muted = !video.muted; if (!video.muted && video.volume === 0) video.volume = 0.6; store.set("desk:cut-muted", video.muted); store.set("desk:cut-volume", video.volume); paintVol(); });
+    vr.addEventListener("input", () => { video.volume = +vr.value; video.muted = +vr.value === 0; store.set("desk:cut-volume", video.volume); store.set("desk:cut-muted", video.muted); paintVol(); });
+    paintVol();
   } else {
     // no film to play: the storyboard's key frames as the picture, else the contact sheet; the line under it says which, and
     // names the file that was asked for when it is not there (moved, renamed, on another drive)
@@ -1192,10 +1225,10 @@ function CutModule(area) {
     if (s !== lastShot || !$("#readout", area).innerHTML) {
       lastShot = s;
       const size = video && video.videoWidth ? `${video.videoWidth}×${video.videoHeight}` : (String(specGet("output")).match(/\d{3,5}\s*[x×]\s*\d{3,5}/) || [""])[0].replace(/\s/g, "").replace("x", "×");
-      const ver = curV ? vnum(curV.id) : (D.status && D.status.media && D.status.media.version) ? vnum(D.status.media.version) : "";
+      const ver = ST.film_instead ? "" : curV ? vnum(curV.id) : (D.status && D.status.media && D.status.media.version) ? vnum(D.status.media.version) : "";   // (another cut plays: its version is not status's)
       const isProxy = film && D.status && D.status.media && film === D.status.media.proxy && film !== D.status.media.film;
       $("#readout", area).innerHTML = (s ? `<span><b>${esc(shotName(s.id))}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
-        + `<span class="ver">${esc([size, t("fps_n", { n: fps }), ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
+        + `<span class="ver">${video && ST.film_instead ? `<b class="nosound" title="${esc(film)}">${esc(t("playing_instead", { f: film.split("/").pop(), g: String(ST.film_instead).split("/").pop() }))}</b> · ` : ""}${video && ST.film_sound === false ? `<b class="nosound">${esc(t("no_sound"))}</b> · ` : ""}${esc([size, t("fps_n", { n: fps }), ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
       if (!video) { const img = $("#cimg", frame); const pic = s ? shotPic(s) : ""; if (img && shots.some(shotPic)) { if (pic) { if (img.getAttribute("src") !== pic) img.src = pic; img.hidden = false; } else img.hidden = true; } }
       if (tab === "shots") $$("#lbody .lrow", area).forEach((r) => r.classList.toggle("now", !!s && r.dataset.pick === "shot:" + s.id));
     }
