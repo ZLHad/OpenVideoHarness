@@ -108,7 +108,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。第一次用要装一个适配器，Studio 里会写出要运行的那一行。
 
-点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都是这一个窗口（见[打开 Studio](#打开-studio)）。精品档默认就在 Studio 里停，你一提交，agent 接着做；标准档默认给一页审阅页，想在 Studio 里定，跟 agent 说一声"在 Studio 里审"就行。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。Studio 读写的就是项目里的文件，读什么、写什么见 [tools/desk/README.md](tools/desk/README.md)。
+点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都是这一个窗口（见[打开 Studio](#打开-studio)）。精品档默认就在 Studio 里停，你一提交，agent 接着做；标准档默认给一页审阅页，想在 Studio 里定，跟 agent 说一声就行。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。Studio 读写的就是项目里的文件，读什么、写什么见 [tools/desk/README.md](tools/desk/README.md)。
 
 ## 能做出什么
 
@@ -223,7 +223,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # 或者 codex
 ```
 
-安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex（之后在任何目录说"做个视频"，agent 都能找到这里），再默认把 **OVH Studio** 放进你的应用程序（Linux 上是应用菜单；不要就加 `--no-icon`）。仓库一共占约 650 MB 磁盘，不拉参考仓库约 380 MB；OVH Studio 另占约 380 MB，第一次下载约 130 MB。
+安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex（之后在任何目录说"做个视频"，agent 都能找到这里），再默认把 **OVH Studio** 放进你的应用程序（Linux 上是应用菜单；不要就加 `--no-icon`）。仓库一共占约 650 MB 磁盘，不拉参考仓库约 380 MB；OVH Studio 另占约 380 MB，其中约 130 MB 是留着的下载。
 
 装好以后，有两个入口：
 

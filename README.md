@@ -108,7 +108,7 @@ On top of the skills and the command line, we built Studio, a visual window that
 
 The right-hand column also talks straight to the agents on this machine (Claude Code, Codex, and DeepSeek Harness). Select a shot before you speak and it knows what you mean; what it read, what it ran and what it asks you to allow are laid out one by one. The first time, an adapter needs installing; Studio shows the line to run.
 
-Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio`: it's this one window each time (see [Open Studio](#open-studio)). At the `studio` effort level a stop is in Studio by default, and the agent carries on as soon as you submit; at `standard` a stop is a review page by default, and to decide it in Studio instead, tell the agent "review it in Studio". Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. It reads and writes the project's own files; what it reads and writes is in [tools/desk/README.md](tools/desk/README.md).
+Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio`: it's this one window each time (see [Open Studio](#open-studio)). At the `studio` effort level a stop is in Studio by default, and the agent carries on as soon as you submit; at `standard` a stop is a review page by default, and to decide it in Studio instead, just tell the agent so. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. It reads and writes the project's own files; what it reads and writes is in [tools/desk/README.md](tools/desk/README.md).
 
 ## What it makes
 
@@ -223,7 +223,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # or: codex
 ```
 
-The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos, registers the `open-video-harness` skills for Claude Code and Codex (so asking for a video from any folder finds it), and by default puts **OVH Studio** in your applications (on Linux, the app menu; `--no-icon` leaves it out). The repo takes about 650 MB on disk, about 380 MB of it without the reference repos; OVH Studio takes about 380 MB more, about 130 MB of it downloaded the first time.
+The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos, registers the `open-video-harness` skills for Claude Code and Codex (so asking for a video from any folder finds it), and by default puts **OVH Studio** in your applications (on Linux, the app menu; `--no-icon` leaves it out). The repo takes about 650 MB on disk, about 380 MB of it without the reference repos; OVH Studio takes about 380 MB more, 130 MB of it the kept download.
 
 Once it's installed, there are two ways in:
 
