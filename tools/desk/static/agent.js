@@ -231,7 +231,7 @@ const AGENT = (() => {
   function ownHtml() {   // the space's conversations that work or wait for you, under the sentence: one click back to each
     const L2 = ((INFO && INFO.sessions) || []).filter((x) => (x.running || x.pending) && (!S || x.id !== S.id));
     if (!L2.length) return "";
-    return `<section class="ag-own"><h3 class="blk-h"><b>${esc(at("sp_own"))}</b><span class="n mono">${L2.length}</span></h3><ul class="film-list agent">${L2.map((x) => `<li><a href="#/" data-own="${esc(x.id)}"><b>${esc(cut(x.title || x.first || "—", 40))}</b><span class="q">${esc(x.label || "")} · ${esc(at(x.pending ? "sp_wait" : "sp_doing"))}</span></a></li>`).join("")}</ul></section>`;
+    return `<section class="ag-own"><h3 class="blk-h"><b>${esc(at("sp_own"))}</b><span class="n mono">${L2.length}</span></h3><ul class="ag-own-l">${L2.map((x) => `<li><button type="button" data-own="${esc(x.id)}"><b>${esc(cut(x.title || x.first || "—", 40))}</b><span class="q">${esc(x.label || "")} · ${esc(at(x.pending ? "sp_wait" : "sp_doing"))}</span></button></li>`).join("")}</ul></section>`;
   }
   function open(sum) {
     close();

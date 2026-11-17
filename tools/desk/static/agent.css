@@ -122,6 +122,10 @@
 .ag-note.ok{border-color:var(--rule-2);background:var(--agent-soft)}   /* the film a conversation begun on the space made: news, not a warning */
 .ag-thread #spaceRun .blk-h,.ag-thread .ag-own .blk-h{display:flex;align-items:baseline;gap:8px;margin:14px 0 8px;font-size:var(--fs-label);color:var(--ink-3);letter-spacing:var(--label-track);text-transform:var(--label-case)}
 .ag-thread #spaceRun .blk-h b,.ag-thread .ag-own .blk-h b{font-weight:600;color:var(--ink-2)}
+.ag-own-l{list-style:none;margin:0;padding:0;display:grid;gap:2px}   /* the space's new films that work or wait for you: one click back to each */
+.ag-own-l button{display:grid;gap:2px;width:100%;text-align:left;padding:8px 10px;border:0;border-left:2px solid var(--agent);background:var(--agent-soft);color:var(--ink);font:inherit;cursor:pointer}
+.ag-own-l button:hover{background:var(--panel-3)}
+.ag-own-l .q{font-size:var(--fs-label);color:var(--ink-3)}
 .ag-mute{margin:0;font-size:var(--fs-label);color:var(--ink-3)}
 .ag-working{display:flex;align-items:center;gap:8px;font-size:var(--fs-label);color:var(--agent)}
 .ag-dots{display:inline-flex;gap:3px}
