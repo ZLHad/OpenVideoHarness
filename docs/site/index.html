@@ -557,6 +557,45 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .end .motto { font-family: var(--display); font-weight: 600; font-size: clamp(24px, 2.2vw, 38px); letter-spacing: -.03em; }
 .end .motto em { font-style: normal; }
 
+/* ---------- 1 · Studio ---------- */
+.studio-lede { max-width: 34em; }
+.studio-shot { position: relative; margin: 0; }
+.studio-shot::before { content: ""; position: absolute; inset: 8% 6% -6%; border-radius: 40px; background: radial-gradient(60% 60% at 50% 40%, rgba(107,230,255,.16), rgba(157,140,255,.10) 45%, transparent 75%); filter: blur(30px); pointer-events: none; }
+.shot-btn { position: relative; display: block; width: 100%; border-radius: 12px; overflow: hidden; background: #111; box-shadow: 0 0 0 1px var(--line-2), 0 40px 80px -40px rgba(0,0,0,.9); transition: box-shadow .3s, transform .4s var(--ease); cursor: zoom-in; }
+.shot-btn:hover { box-shadow: 0 0 0 1px rgba(107,230,255,.45), 0 40px 80px -40px rgba(0,0,0,.9); }
+.shot-btn img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; }
+.sfilm { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--line-2), 0 40px 80px -40px rgba(0,0,0,.9); }
+.sfilm video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.sfilm .bigplay { background: linear-gradient(0deg, rgba(0,0,0,.4), rgba(0,0,0,0) 30%); padding: clamp(12px, 2vw, 22px); }
+.sfilm .bigplay > span { gap: 10px; padding: 10px 18px 10px 14px; font-size: 15px; }
+.sfilm .bigplay > span::before { border-left-width: 12px; border-top-width: 7px; border-bottom-width: 7px; }
+.sfilm.sound .bigplay { opacity: 0; pointer-events: none; }
+@media (max-width: 640px) {   /* clear of the poster's title */
+  .sfilm .bigplay { padding: 6px; }
+  .sfilm .bigplay > span { gap: 7px; padding: 5px 11px 5px 9px; font-size: 12px; }
+  .sfilm .bigplay > span::before { border-left-width: 9px; border-top-width: 5.5px; border-bottom-width: 5.5px; margin-left: 2px; }
+}
+@media (max-width: 380px) { .sfilm .bigplay > span { font-size: 0; gap: 0; padding: 8px 9px 8px 11px; } }   /* the icon alone; its aria-label stays */
+.studio-shot figcaption { position: relative; margin-top: 12px; font-size: 14.5px; color: var(--text-2); max-width: 60em; }
+.studio-steps { list-style: none; margin-top: clamp(22px, 4vh, 44px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; counter-reset: st; }
+.studio-steps li { display: flex; flex-direction: column; gap: 8px; border-radius: 14px; padding: 10px 10px 14px; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi); }
+.studio-steps .shot-btn { border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+.studio-steps h3 { font-family: var(--display); font-size: clamp(17px, 1.3vw, 21px); letter-spacing: -.015em; margin: 4px 4px 0; display: flex; gap: 8px; align-items: baseline; }
+.studio-steps h3::before { counter-increment: st; content: "0" counter(st); font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--cyan); }
+html[data-lang="zh"] .studio-steps h3 { letter-spacing: .01em; }
+.studio-steps p { font-size: 14.5px; color: var(--text-2); margin: 0 4px; line-height: 1.55; }
+.studio-foot { margin-top: clamp(18px, 3.5vh, 36px); padding-top: 16px; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px 32px; align-items: center; }
+.themes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.themes figure { margin: 0; }
+.themes .shot-btn { border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+.themes figcaption { margin-top: 6px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 6px; }
+.themes figcaption b { color: var(--text); font-weight: 500; }
+.studio-open { font-size: 15px; color: var(--text-2); line-height: 1.6; }
+.studio-open code { font-family: var(--mono); font-size: 13.5px; color: var(--cyan); }
+.studio-open .fine { display: block; margin-top: 8px; }
+@media (max-width: 1180px) { .studio-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .studio-foot { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .studio-steps { grid-template-columns: minmax(0, 1fr); } .themes { gap: 6px; } .themes figcaption { font-size: 11.5px; } }
+
 /* ---------- lightbox ---------- */
 .lightbox { position: fixed; inset: 0; z-index: 60; display: none; place-items: center; background: rgba(4,5,10,.78); padding: 16px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .lightbox.show { display: grid; animation: fadein .35s var(--ease); }
@@ -706,6 +745,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 <header class="topbar">
   <a class="brand" href="#top">OpenVideo<span>Harness</span></a>
   <nav class="nav" aria-label="Sections">
+    <a href="#studio">Studio</a>
     <a href="#start"><span lang="en">Get started</span><span lang="zh">快速开始</span></a>
     <a href="#features"><span lang="en">Features</span><span lang="zh">特性</span></a>
     <a href="#how"><span lang="en">How it works</span><span lang="zh">工作原理</span></a>
@@ -751,17 +791,51 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   <div class="scroll-cue" aria-hidden="true"><i></i><span lang="en">scroll</span><span lang="zh">向下</span></div>
 </section>
 
-<!-- 01 · get started -->
+<!-- 01 · Studio -->
+<section class="slide" id="studio" data-en="Studio" data-zh="Studio">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>01</b><span lang="en">Studio · the whole production in one window</span><span lang="zh">Studio · 整个制作流程在一个窗口里</span></p><h2 class="split"><span lang="en">See it, point at it, <em>decide it.</em></span><span lang="zh">看得见，指着说，<em>点一下就定。</em></span></h2></div>
+      <p class="lede studio-lede" data-r><span lang="en">On top of the skills and the command line, we built Studio, a visual window that makes it easier to keep the whole making of a film in hand: where each film has got to, the notes you point at the picture, the calls only you can make, and a conversation with the agent on this machine.</span><span lang="zh">在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整支片子的制作流程：每支片子走到了哪，指着画面写下的点评，只有你能拍板的事，还有和这台机器上的 agent 的对话。</span></p>
+    </div>
+    <figure class="studio-shot" data-r>
+      <div class="sfilm" id="sfilm">
+        <video playsinline muted loop preload="none" poster="img/studio.jpg" data-aria-en="OVH Studio, a 17-second film" data-aria-zh="OVH Studio，17 秒的短片">
+          <source src="media/studio-film.mp4" type="video/mp4">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-film.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="bigplay" data-aria-en="Play the Studio film with sound" data-aria-zh="带声音播放 Studio 短片"><span><span lang="en">Play with sound</span><span lang="zh">带声音播放</span></span></button>
+      </div>
+      <figcaption><span lang="en">OVH Studio in 17 seconds: look, point, say, decide (the film's words are in Chinese). The film under review in the window is this repo's own intro film.</span><span lang="zh">OVH Studio，17 秒：看、指、说、定。窗口里在审的，是这个仓库自己的介绍片。</span></figcaption>
+    </figure>
+    <ol class="studio-steps">
+      <li data-r><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/space.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Studio's space: a card for every film, the ones waiting for you first"><img lang="zh" src="../assets/studio/space.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Studio 的空间：每支片子一张卡，等你的排在最前"></button><h3><span lang="en">See where it stands</span><span lang="zh">片子走到哪</span></h3><p><span lang="en">The left column is the stops: concept, outline, storyboard, sound, cut, delivery. A line across the top marks where this film is and who it waits for; the films waiting for you come first.</span><span lang="zh">左边一列就是做片子的几站：立意、大纲、分镜、声音、成片、交付。顶上一条线标着这支片子在哪一站、在等谁；等你的片子排在最前。</span></p></li>
+      <li data-r><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/board.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="The storyboard stop: a keyframe per shot, the shot the agent is unsure of marked"><img lang="zh" src="../assets/studio/board.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="分镜这一站：每一镜一张关键帧，agent 没把握的那一镜标出来"></button><h3><span lang="en">Point and say</span><span lang="zh">指着说</span></h3><p><span lang="en">A keyframe per shot, a timeline for the cut. Select a shot, a second or a span and write a line: it becomes a note on that very place.</span><span lang="zh">分镜每一镜一张关键帧，成片是一条时间线。选中一个镜头、一秒或一段，写一句，就是对着那一处的点评。</span></p></li>
+      <li data-r><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/note.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="The cut stop: a few seconds selected on the timeline and a note written about them"><img lang="zh" src="../assets/studio/note.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="成片这一站：时间线上选中几秒，写了一条对着这几秒的点评"></button><h3><span lang="en">Hand them over together</span><span lang="zh">攒几条一起交</span></h3><p><span lang="en">Notes gather in the right-hand column. A summary shows them before anything goes; your words land in the project's REVIEW.md, and the agent carries on from them.</span><span lang="zh">点评攒在右边一列，交之前先列一遍；你的原话记进项目的 REVIEW.md，agent 照着往下做。</span></p></li>
+      <li data-r><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/decide.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="The concept stop: three concept cards with a frame each, the recommended one already chosen"><img lang="zh" src="../assets/studio/decide.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="立意这一站：三张立意卡各配一帧，推荐的那张已经选好"></button><h3><span lang="en">Decide on cards</span><span lang="zh">在卡片上定</span></h3><p><span lang="en">At the concept, the storyboard and the draft, what you decide is a few cards with the recommended one chosen. Change it with a click, or leave it, and submit once.</span><span lang="zh">到了立意、分镜、初版，要你定的是几张卡，推荐的已经选好。点一下就换，不动就照推荐，最后提交一次。</span></p></li>
+    </ol>
+    <div class="studio-foot" data-r>
+      <div class="themes">
+        <figure><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/theme-darkfield.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Studio in the Darkfield theme"><img lang="zh" src="../assets/studio/theme-darkfield.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="暗场主题的 Studio"></button><figcaption><b lang="en">Darkfield</b><b lang="zh">暗场</b><span lang="en">default</span><span lang="zh">默认</span></figcaption></figure>
+        <figure><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/theme-prism.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Studio in the Prism theme"><img lang="zh" src="../assets/studio/theme-prism.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="棱镜主题的 Studio"></button><figcaption><b lang="en">Prism</b><b lang="zh">棱镜</b></figcaption></figure>
+        <figure><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/theme-bridge.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Studio in the Bridge theme"><img lang="zh" src="../assets/studio/theme-bridge.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="舰桥主题的 Studio"></button><figcaption><b lang="en">Bridge</b><b lang="zh">舰桥</b></figcaption></figure>
+      </div>
+      <p class="studio-open"><span lang="en">Click the <strong>OVH Studio</strong> icon (the installer puts it in your applications), tell your agent “open Studio”, or run <code>bin/vh studio</code>: the same window each time. In English or Chinese, in three dark themes.<span class="fine">It reads and writes the project's own files. A new film still starts from a sentence to the agent, and shows up here as soon as it exists.</span></span><span lang="zh">点 <strong>OVH Studio</strong> 图标（安装脚本会把它放进你的应用程序），对 agent 说“打开 Studio”，或者运行 <code>bin/vh studio</code>：每次都是这一个窗口。中文或英文，三套深色主题。<span class="fine">它读写的就是项目里的文件。新片子仍从对 agent 说的一句话开始，一建好就出现在这里。</span></span></p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 · get started -->
 <section class="slide" id="start" data-en="Get started" data-zh="快速开始">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>01</b><span lang="en">Get started</span><span lang="zh">快速开始</span></p><h2 class="split"><span lang="en">One line to install. <em>One sentence to ask.</em></span><span lang="zh">一行命令安装，<em>一句话提需求。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>02</b><span lang="en">Get started</span><span lang="zh">快速开始</span></p><h2 class="split"><span lang="en">One line to install. <em>One sentence to ask.</em></span><span lang="zh">一行命令安装，<em>一句话提需求。</em></span></h2></div>
     </div>
     <div class="start-grid">
       <div>
         <ol class="steps">
           <li data-r><div><h3><span lang="en">Install (macOS or Linux)</span><span lang="zh">安装（macOS 或 Linux）</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</span><button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">Copy</button></div></div></li>
-          <li data-r><div><h3><span lang="en">Open Claude Code in it</span><span lang="zh">进入目录，打开 Claude Code</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="cd ~/OpenVideoHarness && claude">cd ~/OpenVideoHarness &amp;&amp; claude</span><button class="copy" data-copy="cd ~/OpenVideoHarness && claude">Copy</button></div></div></li>
+          <li data-r><div><h3><span lang="en">Click OVH Studio, or open Claude Code in the folder</span><span lang="zh">点开 OVH Studio，或在目录里打开 Claude Code</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="cd ~/OpenVideoHarness && claude">cd ~/OpenVideoHarness &amp;&amp; claude</span><button class="copy" data-copy="cd ~/OpenVideoHarness && claude">Copy</button></div></div></li>
           <li data-r><div><h3><span lang="en">Ask for a film</span><span lang="zh">一句话提需求</span></h3>
             <div class="cmd say" lang="en"><span class="type" data-text="“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”">“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”</span></div>
             <div class="cmd say" lang="zh"><span class="type" data-text="“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”">“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”</span></div>
@@ -788,11 +862,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 02 · why -->
+<!-- 03 · why -->
 <section class="slide" id="why" data-en="Why" data-zh="为什么">
   <div class="wrap why-grid">
     <div class="why-copy">
-      <p class="eyebrow" data-r><b>02</b><span lang="en">Why it exists</span><span lang="zh">为什么做它</span></p>
+      <p class="eyebrow" data-r><b>03</b><span lang="en">Why it exists</span><span lang="zh">为什么做它</span></p>
       <h2 class="split"><span lang="en">One great film is easy. <em>Every time is hard.</em></span><span lang="zh">做出一支好片不难，<em>每次都好才难。</em></span></h2>
       <p data-r><span lang="en">Claude Opus 5.5 writes video as code, and it has <strong>taste</strong>: in motion, in type, in pacing. The community has shared hundreds of these films; one collection alone holds 389, with their prompts.</span><span lang="zh">Claude Opus 5.5 能用代码写视频，而且有<strong>审美</strong>：运动、字体、节奏都在线。社区里已经有几百支这样的片子，光一个合集就收了 389 支，连同提示词。</span></p>
       <p data-r><span lang="en">But the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong>, <strong>Manim</strong> and <strong>Blender</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">可同一个模型，这次惊艳，下次就节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Manim</strong>、<strong>Blender</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
@@ -814,11 +888,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 03 · features -->
+<!-- 04 · features -->
 <section class="slide" id="features" data-en="Features" data-zh="特性">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>03</b><span lang="en">What it adds</span><span lang="zh">它补上了什么</span></p><h2 class="split"><span lang="en">An engine renders. <em>This decides.</em></span><span lang="zh">引擎只管渲染，<em>这里拿主意。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>04</b><span lang="en">What it adds</span><span lang="zh">它补上了什么</span></p><h2 class="split"><span lang="en">An engine renders. <em>This decides.</em></span><span lang="zh">引擎只管渲染，<em>这里拿主意。</em></span></h2></div>
     </div>
     <div class="features" id="cards">
       <article class="card" data-r><div class="ill ill-idea" aria-hidden="true"><i></i><i></i><i></i></div><span class="n">01</span><h3><span lang="en">Idea first</span><span lang="zh">先想立意</span></h3><p><span lang="en">Two or three concept cards, each with one frame and a hook, before a line of code. It names what every other video on the topic looks like, and steers away.</span><span lang="zh">写代码之前，先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</span></p><span class="where">playbook/12-ideation.md</span></article>
@@ -850,11 +924,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 04 · how it works -->
+<!-- 05 · how it works -->
 <section class="slide" id="how" data-en="How it works" data-zh="工作原理">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>04</b><span lang="en">How it works</span><span lang="zh">工作原理</span></p><h2 class="split"><span lang="en">A router, a library of know-how, <em>one CLI.</em></span><span lang="zh">一个路由，一套门道，<em>一个命令行。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>05</b><span lang="en">How it works</span><span lang="zh">工作原理</span></p><h2 class="split"><span lang="en">A router, a library of know-how, <em>one CLI.</em></span><span lang="zh">一个路由，一套门道，<em>一个命令行。</em></span></h2></div>
     </div>
     <div class="arch">
       <div class="arch-top">
@@ -878,13 +952,13 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </div>
         <div class="panel" data-r data-step>
           <h4><span lang="en">Runs</span><span lang="zh">跑</span> <span class="sub"><span lang="en">one CLI, <span data-n="commands">73</span> commands, <span data-n="engines">5</span> engines</span><span lang="zh">一个命令行，<span data-n="commands">73</span> 条命令，<span data-n="engines">5</span> 个引擎</span></span></h4>
-          <div class="cli"><code>bin/vh</code><span>new · edit · render · check · gate · desk · footage · image · tts · music</span></div>
+          <div class="cli"><code>bin/vh</code><span>new · edit · render · check · gate · studio · footage · image · tts · music</span></div>
           <div class="down" aria-hidden="true">↓</div>
           <div class="engines-row"><span>HyperFrames</span><span>canvas + Three.js</span><span>p5.brush</span><span>Manim</span><span>Blender</span></div>
         </div>
       </div>
       <div class="arch-flow" data-r>
-        <div class="flow-label"><span><span lang="en">Each film is a project folder:</span><span lang="zh">每支片子是一个项目目录：</span> <code>projects/&lt;date&gt;-&lt;slug&gt;/</code></span><span class="legend"><span><i class="c"></i><span lang="en">you decide</span><span lang="zh">你拍板</span></span><span><i></i><span lang="en">Claude checks itself</span><span lang="zh">Claude 自查</span></span><span><i class="a"></i><span lang="en">a request, moving through</span><span lang="zh">一条需求走过的路</span></span></span></div>
+        <div class="flow-label"><span><span lang="en">Each film is a project folder:</span><span lang="zh">每支片子是一个项目目录：</span> <code>projects/&lt;date&gt;-&lt;slug&gt;/</code></span><span class="legend"><span><i class="c"></i><span lang="en">you decide, in Studio or on a review page</span><span lang="zh">你拍板，在 Studio 里或一页审阅页上</span></span><span><i></i><span lang="en">Claude checks itself</span><span lang="zh">Claude 自查</span></span><span><i class="a"></i><span lang="en">a request, moving through</span><span lang="zh">一条需求走过的路</span></span></span></div>
         <ol class="track">
           <li data-step><span lang="en">Idea</span><span lang="zh">立意</span><small><span lang="en">2–3 concept cards</span><span lang="zh">2–3 张立意卡</span></small></li>
           <li class="gate" data-step><span lang="en">① You</span><span lang="zh">① 你</span><small><span lang="en">pick one</span><span lang="zh">选一张</span></small></li>
@@ -902,11 +976,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 05 · the capability map: think, gather, make, check and deliver -->
+<!-- 06 · the capability map: think, gather, make, check and deliver -->
 <section class="slide" id="map" data-en="Tools" data-zh="能力地图">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>05</b><span lang="en">Capability map</span><span lang="zh">能力地图</span></p><h2 class="split"><span lang="en">From idea to delivery, <em>a tool at every step.</em></span><span lang="zh">从立意到交付，<em>每一步都有工具。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>06</b><span lang="en">Capability map</span><span lang="zh">能力地图</span></p><h2 class="split"><span lang="en">From idea to delivery, <em>a tool at every step.</em></span><span lang="zh">从立意到交付，<em>每一步都有工具。</em></span></h2></div>
       <p class="lede map-lede" data-r><span lang="en">One CLI, <code>bin/vh</code>, with <span data-n="commands">73</span> commands. Each name below is one; any command takes <code>-h</code>, and <code>bin/vh commands</code> lists them by stage.</span><span lang="zh">一个命令行 <code>bin/vh</code>，<span data-n="commands">73</span> 条命令。下面每个名字都是其中一条；每条加 <code>-h</code> 看用法，<code>bin/vh commands</code> 按阶段列出全部。</span></p>
     </div>
     <div class="map">
@@ -945,7 +1019,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <div class="station" data-r>
         <h3><b>04</b><span lang="en">Check &amp; deliver</span><span lang="zh">查与交</span></h3>
         <ul>
-          <li><span class="k"><code>gate</code> · <code>desk</code></span><span><span lang="en">a stop for your sign-off in one command; the review desk</span><span lang="zh">一条命令停下来等你拍板；审阅台</span></span></li>
+          <li><span class="k"><code>studio</code> · <code>gate</code></span><span><span lang="en">Studio's window: every film, its stops, your notes and the agent; a stop for your sign-off in one command</span><span lang="zh">Studio 的窗口：所有片子、每一站、你的点评和 agent；一条命令停下来等你拍板</span></span></li>
           <li><span class="k"><code>check</code> · <code>determinism</code></span><span><span lang="en">the film against its brief; each frame really a function of t</span><span lang="zh">对着 Brief 查成片；查每一帧是不是只由 t 决定</span></span></li>
           <li><span class="k"><code>render</code></span><span><span lang="en">parallel, resumable chunks; <code>--motion-blur N</code> for sub-frame blur, <code>--alpha</code> for a transparent film; an edit list redraws only what changed</span><span lang="zh">分块并行、能续渲；<code>--motion-blur N</code> 加子帧运动模糊，<code>--alpha</code> 出透明底；剪辑表只重画改过的部分</span></span></li>
           <li><span class="k"><code>patch</code> · <code>versions</code></span><span><span lang="en">a few seconds redrawn in a finished film; compare renders, or go back</span><span lang="zh">只重画成片里的几秒；对比各版，或者退回</span></span></li>
@@ -957,11 +1031,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 06 · the intro film -->
+<!-- 07 · the intro film -->
 <section class="slide" id="film" data-en="Intro film" data-zh="介绍片">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>06</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Its own intro film, <em>made with the harness.</em></span><span lang="zh">这支介绍片，<em>也是用它做的。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>07</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Its own intro film, <em>made with the harness.</em></span><span lang="zh">这支介绍片，<em>也是用它做的。</em></span></h2></div>
     </div>
     <div class="screen-wrap" data-r>
       <canvas class="ambient" id="ambient" width="64" height="36" aria-hidden="true"></canvas>
@@ -987,11 +1061,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 07 · showcase -->
+<!-- 08 · showcase -->
 <section class="slide" id="showcase" data-en="Showcase" data-zh="作品">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>07</b><span lang="en">Showcase · hover to preview, click for sound</span><span lang="zh">作品 · 悬停预览，点击带声音播放</span></p><h2 class="split"><span lang="en">Each from <em>one sentence.</em></span><span lang="zh">每一支，<em>都从一句话开始。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>08</b><span lang="en">Showcase · hover to preview, click for sound</span><span lang="zh">作品 · 悬停预览，点击带声音播放</span></p><h2 class="split"><span lang="en">Each from <em>one sentence.</em></span><span lang="zh">每一支，<em>都从一句话开始。</em></span></h2></div>
       <div class="sees-box" data-r>
         <button class="toggle" id="sees" aria-pressed="false"><i></i><span lang="en">What Claude sees</span><span lang="zh">Claude 看到的</span></button>
         <p class="sees-note" id="seesNote" hidden><span lang="en">Claude can't watch video. It reviews contact sheets: frames tiled with their timecodes.</span><span lang="zh">Claude 看不了视频，它审的是联系表：按时间码平铺的一帧帧画面。</span></p>
@@ -1048,12 +1122,12 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 08 · styles -->
+<!-- 09 · styles -->
 <section class="slide" id="styles" data-en="Styles" data-zh="风格">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>08</b><span lang="en">Style library · click one to hear it</span><span lang="zh">风格库 · 点开能听声音</span></p><h2 class="split"><span lang="en">43 styles. <em>Not one default look.</em></span><span lang="zh">43 种风格，<em>不再千篇一律。</em></span></h2></div>
-      <p class="lede styles-lede" data-r><span lang="en">Left alone, AI video drifts to one look: dark background, glow, glass cards. Each style here is a real 5-second render of the same content.</span><span lang="zh">放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里每种风格都是同一段内容的 5 秒实渲样片。</span></p>
+      <div><p class="eyebrow" data-r><b>09</b><span lang="en">Style library · click one to hear it</span><span lang="zh">风格库 · 点开能听声音</span></p><h2 class="split"><span lang="en">43 styles. <em>Not one default look.</em></span><span lang="zh">43 种风格，<em>不再千篇一律。</em></span></h2></div>
+      <p class="lede styles-lede" data-r><span lang="en">Left alone, AI video drifts to one look: dark background, glow, glass cards. Each style here comes with a sample that was really rendered.</span><span lang="zh">放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里每种风格都带一段实际渲染的样片。</span></p>
     </div>
     <div class="wall-stage"><div class="wall" id="wall"></div></div>
     <div class="lib-head" data-r><h3><span lang="en">Recipes and components, as the agent sees them</span><span lang="zh">配方和组件，agent 看到的样子</span></h3><p class="fine"><span lang="en"><span data-n="recipes">75</span> shot recipes, <span data-n="sequences">11</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards and <span data-n="components">6</span> motion components, each move with a contact sheet like these. Click one to enlarge it.</span><span lang="zh"><span data-n="recipes">75</span> 张镜头配方、<span data-n="sequences">11</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡、<span data-n="components">6</span> 个动效组件，每个动作都配这样一张联系表。点开放大。</span></p></div>
@@ -1066,11 +1140,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 09 · in practice -->
+<!-- 10 · in practice -->
 <section class="slide" id="practice" data-en="In practice" data-zh="真实使用">
   <div class="wrap wild">
     <div>
-      <p class="eyebrow" data-r><b>09</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
+      <p class="eyebrow" data-r><b>10</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
       <h2 class="split"><span lang="en">Used for real, <em>on the news cycle.</em></span><span lang="zh">真的在用，<em>还赶得上热点。</em></span></h2>
       <p class="lede" data-r><span lang="en">The author publishes films made with OpenVideoHarness on Douyin (TikTok in China) and Bilibili.</span><span lang="zh">作者把用 OpenVideoHarness 做的片子发在抖音和 B 站。</span></p>
       <div class="plats" data-r>
@@ -1099,11 +1173,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 10 · faq -->
+<!-- 11 · faq -->
 <section class="slide faq-slide" id="faq" data-en="FAQ" data-zh="常见问题">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>10</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>11</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
       <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness/wiki" target="_blank" rel="noopener" data-r><span lang="en">More in the wiki</span><span lang="zh">更多见 Wiki</span> <span class="arrow">↗</span></a>
     </div>
     <div class="faq">
@@ -1159,11 +1233,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 11 · contact -->
+<!-- 12 · contact -->
 <section class="slide" id="contact" data-en="Contact" data-zh="联系">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>11</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>12</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
       <p class="lede contact-lede" data-r><span lang="en">Star the repo, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，或者把你用它做的片子发过来。</span></p>
     </div>
     <div class="contact contact-wide">
@@ -1724,6 +1798,26 @@ onEnter.start = () => {
   };
   setTimeout(next, 700);
 };
+
+/* ---------- Studio's film: muted on a loop where there is a mouse, from the start with sound on a click ---------- */
+const sfilm = $('#sfilm'), sv = $('video', sfilm);
+const sfilmHere = () => current >= 0 && sections[current].id === 'studio';
+function sfilmLoop() {   // muted, looping, no controls: the overlay offers sound
+  sfilm.classList.remove('sound'); sv.controls = false; sv.muted = true; sv.loop = true;
+  if (sfilmHere() && fine && !reduced) { const p = sv.play(); if (p) p.catch(() => {}); }
+}
+$('.bigplay', sfilm).addEventListener('click', () => {
+  pauseAll(sv); sfilm.classList.add('sound');
+  sv.loop = false; sv.muted = false; sv.currentTime = 0; sv.controls = true; const p = sv.play(); if (p) p.catch(() => {});
+});
+sv.addEventListener('ended', () => { sv.blur(); sfilmLoop(); });
+onEnter.studio = () => { if (!sfilm.classList.contains('sound')) sfilmLoop(); };
+onLeave.studio = () => { sv.pause(); sfilm.classList.remove('sound'); sv.controls = false; sv.muted = true; sv.loop = true; };
+
+$$('[data-szoom]').forEach(b => b.addEventListener('click', () => {   // the Studio pictures: the one in the page's language, its alt as the caption
+  const i = [...b.querySelectorAll('img')].find(x => x.offsetParent !== null) || $('img', b);
+  openLightbox({ img: i.currentSrc || i.src, cap: i.alt });
+}));
 
 /* ---------- lightbox ---------- */
 const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');

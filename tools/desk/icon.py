@@ -7,20 +7,28 @@ never committed: this file is the icon's source.
   python3 tools/desk/icon.py sheet <out.png>                       the designs side by side at 16, 32, 128 and 512 px, on a
                                                                    light and a dark ground, 16 and 32 also enlarged ×4
 
-The designs are the console's mark: the dark ground (ui.css --bg #111) and the cyan square of its favicon
-(tools/desk/static/index.html), the one thing that reads at 16 px. "viewfinder" (the one installed) frames the square
-with a camera's four corners; "frame" is the favicon alone; "timeline" sets the square on a ruler with a playhead. Under
-32 px the corners and the ruler go: what is left is the favicon. Each pixel's colour comes from signed distances (exact
-coverage at the edges, no supersampling), on Apple's icon grid: an 824 px tile in 1024, its corner 185, a soft shadow.
+The mark is the project's own: the homepage's diamond (docs/site/index.html, .brand and its favicon), a rounded square
+turned 45° in the cyan-violet-pink gradient, lit from inside on a dark tile. "viewfinder" (the one installed) frames it
+with a camera's four corners; "diamond" is the diamond alone, which is also what every design keeps under 48 px, where
+the corners would blur. Each pixel's colour comes from signed distances (exact coverage at the edges, no supersampling),
+on Apple's icon grid: an 824 px tile in 1024, its corner 185, a soft shadow.
 """
 import math, struct, sys, zlib
 from pathlib import Path
 
-DESIGNS = ("viewfinder", "frame", "timeline")
+DESIGNS = ("viewfinder", "diamond")
 DEFAULT = "viewfinder"
-CYAN = (0x5E, 0xC9, 0xDC)
-INK = (0xEB, 0xE8, 0xE2)
-TOP, BOTTOM = (0x22, 0x22, 0x22), (0x0E, 0x0E, 0x0E)   # the tile's light falls from above, as on every Dock icon
+IRI = ((0x7C, 0xF7, 0xFF), (0x9D, 0x8C, 0xFF), (0xF0, 0x7C, 0xFF))   # the homepage's gradient, top to bottom of the diamond
+INK = (0xEC, 0xE9, 0xE3)
+TOP, BOTTOM = (0x26, 0x26, 0x2C), (0x0B, 0x0B, 0x0E)   # the tile's light falls from above, as on every Dock icon
+R2 = math.sqrt(2)
+
+
+def iri(t):
+    """The gradient at t (0 top, 1 bottom)."""
+    t = min(1.0, max(0.0, t))
+    a, b, u = (IRI[0], IRI[1], t * 2) if t < 0.5 else (IRI[1], IRI[2], t * 2 - 1)
+    return tuple(a[i] + (b[i] - a[i]) * u for i in range(3))
 
 
 def _box(px, py, cx, cy, hw, hh, r):
@@ -31,66 +39,103 @@ def _box(px, py, cx, cy, hw, hh, r):
     return math.hypot(ox, oy) + min(max(qx, qy), 0.0) - r
 
 
+def _diamond(px, py, cx, cy, h, r):
+    """Signed distance to a rounded square of half side h turned 45° about its centre."""
+    dx, dy = px - cx, py - cy
+    return _box((dx + dy) / R2, (dy - dx) / R2, 0.0, 0.0, h, h, r)
+
+
+def _corner(px, py, x, y, sx, sy, arm, w):
+    """Signed distance to a viewfinder corner at (x, y): two strokes of width w with round ends, arm long, meeting there."""
+    def seg(ax, ay, bx, by):
+        vx, vy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy)))
+        return math.hypot(px - ax - vx * t, py - ay - vy * t)
+    return min(seg(x - sx * arm, y, x, y), seg(x, y, x, y - sy * arm)) - w / 2
+
+
 def layers(design, size):
-    """What to draw, back to front, in 1024 units: (kind, params, rgb, alpha). Small sizes drop what would blur."""
+    """What to draw, back to front, in 1024 units: (kind, params, alpha). Small sizes drop what would blur."""
     small = size < 48
-    out = [("shadow", (512, 524, 412, 412, 185), (0, 0, 0), 0.45),
-           ("tile", (512, 512, 412, 412, 185), None, 1.0),
-           ("rim", (512, 512, 412, 412, 185), (255, 255, 255), 0.10)]
-    if design == "frame" or small:
-        h = 168 if small else 150
-        out.append(("box", (512, 512, h, h, 26), CYAN, 1.0))
-        return out
-    if design == "viewfinder":
-        out.append(("box", (512, 512, 104, 104, 18), CYAN, 1.0))
-        inset, arm, w = 236, 104, 26   # the corners: where they start from the tile's centre, how long, how thick
-        for sx in (-1, 1):
-            for sy in (-1, 1):
-                x, y = 512 + sx * inset, 512 + sy * inset
-                out.append(("box", (x - sx * (arm / 2 - w / 2), y, arm / 2, w / 2, w / 2), INK, 0.86))
-                out.append(("box", (x, y - sy * (arm / 2 - w / 2), w / 2, arm / 2, w / 2), INK, 0.86))
-        return out
-    # timeline: the square above a ruler, a playhead through both
-    out.append(("box", (512, 440, 128, 128, 22), CYAN, 1.0))
-    out.append(("box", (512, 690, 270, 9, 9), INK, 0.55))
-    for i in range(7):
-        out.append(("box", (242 + i * 90, 690, 6, 26 if i % 3 == 0 else 16, 6), INK, 0.55))
-    out.append(("box", (602, 640, 9, 120, 9), CYAN, 1.0))
-    return out
+    out = [("shadow", (512, 524, 412, 412, 185), 0.45),
+           ("tile", (512, 512, 412, 412, 185), 1.0)]
+    if design == "diamond" or small:
+        out += [("diamond", (512, 512, 196, 44), 1.0)]
+    else:
+        out += [("bloom", (512, 512, 330), 1.0),
+                ("glow", (512, 512, 120, 30), 0.6),
+                ("diamond", (512, 512, 120, 30), 1.0)]
+        inset, arm, w = 248, 112, 22   # the corners: where they sit from the tile's centre, how long, how thick
+        out += [("corner", (512 + sx * inset, 512 + sy * inset, sx, sy, arm, w), 0.88) for sx in (-1, 1) for sy in (-1, 1)]
+    return out + [("rim", (512, 512, 412, 412, 185), 1.0)]
 
 
 def render(size, design=DEFAULT):
     """The icon at size × size px → bytes, RGBA rows."""
     k = size / 1024.0
     buf = [0.0] * (size * size * 4)   # premultiplied RGBA
-    for kind, (cx, cy, hw, hh, r), rgb, alpha in layers(design, size):
-        cx, cy, hw, hh, r = cx * k, cy * k, hw * k, hh * k, r * k
-        if size < 48 and kind != "shadow":   # small sizes: edges on whole pixels, or a 16 px square is a blur
-            hw, hh = max(1, round(hw)), max(1, round(hh))
-        blur = 34 * k if kind == "shadow" else 0
-        pad = blur + 2
-        x0, x1 = max(0, int(cx - hw - pad)), min(size, int(math.ceil(cx + hw + pad)))
-        y0, y1 = max(0, int(cy - hh - pad)), min(size, int(math.ceil(cy + hh + pad)))
-        rim_w = max(1.0, 6 * k)
-        for y in range(y0, y1):
-            py = y + 0.5
+    rim_w = max(1.0, 6 * k)
+    for kind, p, alpha in layers(design, size):
+        if kind in ("shadow", "tile", "rim"):
+            cx, cy, hw, hh, r = (v * k for v in p)
+            reach = hw + 34 * k + 2
+            box = (cx - reach, cy - reach, cx + reach, cy + reach)
+        elif kind == "bloom":
+            cx, cy, rad = (v * k for v in p)
+            box = (cx - rad, cy - rad, cx + rad, cy + rad)
+        elif kind in ("diamond", "glow"):
+            cx, cy, h, r = (v * k for v in p)
+            sigma = 28 * k
+            reach = h * R2 + (4 * sigma if kind == "glow" else 2)
+            box = (cx - reach, cy - reach, cx + reach, cy + reach)
+            top, span = cy - h * R2, 2 * h * R2   # the gradient runs from the square's top corner to its bottom one
+        else:   # corner
+            x, y, sx, sy, arm, w = p
+            x, y, arm, w = x * k, y * k, arm * k, w * k
+            box = (min(x, x - sx * arm) - w, min(y, y - sy * arm) - w, max(x, x - sx * arm) + w, max(y, y - sy * arm) + w)
+        x0, y0 = max(0, int(box[0])), max(0, int(box[1]))
+        x1, y1 = min(size, int(math.ceil(box[2]))), min(size, int(math.ceil(box[3])))
+        for yy in range(y0, y1):
+            py = yy + 0.5
             if kind == "tile":
                 t = min(1.0, max(0.0, (py / size - 0.06) / 0.88))
-                col = [TOP[i] + (BOTTOM[i] - TOP[i]) * t for i in range(3)]
-            for x in range(x0, x1):
-                d = _box(x + 0.5, py, cx, cy, hw, hh, r)
+                row = [TOP[i] + (BOTTOM[i] - TOP[i]) * t for i in range(3)]
+            elif kind == "rim":   # brighter where the light falls, as an edge catches it
+                t = min(1.0, max(0.0, (py / size - 0.06) / 0.88))
+                ra = 0.22 + (0.04 - 0.22) * (t * 2) if t < 0.5 else 0.04 + (0.08 - 0.04) * (t * 2 - 1)
+            elif kind in ("diamond", "glow"):
+                row = iri((py - top) / span)
+            for xx in range(x0, x1):
+                px = xx + 0.5
                 if kind == "shadow":
-                    a = alpha * max(0.0, min(1.0, 0.5 - d / (blur or 1))) ** 2
+                    d = _box(px, py, cx, cy, hw, hh, r)
+                    a = alpha * max(0.0, min(1.0, 0.5 - d / (34 * k or 1))) ** 2
                     c = (0, 0, 0)
+                elif kind == "tile":
+                    a, c = alpha * max(0.0, min(1.0, 0.5 - _box(px, py, cx, cy, hw, hh, r))), row
                 elif kind == "rim":   # a hairline just inside the tile's edge: the edge reads on a dark Dock too
-                    a = alpha * max(0.0, min(1.0, 0.5 - d)) * max(0.0, min(1.0, 0.5 + d + rim_w))
-                    c = rgb
+                    d = _box(px, py, cx, cy, hw, hh, r)
+                    a, c = ra * max(0.0, min(1.0, 0.5 - d)) * max(0.0, min(1.0, 0.5 + d + rim_w)), (255, 255, 255)
+                elif kind == "bloom":   # violet in the middle, a trace of cyan, nothing at the edge
+                    u = math.hypot(px - cx, py - cy) / rad
+                    if u >= 1.0:
+                        continue
+                    if u < 0.55:
+                        f = u / 0.55
+                        a = 0.34 + (0.08 - 0.34) * f
+                        c = tuple(IRI[1][i] + (IRI[0][i] - IRI[1][i]) * f for i in range(3))
+                    else:
+                        a, c = 0.08 * (1.0 - (u - 0.55) / 0.45), IRI[0]
+                elif kind == "glow":   # the diamond blurred (a Gaussian's edge, erfc), in its own colours
+                    d = _diamond(px, py, cx, cy, h, r)
+                    a, c = alpha * 0.5 * math.erfc(d / (sigma * R2)), row
+                elif kind == "diamond":
+                    a, c = alpha * max(0.0, min(1.0, 0.5 - _diamond(px, py, cx, cy, h, r))), row
                 else:
-                    a = alpha * max(0.0, min(1.0, 0.5 - d))
-                    c = col if kind == "tile" else rgb
+                    a, c = alpha * max(0.0, min(1.0, 0.5 - _corner(px, py, x, y, sx, sy, arm, w))), INK
                 if a <= 0.0:
                     continue
-                i = (y * size + x) * 4
+                i = (yy * size + xx) * 4
                 inv = 1.0 - a
                 buf[i] = c[0] / 255 * a + buf[i] * inv
                 buf[i + 1] = c[1] / 255 * a + buf[i + 1] * inv

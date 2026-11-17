@@ -1,9 +1,0 @@
-**A change is noted in its own file under `changes/`, so two PRs no longer collide on CHANGELOG.md**
-- Why: in two days eight PRs from parallel sessions landed, and nearly every one conflicted at the top of `CHANGELOG.md`, because each added its entry on the first line under `## Unreleased`. Each conflict meant merging main again and running CI again.
-- A PR adds `changes/<name>.md`: one entry written as before, its bold title on the first line and its lines below. `changes/README.md` shows one.
-- `python3 tools/changes.py show` prints what changed since the last release (`--titles` for a list); `show vX.Y.Z` prints one release's section; `check` holds each note to one entry with a title and lines (`tools/ci.sh` runs it). The notes are the files git tracks or would track: one it ignores, such as `.DS_Store`, is none.
-- `python3 tools/changes.py release vX.Y.Z [--date …] [--dry-run]` gathers the notes into `## vX.Y.Z — <date>` at the top of `CHANGELOG.md`, deletes them, and writes the version and the date into `CITATION.cff`. It takes only notes as a commit holds them, since it deletes what it takes, and refuses a `CITATION.cff` without the lines it sets.
-- Newest first, by the commit that added each note, or that wrote each old entry's title line (`git blame`), in the order of `git log`.
-- `tools/land.py ready` takes the squash message from the note the PR adds. A note it only edits or moves from another name (`git mv`) is not its own; names are read as they are, Chinese included.
-- Both ways count until the first release made this way: an entry added under `## Unreleased` still gives the squash message and is released with the notes. The release takes that heading away, so a PR that still adds an entry there then conflicts; it moves the entry into a note. `CHANGELOG.md` itself is not touched in this change, so open PRs do not conflict with it.
-- `CONTRIBUTING.md` (rule 5, landing, the release steps) and the PR template say so.
