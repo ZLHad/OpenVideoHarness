@@ -3947,6 +3947,17 @@ used = {c for v in re.findall(r'class="([^"]*)"', mjs) for c in re.sub(r"\$\{[^}
 blocked = {m.group(1) for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css + ui, flags=re.S)) if "pointer-events:none" in rule.replace(" ", "")
            for part in sel.split(",") for m in [re.fullmatch(r"\s*\.([\w-]+)\s*", part)] if m}
 want(not (used & blocked), f"a class the modules use is a shell rule that takes the pointer away: {sorted(used & blocked)}")
+# the column's styles reach nothing outside it: every rule of agent.css starts at something of the column's own (a bare
+# .agent{display:none} once hid every station, lamp and chip the agent was working on); and no stylesheet hides a bare
+# state word the shell marks things with
+acss = re.sub(r"/\*.*?\*/", "", open("tools/desk/static/agent.css", encoding="utf-8").read(), flags=re.S)
+loose = [s.strip() for sel, _r in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "", acss)) for s in sel.split(",")
+         if not re.match(r"\s*(:root(\[[^\]]*\])?\s+)?(\.ag-|#ag|\.col(\b|-)|#col|\.nokey|@)", s)]
+states = {"agent", "wait", "live", "done", "ok", "you", "mine"}
+hidden = [f"{f}: {s.strip()}" for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss), ("agent.css", acss))
+          for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)) if "display:none" in rule.replace(" ", "")
+          for s in sel.split(",") if re.fullmatch(r"\s*\.([\w-]+)\s*", s) and re.fullmatch(r"\s*\.([\w-]+)\s*", s).group(1) in states]
+want(not loose and not hidden and '<section class="ag-pane" id="agentPane"' in html, f"the column's styles reach outside it: {loose}; a state word hidden: {hidden}")
 h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
 want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
 want(".cut.layout-sound{grid-template-rows:auto minmax(0,1fr)}" in css and re.search(r"\.cut\.layout-sound \.screen\{flex:none;height:clamp\(", css) and ".cut.layout-sound .timeline{max-height:none}" in css
@@ -3965,7 +3976,7 @@ want([r["file"] for r in rows] == ["assets/harbor.jpg", "https://example.org/t.p
 want(server.project_data(p)["mods"].get("assets_notes") is None, "the NOTES.md table read beside a ledger")
 print("; ".join(bad))
 PY
-  if a=$(python3 "$t/trial.py" "$t" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the console's code: a reload reads before it changes the screen, a submission and a new page keep the page on screen and never resend; Esc leaves a text box and ⌘↩ hands the keys back; ← → selects the shot; no id twice; capitals only on short labels, never on code; one-line timeline bar; a tall waveform drawn to its loudest peak in the listen layout; the cut on a phone puts the picture, the decisions, then the lists; the asset table of NOTES.md when there is no ledger"
+  if a=$(python3 "$t/trial.py" "$t" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the console's code: a reload reads before it changes the screen, a submission and a new page keep the page on screen and never resend; Esc leaves a text box and ⌘↩ hands the keys back; ← → selects the shot; no id twice; capitals only on short labels, never on code; one-line timeline bar; a tall waveform drawn to its loudest peak in the listen layout; the cut on a phone puts the picture, the decisions, then the lists; the asset table of NOTES.md when there is no ledger; the agent column's styles reach nothing outside it (no bare state word hidden)"
   else bad "after a trial run, in the console's code: $a"; fi
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
   # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is

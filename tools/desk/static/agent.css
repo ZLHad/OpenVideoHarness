@@ -14,8 +14,9 @@
 .col-tabs .n{font-size:11px;color:var(--ink-3)}
 .col-tabs .badge{padding:0 6px;border-radius:var(--r-pill);font-size:11px;line-height:17px;white-space:nowrap}
 .col-tabs .badge.wait{background:var(--wait);color:var(--on-wait)}
-.agent{display:none;flex:1;min-height:0;flex-direction:column}
-.col.chat .agent{display:flex}
+/* the column's own pane: ag-pane, not agent, which elsewhere means "the agent is working here" (a station, a card's lamp, a chip) */
+.ag-pane{display:none;flex:1;min-height:0;flex-direction:column}
+.col.chat .ag-pane{display:flex}
 .col.chat>.col-head,.col.chat>.col-body,.col.chat>.col-round,.col.chat>.composer,.col.chat>.confirm{display:none!important}
 
 /* the agent's line: which agent, what it is doing, its settings, what it uses */
