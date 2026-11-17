@@ -35,7 +35,7 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
                                   picture, a player, a page in a frame, else a sentence; Studio's app opens new-page links here
   GET  /api/p/<key>/agents        the column's agents (installed or how to install), the project's conversations, its lock
   GET  /api/p/<key>/agent/<id>/events?token=   one conversation's events, as Server-Sent Events (agents.py)
-  POST /api/p/<key>/agent/new · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
+  POST /api/p/<key>/agent/new · install · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
                                   the typed text, an answer among the agent's own options, stop (waiting requests cancelled
                                   first), a setting among those the agent offered
   The desk's first addresses stay, for the project it was started for: /api/data (reader.read_project alone, as bin/vh desk
@@ -283,6 +283,35 @@ def _load(p):
         return None
 
 
+_SOUND, _SOUND_LOCK = {}, threading.Lock()   # (real path, size, mtime) → whether that film has a sound track
+
+
+def film_sound(project, rel):
+    """Whether a film of the project has a sound track: True, False, or None when it cannot be told (no ffprobe, a file it
+    cannot read). ffprobe looks once a file, as long as its size and time stay the same (a page's every refresh asks)."""
+    try:
+        p = Path(os.path.realpath(os.path.join(str(project), rel)))
+        s = p.stat()
+    except (OSError, TypeError, ValueError):
+        return None
+    key = (str(p), s.st_size, s.st_mtime_ns)
+    with _SOUND_LOCK:
+        if key in _SOUND:
+            return _SOUND[key]
+    try:
+        import subprocess
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(p)],
+                           capture_output=True, text=True, timeout=15)
+        got = None if r.returncode else "audio" in r.stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        got = None
+    with _SOUND_LOCK:
+        if len(_SOUND) > 2000:
+            _SOUND.clear()
+        _SOUND[key] = got
+    return got
+
+
 def studio_extras(project, data):
     """What the cut module lays out, from what bin/vh has already made (nothing is run here): the resolved timeline (bin/vh
     timeline --resolved: shots, chapters, narration, captions, beats), the film's thumbnails and waveform peaks when bin/vh
@@ -290,20 +319,33 @@ def studio_extras(project, data):
     is None, and the page names the command that makes it."""
     st = data.get("status") or {}
     media = st.get("media") or {}
-    out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None, "film": None, "film_missing": None, "sheet": None}
+    out = {"timeline": None, "thumbs": None, "peaks": None, "findings": [], "check": None, "film": None, "film_missing": None, "sheet": None,
+           "film_sound": None}
     # the film: this round's when its stop is the cut's (gate ③, E4, E5), else the one bin/vh status names, else its proxy
-    want = []
+    named, want = [], []
     rounds = data.get("rounds") or []
     if rounds and re.match(r"(3|E4|E5)", str(rounds[-1].get("id", ""))):
         g = rounds[-1].get("data") or {}
         if isinstance(g.get("film"), str):
-            want.append(g["film"])
-        want += [a.get("path") for a in g.get("assets") or [] if isinstance(a, dict) and str(a.get("path", "")).lower().endswith(VID)]
+            named.append(g["film"])
+        named += [a.get("path") for a in g.get("assets") or [] if isinstance(a, dict) and str(a.get("path", "")).lower().endswith(VID)]
     want += [media.get("film"), media.get("proxy")]
-    want = [w for w in want if isinstance(w, str) and w.strip() and not re.match(r"(?i)https?://", w)]
-    out["film"] = next((w for w in want if _inside(project, w)), None)
-    if not out["film"] and want:
-        out["film_missing"] = want[0]
+    clean = lambda xs: [w for w in xs if isinstance(w, str) and w.strip() and not re.match(r"(?i)https?://", w)]   # noqa: E731
+    named, want = clean(named), clean(want)
+    out["film"] = next((w for w in named + want if _inside(project, w)), None)
+    if not out["film"] and named + want:
+        out["film_missing"] = (named + want)[0]
+    elif out["film"] and not any(_inside(project, w) for w in named) and film_sound(project, out["film"]) is False:
+        # the stop names no film and bin/vh status's has no sound: a cut of the film that has (the storyboard's animatic, a
+        # gate page's film or animatic, newest page first) plays instead; bin/vh status itself is left as it is
+        more = [(data.get("shots") or {}).get("video") if isinstance(data.get("shots"), dict) else None]
+        for r in reversed(rounds):
+            g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
+            more += [g.get("film"), g.get("animatic")]
+        more = [w for w in clean(more) if w.lower().endswith(VID) and _inside(project, w) and w not in want]
+        out["film"] = next((w for w in dict.fromkeys(more) if film_sound(project, w)), out["film"])
+    if out["film"]:
+        out["film_sound"] = film_sound(project, out["film"])
     out["sheet"] = _newest(project, [f"out/check/*sheet*{e}" for e in IMG] + [f"out/check/*/*sheet*{e}" for e in IMG])   # a picture when there is no film
     try:
         import resolved
@@ -572,6 +614,23 @@ def project_data(project, parts=("studio", "mods")):
     return data
 
 
+NEEDED = ("ffmpeg", "node", "uv", "git")   # the programs bin/vh doctor marks as needed that the space page names when missing
+ADAPTERS = ("claude-agent-acp", "codex-acp", "dsh-acp")
+
+
+def lacks(doctor):
+    """From bin/vh doctor --json: what a person needs and this machine lacks, [{what, state}] (state missing or outdated):
+    a needed program (FFmpeg, Node, uv, git), a browser to draw pages with, and an agent to talk to in the column (no
+    adapter installed). Optional modules, services and keys are not named."""
+    mods = {m.get("name"): m for m in doctor.get("modules") or [] if isinstance(m, dict)}
+    out = [{"what": n, "state": mods[n].get("state")} for n in NEEDED if n in mods and mods[n].get("state") in ("missing", "outdated")]
+    if any(c.get("name") == "browser" and c.get("state") == "missing" for c in doctor.get("checks") or [] if isinstance(c, dict)):
+        out.append({"what": "browser", "state": "missing"})
+    if all(n in mods for n in ADAPTERS) and not any(mods[n].get("state") in ("ok", "outdated") for n in ADAPTERS):
+        out.append({"what": "agent", "state": "missing"})
+    return out
+
+
 class Desk(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
@@ -595,6 +654,7 @@ class Desk(http.server.ThreadingHTTPServer):
         self.window_name = "console-" + hashlib.sha1("\n".join(sorted(os.path.realpath(r) for r in roots)).encode()).hexdigest()[:10] \
             if self.project is None else "desk-" + pid_of(self.project)[:10]   # its window's profile: one desk, one window
         self.link_cmd = ""     # the line that stops this desk and starts it again with a new key (serve sets it)
+        self._machine, self._machine_lock = None, threading.Lock()   # bin/vh doctor's answer, asked once a run (GET /api/machine)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
         self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
@@ -679,6 +739,25 @@ class Desk(http.server.ThreadingHTTPServer):
 
     def _entry(self, code, w, at):
         return f"{self.url}?c={code}&w={w}" + (f"#{at}" if at else "")
+
+    def machine(self):
+        """{lacks, platform} for the space page, from bin/vh doctor --json, asked once a run (it takes a few seconds; the
+        page asks for it after it has drawn). An agent adapter installed from the column since is taken off at once.
+        {lacks: [], error} when doctor could not tell."""
+        with self._machine_lock:
+            if self._machine is None:
+                import subprocess
+                try:
+                    r = subprocess.run([os.environ.get("OVH_BASH") or "bash", str(HERE.parent.parent / "bin" / "vh"), "doctor", "--json"],   # (bin/vh hands it the browser its finders find)
+                                       capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
+                    d = json.loads(r.stdout)
+                    self._machine = {"lacks": lacks(d), "platform": d.get("platform")}
+                except (OSError, ValueError, subprocess.SubprocessError) as e:
+                    self._machine = {"lacks": [], "platform": None, "error": f"{type(e).__name__}: {e}"[:200]}
+            got = dict(self._machine)
+        if any(A.installed(k) for k in A.ADAPTERS):
+            got["lacks"] = [x for x in got["lacks"] if x["what"] != "agent"]
+        return got
 
     def show(self, at=""):
         """Show Studio's window at that place of the page. The one whose page is connected comes to the front (and goes
@@ -895,6 +974,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json({"ok": True} if ok else {"ok": False, "reopen": True}, 200 if ok else 403)
         if path == "/api/presence":
             return self._presence()
+        if path == "/api/machine":   # what this machine still lacks for making films (the space page says it, only when something is missing)
+            return self._json(srv.machine())
         m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
         if m:
             key = unquote(m.group(1))
@@ -951,7 +1032,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             err = None
         lock = A.agentlock.read(project)
         auth = mgr.auth
-        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"]))) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
+        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
                            "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
                            **({"error": err} if err else {})})
 
@@ -1214,7 +1295,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         m = re.fullmatch(r"/api/p/([^/]+)/feedback", path)
-        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
+        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
         if m or a:
             project = self.server.project_of(unquote((m or a).group(1)))
             if project is None:
@@ -1228,7 +1309,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             return self._error(404, "not found")
         if a:
-            return self._agent_post(project, unquote(a.group(1)), a.group(3), a.group(4) or "new")
+            return self._agent_post(project, unquote(a.group(1)), a.group(3), a.group(4) or a.group(2))
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             return self._error(403, "cross-origin request refused")
@@ -1357,6 +1438,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._error(409, "this address names another project now than the page was opened on: reload it")
         mgr = self.server.agents
         try:
+            if what == "install":   # the person's click: the console installs the adapter itself (bin/vh desk agents install)
+                if raw.get("kind") not in A.ADAPTERS:
+                    return self._error(400, "unknown agent")
+                return self._json({"ok": True, "installing": mgr.install(raw["kind"])})
             if what == "new":
                 kind = raw.get("kind")
                 if kind not in A.ADAPTERS:

@@ -3992,7 +3992,7 @@ studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its la
   # closed or its console was killed; a page that never connects is tried once more, then a browser tab; no Chromium-family
   # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders joins
   # Studio (no desk or window of its own); --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
-  # that moved, doctor's line, the picture, install.sh's question and the release's check
+  # that moved, doctor's line, the picture, install.sh's icon step and the release's check
   local t a b c d e g m r s0 up last rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p p1 p2 p3 cpid w0 w1 w2 w3 wq tab3 tab4 left claims listed
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
   mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
@@ -4391,7 +4391,7 @@ PY
     then ok "studio icon (macOS): OVH Studio.app, a stay-open applet (a second click and the Dock's Quit reach it) that runs bin/vh studio --icon in this clone and says what to run when the clone moved; ad-hoc signed and valid, its own bundle id, no privacy prompts asked for, no asset catalog over the icon; macOS reads all ten sizes of its .icns; doctor says it is in ~/Applications and runs this clone; removed"
     else bad "studio icon (macOS, exit $rc): $a | $(printf '%s' "$b" | head -c 300)"; fi
   fi
-  # the picture: drawn by stdlib Python, the sizes asked for, the same bytes each time; install.sh asks only at a terminal;
+  # the picture: drawn by stdlib Python, the sizes asked for, the same bytes each time; install.sh puts the icon in unasked;
   # a release makes the icon first
   if python3 - <<'PY'
 import struct, sys, zlib
@@ -4417,14 +4417,19 @@ sys.exit(1 if bad else 0)
 PY
   then ok "studio icon's picture: stdlib Python draws it at 16, 32, 128 and 512 px, the same bytes each time, the console's cyan square in the middle at 16; the .icns has its ten entries"
   else bad "studio icon's picture"; fi
-  sed -n '/^offer_icon() {/,/^}/p' install.sh > "$t/offer.sh"
-  mkdir -p "$t/inst/bin" && printf '#!/bin/sh\necho ran >> "%s"\n' "$t/inst/ran" > "$t/inst/bin/vh" && chmod +x "$t/inst/bin/vh"
-  a=$(cd "$t/inst" && ICON=ask bash -c '. "$1"; ICON_LATER=""; offer_icon; echo "later=$ICON_LATER"' _ "$t/offer.sh" < /dev/null 2>&1)
-  b=$(cd "$t/inst" && ICON=yes bash -c '. "$1"; ICON_LATER=""; offer_icon; echo "later=$ICON_LATER"' _ "$t/offer.sh" < /dev/null 2>&1)
-  if [ -s "$t/offer.sh" ] && [ "$a" = "later=1" ] && [ "$b" = "later=" ] && [ "$(cat "$t/inst/ran" 2>/dev/null)" = ran ] \
-    && grep -q 'ICON_LATER" ] || echo "  Icon:  bin/vh studio --install-icon' install.sh && grep -q 'studio --install-icon' tools/changes.py
-  then ok "install.sh: with nobody at a terminal it makes no icon and prints the command at the end; --icon makes it; a release makes the icon first (tools/changes.py)"
-  else bad "install.sh's icon question: $a | $b"; fi
+  sed -n '/^put_icon() {/,/^}/p' install.sh > "$t/put.sh"
+  mkdir -p "$t/inst/bin" && printf '#!/bin/sh\necho "$*" >> "%s"\n' "$t/inst/ran" > "$t/inst/bin/vh" && chmod +x "$t/inst/bin/vh"
+  put() { (cd "$t/inst" && env "$@" bash -c 'say() { echo "said: $*"; }; . "$1"; ICON_LATER=""; ICON_DONE=""; put_icon; echo "done=$ICON_DONE later=$ICON_LATER"' _ "$t/put.sh" < /dev/null 2>&1); }
+  a=$(put DISPLAY=:0 ICON=yes); n1=$(wc -l < "$t/inst/ran" 2>/dev/null | tr -d ' ')
+  b=$(put DISPLAY=:0 ICON=no); n2=$(wc -l < "$t/inst/ran" 2>/dev/null | tr -d ' ')
+  c=$(put DISPLAY= WAYLAND_DISPLAY= ICON=yes)   # no desktop: Linux makes none, macOS does
+  case "$(uname -s)" in Darwin) want_c="done=1 later=" ;; *) want_c="done= later=1" ;; esac
+  if [ -s "$t/put.sh" ] && case "$a" in "said: putting OVH Studio in your applications"*"130 MB"*"--no-icon skips this"*"done=1 later=") true ;; *) false ;; esac \
+    && [ "$n1" = 1 ] && [ "$(head -n 1 "$t/inst/ran")" = "studio --install-icon" ] && [ "$b" = "done= later=1" ] && [ "$n2" = 1 ] && case "$c" in *"$want_c") true ;; *) false ;; esac \
+    && ! grep -q '/dev/tty\|read -r a\|\[y/N\]' install.sh && grep -q 'Two ways to start' install.sh && grep -q 'Click OVH Studio' install.sh \
+    && grep -q 'studio --install-icon' tools/changes.py
+  then ok "install.sh: OVH Studio goes into the applications without a question (macOS, a Linux desktop), said in one line with its size; --no-icon skips it; nothing asks; its last lines are the two ways to start; a release makes the icon first (tools/changes.py)"
+  else bad "install.sh's icon: $a | $b | $c ($n1, $n2 runs)"; fi
   rm -rf "$t"
 }
 
@@ -12508,7 +12513,9 @@ run_groups() { # run_groups <group…>: each group's checks, timed; then how lon
   clock; ci_t0=$CI_NOW
   for ci_g in "$@"; do
     declare -F "$ci_g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $ci_g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
+    case "$CI_OWN_TMP" in *" $ci_g "*) TMPDIR="$CI_TMP/own-$ci_g"; mkdir -p "$TMPDIR" ;; esac   # (see CI_OWN_TMP)
     clock; ci_g0=$CI_NOW; CI_LAST=$CI_NOW; "$ci_g"; clock; CI_GROUPS+=("$ci_g $(( (CI_NOW - ci_g0 + 500) / 1000 ))")
+    TMPDIR=$CI_TMP
   done
   s=$(( (CI_NOW - ci_t0 + 500) / 1000 ))
   printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
@@ -12544,6 +12551,18 @@ case "${1:-all}" in
     CI_RUN="The run" list=$(groups | awk '{ print $1 }') ;;
   *) echo "$usage" >&2; exit 2 ;;
 esac
+# The person's own Studio is never seen or touched: a running Studio says where it is in ovh-desk-<uid> in the temp folder
+# (tools/desk/server.py, _info_path), so the run has a temp folder of its own ($TMPDIR, removed when the run ends) and a
+# check there finds no Studio but its own. The groups that start desks, Studio, gates or the agent column (CI_OWN_TMP) get
+# a temp folder each inside it; in the run's own, where any other group would look, a decoy "running Studio" stands
+# (tools/desk/fixtures/decoy_studio.py): after the groups its record must be byte for byte as it was, nothing new beside it
+# (no film joined to it) and it must have been asked nothing. The person's projects ($OVH_PROJECTS) and installed agent
+# adapters ($OVH_AGENTS_DIR) stay out too: a console a check starts lists neither
+CI_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-run.XXXXXX") || exit 2
+CI_TMP=${CI_TMP//\/\//\/}   # one / (a TMPDIR ending in / gives two)
+export TMPDIR="$CI_TMP"
+CI_OWN_TMP=" gate_checks decision_checks desk_checks console_checks agent_checks studio_checks activity_checks status_checks cancel_checks history_checks artifacts_checks "
+unset OVH_PROJECTS
 # the desks a check starts in the background (bin/vh gate's is in a session of its own) are recorded and stopped when the
 # run ends, also when a signal ends it: a run stopped half-way used to leave a desk running for its 12 h --idle. Only the
 # recorded pids, and only while each is still a desk (a pid reused since is someone else's process)
@@ -12555,6 +12574,7 @@ CI_DESKS=$(mktemp "${TMPDIR:-/tmp}/vh-ci-desks.XXXXXX") || exit 2
 CI_WIN=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-windows.XXXXXX") || exit 2
 export OVH_STUDIO_PROFILES="$CI_WIN/profiles" OVH_STUDIO_BROWSER="$ROOT/tools/desk/fixtures/studio_window.py" OVH_STUDIO_ACTIVATE="$CI_WIN/raise"
 export OVH_STUDIO_SHELL=none OVH_STUDIO_SHELL_PROFILE="$CI_WIN/shell" OVH_STUDIO_NO_DOWNLOAD=1   # Studio's own app: never the one installed on this machine (studio_checks stands one in)
+export OVH_AGENTS_DIR="$CI_WIN/agents"   # no adapter of this machine's: the agent checks stage their own
 CI_BROWSER_LOG="$CI_WIN/browser.log"; : > "$CI_BROWSER_LOG"; export CI_BROWSER_LOG
 printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$CI_WIN/raised" > "$CI_WIN/raise"
 printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "$CI_BROWSER_LOG"\n' > "$CI_WIN/open"; chmod +x "$CI_WIN/raise" "$CI_WIN/open"; export BROWSER="$CI_WIN/open"
@@ -12570,13 +12590,20 @@ reap_desks() {
   for p in $(pgrep -f "$CI_WIN/profiles" 2>/dev/null); do   # a stand-in window a desk killed outright left behind: only this run's
     case "$(ps -p "$p" -o command= 2>/dev/null)" in *studio_window.py*"$CI_WIN/profiles"*) kill "$p" 2>/dev/null ;; esac
   done
-  rm -rf "$CI_WIN"
+  case "$(ps -p "${CI_DECOY:-0}" -o command= 2>/dev/null)" in *decoy_studio.py*"$CI_WIN"*) kill "$CI_DECOY" 2>/dev/null ;; esac
+  rm -rf "$CI_WIN" "$CI_TMP"
 }
 trap reap_desks EXIT; trap 'exit 143' TERM; trap 'exit 129' HUP; trap 'exit 130' INT
 # no group to run is never a pass: a table gone, emptied or unreadable would make every run "all checks passed"
 [ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
+python3 "$ROOT/tools/desk/fixtures/decoy_studio.py" "$CI_WIN/decoy.log" > "$CI_WIN/decoy.out" 2>&1 & CI_DECOY=$!
+for i in $(seq 100); do [ -f "$CI_WIN/decoy.log.ready" ] || ! kill -0 "$CI_DECOY" 2>/dev/null && break; sleep 0.1; done
 # shellcheck disable=SC2086   # one group a word
 run_groups $list
+# (the decoy: see CI_TMP above)
+if out=$(python3 "$ROOT/tools/desk/fixtures/decoy_studio.py" --check "$CI_WIN/decoy.log" 2>&1); then
+  ok "the person's own Studio: no check found, joined or asked a Studio it did not start (a decoy stood where one is found, untouched; the run's temp folder is its own)"
+else bad "a check reached a Studio it did not start (the decoy in the run's temp folder): $out $(cat "$CI_WIN/decoy.out" 2>/dev/null)"; fi
 # a run of some groups says so: a shard, --smoke, --changed or another table passes only what it ran
 ci_all=$(groups_in "$ROOT/tools/ci-shards.txt" | wc -l | tr -d ' ') ci_ran=$(printf '%s\n' $list | wc -l | tr -d ' ')
 [ "$ci_ran" -lt "$ci_all" ] && printf '\033[33m! Ran %s of the %s groups in tools/ci-shards.txt; tools/ci.sh runs them all, as before a push\033[0m\n' "$ci_ran" "$ci_all"

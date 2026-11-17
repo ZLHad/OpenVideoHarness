@@ -11,6 +11,15 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))
 T = Path(sys.argv[1]).resolve()
+# a temp folder of these checks' own, for everything they start: a running Studio says where it is in the temp folder
+# (server._info_path), so no desk, gate or agent here finds the person's own Studio, run alone or under tools/ci.sh; the
+# person's projects and installed adapters stay out too (each check stages its own)
+(T / "tmp").mkdir(parents=True, exist_ok=True)
+os.environ["TMPDIR"] = str(T / "tmp")
+os.environ.pop("OVH_PROJECTS", None)
+os.environ["OVH_AGENTS_DIR"] = str(T / "no-agents")
+import tempfile  # noqa: E402
+tempfile.tempdir = None
 
 
 def say(ok, what, why=""):

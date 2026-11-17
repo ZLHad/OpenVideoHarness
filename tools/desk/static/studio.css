@@ -127,6 +127,11 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .pcard-ask{font-size:var(--fs-small);color:var(--ink-2);line-height:1.45;padding-left:9px;border-left:2px solid var(--wait)}
 .pcard .err{font-size:var(--fs-label);color:var(--live)}
 .roots{margin-top:26px;font-size:var(--fs-label);color:var(--ink-3)}
+.lacks{margin:-4px 0 22px;padding:10px 14px;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--panel);font-size:var(--fs-small);color:var(--ink-2);max-width:62em}
+.lacks h2{margin:0 0 4px;font:500 var(--fs-label)/1.4 var(--sans);letter-spacing:var(--label-track);text-transform:var(--label-case);color:var(--ink-3)}
+.lacks ul{margin:0;padding:0;list-style:none;display:grid;gap:3px}
+.lacks b{font-weight:500;color:var(--ink)}
+.lacks .do{color:var(--ink)}
 
 /* ---------- the right column: everything that holds without the agent online ---------- */
 .col{grid-row:2;grid-column:3;display:flex;flex-direction:column;min-height:0;min-width:0;border-left:1px solid var(--rule);background:var(--glass),var(--panel)}
@@ -244,6 +249,10 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .transport .tc{font:18px/1 var(--mono);margin:0 10px 0 8px;color:var(--ink)}
 .transport .tc i{font-style:normal;font-size:12px;color:var(--ink-3)}
 .transport .push{margin-left:auto}
+.transport .vol{display:inline-flex;align-items:center;gap:2px;margin-right:6px}
+.transport .vol input{width:72px;height:3px;accent-color:var(--ink-2);cursor:pointer}
+.transport .vol .p-btn[disabled],.transport .vol input[disabled]{opacity:.35;cursor:default}
+.readout .nosound{color:var(--ink)}
 .seg{display:inline-flex;gap:2px;border:1px solid var(--rule);padding:2px;border-radius:var(--r-ctl)}
 .seg button{border:0;background:none;cursor:pointer;padding:2px 9px;font-size:var(--fs-label);color:var(--ink-3);border-radius:var(--r-ctl)}
 .seg button[aria-pressed=true]{color:var(--ink);background:var(--panel-3)}

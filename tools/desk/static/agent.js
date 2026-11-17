@@ -22,7 +22,10 @@ const ASTR = {
     ph_say: "对{x}说点什么…", ph_say0: "跟 {a} 说点什么…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
     you: "你", t_on: "对着 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你点。", empty_c: "这里说的话会直接发给它；“这一轮”页上记的意见，要点“交给 agent”才一起交出去。可以先问一句，比如：读一下 BRIEF，告诉我还缺什么。",
     empty_dsh: "DeepSeek Harness 的回复是整段一起到的：它在做的时候，这里只显示它正在用的工具。",
-    not_inst_h: "{a} 还没装到控制台里", not_inst_b: "把下面这一行复制到终端里，回车（会下载约 {s}，不放进这个项目），装好后刷新这一页。它用你自己的登录，不用另外设置；没登录的话，{l}。",
+    not_inst_h: "{a} 还没装到控制台里", not_inst_b: "点「装上」，控制台自己把它装好（会下载约 {s}，不放进这个项目）。它用你自己的登录，不用另外设置；没登录的话，{l}。",
+    inst_go: "装上", inst_again: "再试一次", inst_run: "正在装 {a}（约 {s}），已经 {t}。装好以前可以先做别的。", inst_done: "{a} 装好了",
+    inst_no_npm: "这台电脑上还没有 Node（装 {a} 要用它带的 npm）。装好 Node 以后，再点一次「装上」。",
+    inst_fail: "没装上，多半是网络断了。再点一次试试；还不行，把下面这一行复制到终端里运行，看它说什么。",
     login_claude: "在终端里运行 claude，输入 /login", login_codex: "在终端里运行 codex login", login_dsh: "在 DeepSeek Harness 桌面版里登录一次",
     copy: "复制", copied: "复制好了", no_start_h: "{a} 没有启动起来", no_start_b: "常见的原因是还没登录：{l}。它说的是：",
     busy_turn: "{a} 还在做上一句。等它做完，或者点停止。",
@@ -63,7 +66,10 @@ const ASTR = {
     ph_say: "Say something about {x}…", ph_say0: "Say something to {a}…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
     you: "You", t_on: "on {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here goes to it at once; the notes on “This round” go only when you press “Send to agent”. Try: read the BRIEF and tell me what is missing.",
     empty_dsh: "DeepSeek Harness sends its reply in one piece: while it works, only the tool it is using shows here.",
-    not_inst_h: "{a} isn't set up for the console yet", not_inst_b: "Copy this line into a terminal and press Enter (it downloads about {s}, kept out of this project), then reload this page. It uses your own login, nothing else to set up; if it isn't signed in, {l}.",
+    not_inst_h: "{a} isn't set up for the console yet", not_inst_b: "Press “Set it up” and the console installs it (it downloads about {s}, kept out of this project). It uses your own login, nothing else to set up; if it isn't signed in, {l}.",
+    inst_go: "Set it up", inst_again: "Try again", inst_run: "Setting up {a} (about {s}): {t} so far. You can do other things meanwhile.", inst_done: "{a} is set up",
+    inst_no_npm: "This computer has no Node yet ({a} installs with the npm that comes with it). Install Node, then press “Set it up” again.",
+    inst_fail: "It didn't install; most often the network dropped. Try again; if it still fails, copy this line into a terminal to see what it says.",
     login_claude: "run claude in a terminal and type /login", login_codex: "run codex login in a terminal", login_dsh: "sign in once in the DeepSeek Harness desktop app",
     copy: "Copy", copied: "Copied", no_start_h: "{a} did not start", no_start_b: "Usually it isn't signed in yet: {l}. What it said:",
     busy_turn: "{a} is still on your last message. Wait for it, or press Stop.",
@@ -172,6 +178,25 @@ const AGENT = (() => {
     const saved = store_.get(`desk:agent:${KEYP}`) || {};
     KIND = KIND || saved.kind || (kinds().find((a) => a.installed) || kinds()[0] || {}).kind || "claude";
     return true;
+  }
+  let INSTWATCH = 0;
+  async function installKind() {   // the person's click: the console installs this kind's adapter, and the column follows it
+    const kind = KIND, r = await post("install", { kind });
+    if (r.ok && r.data && r.data.installing) meta(kind).installing = r.data.installing;
+    else toast(at("err_send", { e: (r.data && r.data.error) || r.status }));
+    render(); followInstall();
+  }
+  function followInstall() {
+    clearTimeout(INSTWATCH);
+    if (!kinds().some((a) => a.installing && a.installing.state === "running")) return;
+    INSTWATCH = setTimeout(async () => {
+      const before = kinds().filter((a) => a.installed).map((a) => a.kind);
+      if (await load()) {
+        kinds().filter((a) => a.installed && !before.includes(a.kind)).forEach((a) => toast(at("inst_done", { a: a.label })));
+        if (meta(KIND).installed && ERR && ERR.code === "not_installed") ERR = null;
+      }
+      render(); followInstall();
+    }, 1500);
   }
   function sessionsOf(kind) { return ((INFO && INFO.sessions) || []).filter((s) => s.kind === kind); }
   function open(sum) {
@@ -414,9 +439,15 @@ const AGENT = (() => {
   }
   function emptyHtml() {
     const m = meta(KIND), l = esc(at("login_" + KIND));
-    if (ERR && ERR.code === "not_installed" || !m.installed) {
-      const cmd = m.install || `bin/vh desk agents install ${KIND}`;
-      return `<div class="ag-empty"><h3>${esc(at("not_inst_h", { a: m.label }))}</h3><p>${at("not_inst_b", { s: esc(m.size || ""), l })}</p><div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div></div>`;
+    if (ERR && ERR.code === "not_installed" || !m.installed) {   // the person's click installs it (the console runs bin/vh desk agents install)
+      const cmd = m.install || `bin/vh desk agents install ${KIND}`, j = m.installing || null, about = String(m.size || "").replace(/^≈\s*/, ""), h = `<h3>${esc(at("not_inst_h", { a: m.label }))}</h3>`;
+      if (j && j.state === "running") {
+        const s = Math.max(0, Math.round(Date.now() / 1000 - j.since)), took = s < 60 ? at("sec", { n: s }) : at("min", { m: Math.floor(s / 60), s: s % 60 });
+        return `<div class="ag-empty">${h}<div class="ag-working ag-inst" role="status"><span class="ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(at("inst_run", { a: m.label, s: about, t: took }))}</span></div></div>`;
+      }
+      const failed = j && (j.state === "failed" || j.state === "no_npm");
+      const fall = j && j.state === "failed" ? `<div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div>${j.said ? `<pre>${esc(j.said)}</pre>` : ""}` : "";
+      return `<div class="ag-empty">${h}<p${failed ? ' class="ag-bad"' : ""}>${failed ? esc(at(j.state === "no_npm" ? "inst_no_npm" : "inst_fail", { a: m.label })) : at("not_inst_b", { s: esc(about), l })}</p>${fall}${KEYOK ? `<div class="ag-opts"><button type="button" class="btn btn-primary" id="agInstall">${esc(at(failed ? "inst_again" : "inst_go"))}</button></div>` : ""}</div>`;
     }
     if (!KEYOK) return "";   // the note above the column says it once, with what to do
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
@@ -572,6 +603,7 @@ const AGENT = (() => {
       if (b) { b.disabled = true; answer(e, b.dataset.rid, b.dataset.opt); return; }
       const c = e.target.closest("button[data-copy]");
       if (c) { copyText(c.dataset.copy).then(() => toast(at("copied"))); return; }
+      if (e.target.closest("#agInstall") && e.isTrusted) { installKind(); return; }
       if (e.target.closest("#agNewGo")) { const p = $("#agPersonal"); NEWBOX = false; start(KIND, p ? p.checked : true); return; }
       if (e.target.closest("#agNewNo")) { NEWBOX = false; render(); }
     };
@@ -649,9 +681,9 @@ const AGENT = (() => {
       const m = meta(KIND);
       if (!m.installed) ERR = { code: "not_installed" };
       else { const s = sessionsOf(KIND).find((x) => x.id === saved.sid) || sessionsOf(KIND)[0]; if (s) open(s); }
-      render();
+      render(); followInstall();   // an install still running (started before this page opened): followed to its end
     },
-    leave() { close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
+    leave() { clearTimeout(INSTWATCH); close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
     scope() { if (KEYP) renderFoot(); },
     keyOk(ok) { KEYOK = !!ok; if (!KEYOK) close(); if (KEYP) render(); },   // without this run's token the conversation is not opened at all (the note at the top says why)
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)

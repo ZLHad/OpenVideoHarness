@@ -647,7 +647,38 @@ class Manager:
         self._starting = {k: threading.Lock() for k in ADAPTERS}
         self.closed = False
         self._closing = []     # adapters being stopped (a restart): shutdown waits for them
+        self.installs = {}     # kind → the install the person started from the column: {state, since, took, said}
         threading.Thread(target=self._watch, name="agents-watch", daemon=True).start()
+
+    def install(self, kind):
+        """The person's click on "set it up" in the column: bin/vh desk agents install <kind> in the background, one at a
+        time a kind (a second click while it runs is the same install). → its state, as the column polls it."""
+        with self._lock:
+            j = self.installs.get(kind)
+            if self.closed or j and j["state"] == "running":
+                return self.install_state(kind)
+            j = self.installs[kind] = {"state": "running", "since": time.time(), "took": None, "said": "", "proc": None}
+        threading.Thread(target=self._install, args=(kind, j), name=f"install-{kind}", daemon=True).start()
+        return self.install_state(kind)
+
+    def _install(self, kind, j):
+        try:
+            p = subprocess.Popen([os.environ.get("OVH_BASH") or "bash", str(HERE.parent.parent / "bin" / "vh"), "desk", "agents", "install", kind],
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",
+                                 start_new_session=True)   # its own group: npm under it stops with it
+            j["proc"] = p
+            out = p.communicate(timeout=3600)[0]
+            code = p.returncode
+        except (OSError, subprocess.SubprocessError) as e:
+            out, code = str(e), -1
+        lines = [x.strip() for x in (out or "").splitlines() if x.strip()]
+        why = "no_npm" if "npm not found" in (out or "") else "failed"
+        with self._lock:
+            j.update(state="done" if code == 0 and installed(kind) else why, took=round(time.time() - j["since"]), said="\n".join(lines[-3:])[-600:], proc=None)
+
+    def install_state(self, kind):
+        j = self.installs.get(kind)
+        return {k: v for k, v in j.items() if k != "proc"} if j else None
 
     def adapter_pids(self):
         return [p.proc.pid for p in self.peers.values() if p is not None]
@@ -816,6 +847,12 @@ class Manager:
         """The desk is stopping: waiting requests cancelled, turns cancelled, every adapter stopped (TERM to its group
         when it does not end on its own)."""
         self.closed = True
+        for j in list(self.installs.values()):   # an install the person started here stops with the console (npm ci begins afresh next time)
+            if j.get("proc") is not None and j["proc"].poll() is None:
+                try:
+                    os.killpg(j["proc"].pid, 15)
+                except OSError:
+                    pass
         for s in list(self.sessions.values()):
             try:
                 s.reject_waiting("desk_stop")
