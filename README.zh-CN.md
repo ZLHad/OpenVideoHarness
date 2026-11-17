@@ -214,7 +214,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地方。它是一个自己的窗口，没有地址栏，再叫一次也只是把这个窗口带回最前面，不开第二个。三种办法都能把它叫出来：
 
-- **点图标**：`bin/vh studio --install-icon` 把 **OVH Studio** 放进你的应用程序（安装脚本装完会问一次）：Studio 自己的窗口，有自己的边框、Dock 图标和菜单（Electron，第一次下载约 130 MB）。再点一次，还是那个窗口，回到最前面。
+- **点图标**：`bin/vh studio --install-icon` 把 **OVH Studio** 放进你的应用程序（安装时在 macOS 和 Linux 桌面上会自动放好）：Studio 自己的窗口，有自己的边框、Dock 图标和菜单（Electron，第一次下载约 130 MB）。再点一次，还是那个窗口，回到最前面。
 - **在终端里**：`bin/vh studio`，或者 `bin/vh studio <项目>` 直接打开到那支片子。
 - **对 agent 说**"打开 Studio"：它运行同一条命令，窗口就出来了。
 
@@ -371,9 +371,10 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 bash install.sh --dir ~/code/OpenVideoHarness   # 装到别的位置
 bash install.sh --no-refs                        # 先不拉参考仓库（之后用 references/fetch.sh 拉）
 bash install.sh --no-skill                       # 不注册全局 skill
-bash install.sh --icon                           # 不问，直接把 OVH Studio 图标放进应用程序（--no-icon：不问也不装）
+bash install.sh --no-icon                        # 不把 OVH Studio 放进应用程序（以后 bin/vh studio --install-icon 再放）
 ```
 
+- 安装时什么都不问。macOS 和 Linux 桌面上，它会把 OVH Studio（Studio 自己的窗口）放进应用程序（Electron：第一次下载约 130 MB，占约 260 MB 磁盘）；哪一步没成，它用一句话说接下来做什么。最后告诉你两种开始的办法：点 OVH Studio，或者在这个文件夹里打开 Claude Code 或 Codex，说你想做什么片子。
 - 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
 - 更新：用同样的参数再运行一次安装命令（或者 `git pull`）；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。装出去的 skill 是指回克隆里 `skills/` 的短桩，跟着一起更新；少数要重装的时候（`bin/vh install-skill`），`bin/vh doctor` 会说。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。

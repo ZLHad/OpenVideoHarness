@@ -288,6 +288,16 @@ def _app_profile():
     return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / APP
 
 
+def _app_running(dir_=None):
+    """Whether the app this install made is open now (its own process, window.shell_pid)."""
+    import window as WIN
+    try:
+        exe = json.loads(_record_path(dir_).read_text()).get("exe")
+    except (OSError, ValueError):
+        return False
+    return bool(exe and WIN.shell_pid(exe))
+
+
 def _quit_app(dir_=None):
     """The app this install made, if it runs: told to quit (a line it takes, as the console's are), and if it is still
     there after five seconds, its own process (window.shell_pid) ends. So removing it leaves no window on a dead page."""
@@ -548,15 +558,17 @@ def status(platform=None, dir_=None):
         repo = mark.get("repo") or ""
         if os.path.realpath(repo) != os.path.realpath(str(ROOT)):
             there = Path(repo, "bin", "vh").is_file()
-            return {"state": "elsewhere", "path": str(p), "repo": repo,
+            return {"state": "elsewhere", "path": str(p), "repo": repo, "running": _app_running(dir_) if mark.get("kind") == "shell" else False,
                     "note": ("runs another clone" if there else "runs a clone that is no longer there")
                     + ": bin/vh studio --install-icon here makes it run this one"}
         kind = "Studio's own window (Electron " + mark["electron"] + ")" if mark.get("kind") == "shell" else "a launcher that opens a browser's window"
+        running = _app_running(dir_) if mark.get("kind") == "shell" else False   # (install.sh never replaces an app that is open)
         if mark.get("launcher", LAUNCHER) != LAUNCHER or mark.get("icon", _icon_hash()) != _icon_hash() \
                 or (mark.get("kind") == "shell" and mark.get("electron") != shell_version()):
-            return {"state": "outdated", "path": str(p), "kind": mark.get("kind") or "launcher",
+            return {"state": "outdated", "path": str(p), "kind": mark.get("kind") or "launcher", "running": running,
                     "note": f"{kind}, made by an earlier bin/vh studio: --install-icon makes it again"}
-        return {"state": "ok", "path": str(p), "kind": mark.get("kind") or "launcher", "note": f"{kind}; runs this clone (a git pull needs no reinstall)"}
+        return {"state": "ok", "path": str(p), "kind": mark.get("kind") or "launcher", "running": running,
+                "note": f"{kind}; runs this clone (a git pull needs no reinstall)"}
     return {"state": "missing", "note": "not installed (optional): bin/vh studio --install-icon puts OVH Studio, Studio's own window, in "
             + ("~/Applications" if platform == "macos" else "your applications menu")}
 

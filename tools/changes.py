@@ -177,7 +177,7 @@ def cmd_check():
 
 def launcher_check():
     """Studio's launcher goes out with every release: it is not a file of its own but what bin/vh studio --install-icon
-    makes on the user's machine (install.sh offers it). So a release makes it here first, into a temp folder, as that
+    makes on the user's machine (install.sh puts it in). So a release makes it here first, into a temp folder, as that
     machine would: the Linux launcher everywhere, and on a Mac the launcher and OVH Studio, Studio's own window (Electron
     from the committed lockfile, downloaded into the real cache once). → [] or what is wrong. A tree without
     tools/desk/studio.py (a test's copy) has nothing to make."""

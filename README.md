@@ -214,7 +214,7 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 Studio is where you see every film, review a stop and talk to the agents on this machine. It is one window of its own, with no address bar, and asking again brings that same window forward rather than a second. Three ways bring it up:
 
-- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer asks once): Studio's own window, with its own frame, Dock icon and menu (Electron, about 130 MB downloaded once). Click it again and the same window comes to the front.
+- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer does it for you on macOS and a Linux desktop): Studio's own window, with its own frame, Dock icon and menu (Electron, about 130 MB downloaded once). Click it again and the same window comes to the front.
 - **In a terminal:** `bin/vh studio`, or `bin/vh studio <project>` to land on that film.
 - **Tell your agent** "open Studio" (or "打开 Studio"): it runs the same command, and the window appears.
 
@@ -371,9 +371,10 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
 bash install.sh --no-refs                        # skip the reference repos for now (references/fetch.sh later)
 bash install.sh --no-skill                       # don't register the global skill
-bash install.sh --icon                           # put the OVH Studio icon in your applications without asking (--no-icon: don't ask)
+bash install.sh --no-icon                        # leave OVH Studio out of your applications (bin/vh studio --install-icon adds it later)
 ```
 
+- Nothing asks a question. On macOS and on a Linux desktop the installer puts OVH Studio, Studio's own window, in your applications (Electron: about 130 MB downloaded once, 260 MB on disk); when a step fails it says what to do next in one sentence. It ends with the two ways to start: click OVH Studio, or open Claude Code or Codex in the folder and say what film you want.
 - The installer fetches only the newest commit: the repo itself is about 95 MB to download and 200 MB on disk, before its packages and the reference repos. To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
 - To update, run the installer again with the same options (or `git pull`); `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed. The installed skills are short stubs that read `skills/` in the clone, so they follow the update; `bin/vh doctor` says in the rare case one needs `bin/vh install-skill` again.
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
