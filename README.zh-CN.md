@@ -223,7 +223,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # 或者 codex
 ```
 
-安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex（之后在任何目录说"做个视频"，agent 都能找到这里），再把 **OVH Studio** 放进你的应用程序（Linux 上是应用菜单）。仓库一共占约 650 MB 磁盘，不拉参考仓库约 380 MB；OVH Studio 另占约 380 MB，第一次下载约 130 MB。
+安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex（之后在任何目录说"做个视频"，agent 都能找到这里），再默认把 **OVH Studio** 放进你的应用程序（Linux 上是应用菜单；不要就加 `--no-icon`）。仓库一共占约 650 MB 磁盘，不拉参考仓库约 380 MB；OVH Studio 另占约 380 MB，第一次下载约 130 MB。
 
 装好以后，有两个入口：
 

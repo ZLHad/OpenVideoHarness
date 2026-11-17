@@ -223,7 +223,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # or: codex
 ```
 
-The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos, registers the `open-video-harness` skills for Claude Code and Codex (so asking for a video from any folder finds it), and puts **OVH Studio** in your applications (on Linux, the app menu). The repo takes about 650 MB on disk, about 380 MB of it without the reference repos; OVH Studio takes about 380 MB more, about 130 MB of it downloaded the first time.
+The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos, registers the `open-video-harness` skills for Claude Code and Codex (so asking for a video from any folder finds it), and by default puts **OVH Studio** in your applications (on Linux, the app menu; `--no-icon` leaves it out). The repo takes about 650 MB on disk, about 380 MB of it without the reference repos; OVH Studio takes about 380 MB more, about 130 MB of it downloaded the first time.
 
 Once it's installed, there are two ways in:
 
