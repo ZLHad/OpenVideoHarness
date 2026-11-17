@@ -16,6 +16,11 @@
 
 <sub>十二段都出自用它做的真片子。下面还有更多，一部分带声音。</sub>
 
+<!-- Studio 的宣传片做好以后，换掉下面这一张和它的说明 -->
+<a href="#studio"><img src="docs/assets/studio/cut.zh.webp" width="960" alt="Studio 的窗口：左边一列是做片子的几站，中间是一支片子的初版和它的时间线，右边一列在和 agent 说话"></a>
+
+<sub><b>Studio</b>：做片子的每一站都在这一个窗口里。成片、镜头、声音和你的点评排在一条时间线上，右边一列和 agent 说话。</sub>
+
 </div>
 
 ```bash
@@ -41,7 +46,11 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 <table>
 <tr>
-<td width="44%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="一条画成水墨山峦的股价线"><br><sub>一张股价图，同时也是一片山。</sub></td>
+<td width="44%" valign="top"><a href="#studio"><img src="docs/assets/studio/theme-prism.zh.webp" width="100%" alt="Studio 的成片这一站，棱镜主题：画面、带缩略图的时间线，右边是这一轮要你定的两件事"></a><br><sub>Studio 的成片这一站，换成棱镜主题。</sub></td>
+<td valign="top"><b>整个流程，在一个窗口里。</b><br>在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整个制作流程：每支片子走到哪一站、在等谁，一眼看到；审片时指着一秒写一句，攒几条一起交给 agent；要你拍板的事是几张卡，点一下就定。</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="一条画成水墨山峦的股价线"><br><sub>一张股价图，同时也是一片山。</sub></td>
 <td valign="top"><b>写代码之前，先有立意。</b><br>先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</td>
 </tr>
 <tr>
@@ -73,6 +82,33 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 **而且不是同一张 AI 脸。** 放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里是 43 种风格里的 32 种，下面每一格说的都是同一句话：
 
 <a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="所有风格同时动起来，每种都在渲同一句话：每一帧，都是代码"></a>
+
+## Studio
+
+在原来的 skill 和命令行之上，我们做了一个可视化的 Studio 窗口，让你更方便地掌握整支片子的制作流程。用起来就四件事：看片子走到了哪，指着画面说，在卡片上拍板，和 agent 说话。
+
+<table>
+<tr>
+<td width="56%" valign="top"><img src="docs/assets/studio/space.zh.webp" width="100%" alt="Studio 的空间：所有片子各一张卡，等你看的三支排在最前，卡上写着等你定什么"></td>
+<td valign="top"><b>片子走到哪，一眼看到。</b><br>左边一列就是做片子的几站：立意、大纲、分镜、声音、成片、交付，另有素材和决定的记录。顶上一条线标着这支片子在哪一站：琥珀色是等你，紫色是 agent 在做，绿色是过了。打开 Studio 先看到所有片子，等你的排在最前，卡上写着要你定什么。</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/assets/studio/board.zh.webp" width="100%" alt="分镜这一站：一段一页，每一镜一张关键帧，写着看到什么，没把握的那一镜标出来"></td>
+<td valign="top"><b>审片，就是指着说。</b><br>分镜一段一页，每一镜一张关键帧；成片的时间线上排着镜头、声音、检查查出的问题和 agent 没把握的地方。选中一个镜头、一秒或一段，写一句，就记成一条点评。</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/assets/studio/note.zh.webp" width="100%" alt="成片这一站：时间线上选中了几秒，右边写了一条对着这几秒的点评"></td>
+<td valign="top"><b>攒几条，一次交给 agent。</b><br>点评都对着你指的那一处，攒在右边一列。交出去之前先列一遍：每件事选了什么、每条点评说了什么。你的原话抄进项目的 <code>REVIEW.md</code>，agent 照着往下做。</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/assets/studio/decide.zh.webp" width="100%" alt="立意这一站：左边是素材里只属于这个题目的数字和物件，右边三张立意卡各配一帧，推荐的已经选好"></td>
+<td valign="top"><b>停下来的那一站，就在这里定。</b><br>到了立意、分镜、初版，右边一列是这一轮要你定的几件事，每件几张卡，推荐的已经选好。不动就是照推荐，点一下就换，最后提交一次。</td>
+</tr>
+</table>
+
+右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。第一次用要装一个适配器，Studio 里会写出要运行的那一行。
+
+点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都是这一个窗口（见[打开 Studio](#打开-studio)）。精品档默认就在 Studio 里停，你一提交，agent 接着做；标准档默认给一页审阅页，想在 Studio 里定，跟 agent 说一声"在 Studio 里审"就行。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。Studio 读写的就是项目里的文件，读什么、写什么见 [tools/desk/README.md](tools/desk/README.md)。
 
 ## 能做出什么
 
@@ -187,9 +223,16 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # 或者 codex
 ```
 
-安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，并把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。一共占约 650 MB 磁盘，不拉参考仓库约 380 MB。然后直接说你要什么：
+安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex（之后在任何目录说"做个视频"，agent 都能找到这里），再把 **OVH Studio** 放进你的应用程序（Linux 上是应用菜单）。仓库一共占约 650 MB 磁盘，不拉参考仓库约 380 MB；OVH Studio 另占约 380 MB，第一次下载约 130 MB。
+
+装好以后，有两个入口：
+
+- **点 OVH Studio**：所有片子、每一站、要你定的事都在这个窗口里，右边一列直接和 agent 说话（见上面的 [Studio](#studio)）。
+- **在这个目录里打开 Claude Code 或 Codex**（`cd ~/OpenVideoHarness && claude`，或者 `codex`），直接说你要什么：
 
 > 做一个 30 秒的竖屏科普：为什么低轨卫星的信号会"变调"。中文配音，中英双语字幕。
+
+新片子都从这样一句话开始：说给终端里的 agent，或者写在 Studio 的空间里、复制给它。片子一建好就出现在 Studio 里，之后在哪边接着都行。
 
 接下来它会：
 
@@ -212,13 +255,9 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 ### 打开 Studio
 
-Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地方。它是一个自己的窗口，没有地址栏，再叫一次也只是把这个窗口带回最前面，不开第二个。三种办法都能把它叫出来：
+点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者在终端里运行 `bin/vh studio`（`bin/vh studio <项目>` 直接打开到那支片子），出来的都是同一个窗口，再叫一次只是把它带回最前面。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点图标，窗口回到原来的地方；退出 OVH Studio，Studio 才停。放在别的文件夹里的片子，用 `bin/vh studio <项目>` 打开，也加进这一个窗口。
 
-- **点图标**：`bin/vh studio --install-icon` 把 **OVH Studio** 放进你的应用程序（安装脚本装完会问一次）：Studio 自己的窗口，有自己的边框、Dock 图标和菜单（Electron，第一次下载约 130 MB）。再点一次，还是那个窗口，回到最前面。
-- **在终端里**：`bin/vh studio`，或者 `bin/vh studio <项目>` 直接打开到那支片子。
-- **对 agent 说**"打开 Studio"：它运行同一条命令，窗口就出来了。
-
-不管哪种方式，里面都是同一个页面：没装 OVH Studio 时，窗口用的是你电脑上的 Chrome、Edge、Chromium 或 Brave，配一个 Studio 自己的资料目录；这几样都没有时，开在默认浏览器的一个标签页里。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点一下，窗口回来，停在原来的地方。退出 OVH Studio，Studio 就停了。放在 Studio 文件夹以外的片子，在 Studio 里打开时会加进 Studio，也在同一个窗口里。
+图标没装上时，`bin/vh studio --install-icon` 补装。没有 OVH Studio 时，窗口用电脑上的 Chrome、Edge、Chromium 或 Brave；这几样都没有，就开在默认浏览器的一个标签页里。
 
 ## 工具一览
 
@@ -243,7 +282,7 @@ Studio 是看所有片子、审一站、和这台机器上的 agent 说话的地
 | | `edit` | 把片子写成剪辑表：页面、图片、实拍素材、别的片子和声音排成一列 |
 | | `words` | 查旁白稿和字幕稿里模型顺手的句式（"不是 A 而是 B"、三连排比、下结论的冒号这些）：在哪、多密，由你决定改不改；它不改稿 |
 | | `tts` · `music` · `captions` · `mix` | 配音、用代码写的配乐、字幕、混音（见[声音](#声音)） |
-| **查和交付** | `gate` · `desk` | 一条命令停下来等你拍板；控制台里看所有片子，在成片的时间线上选中一处写一句、点卡片拍板 |
+| **查和交付** | `studio` · `gate` · `desk` | 叫出 [Studio](#studio) 的窗口；一条命令停下来等你拍板；`desk` 是 Studio 背后的控制台，也能只开一支片子的审阅台 |
 | | `frames` · `sheet` · `determinism` | 无损取帧、联系表，以及查每一帧是不是真的只由 t 决定 |
 | | `check` | 对着 Brief 查成片：黑场、定格、静音、闪烁、字幕、色彩标记、响度 |
 | | `render` | 分块并行渲 MP4，中断了能续渲，每次渲染都留一个版本 |
@@ -347,7 +386,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 
 哪一档都不放松的：事实不编、有声片里没有突然的静音、画面不频闪、字不小于目标屏幕的下限、素材许可记清楚、没有预算不调付费接口。
 
-想管得更细，可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面。点了名的，它出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来是一条命令（`bin/vh gate`），生成一个本地审阅页：画面在前，要你定的事是能点的卡片，没把握的地方标在播放器下面的标尺上，点一下跳到那一秒；图、动态分镜和配乐都能在浏览器里直接看、直接听。`studio` 档的停顿换成审阅台（`bin/vh desk`），样子是 Studio 去掉 agent 的那一半：左边一列模块，顶上这支片子走到哪一站，右边一列是要你定的卡片和你的点评。它打开在等你的那一站；到了成片，片子、镜头、旁白、音乐、检查和点评排在一条时间线上，选中一秒、一段或一个镜头写一句，就记成一条点评，最后一次提交；agent 在后台等着，你一提交它就接着做，原话抄进 `REVIEW.md`。`bin/vh desk` 不带项目打开是所有片子的空间，等你的排最前。界面三套深色主题（暗场、棱镜、舰桥）。两种页面都有中英文，跟着你第一句话的语言走。
+想管得更细，可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面。点了名的，它出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来是一条命令（`bin/vh gate`）。`standard` 档默认生成一个本地审阅页：画面在前，要你定的事是能点的卡片，没把握的地方标在播放器下面的标尺上，点一下跳到那一秒。`studio` 档默认停在 [Studio](#studio) 里，打开在等你的那一站，你一提交 agent 就接着做。两种页面都有中英文，跟着你第一句话的语言走。
 
 ## 要求、成本和限制
 
@@ -392,6 +431,7 @@ bash install.sh --icon                           # 不问，直接把 OVH Studio
 | 引擎、页面合约、剪辑表 | [engines/](engines/README.md)、[CONTRACT.md](engines/CONTRACT.md)、[EDIT.md](engines/EDIT.md) |
 | 社区作品的 15 个案例拆解，以及本仓库自己做的片子和全部过程记录 | [cases/](cases/README.md)、[showcase/](showcase/) |
 | 我们量过什么、因此改了什么 | [docs/research/](docs/research/README.md) |
+| Studio：怎么打开、每个模块读什么写什么 | [tools/desk/README.md](tools/desk/README.md) |
 | 命令行 | `bin/vh commands`、`bin/vh help`，每条命令加 `-h` |
 | 新手教程、排错、常见问题 | [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
 

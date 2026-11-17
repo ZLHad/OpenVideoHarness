@@ -16,6 +16,11 @@ A video workbench for Claude Code and Codex. You say what you want in one senten
 
 <sub>Twelve moments from real films made with it. More below, some with sound.</sub>
 
+<!-- when Studio's promo film is made, it replaces the picture below and its caption -->
+<a href="#studio"><img src="docs/assets/studio/cut.en.webp" width="960" alt="Studio's window: the stops of making a film down the left, a film's first draft and its timeline in the middle, a conversation with the agent on the right"></a>
+
+<sub><b>Studio</b>: every stop of making a film, in this one window. The cut, its shots, its sound and your notes lie on one timeline; the column on the right talks to the agent.</sub>
+
 </div>
 
 ```bash
@@ -41,7 +46,11 @@ It grew out of real films. Each time one went wrong, the lesson became a doc or 
 
 <table>
 <tr>
-<td width="44%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="A stock chart drawn as an ink-wash mountain range"><br><sub>A stock chart that is also a mountain range.</sub></td>
+<td width="44%" valign="top"><a href="#studio"><img src="docs/assets/studio/theme-prism.en.webp" width="100%" alt="Studio's cut stop in the Prism theme: the picture, a timeline with thumbnails, and on the right the two things this round needs you to decide"></a><br><sub>Studio's cut stop, in the Prism theme.</sub></td>
+<td valign="top"><b>The whole process, in one window.</b><br>On top of the skills and the command line, we built Studio, a visual window that makes the whole production easier to keep in hand: where each film has got to and who it waits for, at a glance; in review, point at a second and write a line, then hand a few of them to the agent together; what you decide is a few cards, a click each.</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="A stock chart drawn as an ink-wash mountain range"><br><sub>A stock chart that is also a mountain range.</sub></td>
 <td valign="top"><b>It has an idea before it has code.</b><br>Two or three concept cards come first, each with a frame and a hook. It says what every other film on your topic looks like, then goes somewhere else.</td>
 </tr>
 <tr>
@@ -73,6 +82,33 @@ It grew out of real films. Each time one went wrong, the lesson became a doc or 
 **And not one AI look.** Left alone, AI video drifts toward one face: dark background, glow, glass cards. Here are 32 of its 43 styles, all rendering the same sentence:
 
 <a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="All the styles moving at once, each rendering the same sentence: every frame is code"></a>
+
+## Studio
+
+On top of the skills and the command line, we built Studio, a visual window that makes it easier to keep the whole making of a film in hand. Using it comes down to four things: see where a film has got to, point at the picture and say something, decide on cards, and talk to the agent.
+
+<table>
+<tr>
+<td width="56%" valign="top"><img src="docs/assets/studio/space.en.webp" width="100%" alt="Studio's space: a card for every film, the three waiting for you first, each saying what you have to decide"></td>
+<td valign="top"><b>Where each film has got to, at a glance.</b><br>The column on the left is the stops of making a film: concept, outline, storyboard, sound, cut, delivery, plus a record of assets and decisions. A line across the top marks the stop this film is at: amber is waiting for you, violet is the agent at work, green is done. Studio opens on every film, the ones waiting for you first, each card saying what you have to decide.</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/assets/studio/board.en.webp" width="100%" alt="The storyboard stop: a page per segment, a keyframe per shot saying what is seen, the shot the agent is unsure of marked"></td>
+<td valign="top"><b>Reviewing is pointing and saying.</b><br>The storyboard is a page per segment and a keyframe per shot; the cut's timeline carries the shots, the sound, what the checks found and where the agent is unsure. Select a shot, a second or a span, write a line, and it becomes a note.</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/assets/studio/note.en.webp" width="100%" alt="The cut stop: a few seconds selected on the timeline, and on the right a note written about those seconds"></td>
+<td valign="top"><b>Collect a few, hand them over at once.</b><br>Each note faces what you pointed at, and they gather in the right-hand column. Before anything goes, a summary lists what you chose for each decision and what each note says. Your words are copied into the project's <code>REVIEW.md</code>, and the agent carries on from them.</td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/assets/studio/decide.en.webp" width="100%" alt="The concept stop: on the left the numbers and objects that belong to this topic alone, on the right three concept cards with a frame each, the recommended one already chosen"></td>
+<td valign="top"><b>A stop is decided right here.</b><br>At the concept, the storyboard and the draft, the right-hand column holds what this round needs from you, a few cards each, with the recommended one already chosen. Leave it and the recommendation stands; click to change it; submit once.</td>
+</tr>
+</table>
+
+The right-hand column also talks straight to the agents on this machine (Claude Code, Codex, and DeepSeek Harness). Select a shot before you speak and it knows what you mean; what it read, what it ran and what it asks you to allow are laid out one by one. The first time, an adapter needs installing; Studio shows the line to run.
+
+Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio`: it's this one window each time (see [Open Studio](#open-studio)). At the `studio` effort level a stop is in Studio by default, and the agent carries on as soon as you submit; at `standard` a stop is a review page by default, and to decide it in Studio instead, tell the agent "review it in Studio". Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. It reads and writes the project's own files; what it reads and writes is in [tools/desk/README.md](tools/desk/README.md).
 
 ## What it makes
 
@@ -187,9 +223,16 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # or: codex
 ```
 
-The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos and registers the `open-video-harness` skills for Claude Code and Codex, so asking for a video from any folder finds it. About 650 MB on disk, about 380 MB of it without the reference repos. Then say what you want:
+The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos, registers the `open-video-harness` skills for Claude Code and Codex (so asking for a video from any folder finds it), and puts **OVH Studio** in your applications (on Linux, the app menu). The repo takes about 650 MB on disk, about 380 MB of it without the reference repos; OVH Studio takes about 380 MB more, about 130 MB of it downloaded the first time.
+
+Once it's installed, there are two ways in:
+
+- **Click OVH Studio**: every film, every stop and what you have to decide are in this window, and the right-hand column talks straight to the agent (see [Studio](#studio) above).
+- **Open Claude Code or Codex in the folder** (`cd ~/OpenVideoHarness && claude`, or `codex`) and say what you want:
 
 > Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.
+
+Every new film starts from a sentence like that: say it to the agent in the terminal, or write it in Studio's space and copy it over. Once the film exists it shows up in Studio, and you can carry on from either side.
 
 What happens next:
 
@@ -212,13 +255,9 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 ### Open Studio
 
-Studio is where you see every film, review a stop and talk to the agents on this machine. It is one window of its own, with no address bar, and asking again brings that same window forward rather than a second. Three ways bring it up:
+Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` in a terminal (`bin/vh studio <project>` lands on that film): it's the same window each time, and asking again only brings it to the front. Closing the window leaves Studio running in the background, so an agent at work carries on; click the icon again and the window comes back where it was; quitting OVH Studio is what stops it. A film kept in another folder joins this same window when you open it with `bin/vh studio <project>`.
 
-- **Click the icon.** `bin/vh studio --install-icon` puts **OVH Studio** in your applications (the installer asks once): Studio's own window, with its own frame, Dock icon and menu (Electron, about 130 MB downloaded once). Click it again and the same window comes to the front.
-- **In a terminal:** `bin/vh studio`, or `bin/vh studio <project>` to land on that film.
-- **Tell your agent** "open Studio" (or "打开 Studio"): it runs the same command, and the window appears.
-
-It is the same page whichever way it shows: without OVH Studio installed, the window is your Chrome, Edge, Chromium or Brave with a profile of Studio's own; with none of those, a tab of your default browser. Closing the window leaves Studio running in the background, so an agent at work carries on, and the next click brings the window back where it was. Quitting OVH Studio stops it. A film kept outside Studio's folders joins Studio when you open it there, so it is in the same window too.
+If the icon isn't there, `bin/vh studio --install-icon` adds it. Without OVH Studio, the window is your Chrome, Edge, Chromium or Brave; with none of those, a tab of your default browser.
 
 ## What's in the box
 
@@ -243,7 +282,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `edit` | The film as an edit list: pages, images, footage, other films and sounds in a row |
 | | `words` | The script read for the sentence shapes model drafts reach for (不是 A 而是 B, 排比 in threes, a colon that hands over the verdict): where they are and how often, for you to decide; it never edits |
 | | `tts` · `music` · `captions` · `mix` | Voiceover, a score written as code, subtitles, the mix ([Sound](#sound)) |
-| **Check and deliver** | `gate` · `desk` | A stop for your sign-off in one command; a console of every film, where you select a moment on the cut's timeline to note it and click the options |
+| **Check and deliver** | `studio` · `gate` · `desk` | Brings up [Studio](#studio)'s window; a stop for your sign-off in one command; `desk` is the console behind Studio, and can also open one film's review desk on its own |
 | | `frames` · `sheet` · `determinism` | Lossless frames, contact sheets, and a check that each frame really is a function of t |
 | | `check` | The rendered film against its brief: black, frozen or silent stretches, flashes, subtitles, colour tags, loudness |
 | | `render` | An MP4 drawn in parallel, resumable chunks, each render kept as a version |
@@ -347,7 +386,7 @@ The level sets how closely the agent checks its own work and how many review rou
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, type no smaller than the floor for the target screen, licences on record, and no paid call without a budget.
 
-For finer control, name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`) that builds a local review page with the picture first: the decisions are cards to click, and the places the agent is least sure of sit on the ruler under the player, a click away; frames, animatic and music play in the browser. At `studio` the stop is the review desk (`bin/vh desk`), Studio without the agent: modules on the left, how far the film has come on top, and on the right the cards you decide and your notes. It opens on the stop that waits for you; at the cut, the film, its shots, narration, music, checks and notes lie on one timeline, and selecting a second, a span or a shot and writing a line makes a note; you submit once, and the agent, waiting in the background, carries on with your words copied into `REVIEW.md`. Opened with no project, `bin/vh desk` is the space of every film, the ones waiting for you first, in three dark themes (Darkfield, Prism, Bridge). Both come in English or Chinese, following your first request.
+For finer control, name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`). At `standard` it builds a local review page by default, with the picture first: the decisions are cards to click, and the places the agent is least sure of sit on the ruler under the player, a click away. At `studio` the stop is in [Studio](#studio) by default, opened at the stop that waits for you, and the agent carries on as soon as you submit. Both come in English or Chinese, following your first request.
 
 ## Requirements, cost and limits
 
@@ -392,6 +431,7 @@ Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill op
 | Engines, the page contract, edit lists | [engines/](engines/README.md), [CONTRACT.md](engines/CONTRACT.md), [EDIT.md](engines/EDIT.md) |
 | 15 case studies of community work, and the repo's own films with every step on record | [cases/](cases/README.md), [showcase/](showcase/) |
 | What we measured, and what changed because of it | [docs/research/](docs/research/en/README.md) |
+| Studio: how to open it, what each module reads and writes | [tools/desk/README.md](tools/desk/README.md) |
 | The CLI | `bin/vh commands`, `bin/vh help`, any command with `-h` |
 | Tutorials, troubleshooting, FAQ | the [wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
 

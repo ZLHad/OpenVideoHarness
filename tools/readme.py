@@ -302,7 +302,7 @@ def same_file(target):
     t = target.partition("#")[0]
     t = re.sub(r"(^|/)README(?:\.zh-CN)?\.md$", r"\1", t)
     t = t.replace("docs/research/en/", "docs/research/")
-    t = re.sub(r"\.(?:en|zh)\.(svg|png|jpg)$", r".\1", t)
+    t = re.sub(r"\.(?:en|zh)\.(svg|png|jpg|webp)$", r".\1", t)
     return t.rstrip("/") or "."
 
 
