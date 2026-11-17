@@ -4415,8 +4415,9 @@ for n in (16, 32, 128, 512):
     if a[:8] != b"\x89PNG\r\n\x1a\n" or (w, h) != (n, n) or a != icon.png(n, n, icon.render(n)):
         bad.append(f"{n}: {w}x{h}")
 raw = zlib.decompress(icon.png(16, 16, icon.render(16))[41:-16])   # rows of a filter byte and 16 pixels
-if raw[8 * 65 + 1 + 8 * 4: 8 * 65 + 1 + 8 * 4 + 3] != bytes(icon.CYAN):
-    bad.append("16 px: the middle is not the console's cyan")
+mid = raw[8 * 65 + 1 + 8 * 4: 8 * 65 + 1 + 8 * 4 + 4]   # the diamond's middle: the gradient's violet, opaque
+if mid[3] != 255 or any(abs(mid[c] - icon.IRI[1][c]) > 16 for c in range(3)):
+    bad.append(f"16 px: the middle is not the diamond's violet: {tuple(mid)}")
 i = icon.icns()
 kinds, at = [], 8
 while at < len(i):
@@ -4426,7 +4427,7 @@ if i[:4] != b"icns" or struct.unpack(">I", i[4:8])[0] != len(i) or kinds != [k f
 print("; ".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "studio icon's picture: stdlib Python draws it at 16, 32, 128 and 512 px, the same bytes each time, the console's cyan square in the middle at 16; the .icns has its ten entries"
+  then ok "studio icon's picture: stdlib Python draws it at 16, 32, 128 and 512 px, the same bytes each time, the homepage's diamond in the middle at 16; the .icns has its ten entries"
   else bad "studio icon's picture"; fi
   { grep '^NOAPP=' install.sh; sed -n '/^put_icon() {/,/^}/p' install.sh; } > "$t/put.sh"
   mkdir -p "$t/inst/bin" && cat > "$t/inst/bin/vh" <<'SH'

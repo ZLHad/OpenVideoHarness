@@ -57,7 +57,7 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 - **关窗口和退出**：关掉窗口，控制台照旧在后台开着（agent 可能还在干活），再点图标窗口回来、对话接着；macOS 上 OVH Studio 关了窗口还留在 Dock 里，Linux 上关了窗口应用就退出。退出 OVH Studio（菜单、Dock 或 ⌘Q）时，图标起的那个控制台一起停（终端里起的不动），agent 正做着一轮时先问一句；控制台停了，它的窗口一起关，没有窗口了应用就退出。
 - **图标只是一个入口，事情都在仓库里做**：仓库挪了地方，点它会弹一句"找不到了，到新位置运行 `bin/vh studio --install-icon`"，`bin/vh doctor` 也会说。外壳的代码随 `git pull` 更新；Electron 的版本或图标改了，doctor 说"旧了"，再装一次就好。
 - **轻量启动器**（`--no-shell`，或者装不了 Electron 时）：macOS 上是一个常驻的 AppleScript 小程序（`osacompile -s`）：再点一次叫出窗口；退出时停掉它起的控制台；控制台停了它每分钟看一次，跟着退出。Linux 上是一个桌面项加一个小脚本。它们打开的是浏览器的窗口，所以 Dock 里会多一个浏览器图标。
-- **画面**是控制台的字标那一家：深色底，青色方块（控制台 favicon 的那一块），外面一圈取景框的四个角；16 和 32 像素时只留方块，边缘落在整像素上。`tools/desk/icon.py` 用标准库画出各个尺寸的 PNG 和 `.icns`，装图标时现画，不进 git；三个方案的对比在 `docs/assets/studio-icon-designs.png`（`python3 tools/desk/icon.py sheet <文件>` 重画）。
+- **画面**和官网的标志是一家：深色底上一颗青-紫-粉渐变的菱形（官网左上角那一颗，从里面透出一点光），外面一圈取景框的四个角；16 和 32 像素时只留菱形。控制台的 favicon 是同一颗菱形。`tools/desk/icon.py` 用标准库画出各个尺寸的 PNG 和 `.icns`，装图标时现画，不进 git；两个方案的对比在 `docs/assets/studio-icon-designs.png`（`python3 tools/desk/icon.py sheet <文件>` 重画）。图标改了，`bin/vh doctor` 会说装着的那个旧了，再运行一次 `bin/vh studio --install-icon` 就换上。
 - 只做了 macOS 和 Linux；Windows 没测过，`--install-icon` 在那里直接说不支持。
 
 ## 控制台：Studio 的外壳
