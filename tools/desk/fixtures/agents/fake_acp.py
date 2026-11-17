@@ -15,8 +15,14 @@ never answers the prompt and ignores the cancel, as a broken adapter would. Requ
 the middle of a long one), 绕沙箱/no-sandbox (a short command with dangerouslyDisableSandbox and other fields). --stubborn-child:
 it starts a child that ignores TERM (FAKE_ACP_LOG gets {"child": pid}): the desk's stop must take it too. --no-opus: as an
 adapter that offers neither Opus 5.5 nor the xhigh effort. Every session/set_config_option goes to FAKE_ACP_LOG ({"set": …}).
+新片子/"new film" (a film begun on Studio's space): asks before running bin/vh new <type> <slug>-film, makes the folder (a
+copy of the demo project, in --dir when the prompt names one, else the temp folder; each kind sends its command and its
+end in the shape its adapter does: Codex's end carries the exit code alone; 改名/"renamed": the folder is renamed after) and says "created <folder>" as bin/vh new
+does; with 先问我/"ask me" it first ends its turn with three questions (the next words go on with the film); 先等/"wait
+first": waits for a stop before making anything; 慢/"slow": waits for a stop after; 停一下/"stop at": then waits at the
+first stop (bin/vh desk wait, as gate --wait does) and goes on when the person submits.
 """
-import json, os, signal, sys, threading, time, uuid
+import json, os, re, shutil, signal, subprocess, sys, threading, time, uuid
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -96,9 +102,80 @@ def ask(sid, params):
     return "cancelled"
 
 
+def upd(sid, u):
+    send({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": sid, "update": u}})
+
+
+def words(sid, mid, x):
+    upd(sid, {"sessionUpdate": "agent_message_chunk", "messageId": mid, "content": {"type": "text", "text": x}})
+
+
+def held(s):
+    """Wait for the cancel (a slow step the person stops). → True."""
+    while not s["cancel"].wait(0.05):
+        pass
+    return True
+
+
+def new_film(rid, sid, text):
+    s = sessions[sid]
+    end = lambda why="end_turn": send({"jsonrpc": "2.0", "id": rid, "result": {"stopReason": why}})   # noqa: E731
+    m = re.search(r"\b([a-z][a-z0-9]*-film)\b", text)   # (the first words name it; an answer to its questions goes on with it)
+    slug = s["slug"] = m.group(1) if m else s.get("slug") or "tide-film"
+    d = re.search(r"--dir ('[^']+'|[^\s)]+)", text)   # Studio's line (quoted, as a shell takes it); never the checkout's own projects/ (the temp folder instead)
+    where = s["where"] = Path(d.group(1).strip("'")) if d else s.get("where") or Path(os.environ.get("TMPDIR") or "/tmp") / "stand-in-films"
+    if any(w in text for w in ("先问我", "ask me")) and not s.get("asked"):
+        s["asked"] = True
+        words(sid, "m-q", "开工前问你三件事：\n1. 竖屏还是横屏？\n2. 大概多长？\n3. 发在哪个平台？")
+        return end()
+    words(sid, "m-a", "好，照 CLAUDE.md 来：先定类型，建好项目。")
+    if any(w in text for w in ("先等", "wait first")) and held(s):
+        return end("cancelled")
+    cmd = f"bin/vh new short {slug} --dir '{where}'"
+    tc = {"toolCallId": "t-new", "title": cmd, "kind": "execute", "status": "pending", "rawInput": {"command": cmd, "description": "Make the film's folder"}}
+    if KIND == "codex":   # codex-acp 2.6: the command as words, its title the command line
+        tc = {"toolCallId": "t-new", "title": cmd, "kind": "execute", "status": "pending", "rawInput": {"command": ["/bin/zsh", "-lc", cmd], "cwd": s["cwd"]}}
+    elif KIND == "dsh":   # DeepSeek Harness: its "bash" tool
+        tc = {"toolCallId": "t-new", "title": "bash", "kind": "other", "status": "in_progress", "rawInput": {"command": cmd, "description": "Make the film's folder"}}
+    upd(sid, dict(tc, sessionUpdate="tool_call"))
+    got = ask(sid, {"toolCall": tc, "options": [{"optionId": "allow-once", "name": "Yes", "kind": "allow_once"}, {"optionId": "reject", "name": "No", "kind": "reject_once"}]})
+    if not got.startswith("allow"):
+        upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "failed"})
+        return end("cancelled" if s["cancel"].is_set() else "end_turn")
+    dest = where / f"{time.strftime('%Y-%m-%d')}-{slug}"
+    shutil.copytree(HERE.parent / "demo", dest, dirs_exist_ok=True)   # (a check may have put a lock there first)
+    if any(w in text for w in ("改名", "renamed")):   # the agent renamed the folder after bin/vh new: Studio cannot tell it is its film
+        dest = dest.rename(dest.with_name(dest.name + "-v2"))
+    said = f"✓ created {dest}"
+    if KIND == "codex":   # its finished command: the exit code alone (the output went to a channel this client has not)
+        upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "completed", "rawOutput": {"exit_code": 0}})
+    else:
+        upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "completed",
+                  "content": [{"type": "content", "content": {"type": "text", "text": f"```\n{said}\n```" if KIND == "claude" else said + "\n"}}]})
+    words(sid, "m-b", "建好了，接着想立意。")
+    if any(w in text for w in ("慢", "slow")) and held(s):
+        return end("cancelled")
+    if any(w in text for w in ("停一下", "stop at")):
+        g = f"bin/vh gate {dest} 1 --desk --wait"
+        upd(sid, {"sessionUpdate": "tool_call", "toolCallId": "t-gate", "title": g, "kind": "execute", "status": "in_progress", "rawInput": {"command": g}})
+        vh = HERE.parents[3] / "bin" / "vh"
+        p = subprocess.Popen(["bash", str(vh), "desk", "wait", str(dest), "--timeout", "60"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        while p.poll() is None:
+            if s["cancel"].wait(0.1):
+                p.terminate()
+                p.wait()
+                return end("cancelled")
+        upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-gate", "status": "completed",
+                  "content": [{"type": "content", "content": {"type": "text", "text": (p.stdout.read() or "")[:400]}}]})
+        words(sid, "m-c", f"收到你的提交，接着做。项目在 {dest}。")
+    return end()
+
+
 def run_turn(rid, sid, text):
     s = sessions[sid]
     s["cancel"].clear()
+    if any(w in text for w in ("新片子", "new film")) or s.get("asked"):   # a film begun on Studio's space
+        return new_film(rid, sid, text)
     if any(w in text for w in ("卡住", "hang")):   # a broken adapter: no answer, and the cancel is not heard
         return
     hostile = next((k for k, ws in (("long", ("长命令", "long-ask")), ("huge", ("超长", "huge-ask")), ("hidden", ("藏命令", "hidden-ask")),

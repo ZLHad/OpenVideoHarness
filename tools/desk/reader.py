@@ -377,18 +377,30 @@ def _match_segment(cell, outline, t0):
     return ""
 
 
+def unwritten(s):
+    """A template's placeholder left as it came ({…}, {the story in one sentence: …}): nothing written there yet."""
+    return bool(re.fullmatch(r"\s*\{[^{}]*\}\s*", s or ""))
+
+
+def _said(cell):
+    """A cell as words, or "" while it is still the template's placeholder."""
+    v = plain(cell)
+    return "" if unwritten(v) else v
+
+
 def _concept(brief):
     fields, specifics = [], []
     for k, v, sub in bullets(section(brief, r"^Content", r"^内容")):
         fields.append({"k": k, "v": plain(v)})
         if k.lower().startswith("specifics") or k.startswith("素材"):
-            specifics = [plain(x) for x in sub]
-    get = lambda *ks: next((f["v"] for f in fields for k in ks if f["k"].lower().startswith(k.lower())), "")   # noqa: E731
+            specifics = [plain(x) for x in sub if not unwritten(plain(x))]
+    get = lambda *ks: next((f["v"] for f in fields for k in ks if f["k"].lower().startswith(k.lower()) and not unwritten(f["v"])), "")   # noqa: E731
     return {"fields": fields, "specifics": specifics, "line": get("Concept", "立意"), "spine": get("Spine", "故事线"),
             "motif": get("Recurring motif", "母题"), "end": get("What the viewer", "看完")}
 
 
-def _outline(brief, clock, warnings):
+def _outline(brief, clock, warnings, blank=None):
+    """The BRIEF's outline table, a row a part. A row still the template's ({按内容起的段名}) is left out, counted in blank."""
     body = section(brief, r"^Outline", r"^大纲")
     t = first_table(body, "段落", "segment", "段")
     if not t:
@@ -398,6 +410,10 @@ def _outline(brief, clock, warnings):
     out = []
     for i, r in enumerate(t.rows):
         title, tag = plain(t.get(r, "段落", "segment", "段")), plain(t.get(r, "标签", "tag"))
+        if unwritten(title):
+            if blank is not None:
+                blank.append(i + 1)
+            continue
         m = re.match(r"^\d*\s*(起|承|转|合|收)\s*[·:：]\s*(.+)$", title)   # an old 'title': "承 · 发出去"
         if m:
             tag, title = tag or m.group(1), m.group(2).strip()
@@ -406,8 +422,8 @@ def _outline(brief, clock, warnings):
             t0, t1 = bar_span(t.get(r, "小节", "bars"), clock)
         out.append({"id": plain(t.get(r, "#", "id")) or str(i + 1), "title": title, "tag": tag,
                     "stage": plain(t.get(r, "环节", "阶段", "stage")), "bars": plain(t.get(r, "小节", "bars")),
-                    "t0": t0, "t1": t1, "know": plain(t.get(r, "观众", "viewer", "takeaway", "what the viewer")),
-                    "visual": plain(t.get(r, "关键画面", "画面", "key visual", "visual"))})
+                    "t0": t0, "t1": t1, "know": _said(t.get(r, "观众", "viewer", "takeaway", "what the viewer")),
+                    "visual": _said(t.get(r, "关键画面", "画面", "key visual", "visual"))})
     return out
 
 
@@ -442,6 +458,8 @@ def _facts(notes, warnings):
             if m:
                 claim, gone = m.group(2), True
             fid = plain(t.get(r, "#", "id")).lstrip("#")
+            if unwritten(plain(claim)):   # the template's row, not filled in: no material yet
+                continue
             facts.append({"id": "#" + fid if fid else "", "claim": plain(claim), "dropped": gone,
                           "kind": plain(t.get(r, "类别", "kind")), "onscreen": plain(t.get(r, "上屏", "on screen", "on-screen")),
                           "source": plain(t.get(r, "出处", "source"))})
@@ -706,7 +724,8 @@ def read_project(project):
     music, beats = _music(project, rounds, warnings)
     clock = bar_clock(beats or {})
     spec = [{"k": k, "v": plain(v)} for k, v, _ in bullets(section(brief, r"^Spec", r"^规格"))]
-    outline = _outline(brief, clock, warnings)
+    blank = []
+    outline = _outline(brief, clock, warnings, blank)
     captions = _script(script, outline, clock, warnings)
     facts, todo = _facts(notes, warnings)
     ideas = _ideas(notes)
@@ -721,7 +740,7 @@ def read_project(project):
     stage = STAGE_OF_GATE.get(cur["gate"], 1) if cur else 0
     return {"version": 1, "lang": lang,
             "project": {"slug": project.name, "title": title, "effort": effort, "paused": paused},
-            "stage": stage, "spec": spec, "concept": _concept(brief), "outline": outline, "captions": captions,
+            "stage": stage, "spec": spec, "concept": _concept(brief), "outline": outline, "outline_blank": len(blank), "captions": captions,
             "facts": facts, "fact_todo": todo, "ideas": ideas, "packaging": _packaging(_read(project / "PACKAGING.md", []) if _inside(project, "PACKAGING.md") else ""),
             "ledger": ledger, "agent_decided": agent, "history": history,
             "rounds": rounds, "feedback": _feedback(project, warnings),

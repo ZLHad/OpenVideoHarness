@@ -32,6 +32,7 @@
   },
   "concept": {"type": ["object", "null"], "required": ["fields", "specifics", "line", "spine", "motif", "end"]},
   "outline": {"type": "array", "items": {"type": "object", "required": ["id", "title", "tag", "stage", "bars", "t0", "t1", "know", "visual"]}},
+  "outline_blank": {"type": "integer", "description": "rows of the BRIEF's outline table still the template's placeholder ({…}), left out of outline"},
   "captions": {
    "type": ["object", "null"],
    "required": ["kind", "rows"],

@@ -79,7 +79,8 @@ moduleWords({
   rec: "推荐", picked: "你选的", pick_this: "选这张", picked_btn: "已选", like_this: "照这个方向再出一张", like_say: "照 {x} 的方向再出一张：",
   pro: "好处", con: "代价", l_card: "立意卡 {x}",
   cards_none: "立意卡还没出来。下面是写下的立意：",
-  bar_idea_wait: "等你选一张。选好在右边交给 agent。", bar_idea_wait_s: "等你选一张。选好把下面那行回复发给 agent。", bar_idea_done: "立意已定。现在改，大纲和分镜都得重来。", to_outline: "看大纲",
+  bar_idea_wait: "等你选一张。选好在右边交给 agent。", bar_idea_wait_s: "等你选一张。选好把下面那行回复发给 agent。", bar_idea_done: "立意已定。现在改，大纲和分镜都得重来。", bar_idea_todo: "立意还没定。agent 想好几个方向，会停在这里给你挑。",
+  idea_none: "立意卡还没出来，立意也还没写。", to_outline: "看大纲",
   idea_done: "你选了 {x}",
   idea_done_d: "{d} 定的。只能看；要改就写一条意见。", idea_done_d_s: "{d} 定的。要改，在对话里说。", idea_done_d0_s: "已定。要改，在对话里说。", skip_sub_s: "这一站没停下来给你看（你说了不用停）。要改，在对话里说。",
   idea_done0: "立意已定",
@@ -94,7 +95,8 @@ moduleWords({
   rec: "recommended", picked: "your pick", pick_this: "Pick this", picked_btn: "Picked", like_this: "Another in this direction", like_say: "Another card in the direction of {x}: ",
   pro: "Pro", con: "Cost", l_card: "Concept card {x}",
   cards_none: "No concept cards yet. Here is the concept as written:",
-  bar_idea_wait: "Waiting for your pick. Then send it to the agent on the right.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the agent.", bar_idea_done: "The concept is decided. Changing it now redoes the outline and the storyboard.", to_outline: "See the outline",
+  bar_idea_wait: "Waiting for your pick. Then send it to the agent on the right.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the agent.", bar_idea_done: "The concept is decided. Changing it now redoes the outline and the storyboard.", bar_idea_todo: "The concept isn't decided yet. The agent stops here with a few directions for you to pick from.",
+  idea_none: "No concept cards yet, and no concept written.", to_outline: "See the outline",
   idea_done: "You picked {x}",
   idea_done_d: "Decided {d}. To look at only; to change it, write a note.", idea_done_d_s: "Decided {d}. To change it, say so in the chat.", idea_done_d0_s: "Decided. To change it, say so in the chat.", skip_sub_s: "This stop was skipped (you said not to stop). To change it, say so in the chat.",
   idea_done0: "The concept is decided",
@@ -156,11 +158,11 @@ function mIdea2() {
   } else {
     title = t(settled ? "idea_done0" : "m_idea");
     if (settled) sub = day ? tRO("idea_done_d", { d: day }) : tRO("idea_done_d0");
-    right = voidLine(t(settled ? "cards_none_done" : "cards_none")) + briefConcept();
+    right = D.concept.line || D.concept.spine ? voidLine(t(settled ? "cards_none_done" : "cards_none")) + briefConcept() : voidLine(t("idea_none"));
   }
   const wait = stationState("1") === "waiting_person" || (cr && cr.open && !chosenOf(cr));
   return headM("idea", title, sub) + `<div class="mgrid idea">${left}<div class="cards-col">${right}</div></div>`
-    + barM(t(wait ? (readOnly() ? "bar_idea_wait_s" : "bar_idea_wait") : filmDelivered() ? "bar_redo" : "bar_idea_done"), "outline", t("to_outline"));
+    + barM(t(wait ? (readOnly() ? "bar_idea_wait_s" : "bar_idea_wait") : filmDelivered() ? "bar_redo" : settled || (cr && !cr.open) ? "bar_idea_done" : "bar_idea_todo"), "outline", t("to_outline"));
 }
 function syncIdea(dec, val) {   // a pick made anywhere (the cards here, the right column): the cards follow
   const cr = conceptRound(); if (!cr || cr.dec.id !== dec) return;
@@ -183,7 +185,7 @@ moduleWords({
   outline_title: "{n} 段大纲", outline_sub: "点一段，就能只评论这一段。", outline_sub_s: "每段要让人看到什么、用什么画面。", seg_know: "要看到", seg_pic: "画面", unsure_n: "{n} 处没把握",
   brief_h: "这支片子", engine_cost: "用什么做、花多少", engine: "用什么做", voice: "配音", budget: "预算", spent: "已花", stops: "停下来给你看", free: "不花钱",
   b_concept: "立意", b_spine: "主线", b_end: "看完能记住", b_hook: "钩子", b_audience: "观众", b_watch: "在哪看", b_output: "画面", b_pace: "节奏", b_effort: "打磨程度", b_director: "谁来定",
-  outline_none: "大纲还没写成表格。", bar_outline: "大纲已定。现在改，分镜得重做。", bar_redo: "片子已经交付了；现在改，就是整支重做。", to_board: "去分镜",
+  outline_none: "大纲还没写成表格。", outline_blank: "大纲还没写。", bar_outline: "大纲已定。现在改，分镜得重做。", bar_redo: "片子已经交付了；现在改，就是整支重做。", to_board: "去分镜",
   bar_outline_open: "大纲和立意一起定。",
   eff_quick: "快出",
   eff_standard: "标准",
@@ -202,7 +204,7 @@ moduleWords({
   outline_title: "An outline in {n} {n|part|parts}", outline_sub: "Click a part to comment on that part alone.", outline_sub_s: "What each part should land, and with what picture.", seg_know: "Should land", seg_pic: "Picture", unsure_n: "{n} unsure",
   brief_h: "This film", engine_cost: "How it's made, and what it costs", engine: "Made with", voice: "Voice", budget: "Budget", spent: "Spent", stops: "Stops for you", free: "nothing paid",
   b_concept: "Concept", b_spine: "Spine", b_end: "Remembered after", b_hook: "Hook", b_audience: "Audience", b_watch: "Watch on", b_output: "Picture", b_pace: "Pace", b_effort: "Polish", b_director: "Who decides",
-  outline_none: "The outline isn't a table yet.", bar_outline: "The outline is decided. Changing it now redoes the storyboard.", bar_redo: "The film has gone out; changing this now means remaking the whole film.", to_board: "To the storyboard",
+  outline_none: "The outline isn't a table yet.", outline_blank: "The outline isn't written yet.", bar_outline: "The outline is decided. Changing it now redoes the storyboard.", bar_redo: "The film has gone out; changing this now means remaking the whole film.", to_board: "To the storyboard",
   bar_outline_open: "The outline is decided with the concept.",
   eff_quick: "quick",
   eff_standard: "standard",
@@ -265,7 +267,7 @@ function mOutline2() {
   const eng = [[t("engine"), specGet("engine")], [t("voice"), voice], [t("spent"), money(b.spent)], [t("budget"), budget], [t("stops"), stopsWords(specGet("stops"))]].filter(([, v]) => v);
   const engine = panel(t("engine_cost"), "", eng.length ? `<dl class="kv2">${eng.map(([k, v]) => `<div${dattr({ scope: `${t("engine_cost")} · ${k}` })}><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : voidLine(t("no_brief")));
   return headM("outline", O.length ? t("outline_title", { n: O.length }) : t("m_outline"), t(readOnly() ? "outline_sub_s" : "outline_sub")) + tabs("outline")
-    + `<div class="mgrid outline"><div class="segs">${bar}${cards || voidLine(t("outline_none"))}</div><aside class="side">${brief}${engine}</aside></div>`
+    + `<div class="mgrid outline"><div class="segs">${bar}${cards || voidLine(t(D.outline_blank ? "outline_blank" : "outline_none"))}</div><aside class="side">${brief}${engine}</aside></div>`
     + barM(t(filmDelivered() ? "bar_redo" : ["done", "skipped"].includes(stationState("1")) ? "bar_outline" : "bar_outline_open"), "board", t("to_board"));
 }
 function wireOutline2() {

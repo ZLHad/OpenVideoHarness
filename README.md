@@ -105,7 +105,7 @@ On top of the skills and the command line, we built Studio, a visual window that
 </tr>
 </table>
 
-The right-hand column also talks straight to the agents on this machine (Claude Code, Codex, and DeepSeek Harness). Select a shot before you speak and it knows what you mean; what it read, what it ran and what it asks you to allow are laid out one by one. Before you first talk to an agent there, it needs an adapter: press “Set it up” in the column, and Studio installs it.
+The right-hand column also talks straight to the agents on this machine (Claude Code, Codex, and DeepSeek Harness). Select a shot before you speak and it knows what you mean; what it read, what it ran and what it asks you to allow are laid out one by one. On the space, the same column starts a new film: write what you want and send it, and the conversation moves into the film as soon as the agent has made it. Before you first talk to an agent there, it needs an adapter: press “Set it up” in the column, and Studio installs it.
 
 Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio`: it's this one window each time (see [Open Studio](#open-studio)). At the `studio` effort level a stop is in Studio by default, and the agent carries on as soon as you submit; at `standard` a stop is a review page by default, and to decide it in Studio instead, just tell the agent so. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. It reads and writes the project's own files; what it reads and writes is in [tools/desk/README.md](tools/desk/README.md).
 
@@ -231,7 +231,7 @@ Once it's installed, there are two ways in:
 
 > Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.
 
-Every new film starts from a sentence like that: say it to the agent in the terminal, or write it in Studio's space and copy it over. Once the film exists it shows up in Studio, and you can carry on from either side.
+Every new film starts from a sentence like that: say it to the agent in the terminal, or write it in the right-hand column of Studio's space and send it. Studio starts the agent you picked in this folder; once it has made the film, the window goes to it and the same conversation carries on there, its stops included. You can carry on from either side.
 
 What happens next:
 

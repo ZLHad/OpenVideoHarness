@@ -38,6 +38,10 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
   POST /api/p/<key>/agent/new · install · <id>/say · answer · stop · mode · config   the person's actions in the agent column:
                                   the typed text, an answer among the agent's own options, stop (waiting requests cancelled
                                   first), a setting among those the agent offered
+  GET  /api/space/agents · /api/space/agent/<id>/events · POST /api/space/agent/…   the same, for the space's column: a film
+                                  begun with a sentence, the agent working in the workspace (the clone), its record beside
+                                  the console's info file until bin/vh new in it makes the film; then it is that film's
+                                  (agents.Manager.adopt) and these addresses still reach it
   The desk's first addresses stay, for the project it was started for: /api/data (reader.read_project alone, as bin/vh desk
   data prints it), /api/status, /api/feedback, /p/<path>.
 
@@ -688,6 +692,14 @@ class Desk(http.server.ThreadingHTTPServer):
         self._joined_m = 0
         self._keys = {self.own_key: self.project} if self.project else {}
         self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
+        # a film begun on the space: the conversation's record in the person's own data folder until the film is made (one
+        # for every console of theirs, whatever its roots), the agent working in the workspace (the clone, where CLAUDE.md
+        # and bin/vh are); none for a desk of one project alone
+        self.space = None if self.only else space_dir()
+        self.agents.place = self.place
+        self.agents.places = self.film_places
+        self.agents.present = lambda: any(n > 0 for n in list(self.present.values()))
+        self.agents.space_note = space_note(self.roots)
 
     # ---------- the window: one-time codes, presence, show ----------
     def mint(self, ttl, w=""):
@@ -930,6 +942,23 @@ class Desk(http.server.ThreadingHTTPServer):
         except OSError:
             return 0
 
+    def film_places(self):
+        """Where a film begun on the space may be made: this console's roots, $OVH_PROJECTS, the workspace's projects/."""
+        out = list(self.roots) + ([os.path.expanduser(os.environ["OVH_PROJECTS"])] if os.environ.get("OVH_PROJECTS") else [])
+        return out + [str(WORKSPACE / "projects")]
+
+    def place(self, film):
+        """A film a conversation begun on the space made → its key (a film outside the roots joins the space first), or None."""
+        real = os.path.realpath(str(film))
+
+        def find():
+            rows = self.listing(fresh=True)["projects"]
+            return next((r["key"] for r in rows if os.path.realpath(r["path"]) == real), None)
+        k = find()
+        if k is None and join(real, self.roots):
+            k = find()
+        return k
+
     def project_of(self, key):
         """The folder a key names, or None. A key not seen yet walks the roots once more, at most once in FRESH_GAP seconds
         (a tab still asking for a project that is gone, or any /f/<nonsense>/, does not walk them on every request)."""
@@ -1023,6 +1052,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]
             return self._gate(project, key, m.group(3), lang if lang in ("zh", "en") else None)
+        m = re.fullmatch(r"/api/space/agents|/api/space/agent/([a-f0-9]{32})/events", path)
+        if m:   # the space's column: a film begun with a sentence, before (and while) it has a folder of its own
+            if srv.space is None:
+                return self._error(404, "this desk has no space")
+            return self._agents(srv.space, None, space=True) if not m.group(1) else self._events(srv.space, None, m.group(1), space=True)
         m = re.fullmatch(r"/api/p/([^/]+)/agents|/api/p/([^/]+)/agent/([a-f0-9]{32})/events", path)
         if m:
             key = unquote(m.group(1) or m.group(2))
@@ -1052,20 +1086,33 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._error(404, "not found")
 
     # ---------- the agent column ----------
-    def _agents(self, project, key):
-        """The agents this machine has (installed or how to install), the project's conversations, and who holds it."""
+    def _agents(self, project, key, space=False):
+        """The agents this machine has (installed or how to install), the project's conversations, and who holds it. space:
+        the conversations begun on the space that have made no film yet."""
         mgr = self.server.agents
         try:
-            sessions = mgr.listing(project)
+            sessions = [x for x in mgr.listing(project) if not space or not x.get("placed")]
         except OSError as e:
             sessions, err = [], str(e)
         else:
             err = None
-        lock = A.agentlock.read(project)
+        lock = None if space else A.agentlock.read(project)
         auth = mgr.auth
+        extra = {}
+        if space:   # ?sid= a conversation this page had open: the film it went to, when it made one meanwhile
+            sid = (parse_qs(urlsplit(self.path).query).get("sid") or [""])[0]
+            film = mgr.went(sid, project) if sid else None
+            rows = self.server.listing()["projects"] if film else []
+            key = next((r["key"] for r in rows if os.path.realpath(r["path"]) == os.path.realpath(film)), None) if film else None
+            if key:
+                extra["went"] = {"id": sid, "key": key}
+        elif not sessions and self.server.space:   # a new film with nothing in its column: a conversation from the space that may have made it
+            strays = [{k: x.get(k) for k in ("id", "kind", "label", "first", "created", "running")} for x in mgr.strays(project, self.server.space)]
+            if strays:
+                extra["strays"] = strays[:3]
         return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"]), choices=mgr.choices(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
                            "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
-                           **({"error": err} if err else {})})
+                           **extra, **({"error": err} if err else {})})
 
     def _presence(self):
         """GET /api/presence?token=&w=: a page with the token, as Server-Sent Events: while it is connected the desk knows
@@ -1111,7 +1158,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     srv.present[w] = srv.present.get(w, 1) - 1
                 srv.pcond.notify_all()
 
-    def _events(self, project, key, sid):
+    def _events(self, project, key, sid, space=False):
         """One conversation's events as Server-Sent Events: those after Last-Event-ID (or ?after=), then each as it comes;
         a comment every 5 s keeps the line (and the desk's --idle) alive, and finds a page that went away. Needs the page's token (?token=): the events are
         the conversation, file contents and commands included."""
@@ -1120,7 +1167,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         mine = self.server.token
         if not secrets.compare_digest(given, mine.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
-        s = self.server.agents.get(sid, project, key)
+        s = self.server.agents.get(sid, project, key, space=space)
         if s is None:
             return self._error(404, "no such conversation in this project")
         try:
@@ -1326,7 +1373,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         m = re.fullmatch(r"/api/p/([^/]+)/feedback", path)
-        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
+        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config|bring))", path)
+        sp = re.fullmatch(r"/api/space/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
+        if sp:
+            if self.server.space is None:
+                return self._error(404, "this desk has no space")
+            return self._agent_post(self.server.space, None, sp.group(2), sp.group(3) or sp.group(1), space=True)
         if m or a:
             project = self.server.project_of(unquote((m or a).group(1)))
             if project is None:
@@ -1458,7 +1510,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return None
         return raw
 
-    def _agent_post(self, project, key, sid, what):
+    def _agent_post(self, project, key, sid, what, space=False):
         """The person's actions in the agent column. Each carries the folder's identity (pid), like a submission: a page
         opened on another folder under this address is refused. Only the text in "text" is ever sent as the person's
         words; an answer must be one of the options the agent offered for a request that still waits."""
@@ -1478,13 +1530,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if not isinstance(kind, str) or kind not in A.ADAPTERS:
                     return self._error(400, "unknown agent")
                 s = mgr.open(project, key, kind, personal=raw.get("personal", True) is not False,   # model, effort: the person's choice in the new box
-                             asked={r: raw.get(r) for r in ("model", "effort") if isinstance(raw.get(r), str)})
+                             asked={r: raw.get(r) for r in ("model", "effort") if isinstance(raw.get(r), str)},
+                             cwd=WORKSPACE if space else None)   # on the space: the agent starts where CLAUDE.md is
                 try:
                     s.attach()   # the agent's mode, model and effort are on the page before the first word
                 except A.Unavailable as e:
                     return self._json(dict(s.summary(), error=e.code, detail=str(e)[:500]), 503 if e.code != "not_installed" else 424)
                 return self._json(dict(s.summary(), config=A.clean(s.config, s.root)))
-            s = mgr.get(sid, project, key)
+            if what == "bring" and not space:   # the person's click on a new film's empty column: that conversation from the space comes here
+                if not any(x["id"] == sid for x in mgr.strays(project, self.server.space)):
+                    return self._error(409, "that conversation cannot have made this film")
+                s = mgr.get(sid, self.server.space)
+                return self._json({"ok": bool(s and mgr.adopt(s, project))})
+            s = mgr.get(sid, project, key, space=space)
             if s is None:
                 return self._error(404, "no such conversation in this project")
             if what == "attach":
@@ -1524,6 +1582,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 # ---------- start: once per project, or one console ----------
+
+WORKSPACE = HERE.parent.parent   # the clone: CLAUDE.md, bin/vh, projects/
+
+
+def space_dir():
+    """Where the conversations begun on Studio's space live until their film is made: the person's own data folder, beside
+    Studio's app record (ovh-studio/), one for every console of theirs."""
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "ovh-studio" / "space"
+
+
+def space_note(roots=()):
+    """Studio's line after the first words of a film begun on the space: where the person follows it, and where the film
+    goes when this console looks at a folder of its own (its first --root, else $OVH_PROJECTS, which the agent's clean
+    environment does not carry). Built from the console's own settings, never from the page."""
+    where = roots[0] if roots else os.environ.get("OVH_PROJECTS") or ""
+    where = os.path.realpath(os.path.expanduser(where)) if where else ""
+    import shlex   # (a folder with a space in its name reaches the agent as one argument)
+    return ("(From Studio: the person wrote this in Studio's space to start a new film, and follows this conversation in "
+            "Studio; review its stops there (bin/vh gate … --desk)." + (f" Make the film's folder under {where} (bin/vh new … --dir {shlex.quote(where)})." if where else "") + ")")
+
 
 def _closed(conn):
     """Has the other end of this connection gone (a page that closed sends nothing more on a stream: readable means EOF)?"""
