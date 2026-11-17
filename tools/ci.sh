@@ -12341,7 +12341,7 @@ land_checks() {   # tools/land.py on a made-up repository with a local origin an
   # on one squashed since (-s ours, its tree kept), done (the squash's tree, main moved on, --clean), a plain merge on a PR
   # already mergeable, --dry-run, a conflict, main moved on after --after (a plain merge, not -s ours), an ignored file,
   # land-deny (named, not repeated), a batch's several CHANGELOG entries, change notes in changes/ (two PRs that each add
-  # one land in turn without a conflict), and the PRs it refuses
+  # one land in turn without a conflict), a release's message over GitHub's limit, and the PRs it refuses
   local t r k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-land.XXXXXX")
   cat > "$t/test.py" <<'PY'
 import json, os, subprocess, sys
@@ -12509,6 +12509,21 @@ pr(16, "pm", m1, title="Sixteenth")
 rc, out = land("ready", "16", cwd=c)
 report([] if rc == 0 and queued(16) == {"auto": True, "subject": "Sixteenth note (#16)", "match": m1, "body": "- sixteen"} else [f"exit {rc}, queued {queued(16)}: {out[-200:]}"],
        "change notes: a note moved to another name (git mv) is not the PR's own; a note named in Chinese is read as it is (the squash message from it)")
+
+branch("pn", sq12)   # a release: every entry gathered, the whole message over GitHub's limit
+for i in range(40): entry(f"Release entry {i}", "x" * 500)
+n1 = commit("release")
+branch("po", sq12)   # entries whose titles alone are over it too
+for i in range(70): entry(f"Long title {i} " + "t" * 250, "y")
+o1 = commit("release, long titles")
+push("pn", "po"); pr(17, "pn", n1, title="v9.9.9"); pr(18, "po", o1, title="v9.9.10")
+rc, out = land("ready", "17", cwd=c); rc2, out2 = land("ready", "18", cwd=c)
+want = "\n".join(f"- Release entry {i}" for i in reversed(range(40)))
+q17, q18 = queued(17) or {}, queued(18) or {}
+report([] if (rc, rc2) == (0, 0) and q17 == {"auto": True, "subject": "v9.9.9 (#17)", "match": n1, "body": want}
+       and len(q17["subject"]) + 2 + len(q17["body"]) <= 16383 and q18 == {"auto": True, "subject": "v9.9.10 (#18)", "match": o1, "body": ""}
+       and "titles alone" in out and "subject alone" in out2 else [f"exit {rc}, {rc2}, queued {str(q17)[:120]}, {str(q18)[:120]}"],
+       "a squash message over GitHub's 16,383 characters (a release): the entries' titles alone, or the subject alone, and it says so")
 
 pr(10, "pe", e1, baseRefName="pb"); pr(11, "pc", c1, state="CLOSED")
 r10, o10 = land("ready", "10", cwd=c); r11, o11 = land("ready", "11", cwd=c)
