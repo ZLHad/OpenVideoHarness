@@ -692,11 +692,13 @@ class Desk(http.server.ThreadingHTTPServer):
         self._joined_m = 0
         self._keys = {self.own_key: self.project} if self.project else {}
         self.agents = A.Manager(self.url)   # starts nothing: an adapter starts the first time someone talks to it
-        # a film begun on the space: the conversation's record beside this console's info file until the film is made, the
-        # agent working in the workspace (the clone, where CLAUDE.md and bin/vh are); none for a desk of one project alone
-        info = None if self.only else _info_path(None, self.roots)
-        self.space = info.with_name(info.stem + ".space") if info else None
+        # a film begun on the space: the conversation's record in the person's own data folder until the film is made (one
+        # for every console of theirs, whatever its roots), the agent working in the workspace (the clone, where CLAUDE.md
+        # and bin/vh are); none for a desk of one project alone
+        self.space = None if self.only else space_dir()
         self.agents.place = self.place
+        self.agents.places = self.film_places
+        self.agents.present = lambda: any(n > 0 for n in list(self.present.values()))
         self.agents.space_note = space_note(self.roots)
 
     # ---------- the window: one-time codes, presence, show ----------
@@ -940,6 +942,11 @@ class Desk(http.server.ThreadingHTTPServer):
         except OSError:
             return 0
 
+    def film_places(self):
+        """Where a film begun on the space may be made: this console's roots, $OVH_PROJECTS, the workspace's projects/."""
+        out = list(self.roots) + ([os.path.expanduser(os.environ["OVH_PROJECTS"])] if os.environ.get("OVH_PROJECTS") else [])
+        return out + [str(WORKSPACE / "projects")]
+
     def place(self, film):
         """A film a conversation begun on the space made → its key (a film outside the roots joins the space first), or None."""
         real = os.path.realpath(str(film))
@@ -1091,9 +1098,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             err = None
         lock = None if space else A.agentlock.read(project)
         auth = mgr.auth
+        extra = {}
+        if space:   # ?sid= a conversation this page had open: the film it went to, when it made one meanwhile
+            sid = (parse_qs(urlsplit(self.path).query).get("sid") or [""])[0]
+            film = mgr.went(sid, project) if sid else None
+            rows = self.server.listing()["projects"] if film else []
+            key = next((r["key"] for r in rows if os.path.realpath(r["path"]) == os.path.realpath(film)), None) if film else None
+            if key:
+                extra["went"] = {"id": sid, "key": key}
+        elif not sessions and self.server.space:   # a new film with nothing in its column: a conversation from the space that may have made it
+            strays = [{k: x.get(k) for k in ("id", "kind", "label", "first", "created", "running")} for x in mgr.strays(project, self.server.space)]
+            if strays:
+                extra["strays"] = strays[:3]
         return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"]), choices=mgr.choices(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
                            "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
-                           **({"error": err} if err else {})})
+                           **extra, **({"error": err} if err else {})})
 
     def _presence(self):
         """GET /api/presence?token=&w=: a page with the token, as Server-Sent Events: while it is connected the desk knows
@@ -1354,7 +1373,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         m = re.fullmatch(r"/api/p/([^/]+)/feedback", path)
-        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
+        a = re.fullmatch(r"/api/p/([^/]+)/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config|bring))", path)
         sp = re.fullmatch(r"/api/space/agent/(new|install|([a-f0-9]{32})/(attach|say|answer|stop|mode|config))", path)
         if sp:
             if self.server.space is None:
@@ -1518,6 +1537,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 except A.Unavailable as e:
                     return self._json(dict(s.summary(), error=e.code, detail=str(e)[:500]), 503 if e.code != "not_installed" else 424)
                 return self._json(dict(s.summary(), config=A.clean(s.config, s.root)))
+            if what == "bring" and not space:   # the person's click on a new film's empty column: that conversation from the space comes here
+                if not any(x["id"] == sid for x in mgr.strays(project, self.server.space)):
+                    return self._error(409, "that conversation cannot have made this film")
+                s = mgr.get(sid, self.server.space)
+                return self._json({"ok": bool(s and mgr.adopt(s, project))})
             s = mgr.get(sid, project, key, space=space)
             if s is None:
                 return self._error(404, "no such conversation in this project")
@@ -1560,6 +1584,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 # ---------- start: once per project, or one console ----------
 
 WORKSPACE = HERE.parent.parent   # the clone: CLAUDE.md, bin/vh, projects/
+
+
+def space_dir():
+    """Where the conversations begun on Studio's space live until their film is made: the person's own data folder, beside
+    Studio's app record (ovh-studio/), one for every console of theirs."""
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "ovh-studio" / "space"
 
 
 def space_note(roots=()):

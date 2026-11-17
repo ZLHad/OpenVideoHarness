@@ -4,7 +4,8 @@ started the first time someone talks to it.
 
 A conversation is a Session: one project folder (the agent's working folder), one kind of agent. One begun on Studio's space
 has no film yet: its record is the space's, the agent works in the workspace (the clone, where CLAUDE.md is), and when
-bin/vh new in it makes a film (made_film) it becomes that film's conversation (Manager.adopt). Everything that happens in
+bin/vh new in it makes a film (new_films: a folder that was not there when it began) it becomes that film's conversation
+(Manager.adopt). Everything that happens in
 it is an event, appended to <project>/.ovh/agents/<id>.jsonl and pushed to the open pages (server.py, SSE): what the person
 typed, every update the agent sends (its text as it comes, its thoughts, each tool call and its changes, its plan, the
 context it uses and what it costs), each request to approve something and how it was answered, each turn's start and end.
@@ -375,6 +376,9 @@ class Session:
         self._buf = None           # the agent's text not written yet: {"u", "text"}; written when CHUNK_GAP passes or anything else comes
         self.header = header or {}
         self.cwd = self.header.get("cwd") or self.root   # the agent's working folder: the film's, or the workspace's for one begun on the space
+        self.slugs = set(self.header.get("slugs") or [])   # the bin/vh new it ran (begun on the space)
+        self.refused = set()       # films it made whose lock someone else held (said once)
+        self.note_again = False    # it had to start afresh: Studio's line goes with the next words again
         self.acp_id = self.header.get("acp_id")
         self.personal = self.header.get("personal", True)
         self.live = False          # attached to a session in the running adapter
@@ -388,6 +392,7 @@ class Session:
         self._n = 0
         self._attach_lock = threading.RLock()   # attach → set_config (DSH defaults) → attach
         self._say_lock = threading.Lock()
+        self._spot_lock = threading.Lock()
         self.turn = 0              # this conversation's turns, numbered: a turn ended here is not ended again by its late answer
         self._ended = 0
         for e in self.events:      # the state an old log ends in: what the page shows before it talks again
@@ -508,6 +513,8 @@ class Session:
                 self.emit("notice", code="signed_out")
             if how in ("new", "fresh"):   # a conversation that could not be picked up starts fresh, as a new one does
                 self._defaults()
+            if how == "fresh" and self.unplaced:   # the agent remembers nothing: Studio's line goes with the next words again
+                self.note_again = True
 
     def _meta(self):
         """What session/new carries besides the folder: with personal settings off, Claude Code reads only the project's
@@ -576,9 +583,13 @@ class Session:
             return self.chunk(u)
         self.emit("update", u=self._c(u))
         if kind in ("tool_call", "tool_call_update") and self.unplaced:
-            made = made_film(u, self.cwd, self.header.get("created") or 0)
-            if made:   # (another thread: placing it reads the projects, and this one carries every agent's messages)
-                threading.Thread(target=self.mgr.adopt, args=(self, made), name=f"place-{self.id[:6]}", daemon=True).start()
+            got = ran_new(u) - self.slugs
+            if got:   # it runs bin/vh new: kept with the conversation, so a restart still knows
+                self.slugs |= got
+                self.header["slugs"] = sorted(self.slugs)[-20:]
+                self._header()
+            if self.slugs and kind == "tool_call_update":   # (another thread: it reads folders, and this one carries every agent's messages)
+                threading.Thread(target=self.mgr.spot, args=(self,), name=f"place-{self.id[:6]}", daemon=True).start()
 
     def on_permission(self, agent_rid, params):
         """The agent asks before it does something: a card on the page, the agent waiting until the person answers."""
@@ -648,7 +659,8 @@ class Session:
                 self.turn -= 1
                 raise Busy([dict(got, why="console")])
             self.running, self.stopping = True, False
-            first = self.header.get("space") and not any(e.get("type") == "user" for e in self.events)
+            first = self.unplaced and (self.note_again or not any(e.get("type") == "user" for e in self.events))
+            self.note_again = False
         self.emit("user", text=text, **({"scope": scope} if scope else {}))
         self.emit("turn", state="start")
         prompt = [{"type": "text", "text": text}]
@@ -776,39 +788,51 @@ def scope_note(scope):
 
 # ---------- a film begun on the space: which one this conversation made ----------
 
-MADE_RE = re.compile(r"\bcreated\s+([^\n`'\"]+)|\"project\"\s*:\s*\"([^\"]+)\"")   # bin/vh new's own line (a folder may have spaces), and its --json
+VH_NEW_RE = re.compile(r"(?:^|[^\w-])vh['\"]?\s+new\s+['\"]?[\w.-]+['\"]?\s+['\"]?([A-Za-z0-9][\w.-]{0,80})")   # bin/vh new <type> <slug>
 
 
-def _strings(o, depth=0):
+def _texts(o, depth=0):
     if isinstance(o, str):
-        yield o
+        yield o[:20000]
     elif isinstance(o, (list, tuple)) and depth < 6:
         for x in o[:50]:
-            yield from _strings(x, depth + 1)
+            yield from _texts(x, depth + 1)
     elif isinstance(o, dict) and depth < 6:
-        for k, v in list(o.items())[:50]:
-            if k not in ("rawInput", "locations"):   # what it ran, not what it said: only the output names the film made
-                yield from _strings(v, depth + 1)
+        for v in list(o.values())[:50]:
+            yield from _texts(v, depth + 1)
 
 
-def made_film(u, cwd, since):
-    """The folder of the film this tool call made, or None: one bin/vh new says it created (its "created <folder>" line, or
-    "project" in its --json) in the call's output, a folder that is a project (BRIEF.md) and was made after the conversation
-    began. Only the agent's own call, in its own conversation: another agent's new film at the same time is in another one."""
-    for text in _strings({k: v for k, v in u.items() if k in ("content", "rawOutput")}):
-        for m in MADE_RE.finditer(text[:200000]):
-            rest = (m.group(2) or m.group(1) or "").strip()   # "<folder>", "<folder>, but its engine's …", "<folder> without its engine …"
-            for raw in ([rest] if m.group(2) else [rest.split(", but ")[0].split(" without its engine")[0], rest.split()[0] if rest else ""]):
-                p = Path(os.path.expanduser(raw.strip().rstrip(".,;:)]}")))
-                p = p if p.is_absolute() else Path(cwd) / p
-                try:
-                    st = (p / "BRIEF.md").stat()
-                except OSError:
-                    continue
-                # (its change time: a copy keeps the template's birth time on macOS)
-                if p.is_dir() and st.st_ctime >= since - 5 and os.path.realpath(str(p)) != os.path.realpath(str(cwd)):
-                    return Path(os.path.realpath(str(p)))
-    return None
+def ran_new(u):
+    """The slugs of the bin/vh new this tool call runs (its command, as each agent sends it: rawInput's command, a list of
+    words, or the title)."""
+    return {m.group(1) for t in _texts([u.get("rawInput"), u.get("title")]) for m in VH_NEW_RE.finditer(t)}
+
+
+def folders(places):
+    """The real folders directly in these places (a link is not one): what a snapshot keeps."""
+    out = set()
+    for pl in places:
+        try:
+            with os.scandir(pl) as it:
+                for e in it:
+                    if not e.is_symlink() and e.is_dir(follow_symlinks=False):
+                        out.add(os.path.realpath(e.path))
+        except OSError:
+            continue
+    return out
+
+
+def new_films(places, before, slugs):
+    """The films a conversation made: a folder in one of the places (no link, nothing reached through one) that was not
+    there when it began (before), named <date>-<slug> for a bin/vh new it ran, with a BRIEF.md. An edit, a chmod or a
+    copy cannot make an old folder new, and a folder another conversation made carries that one's slug."""
+    names = [re.compile(r"\d{4}-\d{2}-\d{2}-" + re.escape(x) + "$") for x in slugs]
+    out = []
+    for r in sorted(folders(places) - set(before)):
+        inside = any(r.startswith(os.path.realpath(pl) + os.sep) for pl in places)
+        if inside and any(n.fullmatch(os.path.basename(r)) for n in names) and os.path.isfile(os.path.join(r, "BRIEF.md")):
+            out.append(r)
+    return out
 
 
 # ---------- the manager: one per desk ----------
@@ -828,6 +852,8 @@ class Manager:
         self.installs = {}     # kind → the install the person started from the column: {state, since, took, said}
         self.seen = {}         # kind → {model, effort: [{value, name}]}: what its last session offered (this run)
         self.place = None      # the desk's: a film's folder → its key in the console (joining it when it is outside the roots), or None
+        self.places = None     # the desk's: the folders a film begun on the space may be made in (its roots, the workspace's projects/)
+        self.present = None    # the desk's: is a page of Studio open (a request of a film begun on the space waits while one is)
         self.space_note = ""   # the desk's: Studio's line after the first words of a film begun on the space
         threading.Thread(target=self._watch, name="agents-watch", daemon=True).start()
 
@@ -989,8 +1015,9 @@ class Manager:
         if kind not in ADAPTERS:
             raise ValueError("unknown agent")
         header = {"created": time.time(), "personal": bool(personal)}
-        if cwd:
-            header.update(space=True, cwd=os.path.realpath(str(cwd)))
+        if cwd:   # where a film may be made, and what is there now: a folder there later that was not is one it made
+            places = [os.path.realpath(p) for p in (self.places() if self.places else [])]
+            header.update(space=True, cwd=os.path.realpath(str(cwd)), places=places, before=sorted(folders(places)))
         s = Session(self, kind, project, key, header=header)
         s.asked = {r: v for r, v in (asked or {}).items() if r in ("model", "effort") and isinstance(v, str) and v} or None
         s._header()
@@ -1017,6 +1044,8 @@ class Manager:
                 return None
             if header.get("kind") not in ADAPTERS:
                 return None
+            if header.get("space") and (self.went(sid, project) if not header.get("placed") else not (d / f"{sid}.jsonl").exists()):
+                return None   # a move a crash cut short: the conversation is whole in the one place that has its log
             events = []
             try:
                 for line in (d / f"{sid}.jsonl").read_text(encoding="utf-8").splitlines():
@@ -1059,35 +1088,91 @@ class Manager:
         out.sort(key=lambda x: x.get("last") or 0, reverse=True)
         return out[:30]
 
+    def spot(self, s):
+        """After a tool call of a conversation begun on the space that ran bin/vh new: the film it made, when there is
+        exactly one (new_films), becomes its film."""
+        with s._spot_lock:
+            if not s.unplaced or not s.slugs:
+                return False
+            taken = {x.root for x in list(self.sessions.values()) if x is not s and not x.unplaced}
+            made = [r for r in new_films(s.header.get("places") or [], s.header.get("before") or [], s.slugs) if r not in taken]
+            return self.adopt(s, Path(made[0])) if len(made) == 1 else False
+
+    def strays(self, film, space):
+        """The conversations begun on the space that ran bin/vh new, have no film, and Studio found none for (the folder was
+        renamed, or made some other way), that could have made this one (it was not there when each began, and it is in one
+        of its places): what a film's empty column offers to bring in."""
+        real = os.path.realpath(str(film))
+        out = []
+        for x in self.listing(space) if space else []:
+            s = self.get(x["id"], space)
+            if s is not None and s.unplaced and s.slugs and real not in set(s.header.get("before") or []) \
+                    and any(real.startswith(p + os.sep) for p in s.header.get("places") or []) \
+                    and not new_films(s.header.get("places") or [], s.header.get("before") or [], s.slugs):
+                out.append(x)
+        return out
+
     def adopt(self, s, film):
-        """The film a conversation begun on the space made: it becomes that film's conversation. Its record moves into the
-        film (<film>/.ovh/agents/), a turn in flight takes the film's lock, and the page hears where it is now (a notice
-        with the film's key: the window goes there). The agent is not touched: same session, same working folder."""
+        """The film a conversation begun on the space made: it becomes that film's conversation. A turn in flight takes
+        the film's lock first (held by someone else: nothing moves, and the column says so); the record moves in an order
+        a crash cannot split (a note at the space of where it goes, its head at the film, its log, then the head at the
+        space goes; one place shows it at every step); the page hears where it is now (the window goes there). The agent
+        is not touched: same session, same working folder."""
+        film = Path(os.path.realpath(str(film)))
         key = self.place(film) if self.place else None
         if key is None:
             return False
         with s._say_lock:   # (a turn ending meanwhile: it lets go of the lock it took here, or of none)
             if not s.unplaced:
                 return False
+            if s.running:
+                got = agentlock.acquire(film, {"kind": s.kind, "label": ADAPTERS[s.kind]["label"], "session": s.id, "turn": s.turn})
+                if got is not True:
+                    if str(film) not in s.refused:
+                        s.refused.add(str(film))
+                        s.emit("notice", code="place_busy", name=film.name, who=str((got or {}).get("label") or "")[:60])
+                    return False
             with s.cond:
                 s._flush()
-                old = s.log.parent
-                new = Path(film) / ".ovh" / "agents"
+                old, new = s.log.parent, film / ".ovh" / "agents"
+                done = []
                 try:
+                    (old / f"{s.id}.placed").write_text(str(film))
+                    done.append(old / f"{s.id}.placed")
                     folder(new)
-                    for ext in (".jsonl", ".json"):
-                        if (old / f"{s.id}{ext}").exists():
-                            shutil.move(str(old / f"{s.id}{ext}"), str(new / f"{s.id}{ext}"))
+                    (new / f"{s.id}.json").write_text(json.dumps(dict(s.header, id=s.id, placed=film.name), ensure_ascii=False))
+                    done.append(new / f"{s.id}.json")
+                    if (old / f"{s.id}.jsonl").exists():
+                        shutil.move(str(old / f"{s.id}.jsonl"), str(new / f"{s.id}.jsonl"))
                 except OSError:
-                    return False   # a film that cannot be written: the conversation stays on the space
-                s.project, s.root, s.key = Path(film), os.path.realpath(str(film)), key
+                    for f in done:   # a film that cannot be written: the conversation stays whole on the space
+                        try:
+                            f.unlink()
+                        except OSError:
+                            pass
+                    if s.running:
+                        agentlock.release(film, s.id, s.turn)
+                    return False
+                try:
+                    (old / f"{s.id}.json").unlink()
+                except OSError:
+                    pass
+                s.project, s.root, s.key = film, str(film), key
                 s.log = new / f"{s.id}.jsonl"
-                s.header["placed"] = Path(film).name
-                s._header()
-            if s.running:
-                agentlock.acquire(s.project, {"kind": s.kind, "label": ADAPTERS[s.kind]["label"], "session": s.id, "turn": s.turn})
-        s.emit("notice", code="placed", key=key, name=Path(film).name)
+                s.header["placed"] = film.name
+        s.emit("notice", code="placed", key=key, name=film.name)
         return True
+
+    def went(self, sid, space):
+        """Where a conversation begun on the space went: (its film's folder) when it made one, else None."""
+        s = self.sessions.get(sid) if isinstance(sid, str) and ID_RE.match(sid) else None
+        if s is not None and s.header.get("space") and not s.unplaced:
+            return s.root
+        try:
+            film = (Path(space) / ".ovh" / "agents" / f"{sid}.placed").read_text().strip() if space and ID_RE.match(str(sid)) else ""
+        except OSError:
+            return None
+        return film if film and (Path(film) / ".ovh" / "agents" / f"{sid}.jsonl").exists() else None
 
     def _watch(self):
         """A request with no page to answer it: after APPROVAL_TIMEOUT seconds without one, it is rejected."""
@@ -1096,7 +1181,7 @@ class Manager:
             now = time.time()
             for s in list(self.sessions.values()):
                 for rid, p in list(s.pending.items()):
-                    if s.subscribers:
+                    if s.subscribers or s.unplaced and self.present and self.present():   # (the space lists one that waits, while Studio is open)
                         p["detached"] = None
                     elif p.get("detached") is None:
                         p["detached"] = now

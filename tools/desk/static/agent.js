@@ -50,7 +50,8 @@ const ASTR = {
     too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
     turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
     turn_restart: "控制台重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
-    n_placed: "建好了这支片子：{x}。这段对话跟着它，接下来都在它里面。",
+    n_placed: "建好了这支片子：{x}。这段对话跟着它，接下来都在它里面。", n_place_busy: "建好了 {x}，但它正被{w}占着，这段对话先留在空间里。",
+    sp_own: "在开的新片子", sp_wait: "等你", sp_doing: "在做", stray: "从空间开的对话「{x}」可能就是做这支片子的，它还没跟过来。", stray_go: "把它带到这里", stray_fail: "没带过来：这支片子不像是那段对话建的",
     sp_h: "想做一支什么样的片子？", sp_b: "写一句发给 {a}：它照这个工作台的做法定类型、建好片子、先想立意。片子一建好，窗口就转过去，这段对话跟着过去。", sp_c: "它要停下来问你的，问题会出现在这里；它停在哪一站，那一站要你定的事也会摆出来。",
     sp_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次", sp_copy: "复制给别处的 agent", sp_copied: "复制好了，贴给你的 agent", sp_empty: "先写一句",
     n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_stopping: "正在停…",
@@ -100,7 +101,8 @@ const ASTR = {
     too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
     turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
     turn_restart: "The console restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
-    n_placed: "Made the film {x}. This conversation goes with it from here.",
+    n_placed: "Made the film {x}. This conversation goes with it from here.", n_place_busy: "Made {x}, but {w} is working on it, so this conversation stays on the space for now.",
+    sp_own: "New films under way", sp_wait: "waiting for you", sp_doing: "working", stray: "The conversation begun on the space, “{x}”, may be the one that made this film; it hasn't followed it here.", stray_go: "Bring it here", stray_fail: "Not brought: this film doesn't look like that conversation's",
     sp_h: "What film do you want to make?", sp_b: "Write a sentence to {a}: it works the way this workbench does, picks the kind of film, makes it and starts on the idea. Once the film is made, the window goes there and this conversation goes with it.", sp_c: "When it stops to ask you something, the questions show here; when it stops at a step, what that step needs from you is laid out too.",
     sp_ph: "e.g. a one-minute explainer on why the tide comes in twice a day", sp_copy: "Copy for an agent elsewhere", sp_copied: "Copied: paste it to your agent", sp_empty: "Write a sentence first",
     n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_stopping: "Stopping…",
@@ -148,7 +150,7 @@ const AGENT = (() => {
     else if (ty === "notice") {
       if (e.code === "agent_gone") S.gone = true;
       if (e.code === "stopping") { S.stopping = true; S.stopAsked = true; return; }
-      item("n" + e.seq, () => ({ kind: "notice", code: e.code, method: e.method, name: e.name }));
+      item("n" + e.seq, () => ({ kind: "notice", code: e.code, method: e.method, name: e.name, who: e.who }));
     } else if (ty === "update") update(e.u || {}, e);
   }
   function update(u, e) {
@@ -188,9 +190,14 @@ const AGENT = (() => {
     } catch (e) { return { ok: false, status: 0, data: null }; }
   }
   async function load() {
-    const r = await getJSON(`${base()}/agents`);
+    const sid = KEYP === SPACE ? (store_.get(`desk:agent:${SPACE}`) || {}).sid : "";
+    const r = await getJSON(`${base()}/agents${sid ? `?sid=${enc(sid)}` : ""}`);
     if (!r.ok || !r.data) return false;
     INFO = r.data;
+    if (KEYP === SPACE && INFO.went && !(S && S.id === INFO.went.id)) {   // reloaded while it made its film (its own stream says so when open): go there
+      store_.set(`desk:agent:${INFO.went.key}`, { kind: KIND, sid: INFO.went.id }); store_.set(`desk:coltab:${INFO.went.key}`, "chat"); store_.set(`desk:agent:${SPACE}`, { kind: KIND });
+      if (typeof spacePlaced === "function") spacePlaced(INFO.went.key);
+    }
     const saved = store_.get(`desk:agent:${KEYP}`) || {};
     KIND = KIND || saved.kind || (kinds().find((a) => a.installed) || kinds()[0] || {}).kind || "claude";
     return true;
@@ -215,6 +222,17 @@ const AGENT = (() => {
     }, 1500);
   }
   function sessionsOf(kind) { return ((INFO && INFO.sessions) || []).filter((s) => s.kind === kind); }
+  function histOf() { return KEYP === SPACE ? ((INFO && INFO.sessions) || []) : sessionsOf(KIND); }   // the space: every new film's conversation, whichever agent
+  function back(sid) {   // one click back to a conversation of the list (another agent's too)
+    const s = histOf().find((x) => x.id === sid); if (!s) return;
+    if (s.kind !== KIND) { KIND = s.kind; NEWASK = {}; }
+    NEWBOX = false; ERR = null; open(s); render();
+  }
+  function ownHtml() {   // the space's conversations that work or wait for you, under the sentence: one click back to each
+    const L2 = ((INFO && INFO.sessions) || []).filter((x) => (x.running || x.pending) && (!S || x.id !== S.id));
+    if (!L2.length) return "";
+    return `<section class="ag-own"><h3 class="blk-h"><b>${esc(at("sp_own"))}</b><span class="n mono">${L2.length}</span></h3><ul class="film-list agent">${L2.map((x) => `<li><a href="#/" data-own="${esc(x.id)}"><b>${esc(cut(x.title || x.first || "—", 40))}</b><span class="q">${esc(x.label || "")} · ${esc(at(x.pending ? "sp_wait" : "sp_doing"))}</span></a></li>`).join("")}</ul></section>`;
+  }
   function open(sum) {
     close();
     if (!KEYOK) return;   // a page without this run's token opens no conversation
@@ -448,15 +466,17 @@ const AGENT = (() => {
     if (!h.dataset.ready) { h.dataset.ready = "1"; h.innerHTML = `<div class="ag-top" id="agTop"></div><div id="agSetBox"></div><div id="agUseBox"></div>`; Object.keys(DRAWN).forEach((k) => { DRAWN[k] = null; }); }
     const st = stateNow(), word = at(st.k, { v: st.v, x: st.x });
     const el = S && S.running && S.turnAt ? secs(Date.now() / 1000 - S.turnAt) : "";
-    const list = sessionsOf(KIND).filter((x) => !S || x.id !== S.id);
+    const list = histOf().filter((x) => !S || x.id !== S.id);
+    const mark = (x) => (x.pending ? `<span class="chip wait">${esc(at("sp_wait"))}</span>` : x.running ? `<span class="chip agent">${esc(at("sp_doing"))}</span>` : "");
+    const waits = list.filter((x) => x.pending).length;
     const pick = `<select id="agKind" aria-label="${esc(at("ag_pick"))}">${kinds().map((a) => `<option value="${esc(a.kind)}"${a.kind === KIND ? " selected" : ""}>${esc(a.label)}${a.installed ? "" : LANG === "zh" ? "（没装）" : " (not set up)"}</option>`).join("")}</select>`;
     const top = `<span class="ag-orb" id="agOrb" aria-hidden="true"></span>${pick}<span class="ag-state" id="agState" role="status"></span>
-        <span class="ag-acts"><button type="button" class="xs" id="agNew">${esc(at("ag_new"))}</button>${list.length ? `<details class="ag-hist"><summary class="xs">${esc(at("ag_hist"))}</summary><ul>${list.map((x) => `<li><button type="button" data-sid="${esc(x.id)}"><b>${esc(cut(x.title || x.first || "—", 34))}</b><span class="mono">${esc(new Date((x.last || x.created || 0) * 1000).toLocaleString(LANG === "zh" ? "zh-CN" : "en", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</span></button></li>`).join("")}</ul></details>` : ""}</span>`;
+        <span class="ag-acts"><button type="button" class="xs" id="agNew">${esc(at("ag_new"))}</button>${list.length ? `<details class="ag-hist"><summary class="xs">${esc(at("ag_hist"))}${waits ? ` <span class="chip wait">${esc(at("sp_wait"))} ${waits}</span>` : ""}</summary><ul>${list.map((x) => `<li><button type="button" data-sid="${esc(x.id)}"><b>${esc(cut(x.title || x.first || "—", 34))}${mark(x)}</b><span class="mono">${esc(new Date((x.last || x.created || 0) * 1000).toLocaleString(LANG === "zh" ? "zh-CN" : "en", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</span></button></li>`).join("")}</ul></details>` : ""}</span>`;
     if (part("agTop", top)) {
       DRAWN.agState = null;
       $("#agKind").addEventListener("change", (e) => pickKind(e.target.value));
       $("#agNew").addEventListener("click", async () => { if (KEYP === SPACE) return fresh(); NEWBOX = true; NEWASK = {}; await load(); render(); const b = $("#agNewGo"); if (b) b.focus(); });   // (load: the agent's list as this run last saw it)
-      $$("#agTop [data-sid]").forEach((b) => b.addEventListener("click", () => { const s = sessionsOf(KIND).find((x) => x.id === b.dataset.sid); if (s) { open(s); render(); } }));
+      $$("#agTop [data-sid]").forEach((b) => b.addEventListener("click", () => back(b.dataset.sid)));
     }
     $("#agOrb").className = "ag-orb " + st.cls;
     $("#agState").className = "ag-state " + st.cls;
@@ -484,7 +504,9 @@ const AGENT = (() => {
     }
     if (!KEYOK) return "";   // the note above the column says it once, with what to do
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
-    if (KEYP === SPACE) return `<div class="ag-empty ag-space"><h3>${esc(at("sp_h"))}</h3>${S ? "" : startPicks()}<p>${esc(at("sp_b", { a: m.label }))}</p><p class="ag-mute">${esc(at("sp_c"))}</p><div class="ag-opts"><button type="button" class="btn ghost xs" id="agCopyAsk">${esc(at("sp_copy"))}</button></div></div><section id="spaceRun"></section>`;
+    if (KEYP === SPACE) return `<div class="ag-empty ag-space"><h3>${esc(at("sp_h"))}</h3>${S ? "" : startPicks()}<p>${esc(at("sp_b", { a: m.label }))}</p><p class="ag-mute">${esc(at("sp_c"))}</p><div class="ag-opts"><button type="button" class="btn ghost xs" id="agCopyAsk">${esc(at("sp_copy"))}</button></div></div>${ownHtml()}<section id="spaceRun"></section>`;
+    const st = !S && INFO && (INFO.strays || [])[0];
+    if (st) return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3><p>${esc(at("stray", { x: cut(st.first || "—", 40) }))}</p><div class="ag-opts"><button type="button" class="btn btn-primary" id="agBring" data-sid="${esc(st.id)}">${esc(at("stray_go"))}</button></div></div>`;
     return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3>${S ? "" : startPicks()}<p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
   }
   function itemHtml(it) {
@@ -516,6 +538,7 @@ const AGENT = (() => {
       return it.took ? `<p class="ag-sys">${esc(at("turn_took", { s: secs(it.took) }))}</p>` : "";
     }
     if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
+    if (it.kind === "notice" && it.code === "place_busy") return `<p class="ag-note warn">${esc(at("n_place_busy", { x: it.name || "", w: it.who || "?" }))}</p>`;
     if (it.kind === "notice" && it.code === "placed") return `<p class="ag-note ok">${esc(at("n_placed", { x: it.name || "" }))}</p>`;
     if (it.kind === "notice" && it.code === "restarted") return `<p class="ag-note warn">${esc(at("n_restarted", { a: label() }))}</p>`;
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
@@ -657,6 +680,10 @@ const AGENT = (() => {
       if (e.target.closest("#agInstallStop") && e.isTrusted) { installKind(true); return; }
       if (e.target.closest("#agNewGo")) { const p = $("#agPersonal"); NEWBOX = false; start(KIND, p ? p.checked : true); return; }
       if (e.target.closest("#agNewNo")) { NEWBOX = false; render(); }
+      const own = e.target.closest("[data-own]");
+      if (own) { e.preventDefault(); back(own.dataset.own); return; }
+      const br = e.target.closest("#agBring");
+      if (br && e.isTrusted) { br.disabled = true; bring(br.dataset.sid); return; }
       if (e.target.closest("#agCopyAsk") && e.isTrusted) {   // the sentence, for an agent somewhere else (the way it was before Studio could start one)
         const ta = $("#agSay"), x = ta ? ta.value.trim() : "";
         if (!x) { toast(at("sp_empty")); if (ta) ta.focus(); return; }
@@ -706,6 +733,25 @@ const AGENT = (() => {
     bz.innerHTML = busy ? `<span>${esc(busy)}</span>${anyway ? `<span class="ag-opts"><button type="button" class="btn" id="agAnyway">${esc(at("busy_anyway"))}</button><button type="button" class="btn ghost" id="agNotNow">${esc(at("busy_not"))}</button></span>` : ""}` : "";
   }
   function render() { renderHead(); renderThread(); renderFoot(); }
+  async function bring(sid) {   // the person's click on a new film's empty column: that conversation from the space comes here
+    const r = await post(`${sid}/bring`, {});
+    if (!(r.ok && r.data && r.data.ok)) { toast(at("stray_fail")); render(); return; }
+    await load();
+    const s = ((INFO && INFO.sessions) || []).find((x) => x.id === sid);
+    if (s) { KIND = s.kind; open(s); }
+    render();
+  }
+  let SPACETICK = 0;
+  function watchSpace() {   // the space's list follows its conversations: one that starts waiting for you shows at once
+    clearInterval(SPACETICK);
+    SPACETICK = setInterval(async () => {
+      if (KEYP !== SPACE) return clearInterval(SPACETICK);
+      const sig = () => JSON.stringify(((INFO && INFO.sessions) || []).map((x) => [x.id, x.running, x.pending]));
+      const before = sig();
+      if (!(await load()) || KEYP !== SPACE || sig() === before) return;
+      renderHead(); if (!S || !S.items.length) renderThread();
+    }, 4000);
+  }
   async function fresh() {   // the space: a sentence box for another new film (the one open stays in the history, and goes on)
     close(); NEWBOX = false; ERR = null; BUSY = null; NEWASK = {};
     store_.set(`desk:agent:${SPACE}`, { kind: KIND });
@@ -750,8 +796,9 @@ const AGENT = (() => {
         if (s) open(s);
       }
       render(); followInstall();   // an install still running (started before this page opened): followed to its end
+      if (key === SPACE) watchSpace();
     },
-    leave() { clearTimeout(INSTWATCH); close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
+    leave() { clearTimeout(INSTWATCH); clearInterval(SPACETICK); close(); KEYP = ""; INFO = null; KIND = ""; BUSY = null; ERR = null; NEWBOX = false; DOM.clear(); const b = $("#colTabs"); if (b) b.hidden = true; $("#col").classList.remove("chat"); const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; },
     scope() { if (KEYP) renderFoot(); },
     keyOk(ok) { KEYOK = !!ok; if (!KEYOK) close(); if (KEYP) render(); },   // without this run's token the conversation is not opened at all (the note at the top says why)
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)

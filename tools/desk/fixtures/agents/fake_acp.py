@@ -16,7 +16,8 @@ the middle of a long one), 绕沙箱/no-sandbox (a short command with dangerousl
 it starts a child that ignores TERM (FAKE_ACP_LOG gets {"child": pid}): the desk's stop must take it too. --no-opus: as an
 adapter that offers neither Opus 5.5 nor the xhigh effort. Every session/set_config_option goes to FAKE_ACP_LOG ({"set": …}).
 新片子/"new film" (a film begun on Studio's space): asks before running bin/vh new <type> <slug>-film, makes the folder (a
-copy of the demo project, in --dir when the prompt names one, else the temp folder) and says "created <folder>" as bin/vh new
+copy of the demo project, in --dir when the prompt names one, else the temp folder; each kind sends its command and its
+end in the shape its adapter does: Codex's end carries the exit code alone; 改名/"renamed": the folder is renamed after) and says "created <folder>" as bin/vh new
 does; with 先问我/"ask me" it first ends its turn with three questions (the next words go on with the film); 先等/"wait
 first": waits for a stop before making anything; 慢/"slow": waits for a stop after; 停一下/"stop at": then waits at the
 first stop (bin/vh desk wait, as gate --wait does) and goes on when the person submits.
@@ -130,17 +131,27 @@ def new_film(rid, sid, text):
     words(sid, "m-a", "好，照 CLAUDE.md 来：先定类型，建好项目。")
     if any(w in text for w in ("先等", "wait first")) and held(s):
         return end("cancelled")
-    cmd = f"bin/vh new short {slug.removesuffix('-film')} --dir '{where}'"
+    cmd = f"bin/vh new short {slug} --dir '{where}'"
     tc = {"toolCallId": "t-new", "title": cmd, "kind": "execute", "status": "pending", "rawInput": {"command": cmd, "description": "Make the film's folder"}}
+    if KIND == "codex":   # codex-acp 2.6: the command as words, its title the command line
+        tc = {"toolCallId": "t-new", "title": cmd, "kind": "execute", "status": "pending", "rawInput": {"command": ["/bin/zsh", "-lc", cmd], "cwd": s["cwd"]}}
+    elif KIND == "dsh":   # DeepSeek Harness: its "bash" tool
+        tc = {"toolCallId": "t-new", "title": "bash", "kind": "other", "status": "in_progress", "rawInput": {"command": cmd, "description": "Make the film's folder"}}
     upd(sid, dict(tc, sessionUpdate="tool_call"))
     got = ask(sid, {"toolCall": tc, "options": [{"optionId": "allow-once", "name": "Yes", "kind": "allow_once"}, {"optionId": "reject", "name": "No", "kind": "reject_once"}]})
     if not got.startswith("allow"):
         upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "failed"})
         return end("cancelled" if s["cancel"].is_set() else "end_turn")
     dest = where / f"{time.strftime('%Y-%m-%d')}-{slug}"
-    shutil.copytree(HERE.parent / "demo", dest)
-    upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "completed",
-              "content": [{"type": "content", "content": {"type": "text", "text": f"```\n✓ created {dest}\n```"}}]})
+    shutil.copytree(HERE.parent / "demo", dest, dirs_exist_ok=True)   # (a check may have put a lock there first)
+    if any(w in text for w in ("改名", "renamed")):   # the agent renamed the folder after bin/vh new: Studio cannot tell it is its film
+        dest = dest.rename(dest.with_name(dest.name + "-v2"))
+    said = f"✓ created {dest}"
+    if KIND == "codex":   # its finished command: the exit code alone (the output went to a channel this client has not)
+        upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "completed", "rawOutput": {"exit_code": 0}})
+    else:
+        upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-new", "status": "completed",
+                  "content": [{"type": "content", "content": {"type": "text", "text": f"```\n{said}\n```" if KIND == "claude" else said + "\n"}}]})
     words(sid, "m-b", "建好了，接着想立意。")
     if any(w in text for w in ("慢", "slow")) and held(s):
         return end("cancelled")
