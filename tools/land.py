@@ -20,7 +20,9 @@ ready, for a PR whose review is done:
   - The merge pushed (only now), the squash message taken from the change note the PR adds: a new file in changes/
     (tools/changes.py), or, the older way, an entry it adds to CHANGELOG.md. The note's bold title with " (#N)" is the
     subject, its lines the body. A PR adding several notes or entries (a batch) takes its own title as the subject and
-    the entries as the body; one adding none (a dependency bump) its title alone.
+    the entries as the body; one adding none (a dependency bump) its title alone. A message longer than GitHub takes
+    (MESSAGE_LIMIT; a release PR, which gathers every entry) keeps the entries' titles alone as its body, a line each,
+    or its subject alone when even those are too long.
   - Then draft to ready, and auto-merge, squash, only while the head is the one checked: GitHub merges it when the
     required checks pass. A PR GitHub already finds mergeable is merged at once.
 done, after GitHub merged the PR:
@@ -148,14 +150,26 @@ def note_entries(base, head):
     return out
 
 
+MESSAGE_LIMIT = 16383   # characters GitHub takes for a squash's message (subject, a blank line, body): v0.6.0's every entry was over
+
+
 def squash_message(n, title, entries):
-    """The squash's subject and body from the entries the PR adds, [(title, [line…])]: one entry is its title (#N) and
-    its lines; several are the PR's title and every entry; none the PR's title alone."""
+    """The squash's subject and body from the entries the PR adds, [(title, [line…])], and a note when it had to be cut:
+    one entry is its title (#N) and its lines; several are the PR's title and every entry; none the PR's title alone. Over
+    MESSAGE_LIMIT, the entries' titles alone are the body (several entries), else the subject goes alone."""
     if not entries:
-        return f"{title} (#{n})", ""
+        return f"{title} (#{n})", "", ""
     if len(entries) == 1:
-        return f"{entries[0][0]} (#{n})", "\n".join(entries[0][1]).strip("\n")
-    return f"{title} (#{n})", "\n\n".join((t + "\n" + "\n".join(body)).strip("\n") for t, body in entries)
+        subject, body = f"{entries[0][0]} (#{n})", "\n".join(entries[0][1]).strip("\n")
+    else:
+        subject, body = f"{title} (#{n})", "\n\n".join((t + "\n" + "\n".join(b)).strip("\n") for t, b in entries)
+    fits = lambda b: len(subject) + 2 + len(b) <= MESSAGE_LIMIT
+    if fits(body):
+        return subject, body, ""
+    titles = "\n".join(f"- {t}" for t, _ in entries)
+    if len(entries) > 1 and fits(titles):
+        return subject, titles, f"the whole message is over GitHub's {MESSAGE_LIMIT} characters: the entries' titles alone"
+    return subject, "", f"the whole message is over GitHub's {MESSAGE_LIMIT} characters: the subject alone"
 
 
 def merge_main(n, branch, head, main, after):
@@ -223,7 +237,7 @@ def ready(n, after, dry):
         problems += [f"it adds {f}, which git ignores" for f in p.stdout.split("\n") if f]
     lines = added_lines(main, new)
     entries = note_entries(main, new) + changelog_entries([(h, t) for f, h, t in lines if f == "CHANGELOG.md"])
-    subject, body = squash_message(n, pr["title"], entries)
+    subject, body, cut = squash_message(n, pr["title"], entries)
     pats = deny_patterns()
     for i, p in pats:
         hits = sorted({f for f, h, t in lines if p.search(t)})
@@ -236,7 +250,7 @@ def ready(n, after, dry):
         raise Fail("not landed:\n  " + "\n  ".join(problems))
     print(f"checked: {len(now)} file(s) against {BASE}, all the PR's own; none ignored; land-deny: "
           + (f"{len(pats)} pattern(s), none matched" if pats else "no .git/info/land-deny here"))
-    print(f"squash: {subject}" + (f" + {len(body.splitlines())} line(s)" if body else ", no body"))
+    print(f"squash: {subject}" + (f" + {len(body.splitlines())} line(s)" if body else ", no body") + (f" ({cut})" if cut else ""))
     if dry:
         print(f"dry run: would push {short(new)} to {branch}, mark it ready and queue the squash" if new != head else
               f"dry run: would mark #{n} ready and queue the squash of {short(new)}")
