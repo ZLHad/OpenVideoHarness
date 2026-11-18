@@ -351,6 +351,14 @@
     "currentValue": "gpt-6.1-sol",
     "options": [
      {
+      "value": "gpt-6.2-sol",
+      "name": "6.2 Sol"
+     },
+     {
+      "value": "gpt-6.2-astra",
+      "name": "6.2 Astra"
+     },
+     {
       "value": "gpt-6.1-sol",
       "name": "6.1 Sol",
       "description": "Latest workhorse model for coding and everyday work."

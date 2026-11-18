@@ -154,10 +154,13 @@ PY
 }
 
 doc_checks() {
-  local head out
+  local head out bytes
   head=$(head -3 AGENTS.md)
   if [ "$(tail -n +4 AGENTS.md)" = "$(cat CLAUDE.md)" ] && [ -n "$head" ]; then ok "AGENTS.md generated from CLAUDE.md"
   else bad "AGENTS.md is out of sync with CLAUDE.md: run bin/vh sync-agents"; fi
+  bytes=$(wc -c < AGENTS.md)
+  if [ "$bytes" -le 32768 ]; then ok "AGENTS.md fits Codex's default 32 KiB project guidance limit ($((bytes)) bytes)"
+  else bad "AGENTS.md exceeds Codex's default 32 KiB project guidance limit; move task-specific detail into the playbook"; fi
   # the command table (tools/commands.json): its own rules, its stages those of playbook/01's 总表
   if out=$(python3 tools/commands.py check 2>&1); then ok "$out: each with a summary, when, stages (playbook/01's), reads, writes, usage; subcommands in their usage"
   else echo "$out"; bad "tools/commands.json"; fi
@@ -7734,6 +7737,7 @@ feedback.save(p, feedback.validate(p, {"round": "1", "lang": "zh", "decisions": 
                                        "items": [{"target": "range:3-4.5", "status": "change", "text": "这里太快"}, {"target": "card:B", "status": "ok"}]}))
 PY
   b=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["pending"] == 1' \
+    'd["next_step"]["commands"][0].endswith(" --round 1")' \
     '[(i["target"], i["label"]) for i in d["open"]["review_items"]] == [("range:3-4.5", "片段 0:03.0–0:04.5")]')
   vh desk feedback "$p" >/dev/null
   c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')

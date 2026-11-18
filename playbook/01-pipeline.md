@@ -14,7 +14,7 @@
 | 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每段的理解目标，每镜的时间、reads、转场；也可以写在镜头元数据里）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②**（片子长、3D 渲染重或要花钱时单独停；否则随关卡 ③ 那一页给） |
 | 4 时间依据 | `audio/*`、`timeline.json`（词级时间）、`beats.json`，或事件表 | 见 `04-audio.md` | 用实测或定下的时间回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
-| 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 新做和改过的场景过 lint，按问题看 sheet、strip、crop |
+| 6 写场景 | 每个场景一个文件；按档位和宿主能力给长片分章 | 宿主的子代理工具 | 新做和改过的场景过 lint，按问题看 sheet、strip、crop |
 | 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `templates/TASTE_CHECKLIST.md` | 底线条目全 PASS；整片 draft 过 1 轮打分层，修最重要的至多 3 处（`studio` 至少 3 轮、最多 10 轮，做工五项都 ≥ 7）；小修只做局部复查 |
 | 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe` 通过，`blackdetect`、`freezedetect` 的命中逐条看过；**人工关卡 ③**（draft） |
 | 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | `bin/vh assets check`、`credits`（署名和 AI 标识） | 交付前把人说过的话逐条核对过（下面的"交付前"）；用户完整看一遍、听一遍 |
@@ -48,7 +48,7 @@
 |---|---|---|---|
 | 适合 | 一句话直接出片，中途不想看；也适合试方向 | 想在关卡上亲自拍板的正式视频 | 要多轮打磨的发布片、旗舰内容、会被反复看的片子 |
 | 人工关卡 | 0 道，直接出片。选 quick 就等于授权跳过关卡，把这一点记进 REVIEW.md；需求有歧义时最多问 1 个问题；人点名要拍板的事照样停（导演模式） | 按片子定，不按档位（CLAUDE.md"停在哪"） | 同左；关卡 ① 每张立意卡附一段 10–20 s 草图，有关卡 ② 时附全长 animatic |
-| 在哪审 | 不设关卡；导演模式要停的在聊天里问，或用静态审阅页 | 静态审阅页；人想逐条勾选、点评时开审阅台（`bin/vh gate … --desk`） | 审阅台：人在页面里勾选、点评、提交；`bin/vh gate … --wait` 在后台等着，提交就接着做；没有后台唤醒的 agent 退回"人回聊天说一声" |
+| 在哪审 | 不设关卡；导演模式要停的在聊天里问，或用静态审阅页 | 静态审阅页；人想逐条勾选、点评时开审阅台（`bin/vh gate … --desk`） | 审阅台：人在页面里勾选、点评、提交。宿主能在提交后唤醒 agent 时用 `--wait`，其余会话请人提交后回聊天说一声 |
 | 立意 | 想两三个一句话点子（12 第 3 节的四个问题可以帮忙），挑 1 个；写一行理由，再写一行同题视频最常见的做法 | 关卡 ① 给有实际差异的立意卡，每张配一帧画面 | 同左，每张配一段 10–20 s 的草图（look-dev） |
 | 风格 | 从立意推出来，可以参考 `styles/` 的预设，写明借了什么 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
@@ -62,7 +62,7 @@
 | 大致耗时（30 s 左右的片子） | 10–30 分钟 | 1–2 小时 | 3 小时以上 |
 | 推理强度建议 | 中 | 高 | 高；最难的一段或评审可以再升一档，量过有用再升 |
 
-最后一行是给能调推理强度的 agent 的建议（例如 Claude Code 选模型时的 effort 档位），不能调就忽略；新一代模型在"高"以上的收益不均匀，最高档留给时间和 token 都不计的少数情况。`quick` 的做法见 `playbook/quick.md`。
+推理强度是宿主的模型设置。它和 BRIEF 的 `Effort:` 独立，后者决定制作、审阅和验收的轮数。Codex 可先用 GPT‑6.2 Sol 做常规实现和改动，复杂分镜、跨引擎诊断或重要审片可以用 GPT‑6.2 Astra。以当前会话列出的模型和推理档为准。`quick` 的做法见 `playbook/quick.md`。
 
 ## 项目目录约定
 
@@ -212,8 +212,9 @@ projects/2026-10-01-leo-doppler/
 
 - **什么时候用**：`LOCAL.md` 没写审阅方式时，`studio` 默认用它，`standard` 默认还是静态审阅页，人想逐条点评时也可以开审阅台；`quick` 不设关卡，导演模式要停的那几处在聊天里问或用静态页。
 - **语言**：界面语言取 BRIEF 的 `Review language`（`zh` / `en`），按用户第一句话的语言定，建项目时用 `bin/vh new … --lang en`；这一轮的 gate JSON 写了 `lang` 时以它为准（和静态审阅页同一条规则）；页面右上角也能切换。字幕和项目文档照旧用项目自己的语言。
-- **每次停**：在后台运行 `bin/vh gate <project> <n> --wait`（Claude Code 的后台命令，`timeout` 给到上限 7200000 ms；它默认等 7100 s）。它出页、起审阅台（只听 127.0.0.1；已经在跑就用它），先打印聊天消息和审阅台地址（直接落在这一轮的关卡视图）：发出去，停下。人一提交它就打印反馈、退出，agent 随之被唤醒；超时以后才提交的，下一次 `bin/vh desk wait <project>` 一启动就交出来。人的原话审阅台已经抄进 `REVIEW.md` 的一节，agent 在下面补"定了 / 改了"（`bin/vh desk feedback <project>` 随时再看）；替人定的事照常记进 `DECISIONS.md`。没标的条目都算通过。
-- **没有后台唤醒的 agent**（或者 `wait` 超时了）：人提交后回聊天说一声"看审阅台"，agent 用 `bin/vh desk feedback <project>` 读。右边一列的顶上会写 agent 这会儿有没有在等。服务没起来时，页面把回复复制到剪贴板，人直接贴进聊天。
+- **出页**：运行 `bin/vh gate <project> <n> --desk`，把它打印的消息交给人，在这一关停住。命令会打开 Studio 到这一轮的视图。服务没起来时，静态页可以复制回复到聊天。
+- **有后台唤醒的宿主**：可在后台运行 `bin/vh gate <project> <n> --desk --wait` 出页并等待。这条命令默认等 7100 秒，先打印交给人的消息，收到反馈再打印并退出。此方式适合能在命令结束后唤醒 agent 的会话。
+- **Codex 或等待已超时的会话**：人在 Studio 提交后，回原对话说一声"看审阅台"。继续时先跑 `bin/vh status <project>`，再按 `next:` 读 `bin/vh desk feedback <project> --round <实际轮次>`。适用的原话已写进 `REVIEW.md`，在同一节补"定了 / 改了"；自己定的事记进 `DECISIONS.md`。没标的条目都算通过。
 - **页面读什么**：项目文件本身和 `bin/vh status`，每次刷新重读，不另存状态。表格怎么写才排得出来（BRIEF 的 Outline 表、SCRIPT 的字幕或旁白表、NOTES 素材清单、DECISIONS 的划线约定、REVIEW、`shots.json`）、gate JSON 给审阅台加的 `music`（音轨、节拍表、乐段的名字），以及提交的 JSON 格式，都在 `tools/desk/README.md`。读不出结构的文档不会消失：照原文排版显示在对应的模块和账本的"文档"里。人想随时看所有片子，`bin/vh desk` 不带项目开一个控制台就行（`--root <文件夹>` 加别处的项目）。
 - **成片模块要的数据**：都是已有命令的输出，缺哪样那条轨道就空着、写着做它的命令。关卡 ③ 用审阅台时，片子出来后跑一次 `bin/vh thumbs <project>` 和 `bin/vh peaks <project>`（只用 ffmpeg，几秒），人拖动时间线就能看到每一秒的画面和波形；镜头、旁白和节拍来自 `bin/vh timeline --resolved` 读的那几份文件，检查的问题来自 `bin/vh check` 的记录，第几版、改了哪里和上一版来自 `bin/vh versions`。
 

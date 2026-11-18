@@ -826,7 +826,9 @@ def server_checks():
             d4.stop()
 
     from fixtures.agents import stage as ST
-    out = ST.stage(T / "agents-out", 0.02, only=["claude"], args={"claude": ["--signed-out"]})
+    login_marker = T / "codex-login"
+    out = ST.stage(T / "agents-out", 0.02, only=["claude", "codex"],
+                   args={"claude": ["--signed-out"], "codex": ["--login-marker", str(login_marker)]})
     d3 = Desk(proj, out)
     try:
         def signed_out():
@@ -840,6 +842,20 @@ def server_checks():
             if not note or not e or "Authentication" not in (e.get("error") or "") or info["agents"][0]["signed_in"] is not False:
                 return f"notice {bool(note)}, end {e}, signed_in {info['agents'][0].get('signed_in')}"
         check("an agent whose login expired: the column is told (signed out) before anyone types, and the failed turn says why", signed_out)
+
+        def codex_signed_out():
+            def codex_meta():
+                return next(a for a in d3.get(f"/api/p/{d3.key}/agents")[1]["agents"] if a["kind"] == "codex")
+            st, result = d3.new("codex")
+            meta = codex_meta()
+            if st != 503 or result.get("error") != "signed_out" or meta["signed_in"] is not False:
+                return f"session: {st} {result.get('error')}, signed_in: {meta['signed_in']}"
+            login_marker.touch()
+            st, result = d3.new("codex")
+            meta = codex_meta()
+            if st != 200 or meta["signed_in"] is not True or "example.invalid" in json.dumps([meta, result]):
+                return f"retry: {st}, signed_in: {meta['signed_in']}"
+        check("Codex reports a missing login before the first prompt; after a terminal login it reconnects and reports only the login state", codex_signed_out)
     finally:
         d3.stop()
 
@@ -1597,7 +1613,7 @@ def choice_checks():
     def sent(log):
         return [json.loads(x)["set"] for x in log.read_text().splitlines() if x.startswith('{"set"')] if log.exists() else []
 
-    proj, log = T / "choice", T / "choice.jsonl"
+    proj, log = T / "external films" / "choice", T / "choice.jsonl"
     shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", proj)
     home = ST.stage(T / "agents-choice", 0.02, only=["claude", "codex"], log=log)
     d = Desk(proj, home)
@@ -1614,11 +1630,32 @@ def choice_checks():
               and ch0["codex"]["model"]["from"] == "agent" and not [x for x in sent(log) if x["id"] == "reasoning_effort" or x["value"].startswith("gpt")]
               else (st, stc, cur(s, "model"), cur(s, "thought_level"), cur(sc, "model"), ch0))
 
+        def codex_before_prompt():
+            import shlex
+            starts = [json.loads(x)["new"] for x in log.read_text().splitlines() if x.startswith('{"new"')]
+            setup = starts[-1]
+            sp = setup.get("systemPrompt") or {}
+            note = (sp.get("content") or [{}])[0].get("text", "")
+            command = shlex.join([str(ROOT / "bin" / "vh"), "status", str(proj)])
+            if sp.get("mode") != "append" or str(ROOT / "AGENTS.md") not in note or command not in note or setup.get("cwd") != str(proj):
+                return f"external film setup: {setup}"
+            sid = sc["id"]
+            model = d.a(sid, "config", {"id": "model", "value": "gpt-6.2-astra"})[0]
+            effort = d.a(sid, "config", {"id": "reasoning_effort", "value": "medium"})[0]
+            st2, next_chat = d.new("codex")
+            if (model, effort, st2) != (200, 200, 200) or next_chat["turns"] != 0:
+                return f"setup returned {model}, {effort}, {st2}, {next_chat.get('turns')} turns"
+            if (cur(next_chat, "model"), cur(next_chat, "thought_level")) != ("gpt-6.2-astra", "medium"):
+                return f"model and effort: {cur(next_chat, 'model')}, {cur(next_chat, 'thought_level')}"
+            if any('"prompt"' in x for x in log.read_text().splitlines()):
+                return "setting up the model sent a prompt"
+        check("Codex opens an external film with appended harness instructions and can select GPT-6.2 before its first prompt", codex_before_prompt)
+
         def picked():
             a = d.a(s["id"], "config", {"id": "model", "value": "sonnet"})[0]
             b = d.a(s["id"], "config", {"id": "effort", "value": "high"})[0]
             pk = json.loads((home / "picks.json").read_text()) if (home / "picks.json").exists() else None
-            if (a, b) != (200, 200) or pk != {"claude": {"model": "sonnet", "effort": "high"}}:
+            if (a, b) != (200, 200) or (pk or {}).get("claude") != {"model": "sonnet", "effort": "high"}:
                 return f"set {a} {b}, picks {pk}"
             if any(proj.rglob("picks*")):
                 return "a pick in the project"
@@ -1637,7 +1674,7 @@ def choice_checks():
             pk = json.loads((home / "picks.json").read_text())
             if st3 != 200 or (cur(s3, "model"), cur(s3, "thought_level")) != ("haiku", "high") or pk["claude"] != {"model": "haiku", "effort": "high"}:
                 return f"{st3} {cur(s3, 'model')} {cur(s3, 'thought_level')} {pk}"
-            bad = [x for x in sent(log) if x["value"] not in allowed["claude" if x["id"] in allowed["claude"] else "codex"].get(x["id"], set())]
+            bad = [x for x in sent(log) if x["value"] not in allowed[x["kind"]].get(x["id"], set())]
             return f"sent what the agent never offered: {bad}" if bad or any(x["value"] == "ultra-max" for x in sent(log)) else None
         check("model and effort: a choice made when starting a conversation is taken when the agent offers it and dropped when not; only values the agent "
               "reported are ever sent to it", asked)
