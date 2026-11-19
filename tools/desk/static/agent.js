@@ -14,7 +14,7 @@
 const ASTR = {
   zh: {
     tab_chat: "对话", tab_round: "这一站", tab_ask: "等你批准 {n}", tab_dec: "等你定 {n}", ask_bar: "{a} 在等你批准：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史",
-    ag_atstop: "片子等你拍板", n_own: "你交了意见，{a} 自己接着做了。", n_own_plain: "{a} 自己接着做了一轮。", n_own_busy: "{a} 自己接着做了，但这支片子正被别的 agent 占着。",
+    ag_atstop: "片子等你拍板", n_own: "你交了意见，{a} 自己接着做了。", n_own_plain: "{a} 自己接着做下去了。", n_own_busy: "{a} 自己接着做了，但这支片子正被别的 agent 占着。",
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "思考深度", set_more: "更多设置", set_personal_off: "不带个人设置",
