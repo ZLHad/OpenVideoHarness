@@ -44,7 +44,13 @@ def read(project):
         rec = json.loads(path(project).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return rec if isinstance(rec, dict) and _alive(rec.get("pid")) else None
+    if not (isinstance(rec, dict) and _alive(rec.get("pid"))):
+        return None
+    try:   # its pid taken by a process that started after the lock was written: not the holder
+        import activity
+        return rec if activity._alive(rec.get("pid"), rec.get("since")) else None
+    except Exception:
+        return rec
 
 
 def acquire(project, holder):

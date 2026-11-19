@@ -302,7 +302,7 @@ def stop(project, run, timeout):
         if not keep_mark:
             mark.done()
     row.update(state="cancelled" if end.get("cancelled") else "finished", exit=end.get("exit"), seconds=round(time.time() - t0, 2))
-    now = next((r for r in activity.runs(activity.read(project, tail=1 << 18))[0] if r["run"] == rid), None)
+    now = next((r for r in activity.runs(activity.read(project, tail=1 << 18), same_process=False)[0] if r["run"] == rid), None)
     row["kept"] = (now or {}).get("kept")
     return row
 
@@ -342,7 +342,7 @@ def main(argv):
     if not ps("-o", "pid=", "-p", str(os.getpid())):   # no ps, or one that may not look: a pid cannot be confirmed, nor said to be gone
         return jsonerr.fail("missing_tool", "cancel: ps cannot be run here, so no process can be confirmed: nothing was stopped", rc=1)
     recs = activity.read(project)
-    all_runs = [r for r in activity.runs(recs)[0] if r["run"] != os.environ.get("OVH_ACTIVITY_RUN")]   # not this command's own
+    all_runs = [r for r in activity.runs(recs, same_process=False)[0] if r["run"] != os.environ.get("OVH_ACTIVITY_RUN")]   # not this command's own (it tells another process's pid itself)
     of = {r["run"]: r.get("project") for r in recs if r["event"] == "start" and isinstance(r.get("run"), str)}
     for r in all_runs:
         r["project"] = of.get(r["run"])

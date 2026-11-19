@@ -250,7 +250,10 @@ def save(project, fb, now=None):
 
 def listening(project):
     """Is an agent waiting for this project's feedback (bin/vh desk wait running)? {listening, since, until}.
-    The flag must name this very folder: one copied from another project (or left by an older tool) doesn't count."""
+    The flag must name this very folder: one copied from another project (or left by an older tool) doesn't count. Its
+    process must be alive now, and be the one that wrote it: a pid that a later process took (it started after the flag's
+    since) is no listener; and the agent it waits for (the flag's agent, when it found one) must be alive too: a wait left
+    behind by an agent that is gone hands the notes to nobody."""
     flag = Path(project) / "out" / "review" / "feedback" / ".listening"
     try:
         info = json.loads(flag.read_text())
@@ -266,6 +269,8 @@ def listening(project):
     except (ValueError, TypeError):   # an "until" that is not a number of seconds: a flag this tool did not write
         return {"listening": False}
     if not until >= time.time():      # past, or NaN
+        return {"listening": False}
+    if not activity._alive(info["pid"], info.get("since")) or (info.get("agent") is not None and not activity.agent_alive(info.get("agent"))):
         return {"listening": False}
     return {"listening": True, "since": info.get("since"), "until": info.get("until")}
 
@@ -359,7 +364,9 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     """Hand the agent the reviewer's submission: print it, mark it consumed, return 0; 3 on timeout.
     A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
     timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
-    feedback/.listening ({pid, since, until, project}) so the desk can say an agent is waiting."""
+    feedback/.listening ({pid, since, until, project, agent}) so the desk can say an agent is waiting. agent: the agent
+    program it runs under (activity.agent_of), when there is one; once that agent is gone, or the wait's own parent is (it
+    was re-parented: whatever program started it ended), the wait ends (4): nobody would read what it hands over."""
     fdir = Path(project) / "out" / "review" / "feedback"
     flag = fdir / ".listening"
 
@@ -389,8 +396,18 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
         _handed(early)
         return 0
     start = time.time()
-    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project))}))
+    agent = activity.agent_of(os.getpid())
+    parent = os.getppid()   # whatever program started it: a wait re-parented (its parent gone) has nobody to hand over to
+    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project)), "agent": agent}))
+    looked = start
     while time.time() - start < timeout:
+        gone = os.getppid() != parent
+        if not gone and agent and time.time() - looked >= 5:   # (ps every 5 s at most)
+            looked, gone = time.time(), not activity.agent_alive(agent)
+        if gone:   # the agent it waits for, or whatever started it, went away: nobody would read what it hands over
+            out.write("the agent this wait was for is gone; the wait ends (the notes stay in Studio)\n")
+            out.flush()
+            return done(4)
         new = sorted(((f, j) for f, j in _records(project) if f.name not in seen), key=lambda x: _order(*x))
         if new:
             for f, j in new:

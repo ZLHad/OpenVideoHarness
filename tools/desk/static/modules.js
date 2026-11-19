@@ -675,7 +675,11 @@ function mShip2() {
       return `<li${dattr(first && first.t != null ? { mark: "time:" + (+first.t).toFixed(1), label: `${t("precheck")} · ${t(k)}`, t: first.t } : { scope: `${t("precheck")} · ${t(k)}` })}><span><b>${esc(t(k))}</b>${first ? `<span class="meta">${esc(cut(shotText(first.message), 60))}</span>` : ""}</span>${chip}${go}</li>`; }).join("")}</ul>` : voidLine(t("precheck_none"));
   return headM("ship", t("ship_title"), t("ship_sub")) + tabs("ship") + (done ? recapHtml(covers) : "")
     + `<div class="mgrid ship"><div>${panel(t("covers"), t("covers_sub"), cov + partErr("covers"))}${panel(t("copy"), "", copy)}</div><aside class="side">${panel(t("outputs"), "", outputs + partErr("subs"))}${panel(t("precheck"), "", pre + partErr("check"))}</aside></div>`
-    + barM(done ? (day ? t("bar_shipped", { d: day }) : t("f_delivered")) : flowWord(flowState(FLOW.find((f) => f.mod === "ship"))), "cut", t("to_cut"));
+    + barM((() => {   // where the film stands, as the column says it (bin/vh status's now): what is missing, or delivered and the film
+      const nw = (D.status || {}).now, NL = LANG === "zh" ? "zh" : "en", film = nw && nw.code === "delivered" && (nw.facts || {}).film;
+      if (done) return (day ? t("bar_shipped", { d: day }) : t("f_delivered")) + (film ? ` · ${film}` : "");
+      return nw && nw.say ? nw.say[NL] : flowWord(flowState(FLOW.find((f) => f.mod === "ship")));
+    })(), "cut", t("to_cut"));
 }
 function wireShip2() {
   $$("#stage [data-tell]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); tellWhere(b.dataset.tell); }));

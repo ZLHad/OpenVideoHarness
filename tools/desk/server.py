@@ -253,9 +253,36 @@ def _gate_pictures(project):
                 yield page.stem[5:], p
 
 
+def first_words(project, n=24):
+    """What the person first said in the conversation that made this film (begun on Studio's space), shortened; or None."""
+    d = Path(project) / ".ovh" / "agents"
+    try:
+        heads = sorted(d.glob("*.json"), key=lambda p: p.stat().st_mtime)
+    except OSError:
+        return None
+    for h in heads:
+        j = _load(h)
+        if not (isinstance(j, dict) and j.get("space") and j.get("placed")):
+            continue
+        try:
+            with open(h.with_suffix(".jsonl"), encoding="utf-8") as f:
+                for line in f:
+                    e = json.loads(line)
+                    if isinstance(e, dict) and e.get("type") == "user" and isinstance(e.get("text"), str) and e["text"].strip():
+                        x = " ".join(e["text"].split())
+                        if len(x) <= n:
+                            return x
+                        cut = max(x.rfind(c, 0, n) for c in "，,。；;：: ")   # at a pause in the sentence when there is one past its middle
+                        return (x[:cut] if cut > n // 2 else x[:n]).rstrip("，,。；;：: ") + "…"
+        except (OSError, ValueError):
+            continue
+    return None
+
+
 def film_title(project, title):
     """The film's name: BRIEF's (bin/vh status's title), else the newest gate page's title up to its stop's name
-    ("片名 · 关卡 ③ 初版" → "片名"), else the folder's name."""
+    ("片名 · 关卡 ③ 初版" → "片名"), else what the person first said when they asked for it on the space (shortened), else
+    the folder's name."""
     name = Path(project).name
     if title and title != name:
         return title
@@ -266,7 +293,7 @@ def film_title(project, title):
             head = re.split(r"\s+[·|｜—-]\s+(?=关卡|检查点|Gate|Checkpoint|E\d)", t.strip(), maxsplit=1)[0].strip()
             if head and head != t.strip():
                 return head
-    return title or name
+    return first_words(project) or title or name
 
 
 def ask_of(row, gid, gate):
@@ -1002,8 +1029,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
-    def _error(self, code, msg):
-        self._json({"error": msg}, code)
+    def _error(self, code, msg, reason=None):
+        """{error: msg} with the status; reason: a word the page says in the person's own language (the feedback route)."""
+        self._json(dict({"error": msg}, **({"reason": reason} if reason else {})), code)
 
     def _host_ok(self):
         if self.headers.get("Host", "") in self.server.hosts:
@@ -1048,10 +1076,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             what = m.group(2)
             if what == "data":
                 return self._data(project, key)
-            if what == "status":   # with this round's page: the console notices a new page the agent sent
+            if what == "status":   # with this round's page: the console notices a new page the agent sent; and where the film stands now
                 pages = review.gate_pages(project)
+                try:
+                    import status as S
+                    o = S.collect(project, light=True)
+                    now, plan = o.get("now"), o.get("plan")
+                except (Exception, SystemExit):   # the page keeps what it has
+                    now = plan = None
                 return self._json(dict(F.listening(project), project=project.name, key=key, round=pages[-1].stem[5:] if pages else None,
-                                       revision_stamp=RV.stamp(project)))
+                                       revision_stamp=RV.stamp(project), now=now, plan=plan))
             if what == "stage":
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]
@@ -1399,34 +1433,35 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._agent_post(project, unquote(a.group(1)), a.group(3), a.group(4) or a.group(2))
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
-            return self._error(403, "cross-origin request refused")
+            return self._error(403, "cross-origin request refused", "origin")
         given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")   # bytes: a non-ASCII str would raise
         if not secrets.compare_digest(given, self.server.token.encode("ascii")):
-            return self._error(403, "missing or wrong desk token: reload the page")
+            return self._error(403, "missing or wrong desk token: reload the page", "token")
         if not self.headers.get("Content-Type", "").startswith("application/json"):
-            return self._error(415, "send JSON")
+            return self._error(415, "send JSON", "format")
         try:
             n = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             n = 0
         if n <= 0 or n > F.MAX_BODY:
-            return self._error(413 if n > 0 else 400, f"empty, or larger than {F.MAX_BODY // 1024} KiB")
+            return self._error(413 if n > 0 else 400, f"empty, or larger than {F.MAX_BODY // 1024} KiB", "too_big" if n > 0 else "empty")
         try:
             body = self.rfile.read(n)
         except OSError:   # timed out waiting for the rest of the body
             self.close_connection = True
-            return self._error(408, "the request body did not arrive")
+            return self._error(408, "the request body did not arrive", "slow")
         if len(body) < n:
             self.close_connection = True
-            return self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says")
+            return self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says", "slow")
         try:
             raw = json.loads(body.decode("utf-8"))
             if m:   # the console's address: the page says which folder it was opened on, and it has to be this one
                 if not isinstance(raw, dict) or raw.pop("pid", None) != pid_of(project):
-                    return self._error(409, "this address names another project now than the page was opened on: reload it")
+                    return self._error(409, "this address names another project now than the page was opened on: reload it", "moved")
             fb = F.validate(project, raw)
         except (ValueError, TypeError, AttributeError, RecursionError) as e:   # UnicodeDecodeError is a ValueError
-            return self._error(400, str(e) or type(e).__name__)
+            why = str(e) or type(e).__name__   # a page that changed under the person (its gate file, a decision no longer on it), else something the page sent wrong
+            return self._error(400, why, "page_changed" if re.search(r"there is no out/review/gate-|is not a decision and option", why) else "invalid")
         saved = F.save(project, fb)
         sys.stderr.write(f"desk: feedback saved → {saved} (also in REVIEW.md)\n")
         sys.stderr.flush()
