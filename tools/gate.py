@@ -194,10 +194,17 @@ def gate_seen(stop, lang):
 
 
 def studio_open():
-    """Studio (the console) runs on this machine now: it is used, never started, for a standard film's stop."""
+    """Studio (the console) runs on this machine now: it is used, never started, for a standard film's stop. Its record must
+    name a process that is alive and answers on its port (server.running_info), and that started no later than the record
+    says (a pid another process took since is not Studio): a record left behind falls back to the static page."""
     try:
         import server
-        return bool(server.running_info(None, []))
+        import datetime
+        info = server.running_info(None, [])
+        if not info:
+            return False
+        since = datetime.datetime.fromisoformat(info["started"]).timestamp() if info.get("started") else None
+        return activity._alive(info.get("pid"), since)
     except Exception:
         return False
 

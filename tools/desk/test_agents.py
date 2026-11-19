@@ -2360,6 +2360,19 @@ def column_wait_checks():
         r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=e, timeout=120)
         if r.returncode != 0 or "nothing to wait for" not in r.stderr or "reviewed on the page" not in r.stderr or "Studio 里打开了" in r.stdout:
             out.append(f"no Studio: {r.returncode} {r.stderr[-300:]}")
+        import server
+        stale = server._info_path(None, [])   # where Studio says it runs (this run's temp folder)
+        if stale is None:
+            out.append("no place for Studio's record")
+        else:   # a record Studio left behind (its process gone): not Studio, the page as before
+            stale.parent.mkdir(parents=True, exist_ok=True)
+            dead = subprocess.Popen(["sleep", "30"])
+            dead.kill(); dead.wait()
+            stale.write_text(json.dumps({"pid": dead.pid, "port": 1, "url": "http://127.0.0.1:1/", "roots": [], "started": "2026-01-01T00:00:00"}))
+            r = subprocess.run(["bash", str(vh), "gate", str(p), "3"], capture_output=True, text=True, env=e, timeout=120)
+            stale.unlink()
+            if "reviewed on the page" not in r.stderr:
+                out.append(f"a stale Studio record: {r.stderr[-300:]}")
         d = Desk(None, T / "agents")   # Studio: the console with no roots of its own
         try:
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--page"], capture_output=True, text=True, env=e, timeout=120)
@@ -2388,7 +2401,7 @@ def column_wait_checks():
         finally:
             d.stop()
         return "; ".join(out) or None
-    check("a standard film's stop opens in Studio while Studio is open, with the wait (the submit hands it over); without Studio it goes out "
+    check("a standard film's stop opens in Studio while Studio is open, with the wait (the submit hands it over); a record Studio left behind is no Studio; without Studio it goes out "
           "as the page and --wait has nothing to wait for; an explicit --page wins, and --page --wait is refused", gate_channel)
 
     for slow in (False, True):
