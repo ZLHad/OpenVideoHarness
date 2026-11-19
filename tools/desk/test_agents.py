@@ -2341,6 +2341,75 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             os.environ["OVH_ACTIVITY_AGENT"] = was_agent
 
 
+def column_wait_checks():
+    """The column across a wait in the background (agents.py's async tasks): the agent's own turn after the submit."""
+    vh = ROOT / "bin" / "vh"
+    env = dict(os.environ, HOME=str(T / "home"))
+
+    def stage(name, gate=None):
+        p = T / "column" / name
+        shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", p)
+        if gate:
+            subprocess.run(["bash", str(vh), "gate", str(p), gate, "--page"], capture_output=True, text=True, env=env, timeout=120)
+        return p
+
+    for slow in (False, True):
+        b = stage("background-slow" if slow else "background", "3")
+        d = Desk(b, T / "agents")
+        try:
+            K = d.key
+            if not slow:
+                check("the column across a wait in the background: its turn ends while it waits (the stop says it waits), the submit starts a turn of its own "
+                      "(the async tasks extension asked of Claude's adapter), which ends by itself and lets the lock go", lambda: background(d, K, b, False))
+            else:
+                check("the agent's own turn after the submit holds the film's lock and the column's stop button, and the stop ends it", lambda: background(d, K, b, True))
+        finally:
+            d.stop()
+    check("the console asks Claude's adapter for its async tasks extension, and no other",
+          lambda: None if '{"async_tasks": true}' in (T / "prompts.jsonl").read_text() else "not asked")
+
+
+def background(d, K, b, slow):
+    """A conversation that waits for its stop in the background, then the submit (handoff_checks)."""
+    import agentlock
+    st_, s_ = d.new("claude")
+    sid = s_["id"]
+    L = Listen(d, sid)
+    d.a(sid, "say", {"text": "后台等" + ("，慢" if slow else "")})
+    first = L.wait(ended)
+    for _ in range(100):
+        if d.get(f"/api/p/{K}/status")[1].get("listening"):
+            break
+        time.sleep(0.1)
+    row = next((x for x in d.get(f"/api/p/{K}/agents")[1]["sessions"] if x["id"] == sid), {})
+    waiting = d.get(f"/api/p/{K}/status")[1]
+    if not first or row.get("running") or not waiting.get("listening") or (waiting.get("now") or {}).get("code") != "waiting_you":
+        return f"its turn ended and it waits in the background: {row} {waiting.get('listening')} {waiting.get('now')}"
+    d.post(f"/api/p/{K}/feedback", {"round": "3", "general": "可以了" if not slow else "再改"})
+    own = L.wait(lambda e: e.get("type") == "turn" and e.get("state") == "start" and e.get("own"), 20)
+    if not own:
+        return "no turn of its own after the submit"
+    held = agentlock.read(b) or {}
+    row = next((x for x in d.get(f"/api/p/{K}/agents")[1]["sessions"] if x["id"] == sid), {})
+    if slow:
+        now = d.get(f"/api/p/{K}/status")[1].get("now") or {}
+        if held.get("session") != sid or not row.get("running") or now.get("code") not in ("notes_taken", "working"):
+            return f"while it works by itself: lock {held}, row {row}, now {now}"
+        d.a(sid, "stop")
+    end = L.wait(lambda e: ended(e) and e.get("own"), 20)
+    L.close()
+    if not end or (slow and end.get("stop") != "cancelled") or (not slow and end.get("stop") != "end_turn"):
+        return f"its own turn's end: {end}"
+    if "收到你的提交" not in text_of(L.events):
+        return "its words after the submit: " + text_of(L.events)[-120:]
+    for _ in range(50):
+        if agentlock.read(b) is None:
+            break
+        time.sleep(0.1)
+    if agentlock.read(b) is not None:
+        return "the lock stayed after its turn"
+
+
 if __name__ == "__main__":
     import atexit
     atexit.register(reap)
@@ -2349,7 +2418,7 @@ if __name__ == "__main__":
     T.mkdir(parents=True, exist_ok=True)
     if "--only" in sys.argv:   # while working on one group: the stand-ins staged, then that group alone
         check("the stand-ins staged", catalog_check)
-        {"handoff": handoff_checks}[sys.argv[sys.argv.index("--only") + 1]]()
+        {"handoff": handoff_checks, "column": column_wait_checks}[sys.argv[sys.argv.index("--only") + 1]]()
         print("end", flush=True)
         sys.exit(0)
     check("the adapter's environment: no provider key, none of the host session's ANTHROPIC_*/CLAUDE_CODE_* variables, the basics kept", env_check)
@@ -2383,7 +2452,7 @@ if __name__ == "__main__":
         choice_checks()
     except Exception as e:
         say(False, "the agent column's model and effort checks", f"{type(e).__name__}: {e}")
-    for name, fn in (("set it up", install_checks), ("what this machine lacks", machine_checks), ("hand-over", handoff_checks)):
+    for name, fn in (("set it up", install_checks), ("what this machine lacks", machine_checks), ("hand-over", handoff_checks), ("column's wait", column_wait_checks)):
         try:
             fn()
         except Exception as e:

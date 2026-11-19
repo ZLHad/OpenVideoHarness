@@ -21,6 +21,11 @@ end in the shape its adapter does: Codex's end carries the exit code alone; 改�
 does; with 先问我/"ask me" it first ends its turn with three questions (the next words go on with the film); 先等/"wait
 first": waits for a stop before making anything; 慢/"slow": waits for a stop after; 停一下/"stop at": then waits at the
 first stop (bin/vh desk wait, as gate --wait does) and goes on when the person submits.
+后台等/"wait in background": as Claude Code does with a command run in the background, it starts bin/vh desk wait on its folder,
+ends its turn at once, and when the wait ends (the person submitted) begins a turn of its own; a client that declared the
+adapter's async tasks extension (_meta.jetbrains.air asyncTasks) hears that turn as a task of type "turn", spawned and then
+ended, and can stop it with _session/async_task/stop; another client gets the words with no turn around them. With 慢/"slow" its
+own turn goes on until it is stopped.
 """
 import json, os, re, shutil, signal, subprocess, sys, threading, time, uuid
 from pathlib import Path
@@ -37,6 +42,8 @@ out_lock = threading.Lock()
 sessions = {}       # id → {"cwd", "config", "cancel": Event}
 waiting = {}        # our request id → [Event, answer]
 next_id = [1000]
+ASYNC = [False]     # the client declared the async tasks extension (initialize)
+own_stop = {}       # the task id of a turn begun by itself → Event (its stop)
 
 
 def send(msg):
@@ -172,9 +179,46 @@ def new_film(rid, sid, text):
     return end()
 
 
+def background_wait(rid, sid, text):
+    """bin/vh desk wait in the background, the turn ended at once; a turn of its own when the wait ends."""
+    s = sessions[sid]
+    g = f"bin/vh desk wait {s['cwd']} --timeout 120"
+    upd(sid, {"sessionUpdate": "tool_call", "toolCallId": "t-bg", "title": g, "kind": "execute", "status": "in_progress",
+              "rawInput": {"command": g, "run_in_background": True}})
+    vh = HERE.parents[3] / "bin" / "vh"
+    p = subprocess.Popen(["bash", str(vh), "desk", "wait", s["cwd"], "--timeout", "120"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"bg": p.pid}) + "\n")
+    if ASYNC[0]:
+        upd(sid, {"sessionUpdate": "async_task_spawned", "asyncTaskId": "bg-1", "name": g, "taskType": "bash", "description": g,
+                  "showInTranscript": True, "canStop": True, "toolCallId": "t-bg"})
+    upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-bg", "status": "completed",
+              "content": [{"type": "content", "content": {"type": "text", "text": "Command running in background with ID: bg-1"}}]})
+    words(sid, "m-bg", "我在后台等你在审阅台拍板，交了我就接着做。")
+    send({"jsonrpc": "2.0", "id": rid, "result": {"stopReason": "end_turn"}})
+
+    def later():
+        out = p.communicate()[0] or ""
+        if ASYNC[0]:
+            upd(sid, {"sessionUpdate": "async_task_state_update", "asyncTaskId": "bg-1", "state": "completed" if p.returncode == 0 else "failed"})
+        tid = f"autonomous-turn-{uuid.uuid4()}"
+        stop = own_stop[tid] = threading.Event()
+        if ASYNC[0]:
+            upd(sid, {"sessionUpdate": "async_task_spawned", "asyncTaskId": tid, "name": "Claude is working", "taskType": "turn",
+                      "description": "Background command completed", "showInTranscript": False, "canStop": True})
+        words(sid, "m-own", "收到你的提交，接着做：" + out.strip().splitlines()[0][:80] if out.strip() else "收到你的提交，接着做。")
+        stopped = stop.wait(30) if any(w in text for w in ("慢", "slow")) else stop.wait(1.5 * SPEED)
+        words(sid, "m-own2", "停下了。" if stopped else "改好了。")
+        if ASYNC[0]:
+            upd(sid, {"sessionUpdate": "async_task_state_update", "asyncTaskId": tid, "state": "stopped" if stopped else "completed"})
+        own_stop.pop(tid, None)
+    threading.Thread(target=later, daemon=True).start()
+
+
 def run_turn(rid, sid, text):
     s = sessions[sid]
     s["cancel"].clear()
+    if any(w in text for w in ("后台等", "wait in background")):
+        return background_wait(rid, sid, text)
     if any(w in text for w in ("新片子", "new film")) or s.get("asked"):   # a film begun on Studio's space
         return new_film(rid, sid, text)
     if any(w in text for w in ("卡住", "hang")):   # a broken adapter: no answer, and the cancel is not heard
@@ -242,7 +286,15 @@ def run_turn(rid, sid, text):
 def handle(msg):
     m, p, rid = msg.get("method"), msg.get("params") or {}, msg.get("id")
     if m == "initialize":
+        air = (((p.get("clientCapabilities") or {}).get("_meta") or {}).get("jetbrains") or {}).get("air") or {}
+        ASYNC[0] = KIND == "claude" and "asyncTasks" in (air.get("capabilities") or [])
+        Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"async_tasks": ASYNC[0]}) + "\n")
         return send({"jsonrpc": "2.0", "id": rid, "result": FX["initialize"]})
+    if m == "_session/async_task/stop":
+        ev = own_stop.get(p.get("asyncTaskId"))
+        if ev:
+            ev.set()
+        return send({"jsonrpc": "2.0", "id": rid, "result": {"stopped": bool(ev)}})
     if m in ("session/new", "session/load", "session/resume"):
         if KIND == "codex":
             status = {"kind": "none", "label": "Not logged in"} if SIGNED_OUT else {"kind": "account", "account": {"email": "fixture@example.invalid"}}
