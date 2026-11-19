@@ -20,7 +20,7 @@ always                      static_checks doc_checks readpath_report
 
 # change notes, landing, this table and its reader
 changes/**                  plumbing_checks studio_checks land_checks
-CHANGELOG.md                plumbing_checks smoke_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks land_checks
+CHANGELOG.md                plumbing_checks smoke_checks desk_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks land_checks
 tools/changes.py            plumbing_checks studio_checks
 tools/land.py               land_checks
 tools/ci_select.py          plumbing_checks
@@ -37,8 +37,8 @@ CITATION.cff                plumbing_checks studio_checks
 LICENSE                     hf_checks
 cases/**                    gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
 showcase/**                 smoke_checks timeline_checks decision_checks web_checks model3d_checks
-install.sh                  plumbing_checks smoke_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
-LOCAL.example.md            plumbing_checks smoke_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
+install.sh                  plumbing_checks smoke_checks desk_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
+LOCAL.example.md            plumbing_checks smoke_checks desk_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
 skills/**                   smoke_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
 
 # tools a few groups reach

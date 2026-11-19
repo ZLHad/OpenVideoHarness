@@ -101,11 +101,11 @@ say "installing the bundled engine (ClaudeAnimationBase)"
 if [ "$REFS" = 1 ]; then n=$(grep -cE '^(full|sparse|textonly) ' references/fetch.sh || true)   # counted from the list, so it cannot go stale
   say "fetching $n reference repos (about 250 MB, read-only, git-ignored; --no-refs skips them)"
   references/fetch.sh || echo "! some reference repos were not fetched; bash references/fetch.sh fetches them later"; fi
-say "installing the style swatch renderer (HyperFrames, for bin/vh style)"
-(cd styles/_swatch && npm ci --silent) || echo "! swatch renderer not installed; bin/vh style retries it on first use (or: cd styles/_swatch && npm ci)"
+say "installing the renderer for style samples (HyperFrames, for bin/vh style)"
+(cd styles/_swatch && npm ci --silent) || echo "! the renderer for style samples did not install; it is tried again the first time a style sample is made"
 [ -f LOCAL.md ] || cp LOCAL.example.md LOCAL.md
-[ "$SKILL" = none ] || { say "registering the skills"; bin/vh install-skill "$SKILL" || echo "! the skills were not registered; bin/vh install-skill $SKILL registers them"; }
-[ "$OBSCURA" = 0 ] || { say "installing Obscura (bin/vh web)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
+[ "$SKILL" = none ] || { say "telling Claude Code and Codex where this workbench is (skills)"; bin/vh install-skill "$SKILL" || echo "! the skills were not registered; bin/vh install-skill $SKILL registers them"; }
+[ "$OBSCURA" = 0 ] || { say "installing Obscura (an optional page reader that bin/vh web can use to keep web pages for fact checks)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
 say "final check (and this machine's lines in LOCAL.md)"; bin/vh doctor --fill-local || true
 ICON_LATER=""; ICON_DONE=""; ICON_HEADLESS=""; put_icon
 arm=""   # Linux arm64: HyperFrames has no Chrome of its own there (engines/README.md, its notes), so a missing browser is said again below

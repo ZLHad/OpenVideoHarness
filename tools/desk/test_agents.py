@@ -1918,6 +1918,7 @@ def handoff_checks():
             "who": [x["who"] for x in (gone, found, pending_busy, one(stations=both_))],
             "missing": one(stations=[st("1", "done"), st("3", "done"), st("deliver", "in_progress")], check={"verdict": "fail", "stale": False})["say"]["en"],
             "sound": [standing.of(P, base(stations=[st("E2", "waiting_person"), st("deliver", "not_started")]))[k] for k in ("say", "act")],
+            "final_sound": [standing.of(P, base(stations=[st("E3", "waiting_person"), st("deliver", "not_started")]))[k] for k in ("say", "act")],
             "frames": standing.of(P, base(stations=[st("E0", "waiting_person"), st("deliver", "not_started")]))["say"]["en"],
             "plan": standing.plan_line({"project": {"spec": {"Output": "1080x1920, 30 fps, exactly 30s (900 frames)", "Language": "zh-CN, narration: TTS voice"}},
                                          "stops": {"gates": ["1", "3"]}}),
@@ -1940,19 +1941,20 @@ def handoff_checks():
                 "pending_first": ["notes_unheard", "nudge", True], "taken": ["notes_taken", "正在渲染，340 / 900 帧。", "busy"],
                 "unknown": ["正在跑一条命令。", "正在跑一条命令"], "never_nobody": True, "who": ["agent", "agent", "agent", "agent"],
                 "missing": "Not delivered yet: the film has not passed its check.",
-                "sound": [{"zh": "声音出来了，等你听。", "en": "The sound is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听声音", "en": "Listen to the sound"}}],
+                "sound": [{"zh": "配乐安排出来了，等你看。", "en": "The sound plan is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去看配乐安排", "en": "Look at the sound plan"}}],
+                "final_sound": [{"zh": "最终的声音出来了，等你听。", "en": "The final sound is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听最终的声音", "en": "Listen to the final sound"}}],
                 "frames": "The style frames are out and wait for you.",
-                "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first cut"},
-                "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first cut"},
-                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、锁时、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the timing lock, the first cut"},
+                "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first draft"},
+                "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first draft"},
+                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、定声音、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the final sound, the first draft"},
                 "plan_cn": {"zh": "没有旁白，中间不停，做完给你看", "en": "No narration, no stops on the way: you see it finished"},
-                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first cut"}, "short": True,
+                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first draft"}, "short": True,
                 "plan_voice": ["有旁白", "有旁白", "没有旁白"], "ago": [standing.ago(2.99 * 86400)[0], standing.ago(100 * 60)[0]]}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
           "findings, one stopped on purpose, a later run that went fine, the console ending, are not); the newest notes nobody took come first; "
           "working on them only while something runs; never that nobody works on the film; whose move as waiting_on; a command not in the table "
-          "is no name on the page; the sound is listened to, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
+          "is no name on the page; the final sound is listened to and the sound plan looked at, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
           "a checkpoint) and leaves out what it does not", unit)
 
     def title():   # a film begun on the space, its BRIEF still the template's: the person's own sentence, shortened, not the dated folder
@@ -2223,7 +2225,7 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             return f"no listener: {a}"
         if b["code"] != "waiting_you" or not b["facts"].get("listening") or b["more"]["zh"] != "你交了，agent 就接着做。":
             return f"a listener: {b}"
-        if "now: The first cut is out and waits for you.\n  After you send your notes, tell the agent.\n" not in text:
+        if "now: The first draft is out and waits for you.\n  After you send your notes, tell the agent.\n" not in text:
             return "bin/vh status: " + text[:300]
     check("a stop that waits: Studio's sentence and bin/vh status's now lines say it, and whether the agent carries on by itself (desk wait listening) or needs telling", stop_waits)
 
@@ -2260,7 +2262,7 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             return f"while it renders: {during}"
         if o["code"] != "stopped" or o["act"]["kind"] != "tell" or "340 of 900 frames" not in o["act"]["text"]["en"]:
             return f"after: {o}"
-        if "now: The agent stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first cut.\n" not in text \
+        if "now: The agent stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first draft.\n" not in text \
                 or "say:" in text:
             return "bin/vh status: " + text[:500]
     check("an agent killed mid-render: while it ran, 正在渲染，340 / 900 帧; after, from a terminal, bin/vh status says where it stopped and the words that carry on", killed_terminal)
@@ -2417,8 +2419,8 @@ def column_wait_checks():
             except subprocess.TimeoutExpired:
                 w.kill()
                 so, se = w.communicate()
-            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在后台等着" in so
-                                     and "可以" in so.split("我在后台等着")[-1] and "out/review/feedback/3-" in so):   # 0: a submission came, printed after the message
+            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在等，你一交我就接着做" in so
+                                     and "可以" in so.split("我在等，你一交我就接着做")[-1] and "out/review/feedback/3-" in so):   # 0: a submission came, printed after the message
                 out.append(f"Studio open: key {key}, submit {fb[0]}, gate {w.returncode}, {se[-300:]} | {so[-300:]}")
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait", "--timeout", "2"], capture_output=True, text=True, env=e, timeout=60)
             if r.returncode != 3 or flag.exists():   # Studio open, nobody submits: it times out (3), never 0

@@ -497,7 +497,7 @@ def plan_note(plan):
 
 def plan_words(plan, lang, title=lambda g: g):
     """What the person is told at the first stop: where this film stops, and that one sentence adds or takes away a stop.
-    title: a checkpoint's name in the page's language (tools/review.py's gate_title)."""
+    title: a checkpoint's name in the page's language, as a person reads it (tools/review.py's gate_name)."""
     zh = lang != "en"
     why = list(dict.fromkeys(WHY[c["code"]][0 if zh else 1].format(n=c.get("n", "")) for c in plan["costly"] if c["code"] in WHY))
     extra = [title(c) for c in plan["checkpoints"]]
