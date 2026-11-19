@@ -46,14 +46,14 @@ from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
-SAY = {"zh": {"desk_wait": "这一站已经在 Studio 窗口里打开了：勾选、点评、提交；我在后台等着，你一提交我就接着做。",
-              "desk": "这一站已经在 Studio 窗口里打开了：勾选、点评、提交，然后回到这里说一声“看审阅台”。",
+SAY = {"zh": {"desk_wait": "{s}在 Studio 里打开了：看完、选好、写下意见，点“交给 agent”。我在后台等着，你一交我就接着做。",
+              "desk": "{s}在 Studio 里打开了：看完、选好、写下意见，点“交给 agent”，然后回到这里跟我说一声。",
               "tab": "（这台电脑上没有 Chrome、Edge 这类浏览器，所以它开在了浏览器的一个标签页里。）",
               "closed": "Studio 的窗口这次没能打开（{why}）。跟我说一声“打开 Studio”，我再试一次；页面在 {page}。",
               "no_browser": "这台电脑上找不到 Chrome、Edge 这类浏览器，浏览器的标签页也没有连上", "no_connect": "窗口开了，但里面的页面没有连上",
               "printed": "审阅台的地址（另一台电脑上的浏览器用）写在了运行这条命令的终端里：十分钟内能打开一页、只能打开一次，谁先打开谁就能在里面操作，别转给别人。"},
-       "en": {"desk_wait": "This stop is open in Studio's window: tick, comment, submit; I'm waiting and carry on as soon as you submit.",
-              "desk": "This stop is open in Studio's window: tick, comment, submit, then tell me here: “check the desk”.",
+       "en": {"desk_wait": "{s} {be} open in Studio: look, pick, write your notes, and press “Send to agent”. I'm waiting and carry on as soon as you send it.",
+              "desk": "{s} {be} open in Studio: look, pick, write your notes, and press “Send to agent”, then tell me here.",
               "tab": "(No Chrome, Edge or the like on this computer, so it opened in a tab of your browser.)",
               "closed": "Studio's window did not open this time ({why}). Say \"open Studio\" and I will try again; the page is {page}.",
               "no_browser": "no Chrome, Edge or the like on this computer, and no browser tab connected", "no_connect": "the window opened, but its page did not connect",
@@ -180,8 +180,31 @@ def init_page(project, gate_arg, shown, as_json=False):
     return 0
 
 
+def gate_seen(stop, lang):
+    """What the person sees at a stop, by its own name (tools/standing.py's words: 初版, the first cut)."""
+    try:
+        import standing
+        k = f"seen.{stop}"
+        if k in standing.WORDS:
+            x = standing.w(k, 0 if lang == "zh" else 1)
+            return x if lang == "zh" else x[:1].upper() + x[1:]
+    except Exception:
+        pass
+    return review.gate_title(stop, lang)
+
+
+def studio_open():
+    """Studio (the console) runs on this machine now: it is used, never started, for a standard film's stop."""
+    try:
+        import server
+        return bool(server.running_info(None, []))
+    except Exception:
+        return False
+
+
 def channel_of(project, flag=None):
-    """(channel, where it came from): a flag, LOCAL.md's 审阅方式 line, or the effort's default."""
+    """(channel, where it came from): a flag, LOCAL.md's 审阅方式 line, or the effort's default: studio's stops in Studio,
+    standard's too while Studio is open on this machine (only then: it is not started for this), else the static page."""
     if flag:
         return flag, f"--{flag}"
     try:
@@ -193,6 +216,8 @@ def channel_of(project, flag=None):
     except OSError:
         pass
     effort, src = effort_of(project)
+    if effort == "standard" and studio_open():
+        return "desk", f"effort {effort} ({src}), and Studio is open"
     return ("desk" if effort == "studio" else "page"), f"effort {effort} ({src})"
 
 
@@ -257,9 +282,12 @@ def main(argv):
     if a.json and a.wait:
         return jsonerr.fail("usage", "gate: --json is for a run that only sends the page; --wait's answer is the submission (bin/vh desk feedback --json has it as JSON)")
     channel, why = channel_of(project, a.channel)
+    no_wait = False   # --wait, and the stop went to the page by default (Studio not open): the page goes out, nothing to wait for
     if a.wait and channel != "desk":
-        return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
-                            "the chat. Leave --wait out, or use --desk if they want the desk")
+        if a.channel or why == "LOCAL.md":
+            return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
+                                "the chat. Leave --wait out, or use --desk if they want the desk")
+        no_wait = True
     if a.print_address and channel != "desk":
         return jsonerr.fail("usage", f"gate: --print-address is the desk's address, and this stop is reviewed on the {channel} ({why})")
     if a.print_address:   # before the page goes out: the address goes to a person's terminal, and comes with a fresh desk only
@@ -306,7 +334,9 @@ def main(argv):
                 return jsonerr.fail("failed", f"gate: the desk started, but its address could not be written to your terminal; the page is {page_path}")
             lines.append(SAY[page.lang]["printed"])
         elif shown.get("opened"):
-            lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"])
+            n = stop_of(page.gate) or page.gate
+            say_s = gate_seen(n, page.lang)
+            lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(s=say_s, be="are" if n in ("1", "E0") else "is"))
             if shown.get("how") == "tab":
                 lines.append(SAY[page.lang]["tab"])
         else:
@@ -325,6 +355,9 @@ def main(argv):
             print(f"  history: left out: {x['path']} ({x['why']})", file=sys.stderr)
     except Exception as e:
         print(f"  history: no snapshot of this page ({e})", file=sys.stderr)
+    if no_wait:
+        print("  nothing to wait for: Studio is not open, so this stop went out as the page and the person answers in the chat", file=sys.stderr)
+        return 0
     if not a.wait:
         return 0
     import feedback

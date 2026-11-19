@@ -2,3 +2,4 @@
 
 - 对话里的 agent 把等这一站的命令放到后台、这一轮结束以后，这一列写"等你拍板"，不再是"空闲"。
 - 你提交以后，Claude Code 自己接着做的那一轮，这一列当成在做：有停止按钮，拿着片子的锁，做完放掉；记录里写一句"你交了意见，Claude Code 自己接着做了"。Codex 和 DeepSeek Harness 没有这一轮，照旧在这一列说一声。
+- Studio 开着时，`standard` 档的片子停下来等你的那一步也开在 Studio 里：`bin/vh gate` 看到 Studio 在跑才这样（不会为此起 Studio），带 `--wait` 时你点"交给 agent"它就接着做；Studio 没开时照旧出静态审阅页。agent 给你的那句话直接说是哪一站、点"交给 agent"，不带命令。

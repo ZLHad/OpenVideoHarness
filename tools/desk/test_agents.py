@@ -2353,6 +2353,44 @@ def column_wait_checks():
             subprocess.run(["bash", str(vh), "gate", str(p), gate, "--page"], capture_output=True, text=True, env=env, timeout=120)
         return p
 
+    def gate_channel():   # a standard film's stop: in Studio while Studio is open (with the wait), the page otherwise; a flag wins
+        out = []
+        p = stage("channel")
+        e = dict(env, OVH_ACTIVITY_AGENT="0")
+        r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=e, timeout=120)
+        if r.returncode != 0 or "nothing to wait for" not in r.stderr or "reviewed on the page" not in r.stderr or "Studio 里打开了" in r.stdout:
+            out.append(f"no Studio: {r.returncode} {r.stderr[-300:]}")
+        d = Desk(None, T / "agents")   # Studio: the console with no roots of its own
+        try:
+            r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--page"], capture_output=True, text=True, env=e, timeout=120)
+            if r.returncode != 0 or "reviewed on the page (--page)" not in r.stderr:
+                out.append(f"--page while Studio is open: {r.returncode} {r.stderr[-300:]}")
+            w = subprocess.Popen(["bash", str(vh), "gate", str(p), "3", "--wait", "--timeout", "60"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=e)
+            BG.add(w.pid)
+            flag = p / "out" / "review" / "feedback" / ".listening"
+            for _ in range(200):
+                if flag.exists():
+                    break
+                time.sleep(0.1)
+            key = next((x["key"] for x in d.get("/api/projects")[1]["projects"] if x["path"] == os.path.realpath(str(p))), None)
+            import hashlib
+            fb = d.post(f"/api/p/{key}/feedback", {"round": "3", "general": "可以"}, pid=hashlib.sha1(os.path.realpath(str(p)).encode()).hexdigest()) if key else (0, None)
+            try:
+                so, se = w.communicate(timeout=30)
+            except subprocess.TimeoutExpired:
+                w.kill()
+                so, se = w.communicate()
+            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在后台等着" in so and "可以" in so):
+                out.append(f"Studio open: key {key}, submit {fb[0]}, gate {w.returncode}, {se[-300:]} | {so[-300:]}")
+            r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--page", "--wait"], capture_output=True, text=True, env=e, timeout=60)
+            if r.returncode != 2:
+                out.append(f"--page --wait is a contradiction: {r.returncode}")
+        finally:
+            d.stop()
+        return "; ".join(out) or None
+    check("a standard film's stop opens in Studio while Studio is open, with the wait (the submit hands it over); without Studio it goes out "
+          "as the page and --wait has nothing to wait for; an explicit --page wins, and --page --wait is refused", gate_channel)
+
     for slow in (False, True):
         b = stage("background-slow" if slow else "background", "3")
         d = Desk(b, T / "agents")
