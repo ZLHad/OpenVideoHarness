@@ -4,7 +4,9 @@
 
 ### 做出一支好片不难，每次都好才难。
 
-给 Claude Code、Codex 用的做视频工作台。你说一句话，agent 想立意、用代码写片子、自己检查，在立意和初版停下来等你拍板；片子长、渲染重或要花钱时，分镜也先给你看。
+给 Claude Code 和 Codex 用的视频工作台。在 Studio 或终端说一句想做什么，agent 写源码、渲染成片、检查结果。你可以在 Studio 拍板、指着镜头点评，再对照修改前后的成片。
+
+**[快速开始](#快速开始)** · [Studio 演示，17 秒带声音](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio) · [看带声音的样片](#5-支样片点开有声音)
 
 [English](README.md) · **中文** · [官网](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -12,22 +14,28 @@
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
 
-<img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="用这套工作台做的片子里的十二个动态片段：黑洞、剖开的制动主缸、皮影、穿过灰色城市的股价线、发光的地图、蓝色地形、金色轨道、水墨、一支笔画蒸汽机、互为镜像的分子、影片之海、长出翅膀的剪影">
-
-<sub>十二段都出自用它做的真片子。下面还有更多，一部分带声音。</sub>
-
-<a href="#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="960" alt="Studio 的短片：装着本仓库介绍片的 Studio 窗口向后倾成桌上的一块屏；看、指、说、定四个字依次亮起，指针拖过时间线、标出一秒、写下“这里再推近一点”、在关卡上选一张卡；最后画面铺满全屏，收成 OVH Studio 的图标"></a>
-
-<sub><b>Studio</b>：做一支片子的每一站，都在这一个窗口里看、指、说、定。<a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio">官网上有带声音的版本（17 秒）</a></sub>
-
 </div>
+
+## 快速开始
+
+需要 macOS 或 Linux、Git、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 [uv](https://github.com/astral-sh/uv)，以及已登录的 Claude Code 或 Codex。[完整要求](#要求成本和限制)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-cd ~/OpenVideoHarness && claude        # 或者 codex
 ```
 
----
+装好后选一个入口开片。
+
+- **Studio**。从应用程序打开 **OVH Studio**，也可在安装目录运行 `bin/vh studio`。在右边选择 Claude Code 或 Codex。看到适配器安装提示时点「装上」，再发送需求。
+- **终端**。在默认安装目录运行 `cd ~/OpenVideoHarness && codex` 或 `cd ~/OpenVideoHarness && claude`，再发送需求。
+
+第一支可以试这条无声样片。
+
+> 快速出一版 15 秒的竖屏无声科普，用方格和画面文字讲清楚为什么正方形边长翻倍，面积变成四倍。
+
+源码和导出文件都留在这支片子的项目目录里。「快速出一版」会直接做到检查完的成片。要在立意和初版拍板，可以指定标准档或精品档。下一步代价较大时，分镜也会单独给你审。
+
+[分步教程](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) · [安装选项和更新](#安装更新和国内网络)
 
 ## 为什么做这个
 
@@ -111,9 +119,24 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，提交即可唤醒它；其余情况提交后回原对话说一声"看审阅台"。标准档默认发静态审阅页，也可以指定在 Studio 定。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
 
+<table>
+<tr>
+<td width="56%" valign="top"><img src="docs/assets/studio/revision.zh.webp" width="100%" alt="Studio 在同一时间点对比两版成片，左边的原版已经出现公式"></td>
+<td valign="top"><b>同一段改完了，接着复审。</b><br>agent 把两版成片关联到你的意见后，从<b>成片 → 复审</b>打开。两版同步播放，可切换试听音轨。可以通过，也可以针对改后版本再提意见。终端用 <code>bin/vh desk revision</code> 提交这组对照。</td>
+</tr>
+</table>
+
+### 打开 Studio
+
+点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者在终端里运行 `bin/vh studio`（`bin/vh studio <项目>` 直接打开到那支片子），出来的都是同一个窗口，再叫一次只是把它带回最前面。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点图标，窗口回到原来的地方；退出 OVH Studio，Studio 才停。放在别的文件夹里的片子，用 `bin/vh studio <项目>` 打开，也加进这一个窗口。
+
+图标没装上时，`bin/vh studio --install-icon` 补装。没有 OVH Studio 时，窗口用电脑上的 Chrome、Edge、Chromium 或 Brave；这几样都没有，就开在默认浏览器的一个标签页里。
+
 ## 能做出什么
 
 下面是作者用它在大约一个月里做的十二支片子的片段，这十二支加起来约 100 分钟。物理、化学、工程、金融、民俗、文学、思考，每支都有自己的世界。片子都是中文的，这里是无声的。
+
+[看十二段动态集锦（GIF）](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif)
 
 <table>
 <tr>
@@ -215,33 +238,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 **量到什么就公开什么，对自己不利的也一样。** 我们做过一次小的盲评（[docs/research/06](docs/research/06-concept-first-ab.md)）：按流程做的片子点子更新，但评审觉得只守几条底线的那两支做得更好，两次都选了它们去发。评审指出的问题后来都变成了检查。其余的在[研究笔记](docs/research/README.md)里。
 
-## 快速开始
-
-需要 macOS 或 Linux、Node.js ≥ 22、Google Chrome、FFmpeg、Python 3 和 [uv](https://github.com/astral-sh/uv)，以及 Claude Code 或 Codex（[完整的要求](#要求成本和限制)）。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-cd ~/OpenVideoHarness && claude        # 或者 codex
-```
-
-安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex（之后在任何目录说"做个视频"，agent 都能找到这里），再默认把 **OVH Studio** 放进你的应用程序（Linux 上是应用菜单；不要就加 `--no-icon`）。仓库一共占约 650 MB 磁盘，不拉参考仓库约 380 MB；OVH Studio 另占约 380 MB，其中约 130 MB 是留着的下载。
-
-装好以后，有两个入口：
-
-- **点 OVH Studio**：所有片子、每一站、要你定的事都在这个窗口里，右边一列直接和 agent 说话（见上面的 [Studio](#studio)）。
-- **在这个目录里打开 Claude Code 或 Codex**（`cd ~/OpenVideoHarness && claude`，或者 `codex`），直接说你要什么：
-
-> 做一个 30 秒的竖屏科普：为什么低轨卫星的信号会"变调"。中文配音，中英双语字幕。
-
-新片子都从这样一句话开始：说给终端里的 agent，或者写在 Studio 空间右边那一列里、点发送。Studio 在这个文件夹里起你选的那个 agent；它一建好片子，窗口就转到那支片子，同一段对话在那里接着往下，停下来等你定的事也在这个窗口里。之后在哪边接着都行。
-
-接下来它会：
-
-1. 先给两三个创意方向，每个配一帧画面和一个开头钩子，附一份大纲，等你选；
-2. 再给分镜，每个镜头一张关键帧；
-3. 最后给初版，附上评审分数和它自己最不满意的两三处。
-
-你点了头，它才出成片。不想停？说"快速出一版"：在一台干净的环境里（跳过参考仓库），一个全新的 agent 只看这些文档，大约五分钟就做出了一支 15 秒的无声片。从零走到第一支片子的完整过程，见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)。
+### 需求示例
 
 说清楚讲什么、给谁看、发在哪就够了，不用写长篇 brief：
 
@@ -253,12 +250,6 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | 资料片 | "用 NASA 公有领域的发射影像剪一支 40 秒的倒计时短片，每段素材的许可都记下来。" |
 | 快速试一版 | "快速出一版 15 秒的草稿，看看赛博故障风适不适合我的游戏预告，不用问我。" |
 | 深度参与 | "做一支 90 秒的知识视频，讲卫星怎么避免相撞，要精品。开头钩子、主角、主旋律、标题和封面我来定，其余你定。" |
-
-### 打开 Studio
-
-点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者在终端里运行 `bin/vh studio`（`bin/vh studio <项目>` 直接打开到那支片子），出来的都是同一个窗口，再叫一次只是把它带回最前面。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点图标，窗口回到原来的地方；退出 OVH Studio，Studio 才停。放在别的文件夹里的片子，用 `bin/vh studio <项目>` 打开，也加进这一个窗口。
-
-图标没装上时，`bin/vh studio --install-icon` 补装。没有 OVH Studio 时，窗口用电脑上的 Chrome、Edge、Chromium 或 Brave；这几样都没有，就开在默认浏览器的一个标签页里。
 
 ## 工具一览
 
@@ -406,6 +397,8 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 - **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，事先要备好的三样见 [engines/README.md](engines/README.md#linux渲染前要先备好的三样)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
 
 ## 安装、更新和国内网络
+
+默认给两个 agent 注册 skill，并拉取 37 个只读参考仓库。合计约占 650 MB，用 `--no-refs` 安装约占 380 MB。Studio 应用另占约 380 MB，含缓存的安装包。
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # 装到别的位置
