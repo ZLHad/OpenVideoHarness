@@ -79,9 +79,9 @@ WORDS = {
     "stopped.cmd": ("{x}没做完", "{x} did not finish"), "stopped.quiet": ("读过你的意见以后没有动静", "nothing since it read your notes"),
     "stopped.cancelled": ("对话被停下了", "the conversation was stopped"), "stopped.error": ("对话出错停了", "the conversation ended with an error"),
     "stopped.cut": ("对话做到一半断了", "the conversation was cut off"),
-    "talk.cancelled": ("Studio 里的对话被停下了", "the Studio conversation was stopped"),
-    "talk.error": ("Studio 里的对话出错停了", "the Studio conversation ended with an error"),
-    "talk.cut": ("Studio 里的对话做到一半断了", "the Studio conversation was cut off mid-turn"),
+    "talk.cancelled": ("对话（在 Studio 里）被停下了", "the Studio conversation was stopped"),
+    "talk.error": ("对话（在 Studio 里）出错停了", "the Studio conversation ended with an error"),
+    "talk.cut": ("对话（在 Studio 里）做到一半断了", "the Studio conversation was cut off mid-turn"),
     "quiet": ("它在 {a}前读了你的意见，之后没有动静", "it read your notes {a} ago and nothing has happened since"),
     "ship_missing": ("还没交付：{x}。", "Not delivered yet: {x}."), "ship_missing.short": ("还没交付", "not delivered yet"),
     "gap.cut": ("初版还没定", "the first cut is not decided yet"), "gap.check": ("成片没过检查", "the film has not passed its check"),
@@ -388,12 +388,13 @@ def of(project, o, now=None):
         read = None   # said in the reason
     elif talk and talk.get("ended") in ("cancelled", "error", "cut"):
         e = talk["ended"]
-        why = ([w(f"stopped.{e}", 0), w(f"stopped.{e}", 1)], [w(f"talk.{e}", 0), w(f"talk.{e}", 1)], False, None)
+        why = ([w(f"stopped.{e}", 0), w(f"stopped.{e}", 1)], [w(f"talk.{e}", 0), w(f"talk.{e}", 1)], False, "talk")
     if why:
         key = "say.stopped_kept" if why[2] else "say.stopped"
+        long_ = None if why[3] == "talk" else two(why[1][0] + "。", cap(why[1][1]) + ".")   # a conversation's reason is said in the sentence already
         return say("stopped", "person", two(w("stopped", 0, x=why[0][0]), w("stopped", 1, x=why[0][1])),
-                   [two(why[1][0] + "。", cap(why[1][1]) + "."), read, has, later],
-                   act=act_tell(both("act.carry"), two(w(key, 0, x=why[1][0]), w(key, 1, x=why[1][1]))), paths=[made], last=why[3])
+                   [long_, read, has, later],
+                   act=act_tell(both("act.carry"), two(w(key, 0, x=why[1][0]), w(key, 1, x=why[1][1]))), paths=[made], last=None if why[3] == "talk" else why[3])
     if nxt is not None and nxt["id"] == "deliver" and nxt["state"] == "in_progress":
         chk = o.get("check") or {}
         g = "cut" if "not decided" in ((deliver or {}).get("note") or "") else "check" if chk.get("verdict") == "fail" and not chk.get("stale") else "final"
