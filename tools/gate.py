@@ -46,18 +46,18 @@ from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
-SAY = {"zh": {"desk_wait": "这一站已经在 Studio 窗口里打开了：勾选、点评、提交；我在后台等着，你一提交我就接着做。",
-              "desk": "这一站已经在 Studio 窗口里打开了：勾选、点评、提交，然后回到这里说一声“看审阅台”。",
+SAY = {"zh": {"desk_wait": "这一站已经在 Studio 里打开了：选好，写下意见，点“交给 agent”。我在等，你一交我就接着做。",
+              "desk": "这一站已经在 Studio 里打开了：选好，写下意见，点“交给 agent”，然后回到这里跟我说一声“我交了”。",
               "tab": "（这台电脑上没有 Chrome、Edge 这类浏览器，所以它开在了浏览器的一个标签页里。）",
               "closed": "Studio 的窗口这次没能打开（{why}）。跟我说一声“打开 Studio”，我再试一次；页面在 {page}。",
               "no_browser": "这台电脑上找不到 Chrome、Edge 这类浏览器，浏览器的标签页也没有连上", "no_connect": "窗口开了，但里面的页面没有连上",
-              "printed": "审阅台的地址（另一台电脑上的浏览器用）写在了运行这条命令的终端里：十分钟内能打开一页、只能打开一次，谁先打开谁就能在里面操作，别转给别人。"},
-       "en": {"desk_wait": "This stop is open in Studio's window: tick, comment, submit; I'm waiting and carry on as soon as you submit.",
-              "desk": "This stop is open in Studio's window: tick, comment, submit, then tell me here: “check the desk”.",
+              "printed": "Studio 的地址（另一台电脑上的浏览器用）写在了运行这条命令的终端里：十分钟内能打开一页、只能打开一次，谁先打开谁就能在里面操作，别转给别人。"},
+       "en": {"desk_wait": "This stop is open in Studio: pick, add your notes, press “Send to agent”. I'm waiting, and carry on as soon as you send it.",
+              "desk": "This stop is open in Studio: pick, add your notes, press “Send to agent”, then tell me here: “I've sent it”.",
               "tab": "(No Chrome, Edge or the like on this computer, so it opened in a tab of your browser.)",
               "closed": "Studio's window did not open this time ({why}). Say \"open Studio\" and I will try again; the page is {page}.",
               "no_browser": "no Chrome, Edge or the like on this computer, and no browser tab connected", "no_connect": "the window opened, but its page did not connect",
-              "printed": "The review desk's address (for a browser on another computer) is in the terminal this ran in: it opens one page, once, within ten minutes; whoever opens it first can work in it, so keep it to yourself."}}
+              "printed": "Studio's address (for a browser on another computer) is in the terminal this ran in: it opens one page, once, within ten minutes; whoever opens it first can work in it, so keep it to yourself."}}
 
 CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/01-pipeline.md, 导演模式)
     "E0": ("设定图、主旋律试听或 look-dev 变体", "the design sheet, the theme to listen to, or the look-dev variants"),
@@ -173,6 +173,8 @@ def init_page(project, gate_arg, shown, as_json=False):
     print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file", file=say)
     print("  keep it short: summary at most 40 CJK characters (100 letters), a question one line, a label 20 (50), pro, con and each "
           "least-sure note a sentence; reasons go into why, details into the appendix", file=say)
+    print("  an option's id is what the person types back (\"1 FIX\") and reads on the page: a short word they can read "
+          "(OK, FIX, 慢一点), not a code (V1, opt-2)", file=say)
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}', file=say)
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
     if as_json:
@@ -289,7 +291,7 @@ def main(argv):
         return rc
     lines = [page.chat(page_path)]
     if stop_of(page.gate) == "1" and effort_of(project)[0] != "quick":   # the first stop says where the film stops
-        lines.append(gatecheck.plan_words(gatecheck.plan_of(project), page.lang, lambda g: review.gate_title(g, page.lang)))
+        lines.append(gatecheck.plan_words(gatecheck.plan_of(project), page.lang, lambda g: review.gate_name(g, page.lang)))   # the person reads it: names, no codes
     url = None
     if channel == "desk":
         url, how, shown, why_not = start_desk(project, page.gate, a.port, a.print_address)

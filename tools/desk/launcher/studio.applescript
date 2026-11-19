@@ -28,7 +28,7 @@ end repoThere
 
 on openStudio()
 	if not repoThere() then
-		display dialog "找不到 OpenVideoHarness 了（原来在 " & repoPath() & "）。在它现在的位置运行：" & return & "bin/vh studio --install-icon" & return & return & "OpenVideoHarness is no longer at " & repoPath() & ". Where it is now, run:" & return & "bin/vh studio --install-icon" buttons {"OK"} default button 1 with title "OVH Studio" with icon caution
+		display dialog "找不到 OpenVideoHarness 了（原来在 " & repoPath() & "）。让 agent 在它现在的位置把 Studio 图标重新装一次（bin/vh studio --install-icon）。" & return & return & "OpenVideoHarness is no longer at " & repoPath() & ". Ask your agent to put the Studio icon back from where it is now (bin/vh studio --install-icon)." buttons {"OK"} default button 1 with title "OVH Studio" with icon caution
 		quit
 		return
 	end if

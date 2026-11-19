@@ -3226,8 +3226,8 @@ PY
     && grep -q '<html lang="en">' "$t/rz/out/review/gate-1b.html"
   then ok "review: the gate JSON's lang, else the BRIEF's Review language (the desk's rule), and the desk's extra keys pass"; else bad "review language rule"; fi
   a=$(vh review "$t/rz" 1 2>&1)
-  if grep -q '没回的决定按推荐走' "$t/rz/out/review/gate-1.html" && grep -q 'unanswered goes by its recommendation' "$t/re/out/review/gate-1.html" \
-    && case "$a" in *"没回的决定按推荐走"*) true ;; *) false ;; esac
+  if grep -q '不选就按推荐' "$t/rz/out/review/gate-1.html" && grep -q "If you don't pick, the recommended one goes" "$t/re/out/review/gate-1.html" \
+    && case "$a" in *"不选的就按推荐"*) true ;; *) false ;; esac
   then ok "review: the page and the chat message say a decision left unanswered goes by its recommendation"; else bad "review: unanswered decisions not explained: $a"; fi
   gate_stop_checks "$t"
   rm -rf "$t"
@@ -3300,7 +3300,7 @@ json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?
   c=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["stations"][0]["state"], d["review"]["current"])')
-  if [ "$rc" = 0 ] && case "$a" in *"要你定 1 件事"*) true ;; *) false ;; esac && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "waiting_person 1" ]; then ok "gate: the skeleton filled in goes out like any page (the version key is ignored, no warning)"
+  if [ "$rc" = 0 ] && case "$a" in *"等你定 1 件"*) true ;; *) false ;; esac && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "waiting_person 1" ]; then ok "gate: the skeleton filled in goes out like any page (the version key is ignored, no warning)"
   else bad "gate on a filled skeleton ($rc, status $c): $a"; fi
   a=""
   for i in 2 3 E0 E3 2b final; do b=$(vh gate "$g" "$i" --init 2>&1) || a="$a | $i: $b"; python3 -c 'import json, sys; sys.path.insert(0, "tools"); import review; d = json.load(open(sys.argv[1], encoding="utf-8")); sys.exit(0 if d["version"] == 1 and review.placeholders(d) else 1)' "$g/out/review/gate-$i.json" || a="$a | gate-$i.json"; done
@@ -3372,7 +3372,7 @@ PY
   a=$(vh gate "$g" 1 --page 2>"$t/g1.err"); rc=$?
   vh gate "$g" 1 --page --wait >/dev/null 2>"$t/g2.err"; rc2=$?
   b=$(OVH_LOCAL_MD="$t/LOCAL-chat.md" vh gate "$g" 1 2>&1)
-  if [ $rc = 0 ] && [ $rc2 = 2 ] && case "$a" in *"要你定 1 件事"*"页面："*"/out/review/gate-1.html"$'\n'"这支片子我打算停三次：这一次（立意）、分镜、初版。想多看一步或少看一步，回我一句就行。") true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && case "$a" in *"等你定 1 件"*"页面："*"/out/review/gate-1.html"$'\n'"这支片子我打算停三次：这一次（立意）、分镜、初版。想多看一步或少看一步，回我一句就行。") true ;; *) false ;; esac \
     && [ "$(cat "$g/out/review/.current")" = 1 ] && [ ! -e "$g/out/review/.desk.json" ] && grep -q 'waits for the review desk' "$t/g2.err" \
     && case "$b" in *"reviewed on the chat (LOCAL.md)"*) true ;; *) false ;; esac && [ ! -e "$g/out/review/.desk.json" ]
   then ok "gate: --page and LOCAL.md's 审阅方式 print the chat message (gate ①'s ends with where the film stops: a BRIEF with no Stops line, the three gates), make the page this round and start no desk; --wait without the desk is refused"
@@ -3409,12 +3409,12 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"这一站已经在 Studio 窗口里打开了"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"这一站已经在 Studio 里打开了"*"然后回到这里跟我说一声“我交了”"*) true ;; *) false ;; esac \
     && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
     && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
     && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
-    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
+    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在等，你一交我就接着做' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
@@ -4165,7 +4165,7 @@ print(" ".join(out))
 PY
 )
   if [ $rc = 0 ] && case "$a" in *'"where": "studio"'*'#/p/outside~'*'"opened": true'*'"joined": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
-    && [ $rcg = 0 ] && case "$g" in *"这一站已经在 Studio 窗口里打开了"*) true ;; *) false ;; esac && [ "$listed" = "2 0" ] \
+    && [ $rcg = 0 ] && case "$g" in *"这一站已经在 Studio 里打开了"*) true ;; *) false ;; esac && [ "$listed" = "2 0" ] \
     && [ "$(printf '%s\n' $w0 | grep -c '^launch$')" = 1 ] && ! printf '%s' "$w0" | grep -q second \
     && [ $rc2 = 0 ] && grep -q '"stopped": false' "$t/q0" && [ $rc3 = 1 ] && [ $rc4 = 0 ] && [ $rc5 = 0 ] && [ $rc6 = 0 ] && grep -q '"stopped": true' "$t/q1" && [ $rc7 = 1 ] \
     && [ "$left" = 0 ] && case "$wq" in *closed) true ;; *) false ;; esac \

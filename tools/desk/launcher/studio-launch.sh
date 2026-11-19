@@ -11,8 +11,8 @@ say() {   # a window if the desktop has a way to show one, and stderr (the sessi
   elif command -v xmessage >/dev/null 2>&1; then xmessage -center "$1" 2>/dev/null; fi
 }
 if [ ! -x "$REPO/bin/vh" ]; then
-  say "找不到 OpenVideoHarness 了（原来在 ${REPO}）。在它现在的位置运行：bin/vh studio --install-icon
-OpenVideoHarness is no longer at ${REPO}. Where it is now, run: bin/vh studio --install-icon"
+  say "找不到 OpenVideoHarness 了（原来在 ${REPO}）。让 agent 在它现在的位置把 Studio 图标重新装一次（bin/vh studio --install-icon）。
+OpenVideoHarness is no longer at ${REPO}. Ask your agent to put the Studio icon back from where it is now (bin/vh studio --install-icon)."
   exit 1
 fi
 out=$(cd "$REPO" && ./bin/vh studio --icon open 2>&1) || { say "Studio 没有打开 / Studio did not open:

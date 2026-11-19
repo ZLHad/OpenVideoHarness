@@ -233,7 +233,7 @@ function start(given) {
       session.defaultSession.setPermissionRequestHandler((wc, perm, cb, d) => cb(R.permission(perm, (d && d.requestingUrl) || wc.getURL(), wc.getURL())));
       guard(session.defaultSession);
       app.setAboutPanelOptions({ applicationName: "OVH Studio", applicationVersion: "Electron " + process.versions.electron,
-        copyright: "OpenVideoHarness", credits: T("Studio：看片子、审一站、和本机的 agent 说话。", "Studio: every film, each stop, the agents on this machine.") });
+        copyright: "OpenVideoHarness", credits: T("Studio：看你的每支片子，在每一站拍板，和这台电脑上的 agent 说话。", "Studio: see each film, decide at each stop, and talk to the agents on this computer.") });
       menu();
       if (msg) handle(msg); else askClone();
     });
