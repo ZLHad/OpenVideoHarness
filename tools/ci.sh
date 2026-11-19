@@ -2897,6 +2897,9 @@ desk_checks() {
     if a=$(python3 tools/desk/test_revisions.py 2>&1); then ok "desk revision: $a"
     else bad "desk revision: $a"; fi
   else skip "desk revision" "no ffmpeg or ffprobe"; fi
+  # the words a person reads (Studio's tables, where a film stands, the review page, gate's lines): both languages, no retired names
+  if a=$(python3 tools/desk/test_wording.py 2>&1); then ok "the words a person reads: $a"
+  else bad "the words a person reads: $a"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh desk data tools/desk/fixtures/zh > "$t/zh.json" && vh desk data tools/desk/fixtures/en > "$t/en.json"
   if python3 - "$t/zh.json" "$t/en.json" <<'PY'
