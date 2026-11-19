@@ -38,7 +38,7 @@ WORDS = {
     "cmd.frames": ("取帧", "taking frames", "the frames"), "cmd.sheet": ("出联系表", "making a contact sheet", "the contact sheet"),
     "cmd.new": ("建项目", "making the project", "the project"), "cmd.hf-init": ("装引擎", "setting up the engine", "the engine's setup"),
     "cmd.sfx": ("找音效", "finding sound effects", "the sound effects"), "cmd.image": ("生图", "making images", "the images"),
-    "cmd.other": ("bin/vh {c}", "running bin/vh {c}", "bin/vh {c}"),
+    "cmd.other": ("bin/vh {c}", "running bin/vh {c}", "bin/vh {c}"), "cmd.unknown": ("上一条命令", "running a command", "the last command"),
     "unit.frames": ("帧", "frames"), "unit.lines": ("句", "lines"), "unit.pictures": ("张", "pictures"),
     "progress": ("{d} / {t} {u}", "{d} of {t} {u}"), "progress.percent": ("{d}%", "{d}%"),
     "doing": ("{x}，{p}", "{x}, {p}"),
@@ -139,8 +139,12 @@ def cap(s):
 
 
 def cmd_words(r):
-    k = f"cmd.{r.get('cmd')}"
-    return [w(k, i) for i in range(3)] if k in WORDS else [w("cmd.other", i, c=r.get("cmd")) for i in range(3)]
+    """A command in words; one not in the table by its bin/vh name, when it looks like one (never other text from the log)."""
+    c = r.get("cmd")
+    k = f"cmd.{c}"
+    if k in WORDS:
+        return [w(k, i) for i in range(3)]
+    return [w("cmd.other", i, c=c) for i in range(3)] if isinstance(c, str) and re.fullmatch(r"[a-z][a-z0-9-]{0,24}", c) else [w("cmd.unknown", i) for i in range(3)]
 
 
 def progress(r):
