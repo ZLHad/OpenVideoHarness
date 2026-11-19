@@ -83,6 +83,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 import feedback as F   # noqa: E402
+import revisions as RV   # noqa: E402
 import reader          # noqa: E402
 import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
 import agents as A     # noqa: E402  (the agents the column talks to: one adapter process a kind, a session a conversation)
@@ -610,6 +611,7 @@ def project_data(project, parts=("studio", "mods")):
     the folder's identity, this round and whether it is open, and the parts asked for, what the cut module lays out (studio)
     and what the other modules read (mods). A static review page asks for what its stop's modules need (tools/review.py).
     Raises what read_project raises; a part that cannot be read is null, the reason in warnings."""
+    revision_stamp = RV.stamp(project)
     data = reader.read_project(project)
     try:
         import status as S
@@ -618,6 +620,7 @@ def project_data(project, parts=("studio", "mods")):
         data["status"] = None
         data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
     data["pid"] = pid_of(project)
+    data["revision_stamp"] = revision_stamp
     _drop_missing(project, data.get("shots"), "video")   # the storyboard's animatic, and the pictures the gate pages name
     for r in data.get("rounds") or []:
         g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
@@ -1047,7 +1050,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._data(project, key)
             if what == "status":   # with this round's page: the console notices a new page the agent sent
                 pages = review.gate_pages(project)
-                return self._json(dict(F.listening(project), project=project.name, key=key, round=pages[-1].stem[5:] if pages else None))
+                return self._json(dict(F.listening(project), project=project.name, key=key, round=pages[-1].stem[5:] if pages else None,
+                                       revision_stamp=RV.stamp(project)))
             if what == "stage":
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]

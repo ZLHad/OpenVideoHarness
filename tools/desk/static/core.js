@@ -5,6 +5,12 @@
    these functions read (D, PKEY, SUB) and runs them. */
 const STR = {
   zh: {
+    revisions: "复审", revision_pending: "待复审", revision_approved: "复审通过", revision_changes_requested: "待修改",
+    revision_compare: "查看修改对比", revision_before: "修改前", revision_after: "修改后", revision_sound: "试听音轨",
+    revision_play: "播放这一段", revision_seek: "两版共用的播放位置", revision_gone: "留存的视频已移走或发生变化。",
+    revision_load_error: "两版视频未能加载。请在终端核对留存文件。", revision_reply: "对改后版本的意见",
+    revision_change: "要求再改", revision_sent: "复审意见已保存", revision_send_error: "复审意见尚未保存",
+    revision_close: "关闭", revision_pause: "暂停",
     brand: "Studio", nokey: "这一页现在只能看。", reopen: "在 Studio 窗口里打开", reopened: "Studio 的窗口在前面了",
     reopen_failed: "Studio 的窗口没能打开：点 OVH Studio 图标，或者让 agent 再打开一次 Studio",
     taken: "这台电脑上有别的程序抢在这个窗口前面连上了 Studio，已经换过两次窗口。让 agent 重启 Studio 再试。", noServer: "读不到这支片子的数据。这一页要从本机的审阅台打开。", loading: "…", gate: "关卡",
@@ -139,6 +145,12 @@ const STR = {
     lk_agent_n: "Studio 里的 agent", lk_agent_s: "右边的「对话」现在只能看，还不能和 agent 说话。", lk_agent_d: "打开一支片子，在右边「对话」里点「装上」。",
   },
   en: {
+    revisions: "Revisions", revision_pending: "Ready for review", revision_approved: "Accepted", revision_changes_requested: "Changes requested",
+    revision_compare: "Compare the change", revision_before: "Before", revision_after: "After", revision_sound: "Audio to audition",
+    revision_play: "Play this span", revision_seek: "Shared playhead", revision_gone: "A saved cut has moved or changed.",
+    revision_load_error: "The cuts could not be loaded. Check the saved files in the terminal.", revision_reply: "Feedback on the revised cut",
+    revision_change: "Request changes", revision_sent: "Revision feedback saved", revision_send_error: "Revision feedback was not saved",
+    revision_close: "Close", revision_pause: "Pause",
     nokey: "This page can only look.", reopen: "Open in Studio's window", reopened: "Studio's window is in front",
     reopen_failed: "Studio's window did not open: click the OVH Studio icon, or ask your agent to open Studio",
     taken: "Another program on this computer connected to Studio before this window did, and the window was replaced twice already. Ask your agent to restart Studio.",

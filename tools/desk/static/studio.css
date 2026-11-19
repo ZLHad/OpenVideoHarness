@@ -3,6 +3,29 @@
    other modules' dress. Tokens and the shared components are in ui.css; nothing here has a colour of its own. */
 html,body{height:100%}
 body{overflow:hidden}
+
+/* A comparison from the cut’s review list. */
+.revision-card{margin:8px 4px;padding:12px;border:1px solid var(--rule);border-radius:var(--r-panel);overflow-wrap:anywhere}
+.revision-card>.btn{margin-top:8px}
+.revision-card blockquote,.revision-compare blockquote{margin:8px 0;padding:0 0 0 10px;border-left:2px solid var(--wait-line);white-space:pre-wrap}
+.revision-meta,.revision-head,.revision-transport,.revision-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.revision-meta{justify-content:space-between;margin-bottom:6px}
+.revision-compare{box-sizing:border-box;width:min(1060px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:clamp(12px,2vw,24px);overflow:auto;color:var(--ink);background:var(--panel);border:1px solid var(--rule-2);border-radius:var(--r-panel);overflow-wrap:anywhere}
+.revision-compare::backdrop{background:var(--scrim)}
+.revision-head{justify-content:space-between}
+.revision-head h2{margin:0;color:var(--ink-hi);font-size:1.24em}
+.revision-compare blockquote span{display:block}
+.revision-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.revision-pair figure{margin:0;min-width:0}
+.revision-pair figcaption{padding-bottom:4px;color:var(--ink-hi)}
+.revision-pair video{display:block;width:100%;aspect-ratio:16/9;max-height:42dvh;object-fit:contain;background:var(--bg);border-radius:4px}
+.revision-transport>*{flex:0 0 auto}
+.revision-transport input{flex:1 1 100%;width:100%}
+.revision-transport .tc{margin-left:auto}
+.revision-reply{margin-top:12px}
+.revision-reply textarea{display:block;width:100%;margin:4px 0 8px;padding:7px 9px;color:var(--ink);background:var(--bg);border:1px solid var(--rule-2);font:inherit;resize:vertical}
+.revision-actions{justify-content:flex-end}
+@media(max-width:560px){.revision-pair{grid-template-columns:1fr}.revision-pair video{max-height:28dvh}}
 .app{display:grid;grid-template-columns:64px minmax(0,1fr) var(--col-w,360px);grid-template-rows:52px minmax(0,1fr);height:100vh;gap:0}
 :root[data-theme=prism] .app{gap:8px;padding:8px;--col-w:360px}
 :root[data-theme=bridge] .app{gap:6px;padding:6px}
@@ -195,8 +218,8 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 
 /* ---------- the cut module: lists, the picture, the timeline (docs/proposals/02-studio-client.md, 4) ---------- */
 .cut{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;height:100%;min-height:560px}
-.cut.layout-review{grid-template-columns:0 minmax(0,1fr)}
-.cut.layout-review .lists{display:none}
+.cut.layout-review:not(.revision-list){grid-template-columns:0 minmax(0,1fr)}
+.cut.layout-review:not(.revision-list) .lists{display:none}
 .lists{grid-row:1;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--rule)}
 .ltabs{display:flex;gap:2px 14px;padding:10px 12px 0;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:none}
 .ltabs button{border:0;background:none;cursor:pointer;padding:0 0 8px;font-size:var(--fs-small);color:var(--ink-3);white-space:nowrap;border-bottom:1px solid transparent;margin-bottom:-1px}

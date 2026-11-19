@@ -90,7 +90,20 @@
    "properties": {
     "current": {"type": ["string", "null"]},
     "page": {"type": ["string", "null"]},
-    "desk": {}
+    "desk": {},
+    "revisions": {
+     "type": "array",
+     "description": "Published comparisons as in review-revision.schema.json, with the reviewer's reply and availability.",
+     "items": {
+      "type": "object",
+      "required": ["id", "feedback", "item", "target", "span", "before", "after", "state", "available"],
+      "properties": {
+       "state": {"enum": ["pending", "approved", "changes_requested"]},
+       "available": {"type": "boolean"},
+       "reply": {"type": ["object", "null"]}
+      }
+     }
+    }
    }
   },
   "open": {

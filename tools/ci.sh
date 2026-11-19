@@ -2893,6 +2893,10 @@ desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the b
 }
 desk_checks() {
   local t pid wpid url i rc a
+  if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+    if a=$(python3 tools/desk/test_revisions.py 2>&1); then ok "desk revision: $a"
+    else bad "desk revision: $a"; fi
+  else skip "desk revision" "no ffmpeg or ffprobe"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh desk data tools/desk/fixtures/zh > "$t/zh.json" && vh desk data tools/desk/fixtures/en > "$t/en.json"
   if python3 - "$t/zh.json" "$t/en.json" <<'PY'

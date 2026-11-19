@@ -217,6 +217,7 @@ projects/2026-10-01-leo-doppler/
 - **Codex 或等待已超时的会话**：人在 Studio 提交后，回原对话说一声"看审阅台"。继续时先跑 `bin/vh status <project>`，再按 `next:` 读 `bin/vh desk feedback <project> --round <实际轮次>`。适用的原话已写进 `REVIEW.md`，在同一节补"定了 / 改了"；自己定的事记进 `DECISIONS.md`。没标的条目都算通过。
 - **页面读什么**：项目文件本身和 `bin/vh status`，每次刷新重读，不另存状态。表格怎么写才排得出来（BRIEF 的 Outline 表、SCRIPT 的字幕或旁白表、NOTES 素材清单、DECISIONS 的划线约定、REVIEW、`shots.json`）、gate JSON 给审阅台加的 `music`（音轨、节拍表、乐段的名字），以及提交的 JSON 格式，都在 `tools/desk/README.md`。读不出结构的文档不会消失：照原文排版显示在对应的模块和账本的"文档"里。人想随时看所有片子，`bin/vh desk` 不带项目开一个控制台就行（`--root <文件夹>` 加别处的项目）。
 - **成片模块要的数据**：都是已有命令的输出，缺哪样那条轨道就空着、写着做它的命令。关卡 ③ 用审阅台时，片子出来后跑一次 `bin/vh thumbs <project>` 和 `bin/vh peaks <project>`（只用 ffmpeg，几秒），人拖动时间线就能看到每一秒的画面和波形；镜头、旁白和节拍来自 `bin/vh timeline --resolved` 读的那几份文件，检查的问题来自 `bin/vh check` 的记录，第几版、改了哪里和上一版来自 `bin/vh versions`。
+- **同一片段改完再审**：留好人点评的有声成片。新的一版检查通过后，用 `bin/vh desk revision` 把那条意见和两版成片发到 Studio 的「复审」。人打开就能在同一时间范围看改前改后，并切换试听。
 
 ### animatic：打磨之前先定节奏
 
