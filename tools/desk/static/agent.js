@@ -817,6 +817,15 @@ const AGENT = (() => {
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab, fresh,
+    async tell(e, text) {   // Studio's own button (the column's one action): these words, sent in this film's conversation, the newest one, else a new one
+      if (!e || !e.isTrusted || !KEYP || KEYP === SPACE || !text) return;
+      setTab("chat");
+      if (!S && KEYOK && meta(KIND).installed) { const last = sessionsOf(KIND)[0]; if (last) open(last); }
+      render();
+      const ta = $("#agSay"); if (!ta) return;
+      ta.value = text;
+      await send(e);
+    },
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
     _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };

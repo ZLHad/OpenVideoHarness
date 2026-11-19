@@ -67,7 +67,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
 import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
-import feedback as F, reader, revisions as RV   # noqa: E402,E401
+import feedback as F, reader, revisions as RV, standing   # noqa: E402,E401
 from speccheck import output_blanks, spec_line   # noqa: E402
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -961,12 +961,12 @@ def collect(project, now=None, light=False):
            "stops": {"gates": plan["gates"], "checkpoints": plan["checkpoints"], "line": plan["line"], "costly": [c["say"] for c in plan["costly"]],
                      "kept": plan["kept"], "note": G.plan_note(plan)},
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk,
-                      "revisions": [] if light else RV.listing(project)},
+                      "revisions": RV.listing(project)},   # a few small records: the space's card says when a change waits for review
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent},
-           "media": None, "next_step": None}
+           "media": None, "next_step": None, "now": None, "plan": None}
     try:   # what cannot be read is said, never a failure of status
         out["media"] = media(project)
     except Exception as e:
@@ -975,6 +975,15 @@ def collect(project, now=None, light=False):
         out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
     except Exception as e:
         out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
+    try:   # where it stands for the person, in a sentence (tools/standing.py): what Studio says too
+        out["now"] = standing.of(project, out, now)
+    except Exception as e:
+        out["now"] = {"code": "unknown", "who": "unknown", "say": standing.both("unknown"), "more": {"zh": str(e), "en": str(e)},
+                      "short": standing.both("unknown.short"), "act": {"kind": "none"}, "facts": {"paths": []}}
+    try:
+        out["plan"] = standing.plan_line(out)
+    except Exception:
+        out["plan"] = None
     return out
 
 
@@ -1004,6 +1013,18 @@ def show(o, now):
         print("  run: " + " · ".join(n["commands"]))
     if n["read"]:
         print("  read: " + " · ".join(n["read"]) + "  (with a #section: bin/vh know --show \"<file>#<section>\" prints it; without: the whole file)")
+    nw = o.get("now") or {}
+    if nw.get("say"):   # the person's sentence, as Studio says it (tools/standing.py), and the line under it
+        print(f"now: {nw['say']['en']}")
+        if nw.get("more"):
+            print(f"  {nw['more']['en']}")
+        a = nw.get("act") or {}
+        if a.get("kind") == "tell":
+            print(f"  to {a['label']['en'][0].lower()}{a['label']['en'][1:]}, say: \"{a['text']['en']}\" (a button in Studio's column)")
+        elif a.get("kind") == "open":
+            print(f"  in Studio: {a['label']['en']} (bin/vh studio {shlex.quote(p['path'])})")
+    if o.get("plan"):
+        print(f"plan: {o['plan']['en']}")
     ri, fv = o["open"]["review_items"], o["open"]["facts_to_verify"]
     if ri or fv:
         print("open: " + " · ".join(x for x in (f"{len(ri)} review item(s) (round {', '.join(dict.fromkeys(str(i['round']) for i in ri))})" if ri else "",

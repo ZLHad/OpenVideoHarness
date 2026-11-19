@@ -1845,12 +1845,218 @@ def machine_checks():
         d.stop()
 
 
+def handoff_checks():
+    """Where a film stands, said to the person (tools/standing.py): bin/vh status's now lines and Studio's, for a stop that
+    waits (an agent listening, none, one whose process is gone or whose pid another process took), notes saved and nobody to
+    take them, notes handed over, a render killed half-way and carried on from Studio's column."""
+    import standing
+    vh = ROOT / "bin" / "vh"
+    env = dict(os.environ, HOME=str(T / "home"))
+
+    def status(p, js=True):
+        r = subprocess.run(["bash", str(vh), "status", str(p)] + (["--json"] if js else []), capture_output=True, text=True, env=env, timeout=60)
+        return json.loads(r.stdout) if js else r.stdout
+
+    def stage(name, gate=None):
+        p = T / "handoff" / name
+        shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", p)
+        if gate:
+            subprocess.run(["bash", str(vh), "gate", str(p), gate, "--page"], capture_output=True, text=True, env=env, timeout=120)
+        return p
+
+    def listener(p):   # bin/vh desk wait, as an agent that waits for this stop leaves it
+        w = subprocess.Popen(["bash", str(vh), "desk", "wait", str(p), "--timeout", "60"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+        BG.add(w.pid)
+        for _ in range(100):
+            if (p / "out" / "review" / "feedback" / ".listening").exists():
+                break
+            time.sleep(0.1)
+        return w
+
+    def unit():   # the order of what is said, on records made up for it
+        st = lambda i, state, **k: dict({"id": i, "name": i, "state": state, "feedback": None, "pages": [], "note": None}, **k)   # noqa: E731
+        base = lambda **k: dict({"stations": [st("1", "done"), st("3", "in_progress"), st("deliver", "not_started")], "activity": {}, "next_step": {"do": "carry on"},   # noqa: E731
+                                 "review": {}, "media": {}, "renders": [], "versions": None, "deliveries": [], "check": None, "paused": False, "project": {}, "stops": {}}, **k)
+        P = T / "handoff" / "unit"
+        P.mkdir(parents=True, exist_ok=True)
+        one = lambda **k: standing.of(P, base(**k))   # noqa: E731
+        handed = [st("1", "done"), st("3", "waiting_agent", feedback={"submitted": 1, "handed": 1, "pending": 0}), st("deliver", "not_started")]
+        render = {"cmd": "render", "progress": {"done": 340, "total": 900, "unit": "frames"}}
+        cancel = one(activity={"recent": [dict(render, state="failed", exit=130, cancelled=True, kept={"chunks": 4})]})
+        desk = one(activity={"recent": [{"cmd": "render", "state": "gone", "progress": {"done": 10, "total": 90, "unit": "frames"}},
+                                        {"cmd": "desk", "state": "failed", "exit": 143, "cancelled": False},
+                                        {"cmd": "gate", "args": ["gate", ".", "3", "--wait"], "state": "failed", "exit": 3}]})
+        taken = one(stations=handed, activity={"running": [render]})
+        quiet = one(stations=handed)   # handed over, nothing runs: never "working on them"
+        got = {
+            "paused": one(paused=True)["code"], "revision": one(review={"revisions": [{"state": "pending", "available": True}]})["code"],
+            "setup": one(next_step={"do": "the engine's scaffold is not there: this makes it"})["code"], "idle": one()["code"],
+            "running": one(activity={"running": [{"cmd": "tts", "progress": {"done": 12, "total": 30, "unit": "lines"}}]})["say"]["zh"],
+            "failed": one(activity={"recent": [{"cmd": "render", "state": "failed", "exit": 1}]})["say"]["en"],
+            "cancel": [cancel["say"]["zh"], cancel["more"]["zh"]], "desk_stopped": [desk["say"]["en"], desk["more"]["en"]],
+            "taken": [taken["code"], taken["more"]["zh"]], "quiet": quiet["code"] != "notes_taken" and "正在改" not in json.dumps(quiet, ensure_ascii=False),
+            "missing": one(stations=[st("1", "done"), st("3", "done"), st("deliver", "in_progress")], check={"verdict": "fail", "stale": False})["say"]["en"],
+            "plan": standing.plan_line({"project": {"spec": {"Output": "1080x1920, 30 fps, exactly 30s (900 frames)", "Language": "zh-CN, narration: TTS voice"}},
+                                         "stops": {"gates": ["1", "3"]}}),
+            "plan_blank": standing.plan_line({"project": {"effort": "quick", "spec": {"Output": "{W}x{H}, {fps} fps, exactly {N}s ({frames} frames)",
+                                                                                      "Language": "{zh-CN | en}, narration: {TTS voice | none}"}}, "stops": {"gates": ["1", "3"]}}),
+            "plan_none": standing.plan_line({"project": {"effort": "studio", "spec": {"Output": "1920x1080, 30 fps, 150s"}}, "stops": {"gates": []}}),
+            "short": all(not any(p in json.dumps(x["short"]) for p in ("/", ".mp4")) for x in (cancel, desk, taken, quiet)),
+        }
+        want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
+                "failed": "The agent stopped: the render did not finish.",
+                "cancel": ["agent 停下了：渲染没做完。", "渲染到 340 / 900 帧时被停下了（留了 4 段，可以接着用）。下一步是初版。"],
+                "desk_stopped": ["The agent stopped: the render did not finish.", "The render was cut off at 10 of 90 frames (its process is gone). Next: the first cut."],
+                "taken": ["notes_taken", "正在渲染，340 / 900 帧。"], "quiet": True,
+                "missing": "Not delivered yet: the film has not passed its check.",
+                "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first cut"},
+                "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first cut"},
+                "plan_none": {"zh": "2 分 30 秒横屏，中间不停，做完给你看", "en": "2 min 30 s landscape, no stops on the way: you see it finished"}, "short": True}
+        return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
+    check("where a film stands, in order: paused, a change to review, the engine to set up, the agent's turn, a command with its progress, a run "
+          "that failed or was stopped (what it kept; the desk and a wait ending are no work stopped), notes handed over (working on them only "
+          "while something runs), what is missing before the delivery; a short sentence, the rest on the line under it, no path on a card; "
+          "the film's plan from its BRIEF and its own stops, a template line left out", unit)
+
+    g = stage("wait", "3")
+
+    def stop_waits():
+        a = status(g)["now"]
+        w = listener(g)
+        try:
+            b = status(g)["now"]
+        finally:
+            w.terminate(); w.wait(10)
+        text = status(g, js=False)
+        if a["code"] != "waiting_you" or a["facts"].get("listening") or a["more"]["en"] != "After you send your notes, tell the agent." or a["act"].get("mod") != "cut":
+            return f"no listener: {a}"
+        if b["code"] != "waiting_you" or not b["facts"].get("listening") or b["more"]["zh"] != "你交了，agent 就接着做。":
+            return f"a listener: {b}"
+        if "now: The first cut is out and waits for you.\n  After you send your notes, tell the agent.\n" not in text:
+            return "bin/vh status: " + text[:300]
+    check("a stop that waits: Studio's sentence and bin/vh status's now lines say it, and whether the agent carries on by itself (desk wait listening) or needs telling", stop_waits)
+
+    def gone_listener():
+        flag = g / "out" / "review" / "feedback" / ".listening"
+        dead = subprocess.Popen(["sleep", "30"])
+        dead.kill(); dead.wait()
+        flag.write_text(json.dumps({"project": os.path.realpath(str(g)), "pid": dead.pid, "since": time.time(), "until": time.time() + 600}))
+        a = status(g)["now"]
+        later = subprocess.Popen(["sleep", "30"])   # a process that took a pid after the flag was written: not its writer
+        BG.add(later.pid)
+        flag.write_text(json.dumps({"project": os.path.realpath(str(g)), "pid": later.pid, "since": time.time() - 120, "until": time.time() + 600}))
+        b = status(g)["now"]
+        later.kill(); later.wait(); flag.unlink()
+        if a["facts"].get("listening") or b["facts"].get("listening"):
+            return f"a flag whose process is gone: {a['facts']}; whose pid is a later process's: {b['facts']}"
+    check("a listening flag counts only while the process that wrote it is alive: one left by a killed wait, or whose pid a later process took, is no listener", gone_listener)
+
+    k = stage("killed")
+    sleeper = subprocess.Popen(["sleep", "60"])
+    (k / ".ovh").mkdir(exist_ok=True)
+    t0 = time.time()
+    with open(k / ".ovh" / "activity.jsonl", "a") as f:   # bin/vh render on its way, as the activity log has it
+        f.write(json.dumps({"v": 1, "event": "start", "t": t0, "run": "r-render", "cmd": "render", "args": ["render", "out/draft.mp4"], "pid": sleeper.pid,
+                            "project": os.path.realpath(str(k))}) + "\n")
+        f.write(json.dumps({"v": 1, "event": "progress", "t": t0 + 1, "run": "r-render", "done": 340, "total": 900, "unit": "frames"}) + "\n")
+    during = status(k)["now"]
+    sleeper.kill(); sleeper.wait()   # the agent and its render killed
+
+    def killed_terminal():
+        o = status(k)["now"]
+        text = status(k, js=False)
+        if during["code"] != "running" or during["say"]["zh"] != "正在渲染，340 / 900 帧。":
+            return f"while it renders: {during}"
+        if o["code"] != "stopped" or o["act"]["kind"] != "tell" or "340 of 900 frames" not in o["act"]["text"]["en"]:
+            return f"after: {o}"
+        if "now: The agent stopped: the render did not finish.\n  The render was cut off at 340 of 900 frames (its process is gone). Next: the first cut.\n" not in text \
+                or 'say: "Carry on with this film. Last time the render was cut off at 340 of 900 frames' not in text:
+            return "bin/vh status: " + text[:500]
+    check("an agent killed mid-render: while it ran, 正在渲染，340 / 900 帧; after, from a terminal, bin/vh status says where it stopped and the words that carry on", killed_terminal)
+
+    d = Desk(k, T / "agents")
+    try:
+        K = d.key
+
+        def killed_studio():
+            data = d.get(f"/api/p/{K}/data")[1]
+            now = (data.get("status") or {}).get("now") or {}
+            live = d.get(f"/api/p/{K}/status")[1]
+            if now.get("code") != "stopped" or (live.get("now") or {}).get("code") != "stopped" or now["say"] != live["now"]["say"] or now["more"] != live["now"]["more"]:
+                return f"Studio: {now} / {live.get('now')}"
+            st_, s_ = d.new("claude")
+            L = Listen(d, s_["id"])
+            r = d.a(s_["id"], "say", {"text": now["act"]["text"]["zh"]})   # the column's button: the page's own words, sent as the person's
+            start = L.wait(lambda e: e.get("type") == "turn" and e.get("state") == "start")
+            mid = d.get(f"/api/p/{K}/status")[1].get("now") or {}
+            end = L.wait(ended)
+            L.close()
+            u = next((e for e in L.events if e["type"] == "user"), {})
+            if r[0] != 200 or not start or not end or u.get("text") != now["act"]["text"]["zh"]:
+                return f"carry on: {r} {u}"
+            if mid.get("code") not in ("working", "stopped"):
+                return f"during its turn: {mid}"
+        check("the same film opened in Studio: the column's words are bin/vh status's, and its one button sends the words that carry on in the film's conversation", killed_studio)
+    finally:
+        d.stop()
+
+    n = stage("notes", "3")
+    dies = stage("dies", "3")
+    d = Desk(None, T / "agents", roots=[T / "handoff"])
+    try:
+        rows = {r["name"]: r["key"] for r in d.get("/api/projects")[1]["projects"]}
+        pid = lambda p: __import__("hashlib").sha1(os.path.realpath(str(p)).encode()).hexdigest()   # noqa: E731
+
+        def no_listener():
+            K = rows["notes"]
+            fb = d.post(f"/api/p/{K}/feedback", {"round": "3", "general": "节奏再快一点"}, pid=pid(n))
+            now = d.get(f"/api/p/{K}/status")[1].get("now") or {}
+            if fb[0] != 200 or fb[1].get("listening") or now.get("code") != "notes_unheard" or now["act"]["kind"] != "tell":
+                return f"{fb} {now}"
+            if now["say"]["zh"] != "你的意见存好了，还没有 agent 来取。" or "bin/vh desk" in now["say"]["en"] + now["more"]["en"]:
+                return f"the words: {now['say']} {now['more']}"
+        check("a submit with no agent listening: saved here, said so, and the one button tells the agent", no_listener)
+
+        def with_listener():
+            K = rows["notes"]
+            subprocess.run(["bash", str(vh), "desk", "feedback", str(n)], capture_output=True, env=env, timeout=30)   # the earlier one picked up
+            w = listener(n)
+            fb = d.post(f"/api/p/{K}/feedback", {"round": "3", "general": "开头再短一点"}, pid=pid(n))
+            try:
+                w.wait(20)
+            except subprocess.TimeoutExpired:
+                w.terminate()
+                return "desk wait did not hand it over"
+            now = d.get(f"/api/p/{K}/status")[1].get("now") or {}
+            if fb[0] != 200 or not fb[1].get("listening") or now.get("code") == "notes_taken" or "read your notes of" not in (now.get("more") or {}).get("en", ""):
+                return f"{fb} {now}"
+        check("a submit with an agent listening: handed over at once; with nothing running after, the words say the notes were read, never that it works on them", with_listener)
+
+        def died():
+            K = rows["dies"]
+            w = listener(dies)
+            before = d.get(f"/api/p/{K}/status")[1].get("now") or {}
+            w.kill(); w.wait()   # the waiting agent killed between the page opening and the submit: its flag stays
+            fb = d.post(f"/api/p/{K}/feedback", {"round": "3", "general": "可以"}, pid=pid(dies))
+            now = d.get(f"/api/p/{K}/status")[1].get("now") or {}
+            if not (before.get("facts") or {}).get("listening") or fb[1].get("listening") or now.get("code") != "notes_unheard":
+                return f"before {before.get('facts')}, submit {fb}, after {now.get('code')}"
+        check("the waiting agent killed between the page and the submit: the submit says nobody took it, and the column offers to tell the agent", died)
+    finally:
+        d.stop()
+
+
 if __name__ == "__main__":
     import atexit
     atexit.register(reap)
     for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):   # a run stopped half-way still stops what it started
         signal.signal(sig, lambda n, _f: sys.exit(128 + n))
     T.mkdir(parents=True, exist_ok=True)
+    if "--only" in sys.argv:   # while working on one group: the stand-ins staged, then that group alone
+        check("the stand-ins staged", catalog_check)
+        {"handoff": handoff_checks}[sys.argv[sys.argv.index("--only") + 1]]()
+        print("end", flush=True)
+        sys.exit(0)
     check("the adapter's environment: no provider key, none of the host session's ANTHROPIC_*/CLAUDE_CODE_* variables, the basics kept", env_check)
     check("bin/vh desk agents: none in an empty folder (and the column says how to install), the staged three at their pinned versions", catalog_check)
     check("each adapter installs from its committed lockfile with npm ci: the pinned version at the root, every package from registry.npmjs.org with its integrity hash", locks_check)
@@ -1882,7 +2088,7 @@ if __name__ == "__main__":
         choice_checks()
     except Exception as e:
         say(False, "the agent column's model and effort checks", f"{type(e).__name__}: {e}")
-    for name, fn in (("set it up", install_checks), ("what this machine lacks", machine_checks)):
+    for name, fn in (("set it up", install_checks), ("what this machine lacks", machine_checks), ("hand-over", handoff_checks)):
         try:
             fn()
         except Exception as e:

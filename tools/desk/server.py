@@ -1048,10 +1048,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             what = m.group(2)
             if what == "data":
                 return self._data(project, key)
-            if what == "status":   # with this round's page: the console notices a new page the agent sent
+            if what == "status":   # with this round's page: the console notices a new page the agent sent; and where the film stands now
                 pages = review.gate_pages(project)
+                try:
+                    import status as S
+                    o = S.collect(project, light=True)
+                    now, plan = o.get("now"), o.get("plan")
+                except (Exception, SystemExit):   # the page keeps what it has
+                    now = plan = None
                 return self._json(dict(F.listening(project), project=project.name, key=key, round=pages[-1].stem[5:] if pages else None,
-                                       revision_stamp=RV.stamp(project)))
+                                       revision_stamp=RV.stamp(project), now=now, plan=plan))
             if what == "stage":
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]

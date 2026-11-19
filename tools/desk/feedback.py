@@ -4,7 +4,7 @@ A submission is saved as out/review/feedback/<round>-<YYYYMMDD-HHMMSS>.json plus
 reads; the same .md text goes into REVIEW.md verbatim, as a dated section (CLAUDE.md: the human's words are recorded
 word for word). The .json is written last, atomically: it is what the watcher (wait) waits for.
 """
-import datetime, fcntl, json, os, re, signal, sys, tempfile, threading, time
+import datetime, fcntl, json, os, re, signal, subprocess, sys, tempfile, threading, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # reader.py, for the current gate page
@@ -248,9 +248,21 @@ def save(project, fb, now=None):
     return out / f"{stem}.json"
 
 
+def started(pid):
+    """When process pid started (epoch seconds, to the second), or None when that cannot be told (ps, LC_ALL=C)."""
+    try:
+        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(pid))], capture_output=True, text=True, timeout=5,
+                             env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
+        return time.mktime(time.strptime(" ".join(out.split()), "%a %b %d %H:%M:%S %Y")) if out else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 def listening(project):
     """Is an agent waiting for this project's feedback (bin/vh desk wait running)? {listening, since, until}.
-    The flag must name this very folder: one copied from another project (or left by an older tool) doesn't count."""
+    The flag must name this very folder: one copied from another project (or left by an older tool) doesn't count. Its
+    process must be alive now, and be the one that wrote it: a pid that a later process took (it started after the flag's
+    since) is no listener."""
     flag = Path(project) / "out" / "review" / "feedback" / ".listening"
     try:
         info = json.loads(flag.read_text())
@@ -266,6 +278,13 @@ def listening(project):
     except (ValueError, TypeError):   # an "until" that is not a number of seconds: a flag this tool did not write
         return {"listening": False}
     if not until >= time.time():      # past, or NaN
+        return {"listening": False}
+    t0 = started(info["pid"])
+    try:
+        since = float(info.get("since") or 0)
+    except (ValueError, TypeError):
+        since = 0
+    if t0 is not None and since and t0 > since + 2:   # the pid is another process's now (ps gives whole seconds)
         return {"listening": False}
     return {"listening": True, "since": info.get("since"), "until": info.get("until")}
 
