@@ -88,8 +88,8 @@ moduleWords({
   no_screen: "不上屏",
   idea_done_d0: "只能看；要改就写一条意见。",
 }, {
-  idea_title: "Pick a concept card", idea_sub: "Pick a card, and how this film tells it is decided.",
-  mat_h: "This subject's material", k_number: "Numbers", k_object: "Objects", k_quote: "Words", k_conflict: "Contradictions", k_surprise: "Surprises", k_other: "Other",
+  idea_title: "Pick a concept card", idea_sub: "Pick a card, and that decides how this film tells it.",
+  mat_h: "This subject's material", k_number: "Numbers", k_object: "Objects", k_quote: "Quotes", k_conflict: "Contradictions", k_surprise: "Surprises", k_other: "Other",
   same_topic: "How others usually film it (what we avoid)", same_none: "Not written yet: how others usually film it.",
   mat_none: "This subject's material isn't listed yet.",
   rec: "recommended", picked: "your pick", pick_this: "Pick this", picked_btn: "Picked", like_this: "Another in this direction", like_say: "Another card in the direction of {x}: ",

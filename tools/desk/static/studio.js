@@ -616,7 +616,7 @@ function payload() {
 }
 function summaryText(p) {
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const out = [t("reply_head", { p: D.project.title, r: p.round === "notes" ? t("notes_round") : t("round_name", { r: p.round }) })];
+  const out = [t("reply_head", { p: D.project.title, r: p.round === "notes" ? t("notes_round") : gateName(p.round) })];
   Object.entries(p.decisions).forEach(([k, v]) => out.push(`${k}: ${v}${p.defaulted.includes(k) ? t("by_rec") : ""}`));
   p.items.forEach((i) => out.push(`${i.label} · ${st[i.status]}${i.text ? COLON() + i.text : ""}${i.suggest ? ` → ${i.suggest}` : ""}`));
   if (p.general) out.push(`${t("overall")}${COLON()}${p.general}`);

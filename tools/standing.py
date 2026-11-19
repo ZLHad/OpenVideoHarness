@@ -41,30 +41,30 @@ OPEN_FOR = 6 * 3600  # s: an agent program still running counts as open on a fil
 # ---------- the words: key → (zh, en); {x} are filled in ----------
 WORDS = {
     # what the person sees at a stop, and how they take it in
-    "seen.1": ("立意卡", "the concept cards"), "seen.2": ("分镜", "the storyboard"), "seen.3": ("初版", "the first cut"),
-    "seen.E0": ("样帧", "the style frames"), "seen.E1": ("脚本", "the script"), "seen.E2": ("声音", "the sound"),
-    "seen.E3": ("锁时的版本", "the timing lock"), "seen.E4": ("样板章", "the sample chapter"), "seen.E5": ("锁画面的版本", "the picture lock"),
+    "seen.1": ("立意卡", "the concept cards"), "seen.2": ("分镜", "the storyboard"), "seen.3": ("初版", "the first draft"),
+    "seen.E0": ("画风样张", "the style frames"), "seen.E1": ("脚本", "the script"), "seen.E2": ("配乐安排", "the sound plan"),
+    "seen.E3": ("最终的声音", "the final sound"), "seen.E4": ("第一章样片", "the first chapter"), "seen.E5": ("定画面的版本", "the picture lock"),
     "seen.deliver": ("交付", "the delivery"),
     "take.look": ("看", "look at"), "take.listen": ("听", "listen to"),
     # a command: what it does (zh, en), and as a thing (en)
-    "cmd.render": ("渲染", "rendering", "the render"), "cmd.patch": ("补渲", "patching the film", "the patch"),
+    "cmd.render": ("渲染", "rendering", "the render"), "cmd.patch": ("重渲改过的几段", "re-rendering the changed parts", "the re-render of the changed parts"),
     "cmd.tts": ("配音", "voicing", "the voice-over"), "cmd.mix": ("混音", "mixing", "the mix"), "cmd.check": ("检查", "checking", "the check"),
-    "cmd.deliver": ("出上传版", "making the upload copy", "the upload copy"), "cmd.proxy": ("做代理", "making a proxy", "the proxy"),
+    "cmd.deliver": ("出上传版", "making the upload copy", "the upload copy"), "cmd.proxy": ("做预览版", "making a preview copy", "the preview copy"),
     "cmd.thumbs": ("做缩略图", "making thumbnails", "the thumbnails"), "cmd.gate": ("出审阅页", "making the review page", "the review page"),
     "cmd.music": ("作曲", "composing", "the music"), "cmd.storyboard": ("画分镜关键帧", "drawing the storyboard frames", "the storyboard frames"),
     "cmd.qa": ("查声音", "checking the sound", "the sound check"), "cmd.mux": ("合音轨", "putting the sound on", "putting the sound on"),
-    "cmd.frames": ("取帧", "taking frames", "taking frames"), "cmd.sheet": ("出联系表", "making a contact sheet", "the contact sheet"),
-    "cmd.new": ("建项目", "making the project", "making the project"), "cmd.hf-init": ("装引擎", "setting up the engine", "the engine's setup"),
-    "cmd.sfx": ("找音效", "finding sound effects", "the sound effects"), "cmd.image": ("生图", "making images", "the images"),
+    "cmd.frames": ("截取画面", "taking frames", "taking frames"), "cmd.sheet": ("出联系表", "making a contact sheet", "the contact sheet"),
+    "cmd.new": ("新建片子", "starting the film", "starting the film"), "cmd.hf-init": ("装引擎", "setting up the engine", "the engine's setup"),
+    "cmd.sfx": ("找音效", "finding sound effects", "the sound effects"), "cmd.image": ("出图", "making images", "the images"),
     "cmd.captions": ("做字幕", "making the subtitles", "the subtitles"), "cmd.cues": ("对时间", "lining up the timing", "the timing"),
-    "cmd.readcheck": ("查读时", "checking the reading time", "the reading-time check"), "cmd.textcheck": ("查画面文字", "checking the text on screen", "the text check"),
+    "cmd.readcheck": ("查字停得够不够久", "checking the words stay long enough to read", "the reading-time check"), "cmd.textcheck": ("查画面文字", "checking the text on screen", "the text check"),
     "cmd.timeline": ("排时间线", "laying out the timeline", "the timeline"), "cmd.peaks": ("画波形", "drawing the waveform", "the waveform"),
-    "cmd.bgm": ("配乐", "picking the music", "the music"), "cmd.voices": ("试声音", "trying voices", "the voice trial"),
+    "cmd.bgm": ("配乐", "picking the music", "the music"), "cmd.voices": ("试听声音", "trying voices", "the voice trial"),
     "cmd.edit": ("排剪辑表", "laying out the edit", "the edit"), "cmd.footage": ("找素材", "finding footage", "the footage"),
     "cmd.rhythm": ("画节奏图", "drawing the rhythm chart", "the rhythm chart"), "cmd.beats": ("找节拍", "finding the beats", "the beats"),
-    "cmd.determinism": ("查确定性", "checking the frames repeat", "the determinism check"), "cmd.hf": ("跑引擎", "running the engine", "the engine run"),
+    "cmd.determinism": ("查同一帧重渲是否一样", "checking a frame renders the same twice", "the same-frame check"), "cmd.hf": ("跑引擎", "running the engine", "the engine run"),
     "cmd.versions": ("换版本", "switching versions", "the version switch"), "cmd.assets": ("登记素材", "recording assets", "the asset record"),
-    "cmd.review": ("出审阅页", "making the review page", "the review page"), "cmd.concept": ("出立意板", "making the concept board", "the concept board"),
+    "cmd.review": ("出审阅页", "making the review page", "the review page"), "cmd.concept": ("出立意卡", "making the concept cards", "the concept cards"),
     "cmd.cover-preview": ("出封面预览", "making the cover preview", "the cover preview"), "cmd.gif": ("出动图", "making the GIF", "the GIF"),
     "cmd.other": ("跑一条命令", "running a command", "a command"),
     "unit.frames": ("帧", "frames"), "unit.lines": ("句", "lines"), "unit.pictures": ("张", "pictures"),
@@ -72,19 +72,19 @@ WORDS = {
     "doing": ("{x}，{p}", "{x}, {p}"),
     # what was last seen happen on the film (a sign of life), by kind
     "sign.ok": ("{x}做完了", "{t} finished"), "sign.found": ("{x}结束时报了问题", "{t} ended reporting a problem"),
-    "sign.check_found": ("检查查出 {n} 处要改", "the check found {n} thing(s) to fix"),
+    "sign.check_found": ("检查查出 {n} 处要改", "the check found {n} {things} to fix"),
     "sign.stopped": ("{x}被停下了", "{t} was stopped"), "sign.gone": ("{x}中断了", "{t} was cut off"),
     "sign.gone_at": ("{x}到 {p}时中断了", "{t} was cut off at {p}"),
     "sign.page": ("发出了审阅页", "the review page went out"), "sign.wait": ("它开始等你的意见", "it began waiting for your notes"),
     "sign.handed": ("它取走了你的意见", "it picked up your notes"),
-    "sign.talk_end_turn": ("Studio 里的对话做完一轮", "the Studio conversation finished a turn"),
-    "sign.talk_cancelled": ("Studio 里的对话被停下了", "the Studio conversation was stopped"),
-    "sign.talk_error": ("Studio 里的对话出错停了", "the Studio conversation ended with an error"),
-    "sign.talk_cut": ("Studio 里的对话做到一半断了", "the Studio conversation was cut off mid-turn"),
-    "sign.talk": ("Studio 里的对话有新内容", "the Studio conversation moved on"),
+    "sign.talk_end_turn": ("Studio 里的对话做完一轮", "the Studio chat finished a turn"),
+    "sign.talk_cancelled": ("Studio 里的对话被停下了", "the Studio chat was stopped"),
+    "sign.talk_error": ("Studio 里的对话出错停了", "the Studio chat ended with an error"),
+    "sign.talk_cut": ("Studio 里的对话做到一半断了", "the Studio chat was cut off mid-turn"),
+    "sign.talk": ("Studio 里的对话有新内容", "the Studio chat moved on"),
     "sign.file": ("改了 {f}", "{f} changed"),
-    "last": ("上一次动静：{a}前，{x}。", "Last sign of life: {a} ago, {x}."),
-    "last.partial": ("看到的最近一次动静：{a}前，{x}（文件很多，没有一一看过）。", "The latest sign of life seen: {a} ago, {x} (too many files to look through them all)."),
+    "last": ("上一次动静：{a}前，{x}。", "Last activity: {a} ago, {x}."),
+    "last.partial": ("看到的最近一次动静：{a}前，{x}（文件很多，没有一一看过）。", "The latest activity seen: {a} ago, {x} (too many files to look through them all)."),
     "ago.now": ("不到 1 分钟", "under a minute"), "ago.min": ("{n} 分钟", "{n} min"), "ago.hour": ("{n} 小时", "{n} hour"),
     "ago.hours": ("{n} 小时", "{n} hours"), "ago.days": ("{n} 天", "{n} days"),
     # the sentences, a code each: its short sentence, the card's few words (.short)
@@ -98,14 +98,14 @@ WORDS = {
     "waiting_you.short": ("{s} · 等你{v}", "{s} · for you"),
     "notes_unheard": ("你的意见存好了，还没有 agent 来取。", "Your notes are saved; no agent has picked them up yet."),
     "notes_unheard.more": ("跟 agent 说一声，它就来取。", "Tell the agent and it will fetch them."),
-    "notes_unheard.busy": ("{x}还在跑（{p}），但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running ({p}), but nobody has picked up your notes of {t}. Tell the agent."),
-    "notes_unheard.busy0": ("{x}还在跑，但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running, but nobody has picked up your notes of {t}. Tell the agent."),
+    "notes_unheard.busy": ("{x}还在跑（{p}），但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running ({p}), but nobody has picked up the notes you sent at {t}. Tell the agent."),
+    "notes_unheard.busy0": ("{x}还在跑，但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running, but nobody has picked up the notes you sent at {t}. Tell the agent."),
     "notes_unheard.short": ("意见还没人取", "notes not picked up yet"),
     "notes_sent": ("你的意见交出去了，等着的 agent 正在取。", "Your notes went to the agent that was waiting; it is picking them up."),
     "notes_sent.short": ("意见交出去了", "notes sent"),
     "notes_taken": ("agent 拿到了你的意见，正在改。", "The agent has your notes and is working on them."),
     "notes_taken.short": ("在照你的意见改", "working on your notes"),
-    "now_doing": ("正在{x}。", "{X}."), "in_studio": ("在 Studio 的对话里。", "In the Studio conversation."),
+    "now_doing": ("正在{x}。", "{X}."), "in_studio": ("在 Studio 的对话里。", "In the Studio chat."),
     "running": ("正在{x}。", "{X}."), "running.short": ("正在{x}", "{x}"),
     "working": ("agent 正在做。", "The agent is working."), "working.short": ("agent 在做", "the agent is working"),
     "delivered": ("已交付{d}。", "Delivered{d}."), "delivered.short": ("已交付{d}", "delivered{d}"),
@@ -121,20 +121,20 @@ WORDS = {
     "agent_open.short": ("agent 开着", "an agent is open"),
     "idle": ("现在没有命令在跑。", "No command runs right now."), "idle.short": ("没有命令在跑", "nothing running"),
     "ship_missing": ("还没交付：{x}。", "Not delivered yet: {x}."), "ship_missing.short": ("还没交付", "not delivered yet"),
-    "gap.cut": ("初版还没定", "the first cut is not decided yet"), "gap.check": ("成片没过检查", "the film has not passed its check"),
+    "gap.cut": ("初版还没定", "the first draft is not decided yet"), "gap.check": ("成片没过检查", "the film has not passed its check"),
     "gap.final": ("正式版还没做好或还没检查", "the final is not made or not checked yet"),
     "setup": ("引擎还没装好。", "The engine is not set up yet."),
     "setup.more": ("agent 接着做时会先装它（要联网）。", "The agent sets it up first when it carries on (it needs the network)."),
     "setup.short": ("引擎还没装好", "engine not set up"),
     "unknown": ("读不出这支片子现在到哪了。", "Where this film stands could not be worked out."), "unknown.short": ("读不出", "unreadable"),
     # the facts in the line under a sentence
-    "read_at": ("你 {t} 交的意见它读过了。", "It has read your notes of {t}."),
+    "read_at": ("你 {t} 交的意见它读过了。", "It has read the notes you sent at {t}."),
     "made": ("已经做好：{f}。", "Made so far: {f}."),
     "next": ("下一步是{s}。", "Next: {s}."), "next.notes": ("下一步：照你的意见改{s}。", "Next: {s}, changed as your notes say."),
     # the buttons, and the words a tell button sends (only these words, numbers and times: nothing else from the project)
     "act.look": ("去{v}{s}", "{V} {s}"), "act.revision": ("去复审", "Review the change"), "act.ship": ("打开交付", "Open the delivery"),
-    "act.go_cut": ("去看初版", "Go to the first cut"), "act.go_ship": ("去看交付", "Go to the delivery"),
-    "act.carry": ("让 agent 接着做", "Ask the agent to carry on"), "act.fetch": ("叫 agent 来看意见", "Tell the agent to read them"),
+    "act.go_cut": ("去看初版", "Go to the first draft"), "act.go_ship": ("去看交付", "Go to the delivery"),
+    "act.carry": ("让 agent 接着做", "Ask the agent to carry on"), "act.fetch": ("让 agent 来看意见", "Ask the agent to read your notes"),
     "act.carry_open": ("它要是没反应，在这里叫一个 agent 接着做", "If it does not answer, ask an agent here to carry on"),
     "say.carry": ("接着做这支片子。先跑 bin/vh status 看下一步。", "Carry on with this film. Run bin/vh status first for the next step."),
     "say.stopped": ("接着做这支片子。上次{x}。先跑 bin/vh status 看下一步。", "Carry on with this film. Last time {x}. Run bin/vh status first for the next step."),
@@ -147,16 +147,16 @@ WORDS = {
     "plan.vertical": ("竖屏", "vertical"), "plan.landscape": ("横屏", "landscape"), "plan.square": ("方屏", "square"),
     "plan.narrated": ("有旁白", "narrated"), "plan.silent": ("没有旁白", "no narration"), "plan.song": ("配一首歌", "set to a song"),
     "plan.none": ("中间不停，做完给你看", "no stops on the way: you see it finished"),
-    "plan.13": ("先看方向和初版", "you see the direction and the first cut"),
-    "plan.123": ("立意、分镜、初版都给你看", "you see the concept, the storyboard and the first cut"),
+    "plan.13": ("先看方向和初版", "you see the direction and the first draft"),
+    "plan.123": ("立意、分镜、初版都给你看", "you see the concept, the storyboard and the first draft"),
     "plan.at": ("停在{x}", "it stops at {x}"), "plan.sep": ("，", ", "), "plan.list": ("、", ", "),
-    "stop.1": ("立意", "the concept"), "stop.2": ("分镜", "the storyboard"), "stop.3": ("初版", "the first cut"), "stop.E0": ("样帧", "the style frames"),
-    "stop.E1": ("脚本", "the script"), "stop.E2": ("声音", "the sound"), "stop.E3": ("锁时", "the timing lock"), "stop.E4": ("样板章", "the sample chapter"),
-    "stop.E5": ("锁画面", "the picture lock"),
+    "stop.1": ("立意", "the concept"), "stop.2": ("分镜", "the storyboard"), "stop.3": ("初版", "the first draft"), "stop.E0": ("画风样张", "the style frames"),
+    "stop.E1": ("脚本", "the script"), "stop.E2": ("配乐安排", "the sound plan"), "stop.E3": ("定声音", "the final sound"), "stop.E4": ("第一章样片", "the first chapter"),
+    "stop.E5": ("定画面", "the picture lock"),
 }
 MOD = {"1": "idea", "E0": "idea", "E1": "outline", "2": "board", "E2": "sound", "E3": "sound", "3": "cut", "E4": "cut", "E5": "cut", "deliver": "ship"}   # core.js's GATE_MOD
 PLURAL = {"1", "E0"}     # the concept cards, the style frames
-LISTEN = {"E2"}          # the sound: listened to
+LISTEN = {"E2", "E3"}    # the sound plan and the final sound: listened to
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "3", "E4", "E5"]
 
 
@@ -366,7 +366,7 @@ def run_sign(r, o):
     chk = o.get("check") or {}
     n = (chk.get("counts") or {}).get("fail")
     if r.get("cmd") == "check" and isinstance(n, int) and n > 0 and not chk.get("stale"):
-        return (t, [w("sign.check_found", 0, n=n), w("sign.check_found", 1, n=n)], "found")
+        return (t, [w("sign.check_found", 0, n=n), w("sign.check_found", 1, n=n, things="thing" if n == 1 else "things")], "found")
     return (t, [w("sign.found", 0, x=c[0]), w("sign.found", 1, t=c[2])], "found")
 
 

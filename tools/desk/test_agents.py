@@ -138,6 +138,80 @@ def claim(port, code):
     return r.status, d.get("token", "")
 
 
+# the words a person reads in Studio, the review pages and gate's lines, retired for plainer ones (tools/desk/README.md, 页面上的字):
+# a stop is 一站 by its name, a note 意见, Studio is Studio; codes, files and commands stay out of the words
+RETIRED_ZH = re.compile(r"审阅台|控制台|关卡|检查点|这一轮|这一关|点评|反馈|评论|要你定|待你定|点头|待批准|等你点|默认通过|上下文|推理|代理|"
+                        r"硬规则|写成意见|记成点评|提交|锁时|样板章|项目|BRIEF|\.md\b|bin/vh")
+RETIRED_EN = re.compile(r"(?i)\bdesk\b|\bconsole\b|\bgate\b|checkpoint|\bround\b|\bcomments?\b|feedback|submission|\bsubmit|\(s\)|untouched|"
+                        r"to allow|\bcontext\b|\bproxy\b|hard rule|conversation|bin/vh|\.md\b|timing lock|sample chapter")
+WORDS_KEEP = {"proj_ph"}   # the film's folder inside a command, in that command's tooltip (<项目> / <project>)
+
+
+def wording_check():
+    """Every string a person reads, both languages: each key in both tables (a key missing in one language fails), none of the
+    retired words in any of them: Studio's three tables, bin/vh status's lines as Studio says them in Chinese, where a film
+    stands (tools/standing.py), the review page's words and the lines bin/vh gate prints for the person."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    prog = r"""
+const vm = require("vm"), fs = require("fs");
+const doc = { querySelector: () => null, querySelectorAll: () => [], documentElement: { lang: "" }, addEventListener() {} };
+const g = vm.createContext({ console, document: doc, window: {}, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearInterval, setInterval,
+  requestAnimationFrame: () => 0, matchMedia: () => ({ matches: false }) });
+for (const f of ["core.js", "modules.js", "agent.js"]) vm.runInContext(fs.readFileSync(process.argv[1] + "/" + f, "utf8"), g);
+vm.runInContext("this.__T = { STR, MSTR, ASTR };", g);
+console.log(JSON.stringify(g.__T));
+"""
+    out = subprocess.run([node, "-e", prog, str(HERE / "static")], capture_output=True, text=True, timeout=30)
+    if out.returncode:
+        return out.stderr[-300:]
+    bad = []
+    for name, tb in json.loads(out.stdout).items():
+        flat = {}
+        for lang in ("zh", "en"):
+            for k, v in tb[lang].items():
+                for kk, vv in (v.items() if isinstance(v, dict) else [(None, v)]):
+                    flat.setdefault((k, kk), {})[lang] = vv
+        for (k, kk), v in flat.items():
+            key = k + ("." + kk if kk else "")
+            if set(v) != {"zh", "en"}:
+                bad.append(f"{name}.{key} only in {'/'.join(v)}")
+                continue
+            if k in WORDS_KEEP:
+                continue
+            for lang, rx in (("zh", RETIRED_ZH), ("en", RETIRED_EN)):
+                m = rx.search(str(v[lang]))
+                if m:
+                    bad.append(f"{name}.{key} ({lang}) says {m.group(0)!r}")
+    core = (HERE / "static" / "core.js").read_text(encoding="utf-8")
+    zh = core.split("const STATUS_ZH = [", 1)[1].split("const STATUS_EN", 1)[0]
+    for m in re.finditer(r'=>\s*(["`])(.*?)\1', zh):
+        w = RETIRED_ZH.search(re.sub(r"\$\{[^}]*\}", "", m.group(2)))
+        if w:
+            bad.append(f"STATUS_ZH says {w.group(0)!r}: {m.group(2)[:60]}")
+    sys.path.insert(0, str(HERE.parent))
+    import gate as G, review as RV, standing as SD   # noqa: E402
+    for k, v in SD.WORDS.items():
+        if k.startswith("say."):   # the words a button sends to the agent, as the person's own message: they name bin/vh status for it
+            continue
+        for lang, x, rx in (("zh", v[0], RETIRED_ZH), ("en", v[1], RETIRED_EN)):
+            m = rx.search(x)
+            if m:
+                bad.append(f"standing {k} ({lang}) says {m.group(0)!r}")
+    for lang, rx in (("zh", RETIRED_ZH), ("en", RETIRED_EN)):
+        for k, v in list(RV.T[lang].items()) + list(G.SAY[lang].items()):
+            if k == "warn":   # the page's own rule breaks, for the agent: a page with any goes to nobody
+                continue
+            for x in (v if isinstance(v, tuple) else (v,)):
+                m = rx.search(re.sub(r"<[^>]+>", "", str(x)))
+                if m:
+                    bad.append(f"review/gate {k} ({lang}) says {m.group(0)!r}")
+    if set(RV.T["zh"]) != set(RV.T["en"]) or set(G.SAY["zh"]) != set(G.SAY["en"]):
+        bad.append(f"review/gate keys differ: {sorted(set(RV.T['zh']) ^ set(RV.T['en']))} {sorted(set(G.SAY['zh']) ^ set(G.SAY['en']))}")
+    return "; ".join(bad[:20]) + (f" … ({len(bad)} in all)" if len(bad) > 20 else "") if bad else None
+
+
 def page_check():
     """agent.js in node: the agent's words escaped, no links made; the diff; send, answer, stop and the settings act only on a
     real event; the box is never filled from anything but the person's own draft."""
@@ -1940,13 +2014,13 @@ def handoff_checks():
                 "pending_first": ["notes_unheard", "nudge", True], "taken": ["notes_taken", "正在渲染，340 / 900 帧。", "busy"],
                 "unknown": ["正在跑一条命令。", "正在跑一条命令"], "never_nobody": True, "who": ["agent", "agent", "agent", "agent"],
                 "missing": "Not delivered yet: the film has not passed its check.",
-                "sound": [{"zh": "声音出来了，等你听。", "en": "The sound is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听声音", "en": "Listen to the sound"}}],
+                "sound": [{"zh": "配乐安排出来了，等你听。", "en": "The sound plan is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听配乐安排", "en": "Listen to the sound plan"}}],
                 "frames": "The style frames are out and wait for you.",
-                "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first cut"},
-                "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first cut"},
-                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、锁时、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the timing lock, the first cut"},
+                "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first draft"},
+                "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first draft"},
+                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、定声音、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the final sound, the first draft"},
                 "plan_cn": {"zh": "没有旁白，中间不停，做完给你看", "en": "No narration, no stops on the way: you see it finished"},
-                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first cut"}, "short": True,
+                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first draft"}, "short": True,
                 "plan_voice": ["有旁白", "有旁白", "没有旁白"], "ago": [standing.ago(2.99 * 86400)[0], standing.ago(100 * 60)[0]]}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
@@ -2223,7 +2297,7 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             return f"no listener: {a}"
         if b["code"] != "waiting_you" or not b["facts"].get("listening") or b["more"]["zh"] != "你交了，agent 就接着做。":
             return f"a listener: {b}"
-        if "now: The first cut is out and waits for you.\n  After you send your notes, tell the agent.\n" not in text:
+        if "now: The first draft is out and waits for you.\n  After you send your notes, tell the agent.\n" not in text:
             return "bin/vh status: " + text[:300]
     check("a stop that waits: Studio's sentence and bin/vh status's now lines say it, and whether the agent carries on by itself (desk wait listening) or needs telling", stop_waits)
 
@@ -2260,7 +2334,7 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             return f"while it renders: {during}"
         if o["code"] != "stopped" or o["act"]["kind"] != "tell" or "340 of 900 frames" not in o["act"]["text"]["en"]:
             return f"after: {o}"
-        if "now: The agent stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first cut.\n" not in text \
+        if "now: The agent stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first draft.\n" not in text \
                 or "say:" in text:
             return "bin/vh status: " + text[:500]
     check("an agent killed mid-render: while it ran, 正在渲染，340 / 900 帧; after, from a terminal, bin/vh status says where it stopped and the words that carry on", killed_terminal)
@@ -2358,6 +2432,8 @@ if __name__ == "__main__":
     check("the page: send, answer, stop and the settings act only on a real event; the box is filled only by the person; the agent's words escaped, no links; the diff; "
           "a request to approve whole in a box, every field of it in words, allow off until its end was on screen (a hidden second command, the sandbox turned off)",
           page_check)
+    check("the words a person reads (Studio, where a film stands, the review page, gate's lines): every key in both languages, none of "
+          "the retired names (关卡, 点评, 审阅台, conversation, feedback, a file name, a command)", wording_check)
     check("an agent's bin/vh runs under the repo's rules in the adapter's environment: a paid call with no budget is refused, even with a key set", rules_check)
     check("an agent's shell in the project (every file, the console's info folder, the process list with Studio's window in it, the loopback, "
           "studio/gate/desk link --print-address with no terminal: refused, nothing restarted) finds nothing to act with: every string tried as a "
