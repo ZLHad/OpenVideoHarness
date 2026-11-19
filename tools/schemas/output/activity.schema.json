@@ -65,6 +65,7 @@
      }
     },
     "cancelled": {"type": "boolean"},
+    "agent": {"description": "the agent program the run was started under, when bin/vh found one (pid, ps's lstart)", "type": ["object", "null"], "properties": {"pid": {"type": "integer"}, "start": {"type": "string"}}},
     "kept": {"type": ["string", "null"]}
    }
   }

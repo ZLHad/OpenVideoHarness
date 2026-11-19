@@ -1014,16 +1014,14 @@ def show(o, now):
     if n["read"]:
         print("  read: " + " · ".join(n["read"]) + "  (with a #section: bin/vh know --show \"<file>#<section>\" prints it; without: the whole file)")
     nw = o.get("now") or {}
-    if nw.get("say") and nw.get("code") not in ("idle", "setup", "no_record", "unknown"):   # the person's words, as Studio says them
+    if nw.get("say") and nw.get("code") not in ("idle", "setup", "agent_open", "no_record", "unknown"):   # the person's words, as Studio says them
         # (tools/standing.py), when they say more than next: does; the view stays short (plan: is in --json and in Studio)
         print(f"now: {nw['say']['en']}")
         if nw.get("more"):
             print(f"  {nw['more']['en']}")
         a = nw.get("act") or {}
-        if a.get("kind") == "tell":
-            print(f"  to {a['label']['en'][0].lower()}{a['label']['en'][1:]}, say: \"{a['text']['en']}\" (a button in Studio's column)")
-        elif a.get("kind") == "open":
-            print(f"  in Studio: {a['label']['en']} (bin/vh studio {shlex.quote(p['path'])})")
+        if a.get("kind") == "open":   # (no command here: an agent reads this too, and a window nobody asked for is no help)
+            print(f"  the person does this in Studio: {a['label']['en']}")
     ri, fv = o["open"]["review_items"], o["open"]["facts_to_verify"]
     if ri or fv:
         print("open: " + " · ".join(x for x in (f"{len(ri)} review item(s) (round {', '.join(dict.fromkeys(str(i['round']) for i in ri))})" if ri else "",

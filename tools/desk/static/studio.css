@@ -172,6 +172,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-now .now-more{margin:-4px 0 0;padding-left:14px;font-size:var(--fs-label);line-height:1.5;color:var(--ink-2)}
 .col-now .now-more a{color:inherit;text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:2px;overflow-wrap:anywhere}
 .col-now .now-act{display:flex;gap:8px;padding-left:14px}
+.col-now .now-act .now-second{padding-left:0;color:var(--ink-3);text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:2px}
 .col-now .now-plan{margin:0;padding-left:14px;font-size:var(--fs-label);color:var(--ink-3)}
 .col-body{flex:1;overflow:auto;padding:14px 16px;display:grid;gap:16px;align-content:start}
 .col-body .blk-h{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;font-size:var(--fs-label);color:var(--ink-3);letter-spacing:var(--label-track);text-transform:var(--label-case)}

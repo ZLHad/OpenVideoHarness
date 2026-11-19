@@ -411,6 +411,28 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   done
 }
 act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"; }   # act_start <command> <args…>
+act_agent() { # ACT_AGENT: the nearest ancestor that is an agent program (claude, codex …, or node/bun running one), as
+  # ,"agent":{"pid":…,"start":"<ps lstart>"}; nothing when there is none or no ps. Studio reads it: while that agent lives,
+  # the film has an agent open on it (tools/standing.py). A few ps calls, only for a run no other bin/vh started
+  ACT_AGENT=""
+  [ "${OVH_ACTIVITY_AGENT:-1}" != 0 ] || return 0   # 0: do not look (checks that need runs with no agent of their own)
+  command -v ps >/dev/null 2>&1 || return 0
+  local p=$PPID i=0 pp c b st w re='^(claude|codex|dsh|opencode|gemini|aider|cursor-agent|goose|amp|qwen)([-.[:alnum:]_]*)$'
+  while [ "${p:-0}" -gt 1 ] 2>/dev/null && [ $i -lt 12 ]; do
+    read -r pp c <<EOF_PS
+$(LC_ALL=C ps -o ppid= -o comm= -p "$p" 2>/dev/null)
+EOF_PS
+    case $pp in ""|*[!0-9]*) return 0 ;; esac
+    b=${c##*/}   # the program (its path may hold spaces); a runtime: the script it runs
+    case $b in node|bun|deno|python|python3) for w in $(LC_ALL=C ps -o command= -p "$p" 2>/dev/null); do [[ ${w##*/} =~ $re ]] && { b=${w##*/}; break; }; done ;; esac
+    if [[ $b =~ $re ]]; then
+      st=$(LC_ALL=C ps -o lstart= -p "$p" 2>/dev/null); set -- $st; st="$*"
+      case $st in *[!A-Za-z0-9:\ ]*|"") return 0 ;; esac
+      ACT_AGENT=",\"agent\":{\"pid\":$p,\"start\":\"$st\"}"; return 0
+    fi
+    p=$pp; i=$((i + 1))
+  done
+}
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
   # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
   # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone (bin/vh cancel writes it)
@@ -431,7 +453,7 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
     if [ $n -gt 24 ] || [ $len -gt 480 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 1 KiB)
     args="$args${args:+,}$ACT_S"
   done
-  case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another
+  case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) act_agent; real="$real$ACT_AGENT" ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another; else the agent it runs under
   act_str "$cmd"; c=$ACT_S
   a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
   [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)

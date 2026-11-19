@@ -404,22 +404,95 @@ def read(project, tail=TAIL):
     return out
 
 
-def _alive(pid):
+def _alive(pid, since=None):
+    """Is process pid there, and (since: when the record of it was written) is it the one that was? A pid that a process
+    started later has taken is not (its start, to the second, after since)."""
     try:
         if int(pid) <= 0:   # (to kill(2), a process group)
             return False
         os.kill(int(pid), 0)
     except PermissionError:
-        return True
+        pass
     except (OSError, ValueError, TypeError, OverflowError):
         return False
+    if since:
+        t0 = started(pid)
+        try:
+            if t0 is not None and t0 > float(since) + 2:   # ps gives whole seconds
+                return False
+        except (TypeError, ValueError):
+            pass
     return True
+
+
+def started(pid):
+    """When process pid started (epoch seconds, to the second), or None when that cannot be told (ps, LC_ALL=C)."""
+    try:
+        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(pid))], capture_output=True, text=True, timeout=5,
+                             env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
+        return lstart(out)
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+        return None
+
+
+def lstart(text):
+    """ps's lstart ("Thu Nov 19 21:14:32 2026") as epoch seconds, or None."""
+    try:
+        return time.mktime(time.strptime(" ".join(str(text).split()), "%a %b %d %H:%M:%S %Y")) if text else None
+    except (ValueError, OverflowError):
+        return None
+
+
+AGENT_PROGRAMS = re.compile(r"^(claude|codex|dsh|opencode|gemini|aider|cursor-agent|goose|amp|qwen)([-.\w]*)$")   # agentlock's list (lower case: not a desktop app)
+RUNTIMES = ("node", "bun", "deno", "python", "python3")
+
+
+def _ps(pid, fields):
+    try:
+        return subprocess.run(["ps", "-o", fields, "-p", str(pid)], capture_output=True, text=True, timeout=5,
+                              env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def agent_of(pid):
+    """The nearest ancestor of process pid that is an agent program (claude, codex …, or a runtime running one): {pid,
+    start} with ps's lstart, or None (none, no ps, or OVH_ACTIVITY_AGENT=0). What bin/vh's act_agent records for a run,
+    done from Python."""
+    if os.environ.get("OVH_ACTIVITY_AGENT") == "0":
+        return None
+    try:
+        p, steps = int(pid), 0
+    except (TypeError, ValueError):
+        return None
+    while p > 1 and steps < 16:
+        out = _ps(p, "ppid=,lstart=,comm=").split(None, 6)   # comm: the program's path, which may hold spaces
+        if len(out) < 7 or not out[0].isdigit():
+            return None
+        name = os.path.basename(out[6])
+        if name in RUNTIMES:
+            name = next((os.path.basename(w) for w in _ps(p, "command=").split() if AGENT_PROGRAMS.match(os.path.basename(w))), name)
+        if steps and AGENT_PROGRAMS.match(name):
+            return {"pid": p, "start": " ".join(out[1:6])}
+        p, steps = int(out[0]), steps + 1
+    return None
+
+
+def agent_alive(agent):
+    """An agent program a run or a wait recorded ({pid, start}: ps's lstart) is alive now, the same process."""
+    if not isinstance(agent, dict):
+        return False
+    t = lstart(agent.get("start"))
+    if not _alive(agent.get("pid")):
+        return False
+    now_t = started(agent.get("pid"))
+    return t is None or now_t is None or abs(now_t - t) <= 2
 
 
 def runs(records, now=None):
     """(runs, events): the records grouped by run, in the order they began (the log's own order), and the records
     outside any run. A run: {run, cmd, args, cwd, pid, parent, start, end, exit, duration, state, summary, outputs,
-    progress, error, cancelled, kept}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its
+    progress, error, cancelled, kept, agent}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its
     process is gone, or bin/vh cancel found its pid is another process now); error is why it failed, when the tool could say:
     {code, message} (a note with level error), else null; cancelled: bin/vh cancel stopped it; kept: what it kept for a resume."""
     now = time.time() if now is None else now
@@ -433,10 +506,11 @@ def runs(records, now=None):
         if run is None:
             run = by[rid] = {"run": rid, "cmd": r.get("cmd") or "", "args": [], "cwd": None, "pid": None, "parent": None,
                              "start": None, "end": None, "exit": None, "duration": None, "state": None, "summary": None,
-                             "outputs": [], "progress": None, "error": None, "cancelled": False, "kept": None}
+                             "outputs": [], "progress": None, "error": None, "cancelled": False, "kept": None, "agent": None}
         if ev == "start":
             run.update(cmd=r.get("cmd") or run["cmd"], args=r.get("args") if isinstance(r.get("args"), list) else [],
-                       cwd=r.get("cwd"), pid=r.get("pid"), parent=r.get("parent"), start=r["t"])
+                       cwd=r.get("cwd"), pid=r.get("pid"), parent=r.get("parent"), start=r["t"],
+                       agent=r["agent"] if isinstance(r.get("agent"), dict) else None)
         elif ev == "end":
             run.update(end=r["t"], exit=r.get("exit"), duration=r.get("duration"), cancelled=r.get("cancelled") is True)
             if r.get("summary"):
@@ -457,7 +531,7 @@ def runs(records, now=None):
     for run in out:
         if run["end"] is not None:
             run["state"] = "ok" if run["exit"] == 0 else "failed"
-        elif run["pid"] and run["run"] not in gone and _alive(run["pid"]) and (run["start"] or 0) > now - RUNNING_FOR:
+        elif run["pid"] and run["run"] not in gone and _alive(run["pid"], run["start"]) and (run["start"] or 0) > now - RUNNING_FOR:
             run["state"] = "running"
         else:
             run["state"] = "gone"

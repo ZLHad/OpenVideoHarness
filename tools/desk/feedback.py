@@ -4,7 +4,7 @@ A submission is saved as out/review/feedback/<round>-<YYYYMMDD-HHMMSS>.json plus
 reads; the same .md text goes into REVIEW.md verbatim, as a dated section (CLAUDE.md: the human's words are recorded
 word for word). The .json is written last, atomically: it is what the watcher (wait) waits for.
 """
-import datetime, fcntl, json, os, re, signal, subprocess, sys, tempfile, threading, time
+import datetime, fcntl, json, os, re, signal, sys, tempfile, threading, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # reader.py, for the current gate page
@@ -248,21 +248,12 @@ def save(project, fb, now=None):
     return out / f"{stem}.json"
 
 
-def started(pid):
-    """When process pid started (epoch seconds, to the second), or None when that cannot be told (ps, LC_ALL=C)."""
-    try:
-        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(pid))], capture_output=True, text=True, timeout=5,
-                             env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
-        return time.mktime(time.strptime(" ".join(out.split()), "%a %b %d %H:%M:%S %Y")) if out else None
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return None
-
-
 def listening(project):
     """Is an agent waiting for this project's feedback (bin/vh desk wait running)? {listening, since, until}.
     The flag must name this very folder: one copied from another project (or left by an older tool) doesn't count. Its
     process must be alive now, and be the one that wrote it: a pid that a later process took (it started after the flag's
-    since) is no listener."""
+    since) is no listener; and the agent it waits for (the flag's agent, when it found one) must be alive too: a wait left
+    behind by an agent that is gone hands the notes to nobody."""
     flag = Path(project) / "out" / "review" / "feedback" / ".listening"
     try:
         info = json.loads(flag.read_text())
@@ -279,12 +270,7 @@ def listening(project):
         return {"listening": False}
     if not until >= time.time():      # past, or NaN
         return {"listening": False}
-    t0 = started(info["pid"])
-    try:
-        since = float(info.get("since") or 0)
-    except (ValueError, TypeError):
-        since = 0
-    if t0 is not None and since and t0 > since + 2:   # the pid is another process's now (ps gives whole seconds)
+    if not activity._alive(info["pid"], info.get("since")) or (info.get("agent") is not None and not activity.agent_alive(info.get("agent"))):
         return {"listening": False}
     return {"listening": True, "since": info.get("since"), "until": info.get("until")}
 
@@ -378,7 +364,9 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     """Hand the agent the reviewer's submission: print it, mark it consumed, return 0; 3 on timeout.
     A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
     timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
-    feedback/.listening ({pid, since, until, project}) so the desk can say an agent is waiting."""
+    feedback/.listening ({pid, since, until, project, agent}) so the desk can say an agent is waiting. agent: the agent
+    program it runs under (activity.agent_of), when there is one; once that agent is gone the wait ends (4): nobody would
+    read what it hands over."""
     fdir = Path(project) / "out" / "review" / "feedback"
     flag = fdir / ".listening"
 
@@ -408,8 +396,16 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
         _handed(early)
         return 0
     start = time.time()
-    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project))}))
+    agent = activity.agent_of(os.getpid())
+    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project)), "agent": agent}))
+    looked = start
     while time.time() - start < timeout:
+        if agent and time.time() - looked >= 5:   # the agent it waits for went away: nobody would read what it hands over
+            looked = time.time()
+            if not activity.agent_alive(agent):
+                out.write("the agent this wait was for is gone; the wait ends (the notes stay in Studio)\n")
+                out.flush()
+                return done(4)
         new = sorted(((f, j) for f, j in _records(project) if f.name not in seen), key=lambda x: _order(*x))
         if new:
             for f, j in new:

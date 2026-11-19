@@ -1851,7 +1851,9 @@ def handoff_checks():
     take them, notes handed over, a render killed half-way and carried on from Studio's column."""
     import standing
     vh = ROOT / "bin" / "vh"
-    env = dict(os.environ, HOME=str(T / "home"))
+    env = dict(os.environ, HOME=str(T / "home"), OVH_ACTIVITY_AGENT="0")   # their runs record no agent (whoever runs the checks would be theirs)
+    was_agent = os.environ.get("OVH_ACTIVITY_AGENT")
+    os.environ["OVH_ACTIVITY_AGENT"] = "0"   # the desks these checks start, and what they run
 
     def status(p, js=True):
         r = subprocess.run(["bash", str(vh), "status", str(p)] + (["--json"] if js else []), capture_output=True, text=True, env=env, timeout=60)
@@ -1873,50 +1875,77 @@ def handoff_checks():
             time.sleep(0.1)
         return w
 
-    def unit():   # the order of what is said, on records made up for it
+    def unit():   # the order of what is said, and what each sentence never claims, on records made up for it
         st = lambda i, state, **k: dict({"id": i, "name": i, "state": state, "feedback": None, "pages": [], "note": None}, **k)   # noqa: E731
         base = lambda **k: dict({"stations": [st("1", "done"), st("3", "in_progress"), st("deliver", "not_started")], "activity": {}, "next_step": {"do": "carry on"},   # noqa: E731
-                                 "review": {}, "media": {}, "renders": [], "versions": None, "deliveries": [], "check": None, "paused": False, "project": {}, "stops": {}}, **k)
+                                 "review": {}, "media": {}, "renders": [], "versions": None, "deliveries": [], "check": None, "paused": False, "project": {},
+                                 "stops": {}, "waiting_on": "agent"}, **k)
         P = T / "handoff" / "unit"
         P.mkdir(parents=True, exist_ok=True)
+        old = time.time() - 7200   # the film's own files, two hours old: they are no later sign of life
+        for f in P.rglob("*"):
+            os.utime(f, (old, old))
         one = lambda **k: standing.of(P, base(**k))   # noqa: E731
-        handed = [st("1", "done"), st("3", "waiting_agent", feedback={"submitted": 1, "handed": 1, "pending": 0}), st("deliver", "not_started")]
+        now = time.time()
         render = {"cmd": "render", "progress": {"done": 340, "total": 900, "unit": "frames"}}
-        cancel = one(activity={"recent": [dict(render, state="failed", exit=130, cancelled=True, kept={"chunks": 4})]})
-        desk = one(activity={"recent": [{"cmd": "render", "state": "gone", "progress": {"done": 10, "total": 90, "unit": "frames"}},
-                                        {"cmd": "desk", "state": "failed", "exit": 143, "cancelled": False},
-                                        {"cmd": "gate", "args": ["gate", ".", "3", "--wait"], "state": "failed", "exit": 3}]})
+        handed = [st("1", "done"), st("3", "waiting_agent", feedback={"submitted": 1, "handed": 1, "pending": 0}), st("deliver", "not_started")]
+        both_ = [st("1", "done"), st("3", "waiting_agent", feedback={"submitted": 2, "handed": 1, "pending": 1}), st("deliver", "not_started")]
+        gone = one(activity={"recent": [dict(render, state="gone", start=now - 600, end=None)]})
+        stopped_by_cancel = one(activity={"recent": [dict(render, state="failed", exit=130, cancelled=True, start=now - 900, end=now - 600)]})
+        found = one(activity={"recent": [{"cmd": "gate", "state": "failed", "exit": 1, "start": now - 200, "end": now - 180, "args": ["gate", ".", "3"]}]})
+        ok_after = one(activity={"recent": [dict(render, state="gone", start=now - 7000, end=None), {"cmd": "tts", "state": "ok", "exit": 0, "start": now - 120, "end": now - 60}]})
+        desk_after = one(activity={"recent": [{"cmd": "render", "state": "gone", "start": now - 600, "progress": {"done": 10, "total": 90, "unit": "frames", "t": now - 590}},
+                                               {"cmd": "desk", "args": ["."], "state": "failed", "exit": 143, "start": now - 500, "end": now - 400}]})
+        pending_busy = one(stations=both_, activity={"running": [render]})
         taken = one(stations=handed, activity={"running": [render]})
-        quiet = one(stations=handed)   # handed over, nothing runs: never "working on them"
+        unknown = one(activity={"running": [{"cmd": "foo-bar"}]})
         got = {
             "paused": one(paused=True)["code"], "revision": one(review={"revisions": [{"state": "pending", "available": True}]})["code"],
             "setup": one(next_step={"do": "the engine's scaffold is not there: this makes it"})["code"], "idle": one()["code"],
             "running": one(activity={"running": [{"cmd": "tts", "progress": {"done": 12, "total": 30, "unit": "lines"}}]})["say"]["zh"],
-            "failed": one(activity={"recent": [{"cmd": "render", "state": "failed", "exit": 1}]})["say"]["en"],
-            "cancel": [cancel["say"]["zh"], cancel["more"]["zh"]], "desk_stopped": [desk["say"]["en"], desk["more"]["en"]],
-            "taken": [taken["code"], taken["more"]["zh"]], "quiet": quiet["code"] != "notes_taken" and "正在改" not in json.dumps(quiet, ensure_ascii=False),
+            "gone": [gone["code"], gone["say"]["zh"], gone["you"], gone["act"]["confirm"]],
+            "cancel_is_no_stop": [stopped_by_cancel["code"], "被停下了" in stopped_by_cancel["more"]["zh"]],
+            "found_is_no_stop": [found["code"], found["who"], found["say"]["zh"], "出审阅页结束时报了问题" in found["more"]["zh"]],
+            "later_ok": [ok_after["code"], "配音做完了" in ok_after["more"]["zh"]],
+            "desk_is_no_work": [desk_after["code"], desk_after["say"]["en"]],
+            "pending_first": [pending_busy["code"], pending_busy["you"], pending_busy["more"]["zh"].startswith("渲染，340 / 900 帧还在跑")],
+            "taken": [taken["code"], taken["more"]["zh"], taken["tone"]],
+            "unknown": [unknown["say"]["zh"], unknown["short"]["zh"]],
+            "never_nobody": all("没有 agent 在做" not in json.dumps(x, ensure_ascii=False) for x in (gone, found, ok_after, one())),
+            "who": [x["who"] for x in (gone, found, pending_busy, one(stations=both_))],
             "missing": one(stations=[st("1", "done"), st("3", "done"), st("deliver", "in_progress")], check={"verdict": "fail", "stale": False})["say"]["en"],
+            "sound": [standing.of(P, base(stations=[st("E2", "waiting_person"), st("deliver", "not_started")]))[k] for k in ("say", "act")],
+            "frames": standing.of(P, base(stations=[st("E0", "waiting_person"), st("deliver", "not_started")]))["say"]["en"],
             "plan": standing.plan_line({"project": {"spec": {"Output": "1080x1920, 30 fps, exactly 30s (900 frames)", "Language": "zh-CN, narration: TTS voice"}},
                                          "stops": {"gates": ["1", "3"]}}),
             "plan_blank": standing.plan_line({"project": {"effort": "quick", "spec": {"Output": "{W}x{H}, {fps} fps, exactly {N}s ({frames} frames)",
                                                                                       "Language": "{zh-CN | en}, narration: {TTS voice | none}"}}, "stops": {"gates": ["1", "3"]}}),
-            "plan_none": standing.plan_line({"project": {"effort": "studio", "spec": {"Output": "1920x1080, 30 fps, 150s"}}, "stops": {"gates": []}}),
-            "short": all(not any(p in json.dumps(x["short"]) for p in ("/", ".mp4")) for x in (cancel, desk, taken, quiet)),
+            "plan_music": standing.plan_line({"project": {"spec": {"Output": "1920x1080, 30 fps, 2 min 30 s", "Language": "zh, narration: none (music only)"}},
+                                               "stops": {"gates": ["1", "3"], "checkpoints": ["E3"]}}),
+            "plan_cn": standing.plan_line({"project": {"spec": {"Language": "zh, narration: 无旁白，只有音乐"}}, "stops": {"gates": []}}),
+            "plan_odd": standing.plan_line({"project": {"spec": {"Language": "en, narration: something odd"}}, "stops": {"gates": ["1", "2", "3"]}}),
+            "short": all(not any(x in json.dumps(y["short"]) for x in ("/", ".mp4", "bin/vh")) for y in (gone, found, taken, unknown)),
         }
         want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
-                "failed": "The agent stopped: the render did not finish.",
-                "cancel": ["agent 停下了：渲染没做完。", "渲染到 340 / 900 帧时被停下了（留了 4 段，可以接着用）。下一步是初版。"],
-                "desk_stopped": ["The agent stopped: the render did not finish.", "The render was cut off at 10 of 90 frames (its process is gone). Next: the first cut."],
-                "taken": ["notes_taken", "正在渲染，340 / 900 帧。"], "quiet": True,
+                "gone": ["stopped", "agent 停下了：渲染中断了。", "nudge", False],
+                "cancel_is_no_stop": ["idle", True], "found_is_no_stop": ["idle", "agent", "现在没有命令在跑。", True], "later_ok": ["idle", True],
+                "desk_is_no_work": ["stopped", "The agent stopped: the render was cut off."],
+                "pending_first": ["notes_unheard", "nudge", True], "taken": ["notes_taken", "正在渲染，340 / 900 帧。", "busy"],
+                "unknown": ["正在跑一条命令。", "正在跑一条命令"], "never_nobody": True, "who": ["agent", "agent", "agent", "agent"],
                 "missing": "Not delivered yet: the film has not passed its check.",
+                "sound": [{"zh": "声音出来了，等你听。", "en": "The sound is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听声音", "en": "Listen to the sound"}}],
+                "frames": "The style frames are out and wait for you.",
                 "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first cut"},
                 "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first cut"},
-                "plan_none": {"zh": "2 分 30 秒横屏，中间不停，做完给你看", "en": "2 min 30 s landscape, no stops on the way: you see it finished"}, "short": True}
+                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、锁时、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the timing lock, the first cut"},
+                "plan_cn": {"zh": "没有旁白，中间不停，做完给你看", "en": "No narration, no stops on the way: you see it finished"},
+                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first cut"}, "short": True}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
-    check("where a film stands, in order: paused, a change to review, the engine to set up, the agent's turn, a command with its progress, a run "
-          "that failed or was stopped (what it kept; the desk and a wait ending are no work stopped), notes handed over (working on them only "
-          "while something runs), what is missing before the delivery; a short sentence, the rest on the line under it, no path on a card; "
-          "the film's plan from its BRIEF and its own stops, a template line left out", unit)
+    check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
+          "findings, one stopped on purpose, a later run that went fine, the console ending, are not); the newest notes nobody took come first; "
+          "working on them only while something runs; never that nobody works on the film; whose move as waiting_on; a command not in the table "
+          "is no name on the page; the sound is listened to, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
+          "a checkpoint) and leaves out what it does not", unit)
 
     def title():   # a film begun on the space, its BRIEF still the template's: the person's own sentence, shortened, not the dated folder
         import server
@@ -1931,6 +1960,161 @@ def handoff_checks():
         got, plain = server.film_title(p, p.name), server.film_title(p, "海盐的一生")
         return None if (got, plain) == ("做一支三十秒的竖屏短片，讲海盐是怎么晒出来的…", "海盐的一生") else (got, plain)
     check("a new film whose BRIEF has no title yet is called by the person's own sentence, shortened, not its dated folder; a BRIEF's title wins", title)
+
+    def fake_agent(*argv):   # an agent program named claude that runs argv, then stays open (as a terminal's agent does); None without cc
+        cc = shutil.which("cc")
+        if not cc:
+            return None
+        exe = T / "agentbin" / "claude"
+        if not exe.exists():
+            exe.parent.mkdir(parents=True, exist_ok=True)
+            (exe.parent / "a.c").write_text("#include <unistd.h>\n#include <sys/wait.h>\nint main(int c, char **v) { pid_t p = fork(); if (!p) { execvp(v[1], v + 1); _exit(127); }"
+                                             " int s; waitpid(p, &s, 0); sleep(600); return 0; }\n")
+            subprocess.run([cc, "-o", str(exe), str(exe.parent / "a.c")], check=True, capture_output=True)
+        e = {k: v for k, v in env.items() if k != "OVH_ACTIVITY_AGENT"}   # its runs record it as their agent
+        a = subprocess.Popen([str(exe), *argv], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=e)
+        BG.add(a.pid)
+        return a
+
+    def line(p, **r):   # an activity line as bin/vh and the tools write it
+        (p / ".ovh").mkdir(exist_ok=True)
+        with open(p / ".ovh" / "activity.jsonl", "a") as f:
+            f.write(json.dumps(dict({"v": 1}, **r)) + "\n")
+
+    q = stage("quiet", "3")
+
+    def quiet_after_notes():   # the reviewer's case: notes read 2 h ago, a render ended fine 10 min ago, tts 1 min ago
+        fdir = q / "out" / "review" / "feedback"
+        fdir.mkdir(parents=True, exist_ok=True)
+        sys.path.insert(0, str(HERE))
+        import feedback as F
+        F.save(q, {"round": "3", "lang": "zh", "decisions": {}, "defaulted": [], "items": [], "general": "再快一点"})
+        subprocess.run(["bash", str(vh), "desk", "feedback", str(q)], capture_output=True, env=env, timeout=30)
+        t2 = time.time() - 7200
+        os.utime(fdir / ".consumed", (t2, t2))
+        act = q / ".ovh" / "activity.jsonl"   # what staging ran (the page going out), three hours back
+        rows = [json.loads(x) for x in act.read_text().splitlines() if x.strip()]
+        act.write_text("".join(json.dumps(dict(r, t=r["t"] - 10800)) + "\n" for r in rows))
+        for f in q.rglob("*"):
+            if ".ovh" not in f.parts:
+                os.utime(f, (t2, t2))
+        now = time.time()
+        line(q, event="start", run="r-a", t=now - 900, cmd="render", args=["render"], pid=1, project=os.path.realpath(str(q)))
+        line(q, event="end", run="r-a", t=now - 600, cmd="render", exit=0, duration=300)
+        line(q, event="start", run="r-b", t=now - 90, cmd="tts", args=["tts"], pid=1, project=os.path.realpath(str(q)))
+        line(q, event="end", run="r-b", t=now - 60, cmd="tts", exit=0, duration=30)
+        o = status(q)
+        n = o["now"]
+        if n["code"] == "stopped" or "没有动静" in json.dumps(n, ensure_ascii=False) or n["who"] != o["waiting_on"] or "配音做完了" not in (n["more"] or {}).get("zh", ""):
+            return n
+        if not n["act"].get("confirm"):
+            return f"the offer to carry on asks once more after a sign of life a minute ago: {n['act']}"
+    check("notes read two hours ago, then a render and a voice-over that went fine: not stopped; the last sign of life said, and the offer asks once more", quiet_after_notes)
+
+    def orphaned_wait():   # a wait whose agent was killed: no promise, and the wait ends
+        o = stage("orphan", "3")
+        a = fake_agent("bash", str(vh), "desk", "wait", str(o), "--timeout", "60")
+        if a is None:
+            return None
+        flag = o / "out" / "review" / "feedback" / ".listening"
+        for _ in range(100):
+            if flag.exists():
+                break
+            time.sleep(0.1)
+        before = status(o)["now"]["facts"].get("listening")
+        a.kill(); a.wait()
+        t0 = time.time()
+        while flag.exists() and time.time() - t0 < 12:
+            time.sleep(0.2)
+        after = status(o)["now"]
+        if not before or flag.exists() or after["facts"].get("listening") or "你交了，agent 就接着做" in json.dumps(after, ensure_ascii=False):
+            return f"before {before}, flag left {flag.exists()}, after {after['facts']}"
+    check("a wait whose agent was killed: the promise goes with the agent, and the wait ends by itself", orphaned_wait)
+
+    def open_agent():   # an agent that ran a command on the film and is still open: no "stopped", the offer second and asking once more
+        o = stage("open")
+        a = fake_agent("bash", str(vh), "peaks", str(o))
+        if a is None:
+            return None
+        time.sleep(3)
+        n = status(o)["now"]
+        a.kill(); a.wait()
+        m = status(o)["now"]
+        if n["code"] != "agent_open" or not n["act"].get("secondary") or not n["act"].get("confirm") or "没有 agent" in n["say"]["zh"]:
+            return f"while it is open: {n}"
+        if m["code"] == "agent_open":
+            return f"after it went: {m['code']}"
+    check("an agent that ran a command on the film and is still open: said so, and the offer to carry on is a second line that asks once more", open_agent)
+
+    def reused_pid():   # a pid a later process took is not the run's, nor the lock holder's
+        o = stage("reused")
+        t0 = time.time() - 30
+        later = subprocess.Popen(["sleep", "30"])
+        BG.add(later.pid)
+        line(o, event="start", run="r-x", t=t0, cmd="render", args=["render"], pid=later.pid, project=os.path.realpath(str(o)))
+        (o / ".ovh" / "agent.lock").write_text(json.dumps({"pid": later.pid, "since": t0, "session": "s", "label": "Claude Code"}))
+        n = status(o)["now"]
+        later.kill(); later.wait()
+        if n["code"] in ("running", "working", "notes_taken"):
+            return n["code"]
+    check("a crashed run, or a lock, whose pid a later process took reads as no work running", reused_pid)
+
+    def delivered_newest():
+        o = stage("shipped")
+        r = (o / "REVIEW.md").read_text().replace("## 关卡 ③ 初版\n- 页面：\n- 原话：\n- 定了：　改了：", "## 关卡 ③ 初版\n- 页面：`out/review/gate-3.html`（2026-11-17）\n- 原话：\"可以\"\n- 定了：初版通过　改了：—")
+        (o / "REVIEW.md").write_text(r)
+        (o / "out" / "final").mkdir(parents=True, exist_ok=True)
+        for name, when in (("final-4k.mp4", "2026-11-18T10:00:00+08:00"), ("final.mp4", "2026-11-17T10:00:00+08:00")):
+            (o / "out" / "final" / name).write_bytes(b"x")
+            (o / "out" / "final" / (name + ".deliver.json")).write_text(json.dumps({"output": name, "master": name, "time": when}))
+        n = status(o)["now"]
+        if n["code"] != "delivered" or n["facts"].get("film") != "out/final/final-4k.mp4":
+            return n
+    check("delivered: the newest delivery is named, whatever order the files are found in", delivered_newest)
+
+    def terminal_words():   # bin/vh status is read by agents: no words to say as if to the person, no command that raises a window
+        texts = [status(p, js=False) for p in (stage("t-wait", "3"),)]
+        bad = [x for x in texts if re.search(r"say: |bin/vh studio", x)]
+        return bad[0][:300] if bad else None
+    check("bin/vh status's now lines name no words to say and no bin/vh studio command (an agent reads them)", terminal_words)
+
+    def click_path():   # the carry-on click through agent.js itself: its own words sent, and after a refusal "anyway" sends them again
+        node = shutil.which("node")
+        if not node:
+            return None
+        prog = r"""
+const vm = require("vm"), fs = require("fs");
+const el = () => new Proxy(function () {}, { get: (t, k) => k === "classList" ? { toggle() {}, add() {}, remove() {}, contains: () => false } : k === "dataset" ? {} :
+  k === "value" ? "" : k === "hidden" ? false : k === "querySelector" ? () => null : k === "querySelectorAll" ? () => [] : k === Symbol.toPrimitive ? () => "" : el(),
+  set: () => true, apply: () => el() });
+const doc = { querySelector: () => el(), querySelectorAll: () => [], documentElement: { lang: "" }, getElementById: () => el(), addEventListener() {} };
+const posts = []; let refuse = true;
+const g = vm.createContext({ console, document: doc, window: {}, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, clearInterval, setInterval,
+  requestAnimationFrame: () => 0, toast() {}, EventSource: class { constructor() {} addEventListener() {} close() {} }, LANG: "zh",
+  getJSON: async () => ({ ok: true, data: { agents: [{ kind: "claude", label: "Claude Code", installed: true }], sessions: [{ id: "s1", kind: "claude" }], pid: "p" } }),
+  fetch: async (u, o) => { const b = JSON.parse(o.body); posts.push([u, b]); const no = refuse && !b.despite; if (no) refuse = false;
+    return { ok: !no, status: no ? 409 : 200, json: async () => (no ? { error: "busy", who: [{ why: "waiting", label: "bin/vh desk wait" }] } : { ok: true }) }; } });
+for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process.argv[1] + "/" + f, "utf8") + (f === "agent.js" ? "\nthis.AGENT = AGENT;" : ""), g);
+(async () => {
+  await g.AGENT.enter("film~1");
+  await g.AGENT.tell({ isTrusted: true }, "接着做这支片子。先跑 bin/vh status 看下一步。");
+  await g.AGENT._again({ isTrusted: true });
+  await g.AGENT.tell({ isTrusted: false }, "不该发");
+  console.log(JSON.stringify(posts)); process.exit(0);   // (its timers would keep node going)
+})().catch((e) => { console.log(JSON.stringify({ error: String(e && e.stack || e) })); process.exit(0); });
+"""
+        out = subprocess.run([node, "-e", prog, str(HERE / "static")], capture_output=True, text=True, timeout=30)
+        try:
+            posts = json.loads(out.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return (out.stdout + out.stderr)[-400:]
+        if isinstance(posts, dict):
+            return posts["error"][:400]
+        said = [(u.rsplit("/", 2)[-2:], b.get("text"), bool(b.get("despite"))) for u, b in posts if u.endswith("/say")]
+        want = [(["s1", "say"], "接着做这支片子。先跑 bin/vh status 看下一步。", False), (["s1", "say"], "接着做这支片子。先跑 bin/vh status 看下一步。", True)]
+        return None if said == want else said
+    check("the carry-on click through agent.js: its own words go to the film's conversation; refused, \"anyway\" sends those words again, not the box's draft; "
+          "a click that is not the person's sends nothing", click_path)
 
     g = stage("wait", "3")
 
@@ -1983,8 +2167,8 @@ def handoff_checks():
             return f"while it renders: {during}"
         if o["code"] != "stopped" or o["act"]["kind"] != "tell" or "340 of 900 frames" not in o["act"]["text"]["en"]:
             return f"after: {o}"
-        if "now: The agent stopped: the render did not finish.\n  The render was cut off at 340 of 900 frames (its process is gone). Next: the first cut.\n" not in text \
-                or 'say: "Carry on with this film. Last time the render was cut off at 340 of 900 frames' not in text:
+        if "now: The agent stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first cut.\n" not in text \
+                or "say:" in text:
             return "bin/vh status: " + text[:500]
     check("an agent killed mid-render: while it ran, 正在渲染，340 / 900 帧; after, from a terminal, bin/vh status says where it stopped and the words that carry on", killed_terminal)
 
@@ -2042,7 +2226,7 @@ def handoff_checks():
                 w.terminate()
                 return "desk wait did not hand it over"
             now = d.get(f"/api/p/{K}/status")[1].get("now") or {}
-            if fb[0] != 200 or not fb[1].get("listening") or now.get("code") == "notes_taken" or "read your notes of" not in (now.get("more") or {}).get("en", ""):
+            if fb[0] != 200 or not fb[1].get("listening") or now.get("code") == "notes_taken" or "picked up your notes" not in (now.get("more") or {}).get("en", ""):
                 return f"{fb} {now}"
         check("a submit with an agent listening: handed over at once; with nothing running after, the words say the notes were read, never that it works on them", with_listener)
 
@@ -2058,6 +2242,10 @@ def handoff_checks():
         check("the waiting agent killed between the page and the submit: the submit says nobody took it, and the column offers to tell the agent", died)
     finally:
         d.stop()
+        if was_agent is None:
+            os.environ.pop("OVH_ACTIVITY_AGENT", None)
+        else:
+            os.environ["OVH_ACTIVITY_AGENT"] = was_agent
 
 
 if __name__ == "__main__":

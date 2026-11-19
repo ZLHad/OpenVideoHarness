@@ -282,6 +282,19 @@ const AGENT = (() => {
   }
 
   /* ---------- what the person does ---------- */
+  let TELLING = "";   // the carry-on words a refused click was for: the busy line's "anyway" sends them, never the box's draft
+  async function sayWords(text, despite) {
+    const r = await post(`${S.id}/say`, { text, despite: !!despite });
+    if (r.ok) { BUSY = null; TELLING = ""; S.sum.turns = (S.sum.turns || 0) + 1; }
+    else if (r.status === 409 && r.data && r.data.who) { BUSY = r.data.who; TELLING = text; }
+    else toast(at("sent_fail"));
+    render();
+  }
+  async function again(e) {   // "send it anyway" on the busy line: what was refused, the carry-on words or the box
+    if (!e || !e.isTrusted) return;
+    if (TELLING && S) return sayWords(TELLING, true);
+    return send(e, true);
+  }
   async function send(e, despite) {
     if (!e || !e.isTrusted) return;   // only a real key press or click sends, and only what is in the box
     const ta = $("#agSay"), text = ta ? ta.value.trim() : "";
@@ -292,7 +305,7 @@ const AGENT = (() => {
     const btn = $("#agSend"); if (btn) btn.disabled = true;
     const r = await post(`${S.id}/say`, { text, scope, despite: !!despite });
     if (btn) btn.disabled = false;
-    if (r.ok) { ta.value = ""; store_.set(`desk:agent:say:${KEYP}`, ""); BUSY = null; S.sum.turns = (S.sum.turns || 0) + 1; }
+    if (r.ok) { ta.value = ""; store_.set(`desk:agent:say:${KEYP}`, ""); BUSY = null; TELLING = ""; S.sum.turns = (S.sum.turns || 0) + 1; }
     else if (r.status === 409 && r.data && r.data.who) BUSY = r.data.who;
     else if (r.data && r.data.error) { ERR = { code: r.data.error, detail: r.data.detail }; toast(at("err_send", { e: r.data.detail || r.data.error })); }
     else toast(at("sent_fail"));
@@ -727,8 +740,8 @@ const AGENT = (() => {
       $("#agSend").addEventListener("click", (e) => send(e));
       $("#agStop").addEventListener("click", (e) => stop(e));
       f.addEventListener("click", (e) => {
-        if (e.target.closest("#agAnyway")) send(e, true);
-        else if (e.target.closest("#agNotNow")) { BUSY = null; renderFoot(); }
+        if (e.target.closest("#agAnyway")) again(e);
+        else if (e.target.closest("#agNotNow")) { BUSY = null; TELLING = ""; renderFoot(); }
         else if (e.target.closest("#agAsk")) { const c = $("#agThread .ag-perm:not(.done)"); if (c) c.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" }); }
       });
     }
@@ -776,7 +789,8 @@ const AGENT = (() => {
   function tabs() {
     const bar = $("#colTabs"); if (!bar) return;
     const waiting = S ? Object.values(S.perms).filter((p) => !p.answered).length : 0;
-    const decs = typeof GV !== "undefined" && GV && GV.current && typeof roundOpen === "function" && roundOpen() ? ((ROUND && ROUND.data && ROUND.data.decisions) || []).length : 0;
+    const handed = typeof handedNow === "function" && handedNow() && !(typeof REHAND !== "undefined" && REHAND[KEY]);   // handed over: nothing left to decide here
+    const decs = !handed && typeof GV !== "undefined" && GV && GV.current && typeof roundOpen === "function" && roundOpen() ? ((ROUND && ROUND.data && ROUND.data.decisions) || []).length : 0;
     const mine = typeof myItems === "function" && FB ? myItems().length : 0;
     bar.hidden = !KEYP || KEYP === SPACE;
     const html = `<button type="button" role="tab" data-tab="chat" aria-selected="${TAB === "chat"}">${esc(at("tab_chat"))}${waiting ? `<span class="badge wait">${esc(at("tab_ask", { n: waiting }))}</span>` : S && S.running ? `<span class="dot agent" title="${esc(at("ag_working"))}"></span>` : ""}</button><button type="button" role="tab" data-tab="round" aria-selected="${TAB === "round"}">${esc(at("tab_round"))}${decs ? `<span class="badge wait">${esc(at("tab_dec", { n: decs }))}</span>` : mine ? `<span class="n mono">${mine}</span>` : ""}</button>`;
@@ -823,12 +837,9 @@ const AGENT = (() => {
       setTab("chat");
       if (!S && meta(KIND).installed) { const last = sessionsOf(KIND)[0]; if (last) open(last); }
       if (!S && !(await start(KIND, true))) return;
-      const r = await post(`${S.id}/say`, { text });
-      if (r.ok) { BUSY = null; S.sum.turns = (S.sum.turns || 0) + 1; }
-      else if (r.status === 409 && r.data && r.data.who) BUSY = r.data.who;
-      else toast(at("sent_fail"));
-      render();
+      await sayWords(text, false);
     },
+    _again: (e) => again(e),   // for tools/desk/test_agents.py (node): the busy line's "anyway" after a refused carry-on
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
     _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };
