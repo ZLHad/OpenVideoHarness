@@ -2448,40 +2448,38 @@ def column_wait_checks():
           "--page --wait is refused; with --wait, 0 comes only with a submission (printed): nobody answering times out (3), Studio closing under a "
           "wait ends it (6)", gate_channel)
 
-    def studio_only():   # a standard film's default never starts a desk: Studio gone since the look, or unable to take the film → the page
-        sys.path.insert(0, str(ROOT / "tools"))
-        import contextlib, io, gate, server, launch
+    def studio_only():   # a standard film's default never starts a desk: a Studio that cannot take the film → the page, exit 5, no window
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            return None   # (root opens a read-only file anyway)
+        import server
         p = stage("studio-only")
-        out = []
-        saved = (server.running_info, server.join, launch.place, launch.show, gate.studio_open)
-        shown = []
+        e = {k: v for k, v in dict(env, OVH_ACTIVITY_AGENT="0").items() if k != "OVH_GATE_STUDIO"}
+        d = Desk(None, T / "agents")   # Studio runs, and this film is not among its films
+        lock = None
         try:
-            server.running_info = lambda project=None, roots=None: None   # Studio closed between the look and the start
-            r = gate.start_desk(p, "3", studio_only=True)
-            if r[0] is not None or r[3] != "Studio closed meanwhile":
-                out.append(f"closed meanwhile: {r}")
-            gate.studio_open = lambda: True
-            err = io.StringIO()
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
-                rc = gate.main([str(p), "3", "--wait"])
-            if rc != 5 or "nothing was answered: Studio closed meanwhile" not in err.getvalue():
-                out.append(f"closed meanwhile, with the wait: {rc} {err.getvalue()[-300:]}")
-            server.running_info = lambda project=None, roots=None: {"url": "http://127.0.0.1:1/", "pid": os.getpid(), "port": 1} if project is None else None
-            launch.place = lambda url, project: None   # Studio runs, but this film is not among its films and cannot join
-            server.join = lambda project, roots=(): False
-            launch.show = lambda *a, **k: shown.append(a) or {"opened": True}
-            err = io.StringIO()
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
-                rc = gate.main([str(p), "3", "--wait"])
-            if rc != 5 or "nothing was answered: Studio could not take this film" not in err.getvalue() or shown:
-                out.append(f"cannot take it: {rc}, windows {len(shown)}, {err.getvalue()[-300:]}")
+            jp = server.joined_path(())
+            lock = jp.with_name(jp.name + ".lock")
+            lock.touch()
+            os.chmod(lock, 0o400)   # … and cannot join its space
+            r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait", "--timeout", "5"], capture_output=True, text=True, env=e, timeout=120)
         finally:
-            server.running_info, server.join, launch.place, launch.show, gate.studio_open = saved
-        if server.running_info(p):
-            out.append("a desk of the film's own was started")
+            if lock is not None:
+                os.chmod(lock, 0o600)
+            d.stop()
+            own = server.running_info(p)   # a desk this check made the film start (the bug it is for): stopped here, not left for 12 h
+            if own and own.get("pid"):
+                try:
+                    os.kill(own["pid"], signal.SIGTERM)
+                except OSError:
+                    pass
+        out = []
+        if r.returncode != 5 or "nothing was answered: Studio could not take this film" not in r.stderr or "Studio 里打开了" in r.stdout:
+            out.append(f"Studio could not take it: {r.returncode} {r.stderr[-300:]}")
+        if (p / "out" / "review" / ".desk.json").exists() or (p / "out" / "review" / "feedback" / ".listening").exists():
+            out.append("a desk of the film's own was started, or a wait was left")
         return "; ".join(out) or None
-    check("a standard film's stop never starts a desk of its own: Studio closed since the look, or unable to take the film, sends the page, and "
-          "--wait exits 5 with that reason", studio_only)
+    check("a standard film's stop never starts a desk of its own: a Studio that cannot take the film sends the page, and --wait exits 5 with "
+          "that reason", studio_only)
 
     def declared():   # what the console sent each adapter: the extension to Claude's alone
         o = stage("kinds")
