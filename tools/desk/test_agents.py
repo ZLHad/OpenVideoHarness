@@ -1397,7 +1397,7 @@ def door_checks():
         pages = [urllib.request.urlopen(f"http://127.0.0.1:{port}/").read().decode() for _ in range(3)]   # fetched again and again
         if any('name="desk-token" content=""' not in p for p in pages) or call(port, "GET", "/api/hello", token=t1)[0] != 200:
             return "a GET of the page gave the token, or took the window's"
-        if MECHANISM.search(out.stdout) or "这一站已经在 Studio 窗口里打开了" not in out.stdout:
+        if MECHANISM.search(out.stdout) or "在 Studio 里打开了" not in out.stdout:
             return f"gate's words for the person: {out.stdout[-240:]!r}"
         out = run("gate", str(proj), "1", "--desk", "--port", "0")   # the next stop: the same desk, its window raised there
         raised = (WINDOWS / "raised.log").read_text().split() if (WINDOWS / "raised.log").exists() else []
