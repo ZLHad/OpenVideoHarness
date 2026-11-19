@@ -390,8 +390,9 @@ function handedNow() {   // the newest submission for this round's stop, once it
 }
 function handedHtml(f) {   // each decision as it went, the notes, when; and the way to change them and hand over again
   const D2 = ROUND.data.decisions || [];
-  const dec = Object.entries(f.decisions || {}).map(([k, v]) => { const q = D2.find((x) => x.id === k) || {}, o = (q.options || []).find((x) => (x.id || x) === v) || {};
-    return `<li><span class="mono tc">·</span><span><b>${esc(cut(q.question || k, 40))}</b> ${esc(o.label || o.id || v)}</span></li>`; });
+  const dec = Object.entries(f.decisions || {}).map(([k, v]) => { const q = D2.find((x) => x.id === k) || {}, o = (q.options || []).find((x) => (x.id || x) === v);
+    const said = o ? (typeof o === "string" ? o : o.label || o.title || t("handed_opt")) : t("handed_gone");   // an option by its words, never its code
+    return `<li><span class="mono tc">·</span><span><b>${esc(cut(q.question || t("handed_q"), 40))}</b> ${esc(said)}</span></li>`; });
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
   const notes = (f.items || []).map((i) => `<li><span class="mono tc">·</span><span><b>${esc(cut(i.label || i.target || "", 40))}</b> ${esc(i.text || st[i.status] || "")}</span></li>`);
   const gen = f.general ? [`<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(f.general)}</span></li>`] : [];

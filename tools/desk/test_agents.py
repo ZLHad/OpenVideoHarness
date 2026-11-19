@@ -1904,6 +1904,7 @@ def handoff_checks():
             "setup": one(next_step={"do": "the engine's scaffold is not there: this makes it"})["code"], "idle": one()["code"],
             "running": one(activity={"running": [{"cmd": "tts", "progress": {"done": 12, "total": 30, "unit": "lines"}}]})["say"]["zh"],
             "gone": [gone["code"], gone["say"]["zh"], gone["you"], gone["act"]["confirm"]],
+            "recent_offer": [one(activity={"recent": [{"cmd": "tts", "state": "ok", "exit": 0, "start": now - 120, "end": now - 60}]})["act"][k] for k in ("confirm", "secondary")],
             "cancel_is_no_stop": [stopped_by_cancel["code"], "被停下了" in stopped_by_cancel["more"]["zh"]],
             "found_is_no_stop": [found["code"], found["who"], found["say"]["zh"], "出审阅页结束时报了问题" in found["more"]["zh"]],
             "later_ok": [ok_after["code"], "配音做完了" in ok_after["more"]["zh"]],
@@ -1928,6 +1929,7 @@ def handoff_checks():
         }
         want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
                 "gone": ["stopped", "agent 停下了：渲染中断了。", "nudge", False],
+                "recent_offer": [True, True],
                 "cancel_is_no_stop": ["idle", True], "found_is_no_stop": ["idle", "agent", "现在没有命令在跑。", True], "later_ok": ["idle", True],
                 "desk_is_no_work": ["stopped", "The agent stopped: the render was cut off."],
                 "pending_first": ["notes_unheard", "nudge", True], "taken": ["notes_taken", "正在渲染，340 / 900 帧。", "busy"],

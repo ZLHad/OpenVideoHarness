@@ -505,7 +505,7 @@ def of(project, o, now=None):
     paths = [made] + [s[3] for s in seen_all[-1:] if s[3]]
     agent = open_agent(o)
     recent = bool(last) and now - last[0] < RECENT
-    carry = act_tell(both("act.carry"), both("say.carry"), confirm=recent)
+    carry = act_tell(both("act.carry"), both("say.carry"), confirm=recent, secondary=recent)   # something happened lately: an offer, said second
     if last and last[2] in ("gone", "talk_cancelled", "talk_error", "talk_cut") and not agent:   # it broke, and nothing came after
         a, why, short = ago(now - last[0]), last[1], last[4] or last[1]
         return say("stopped", who, "nudge", two(w("stopped", 0, x=short[0]), w("stopped", 1, x=short[1])),
