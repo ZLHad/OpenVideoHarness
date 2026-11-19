@@ -53,45 +53,45 @@ GATES = {"1": ("关卡 ① 立意和大纲", "Gate ① concept and outline"), "2
 
 T = {
     "zh": dict(html_lang="zh-CN", settled_done="已定", settled_skipped="跳过了（你说了不用停）", settled_delivered="已交付", settled_note="这一页已经定了，现在只是记录。要改，在对话里说。", asked_then="当时问的：", for_dec="关于第 {n} 件", for_dec_s="第 {n} 件", n_decide="等你定 {n} 件", look="这一页只给你看", wait="等你看",
-               nothing="这一页没有要你定的事。看完回“通过”，或写要改的。",
+               nothing="这一页没有等你定的事。看完回“通过”，或写要改的。",
                rec="推荐", why_rec="为什么推荐：{w}", reply="回", take_all="照推荐回复", yours="你的回复", copy="复制", copied="已复制",
-               rest="其余没意见就不用写；要改哪一镜，写“{shot} 改：……”。", rest_plain="其余没意见就不用写，只写要改的。",
-               unanswered="没回的决定按推荐走；", submit="交给 agent", live_note="不选就按推荐；没意见的地方不用写。",
+               rest="没写意见的就算通过；要改哪一镜，写“{shot} 改：……”。", rest_plain="没写意见的就算通过，只写要改的。",
+               unanswered="不选就按推荐；", submit="交给 agent", live_note="不选就按推荐；没写意见就算通过。",
                changed="改了：{x}", least="agent 没把握的", listen="请你听这几处", decided="已经定了", delegated="agent 替你定了",
-               not_reviewed="<b>没看的</b> {x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
+               not_reviewed="<b>agent 没看、没听的</b> {x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
                pro="好处", con="代价", titles="标题", cover="封面", seg="{i} / {n}", shots="{n} 镜", avg="平均一镜 {s} 秒", unsure="没把握", n_unsure="{n} 镜没把握",
-               plan="打算改", pass_all="没意见的镜头不用写，只写要改的，比如“{shot} 改：……”。", no_frame="没有关键帧",
+               plan="打算改", pass_all="没写意见的镜头就算通过；要改的，写“{shot} 改：……”。", no_frame="没有关键帧",
                gone="找不到这个文件（挪走或改了名）", gone_n="这一页发出以后，有 {n} 个文件找不到了（挪走或改了名）",
                others="其他审阅页", src="审阅页", warn="这一页有 {n} 处没按规矩写，修好以前不会发给人：",
                spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", unlimited="不限", over="超了：{cur}",
                theme="主题", themes=("暗场", "棱镜", "舰桥"), play="播放 / 暂停（空格）", mute="静音", full="全屏", keys="空格播放 · ← → 跳镜头 · 1 2 3 选选项",
-               page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
-               chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
+               page="页面", chat_head="{title} · 等你定 {n} 件", chat_none="{title} · 没有等你定的事，看一眼，回“通过”或写要改的。",
+               chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。不选的就按推荐，没写意见的就算通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
     "en": dict(html_lang="en", settled_done="Decided", settled_skipped="Skipped (you said not to stop)", settled_delivered="Delivered", settled_note="This page is settled; it is a record now. To change something, say it in the chat.", asked_then="Asked then: ", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
                nothing="Nothing to decide on this page. Take a look, then reply “ok” or say what to change.",
                rec="recommended", why_rec="Why: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
                copy="Copy", copied="Copied",
-               rest="Leave the rest alone if it's fine; to change a shot, write “{shot} change: …”.",
-               rest_plain="Leave the rest alone if it's fine; only write what to change.",
-               unanswered="A decision left unanswered goes by its recommendation. ", submit="Send",
-               live_note="Left alone, a decision goes with the recommendation; write only what to change.",
+               rest="No note means it passes; to change a shot, write “{shot} change: …”.",
+               rest_plain="No note means it passes; write only what to change.",
+               unanswered="If you don't pick, the recommended one goes. ", submit="Send to agent",
+               live_note="If you don't pick, the recommended one goes; no note means it passes.",
                changed="changed: {x}", least="Where the agent is unsure", listen="Please listen to these", decided="Already decided",
-               delegated="Decided for you", not_reviewed="<b>Not looked at</b> {x}", material="Material", appendix="Appendix",
+               delegated="Decided for you", not_reviewed="<b>What the agent didn't see or hear</b> {x}", material="Material", appendix="Appendix",
                board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", titles="Titles", cover="Cover", seg="{i} / {n}", shots="{n} shots",
                avg="{s} s a shot", unsure="unsure", n_unsure="{n} unsure", plan="will change",
-               pass_all="A shot you don't mention is fine; only write what to change, e.g. “{shot} change: …”.", no_frame="no key frame",
-               gone="File not found (moved or renamed)", gone_n="Since this page went out, {n} file(s) can't be found (moved or renamed)",
+               pass_all="A shot with no note passes; to change one, write “{shot} change: …”.", no_frame="no key frame",
+               gone="File not found (moved or renamed)", gone_n="Files that can't be found since this page went out (moved or renamed): {n}",
                others="Other review pages", src="Review page",
-               warn="This page breaks {n} rule(s), and goes to nobody until they are fixed:",
+               warn="Places where this page breaks the rules: {n}. It goes to nobody until they are fixed:",
                spend="Spent {spent} of {budget}", no_budget="no budget", unlimited="no cap", over="over: {cur}",
                theme="Theme", themes=("Darkfield", "Prism", "Bridge"), play="Play / pause (space)", mute="Mute", full="Full screen",
                keys="Space plays · ← → jump shots · 1 2 3 pick an option",
-               page="Page", chat_head="{title} · {n} thing(s) for you to decide",
+               page="Page", chat_head="{title} · {n} to decide",
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
                chat_item="{i}. {q} Reply {reply}\n   Recommended: {r}{why}",
-               chat_all="To take every recommendation, reply: {all}. A decision left unanswered goes by its recommendation; everything else passes by default.",
+               chat_all="To take every recommendation, reply: {all}. If you don't pick, the recommended one goes; no note means it passes.",
                chat_least="Least sure about{red}:", chat_red=" (shots are red on the page)",
                why=" — {w}", sep="; ", colon=": ", quoted=" “{x}”"),
 }
@@ -294,10 +294,20 @@ def stop_settled(project, gate):
     return "delivered" if dl and dl["state"] == "done" else s["state"]
 
 
+# a checkpoint's name for a person, where the records' name (GATES) is a film-maker's shorthand: 锁时 → 定声音 (core.js's stn)
+PERSON_NAMES = {"E0": ("画风样张", "style frames"), "E2": ("配乐安排", "sound plan"), "E3": ("定声音", "final sound"),
+                "E4": ("第一章样片", "first chapter"), "E5": ("定画面", "picture lock")}
+
+
 def gate_name(g, lang):
-    """A stop by its name, for a person to read (the page's header, the links between pages): 关卡 ③ 初版 → 初版, 检查点 E1 脚本 →
-    脚本, 2b → 分镜（第 2 页）. gate_title's code (①, E1) stays in the chat, the terminal and the records."""
-    n = re.sub(r"^(?:关卡|检查点|Gate|Checkpoint)\s*(?:[①②③④⑤]|E\d)\s*", "", gate_title(g, lang)) or gate_title(g, lang)
+    """A stop by its name, for a person to read (the page's header, the links between pages, the message the agent pastes
+    in the chat): 关卡 ③ 初版 → 初版, 检查点 E3 锁时 → 定声音, 2b → 分镜（第 2 页）. gate_title's code (①, E1) stays in the
+    terminal and the records."""
+    title = gate_title(g, lang)
+    base = g[:-1] if len(g) > 1 and g[-1].isalpha() and g[:-1] in GATES else g
+    if base in PERSON_NAMES:
+        title = re.sub(r"^((?:检查点|Checkpoint)\s*E\d\s*)\S+(?:\s+\S+)?(?=（|\s\(|$)", lambda m: m.group(1) + PERSON_NAMES[base][0 if lang == "zh" else 1], title)
+    n = re.sub(r"^(?:关卡|检查点|Gate|Checkpoint)\s*(?:[①②③④⑤]|E\d)\s*", "", title) or title
     return n[:1].upper() + n[1:]
 
 
@@ -1039,7 +1049,7 @@ class Page:
             foot.append(f'<span class="notseen">{t["not_reviewed"].format(x=self.text(d["not_reviewed"]))}</span>')
         foot.append(self.others())
         src = os.path.relpath(self.src, self.project).replace(os.sep, "/")
-        foot.append(f'<span title="bin/vh review · {esc(src)}">{t["src"]}</span>')   # where it was made: for whoever keeps the files, not in the text
+        foot.append(f'<span title="{esc(src)}">{t["src"]}</span>')   # where it was made: for whoever keeps the files, not in the text
         attrs = (f'data-gate="{esc(self.gate)}" data-lang="{self.lang}" data-takeall="{esc(self.take_all())}"'
                  + (" data-live" if self.live else " data-static") + (f' data-settled="{self.settled}"' if self.settled else ""))
         more = self.more(files)   # before the head: every missing file is in its warning
@@ -1074,7 +1084,8 @@ class Page:
 
     def chat(self, page_path):
         """The whole chat message: plain text, no markup."""
-        t, decs, title = self.t, self.d["decisions"], self.title()
+        t, decs = self.t, self.d["decisions"]
+        title = self.d["title"] or gate_name(self.gate, self.lang)   # the person reads it: the stop's name, no code (①, E1)
         plain = lambda s: re.sub(r"\*\*(.+?)\*\*", r"\1", txt(s)).replace("`", "")
         lines = [t["chat_head"].format(title=title, n=len(decs)) if decs else t["chat_none"].format(title=title)]
         for i, dec in enumerate(decs, 1):

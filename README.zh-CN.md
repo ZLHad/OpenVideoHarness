@@ -117,7 +117,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 在 Codex 对话栏点 **选择模型和推理档**，Studio 会先开一个空对话并加载模型列表，选好后再发送需求。账号提供 GPT‑6.2 时，常规制作可用 Sol，复杂镜头或跨引擎任务可用 Astra。终端里可在本仓库运行 `codex -m gpt-6.2-sol`，也可以用 `/model` 选择。[Codex 模型可用性](https://learn.chatgpt.com/docs/whats-new/gpt-62-astra-sol)
 
-点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，提交即可唤醒它；其余情况提交后回原对话说一声"看审阅台"。标准档默认发静态审阅页，也可以指定在 Studio 定。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
+点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，提交即可唤醒它；其余情况提交后回原对话说一声"我交了"。标准档默认发静态审阅页，也可以指定在 Studio 定。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
 
 <table>
 <tr>

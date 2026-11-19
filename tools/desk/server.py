@@ -1829,7 +1829,7 @@ def serve(project=None, port=None, idle=None, roots=(), only=False, code=None, o
     person = sys.stdout.isatty()   # a person's terminal reads no addresses; an agent's shell or a log gets this one (it opens nothing)
     if url:
         what = project.name if project else "the console"
-        print(f"desk: already serving {what}" + ("" if person else f" at {url}"), flush=True)
+        print((f"Studio is already running: {project.name} is in it" if project else "Studio is already running") if person else f"desk: already serving {what} at {url}", flush=True)
         if print_address:   # a running desk has no address to print: one that opens a page comes with a start
             print(f"  an address for another computer comes only with a fresh start: bin/vh desk link {str(project) + ' ' if project else ''}"
                   "--print-address starts it again (its window closes) and writes one to your terminal", flush=True)

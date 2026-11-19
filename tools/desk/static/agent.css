@@ -21,7 +21,7 @@
 
 /* the agent's line: which agent, what it is doing, its settings, what it uses */
 .ag-head{padding:10px 16px;border-bottom:1px solid var(--rule);display:grid;gap:8px}
-.ag-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:nowrap}
+.ag-top{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:nowrap}
 .ag-orb{width:9px;height:9px;border-radius:50%;background:var(--rule-2);flex:none}
 .ag-orb.agent{background:var(--agent);box-shadow:0 0 8px var(--agent)}
 .ag-orb.wait{background:var(--wait)}.ag-orb.live{background:var(--live)}
@@ -29,7 +29,7 @@
 .ag-state{flex:1 1 auto;font-size:var(--fs-small);color:var(--ink-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-state.agent{color:var(--agent)}.ag-state.wait{color:var(--wait)}.ag-state.live{color:var(--live)}
 .ag-state .mono{font-size:11px;color:var(--ink-3);margin-left:4px}
-.ag-acts{margin-left:auto;flex:none;display:inline-flex;gap:10px;align-items:center;position:relative;white-space:nowrap}
+.ag-acts{margin-left:auto;flex:none;display:inline-flex;gap:8px;align-items:center;position:relative;white-space:nowrap}
 .ag-acts .xs,.ag-hist summary{border:0;background:none;color:var(--ink-3);cursor:pointer;font-size:var(--fs-label);text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px;list-style:none}
 .ag-hist summary::-webkit-details-marker{display:none}
 .ag-hist ul{position:absolute;right:0;top:22px;z-index:6;min-width:240px;max-height:300px;overflow:auto;list-style:none;margin:0;padding:6px;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r-card)}

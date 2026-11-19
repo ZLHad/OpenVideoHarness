@@ -13,108 +13,108 @@
    - Every text from the agent or a project is escaped before it is drawn; links are not made clickable. */
 const ASTR = {
   zh: {
-    tab_chat: "对话", tab_round: "这一轮", tab_ask: "待批准 {n}", tab_dec: "待你定 {n}", ask_bar: "{a} 在等你点头：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史", ag_hist_none: "这支片子还没有别的对话",
+    tab_chat: "对话", tab_round: "这一站", tab_ask: "等你批准 {n}", tab_dec: "等你定 {n}", ask_bar: "{a} 在等你批准：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史",
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
-    set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
-    pick_first: "选择模型和推理档", retry_login: "登录后重试",
-    eff_tip: "推理档越高，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时请它用 {x}；它没有的话，用它自己的默认。开始以后，上面写着用的是哪个，随时可以换。", new_own: "开始时用 {a} 自己的默认。开始以后，上面写着用的是哪个，随时可以换。", own_default: "{a} 自己的默认",
-    u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
+    set_mode: "模式", set_model: "模型", set_effort: "思考深度", set_more: "更多设置", set_personal_off: "不带个人设置",
+    pick_first: "选模型和思考深度", retry_login: "登录后重试",
+    eff_tip: "思考越深，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时请它用：{x}；它没有的话，用它自己的默认。开始以后，上面写着用的是哪个，随时可以换。", new_own: "开始时用 {a} 自己的默认。开始以后，上面写着用的是哪个，随时可以换。", own_default: "{a} 自己的默认", eff_is: "思考深度{e}",
+    u_ctx: "对话记忆 {u} / {s}", u_cost: "这个对话约花 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
     w_seven_day: "7 天", u_reset: "，{at} 恢复", w_five_hour: "5 小时", w_daily: "今天的", w_weekly: "这周的",
-    ph_say: "对{x}说点什么…", ph_say0: "跟 {a} 说点什么…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
-    you: "你", t_on: "对着 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你点。", empty_c: "这里说的话会直接发给它；“这一轮”页上记的意见，要点“交给 agent”才一起交出去。可以先问一句，比如：读一下 BRIEF，告诉我还缺什么。",
+    ph_say: "对{x}说点什么，发送后马上到它那里…", ph_say0: "跟 {a} 说点什么，发送后马上到它那里…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
+    you: "你", t_on: "对着 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你批准。", empty_c: "这里说的话会直接发给它；“这一站”页上记的意见，要点“交给 agent”才一起交出去。可以先问一句，比如：读一下简报，告诉我还缺什么。",
     empty_dsh: "DeepSeek Harness 的回复是整段一起到的：它在做的时候，这里只显示它正在用的工具。",
-    not_inst_h: "{a} 还没装到控制台里", not_inst_b: "点「装上」，控制台自己把它装好（会下载约 {s}，不放进这个项目）。它用你自己的登录，不用另外设置；没登录的话，{l}。",
+    not_inst_h: "{a} 还没装到 Studio 里", not_inst_b: "点「装上」，Studio 自己把它装好（会下载约 {s}，不放进片子的文件夹）。它用你自己的登录，不用另外设置；没登录的话，{l}。",
     inst_go: "装上", inst_again: "再试一次", inst_stop: "停下", inst_run: "正在装 {a}（约 {s}），已经 {t}，最多等 {m} 分钟。装好以前可以先做别的。", inst_done: "{a} 装好了",
     inst_no_npm: "这台电脑上还没有 Node（装 {a} 要用它带的 npm）：跟你的 agent 说“帮我装上 Node 22”，装好以后再点一次「装上」。",
-    inst_fail: "没装上，多半是网络断了。再点一次试试；还不行，把下面这一行复制到终端里运行，看它说什么。",
+    inst_fail: "没装上，多半是网络断了。再点一次试试；还不行，把下面这一行交给你在终端里用的 agent，或者自己在终端里运行，看它说什么。",
     inst_timeout: "装了 {m} 分钟还没装好，停下了，多半是网络太慢。网络好的时候再点一次「装上」。", inst_cancelled: "停下了。想装的时候再点一次「装上」。",
     inst_busy: "另一处（别的 Studio 窗口或终端）正在装 {a}。等它装完，再回来看这一页。",
     login_claude: "在终端里运行 claude，输入 /login", login_codex: "在终端里运行 codex login", login_dsh: "在 DeepSeek Harness 桌面版里登录一次",
     copy: "复制", copied: "复制好了", no_start_h: "{a} 没有启动起来", no_start_b: "常见的原因是还没登录：{l}。它说的是：",
     busy_turn: "{a} 还在做上一句。等它做完，或者点停止。",
     busy_console: "{a} 正在这支片子上干活（另一个对话，或另一个页面）。等它做完，或者去那边停下它。",
-    busy_command: "终端里正在跑 {x}（进程 {p}）。等它跑完再让 agent 动手。",
-    busy_process: "终端里有 {x}（进程 {p}）开在这支片子的文件夹里，它可能正在改东西。现在让 {a} 动手，两边可能改到同一处。",
-    busy_waiting: "终端里有个 agent 在等你交这一轮。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
-    perm_h: "{a} 想{v}，要你点头", perm_wait: "等你点", perm_by_person: "你选了：{o}", perm_by_stop: "你点了停止，取消了", perm_by_timeout: "没有页面开着，{m} 分钟后按“不行”处理了",
-    perm_by_gone: "agent 停了，这一问作废", perm_by_restart: "控制台重启过，这一问作废", perm_by_turn: "这一轮结束了，这一问作废", perm_by_desk: "控制台关了，这一问作废",
+    busy_command: "终端里正在跑 {x}。等它跑完再让 agent 动手。",
+    busy_process: "终端里有 {x} 开在这支片子的文件夹里，它可能正在改东西。现在让 {a} 动手，两边可能改到同一处。",
+    busy_waiting: "终端里有个 agent 在等你交这一站。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
+    perm_h: "{a} 想{v}", perm_toast: "{a} 想{v}，等你批准", perm_wait: "等你批准", perm_by_person: "你选了：{o}", perm_by_stop: "你点了停止，取消了", perm_by_timeout: "没有页面开着，{m} 分钟后按“不行”处理了",
+    perm_by_gone: "agent 停了，这一问不算了", perm_by_restart: "Studio 重启过，这一问不算了", perm_by_turn: "它这一句做完了，这一问不算了", perm_by_desk: "Studio 关了，这一问不算了",
     o_allow_once: "允许这一次", o_allow_always: "这个对话里同类的都允许", o_reject_once: "不允许", o_reject_always: "一直不允许",
     v_read: "读", v_edit: "改", v_delete: "删", v_move: "挪", v_search: "找", v_execute: "跑", v_think: "想", v_fetch: "上网取", v_switch_mode: "换模式", v_other: "用",
     v_read_w: "读文件", v_edit_w: "改文件", v_delete_w: "删文件", v_move_w: "挪文件", v_search_w: "找文件", v_execute_w: "跑命令", v_fetch_w: "上网取东西", v_other_w: "用工具",
-    st_pending: "准备中", st_in_progress: "在跑", st_asking: "等你点头", st_completed: "好了", st_failed: "没做成", st_refused: "你没允许，所以没做", out_show: "看输出", out_lines: "{n} 行",
+    st_pending: "准备中", st_in_progress: "在跑", st_asking: "等你批准", st_completed: "好了", st_failed: "没做成", st_refused: "你没允许，所以没做", out_show: "看输出", out_lines: "{n} 行",
     new_file: "新文件", own_opts: "它给的选项原文：", seen_note: "这一段比框长：滚到底，或者点“全部展开”看完，才能点允许。“不行”随时能点。", seen_all: "全部展开",
     f_title: "它给这一步的标题", f_command: "要跑的命令", f_description: "它自己的说明（是它说的，不一定准）", f_sandbox_on: "不用沙箱跑：这条命令不受沙箱限制",
-    f_sandbox_off: "照常在沙箱里跑", f_bg: "在后台跑：这一轮结束了它可能还在跑", f_timeout: "最长跑多久（毫秒）", f_file: "文件", f_content: "要写进去的内容",
+    f_sandbox_off: "照常在沙箱里跑", f_bg: "在后台跑：它这一句做完了，命令可能还在跑", f_timeout: "最长跑多久（毫秒）", f_file: "文件", f_content: "要写进去的内容",
     f_old: "改之前", f_new: "改之后", f_all: "文件里每一处都换", f_cwd: "在哪个文件夹里跑", f_url: "要打开的网址", f_pattern: "要找的", f_where: "涉及的位置",
     f_said: "它附的话", f_other: "它请求里的内容", f_in_diff: "（就是下面改动里的那一段，一字不差）",
     too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
     turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
-    turn_restart: "控制台重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
+    turn_restart: "Studio 重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
     n_placed: "建好了这支片子：{x}。这段对话跟着它，接下来都在它里面。", n_place_busy: "建好了 {x}，但它正被{w}占着，这段对话先留在空间里。",
     sp_own: "在开的新片子", sp_wait: "等你", sp_doing: "在做", stray: "从空间开的对话「{x}」可能就是做这支片子的，它还没跟过来。", stray_go: "把它带到这里", stray_fail: "没带过来：这支片子不像是那段对话建的",
-    sp_h: "想做一支什么样的片子？", sp_b: "写一句发给 {a}：它照这个工作台的做法定类型、建好片子、先想立意。片子一建好，窗口就转过去，这段对话跟着过去。", sp_c: "它要停下来问你的，问题会出现在这里；它停在哪一站，那一站要你定的事也会摆出来。",
+    sp_h: "想做一支什么样的片子？", sp_b: "写一句发给 {a}：它照这个工作台的做法定类型、建好片子、先想立意。片子一建好，窗口就转过去，这段对话跟着过去。", sp_c: "它要停下来问你的，问题会出现在这里；它停在哪一站，那一站等你定的事也会摆出来。",
     sp_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次", sp_copy: "复制给别处的 agent", sp_copied: "复制好了，贴给你的 agent", sp_empty: "先写一句",
-    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事（{m}），回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一轮在这里结束了，它也重新启动了（再说一句会接着这个对话）。", n_stopping: "正在停…",
+    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事，回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一句在这里结束了，它也重新启动了（再说一句会接着这个对话）。",
     unknown: "{a} 发来一条这里还显示不了的更新（点开看原样）", working_dsh: "{a} 在做，回复会整段一起到", sec: "{n} 秒", min: "{m} 分 {s} 秒",
     m_default: "改动前都问", m_acceptEdits: "改文件不问", m_plan: "只出计划", m_auto: "危险的才问", m_bypassPermissions: "什么都不问",
-    "m_read-only": "只读", "m_workspace-write": "只改项目里的", m_agent: "危险的才问", "m_agent-full-access": "不设限",
-    e_off: "不推理", mdl_default: "默认", e_low: "低", e_medium: "中", e_high: "高", e_xhigh: "很高", e_max: "最高", e_ultra: "最高并分派", e_default: "默认",
-    personal_on: "带上我的个人设置（放行规则、skills、插件）", personal_tip: "关掉：只带这个项目自己的设置，你的 skills、插件和放行规则都不带；模式还是 Claude Code 自己的默认，可以在上面改",
-    new_h: "开一个新对话", new_go: "开始", cancel: "先不", reconnect: "连接断了，正在重连…", reload: "和控制台断开了", gone_page: "这个对话找不到了",
-    err_send: "没发出去：{e}", sent_fail: "没发出去", scope_whole: "整个{x}",
+    "m_read-only": "只读", "m_workspace-write": "只改它所在文件夹里的", m_agent: "危险的才问", "m_agent-full-access": "不设限",
+    e_off: "关", mdl_default: "默认", e_low: "低", e_medium: "中", e_high: "高", e_xhigh: "很高", e_max: "最高", e_ultra: "最高并分派", e_default: "默认",
+    personal_on: "带上我的个人设置（放行规则、skills、插件）", personal_tip: "关掉：只带这个文件夹自己的设置，你的 skills、插件和放行规则都不带；模式还是 Claude Code 自己的默认，可以在上面改",
+    new_h: "开一个新对话", new_go: "开始", cancel: "先不", reconnect: "连接断了，正在重连…", reload: "和 Studio 断开了",
+    err_send: "没发出去：{e}", sent_fail: "没发出去",
   },
   en: {
-    tab_chat: "Chat", tab_round: "This round", tab_ask: "{n} to allow", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History", ag_hist_none: "No other chats in this film yet",
-    ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
+    tab_chat: "Chat", tab_round: "This stop", tab_ask: "{n} for your OK", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History",
+    ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Needs OK",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
     pick_first: "Choose model and effort", retry_login: "Retry after sign-in",
-    eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts by asking it for {x}; if it doesn't offer that, its own default. Once started, the menus above show what is in use, and you can change it any time.", new_own: "Starts with {a}'s own default. Once started, the menus above show what is in use, and you can change it any time.", own_default: "{a}'s own default",
-    u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
+    eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts by asking it for: {x}; if it doesn't offer that, its own default. Once started, the menus above show what is in use, and you can change it any time.", new_own: "Starts with {a}'s own default. Once started, the menus above show what is in use, and you can change it any time.", own_default: "{a}'s own default", eff_is: "{e} effort",
+    u_ctx: "Chat memory {u} / {s}", u_cost: "this chat: about {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
     w_seven_day: "7-day", u_reset: "; it resets {at}", w_five_hour: "5-hour", w_daily: "daily", w_weekly: "weekly",
-    ph_say: "Say something about {x}…", ph_say0: "Say something to {a}…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
-    you: "You", t_on: "on {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here goes to it at once; the notes on “This round” go only when you press “Send to agent”. Try: read the BRIEF and tell me what is missing.",
+    ph_say: "Say something about {x}; it goes as soon as you send…", ph_say0: "Say something to {a}; it goes as soon as you send…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
+    you: "You", t_on: "on {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here goes to it at once; the notes on “This stop” go only when you press “Send to agent”. Try: read the brief and tell me what is missing.",
     empty_dsh: "DeepSeek Harness sends its reply in one piece: while it works, only the tool it is using shows here.",
-    not_inst_h: "{a} isn't set up for the console yet", not_inst_b: "Press “Set it up” and the console installs it (it downloads about {s}, kept out of this project). It uses your own login, nothing else to set up; if it isn't signed in, {l}.",
+    not_inst_h: "{a} isn't set up in Studio yet", not_inst_b: "Press “Set it up” and Studio installs it (it downloads about {s}, kept out of the film's folder). It uses your own login, nothing else to set up; if it isn't signed in, {l}.",
     inst_go: "Set it up", inst_again: "Try again", inst_stop: "Stop", inst_run: "Setting up {a} (about {s}): {t} so far, {m} minutes at most. You can do other things meanwhile.", inst_done: "{a} is set up",
     inst_no_npm: "This computer has no Node yet ({a} installs with the npm that comes with it): tell your agent “install Node 22 for me”, then press “Set it up” again.",
-    inst_fail: "It didn't install; most often the network dropped. Try again; if it still fails, copy this line into a terminal to see what it says.",
+    inst_fail: "It didn't install; most often the network dropped. Try again; if it still fails, give the line below to the agent you use in a terminal, or run it in a terminal yourself to see what it says.",
     inst_timeout: "After {m} minutes it still wasn't set up, so it was stopped; most likely the network is too slow. Press “Set it up” again when it's better.", inst_cancelled: "Stopped. Press “Set it up” again when you want it.",
     inst_busy: "{a} is being set up somewhere else (another Studio window or a terminal). Wait for that, then come back to this page.",
     login_claude: "run claude in a terminal and type /login", login_codex: "run codex login in a terminal", login_dsh: "sign in once in the DeepSeek Harness desktop app",
     copy: "Copy", copied: "Copied", no_start_h: "{a} did not start", no_start_b: "Usually it isn't signed in yet: {l}. What it said:",
     busy_turn: "{a} is still on your last message. Wait for it, or press Stop.",
     busy_console: "{a} is working on this film (in another chat or page). Wait for it, or stop it there.",
-    busy_command: "{x} is running in a terminal (process {p}). Let it finish before the agent starts.",
-    busy_process: "{x} (process {p}) is open in this film's folder in a terminal and may be editing. If {a} starts now, both may edit the same thing.",
-    busy_waiting: "An agent in a terminal is waiting for you to send this round. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
-    perm_h: "{a} wants to {v}", perm_wait: "Waiting for you", perm_by_person: "You chose: {o}", perm_by_stop: "Cancelled when you pressed Stop", perm_by_timeout: "No page was open; after {m} minutes it was refused",
-    perm_by_gone: "The agent stopped; this request lapsed", perm_by_restart: "The console restarted; this request lapsed", perm_by_turn: "The turn ended; this request lapsed", perm_by_desk: "The console closed; this request lapsed",
+    busy_command: "{x} is running in a terminal. Let it finish before the agent starts.",
+    busy_process: "{x} is open in this film's folder in a terminal and may be editing. If {a} starts now, both may edit the same thing.",
+    busy_waiting: "An agent in a terminal is waiting for you to send this stop. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
+    perm_h: "{a} wants to {v}", perm_toast: "{a} wants to {v}: waiting for your OK", perm_wait: "Waiting for your OK", perm_by_person: "You chose: {o}", perm_by_stop: "Cancelled when you pressed Stop", perm_by_timeout: "No page was open; after {m} minutes it was refused",
+    perm_by_gone: "The agent stopped, so this request no longer counts", perm_by_restart: "Studio restarted, so this request no longer counts", perm_by_turn: "Its reply ended, so this request no longer counts", perm_by_desk: "Studio closed, so this request no longer counts",
     o_allow_once: "Allow this once", o_allow_always: "Allow the same kind in this chat", o_reject_once: "Don't allow", o_reject_always: "Never allow",
     v_read: "read", v_edit: "edit", v_delete: "delete", v_move: "move", v_search: "search", v_execute: "run", v_think: "think", v_fetch: "fetch", v_switch_mode: "switch mode", v_other: "use",
     v_read_w: "read a file", v_edit_w: "edit a file", v_delete_w: "delete a file", v_move_w: "move a file", v_search_w: "search", v_execute_w: "run a command", v_fetch_w: "fetch from the web", v_other_w: "use a tool",
-    st_pending: "getting ready", st_in_progress: "running", st_asking: "waiting for you", st_completed: "done", st_failed: "failed", st_refused: "You didn't allow it, so it wasn't done", out_show: "Output", out_lines: "{n} lines",
+    st_pending: "getting ready", st_in_progress: "running", st_asking: "waiting for your OK", st_completed: "done", st_failed: "failed", st_refused: "You didn't allow it, so it wasn't done", out_show: "Output", out_lines: "{n} lines",
     new_file: "new file", own_opts: "Its options as it wrote them: ", seen_note: "This is longer than the box: scroll to the end, or press “Show it all”, before you can allow it. “No” works any time.", seen_all: "Show it all",
     f_title: "Its title for this step", f_command: "The command", f_description: "Its own description (its words, maybe not accurate)", f_sandbox_on: "Without the sandbox: nothing limits this command",
-    f_sandbox_off: "In the sandbox, as usual", f_bg: "In the background: it may still run after this turn", f_timeout: "How long it may run (ms)", f_file: "File", f_content: "What it writes",
+    f_sandbox_off: "In the sandbox, as usual", f_bg: "In the background: it may still run after this reply", f_timeout: "How long it may run (ms)", f_file: "File", f_content: "What it writes",
     f_old: "Before", f_new: "After", f_all: "Every match in the file", f_cwd: "The folder it runs in", f_url: "The address it opens", f_pattern: "What it looks for", f_where: "Places it touches",
     f_said: "What it added", f_other: "What it asks", f_in_diff: "(the very text of the change below)",
     too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
     turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
-    turn_restart: "The console restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
-    n_placed: "Made the film {x}. This conversation goes with it from here.", n_place_busy: "Made {x}, but {w} is working on it, so this conversation stays on the space for now.",
-    sp_own: "New films under way", sp_wait: "waiting for you", sp_doing: "working", stray: "The conversation begun on the space, “{x}”, may be the one that made this film; it hasn't followed it here.", stray_go: "Bring it here", stray_fail: "Not brought: this film doesn't look like that conversation's",
-    sp_h: "What film do you want to make?", sp_b: "Write a sentence to {a}: it works the way this workbench does, picks the kind of film, makes it and starts on the idea. Once the film is made, the window goes there and this conversation goes with it.", sp_c: "When it stops to ask you something, the questions show here; when it stops at a step, what that step needs from you is laid out too.",
+    turn_restart: "Studio restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
+    n_placed: "Made the film {x}. This chat goes with it from here.", n_place_busy: "Made {x}, but {w} is working on it, so this chat stays on the space for now.",
+    sp_own: "New films under way", sp_wait: "waiting for you", sp_doing: "working", stray: "The chat begun on the space, “{x}”, may be the one that made this film; it hasn't followed it here.", stray_go: "Bring it here", stray_fail: "Not brought: this film doesn't look like that chat's",
+    sp_h: "What film do you want to make?", sp_b: "Write a sentence to {a}: it works the way this workbench does, picks the kind of film, makes it and starts on the idea. Once the film is made, the window goes there and this chat goes with it.", sp_c: "When it stops to ask you something, the questions show here; when it stops at a step, what that step needs from you is laid out too.",
     sp_ph: "e.g. a one-minute explainer on why the tide comes in twice a day", sp_copy: "Copy for an agent elsewhere", sp_copied: "Copied: paste it to your agent", sp_empty: "Write a sentence first",
-    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet ({m}); it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).", n_stopping: "Stopping…",
+    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet; it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).",
     unknown: "{a} sent an update this page can't show yet (open it to see it as sent)", working_dsh: "{a} is working; its reply comes in one piece", sec: "{n} s", min: "{m} min {s} s",
     m_default: "Ask before changes", m_acceptEdits: "Edit without asking", m_plan: "Plan only", m_auto: "Ask only if risky", m_bypassPermissions: "Never ask",
-    "m_read-only": "Read only", "m_workspace-write": "Edit the project only", m_agent: "Ask only if risky", "m_agent-full-access": "No limits",
+    "m_read-only": "Read only", "m_workspace-write": "Edit its own folder only", m_agent: "Ask only if risky", "m_agent-full-access": "No limits",
     e_off: "Off", mdl_default: "Default", e_low: "Low", e_medium: "Medium", e_high: "High", e_xhigh: "Very high", e_max: "Max", e_ultra: "Max, delegating", e_default: "Default",
-    personal_on: "Bring my personal settings (allow rules, skills, plugins)", personal_tip: "Off: only this project's settings, none of your skills, plugins or allow rules; the mode is still Claude Code's own default, which you can change above",
-    new_h: "Start a new chat", new_go: "Start", cancel: "Cancel", reconnect: "Connection lost, reconnecting…", reload: "Lost the console", gone_page: "This chat is gone",
-    err_send: "Not sent: {e}", sent_fail: "Not sent", scope_whole: "the whole {x}",
+    personal_on: "Bring my personal settings (allow rules, skills, plugins)", personal_tip: "Off: only this folder's own settings, none of your skills, plugins or allow rules; the mode is still Claude Code's own default, which you can change above",
+    new_h: "Start a new chat", new_go: "Start", cancel: "Cancel", reconnect: "Connection lost, reconnecting…", reload: "Lost touch with Studio",
+    err_send: "Not sent: {e}", sent_fail: "Not sent",
   },
 };
 const at = (k, vars) => { const s = (ASTR[LANG] || ASTR.zh)[k]; return s == null ? t(k, vars) : String(s).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : "")); };
@@ -245,7 +245,7 @@ const AGENT = (() => {
     ES = new EventSource(url);
     ES.addEventListener("hello", (m) => { try { const h = JSON.parse(m.data); S.live = h.live; S.caps = h.caps || {}; if (h.config) Object.assign(S.config, h.config); S.gone = false; schedule(); } catch (e) { /* a bad line */ } });
     ES.onmessage = (m) => { let e; try { e = JSON.parse(m.data); } catch (x) { return; } const was = Object.keys(S.perms).filter((r) => !S.perms[r].answered).length; apply(e); schedule();
-      if (e.type === "notice" && e.code === "placed" && KEYP === SPACE && e.key) placed(e); if (e.type === "permission" && TAB !== "chat" && !was) toast(at("perm_h", { a: label(), v: verbWords(e.tool) })); };
+      if (e.type === "notice" && e.code === "placed" && KEYP === SPACE && e.key) placed(e); if (e.type === "permission" && TAB !== "chat" && !was) toast(at("perm_toast", { a: label(), v: verbWords(e.tool) })); };
     ES.onerror = () => { if (S) { S.offline = ES && ES.readyState === 2 ? "closed" : true; schedule(); } if (ES && ES.readyState === 2 && typeof checkKey === "function") checkKey(); };   // closed: the desk restarted (a new token) or the conversation is gone
     ES.onopen = () => { if (S) { S.offline = false; schedule(); } };
     clearInterval(tick); tick = setInterval(() => { if (S && S.running) renderHead(); }, 1000);
@@ -461,7 +461,7 @@ const AGENT = (() => {
     const picks = (model ? `<label class="ag-pick"><span>${esc(at("set_model"))}</span>${selectOf(model, "model")}</label>` : "")
       + (eff ? `<label class="ag-pick" title="${esc(at("eff_tip"))}"><span>${esc(at("set_effort"))}</span>${selectOf(eff, "thought_level")}</label>` : "");
     const sum = mode || (model || eff ? "" : [nameOf(model, "model"), nameOf(eff, "thought_level")].filter(Boolean).join(" · "));
-    const use = [S.usage && S.usage.used != null && S.usage.size ? `${kilo(S.usage.used)} / ${kilo(S.usage.size)}` : "", S.cost ? money(S.cost) : ""].filter(Boolean).join(" · ");
+    const use = [S.usage && S.usage.used != null && S.usage.size ? at("u_ctx", { u: kilo(S.usage.used), s: kilo(S.usage.size) }) : "", S.cost ? at("u_cost", { c: money(S.cost) }) : ""].filter(Boolean).join(" · ");
     const extra = settingsHtml();   // the mode and the rest: a button only when there is something behind it
     return `<div class="ag-line">${picks}${extra || !picks ? `<button type="button" class="ag-sum" id="agSum" aria-expanded="${SETOPEN}" title="${esc(at(SETOPEN ? "set_close" : "set_open"))}"><span>${esc(sum || at("set_more"))}</span><i aria-hidden="true">${SETOPEN ? "▴" : "▾"}</i></button>` : ""}${use ? `<span class="ag-usetxt mono" title="${esc([S.usage && S.usage.used != null ? at("u_ctx", { u: kilo(S.usage.used), s: kilo(S.usage.size || 0) }) : "", S.cost ? at("u_cost", { c: money(S.cost) }) : ""].filter(Boolean).join(" · "))}">${esc(use)}</span>` : ""}</div>${SETOPEN ? extra : ""}`;
   }
@@ -484,7 +484,7 @@ const AGENT = (() => {
     const h = $("#agHead"); if (!h) return;
     if (!h.dataset.ready) { h.dataset.ready = "1"; h.innerHTML = `<div class="ag-top" id="agTop"></div><div id="agSetBox"></div><div id="agUseBox"></div>`; Object.keys(DRAWN).forEach((k) => { DRAWN[k] = null; }); }
     const st = stateNow(), word = at(st.k, { v: st.v, x: st.x });
-    const el = S && S.running && S.turnAt ? secs(Date.now() / 1000 - S.turnAt) : "";
+    const el = S && S.running && S.turnAt && st.k !== "ag_waiting" ? secs(Date.now() / 1000 - S.turnAt) : "";   // waiting for the person: the word alone, never cut
     const list = histOf().filter((x) => !S || x.id !== S.id);
     const mark = (x) => (x.pending ? `<span class="chip wait">${esc(at("sp_wait"))}</span>` : x.running ? `<span class="chip agent">${esc(at("sp_doing"))}</span>` : "");
     const waits = list.filter((x) => x.pending).length;
@@ -685,8 +685,8 @@ const AGENT = (() => {
     }).join("");
     if (menus) return `<div class="ag-line ag-start">${menus}</div>`;
     const word = (role, cat) => { const c = ch[role] || {}; return c.name ? optWord(cat, { value: c.value || c.name, name: c.name }) : ""; };
-    const x = [word("model", "model"), word("effort", "thought_level")].filter(Boolean);
-    return `<p class="ag-mute">${esc(x.length ? at("new_with", { x: x.join(" · ") }) : at("new_own", { a: m.label }))}</p>`;
+    const eff = word("effort", "thought_level"), x = [word("model", "model"), eff ? at("eff_is", { e: eff }) : ""].filter(Boolean);
+    return `<p class="ag-mute">${esc(x.length ? at("new_with", { x: x.join(LANG === "zh" ? "，" : ", ") }) : at("new_own", { a: m.label }))}</p>`;
   }
   function newBoxHtml() {
     const m = meta(KIND);

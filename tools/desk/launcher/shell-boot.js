@@ -38,7 +38,7 @@ if (fs.existsSync(main)) {
         app.releaseSingleInstanceLock();   // the app made again takes over
         spawn(vh, ["studio", "--icon", "open"], { cwd: repo, env, stdio: "ignore", detached: true }).unref();
       } else {
-        dialog.showMessageBoxSync({ type: "warning", buttons: [t("好", "OK")], message: t("没能在那里装好 Studio", "Studio could not be put back from there"),
+        dialog.showMessageBoxSync({ type: "warning", buttons: [t("好", "OK")], message: t("没能从那个文件夹装回 Studio", "Studio could not be set up again from that folder"),
           detail: t("那个文件夹不是 OpenVideoHarness，或者装的时候出了错。让 agent 把 Studio 图标重新装一次。",
             "That folder is not OpenVideoHarness, or the install did not finish. Ask your agent to put the Studio icon back.") });
       }
