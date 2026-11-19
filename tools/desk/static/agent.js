@@ -67,7 +67,7 @@ const ASTR = {
   },
   en: {
     tab_chat: "Chat", tab_round: "This round", tab_ask: "{n} to allow", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History", ag_hist_none: "No other chats in this film yet",
-    ag_atstop: "Film waits for you", n_own: "You sent your notes; {a} carried on by itself.", n_own_plain: "{a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another agent holds this film.",
+    ag_atstop: "Your call", n_own: "You sent your notes; {a} carried on by itself.", n_own_plain: "{a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another agent holds this film.",
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
