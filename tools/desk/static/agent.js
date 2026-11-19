@@ -14,7 +14,7 @@
 const ASTR = {
   zh: {
     tab_chat: "对话", tab_round: "这一轮", tab_ask: "待批准 {n}", tab_dec: "待你定 {n}", ask_bar: "{a} 在等你点头：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史", ag_hist_none: "这支片子还没有别的对话",
-    ag_atstop: "等你拍板", n_own: "你交了意见，{a} 自己接着做了。", n_own_busy: "{a} 自己接着做了，但这支片子正被别的 agent 占着。",
+    ag_atstop: "片子等你拍板", n_own: "你交了意见，{a} 自己接着做了。", n_own_plain: "{a} 自己接着做了一轮。", n_own_busy: "{a} 自己接着做了，但这支片子正被别的 agent 占着。",
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
@@ -67,7 +67,7 @@ const ASTR = {
   },
   en: {
     tab_chat: "Chat", tab_round: "This round", tab_ask: "{n} to allow", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History", ag_hist_none: "No other chats in this film yet",
-    ag_atstop: "Waiting for you", n_own: "You sent your notes; {a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another agent holds this film.",
+    ag_atstop: "Film waits for you", n_own: "You sent your notes; {a} carried on by itself.", n_own_plain: "{a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another agent holds this film.",
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
@@ -146,7 +146,7 @@ const AGENT = (() => {
     const ty = e.type;
     if (ty === "user") { item("u" + e.seq, () => ({ kind: "user", text: e.text, scope: e.scope, t: e.t })); }
     else if (ty === "turn") {
-      if (e.state === "start") { S.running = true; S.stopping = false; S.turnAt = e.t; S.cur = null; if (e.own) item("o" + e.seq, () => ({ kind: "notice", code: e.locked === false ? "own_busy" : "own" })); }
+      if (e.state === "start") { S.running = true; S.stopping = false; S.turnAt = e.t; S.cur = null; if (e.own) item("o" + e.seq, () => ({ kind: "notice", code: e.locked === false ? "own_busy" : e.notes ? "own" : "own_plain" })); }
       else { const stopped = S.stopping || S.stopAsked; S.running = false; S.stopping = false; S.stopAsked = false; item("e" + e.seq, () => ({ kind: "end", stop: stopped && !e.error ? "cancelled" : e.stop, asked: stopped, error: e.error, took: S.turnAt ? e.t - S.turnAt : null })); S.turnAt = null; }
       if (KEYP !== SPACE && typeof renderFlow === "function") setTimeout(renderFlow, 0);   // the stops' lamps: the agent's while its turn runs
     } else if (ty === "state") { Object.assign(S.config, e); }
@@ -570,7 +570,7 @@ const AGENT = (() => {
     if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
     if (it.kind === "notice" && it.code === "place_busy") return `<p class="ag-note warn">${esc(at("n_place_busy", { x: it.name || "", w: it.who || "?" }))}</p>`;
     if (it.kind === "notice" && it.code === "placed") return `<p class="ag-note ok">${esc(at("n_placed", { x: it.name || "" }))}</p>`;
-    if (it.kind === "notice" && (it.code === "own" || it.code === "own_busy")) return `<p class="ag-note${it.code === "own" ? " ok" : " warn"}">${esc(at("n_" + it.code, { a: label() }))}</p>`;
+    if (it.kind === "notice" && /^own/.test(it.code || "")) return `<p class="ag-note${it.code === "own_busy" ? " warn" : " ok"}">${esc(at("n_" + it.code, { a: label() }))}</p>`;
     if (it.kind === "notice" && it.code === "restarted") return `<p class="ag-note warn">${esc(at("n_restarted", { a: label() }))}</p>`;
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
     if (it.kind === "unknown") return `<details class="ag-unknown"><summary>${esc(at("unknown", { a: label() }))}</summary><pre>${esc(cut(JSON.stringify(it.u, null, 1), 2000))}</pre></details>`;

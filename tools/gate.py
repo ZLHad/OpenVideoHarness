@@ -8,8 +8,10 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
   <n>       1 | 2 | 3 | E0–E5 | 2b … : out/review/gate-<n>.json (playbook/01-pipeline.md, 审阅页, has every field); left out:
             this round, as bin/vh review takes it
   where the person reviews: --desk, --page or --chat when the person asked in chat; else the 审阅方式 line in LOCAL.md
-            (对话 | 审阅页 | 审阅台; chat | page | desk); else the effort's default: studio the review desk, standard and quick
-            the static page. Every channel gets the static page (out/review/gate-<n>.html, also index.html) and the chat
+            (对话 | 审阅页 | 审阅台; chat | page | desk); else the effort's default: studio the review desk; standard the
+            review desk while Studio is open on this machine (it is looked for, never started: a running console that can take
+            this film; else, or when it cannot take it, the static page), the static page otherwise; quick the static page.
+            Every channel gets the static page (out/review/gate-<n>.html, also index.html) and the chat
             message; the desk channel also gets the desk: Studio (bin/vh studio) when it is running and has this project,
             else this project's desk, started in the background on 127.0.0.1 when it is not serving yet (it stops by itself
             after 12 h without a request). The desk shows its window at this stop itself, and the message says it is open
@@ -17,8 +19,10 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
   --print-address   the desk channel, for a browser on another machine: show nothing; write an address that opens one
             page, once, within ten minutes, to your terminal alone (the message says only where it is). Refused with no
             terminal (an agent's shell has none) and while this film's desk runs (bin/vh desk link --print-address)
-  --wait    the desk channel only: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout,
-            default 7100 s). Hosts with background wakeup can run this in the background: the message is printed first
+  --wait    the desk channel: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout, default
+            7100 s; 4 when the agent it waits for is gone; 6 when the desk it waits on closed). Hosts with background wakeup
+            can run this in the background: the message is printed first. A standard film whose stop went out as the static
+            page by default (Studio not open): the page goes out, nothing is waited for, exit 5 (nothing was answered)
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
             to write is a {填：…} ({fill in: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
             never reaches the person. It carries "version": 1. A file already there is not overwritten (exit 2)
@@ -30,7 +34,9 @@ a snapshot of the project's text (bin/vh history); a failure to save it never st
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
 --wait without the desk, --init over a file, gate ③'s page while gate ① is not on record (standard, studio), or gate ② (in the plan, a BRIEF with a
-Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out.
+Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out ·
+4 --wait: the agent it waited for is gone · 5 --wait on a standard film's stop that went out as the static page: nothing was
+waited for and nothing answered (end the turn; the person replies in the chat) · 6 --wait: the desk it waited on closed.
 """
 import argparse, contextlib, json, os, re, sys
 from pathlib import Path
@@ -193,6 +199,30 @@ def gate_seen(stop, lang):
     return review.gate_title(stop, lang)
 
 
+STUDIO_OPEN = "and Studio is open"
+
+
+def page_reason(why):
+    """Why a standard film's stop went out as the page, in the words of where it came from (never a reason that is not it)."""
+    if "could not take" in why:
+        return "Studio could not take this film"
+    if os.environ.get("OVH_GATE_STUDIO") == "0":
+        return "this run does not look for Studio (OVH_GATE_STUDIO=0)"
+    return "Studio is not open"
+
+
+def desk_since(info):
+    """(pid, since) of a running desk's record: since in epoch seconds (an older record: its local "started")."""
+    import datetime
+    since = info.get("since")
+    if not isinstance(since, (int, float)):
+        try:
+            since = datetime.datetime.fromisoformat(info["started"]).timestamp() if info.get("started") else None
+        except (ValueError, TypeError):
+            since = None
+    return (info.get("pid"), since)
+
+
 def studio_open():
     """Studio (the console) runs on this machine now: it is used, never started, for a standard film's stop. Its record must
     name a process that is alive and answers on its port (server.running_info), and that started no later than the record
@@ -203,14 +233,8 @@ def studio_open():
         return False
     try:
         import server
-        import datetime
         info = server.running_info(None, [])
-        if not info:
-            return False
-        since = info.get("since")   # epoch seconds; an older record only has its local "started"
-        if not isinstance(since, (int, float)):
-            since = datetime.datetime.fromisoformat(info["started"]).timestamp() if info.get("started") else None
-        return activity._alive(info.get("pid"), since)
+        return bool(info) and activity._alive(*desk_since(info))
     except Exception:
         return False
 
@@ -230,18 +254,19 @@ def channel_of(project, flag=None):
         pass
     effort, src = effort_of(project)
     if effort == "standard" and studio_open():
-        return "desk", f"effort {effort} ({src}), and Studio is open"
+        return "desk", f"effort {effort} ({src}), {STUDIO_OPEN}"
     return ("desk" if effort == "studio" else "page"), f"effort {effort} ({src})"
 
 
-def start_desk(project, gate, port=None, print_address=False):
+def start_desk(project, gate, port=None, print_address=False, studio_only=False):
     """The desk for this stop, its window shown at this stop's gate view: Studio (the console) when it runs, this project
     joining its space when it is outside Studio's folders; else the desk serving this project, or a new one started in its own session (it outlives this command). The
     window gets its access from the desk itself; nothing secret is in this command's output. print_address: show nothing;
     a fresh desk of this project (main refuses while one runs; Studio is left alone), and its address with a one-time code
     back, which main writes to the terminal alone.
     → (address, how, shown, why): how is studio, running, started or restarted; shown is the desk's answer ({opened, how,
-    why}); address None when none came up (why)."""
+    why}); address None when none came up (why). studio_only: Studio or nothing (a standard film's default: no desk is
+    started for it; Studio closed meanwhile, or it cannot take this film → None)."""
     sys.path.insert(0, str(HERE / "desk"))
     import server, launch
     route = f"/gate/{quote(gate, safe='')}"
@@ -252,6 +277,8 @@ def start_desk(project, gate, port=None, print_address=False):
             at = launch.place(console["url"], project)
         if at:
             return console["url"], "studio", launch.show(console["url"], at + route), None
+        if studio_only:
+            return None, "studio", {"opened": False}, "Studio closed meanwhile" if not console else "it is not one of Studio's films and could not join"
     at = "/p/" + quote(server.keyify(project.name, project), safe="") + route
     info = server.running_info(project)
     if print_address:
@@ -295,9 +322,9 @@ def main(argv):
     if a.json and a.wait:
         return jsonerr.fail("usage", "gate: --json is for a run that only sends the page; --wait's answer is the submission (bin/vh desk feedback --json has it as JSON)")
     channel, why = channel_of(project, a.channel)
-    no_wait = False   # --wait, and the stop went to the page by default (Studio not open): the page goes out, nothing to wait for
+    no_wait = False   # --wait, and a standard film's stop went to the page by default: the page goes out, nothing is waited for (5)
     if a.wait and channel != "desk":
-        if a.channel or why == "LOCAL.md":
+        if a.channel or why == "LOCAL.md" or effort_of(project)[0] != "standard":
             return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
                                 "the chat. Leave --wait out, or use --desk if they want the desk")
         no_wait = True
@@ -332,8 +359,14 @@ def main(argv):
     if stop_of(page.gate) == "1" and effort_of(project)[0] != "quick":   # the first stop says where the film stops
         lines.append(gatecheck.plan_words(gatecheck.plan_of(project), page.lang, lambda g: review.gate_title(g, page.lang)))
     url = None
-    if channel == "desk":
+    if channel == "desk" and why.endswith(STUDIO_OPEN):   # the default of a standard film: Studio only, never a desk started for it
+        url, how, shown, why_not = start_desk(project, page.gate, a.port, a.print_address, studio_only=True)
+        if not url:
+            channel, why = "page", f"effort standard, and Studio could not take this film ({why_not})"
+            no_wait = bool(a.wait)
+    elif channel == "desk":
         url, how, shown, why_not = start_desk(project, page.gate, a.port, a.print_address)
+    if channel == "desk":
         if not url:
             return jsonerr.fail("failed", f"gate: the review desk did not start ({why_not or 'out/review/.desk.log says why'}); the page is {page_path}. "
                                 f"Start it by hand: bin/vh studio {a.project}")
@@ -368,14 +401,22 @@ def main(argv):
             print(f"  history: left out: {x['path']} ({x['why']})", file=sys.stderr)
     except Exception as e:
         print(f"  history: no snapshot of this page ({e})", file=sys.stderr)
-    if no_wait:
-        print("  nothing to wait for: Studio is not open, so this stop went out as the page and the person answers in the chat", file=sys.stderr)
-        return 0
+    if no_wait:   # (stdout is the message the agent passes on: it stays the page's)
+        print(f"  nothing was answered: {page_reason(why)}, so this stop went out as the static page and nothing is waited for here. "
+              "End your turn and wait for the person's reply in the chat (exit 5)", file=sys.stderr)
+        return 5
     if not a.wait:
         return 0
     import feedback
     jsonerr.mark("timeout")
-    return feedback.wait(project, a.timeout)
+    watch = None   # the desk the wait is on: when it closes, nothing more can come (6)
+    try:
+        import server
+        info = server.running_info(None, []) if how == "studio" else server.running_info(project)
+        watch = desk_since(info) if info else None
+    except Exception:
+        watch = None
+    return feedback.wait(project, a.timeout, desk=watch)
 
 
 if __name__ == "__main__":

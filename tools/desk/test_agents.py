@@ -2358,8 +2358,18 @@ def column_wait_checks():
         p = stage("channel")
         e = {k: v for k, v in dict(env, OVH_ACTIVITY_AGENT="0").items() if k != "OVH_GATE_STUDIO"}   # this check is of that very rule
         r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=e, timeout=120)
-        if r.returncode != 0 or "nothing to wait for" not in r.stderr or "reviewed on the page" not in r.stderr or "Studio 里打开了" in r.stdout:
+        if r.returncode != 5 or "nothing was answered: Studio is not open" not in r.stderr or "wait for the person's reply in the chat" not in r.stderr \
+                or "reviewed on the page" not in r.stderr or "Studio 里打开了" in r.stdout:
             out.append(f"no Studio: {r.returncode} {r.stderr[-300:]}")
+        r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=dict(e, OVH_GATE_STUDIO="0"), timeout=120)
+        if r.returncode != 5 or "this run does not look for Studio" not in r.stderr:   # the real reason, never another
+            out.append(f"not looked for: {r.returncode} {r.stderr[-200:]}")
+        qk = stage("quick-film")   # quick is untouched: --wait on its page is refused, as before
+        bq = (qk / "BRIEF.md").read_text().replace("- Effort: standard", "- Effort: quick")
+        (qk / "BRIEF.md").write_text(bq)
+        r = subprocess.run(["bash", str(vh), "gate", str(qk), "1", "--wait"], capture_output=True, text=True, env=e, timeout=120)
+        if r.returncode != 2:
+            out.append(f"quick --wait: {r.returncode} {r.stderr[-200:]}")
         import server
         stale = server._info_path(None, [])   # where Studio says it runs (this run's temp folder)
         if stale is None:
@@ -2370,9 +2380,19 @@ def column_wait_checks():
             dead.kill(); dead.wait()
             stale.write_text(json.dumps({"pid": dead.pid, "port": 1, "url": "http://127.0.0.1:1/", "roots": [], "started": "2026-01-01T00:00:00"}))
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3"], capture_output=True, text=True, env=e, timeout=120)
-            stale.unlink()
             if "reviewed on the page" not in r.stderr:
                 out.append(f"a stale Studio record: {r.stderr[-300:]}")
+            ls = socket.socket()   # a record whose pid a later process took, on a port that answers: not Studio either
+            ls.bind(("127.0.0.1", 0)); ls.listen(4)
+            later = subprocess.Popen(["sleep", "30"])
+            BG.add(later.pid)
+            stale.write_text(json.dumps({"pid": later.pid, "port": ls.getsockname()[1], "url": f"http://127.0.0.1:{ls.getsockname()[1]}/", "roots": [],
+                                         "started": "2026-01-01T00:00:00", "since": time.time() - 3600}))
+            r = subprocess.run(["bash", str(vh), "gate", str(p), "3"], capture_output=True, text=True, env=e, timeout=120)
+            later.kill(); later.wait(); ls.close()
+            stale.unlink()
+            if "reviewed on the page" not in r.stderr:
+                out.append(f"a reused pid in Studio's record: {r.stderr[-300:]}")
         d = Desk(None, T / "agents")   # Studio: the console with no roots of its own
         try:
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--page"], capture_output=True, text=True, env=e, timeout=120)
@@ -2398,11 +2418,43 @@ def column_wait_checks():
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--page", "--wait"], capture_output=True, text=True, env=e, timeout=60)
             if r.returncode != 2:
                 out.append(f"--page --wait is a contradiction: {r.returncode}")
+            w = subprocess.Popen(["bash", str(vh), "gate", str(p), "3", "--wait", "--timeout", "60"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=e)
+            BG.add(w.pid)
+            for _ in range(200):
+                if flag.exists():
+                    break
+                time.sleep(0.1)
         finally:
             d.stop()
+        try:   # Studio closed under the wait: it ends, saying nothing came (6)
+            so, se = w.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            w.kill()
+            so, se = w.communicate()
+        if w.returncode != 6 or "has closed, and nothing was submitted" not in so:
+            out.append(f"Studio closed under the wait: {w.returncode} {so[-200:]}")
         return "; ".join(out) or None
-    check("a standard film's stop opens in Studio while Studio is open, with the wait (the submit hands it over); a record Studio left behind is no Studio; without Studio it goes out "
-          "as the page and --wait has nothing to wait for; an explicit --page wins, and --page --wait is refused", gate_channel)
+    check("a standard film's stop opens in Studio while Studio is open, with the wait (the submit hands it over); a record Studio left behind, or one "
+          "whose pid a later process took, is no Studio; without Studio it goes out as the page and --wait exits 5 (nothing answered: end the turn), "
+          "saying the real reason; quick's --wait is refused as before; an explicit --page wins, --page --wait is refused; Studio closing under a wait "
+          "ends it (6)", gate_channel)
+
+    def declared():   # what the console sent each adapter: the extension to Claude's alone
+        o = stage("kinds")
+        d = Desk(o, T / "agents")
+        try:
+            for k in ("claude", "codex", "dsh"):
+                d.new(k)
+        finally:
+            d.stop()
+        got = {}
+        for x in (T / "prompts.jsonl").read_text().splitlines():
+            if x.startswith('{"init"'):
+                j = json.loads(x)
+                air = (((j.get("declared") or {}).get("_meta") or {}).get("jetbrains") or {}).get("air") or {}
+                got[j["init"]] = got.get(j["init"], False) or "asyncTasks" in (air.get("capabilities") or [])
+        return None if got == {"claude": True, "codex": False, "dsh": False} else got
+    check("the console declares the async tasks extension to Claude's adapter and to no other (what it sent each)", declared)
 
     for slow in (False, True):
         b = stage("background-slow" if slow else "background", "3")
@@ -2416,8 +2468,60 @@ def column_wait_checks():
                 check("the agent's own turn after the submit holds the film's lock and the column's stop button, and the stop ends it", lambda: background(d, K, b, True))
         finally:
             d.stop()
-    check("the console asks Claude's adapter for its async tasks extension, and no other",
-          lambda: None if '{"async_tasks": true}' in (T / "prompts.jsonl").read_text() else "not asked")
+    def own_kinds():   # its own turn after the notes, after a wait that timed out, announced early, and ended by a restart
+        out = []
+        b = stage("own/kinds", "3")
+        other = stage("own/other")
+        d = Desk(None, T / "agents", roots=[T / "column" / "own"])   # one console, one adapter, two films
+        try:
+            keys = {r["name"]: r["key"] for r in d.get("/api/projects")[1]["projects"]}
+            K, K2 = keys["kinds"], keys["other"]
+            import hashlib
+            fp = lambda x: hashlib.sha1(os.path.realpath(str(x)).encode()).hexdigest()   # noqa: E731
+            d.key = K
+            d.pid = fp(b)
+            _, s1 = d.new("claude")
+            L = Listen(d, s1["id"])
+            d.a(s1["id"], "say", {"text": "后台等，短等"})   # the wait times out: its own turn is not "after your notes"
+            st = L.wait(lambda e: e.get("type") == "turn" and e.get("state") == "start" and e.get("own"), 20)
+            L.wait(lambda e: ended(e) and e.get("own"), 20)
+            if not st or st.get("notes"):
+                out.append(f"after a wait that timed out: {st}")
+            d.a(s1["id"], "say", {"text": "后台等，抢跑"})   # its own turn announced before the prompt's answer: it runs after
+            t0 = len(L.events)
+            own = L.wait(lambda e: e.get("type") == "turn" and e.get("state") == "start" and e.get("own") and L.events.index(e) >= t0, 20)
+            fin = L.wait(lambda e: ended(e) and e.get("own") and L.events.index(e) >= t0, 20)
+            if not own or not fin or "抢跑的这一轮做完了" not in text_of(L.events):
+                out.append(f"announced early: start {own}, end {fin}")
+            d.a(s1["id"], "say", {"text": "后台等，慢"})   # a slow own turn, then the adapter restarted by another conversation's stuck stop
+            for _ in range(100):
+                if d.get(f"/api/p/{K}/status")[1].get("listening"):
+                    break
+                time.sleep(0.1)
+            d.post(f"/api/p/{K}/feedback", {"round": "3", "general": "再改"})
+            t1 = len(L.events)
+            L.wait(lambda e: e.get("type") == "turn" and e.get("state") == "start" and e.get("own") and L.events.index(e) >= t1, 20)
+            _, s2 = d.post(f"/api/p/{K2}/agent/new", {"kind": "claude", "personal": True}, pid=fp(other))   # another film, the same adapter
+            d.post(f"/api/p/{K2}/agent/{s2['id']}/say", {"text": "卡住"}, pid=fp(other))
+            time.sleep(0.5)
+            d.post(f"/api/p/{K2}/agent/{s2['id']}/stop", {}, pid=fp(other))   # it does not stop: the adapter is restarted
+            end = L.wait(lambda e: ended(e) and e.get("own") and L.events.index(e) >= t1, 20)
+            L.close()
+            if not end or end.get("error") != "agent_restarted":
+                out.append(f"the adapter restarted under its own turn: {end}")
+            for _ in range(50):
+                if agentlock.read(b) is None:
+                    break
+                time.sleep(0.1)
+            if agentlock.read(b) is not None:
+                out.append("the lock stayed after the restart")
+        finally:
+            d.stop()
+        return "; ".join(out) or None
+    sys.path.insert(0, str(HERE))
+    import agentlock
+    check("its own turn says it follows the notes only after this film's notes were handed (a wait that timed out is said plainly); one announced while "
+          "the person's turn was ending runs after it; a restart of the adapter ends it and lets the lock go", own_kinds)
 
 
 def background(d, K, b, slow):
@@ -2436,10 +2540,28 @@ def background(d, K, b, slow):
     waiting = d.get(f"/api/p/{K}/status")[1]
     if not first or row.get("running") or not waiting.get("listening") or (waiting.get("now") or {}).get("code") != "waiting_you":
         return f"its turn ended and it waits in the background: {row} {waiting.get('listening')} {waiting.get('now')}"
+    prog = None
+    cc = shutil.which("cc")
+    if slow and cc and shutil.which("lsof"):   # an agent program open in the film's folder, as a terminal's would be: the busy notice
+        fake = T / "agentbin2" / "claude"
+        if not fake.exists():
+            fake.parent.mkdir(parents=True, exist_ok=True)
+            (fake.parent / "s.c").write_text("#include <unistd.h>\nint main(void) { sleep(60); return 0; }\n")
+            subprocess.run([cc, "-o", str(fake), str(fake.parent / "s.c")], check=True, capture_output=True)
+        prog = subprocess.Popen([str(fake)], cwd=str(b))
+        BG.add(prog.pid)
+        time.sleep(0.5)
     d.post(f"/api/p/{K}/feedback", {"round": "3", "general": "可以了" if not slow else "再改"})
     own = L.wait(lambda e: e.get("type") == "turn" and e.get("state") == "start" and e.get("own"), 20)
+    if prog is not None:
+        busy = L.wait(lambda e: e.get("type") == "notice" and e.get("code") == "own_busy", 15)
+        prog.kill(); prog.wait()
+        if not busy:
+            return "an agent open in the film's folder during its own turn: no busy notice"
     if not own:
         return "no turn of its own after the submit"
+    if not own.get("notes"):
+        return f"its own turn right after the hand-over does not say it follows the notes: {own}"
     held = agentlock.read(b) or {}
     row = next((x for x in d.get(f"/api/p/{K}/agents")[1]["sessions"] if x["id"] == sid), {})
     if slow:

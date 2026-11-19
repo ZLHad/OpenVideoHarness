@@ -22,7 +22,8 @@ does; with 先问我/"ask me" it first ends its turn with three questions (the n
 first": waits for a stop before making anything; 慢/"slow": waits for a stop after; 停一下/"stop at": then waits at the
 first stop (bin/vh desk wait, as gate --wait does) and goes on when the person submits.
 后台等/"wait in background": as Claude Code does with a command run in the background, it starts bin/vh desk wait on its folder,
-ends its turn at once, and when the wait ends (the person submitted) begins a turn of its own; a client that declared the
+ends its turn at once, and when the wait ends (the person submitted; with 短等/"short wait" it times out in 3 s) begins a turn of
+its own; with 抢跑/"overlap" that turn is announced before its own prompt's answer, as a race in the real adapter could; a client that declared the
 adapter's async tasks extension (_meta.jetbrains.air asyncTasks) hears that turn as a task of type "turn", spawned and then
 ended, and can stop it with _session/async_task/stop; another client gets the words with no turn around them. With 慢/"slow" its
 own turn goes on until it is stopped.
@@ -182,11 +183,12 @@ def new_film(rid, sid, text):
 def background_wait(rid, sid, text):
     """bin/vh desk wait in the background, the turn ended at once; a turn of its own when the wait ends."""
     s = sessions[sid]
-    g = f"bin/vh desk wait {s['cwd']} --timeout 120"
+    tmo = "3" if any(w in text for w in ("短等", "short wait")) else "120"
+    g = f"bin/vh desk wait {s['cwd']} --timeout {tmo}"
     upd(sid, {"sessionUpdate": "tool_call", "toolCallId": "t-bg", "title": g, "kind": "execute", "status": "in_progress",
               "rawInput": {"command": g, "run_in_background": True}})
     vh = HERE.parents[3] / "bin" / "vh"
-    p = subprocess.Popen(["bash", str(vh), "desk", "wait", s["cwd"], "--timeout", "120"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    p = subprocess.Popen(["bash", str(vh), "desk", "wait", s["cwd"], "--timeout", tmo], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"bg": p.pid}) + "\n")
     if ASYNC[0]:
         upd(sid, {"sessionUpdate": "async_task_spawned", "asyncTaskId": "bg-1", "name": g, "taskType": "bash", "description": g,
@@ -194,6 +196,16 @@ def background_wait(rid, sid, text):
     upd(sid, {"sessionUpdate": "tool_call_update", "toolCallId": "t-bg", "status": "completed",
               "content": [{"type": "content", "content": {"type": "text", "text": "Command running in background with ID: bg-1"}}]})
     words(sid, "m-bg", "我在后台等你在审阅台拍板，交了我就接着做。")
+    if any(w in text for w in ("抢跑", "overlap")) and ASYNC[0]:   # its own turn announced before this prompt's answer
+        tid = f"autonomous-turn-{uuid.uuid4()}"
+        upd(sid, {"sessionUpdate": "async_task_spawned", "asyncTaskId": tid, "name": "Claude is working", "taskType": "turn",
+                  "description": "early", "showInTranscript": False, "canStop": True})
+        send({"jsonrpc": "2.0", "id": rid, "result": {"stopReason": "end_turn"}})
+        time.sleep(0.5)
+        words(sid, "m-early", "抢跑的这一轮做完了。")
+        upd(sid, {"sessionUpdate": "async_task_state_update", "asyncTaskId": tid, "state": "completed"})
+        p.terminate()
+        return
     send({"jsonrpc": "2.0", "id": rid, "result": {"stopReason": "end_turn"}})
 
     def later():
@@ -287,8 +299,8 @@ def handle(msg):
     m, p, rid = msg.get("method"), msg.get("params") or {}, msg.get("id")
     if m == "initialize":
         air = (((p.get("clientCapabilities") or {}).get("_meta") or {}).get("jetbrains") or {}).get("air") or {}
-        ASYNC[0] = KIND == "claude" and "asyncTasks" in (air.get("capabilities") or [])
-        Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"async_tasks": ASYNC[0]}) + "\n")
+        ASYNC[0] = "asyncTasks" in (air.get("capabilities") or [])   # what the console declared, whatever kind this stand-in is
+        Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"init": KIND, "declared": p.get("clientCapabilities")}) + "\n")
         return send({"jsonrpc": "2.0", "id": rid, "result": FX["initialize"]})
     if m == "_session/async_task/stop":
         ev = own_stop.get(p.get("asyncTaskId"))
