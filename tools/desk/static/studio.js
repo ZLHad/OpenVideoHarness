@@ -473,8 +473,8 @@ function renderNow() {   // where this film stands, in bin/vh status's own sente
   }
   const a = n.act || {}, mod = a.kind === "open" ? (a.mod || "cut") : "";
   const armed = a.kind === "tell" && a.confirm && NOWARM === PKEY;   // an offer that asks once more: the first click arms it
-  const btn = a.kind === "tell" ? (a.secondary && !armed ? `<button type="button" class="btn btn-quiet xs now-second" id="nowTell">${esc(a.label[L])}</button>`
-      : `<button type="button" class="btn${a.secondary ? "" : " btn-primary"}" id="nowTell">${esc(armed ? t("now_sure") : a.label[L])}</button>${armed ? `<button type="button" class="btn btn-quiet xs" id="nowNot">${esc(t("cancel"))}</button>` : ""}`)
+  const quiet = a.secondary && !armed, cls = quiet ? "btn btn-quiet xs now-second" : a.secondary ? "btn" : "btn btn-primary";   // a second line, or the one thing to do
+  const btn = a.kind === "tell" ? `<button type="button" class="${cls}" id="nowTell">${esc(armed ? t("now_sure") : a.label[L])}</button>${armed ? `<button type="button" class="btn btn-quiet xs" id="nowNot">${esc(t("cancel"))}</button>` : ""}`
     : mod && mod !== MOD ? `<a class="btn" href="${projHash(PKEY, mod + (a.sub ? "/" + a.sub : ""))}">${esc(a.label[L])} →</a>` : "";   // already on that page: no button to it
   const opens = (txt) => ((n.facts || {}).paths || []).reduce((h, p) => h.split(esc(p)).join(`<a href="/v/${enc(PKEY)}/${String(p).split("/").map(enc).join("/")}" target="_blank" rel="noopener">${esc(p)}</a>`), esc(txt));   // a file the words name opens
   const html = `<p class="now-say"><i aria-hidden="true"></i><span>${esc(n.say[L])}</span></p>${n.more ? `<p class="now-more">${opens(n.more[L])}</p>` : ""}${armed ? `<p class="now-more">${esc(t("now_sure_note"))}</p>` : ""}${btn ? `<div class="now-act">${btn}</div>` : ""}${plan ? `<p class="now-plan">${esc(plan[L])}</p>` : ""}`;

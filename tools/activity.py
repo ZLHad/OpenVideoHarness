@@ -489,12 +489,15 @@ def agent_alive(agent):
     return t is None or now_t is None or abs(now_t - t) <= 2
 
 
-def runs(records, now=None):
+def runs(records, now=None, same_process=True):
     """(runs, events): the records grouped by run, in the order they began (the log's own order), and the records
     outside any run. A run: {run, cmd, args, cwd, pid, parent, start, end, exit, duration, state, summary, outputs,
     progress, error, cancelled, kept, agent}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its
     process is gone, or bin/vh cancel found its pid is another process now); error is why it failed, when the tool could say:
-    {code, message} (a note with level error), else null; cancelled: bin/vh cancel stopped it; kept: what it kept for a resume."""
+    {code, message} (a note with level error), else null; cancelled: bin/vh cancel stopped it; kept: what it kept for a resume;
+    agent: the agent program bin/vh found it was started under ({pid, start}), else null. same_process: a pid that a process
+    started later has taken reads as gone (its start time, by ps); False leaves that to the caller (bin/vh cancel tells the
+    person which it is)."""
     now = time.time() if now is None else now
     by, events, gone = {}, [], set()   # a dict keeps the order runs first appear in
     for r in records:
@@ -531,7 +534,7 @@ def runs(records, now=None):
     for run in out:
         if run["end"] is not None:
             run["state"] = "ok" if run["exit"] == 0 else "failed"
-        elif run["pid"] and run["run"] not in gone and _alive(run["pid"], run["start"]) and (run["start"] or 0) > now - RUNNING_FOR:
+        elif run["pid"] and run["run"] not in gone and _alive(run["pid"], run["start"] if same_process else None) and (run["start"] or 0) > now - RUNNING_FOR:
             run["state"] = "running"
         else:
             run["state"] = "gone"

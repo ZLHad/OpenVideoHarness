@@ -453,12 +453,13 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
     if [ $n -gt 24 ] || [ $len -gt 480 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 1 KiB)
     args="$args${args:+,}$ACT_S"
   done
-  case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) act_agent; real="$real$ACT_AGENT" ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another; else the agent it runs under
+  ACT_AGENT=""; case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) act_agent ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another; else the agent it runs under
   act_str "$cmd"; c=$ACT_S
   a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
   [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)
-  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
+  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real$ACT_AGENT}"
   act_bytes "$line"
+  [ "$ACT_B" -lt 1000 ] || { line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"; act_bytes "$line"; }   # the agent gives way first
   [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
   act_line "$line"
   export OVH_ACTIVITY_LOG="$ACT_LOG" OVH_ACTIVITY_RUN="$ACT_RUN" OVH_ACTIVITY_PID=$$ OVH_ACTIVITY_T0="$ACT_T0" OVH_ACTIVITY_CMD="$cmd"
