@@ -441,7 +441,7 @@ EOF_T
   done
 }
 act_agent_work() { # the film this agent last ran a command on (tools/activity.py's agent_work): one small file a program, replaced whole
-  [ -n "$ACT_AGENT_PID" ] && [ -n "$1" ] || return 0
+  [ -n "${ACT_AGENT_PID:-}" ] && [ -n "${1:-}" ] || return 0
   local w="${XDG_CACHE_HOME:-$HOME/.cache}/ovh/agent-work"
   { [ -d "$w" ] || mkdir -p "$w"; } 2>/dev/null || return 0
   printf '{"start":%s%s,"t":%s}\n' "$ACT_AGENT_START" "$1" "$ACT_T0" > "$w/$ACT_AGENT_PID.json.$$" 2>/dev/null && mv -f "$w/$ACT_AGENT_PID.json.$$" "$w/$ACT_AGENT_PID.json" 2>/dev/null
@@ -467,7 +467,7 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
     if [ $n -gt 24 ] || [ $len -gt 480 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 1 KiB)
     args="$args${args:+,}$ACT_S"
   done
-  ACT_AGENT=""; case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) act_agent ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another; else the agent it runs under
+  ACT_AGENT="" ACT_AGENT_PID="" ACT_AGENT_START=""; case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) act_agent ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another; else the agent it runs under
   act_str "$cmd"; c=$ACT_S
   a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
   [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)
