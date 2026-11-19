@@ -15,7 +15,7 @@ MAX_BODY = 256 * 1024
 MAX_ITEMS, MAX_DECISIONS = 400, 20
 LIMIT = {"text": 4000, "suggest": 2000, "orig": 2000, "label": 300, "general": 8000}
 STATUS = ("ok", "change", "ask")
-TARGET = re.compile(r"(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset|range|chapter|card):[^\x00-\x1f\x7f]{1,180}")   # fullmatch
+TARGET = re.compile(r"(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset|range|chapter|card|revision):[^\x00-\x1f\x7f]{1,180}")   # fullmatch
 RANGE = re.compile(r"range:([0-9]+(?:\.[0-9]+)?)-([0-9]+(?:\.[0-9]+)?)")   # fullmatch: range:<a>-<b>, seconds of the film, a < b
 ROUND = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
 NO_ROUND = "notes"           # comments sent while no gate page is out
@@ -102,6 +102,10 @@ def validate(project, fb):
         if not isinstance(tgt, str) or not TARGET.fullmatch(tgt):   # (fullmatch: "$" would let a final newline through)
             raise ValueError(f"{w}.target: like cap:c04, shot:S03, time:12.4, range:12.4-15, doc:BRIEF.md#Spec")
         kind, _, rest = tgt.partition(":")
+        if kind == "revision":
+            import revisions
+            if rid != NO_ROUND or not revisions.can_review(project, rest):
+                raise ValueError(f"{w}.target: a revision reply needs an available comparison and round {NO_ROUND!r}")
         span = None
         if kind == "range":   # ASCII digits only, and a < b as kept (to the hundredth)
             m = RANGE.fullmatch(tgt)

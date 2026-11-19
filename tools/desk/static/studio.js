@@ -275,6 +275,7 @@ $("#q").addEventListener("keydown", (e) => {
 });
 $("#searchBtn").addEventListener("click", () => ($("#search").hidden ? openSearch() : closeSearch()));
 document.addEventListener("keydown", (e) => {
+  if ($(".revision-compare[open]")) return;
   if (e.key === "/" && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openSearch(); }
   else if (e.key === "Escape") {
     if (!$("#search").hidden) closeSearch(); else if (!$("#confirm").hidden) closeConfirm();
@@ -623,6 +624,8 @@ async function pollLive() {
   if (r.ok && r.data && D && r.data.round !== undefined && r.data.round !== (D.current || null) && r.data.key === PKEY) {   // the agent sent a new page
     toast(t("new_round", { g: r.data.round || "" }));
     await reloadProject(true);
+  } else if (r.ok && r.data && D && r.data.key === PKEY && r.data.revision_stamp !== D.revision_stamp && !$(".revision-compare[open]")) {
+    await reloadProject(false);
   }
 }
 
@@ -934,6 +937,125 @@ function cutChapters(shots) {
   return out;
 }
 
+function revisionRows() { return (((D.status || {}).review || {}).revisions || []); }
+function revisionSpan(r) { return r.span.map(fmt).join("–"); }
+function revisionCards(rows) {
+  return rows.map((r) => `<article class="revision-card">
+    <div class="revision-meta"><span class="chip ${r.state === "pending" ? "wait" : "quiet"}">${esc(t("revision_" + r.state))}</span>
+      <span class="tc">${esc(revisionSpan(r))}</span></div>
+    <b>${esc(r.label || r.target)}</b>
+    ${r.text ? `<blockquote>${esc(r.text)}</blockquote>` : ""}${r.suggest ? `<p class="small">→ ${esc(r.suggest)}</p>` : ""}
+    ${r.reply && r.reply.text ? `<p class="small muted">${esc(r.reply.text)}</p>` : ""}
+    ${r.available ? `<button type="button" class="btn" data-revision="${esc(r.id)}">${esc(t("revision_compare"))}</button>` :
+      `<p class="small muted">${esc(t("revision_gone"))}</p>`}
+  </article>`).join("");
+}
+
+function openRevision(r) {
+  const dialog = document.createElement("dialog"), key = PKEY, pid = D.pid, lang = LANG;
+  dialog.className = "revision-compare";
+  dialog.setAttribute("aria-labelledby", "revision-title");
+  const clips = [r.before, r.after], names = ["revision_before", "revision_after"];
+  dialog.innerHTML = `<header class="revision-head">
+    <div><h2 id="revision-title">${esc(t("revision_compare"))}</h2><span class="meta">${esc(r.label || r.target)} · ${esc(revisionSpan(r))}</span></div>
+    <button type="button" class="btn" data-revision-close autofocus>${esc(t("revision_close"))}</button></header>
+    ${r.text || r.suggest ? `<blockquote>${esc(r.text)}${r.suggest ? `<span>→ ${esc(r.suggest)}</span>` : ""}</blockquote>` : ""}
+    <div class="revision-pair">${clips.map((c, i) => `<figure><figcaption>${esc(t(names[i]))}</figcaption>
+      <video preload="auto" playsinline muted src="${esc(src(c.file))}" aria-label="${esc(t(names[i]))}"></video></figure>`).join("")}</div>
+    <div class="revision-transport"><button class="btn btn-primary" type="button" data-revision-play disabled>${esc(t("revision_play"))}</button>
+      ${clips.some((c) => c.audio) ? `<span class="seg" role="group" aria-label="${esc(t("revision_sound"))}">${names.map((n, i) =>
+        `<button type="button" data-audio="${i}" aria-pressed="false">${esc(t(n))}</button>`).join("")}</span>` : ""}
+      <span class="tc" data-revision-time></span>
+      <input type="range" step="0.01" min="${r.span[0]}" max="${r.span[1]}" aria-label="${esc(t("revision_seek"))}" disabled></div>
+    ${r.state === "pending" && !readOnly() ? `<div class="revision-reply">
+      <label for="revision-say" class="meta">${esc(t("revision_reply"))}</label>
+      <textarea id="revision-say" rows="2" maxlength="4000"></textarea><div class="revision-actions">
+      <button type="button" class="btn" data-revision-reply="change" disabled>${esc(t("revision_change"))}</button>
+      <button type="button" class="btn" data-revision-reply="ok" disabled>${esc(t("revision_approved"))}</button></div></div>` : ""}
+    <p class="small notice" role="status" hidden></p>`;
+  const videos = $$("video", dialog), [start, end] = r.span, play = $("[data-revision-play]", dialog), range = $("input", dialog);
+  const notice = $("[role=status]", dialog), replies = $$("[data-revision-reply]", dialog), box = $("textarea", dialog);
+  let audible = clips[1].audio || !clips[0].audio ? 1 : 0, raf = 0, request = 0, ready = false, playing = false;
+  const show = (s) => { notice.textContent = s; notice.hidden = !s; };
+  const time = () => videos[audible].currentTime;
+  const face = (x) => { range.value = x; range.setAttribute("aria-valuetext", fmt(x)); $("[data-revision-time]", dialog).textContent = fmt(x); };
+  const seek = (x) => { for (const v of videos) v.currentTime = x; face(x); };
+  function pause() {
+    request++; playing = false; cancelAnimationFrame(raf);
+    for (const v of videos) v.pause();
+    play.textContent = t("revision_play");
+  }
+  function tick() {
+    if (!playing) return;
+    const x = time();
+    if (x >= end || videos.some((v) => v.ended)) { pause(); seek(end); return; }
+    const other = videos[1 - audible];
+    if (!other.seeking && !videos[audible].seeking && Math.abs(other.currentTime - x) > 0.08) other.currentTime = x;
+    face(x);
+    raf = requestAnimationFrame(tick);
+  }
+  function sound(i) {
+    const x = time();
+    audible = i;
+    if (ready && Math.abs(time() - x) > 0.05) videos[audible].currentTime = x;
+    videos.forEach((v, n) => { v.muted = n !== audible; });
+    $$("[data-audio]", dialog).forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.audio === audible)));
+  }
+  function loaded() {
+    if (ready || videos.some((v) => v.readyState < 1)) return;
+    ready = true;
+    seek(start);
+    play.disabled = range.disabled = false;
+    if (box) box.dispatchEvent(new Event("input"));
+  }
+  for (const v of videos) {
+    v.addEventListener("loadedmetadata", loaded);
+    v.addEventListener("error", () => {
+      pause(); ready = false; play.disabled = range.disabled = true;
+      replies.forEach((b) => { b.disabled = true; });
+      show(t("revision_load_error"));
+    });
+  }
+  play.addEventListener("click", async () => {
+    if (playing) return pause();
+    if (time() >= end - 0.03) seek(start);
+    const run = ++request;
+    try {
+      playing = true; play.textContent = t("revision_pause");
+      await Promise.all(videos.map((v) => v.play()));
+      if (run === request) tick();
+    } catch (e) {
+      if (run === request) { pause(); show(t("revision_load_error")); }
+    }
+  });
+  range.addEventListener("input", () => { const x = +range.value; pause(); seek(x); });
+  $$("[data-audio]", dialog).forEach((b) => b.addEventListener("click", () => sound(+b.dataset.audio)));
+  $("[data-revision-close]", dialog).addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => { pause(); dialog.remove(); }, { once: true });
+  if (box) {
+    const update = () => replies.forEach((b) => { b.disabled = !ready || b.dataset.revisionReply === "change" && !box.value.trim(); });
+    box.addEventListener("input", update);
+    for (const b of replies) b.addEventListener("click", async () => {
+      const status = b.dataset.revisionReply;
+      pause(); replies.forEach((el) => { el.disabled = true; }); box.disabled = true;
+      const body = { round: "notes", lang, pid, items: [{ target: "revision:" + r.id, status, label: fitLabel(r.label || r.target), text: box.value.trim() }] };
+      try {
+        const result = await fetch(`/api/p/${enc(key)}/feedback`, { method: "POST", headers: { "Content-Type": "application/json", "X-Desk-Token": TOKEN }, body: JSON.stringify(body) });
+        if (!result.ok) throw new Error((await result.json()).error);
+        dialog.close();
+        toast(t("revision_sent"));
+        if (PKEY === key) await reloadProject(false);
+      } catch (e) {
+        show(t("revision_send_error") + (e.message ? " · " + e.message : ""));
+        box.disabled = false; update();
+      }
+    });
+  }
+  sound(audible); face(start);
+  document.body.append(dialog); dialog.showModal(); loaded();
+  return () => { pause(); dialog.remove(); };
+}
+
 function CutModule(area) {
   const T = TL(), ST = D.studio || {}, fps = +T.fps || 30;
   const film = filmPath(), shots = cutShots(), chapters = cutChapters(shots);
@@ -956,7 +1078,9 @@ function CutModule(area) {
   let layout = store.get("desk:cut-layout");
   if (GATE && gateBase(GATE) === "3" || waitingGate() && gateMod(waitingGate()) === "cut" && !layout) layout = "review";   // gate ③ opens on the review layout
   if (!layouts.includes(layout)) layout = "review";
-  let tab = "shots", zoom = 1, snapOn = store.get("desk:cut-snap") !== false, safe = false, cmp = false, wipe = 0.5;
+  let tab = revisionRows().some((r) => r.state === "pending") ? "revisions" : "shots";
+  let zoom = 1, snapOn = store.get("desk:cut-snap") !== false, safe = false, cmp = false, wipe = 0.5;
+  let closeRevision = null;
   let SEL = null, inPt = null, stopAt = null, clockT = 0, raf = 0, simPlaying = false, simLast = 0;
   const notesOf = () => myItems().filter(([, v]) => v.t != null).map(([k, v]) => ({ kind: "mine", t: +v.t, t1: v.t1 != null ? +v.t1 : null, target: k, label: v.label || k, note: v.text || "" }));
   const agentMarks = () => gateMarks().filter((m) => m.t != null).map((m) => ({ kind: m.kind, t: +m.t, t1: m.t1 != null ? +m.t1 : null, target: m.target, label: m.id || "", note: m.note }));
@@ -978,6 +1102,7 @@ function CutModule(area) {
         <button type="button" class="btn" id="cN" title="${esc(t("next_tip"))}" hidden></button>
         <button type="button" class="btn toggle" id="cSafe" aria-pressed="false">${esc(t("safe"))}</button>
         ${prevV ? `<button type="button" class="btn toggle" id="cCmp" aria-pressed="false">${esc(t("compare", { v: vnum(prevV.id) }))}</button>` : ""}
+        ${revisionRows().length ? `<button type="button" class="btn toggle" id="cRevisions" aria-pressed="false">${esc(t("revisions"))}</button>` : ""}
         <span class="seg push" role="group" aria-label="${esc(t("layout"))}">${layouts.map((l) => `<button type="button" data-lay="${l}" aria-pressed="${l === layout}">${esc(t("lay_" + l))}</button>`).join("")}</span>
       </div>
     </section>
@@ -1096,6 +1221,15 @@ function CutModule(area) {
     const nl = allMarks().filter((m) => m.kind === "listen").length;
     const n = { shots: shots.length, notes: allMarks().filter((m) => m.kind !== "check" && m.kind !== "listen").length + (FB.general ? 1 : 0), checks: findings.length };
     const T2 = [["shots", t("l_shots"), n.shots], ["script", linesAreCaptions ? t("l_captions") : t("l_script"), lines.length || ""]].concat(nl ? [["listen", t("c_listen"), nl]] : [], [["notes", t("l_notes"), n.notes], ["checks", t("l_checks"), n.checks]]);
+    const revisions = revisionRows();
+    const pending = revisions.filter((r) => r.state === "pending" && r.available).length;
+    if (revisions.length) T2.push(["revisions", t("revisions"), pending || ""]);
+    const btn = $("#cRevisions", area);
+    if (btn) {
+      btn.textContent = pending ? `${t("revisions")} · ${pending}` : t("revisions");
+      btn.setAttribute("aria-pressed", String(tab === "revisions"));
+    }
+    root.classList.toggle("revision-list", tab === "revisions");
     $("#ltabs", area).innerHTML = T2.map(([k, name, c]) => `<button type="button" role="tab" aria-selected="${k === tab}" data-tab="${k}">${esc(name)}${c !== "" && c != null ? `<b>${c}</b>` : ""}</button>`).join("");
   }
   function shotStatus(s) {
@@ -1127,6 +1261,8 @@ function CutModule(area) {
       h = R.map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="tc">${esc(fmt(m.t))}</span><span class="tx">${who(m)} ${esc(m.kind === "mine" ? (m.note || m.label) : m.note)}</span></button>`).join("")
         + (FB.general ? `<div class="lrow text"><span class="tc">·</span><span class="tx"><em style="color:var(--you)">${esc(t("c_whole_note"))}</em> ${esc(FB.general)}</span></div>` : "");
       if (!h) h = `<p class="void">${esc(t("c_none_mine"))}</p>`;
+    } else if (tab === "revisions") {
+      h = revisionCards(revisionRows());
     } else {
       if (!chk) h = `<p class="void">${esc(t("no_checks"))}</p>`;
       else {
@@ -1137,7 +1273,18 @@ function CutModule(area) {
     b.innerHTML = h;
   }
   $("#ltabs", area).addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; tab = b.dataset.tab; renderTabs(); renderList(); });
-  $("#lbody", area).addEventListener("click", (e) => { const b = e.target.closest("[data-pick]"); if (b) pickThing(b.dataset.pick, b); });
+  const revButton = $("#cRevisions", area);
+  if (revButton) revButton.addEventListener("click", () => {
+    tab = "revisions"; renderTabs(); renderList();
+    $("#lbody", area).scrollIntoView({ block: "nearest" });
+  });
+  $("#lbody", area).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pick]");
+    if (b) return pickThing(b.dataset.pick, b);
+    const id = e.target.closest("[data-revision]")?.dataset.revision;
+    const r = id && revisionRows().find((row) => row.id === id && row.available);
+    if (r) { stop(); closeRevision = openRevision(r); }
+  });
 
   /* the timeline */
   function lane(cls, label, inner, group, empty) {
@@ -1362,7 +1509,7 @@ function CutModule(area) {
   }
   function setLayout(l) {
     layout = l; store.set("desk:cut-layout", l);
-    root.className = "cut layout-" + l;
+    root.className = "cut layout-" + l + (tab === "revisions" ? " revision-list" : "");
     $$("[data-lay]", area).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lay === l)));
     if (l === "sound" && (tab === "shots" || tab === "notes")) { tab = allMarks().some((m) => m.kind === "listen") ? "listen" : "script"; renderTabs(); renderList(); }
     setTimeout(() => { fit(); draw(); }, 0);
@@ -1402,7 +1549,7 @@ function CutModule(area) {
   screen.addEventListener("click", (e) => { if (!e.target.closest(".wipe-line")) toggle(); });
 
   const keys = (e) => {
-    if (e.defaultPrevented || MOD !== "cut" || typing() || e.metaKey || e.ctrlKey || e.altKey || !$("#search").hidden || !$("#confirm").hidden) return;
+    if (e.defaultPrevented || MOD !== "cut" || typing() || e.metaKey || e.ctrlKey || e.altKey || !$("#search").hidden || !$("#confirm").hidden || $(".revision-compare[open]")) return;
     const k = e.key;
     if (k === " ") { if (document.activeElement && /^(BUTTON|A|SUMMARY)$/.test(document.activeElement.tagName) && !document.activeElement.closest(".transport,.tl,.lists")) return; e.preventDefault(); spaceDown = true; toggle(); }
     else if (k === "ArrowLeft" || k === "ArrowRight") { if ((document.activeElement || {}).type === "radio") return; e.preventDefault(); if (e.shiftKey) nudge(k === "ArrowRight" ? 1 : -1); else jumpShot(k === "ArrowRight" ? 1 : -1); }
@@ -1434,7 +1581,7 @@ function CutModule(area) {
       if (target.startsWith("chapter:") || target.startsWith("seg:")) return pickThing(target);
       if (tt != null) select(t1 != null ? { kind: "range", t: tt, t1, label: `${fmt(tt)}–${fmt(t1)}` } : { kind: "time", t: tt, label: fmt(tt) });
     },
-    destroy() { document.removeEventListener("keydown", keys); document.removeEventListener("keyup", spaceUp); area.removeEventListener("click", eatClick, true); cancelAnimationFrame(raf); if (video) video.pause(); if (vb) vb.pause(); if (ro) ro.disconnect(); else window.removeEventListener("resize", fit); },
+    destroy() { if (closeRevision) closeRevision(); document.removeEventListener("keydown", keys); document.removeEventListener("keyup", spaceUp); area.removeEventListener("click", eatClick, true); cancelAnimationFrame(raf); if (video) video.pause(); if (vb) vb.pause(); if (ro) ro.disconnect(); else window.removeEventListener("resize", fit); },
   };
 }
 

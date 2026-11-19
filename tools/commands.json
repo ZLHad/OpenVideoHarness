@@ -1190,13 +1190,15 @@
         "<project>/out/review/feedback/<round>-<time>.json and .md",
         "<project>/REVIEW.md (a submission, as a dated section)",
         "<project>/out/review/feedback/.consumed (what an agent has been handed)",
+        "<project>/out/review/revisions/<id>.json (the comparison for one submitted comment)",
+        "<project>/out/review/revisions/media/ (copies of the two cuts, including sound)",
         "<project>/.ovh/agents/<id>.jsonl and .json (a conversation in the agent column: its events, appended)",
         "<project>/.ovh/agent.lock (while a turn of the column's agent runs)",
         "$OVH_AGENTS_DIR or $XDG_CACHE_HOME/ovh/agents/<kind>/ (desk agents install: the pinned adapter)"
       ],
       "usage": [
         {
-          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] [--print-address] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--print-address] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
+          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] [--print-address] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk revision <project> <feedback> --before VIDEO --after VIDEO [--item N] [--span START-END] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--print-address] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
           "text": [
             "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio's shell: modules on the left,",
             "the film's stops on top, on the right a conversation with an agent and what waits for the person. No project: the space,",
@@ -1204,6 +1206,7 @@
             "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
             "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
+            "revision: put one saved comment and the original and revised cuts in the Cut module's review list.",
             "The desk shows Studio's window itself: started in a terminal it does (--no-open: not); bin/vh studio does any other",
             "time, and a page that can only look has a button for it. Nothing it prints opens a page; --print-address writes an",
             "address with a one-time code (ten minutes, one page) to the terminal alone, for a browser on another machine",
@@ -1222,6 +1225,10 @@
         {
           "name": "feedback",
           "summary": "the latest submission"
+        },
+        {
+          "name": "revision",
+          "summary": "attach the before and after cuts to one submitted comment for Studio to review"
         },
         {
           "name": "agents",

@@ -1,0 +1,36 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/review-revision.schema.json",
+ "title": "A saved comment and the before and after cuts to review",
+ "type": "object",
+ "required": ["version", "id", "feedback", "item", "round", "target", "label", "text", "suggest", "span", "before", "after"],
+ "properties": {
+  "version": {"enum": [1]},
+  "id": {"type": "string"},
+  "feedback": {"type": "string"},
+  "item": {"type": "integer"},
+  "round": {"type": "string"},
+  "target": {"type": "string"},
+  "label": {"type": "string"},
+  "text": {"type": "string"},
+  "suggest": {"type": "string"},
+  "span": {"type": "array", "items": {"type": "number"}, "description": "Start and end on both cuts in seconds."},
+  "before": {"$ref": "#/$defs/cut"},
+  "after": {"$ref": "#/$defs/cut"}
+ },
+ "$defs": {
+  "cut": {
+   "type": "object",
+   "required": ["file", "source", "sha256", "size", "mtime_ns", "duration", "audio"],
+   "properties": {
+    "file": {"type": "string"},
+    "source": {"type": "string"},
+    "sha256": {"type": "string"},
+    "size": {"type": "integer"},
+    "mtime_ns": {"type": "string"},
+    "duration": {"type": "number"},
+    "audio": {"type": "boolean"}
+   }
+  }
+ }
+}

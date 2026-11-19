@@ -67,7 +67,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
 import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
-import feedback as F, reader   # noqa: E402,E401
+import feedback as F, reader, revisions as RV   # noqa: E402,E401
 from speccheck import output_blanks, spec_line   # noqa: E402
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -270,6 +270,8 @@ def renders(project):
     found = []
     for top in ("out", "renders", "media"):
         for p in P.videos_under(project / top, OUT_SKIP if top == "out" else ()):
+            if p.is_relative_to(project / RV.DIRECTORY):
+                continue
             try:
                 found.append((p, p.stat()))
             except OSError:   # gone since the listing
@@ -958,7 +960,8 @@ def collect(project, now=None, light=False):
     out = {"version": 1, "project": proj, "paused": paused, "waiting_on": waiting_on, "next": nxt, "stations": st,
            "stops": {"gates": plan["gates"], "checkpoints": plan["checkpoints"], "line": plan["line"], "costly": [c["say"] for c in plan["costly"]],
                      "kept": plan["kept"], "note": G.plan_note(plan)},
-           "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
+           "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk,
+                      "revisions": [] if light else RV.listing(project)},
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
@@ -1054,6 +1057,10 @@ def show(o, now):
               + (f" · {kept} kept" if kept else "") + " (bin/vh versions)")
     elif vs.get("error"):
         print(f"versions: {vs['error']}")
+    rv = o["review"].get("revisions") or []
+    if rv:
+        pending = sum(r["state"] == "pending" and r["available"] for r in rv)
+        print(f"revisions: {pending} awaiting review · {len(rv)} recorded (Studio → cut → revisions)")
     for r in o["activity"]["running"]:
         pr = r.get("progress") or {}
         print(f"running: {r['cmd']} {' '.join(str(x) for x in r['args'][1:4])}".rstrip()

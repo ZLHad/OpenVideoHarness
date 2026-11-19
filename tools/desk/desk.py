@@ -22,6 +22,8 @@ comments and submits.
                                                 came in before it was armed, and was never handed over, is printed at once.
   bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none); it then
                                                 counts as handed over (out/review/feedback/.consumed)
+  bin/vh desk revision <project> <feedback> --before VIDEO --after VIDEO [--item N] [--span START-END] [--json]
+                                                attach two cuts and a span to one submitted comment for Studio
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
   bin/vh desk link [<project>] [--root DIR …] [--force] [--print-address]   start it again: the desk serving this
                                                 project (or the console of these roots) stops and starts again in the
@@ -66,7 +68,7 @@ def main(argv):
         return agents_cmd(argv[1:])
     if argv and argv[0] == "link":
         return link_cmd(argv[1:])
-    sub = argv[0] if argv and argv[0] in ("wait", "feedback", "data") else "serve"
+    sub = argv[0] if argv and argv[0] in ("wait", "feedback", "revision", "data") else "serve"
     rest = argv[1:] if sub != "serve" else argv
     ap = argparse.ArgumentParser(prog="bin/vh desk" + ("" if sub == "serve" else " " + sub),
                                  description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -93,6 +95,14 @@ def main(argv):
     elif sub == "feedback":
         ap.add_argument("--round", help="only this gate page (1, 2b, E3 …)")
         ap.add_argument("--json", action="store_true", help="print the JSON record instead of the text")
+    elif sub == "revision":
+        ap.add_argument("feedback", help="the submission filename shown by bin/vh desk feedback, with or without .json")
+        ap.add_argument("--item", type=int, default=1, help="one-based position in the submission's items (default: 1)")
+        ap.add_argument("--before", required=True, help="the film the reviewer commented on, relative to the project or absolute")
+        ap.add_argument("--after", required=True, help="the revised film, relative to the project or absolute")
+        ap.add_argument("--span", metavar="START-END", help="same seconds in both cuts; by default the annotated range, the original "
+                                                            "render's shot interval, or the earlier comparison's interval")
+        ap.add_argument("--json", action="store_true", help="the saved record (id, feedback, item, target, span, before and after)")
     else:
         jsonerr.force()   # bin/vh desk data speaks JSON: a failure too
         ap.add_argument("--json", action="store_true", help="it always is (a client may say so)")
@@ -121,6 +131,20 @@ def main(argv):
     if not project:
         jsonerr.mark("no_project")
         return 2
+    if sub == "revision":
+        import revisions
+        try:
+            record = revisions.publish(project, a.feedback, a.item, a.before, a.after, a.span)
+        except ValueError as e:
+            return jsonerr.fail("invalid", str(e), rc=1)
+        except OSError as e:
+            return jsonerr.fail("failed", str(e), rc=1)
+        if a.json:
+            print(json.dumps(record, ensure_ascii=False, indent=1))
+        else:
+            print(f"revision: {record['target']} · {record['span'][0]:g}–{record['span'][1]:g} s · "
+                  f"out/review/revisions/{record['id']}.json (Studio → cut → revisions)")
+        return 0
     import feedback as F
     if sub == "wait":
         return F.wait(project, a.timeout)

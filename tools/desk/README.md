@@ -62,7 +62,7 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 
 ## 控制台：Studio 的外壳
 
-`bin/vh desk` 打开的是 Studio（`docs/proposals/02-studio-client.md`）的外壳。右栏能直接和本机的 agent 说话（见下面的"agent 那一列"）；计划卡、结果卡、两版对比、按次退回这一版还没有，位置留着。
+`bin/vh desk` 打开的是 Studio（`docs/proposals/02-studio-client.md`）的外壳。右栏能直接和本机的 agent 说话（见下面的"agent 那一列"）。成片模块的「复审」从提交的意见打开两版成片。
 
 - **外壳**：左边一列模块（空间、立意、大纲、分镜、声音、成片、交付、素材、账本；有一站在等人时，它的模块亮一个琥珀点）。顶上一条流程：立意 ① · 大纲 ① · 分镜 ② · 声音 · 成片 ③ · 交付，每一站的灯取这支片子自己的停（`bin/vh status` 的 stations）：过了是绿，等你是琥珀，agent 在做是紫（只在它真的在做时：这支片子里有 `bin/vh` 命令在跑，或者右栏这一轮正在进行；轮到它、但这会儿没人在做的一站是灰的"还没定"），还没到是灰，这支片子不在这一站停是一个空心的点。右边一整列见下面。
 - **空间**（`#/`）：一张卡一支片，等人的在前，卡上写等人定什么；鼠标停在卡上，卡上的片子静音播 4 秒。卡上的画面按这个顺序取：等人时取这一轮要人看的（第一张立意卡的帧，没有就是它的片子、第一张图、第一个关键帧）；不等人时取封面（`out/final/covers/`、`out/final/cover*`、`out/review/cover*`），没有就是当前成片的中间一帧（浏览器自己从视频里取，服务不跑 ffmpeg），再没有是分镜关键帧，最后是 `out/review/`、`out/check/`、`out/frames/` 里最新的一张图。
@@ -393,6 +393,14 @@ JSON 的格式：
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，几条命令同时写也不会把行写乱：`bin/vh` 写的不超过 1 KiB（bash 的 printf 会把更长的一行拆成 1024 字节一段段写），Python、Node 写的不超过 4 KiB；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
 
 `--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`、`error`（为什么失败，工具说得出时是 `{"code", "message"}`，否则 `null`）、`cancelled`（`bin/vh cancel` 停的）、`kept`（留了什么可以接着做，否则 `null`）。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
+
+### 复审修改
+
+用 `bin/vh desk feedback` 找到提交的反馈文件名。留好人点评的原成片，改完并检查后，用 `bin/vh desk revision` 把反馈中的一条和两版成片一起发去复审（参数见 `bin/vh desk revision -h`）。选有声的成片文件，已经合好的旁白、音乐和画面就能一起对照。对照使用两版上同一段时间。反馈圈了范围，或原版渲染记录里有这个镜头的起止时，就沿用它。其他情况在发对照时指定起止。
+
+Studio 的「成片 → 复审」显示原意见、时间范围和答复状态。打开卡片，两版一起定位、播放，可选听哪版。复审通过或写一句要求再改，和其他反馈一样进 `out/review/feedback/` 和 `REVIEW.md`，标的是这次对照。终端用 `bin/vh desk feedback` 查看回复。
+
+比较记录是 `out/review/revisions/<id>.json`，`bin/vh status --json` 的 `review.revisions` 带上每条的答复和文件状态。两版成片存完整副本，按内容摘要复用。以后重渲染同名文件，已提交复审的一对仍能播放。`bin/vh clean` 会保留复审记录与副本。
 
 ### 版本：`bin/vh versions <项目> [--json]`
 
