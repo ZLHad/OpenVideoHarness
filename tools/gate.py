@@ -205,7 +205,7 @@ STUDIO_OPEN = "and Studio is open"
 def page_reason(why):
     """Why a standard film's stop went out as the page, in the words of where it came from (never a reason that is not it)."""
     if "could not take" in why:
-        return "Studio could not take this film"
+        return "Studio closed meanwhile" if "closed meanwhile" in why else "Studio could not take this film"
     if os.environ.get("OVH_GATE_STUDIO") == "0":
         return "this run does not look for Studio (OVH_GATE_STUDIO=0)"
     return "Studio is not open"
