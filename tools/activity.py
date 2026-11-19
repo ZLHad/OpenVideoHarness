@@ -404,24 +404,123 @@ def read(project, tail=TAIL):
     return out
 
 
-def _alive(pid):
+def _alive(pid, since=None):
+    """Is process pid there, and (since: when the record of it was written) is it the one that was? A pid that a process
+    started later has taken is not (its start, to the second, after since)."""
     try:
         if int(pid) <= 0:   # (to kill(2), a process group)
             return False
         os.kill(int(pid), 0)
     except PermissionError:
-        return True
+        pass
     except (OSError, ValueError, TypeError, OverflowError):
         return False
+    if since:
+        t0 = started(pid)
+        try:
+            if t0 is not None and t0 > float(since) + 3:   # ps gives whole seconds
+                return False
+        except (TypeError, ValueError):
+            pass
     return True
 
 
-def runs(records, now=None):
+def started(pid):
+    """When process pid started, as epoch seconds (now less ps's etime: no time zone in it), or None when that cannot be told."""
+    try:
+        out = subprocess.run(["ps", "-o", "etime=", "-p", str(int(pid))], capture_output=True, text=True, timeout=5,
+                             env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
+        return elapsed_start(out)
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+        return None
+
+
+def elapsed_start(etime, now=None):
+    """ps's etime ([[dd-]hh:]mm:ss) as the epoch second the process started, or None."""
+    m = re.fullmatch(r"(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)", (etime or "").strip())
+    if not m:
+        return None
+    d, h, mi, s = (int(x or 0) for x in m.groups())
+    return float(int((time.time() if now is None else now) - (((d * 24 + h) * 60 + mi) * 60 + s)))
+
+
+def lstart(text):
+    """ps's lstart ("Thu Nov 19 21:14:32 2026") as epoch seconds, or None."""
+    try:
+        return time.mktime(time.strptime(" ".join(str(text).split()), "%a %b %d %H:%M:%S %Y")) if text else None
+    except (ValueError, OverflowError):
+        return None
+
+
+AGENT_PROGRAMS = re.compile(r"^(claude|codex|dsh|opencode|gemini|aider|cursor-agent|goose|amp|qwen)$")   # agentlock's list: whole names (lower case: not a desktop app)
+RUNTIMES = ("node", "bun", "deno", "python", "python3")
+
+
+def _ps(pid, fields):
+    try:
+        return subprocess.run(["ps", "-o", fields, "-p", str(pid)], capture_output=True, text=True, timeout=5,
+                              env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def agent_of(pid):
+    """The nearest ancestor of process pid that is an agent program (claude, codex …, or a runtime running one): {pid,
+    start} with ps's lstart, or None (none, no ps, or OVH_ACTIVITY_AGENT=0). What bin/vh's act_agent records for a run,
+    done from Python."""
+    if os.environ.get("OVH_ACTIVITY_AGENT") == "0":
+        return None
+    try:
+        p, steps = int(pid), 0
+    except (TypeError, ValueError):
+        return None
+    while p > 1 and steps < 16:
+        out = _ps(p, "ppid=,comm=").split(None, 1)   # comm: the program's path, which may hold spaces
+        if len(out) < 2 or not out[0].isdigit():
+            return None
+        name = os.path.basename(out[1])
+        if name in RUNTIMES:
+            name = next((os.path.basename(w) for w in _ps(p, "command=").split() if AGENT_PROGRAMS.match(os.path.basename(w))), name)
+        if steps and AGENT_PROGRAMS.match(name):
+            t = started(p)
+            return {"pid": p, "start": int(t) if t is not None else None}
+        p, steps = int(out[0]), steps + 1
+    return None
+
+
+def agent_alive(agent):
+    """An agent program a run or a wait recorded ({pid, start}: epoch seconds; older records: ps's lstart text) is alive now
+    and is that very process. When its start cannot be read (no ps), it is not taken for the same process."""
+    if not isinstance(agent, dict) or not _alive(agent.get("pid")):
+        return False
+    t = agent.get("start")
+    t = float(t) if isinstance(t, (int, float)) and not isinstance(t, bool) else lstart(t)
+    now_t = started(agent.get("pid"))
+    return t is not None and now_t is not None and abs(now_t - t) <= 3
+
+
+def agent_work(agent):
+    """The film an agent program last ran a bin/vh command on ({XDG_CACHE_HOME}/ovh/agent-work/<pid>.json, written by bin/vh
+    with the start time it knows the agent by), or None."""
+    try:
+        d = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "agent-work"
+        j = json.loads((d / f"{int(agent['pid'])}.json").read_text(encoding="utf-8"))
+        if abs(float(j.get("start")) - float(agent.get("start"))) <= 3:
+            return j.get("project")
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        pass
+    return None
+
+
+def runs(records, now=None, same_process=True):
     """(runs, events): the records grouped by run, in the order they began (the log's own order), and the records
     outside any run. A run: {run, cmd, args, cwd, pid, parent, start, end, exit, duration, state, summary, outputs,
-    progress, error, cancelled, kept}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its
+    progress, error, cancelled, kept, agent}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its
     process is gone, or bin/vh cancel found its pid is another process now); error is why it failed, when the tool could say:
-    {code, message} (a note with level error), else null; cancelled: bin/vh cancel stopped it; kept: what it kept for a resume."""
+    {code, message} (a note with level error), else null; cancelled: bin/vh cancel stopped it; kept: what it kept for a resume;
+    agent: the agent program bin/vh found it was started under ({pid, start}), else null. same_process: a pid that a process
+    started later has taken reads as gone (its start time, by ps); False leaves that to the caller (bin/vh cancel tells the
+    person which it is)."""
     now = time.time() if now is None else now
     by, events, gone = {}, [], set()   # a dict keeps the order runs first appear in
     for r in records:
@@ -433,10 +532,11 @@ def runs(records, now=None):
         if run is None:
             run = by[rid] = {"run": rid, "cmd": r.get("cmd") or "", "args": [], "cwd": None, "pid": None, "parent": None,
                              "start": None, "end": None, "exit": None, "duration": None, "state": None, "summary": None,
-                             "outputs": [], "progress": None, "error": None, "cancelled": False, "kept": None}
+                             "outputs": [], "progress": None, "error": None, "cancelled": False, "kept": None, "agent": None}
         if ev == "start":
             run.update(cmd=r.get("cmd") or run["cmd"], args=r.get("args") if isinstance(r.get("args"), list) else [],
-                       cwd=r.get("cwd"), pid=r.get("pid"), parent=r.get("parent"), start=r["t"])
+                       cwd=r.get("cwd"), pid=r.get("pid"), parent=r.get("parent"), start=r["t"],
+                       agent=r["agent"] if isinstance(r.get("agent"), dict) else None)
         elif ev == "end":
             run.update(end=r["t"], exit=r.get("exit"), duration=r.get("duration"), cancelled=r.get("cancelled") is True)
             if r.get("summary"):
@@ -457,7 +557,7 @@ def runs(records, now=None):
     for run in out:
         if run["end"] is not None:
             run["state"] = "ok" if run["exit"] == 0 else "failed"
-        elif run["pid"] and run["run"] not in gone and _alive(run["pid"]) and (run["start"] or 0) > now - RUNNING_FOR:
+        elif run["pid"] and run["run"] not in gone and _alive(run["pid"], run["start"] if same_process else None) and (run["start"] or 0) > now - RUNNING_FOR:
             run["state"] = "running"
         else:
             run["state"] = "gone"

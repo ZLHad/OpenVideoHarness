@@ -163,6 +163,17 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-head .state.wait{color:var(--wait)}.col-head .state.wait i{background:var(--wait)}
 .col-head .state.agent{color:var(--agent)}.col-head .state.agent i{background:var(--agent)}
 .col-fold{border:0;background:none;color:var(--ink-3);cursor:pointer;padding:0 0 0 6px;font-size:var(--fs-small)}
+/* where the film stands now, above both tabs of the column: bin/vh status's sentence, the one action, the film's plan */
+.col-now{padding:10px 16px 11px;border-bottom:1px solid var(--rule);display:grid;gap:8px}
+.col-now[hidden]{display:none}
+.col-now .now-say{margin:0;display:flex;gap:8px;align-items:baseline;font-size:var(--fs-small);line-height:1.5;color:var(--ink-hi);font-weight:500}
+.col-now .now-say i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--rule-2);transform:translateY(-1px)}
+.col-now.you .now-say i{background:var(--wait)}.col-now.agent .now-say i{background:var(--agent)}
+.col-now .now-more{margin:-4px 0 0;padding-left:14px;font-size:var(--fs-label);line-height:1.5;color:var(--ink-2)}
+.col-now .now-more a{color:inherit;text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:2px;overflow-wrap:anywhere}
+.col-now .now-act{display:flex;gap:8px;padding-left:14px}
+.col-now .now-act .now-second{padding-left:0;color:var(--ink-3);text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:2px}
+.col-now .now-plan{margin:0;padding-left:14px;font-size:var(--fs-label);color:var(--ink-3)}
 .col-body{flex:1;overflow:auto;padding:14px 16px;display:grid;gap:16px;align-content:start}
 .col-body .blk-h{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;font-size:var(--fs-label);color:var(--ink-3);letter-spacing:var(--label-track);text-transform:var(--label-case)}
 .col-body .blk-h b{font-weight:600;color:var(--ink-2)}

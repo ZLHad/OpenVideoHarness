@@ -411,6 +411,42 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   done
 }
 act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"; }   # act_start <command> <args…>
+act_agent() { # ACT_AGENT: the nearest ancestor that is an agent program (claude, codex …, or node/bun running one), as
+  # ,"agent":{"pid":…,"start":<epoch seconds>}; nothing when there is none or no ps (ACT_AGENT_PID, ACT_AGENT_START too).
+  # Studio reads it: while that agent lives, the film has an agent open on it (tools/standing.py). A few ps calls, only for
+  # a run no other bin/vh started
+  ACT_AGENT="" ACT_AGENT_PID="" ACT_AGENT_START=""
+  [ "${OVH_ACTIVITY_AGENT:-1}" != 0 ] || return 0   # 0: do not look (checks that need runs with no agent of their own)
+  command -v ps >/dev/null 2>&1 || return 0
+  local p=$PPID i=0 pp c b e d=0 h m s w re='^(claude|codex|dsh|opencode|gemini|aider|cursor-agent|goose|amp|qwen)$'
+  while [ "${p:-0}" -gt 1 ] 2>/dev/null && [ $i -lt 12 ]; do
+    read -r pp c <<EOF_PS
+$(LC_ALL=C ps -o ppid= -o comm= -p "$p" 2>/dev/null)
+EOF_PS
+    case $pp in ""|*[!0-9]*) return 0 ;; esac
+    b=${c##*/}   # the program (its path may hold spaces); a runtime: the script it runs
+    case $b in node|bun|deno|python|python3) for w in $(LC_ALL=C ps -o command= -p "$p" 2>/dev/null); do [[ ${w##*/} =~ $re ]] && { b=${w##*/}; break; }; done ;; esac
+    if [[ $b =~ $re ]]; then   # its start as epoch seconds: now less its elapsed time ([[dd-]hh:]mm:ss), no time zone in it
+      e=$(LC_ALL=C ps -o etime= -p "$p" 2>/dev/null); e=${e// /}
+      case $e in *-*) d=${e%%-*}; e=${e#*-} ;; esac
+      IFS=: read -r h m s <<EOF_T
+$e
+EOF_T
+      [ -n "$s" ] || { s=$m; m=$h; h=0; }
+      case "$d$h$m$s" in ""|*[!0-9]*) return 0 ;; esac
+      act_now; ACT_AGENT_START=$(( ${ACT_NOW%.*} - (((10#$d * 24 + 10#$h) * 60 + 10#$m) * 60 + 10#$s) ))
+      ACT_AGENT_PID=$p ACT_AGENT=",\"agent\":{\"pid\":$p,\"start\":$ACT_AGENT_START}"; return 0
+    fi
+    p=$pp; i=$((i + 1))
+  done
+}
+act_agent_work() { # the film this agent last ran a command on (tools/activity.py's agent_work): one small file a program, replaced whole
+  [ -n "${ACT_AGENT_PID:-}" ] && [ -n "${1:-}" ] || return 0
+  local w="${XDG_CACHE_HOME:-$HOME/.cache}/ovh/agent-work"
+  { [ -d "$w" ] || mkdir -p "$w"; } 2>/dev/null || return 0
+  printf '{"start":%s%s,"t":%s}\n' "$ACT_AGENT_START" "$1" "$ACT_T0" > "$w/$ACT_AGENT_PID.json.$$" 2>/dev/null && mv -f "$w/$ACT_AGENT_PID.json.$$" "$w/$ACT_AGENT_PID.json" 2>/dev/null
+  return 0
+}
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
   # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
   # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone (bin/vh cancel writes it)
@@ -431,14 +467,16 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
     if [ $n -gt 24 ] || [ $len -gt 480 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 1 KiB)
     args="$args${args:+,}$ACT_S"
   done
-  case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another
+  ACT_AGENT="" ACT_AGENT_PID="" ACT_AGENT_START=""; case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) act_agent ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another; else the agent it runs under
   act_str "$cmd"; c=$ACT_S
   a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
   [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)
-  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
+  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real$ACT_AGENT}"
   act_bytes "$line"
+  [ "$ACT_B" -lt 1000 ] || { line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"; act_bytes "$line"; }   # the agent gives way first
   [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
   act_line "$line"
+  act_agent_work "$real"
   export OVH_ACTIVITY_LOG="$ACT_LOG" OVH_ACTIVITY_RUN="$ACT_RUN" OVH_ACTIVITY_PID=$$ OVH_ACTIVITY_T0="$ACT_T0" OVH_ACTIVITY_CMD="$cmd"
   trap ctrl_c_exit INT; vh_trap
 }

@@ -126,12 +126,15 @@ function typeWords(ty) {   // a film's kind by its name in this page's language 
   const x = String(ty || "").trim().toLowerCase(), m = x.match(/^(\d\d)\b/), k = m ? m[1] : TYPE_KEYS[x];
   return k && TYPE_WORDS[k] ? TYPE_WORDS[k][LANG === "zh" ? 0 : 1] : "";
 }
-function lampOf(r) {   // violet only for what is running now (bin/vh status's activity), not for every film the agent could pick up
-  return r.state === "waiting_person" ? "wait" : (r.running || []).length ? "agent" : r.state === "delivered" ? "done" : "";
+function lampOf(r) {   // violet only for what is running now (bin/vh status's activity), not for every film the agent could pick up; amber for a film whose next move is yours
+  const you = (r.now || {}).you;   // amber: it waits for the person, or needs a word from them
+  return r.state === "waiting_person" || ((you === "decide" || you === "nudge") && !(r.running || []).length) ? "wait" : (r.running || []).length ? "agent" : r.state === "delivered" ? "done" : "";
 }
 function stopOf(r) { return r.station ? (L.stn[r.station.id] || r.station.name || "") : ""; }
 function filmName(r) { return r.title && r.title !== r.name ? r.title : String(r.name || "").replace(/^\d{4}-\d{2}-\d{2}-/, ""); }   // a film with no title of its own: its folder, without the date in front
-function stateWords(r) {   // where a film is, in words: 初版 · 等你看, 大纲 · 在做, 正在渲染, 已交付 10-23
+function stateWords(r) {   // where a film is, in words: 初版 · 等你看, 正在渲染，340 / 900 帧, 停下了, 已交付 10-23 (bin/vh status's now, tools/standing.py)
+  const sh = r.now && r.now.short && r.now.short[LANG === "zh" ? "zh" : "en"];
+  if (sh && r.now.code !== "delivered") return sh;
   if ((r.running || []).length && r.state !== "waiting_person") return cmdWords(r.running[0]);
   if (r.state === "delivered") return r.delivered ? t("f_delivered_d", { d: shortDate(r.delivered) }) : t("st_delivered");
   const s = stopOf(r), st = t("st_" + (r.state || "not_started"));
@@ -239,6 +242,7 @@ function hoverClips(root) {   // a film's card plays 4 s of it, muted, while the
   });
 }
 function spaceColumn() {   // the column is where you talk to the agent: on the space, the sentence that starts a new film, and its conversation
+  $("#colNow").hidden = true;
   $("#colRound").hidden = true; $("#composer").hidden = true; $("#confirm").hidden = true;
   $("#colHead").innerHTML = ""; $("#colBody").innerHTML = "";
   AGENT.enter(SPACE);   // the same column as a film's (agent.js), one step earlier: once the agent makes the film, it goes there
@@ -363,20 +367,42 @@ function renderColumn() {
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
   const home = GATE_MOD[gateBase(ROUND.id)] || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
-  const decs = g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t("away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
+  const hd = handedNow(), H = hd && !REHAND[KEY];   // this stop's notes were handed over: what went, not the cards as if nothing had
+  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t("away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
     : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
-  const sent = FB.sent ? t("sent_n", { n: FB.sent.n, d: FB.sent.d, at: FB.sent.at }) : FB.submittedAt ? t("submitted", { at: FB.submittedAt }) : "";   // what went, and that it does not go again
+  const sent = H ? "" : FB.sent ? t("sent_n", { n: FB.sent.n, d: FB.sent.d, at: FB.sent.at }) : FB.submittedAt ? t("submitted", { at: FB.submittedAt }) : "";   // what went, and that it does not go again
   $("#colBody").innerHTML = `${sent ? `<p class="notice">${esc(sent)}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="colNext"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
-  renderMarks(); renderMine(); renderNext(); renderRound(); syncPhoneDec();
+  renderMarks(); renderMine(); renderNext(); renderNow(); renderRound(); syncPhoneDec();
   if (!$("#composer").dataset.ready) buildComposer();
   $("#composer").hidden = false;
   AGENT.enter(PKEY);   // the column's other tab: the conversation with the agent on this film (agent.js)
 }
+const REHAND = {};   // a stop whose handed-over notes the person chose to change: its cards again
+function handedNow() {   // the newest submission for this round's stop, once it went to the agent's side (the stop waits for the agent)
+  if (!D || !ROUND || ROUND.id === "notes" || roundState() !== "waiting_agent") return null;
+  const L2 = (D.feedback || []).filter((f) => f.round === ROUND.id);
+  return L2.length ? L2[L2.length - 1] : null;
+}
+function handedHtml(f) {   // each decision as it went, the notes, when; and the way to change them and hand over again
+  const D2 = ROUND.data.decisions || [];
+  const dec = Object.entries(f.decisions || {}).map(([k, v]) => { const q = D2.find((x) => x.id === k) || {}, o = (q.options || []).find((x) => (x.id || x) === v);
+    const said = o ? (typeof o === "string" ? o : o.label || o.title || t("handed_opt")) : t("handed_gone");   // an option by its words, never its code
+    return `<li><span class="mono tc">·</span><span><b>${esc(cut(q.question || t("handed_q"), 40))}</b> ${esc(said)}</span></li>`; });
+  const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
+  const notes = (f.items || []).map((i) => `<li><span class="mono tc">·</span><span><b>${esc(cut(i.label || i.target || "", 40))}</b> ${esc(i.text || st[i.status] || "")}</span></li>`);
+  const gen = f.general ? [`<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(f.general)}</span></li>`] : [];
+  const at = f.submitted_at ? new Date(f.submitted_at).toLocaleString(LANG === "zh" ? "zh-CN" : "en", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const all = dec.concat(notes, gen);
+  return `<section class="c-handed"><h3 class="blk-h"><b>${esc(t("c_handed"))}</b>${at && at !== "Invalid Date" ? `<span class="tag">${esc(at)}</span>` : ""}</h3>`
+    + (all.length ? `<ul class="note-list">${all.join("")}</ul>` : `<p class="next quiet-line">${esc(t("handed_none"))}</p>`)
+    + `<button type="button" class="btn xs" id="reHand">${esc(t("rehand"))}</button></section>`;
+}
+$("#colBody").addEventListener("click", (e) => { if (e.target.closest("#reHand")) { REHAND[KEY] = true; renderColumn(); } });
 function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then the column: a bar above the picture goes to the decisions
   const pd = $("#phoneDec"); if (!pd || !D) return;
   const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = GATE_MOD[gateBase(ROUND.id)] || "cut";
@@ -434,10 +460,38 @@ function renderNext() {   // what happens next, in a line: who, and what (status
   const said = statusWords(ns.do || ""), cmds = [shortPath(ns.do || "")].concat((ns.commands || []).map(shortPath)).filter(Boolean).join("\n");   // the tooltip: status's own line and its commands
   const wait = stations().find((s) => s.state === "waiting_person"), words = who === "person" ? (wait ? t("next_you", { s: gateName(wait.id) }) : t("next_you0")) : t("next_agent");
   const said_here = who === "person" && $(".c-cards, .away", $("#colBody"));   // the cards above (or the line to them) and 交给 agent already say the person's next step
-  const next = ns.do && who !== "nobody" && !said_here ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next" title="${esc([said.text].concat(cmds ? [cmds] : []).join("\n"))}"><span class="who ${who}">${esc(t("who_" + who))}</span><span>${esc(words)}</span></p>` : "";
-  $("#colNext").innerHTML = (run.length ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li title="${esc(shortPath(x.cmd || x))}"><span class="mono tc" style="color:var(--agent)">●</span><span>${esc(cmdWords(x.cmd || x))}</span></li>`).join("")}</ul>` : "")
+  const next = ns.do && who !== "nobody" && !said_here && !(st.now && st.now.say) ? `<h3 class="blk-h"><b>${esc(t("c_next"))}</b></h3><p class="next" title="${esc([said.text].concat(cmds ? [cmds] : []).join("\n"))}"><span class="who ${who}">${esc(t("who_" + who))}</span><span>${esc(words)}</span></p>` : "";   // (a status without now: an older desk's line)
+  $("#colNext").innerHTML = (run.length > (st.now && st.now.say ? 1 : 0) ? `<h3 class="blk-h"><b>${esc(t("c_running"))}</b></h3><ul class="note-list">${run.map((x) => `<li title="${esc(shortPath(x.cmd || x))}"><span class="mono tc" style="color:var(--agent)">●</span><span>${esc(cmdWords(x.cmd || x))}</span></li>`).join("")}</ul>` : "")
     + next + (spent || (limit && limit !== "") ? `<h3 class="blk-h"><b>${esc(t("c_spend"))}</b></h3><p class="next">${esc([spent ? t("c_spent", { s: spent }) : "", limit ? t("c_of", { l: limit }) : ""].filter(Boolean).join(" · "))}</p>` : "");
 }
+function renderNow() {   // where this film stands, in bin/vh status's own sentence (tools/standing.py), the one thing to do, and the film's plan: above both tabs
+  const el = $("#colNow"), st = (D && D.status) || {}, n = st.now, plan = st.plan, L = LANG === "zh" ? "zh" : "en";
+  if (!el) return;
+  if (!PKEY) { el.hidden = true; el.innerHTML = ""; return; }
+  if (!n || !n.say) {   // the state could not be read just now: say so, rather than keep an old sentence on screen
+    if (!st || st.now === undefined) { el.hidden = true; el.innerHTML = ""; return; }
+    el.className = "col-now"; el.innerHTML = `<p class="now-say"><i aria-hidden="true"></i><span>${esc(t("now_unread"))}</span></p>`; el.dataset.html = ""; el.hidden = false; return;
+  }
+  const a = n.act || {}, mod = a.kind === "open" ? (a.mod || "cut") : "";
+  const armed = a.kind === "tell" && a.confirm && NOWARM === PKEY;   // an offer that asks once more: the first click arms it
+  const quiet = a.secondary && !armed, cls = quiet ? "btn btn-quiet xs now-second" : a.secondary ? "btn" : "btn btn-primary";   // a second line, or the one thing to do
+  const btn = a.kind === "tell" ? `<button type="button" class="${cls}" id="nowTell">${esc(armed ? t("now_sure") : a.label[L])}</button>${armed ? `<button type="button" class="btn btn-quiet xs" id="nowNot">${esc(t("cancel"))}</button>` : ""}`
+    : mod && mod !== MOD ? `<a class="btn" href="${projHash(PKEY, mod + (a.sub ? "/" + a.sub : ""))}">${esc(a.label[L])} →</a>` : "";   // already on that page: no button to it
+  const opens = (txt) => ((n.facts || {}).paths || []).reduce((h, p) => h.split(esc(p)).join(`<a href="/v/${enc(PKEY)}/${String(p).split("/").map(enc).join("/")}" target="_blank" rel="noopener">${esc(p)}</a>`), esc(txt));   // a file the words name opens
+  const html = `<p class="now-say"><i aria-hidden="true"></i><span>${esc(n.say[L])}</span></p>${n.more ? `<p class="now-more">${opens(n.more[L])}</p>` : ""}${armed ? `<p class="now-more">${esc(t("now_sure_note"))}</p>` : ""}${btn ? `<div class="now-act">${btn}</div>` : ""}${plan ? `<p class="now-plan">${esc(plan[L])}</p>` : ""}`;
+  el.className = "col-now" + (n.tone === "you" ? " you" : n.tone === "busy" ? " agent" : "");   // amber: the person's to do; violet: something works now
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  el.hidden = false;
+}
+let NOWARM = "";   // the film whose carry-on offer was clicked once (it asks again: something happened on the film lately)
+$("#colNow").addEventListener("click", (e) => {   // the one action that carries on: these words, said to the agent in this film's conversation (the person's click)
+  const n = D && D.status && D.status.now, a = n && n.act;
+  if (e.target.closest("#nowNot")) { NOWARM = ""; renderNow(); return; }
+  if (!e.target.closest("#nowTell") || !a || a.kind !== "tell") return;
+  if (a.confirm && NOWARM !== PKEY) { NOWARM = PKEY; renderNow(); return; }
+  NOWARM = ""; renderNow();
+  AGENT.tell(e, a.text[LANG === "zh" ? "zh" : "en"]);
+});
 function roundCounts() {   // {n, d, r}: notes to send, decisions the person picked and not sent yet, decisions left to the recommendation
   const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
   const d = Object.keys(ts.decisions).filter((k) => !ts.defaulted.includes(k)).length;
@@ -445,8 +499,9 @@ function roundCounts() {   // {n, d, r}: notes to send, decisions the person pic
 }
 function renderRound() {   // what the next submission would send, said plainly ("还没写意见 · 2 件按推荐"); nothing to send: the button rests
   const { n, d, r } = roundCounts();
-  const words = [n ? t("rs_notes", { n }) : t("rs_none")].concat(d ? [t("rs_picked", { d })] : [], r ? [t("rs_rec", { r })] : []).join(" · ");
-  const idle = !n && !d && !r;
+  const handed = handedNow() && !REHAND[KEY] && !n && !d;   // handed over and nothing new written: the bar says so, and rests
+  const words = handed ? t("rs_handed") : [n ? t("rs_notes", { n }) : t("rs_none")].concat(d ? [t("rs_picked", { d })] : [], r ? [t("rs_rec", { r })] : []).join(" · ");
+  const idle = handed || (!n && !d && !r);
   $("#colRound").hidden = false;
   $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(t("submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
@@ -605,7 +660,10 @@ async function submit() {
     return;
   }
   if (r && r.status === 409) { toast(t("moved")); $("#submitHint").textContent = t("moved"); return; }   // the address names another folder now
-  if (r) { let e = r.status; try { e = (await r.json()).error || e; } catch (x) { /* not JSON */ } toast(t("refused", { e })); return; }
+  if (r) {   // the server's reason is its own English: the page says what happened and the one thing to do, in the person's language
+    let why = ""; try { why = (await r.json()).reason || ""; } catch (x) { /* not JSON */ }
+    const k = "refused_" + (why || r.status), m = STR[LANG][k] ? t(k) : t("refused_any"); toast(m); const h = $("#submitHint"); if (h) h.textContent = m; return;
+  }
   copyText(text).then(() => toast(t("offline")), () => toast(t("offline2")));
   $("#confirm details").open = true;
 }
@@ -621,6 +679,10 @@ async function pollLive() {
   const r = await getJSON(`/api/p/${enc(PKEY)}/status`);
   const on = !!(r.ok && r.data && r.data.listening), el = $("#colHead .state");
   if (el) { el.classList.toggle("agent", on); el.hidden = !on; }
+  const mine = r.ok && r.data && r.data.key === PKEY, got = mine ? r.data.now || null : null;   // not answered, or its state unreadable: said as unknown
+  if (D && D.status && (mine || !r.ok) && JSON.stringify([got, mine ? r.data.plan : D.status.plan]) !== JSON.stringify([D.status.now, D.status.plan])) {
+    D.status.now = got; if (mine) D.status.plan = r.data.plan; renderNow();   // where it stands moved (a render's frames, the notes picked up)
+  }
   if (r.ok && r.data && D && r.data.round !== undefined && r.data.round !== (D.current || null) && r.data.key === PKEY) {   // the agent sent a new page
     toast(t("new_round", { g: r.data.round || "" }));
     await reloadProject(true);
@@ -1140,7 +1202,9 @@ function CutModule(area) {
     const cover = ((D.mods || {}).covers || []).find((c) => c.ratio && c.ratio >= 1) || ((D.mods || {}).covers || [])[0];
     const dl = (stations().find((x) => x.id === "deliver") || {}).delivered, shipped = filmDelivered();
     const gone = ST.film_missing || (shipped ? ((dl && (dl.films || [])[0]) || "out/final.mp4") : ""), pics = shots.some(shotPic) ? "frames" : gone && cover ? "cover" : ST.sheet ? "sheet" : "";   // a film gone: its cover stands for it better than a contact sheet
-    const say = pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics) : gone ? t("film_gone0") : t("no_film0");
+    const nw = (D.status || {}).now, NL = LANG === "zh" ? "zh" : "en";   // a film on its way says so here as in the column (bin/vh status's now)
+    const making = !gone && nw && (nw.facts || {}).cmd && (nw.code === "running" ? nw.say[NL] : nw.code === "notes_taken" && nw.more ? nw.more[NL] : "");   // a command at work, not a conversation
+    const say = making ? [making, pics ? t("look_" + pics) : ""].filter(Boolean).join(LANG === "zh" ? "" : " ") : pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics) : gone ? t("film_gone0") : t("no_film0");
     const tell = gone && !readOnly() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : "";
     frame.innerHTML = `<img id="cimg" alt=""${pics === "sheet" ? ` src="${esc(src(ST.sheet))}"` : pics === "cover" ? ` src="${esc(src(cover.path))}"` : ""}>${pics ? "" : `<p class="none" title="${esc(gone)}">${esc(say)}${tell}</p>`}<div class="safe" hidden></div>`;
     if (pics) screen.insertAdjacentHTML("beforeend", `<p class="screen-note" title="${esc(gone)}">${esc(say)}${tell}</p>`);
