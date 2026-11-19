@@ -418,7 +418,7 @@ def _alive(pid, since=None):
     if since:
         t0 = started(pid)
         try:
-            if t0 is not None and t0 > float(since) + 2:   # ps gives whole seconds
+            if t0 is not None and t0 > float(since) + 3:   # ps gives whole seconds
                 return False
         except (TypeError, ValueError):
             pass
@@ -426,13 +426,22 @@ def _alive(pid, since=None):
 
 
 def started(pid):
-    """When process pid started (epoch seconds, to the second), or None when that cannot be told (ps, LC_ALL=C)."""
+    """When process pid started, as epoch seconds (now less ps's etime: no time zone in it), or None when that cannot be told."""
     try:
-        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(pid))], capture_output=True, text=True, timeout=5,
+        out = subprocess.run(["ps", "-o", "etime=", "-p", str(int(pid))], capture_output=True, text=True, timeout=5,
                              env=dict(os.environ, LC_ALL="C", LANG="C")).stdout.strip()
-        return lstart(out)
+        return elapsed_start(out)
     except (OSError, ValueError, TypeError, subprocess.SubprocessError):
         return None
+
+
+def elapsed_start(etime, now=None):
+    """ps's etime ([[dd-]hh:]mm:ss) as the epoch second the process started, or None."""
+    m = re.fullmatch(r"(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)", (etime or "").strip())
+    if not m:
+        return None
+    d, h, mi, s = (int(x or 0) for x in m.groups())
+    return float(int((time.time() if now is None else now) - (((d * 24 + h) * 60 + mi) * 60 + s)))
 
 
 def lstart(text):
@@ -443,7 +452,7 @@ def lstart(text):
         return None
 
 
-AGENT_PROGRAMS = re.compile(r"^(claude|codex|dsh|opencode|gemini|aider|cursor-agent|goose|amp|qwen)([-.\w]*)$")   # agentlock's list (lower case: not a desktop app)
+AGENT_PROGRAMS = re.compile(r"^(claude|codex|dsh|opencode|gemini|aider|cursor-agent|goose|amp|qwen)$")   # agentlock's list: whole names (lower case: not a desktop app)
 RUNTIMES = ("node", "bun", "deno", "python", "python3")
 
 
@@ -466,27 +475,41 @@ def agent_of(pid):
     except (TypeError, ValueError):
         return None
     while p > 1 and steps < 16:
-        out = _ps(p, "ppid=,lstart=,comm=").split(None, 6)   # comm: the program's path, which may hold spaces
-        if len(out) < 7 or not out[0].isdigit():
+        out = _ps(p, "ppid=,comm=").split(None, 1)   # comm: the program's path, which may hold spaces
+        if len(out) < 2 or not out[0].isdigit():
             return None
-        name = os.path.basename(out[6])
+        name = os.path.basename(out[1])
         if name in RUNTIMES:
             name = next((os.path.basename(w) for w in _ps(p, "command=").split() if AGENT_PROGRAMS.match(os.path.basename(w))), name)
         if steps and AGENT_PROGRAMS.match(name):
-            return {"pid": p, "start": " ".join(out[1:6])}
+            t = started(p)
+            return {"pid": p, "start": int(t) if t is not None else None}
         p, steps = int(out[0]), steps + 1
     return None
 
 
 def agent_alive(agent):
-    """An agent program a run or a wait recorded ({pid, start}: ps's lstart) is alive now, the same process."""
-    if not isinstance(agent, dict):
+    """An agent program a run or a wait recorded ({pid, start}: epoch seconds; older records: ps's lstart text) is alive now
+    and is that very process. When its start cannot be read (no ps), it is not taken for the same process."""
+    if not isinstance(agent, dict) or not _alive(agent.get("pid")):
         return False
-    t = lstart(agent.get("start"))
-    if not _alive(agent.get("pid")):
-        return False
+    t = agent.get("start")
+    t = float(t) if isinstance(t, (int, float)) and not isinstance(t, bool) else lstart(t)
     now_t = started(agent.get("pid"))
-    return t is None or now_t is None or abs(now_t - t) <= 2
+    return t is not None and now_t is not None and abs(now_t - t) <= 3
+
+
+def agent_work(agent):
+    """The film an agent program last ran a bin/vh command on ({XDG_CACHE_HOME}/ovh/agent-work/<pid>.json, written by bin/vh
+    with the start time it knows the agent by), or None."""
+    try:
+        d = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "agent-work"
+        j = json.loads((d / f"{int(agent['pid'])}.json").read_text(encoding="utf-8"))
+        if abs(float(j.get("start")) - float(agent.get("start"))) <= 3:
+            return j.get("project")
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        pass
+    return None
 
 
 def runs(records, now=None, same_process=True):

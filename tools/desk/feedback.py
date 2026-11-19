@@ -365,8 +365,8 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
     timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
     feedback/.listening ({pid, since, until, project, agent}) so the desk can say an agent is waiting. agent: the agent
-    program it runs under (activity.agent_of), when there is one; once that agent is gone the wait ends (4): nobody would
-    read what it hands over."""
+    program it runs under (activity.agent_of), when there is one; once that agent is gone, or the wait's own parent is (it
+    was re-parented: whatever program started it ended), the wait ends (4): nobody would read what it hands over."""
     fdir = Path(project) / "out" / "review" / "feedback"
     flag = fdir / ".listening"
 
@@ -397,15 +397,17 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
         return 0
     start = time.time()
     agent = activity.agent_of(os.getpid())
+    parent = os.getppid()   # whatever program started it: a wait re-parented (its parent gone) has nobody to hand over to
     _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project)), "agent": agent}))
     looked = start
     while time.time() - start < timeout:
-        if agent and time.time() - looked >= 5:   # the agent it waits for went away: nobody would read what it hands over
-            looked = time.time()
-            if not activity.agent_alive(agent):
-                out.write("the agent this wait was for is gone; the wait ends (the notes stay in Studio)\n")
-                out.flush()
-                return done(4)
+        gone = os.getppid() != parent
+        if not gone and agent and time.time() - looked >= 5:   # (ps every 5 s at most)
+            looked, gone = time.time(), not activity.agent_alive(agent)
+        if gone:   # the agent it waits for, or whatever started it, went away: nobody would read what it hands over
+            out.write("the agent this wait was for is gone; the wait ends (the notes stay in Studio)\n")
+            out.flush()
+            return done(4)
         new = sorted(((f, j) for f, j in _records(project) if f.name not in seen), key=lambda x: _order(*x))
         if new:
             for f, j in new:

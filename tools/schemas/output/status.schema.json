@@ -294,7 +294,7 @@
      }
     },
     "cancelled": {"type": "boolean"},
-    "agent": {"description": "the agent program the run was started under, when bin/vh found one (pid, ps's lstart)", "type": ["object", "null"], "properties": {"pid": {"type": "integer"}, "start": {"type": "string"}}},
+    "agent": {"description": "the agent program the run was started under, when bin/vh found one (pid, its start in epoch seconds)", "type": ["object", "null"], "properties": {"pid": {"type": "integer"}, "start": {"description": "epoch seconds (older records: ps's lstart text)", "type": ["integer", "number", "string", "null"]}}},
     "kept": {"type": ["string", "null"]}
    }
   }

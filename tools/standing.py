@@ -33,7 +33,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 RECENT = 1800       # s: a sign of life this recent makes the offer to carry on ask once more
 NOT_SOURCE = {"out", "media", "renders", "node_modules", ".ovh", ".git", "__pycache__", "cache", ".cache"}
-NOT_AGENTS = {"REVIEW.md"}   # written by Studio for the person's own submission too: no sign of the agent
+NOT_AGENTS = {"REVIEW.md"}
+HEAVY = {"assets", "audio", "sound", "sounds", "sfx", "music", "footage", "frames", "images", "img", "photos", "video", "videos", "clips", "fonts"}
+BIG = 300            # entries: a folder this full is judged by its own time
+OPEN_FOR = 6 * 3600  # s: an agent program still running counts as open on a film it worked on within this, or on the film it worked on last   # written by Studio for the person's own submission too: no sign of the agent
 
 # ---------- the words: key → (zh, en); {x} are filled in ----------
 WORDS = {
@@ -81,6 +84,7 @@ WORDS = {
     "sign.talk": ("Studio 里的对话有新内容", "the Studio conversation moved on"),
     "sign.file": ("改了 {f}", "{f} changed"),
     "last": ("上一次动静：{a}前，{x}。", "Last sign of life: {a} ago, {x}."),
+    "last.partial": ("看到的最近一次动静：{a}前，{x}（文件很多，没有一一看过）。", "The latest sign of life seen: {a} ago, {x} (too many files to look through them all)."),
     "ago.now": ("不到 1 分钟", "under a minute"), "ago.min": ("{n} 分钟", "{n} min"), "ago.hour": ("{n} 小时", "{n} hour"),
     "ago.hours": ("{n} 小时", "{n} hours"), "ago.days": ("{n} 天", "{n} days"),
     # the sentences, a code each: its short sentence, the card's few words (.short)
@@ -94,7 +98,8 @@ WORDS = {
     "waiting_you.short": ("{s} · 等你{v}", "{s} · for you"),
     "notes_unheard": ("你的意见存好了，还没有 agent 来取。", "Your notes are saved; no agent has picked them up yet."),
     "notes_unheard.more": ("跟 agent 说一声，它就来取。", "Tell the agent and it will fetch them."),
-    "notes_unheard.busy": ("{x}还在跑，但你 {t} 交的这一份没人取。跟 agent 说一声。", "{X} still runs, but your notes of {t} have not been picked up. Tell the agent."),
+    "notes_unheard.busy": ("{x}还在跑（{p}），但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running ({p}), but nobody has picked up your notes of {t}. Tell the agent."),
+    "notes_unheard.busy0": ("{x}还在跑，但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running, but nobody has picked up your notes of {t}. Tell the agent."),
     "notes_unheard.short": ("意见还没人取", "notes not picked up yet"),
     "notes_sent": ("你的意见交出去了，等着的 agent 正在取。", "Your notes went to the agent that was waiting; it is picking them up."),
     "notes_sent.short": ("意见交出去了", "notes sent"),
@@ -110,6 +115,8 @@ WORDS = {
     "no_record.more": ("看不出它停在哪一站。", "Where it stopped cannot be told."), "no_record.short": ("没有审阅记录", "no review record"),
     "stopped": ("agent 停下了：{x}。", "The agent stopped: {x}."), "stopped.short": ("停下了", "stopped"),
     "stopped.since": ("{a}前，{x}，之后没有别的动静。", "{X} {a} ago, and nothing has happened since."),
+    "stopped.at": ("{a}前，{x}。", "{X} {a} ago."),
+    "agent_away": ("做过它的 agent 程序还开着，可能在忙别的片子。", "The agent program that worked on it is still open, and may be busy with another film."),
     "agent_open": ("现在没有命令在跑；上次做这支片子的 agent 还开着。", "No command runs now; the agent that last worked on this film is still open."),
     "agent_open.short": ("agent 开着", "an agent is open"),
     "idle": ("现在没有命令在跑。", "No command runs right now."), "idle.short": ("没有命令在跑", "nothing running"),
@@ -196,14 +203,16 @@ def doing(r):
 
 
 def ago(secs):
-    m = int(max(0, secs) // 60)
+    """A span, to the nearest whole minute, hour or day."""
+    m = max(0.0, secs) / 60
     if m < 1:
         return [w("ago.now", i) for i in (0, 1)]
-    if m < 60:
-        return [w("ago.min", i, n=m) for i in (0, 1)]
-    if m < 48 * 60:
-        return [w("ago.hour" if m < 120 else "ago.hours", i, n=m // 60) for i in (0, 1)]
-    return [w("ago.days", i, n=m // 1440) for i in (0, 1)]
+    if m < 59.5:
+        return [w("ago.min", i, n=int(round(m))) for i in (0, 1)]
+    if m < 47.5 * 60:
+        h = int(round(m / 60))
+        return [w("ago.hour" if h == 1 else "ago.hours", i, n=h) for i in (0, 1)]
+    return [w("ago.days", i, n=int(round(m / 1440))) for i in (0, 1)]
 
 
 def clock(t, now):
@@ -275,31 +284,53 @@ def listener(project):
         return False
 
 
-def newest_file(project, limit=3000):
-    """(mtime, path from the project) of the newest change among the film's own files (not out/, media/, renders/ …), or None."""
-    best, seen = None, 0
-    stack = [(Path(project), 0)]
-    while stack and seen < limit:
-        d, depth = stack.pop()
+def newest_file(project, limit=4000):
+    """(mtime, path from the project, whole) of the newest change among the film's own files, or None. Where source lives is
+    looked at first (the film's folder, then its folders breadth first, four deep); out/, media/, renders/ … are not its
+    source. A heavy folder (HEAVY by name, or one of more than BIG entries: assets, sound, frame sequences) is judged by its
+    own time (it changes when a file in it is added, removed or renamed), not file by file. whole: False when the walk was
+    cut short at limit entries, so something newer may be there unseen."""
+    best, seen, whole = None, 0, True
+    queue = [(Path(project), 0)]
+
+    def take(m, path):
+        nonlocal best
+        if best is None or m > best[0]:
+            best = (m, path)
+    while queue:
+        d, depth = queue.pop(0)
         try:
             it = list(os.scandir(d))
         except OSError:
             continue
+        if depth and len(it) > BIG:   # a frame sequence, a stock of clips: the folder's own time stands for it
+            try:
+                take(d.stat().st_mtime, os.path.relpath(d, project) + "/")
+            except OSError:
+                pass
+            continue
         for e in it:
+            if seen >= limit:
+                whole = False
+                break
             seen += 1
             if e.name.startswith("."):
                 continue
             try:
                 if e.is_dir(follow_symlinks=False):
-                    if depth < 3 and e.name not in NOT_SOURCE:
-                        stack.append((Path(e.path), depth + 1))
+                    if e.name in NOT_SOURCE:
+                        continue
+                    if e.name.lower() in HEAVY:
+                        take(e.stat(follow_symlinks=False).st_mtime, os.path.relpath(e.path, project) + "/")
+                    elif depth < 4:
+                        queue.append((Path(e.path), depth + 1))
                 elif e.is_file(follow_symlinks=False) and not (depth == 0 and e.name in NOT_AGENTS):
-                    m = e.stat(follow_symlinks=False).st_mtime
-                    if best is None or m > best[0]:
-                        best = (m, os.path.relpath(e.path, project))
+                    take(e.stat(follow_symlinks=False).st_mtime, os.path.relpath(e.path, project))
             except OSError:
                 continue
-    return best
+        if not whole:
+            break
+    return (best[0], best[1], whole) if best else None
 
 
 def subtitles(project, film):
@@ -340,7 +371,8 @@ def run_sign(r, o):
 
 
 def signs(project, o, talk, took):
-    """Every sign of life on the film the disk keeps, oldest first: [(t, [zh, en], kind, path, short [zh, en] or None)]."""
+    """Every sign of life on the film the disk keeps, oldest first: ([(t, [zh, en], kind, path, short [zh, en] or None)], whole);
+    whole: False when the look through the film's files was cut short (a newer change may be there unseen)."""
     act = o.get("activity") or {}
     out = []
     for r in (act.get("recent") or []) + (act.get("listening") or []):
@@ -366,12 +398,13 @@ def signs(project, o, talk, took):
     f = newest_file(project)
     if f:
         out.append((f[0], [w("sign.file", 0, f=f[1]), w("sign.file", 1, f=f[1])], "file", f[1], None))
-    return sorted(out, key=lambda x: x[0])
+    return sorted(out, key=lambda x: x[0]), bool(f is None or f[2])
 
 
-def open_agent(o):
-    """The agent program the newest recorded run was started under, while that very process lives: (when it last ran
-    something, its record), else None."""
+def open_agent(o, project, newest, now):
+    """The agent program the newest recorded run was started under, while that very process lives: ("here", record) when its
+    most recent recorded work is this film or this film's newest sign of life is within OPEN_FOR; ("elsewhere", record) when
+    it lives but works elsewhere (a long-lived program, such as the one behind Studio's column, that served many films); None."""
     act = o.get("activity") or {}
     runs = [r for r in (act.get("running") or []) + (act.get("listening") or []) + (act.get("recent") or []) if isinstance(r.get("agent"), dict)]
     if not runs:
@@ -379,7 +412,11 @@ def open_agent(o):
     r = max(runs, key=lambda x: x.get("end") or x.get("start") or 0)
     try:
         import activity
-        return (r.get("end") or r.get("start"), r["agent"]) if activity.agent_alive(r["agent"]) else None
+        if not activity.agent_alive(r["agent"]):
+            return None
+        last_film = activity.agent_work(r["agent"])
+        here = last_film == os.path.realpath(str(project)) or (newest is not None and now - newest < OPEN_FOR)
+        return ("here" if here else "elsewhere", r["agent"])
     except Exception:
         return None
 
@@ -452,8 +489,9 @@ def of(project, o, now=None):
             tl = clock((project / fb["last"]).stat().st_mtime, now)
         except (OSError, KeyError, TypeError):
             tl = clock(now, now)
-        x = doing(working[0]) if working else None
-        more = [two(w("notes_unheard.busy", 0, x=x[0], t=tl), w("notes_unheard.busy", 1, X=cap(x[1]), t=tl))] if x else [both("notes_unheard.more")]
+        c, pr = (cmd_words(working[0]), progress(working[0])) if working else (None, None)
+        more = [two(w("notes_unheard.busy", 0, x=c[0], p=pr[0], t=tl), w("notes_unheard.busy", 1, X=cap(c[2]), p=pr[1], t=tl)) if pr else
+                two(w("notes_unheard.busy0", 0, x=c[0], t=tl), w("notes_unheard.busy0", 1, X=cap(c[2]), t=tl))] if c else [both("notes_unheard.more")]
         return say("notes_unheard", who, "nudge", both("notes_unheard"), more, act=act_tell(both("act.fetch"), both("say.fetch")),
                    stop=nxt["id"], pending=fb["pending"])
     if fb.get("handed") and busy:   # an agent has the submission, and something works on this film now
@@ -496,20 +534,24 @@ def of(project, o, now=None):
     made = (o.get("media") or {}).get("film") or next((r["path"] for r in o.get("renders") or []), None)
     has = both("made", f=made) if made else None
     read = two(w("read_at", 0, t=clock(took, now)), w("read_at", 1, t=clock(took, now))) if took else None
-    seen_all = signs(project, o, talk, took)
+    seen_all, whole = signs(project, o, talk, took)
     last = seen_all[-1] if seen_all else None
     lastw = None
     if last:
         a = ago(now - last[0])
-        lastw = two(w("last", 0, a=a[0], x=last[1][0]), w("last", 1, a=a[1], x=last[1][1]))
+        k = "last" if whole else "last.partial"   # a look cut short says only what it saw
+        lastw = two(w(k, 0, a=a[0], x=last[1][0]), w(k, 1, a=a[1], x=last[1][1]))
     paths = [made] + [s[3] for s in seen_all[-1:] if s[3]]
-    agent = open_agent(o)
+    held = open_agent(o, project, last[0] if last else None, now)
+    agent = held if held and held[0] == "here" else None
+    away = both("agent_away") if held and held[0] == "elsewhere" else None   # the program lives, busy with another film perhaps
     recent = bool(last) and now - last[0] < RECENT
     carry = act_tell(both("act.carry"), both("say.carry"), confirm=recent, secondary=recent)   # something happened lately: an offer, said second
     if last and last[2] in ("gone", "talk_cancelled", "talk_error", "talk_cut") and not agent:   # it broke, and nothing came after
         a, why, short = ago(now - last[0]), last[1], last[4] or last[1]
+        k = "stopped.since" if whole else "stopped.at"   # "nothing since" only when every file was looked at
         return say("stopped", who, "nudge", two(w("stopped", 0, x=short[0]), w("stopped", 1, x=short[1])),
-                   [two(w("stopped.since", 0, a=a[0], x=why[0]), w("stopped.since", 1, a=a[1], X=cap(why[1]))), read, has, later],
+                   [two(w(k, 0, a=a[0], x=why[0]), w(k, 1, a=a[1], X=cap(why[1]))), read, has, later, away],
                    act=act_tell(both("act.carry"), two(w("say.stopped", 0, x=why[0]), w("say.stopped", 1, x=why[1]))), paths=paths)   # (it broke: nothing to ask twice)
     if agent:
         return say("agent_open", who, "offer", both("agent_open"), [lastw, read, later],
@@ -520,8 +562,8 @@ def of(project, o, now=None):
         return say("ship_missing", who, "none", two(w("ship_missing", 0, x=w(f"gap.{g}", 0)), w("ship_missing", 1, x=w(f"gap.{g}", 1))), [has, lastw],
                    act=act_open("cut", both("act.go_cut")) if g == "cut" else act_open("ship", both("act.go_ship"), "check"), paths=paths)
     if do.startswith("the engine's scaffold is not there") or "the engine is not installed yet" in do:
-        return say("setup", who, "offer", both("setup"), [both("setup.more"), lastw], act=carry, paths=paths)
-    return say("idle", who, "offer", both("idle"), [lastw, read, later, has], act=carry, paths=paths)
+        return say("setup", who, "offer", both("setup"), [both("setup.more"), lastw, away], act=carry, paths=paths)
+    return say("idle", who, "offer", both("idle"), [lastw, read, later, has, away], act=carry, paths=paths)
 
 
 def _seconds(out):
@@ -542,19 +584,19 @@ def _seconds(out):
 
 
 def _narration(lang_line):
-    """[zh, en] of the BRIEF's narration, when it says so plainly; else None (never guessed)."""
+    """[zh, en] of the BRIEF's narration: none when the value is, or begins with, a negative (about the narration itself:
+    "none (music only)", "无旁白"; not "TTS voice, no music"); a song when it is one; a voice when it names one; None when it
+    cannot be told (template, 待定, ?)."""
     m = re.search(r"narration:\s*([^{<|]+)", lang_line or "")
     v = m.group(1).strip().lower() if m else ""
-    if not v:
+    if not v or re.fullmatch(r"[?？]+|tbd|todo|unknown|未定|待定|不确定|看情况", v.rstrip("。.")):
         return None
-    if re.search(r"\b(none|no|without)\b|无|没有|不要", v):
+    if re.match(r"(none|no\b|without\b|无|没有|不要|不用|不配)", v):
         k = "plan.silent"
-    elif re.search(r"\bsong\b|歌", v):
+    elif re.match(r"(song|歌)", v):
         k = "plan.song"
-    elif re.search(r"\b(tts|voice|voice-over|voiceover|narrat\w*|recording|recorded)\b|旁白|配音|录音|人声", v):
-        k = "plan.narrated"
     else:
-        return None
+        k = "plan.narrated"
     return [w(k, 0), w(k, 1)]
 
 

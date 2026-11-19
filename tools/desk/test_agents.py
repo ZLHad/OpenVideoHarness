@@ -10,6 +10,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))
+if len(sys.argv) < 2 or sys.argv[1].startswith("-"):   # the scratch folder comes first: python3 tools/desk/test_agents.py <folder> [--only handoff|column]
+    sys.exit("usage: python3 tools/desk/test_agents.py <scratch folder> [--only handoff|column]")
 T = Path(sys.argv[1]).resolve()
 # a temp folder of these checks' own, for everything they start: a running Studio says where it is in the temp folder
 # (server._info_path), so no desk, gate or agent here finds the person's own Studio, run alone or under tools/ci.sh; the
@@ -1909,7 +1911,7 @@ def handoff_checks():
             "found_is_no_stop": [found["code"], found["who"], found["say"]["zh"], "出审阅页结束时报了问题" in found["more"]["zh"]],
             "later_ok": [ok_after["code"], "配音做完了" in ok_after["more"]["zh"]],
             "desk_is_no_work": [desk_after["code"], desk_after["say"]["en"]],
-            "pending_first": [pending_busy["code"], pending_busy["you"], pending_busy["more"]["zh"].startswith("渲染，340 / 900 帧还在跑")],
+            "pending_first": [pending_busy["code"], pending_busy["you"], pending_busy["more"]["zh"].startswith("渲染还在跑（340 / 900 帧），但你")],
             "taken": [taken["code"], taken["more"]["zh"], taken["tone"]],
             "unknown": [unknown["say"]["zh"], unknown["short"]["zh"]],
             "never_nobody": all("没有 agent 在做" not in json.dumps(x, ensure_ascii=False) for x in (gone, found, ok_after, one())),
@@ -1924,8 +1926,11 @@ def handoff_checks():
             "plan_music": standing.plan_line({"project": {"spec": {"Output": "1920x1080, 30 fps, 2 min 30 s", "Language": "zh, narration: none (music only)"}},
                                                "stops": {"gates": ["1", "3"], "checkpoints": ["E3"]}}),
             "plan_cn": standing.plan_line({"project": {"spec": {"Language": "zh, narration: 无旁白，只有音乐"}}, "stops": {"gates": []}}),
-            "plan_odd": standing.plan_line({"project": {"spec": {"Language": "en, narration: something odd"}}, "stops": {"gates": ["1", "2", "3"]}}),
+            "plan_odd": standing.plan_line({"project": {"spec": {"Language": "en, narration: 待定"}}, "stops": {"gates": ["1", "2", "3"]}}),
+            "plan_voice": [standing.plan_line({"project": {"spec": {"Language": "zh, narration: " + v}}, "stops": {"gates": ["1", "3"]}})["zh"].split("，")[0]
+                           for v in ("TTS voice, no music", "Charon, 不要背景音乐", "none (music only)")],
             "short": all(not any(x in json.dumps(y["short"]) for x in ("/", ".mp4", "bin/vh")) for y in (gone, found, taken, unknown)),
+            "ago": ["3 天", "2 小时"],
         }
         want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
                 "gone": ["stopped", "agent 停下了：渲染中断了。", "nudge", False],
@@ -1941,7 +1946,8 @@ def handoff_checks():
                 "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first cut"},
                 "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、锁时、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the timing lock, the first cut"},
                 "plan_cn": {"zh": "没有旁白，中间不停，做完给你看", "en": "No narration, no stops on the way: you see it finished"},
-                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first cut"}, "short": True}
+                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first cut"}, "short": True,
+                "plan_voice": ["有旁白", "有旁白", "没有旁白"], "ago": [standing.ago(2.99 * 86400)[0], standing.ago(100 * 60)[0]]}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
           "findings, one stopped on purpose, a later run that went fine, the console ending, are not); the newest notes nobody took come first; "
@@ -2012,6 +2018,91 @@ def handoff_checks():
         if not n["act"].get("confirm"):
             return f"the offer to carry on asks once more after a sign of life a minute ago: {n['act']}"
     check("notes read two hours ago, then a render and a voice-over that went fine: not stopped; the last sign of life said, and the offer asks once more", quiet_after_notes)
+
+    def dead_pid():   # the pid of a process that is gone, as a run cut off leaves it
+        x = subprocess.Popen(["sleep", "30"])
+        x.kill(); x.wait()
+        return x.pid
+
+    def big_film():   # 20 000 asset files three days old, a scene written a minute ago, a render cut off two hours ago: not stopped
+        o = stage("big")
+        old3 = time.time() - 3 * 86400
+        a = o / "assets" / "stock"
+        a.mkdir(parents=True)
+        for i in range(20000):
+            (a / f"f{i:05d}.png").write_bytes(b"")
+        for f in o.rglob("*"):
+            if ".ovh" not in f.parts:
+                os.utime(f, (old3, old3))
+        (o / "scenes").mkdir(exist_ok=True)
+        (o / "scenes" / "main.js").write_text("// the scene the agent is writing\n")
+        t0 = time.time() - 7200
+        line(o, event="start", run="r-cut", t=t0, cmd="render", args=["render"], pid=dead_pid(), project=os.path.realpath(str(o)))
+        line(o, event="progress", run="r-cut", t=t0 + 60, done=100, total=900, unit="frames")
+        n = status(o)["now"]
+        if n["code"] == "stopped" or "scenes/main.js" not in (n["more"] or {}).get("zh", ""):
+            return f"the big film: {n['code']} {n['more']}"
+        part = stage("partial")   # a walk cut short: more files than it looks at, none in a heavy folder
+        for d in range(20):
+            (part / "src" / f"d{d:02d}").mkdir(parents=True, exist_ok=True)
+            for i in range(250):
+                (part / "src" / f"d{d:02d}" / f"f{i}.txt").write_bytes(b"")
+        for f in part.rglob("*"):
+            if ".ovh" not in f.parts:
+                os.utime(f, (old3, old3))
+        line(part, event="start", run="r-cut", t=t0, cmd="render", args=["render"], pid=dead_pid(), project=os.path.realpath(str(part)))
+        m = status(part)["now"]
+        if m["code"] != "stopped" or "之后没有别的动静" in json.dumps(m, ensure_ascii=False) or "nothing has happened since" in json.dumps(m):
+            return f"a look cut short claims nothing else happened: {m['code']} {m['more']}"
+    check("a big film: its source is looked at first and heavy folders by their own time, so a scene written a minute ago behind 20 000 asset "
+          "files is seen; a look cut short never says that nothing else happened", big_film)
+
+    def one_agent_two_films():   # one agent program, two films: open only on the one it worked on last; the other says what happened to it
+        f1, f2 = stage("first"), stage("second")
+        a = fake_agent("bash", "-c", f'bash "{vh}" peaks "{f1}"; bash "{vh}" peaks "{f2}"')
+        if a is None:
+            return None
+        time.sleep(4)
+        old3 = time.time() - 3 * 86400
+        act = f1 / ".ovh" / "activity.jsonl"   # the first film's own record, three days back, and a render cut off then
+        rows = [json.loads(x) for x in act.read_text().splitlines() if x.strip()]
+        act.write_text("".join(json.dumps(dict(r, t=r["t"] - 3 * 86400)) + "\n" for r in rows))
+        line(f1, event="start", run="r-cut", t=old3 + 60, cmd="render", args=["render"], pid=dead_pid(), project=os.path.realpath(str(f1)))
+        for f in f1.rglob("*"):
+            if ".ovh" not in f.parts:
+                os.utime(f, (old3, old3))
+        n1, n2 = status(f1)["now"], status(f2)["now"]
+        a.kill(); a.wait()
+        if n2["code"] != "agent_open":
+            return f"the film it worked on last: {n2['code']}"
+        if n1["code"] != "stopped" or "可能在忙别的片子" not in (n1["more"] or {}).get("zh", ""):
+            return f"the film it left three days ago: {n1['code']} {n1['more']}"
+    check("one agent program across two films: open only on the film it worked on last (or lately); a film it left three days ago with a render "
+          "cut off says so, and that the program is still open and may be busy with another film", one_agent_two_films)
+
+    def reparented_wait():   # a wait started by a program not on the list: it ends once that program is gone
+        o = stage("reparent", "3")
+        e = dict(env, OVH_ACTIVITY_AGENT="0")
+        sh = subprocess.Popen(["bash", "-c", f'bash "{vh}" desk wait "{o}" --timeout 60; sleep 60'], env=e, start_new_session=True,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        BG.add(sh.pid)
+        flag = o / "out" / "review" / "feedback" / ".listening"
+        for _ in range(100):
+            if flag.exists():
+                break
+            time.sleep(0.1)
+        if not flag.exists():
+            return "the wait did not start"
+        os.kill(sh.pid, signal.SIGKILL); sh.wait()
+        t0 = time.time()
+        while flag.exists() and time.time() - t0 < 8:
+            time.sleep(0.2)
+        try:
+            os.killpg(sh.pid, signal.SIGKILL)   # (its group: the wait, had it not ended)
+        except OSError:
+            pass
+        return "the wait went on after its parent was gone" if flag.exists() else None
+    check("a wait started by a program not on the agent list ends once whatever started it is gone", reparented_wait)
 
     def orphaned_wait():   # a wait whose agent was killed: no promise, and the wait ends
         o = stage("orphan", "3")
