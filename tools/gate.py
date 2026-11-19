@@ -173,8 +173,8 @@ def init_page(project, gate_arg, shown, as_json=False):
     print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file", file=say)
     print("  keep it short: summary at most 40 CJK characters (100 letters), a question one line, a label 20 (50), pro, con and each "
           "least-sure note a sentence; reasons go into why, details into the appendix", file=say)
-    print("  an option's id is what the person types back (\"1 FIX\") and reads on the page: a short word they can read "
-          "(OK, FIX, 慢一点), not a code (V1, opt-2)", file=say)
+    print("  an option's id is what the person types back (\"1 A\"): keep it short (A / B, H1 / H2, OK / FIX), and different "
+          "between the page's decisions; the label beside it is what the person reads, so the label carries the meaning", file=say)
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}', file=say)
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
     if as_json:

@@ -117,7 +117,7 @@ The right-hand column also talks straight to the agents on this machine (Claude 
 
 In the Codex column, **Choose model and effort** opens an empty chat and loads the model list before you send your request. Pick GPT‑6.2 Sol for routine production or GPT‑6.2 Astra for a difficult sequence when your account offers them. In the terminal, run `codex -m gpt-6.2-sol` from this checkout, or choose a model with `/model`. [Codex model availability](https://learn.chatgpt.com/docs/whats-new/gpt-62-astra-sol)
 
-Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` to open the same window. The `studio` level uses Studio for reviews by default. When Studio shows the agent is waiting, submission wakes it. Otherwise, return to the chat after submitting and say “check the desk”. The `standard` level uses a review page by default. You can also ask to review in Studio. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. [Open Studio](#open-studio) · [Studio file reference](tools/desk/README.md)
+Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` to open the same window. The `studio` level uses Studio for reviews by default. When Studio shows the agent is waiting, submission wakes it. Otherwise, return to the chat after submitting and say “I've sent it”. The `standard` level uses a review page by default. You can also ask to review in Studio. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. [Open Studio](#open-studio) · [Studio file reference](tools/desk/README.md)
 
 <table>
 <tr>

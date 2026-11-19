@@ -137,7 +137,7 @@ function stateWords(r) {   // where a film is, in words: 初版 · 等你看, �
   if (sh && r.now.code !== "delivered") return sh;
   if ((r.running || []).length && r.state !== "waiting_person") return cmdWords(r.running[0]);
   if (r.state === "delivered") return r.delivered ? t("f_delivered_d", { d: shortDate(r.delivered) }) : t("st_delivered");
-  const s = stopOf(r), st = t("st_" + (r.state || "not_started"));
+  const s = stopOf(r), st = r.state === "waiting_person" && r.station && earOf(r.station.id) ? t("wait_ear") : t("st_" + (r.state || "not_started"));
   return ["waiting_person", "waiting_agent", "in_progress"].includes(r.state) && s ? `${s} · ${st}` : st;
 }
 function picture(r, cls) {   // the film's letter is always under the picture: a picture that does not come leaves the letter, not a void
@@ -155,7 +155,7 @@ function card(r) {   // its picture, its name, where it is, its kind, its day
 }
 function heroCard(r) {   // a film that waits for you: what it asks, every question, the agent's line about it, and one button
   const a = r.ask || {}, qs = (a.questions || []).length ? a.questions : a.question ? [a.question] : [];
-  const head = [stopOf(r), a.decisions ? t("ask_count", { n: a.decisions }) : t("st_waiting_person")].filter(Boolean).join(" · ");
+  const head = [stopOf(r), a.decisions ? t("ask_count", { n: a.decisions }) : r.station && earOf(r.station.id) ? t("wait_ear") : t("st_waiting_person")].filter(Boolean).join(" · ");
   const sum = a.summary && !qs.includes(a.summary) ? a.summary : "";
   const day = r.last_activity ? dayOf(r.last_activity.t) : "", kind = typeWords(r.type);
   return `<a class="hero" href="${projHash(r.key)}" data-state="waiting_person" data-key="${esc(r.key)}" title="${esc(r.name)}">${picture(r)}
@@ -368,7 +368,7 @@ function renderColumn() {
   const home = GATE_MOD[gateBase(ROUND.id)] || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
   const hd = handedNow(), H = hd && !REHAND[KEY];   // this stop's notes were handed over: what went, not the cards as if nothing had
-  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t("away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
+  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t(earOf(ROUND.id) ? "away_listen" : "away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
     : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
@@ -378,7 +378,7 @@ function renderColumn() {
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
   renderMarks(); renderMine(); renderNext(); renderNow(); renderRound(); syncPhoneDec();
-  if (!$("#composer").dataset.ready) buildComposer();
+  if ($("#composer").dataset.ready !== LANG) { buildComposer(); updateComposer(); }
   $("#composer").hidden = false;
   AGENT.enter(PKEY);   // the column's other tab: the conversation with the agent on this film (agent.js)
 }
@@ -543,12 +543,13 @@ function gotoTarget(target, tt, t1, label) {   // a note or a mark in the column
 
 /* the note box: writes against what is selected (a second, a span, a shot, a chapter, a place the agent marked) or the module */
 function buildComposer() {
-  const c = $("#composer");
-  c.dataset.ready = "1";
+  const c = $("#composer"), draft = $("#say") ? $("#say").value : "";   // rebuilt in another language: the words written so far stay
+  c.dataset.ready = LANG;   // the language it was built in: a film in the other one builds it again
   // one row: what the note is on, and the button that notes it; the box under it (saying it to the agent is the column's other tab, agent.js)
   c.innerHTML = `<div class="crow send"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button><span class="meta" id="sayHint"></span><span class="kbd" aria-hidden="true">${esc(t("note_keys"))}</span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>
 
     <textarea id="say" rows="2" maxlength="4000"></textarea>`;
+  $("#say").value = draft;
   $("#toWhole").addEventListener("click", () => setScope(null));
   $("#sayAdd").addEventListener("click", addNote);
   $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } });

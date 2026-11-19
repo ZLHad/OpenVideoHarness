@@ -1918,6 +1918,7 @@ def handoff_checks():
             "who": [x["who"] for x in (gone, found, pending_busy, one(stations=both_))],
             "missing": one(stations=[st("1", "done"), st("3", "done"), st("deliver", "in_progress")], check={"verdict": "fail", "stale": False})["say"]["en"],
             "sound": [standing.of(P, base(stations=[st("E2", "waiting_person"), st("deliver", "not_started")]))[k] for k in ("say", "act")],
+            "final_sound": [standing.of(P, base(stations=[st("E3", "waiting_person"), st("deliver", "not_started")]))[k] for k in ("say", "act")],
             "frames": standing.of(P, base(stations=[st("E0", "waiting_person"), st("deliver", "not_started")]))["say"]["en"],
             "plan": standing.plan_line({"project": {"spec": {"Output": "1080x1920, 30 fps, exactly 30s (900 frames)", "Language": "zh-CN, narration: TTS voice"}},
                                          "stops": {"gates": ["1", "3"]}}),
@@ -1940,7 +1941,8 @@ def handoff_checks():
                 "pending_first": ["notes_unheard", "nudge", True], "taken": ["notes_taken", "正在渲染，340 / 900 帧。", "busy"],
                 "unknown": ["正在跑一条命令。", "正在跑一条命令"], "never_nobody": True, "who": ["agent", "agent", "agent", "agent"],
                 "missing": "Not delivered yet: the film has not passed its check.",
-                "sound": [{"zh": "配乐安排出来了，等你听。", "en": "The sound plan is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听配乐安排", "en": "Listen to the sound plan"}}],
+                "sound": [{"zh": "配乐安排出来了，等你看。", "en": "The sound plan is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去看配乐安排", "en": "Look at the sound plan"}}],
+                "final_sound": [{"zh": "最终的声音出来了，等你听。", "en": "The final sound is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听最终的声音", "en": "Listen to the final sound"}}],
                 "frames": "The style frames are out and wait for you.",
                 "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first draft"},
                 "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first draft"},
@@ -1952,7 +1954,7 @@ def handoff_checks():
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
           "findings, one stopped on purpose, a later run that went fine, the console ending, are not); the newest notes nobody took come first; "
           "working on them only while something runs; never that nobody works on the film; whose move as waiting_on; a command not in the table "
-          "is no name on the page; the sound is listened to, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
+          "is no name on the page; the final sound is listened to and the sound plan looked at, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
           "a checkpoint) and leaves out what it does not", unit)
 
     def title():   # a film begun on the space, its BRIEF still the template's: the person's own sentence, shortened, not the dated folder

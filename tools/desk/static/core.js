@@ -16,7 +16,7 @@ const STR = {
     taken: "这台电脑上有别的程序抢在这个窗口前面连上了 Studio，已经换过两次窗口。让 agent 重启 Studio 再试。", noServer: "读不到这支片子。这一页要在这台电脑的 Studio 里打开。", loading: "…",
     m_new: "新建", new_tip: "写一句想做什么，发给 agent，它开一支新片子",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
-    f_done: "已定", f_wait: "等你看", f_agent: "agent 在做", f_todo: "没开始", f_open: "还没定", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
+    f_done: "已定", f_wait: "等你看", wait_ear: "等你听", f_agent: "agent 在做", f_todo: "没开始", f_open: "还没定", f_skip: "跳过", f_off: "随初版看", f_norec: "没有记录",
     search: "搜片子", search_ph: "片名、文件夹或类型，回车打开", no_match: "没有对上的片子", lang: "EN", lang_tip: "Switch to English", themes: "主题",
     th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥", skip: "跳到内容", rail: "模块", flow: "这支片子的几站",
     ask_prefix: "用 OpenVideoHarness 做一支片子：",
@@ -129,7 +129,7 @@ const STR = {
     f_off_sound: "随初版听",
     f_nosound: "没有声音",
     away_decide: "{s}等你定 {n} 件",
-    away_look: "{s}等你看",
+    away_look: "{s}等你看", away_listen: "{s}等你听",
     next_you: "看{s}，定好以后交给 agent。",
     next_you0: "看一眼，定好以后交给 agent。",
     next_agent: "接着做。",
@@ -153,7 +153,7 @@ const STR = {
     revisions: "Revisions", revision_pending: "Ready for review", revision_approved: "Accepted", revision_changes_requested: "Changes requested",
     revision_compare: "Compare the change", revision_before: "Before", revision_after: "After", revision_sound: "Audio to audition",
     revision_play: "Play this span", revision_seek: "Shared playhead", revision_gone: "A saved version was moved or changed, so there is nothing to compare.",
-    revision_load_error: "The two versions won't play: ask the agent whether both are still there.", revision_reply: "Notes on the revised cut",
+    revision_load_error: "The two versions won't play: ask the agent whether both are still there.", revision_reply: "Notes on the revised version",
     revision_change: "Request changes", revision_sent: "Your notes on the change are saved", revision_send_error: "Your notes on the change weren't saved",
     revision_close: "Close", revision_pause: "Pause",
     nokey: "This page can only look.", reopen: "Open in Studio's window", reopened: "Studio's window is in front",
@@ -162,7 +162,7 @@ const STR = {
     brand: "Studio", noServer: "Can't read this film. Open this page in Studio on this computer.", loading: "…",
     m_new: "New", new_tip: "Write what you want to make; an agent starts the film",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",
-    f_done: "decided", f_wait: "waiting for you", f_agent: "agent working", f_todo: "not started", f_open: "not decided yet", f_skip: "skipped", f_off: "with the first draft", f_norec: "no record",
+    f_done: "decided", f_wait: "waiting for you", wait_ear: "waiting for you", f_agent: "agent working", f_todo: "not started", f_open: "not decided yet", f_skip: "skipped", f_off: "with the first draft", f_norec: "no record",
     search: "Find a film", search_ph: "Title, folder or type; Enter opens it", no_match: "No film matches", lang: "中", lang_tip: "切换到中文", themes: "Theme",
     th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge", skip: "Skip to content", rail: "Modules", flow: "This film's stops", ask_prefix: "Make a film with OpenVideoHarness: ",
     films: "Films", home_meta: "{n} · {w} waiting for you", home_meta0: "{n}", g_wait: "Waiting for you",
@@ -202,7 +202,7 @@ const STR = {
     safe: "Safe area", compare: "Compare with {v}", ver_now: "{v} · now", lay_review: "Review", lay_fine: "Fine cut", lay_sound: "Listen", layout: "Layout",
     tl_hint: "The playhead goes where you click; click a shot, a line or a mark and your note is about it.", h_mouse: "Mouse", h_keys: "Keys", tl_more: "Narration, music and the waveform are in:",
     snap: "Snap to shots", snap_tip: "When you Shift-drag a span, it snaps to shot edges, lines and marks", g_fold: "Fold this group", g_unfold: "Unfold this group", g_folded: "folded", zoom_in: "Zoom in", zoom_out: "Zoom out", play: "Play / pause (Space)", prev_shot: "Previous shot (←)", next_shot: "Next shot (→)",
-    g_pic: "Picture", g_sound: "Sound", g_review: "Review", ln_chap: "Chapters", ln_shots: "Shots", ln_voice: "Voice", ln_music: "Music", ln_hits: "Beats", ln_wave: "Waveform", ln_marks: "Marks", ln_diff: "Changed",
+    g_pic: "Picture", g_sound: "Sound", g_review: "Review", ln_chap: "Chapters", ln_shots: "Shots", ln_voice: "Voice", ln_music: "Music", ln_hits: "Hits", ln_wave: "Waveform", ln_marks: "Marks", ln_diff: "Changed",
     e_chap: "No chapters", e_shots: "No shot list", e_voice: "No narration", e_music: "No music", e_wave: "No waveform yet",
     e_diff: "This version doesn't record what changed (only a partial re-render records it)", e_marks: "No marks yet", whole_render: "re-rendered whole",
     diff_label: "{v} changed this", next_q: "Next · {x}", no_next: "Nothing more after here", k_least: "agent unsure", k_listen: "listen", k_check: "found by the check", k_mine: "my note",
@@ -273,7 +273,7 @@ const STR = {
     f_off_sound: "heard with the first draft",
     f_nosound: "no sound",
     away_decide: "{s}: {n} to decide",
-    away_look: "{s} is waiting for you",
+    away_look: "{s} is waiting for you", away_listen: "{s} is waiting for you",
     next_you: "look at the {s}, decide, and send it to the agent.",
     next_you0: "take a look, decide, and send it to the agent.",
     next_agent: "carries on.",
@@ -284,7 +284,7 @@ const STR = {
     refused_any: "Not sent. Send again; if it still fails, tell the agent.", c_handed: "Sent to the agent", handed_opt: "(an option was picked)", handed_gone: "(that option is no longer on this page)", handed_q: "A decision", handed_none: "Only the recommended options went, with no notes.", rehand: "Change it and send again", rs_handed: "Sent to the agent", now_unread: "This film's state cannot be read right now.", now_sure: "Yes, ask an agent to carry on", now_sure_note: "There was activity lately; it may still be working.", look_frames: "Meanwhile, the storyboard's key frames.", look_sheet: "Meanwhile, the contact sheet.", look_cover: "This is its cover.",
     fps_n: "{n} fps",
     no_play: "One picture only: nothing to play",
-    no_sound: "This cut has no sound", mute: "Mute", unmute: "Sound on", volume: "Volume", playing_instead: "Playing {f} ({g} has no sound)",
+    no_sound: "This version has no sound", mute: "Mute", unmute: "Sound on", volume: "Volume", playing_instead: "Playing {f} ({g} has no sound)",
     lacks_h: "This computer still lacks", lk_missing: "Without it, {s}.", lk_old: "The version here is too old: {s}.",
     lk_ffmpeg_n: "FFmpeg", lk_ffmpeg_s: "picture and sound can't be put together into a film", lk_ffmpeg_d: "Tell your agent “install FFmpeg for me”.",
     lk_node_n: "Node", lk_node_s: "nothing renders", lk_node_d: "Tell your agent “install Node 22 for me”.",
@@ -490,7 +490,9 @@ function gateKey(s) {   // the stop a title or a "where" names, in either langua
 }
 const GATE_NAMES = ["立意和大纲", "分镜", "初版", "样帧", "脚本", "声音", "锁时", "样板章", "锁画面", "画风样张", "配乐安排", "定声音", "第一章样片", "定画面",   // review.py's GATES: a stop's name after its code
   "concept and outline", "storyboard", "first draft", "style frames", "script", "sound", "timing lock", "sample chapter", "picture lock", "sound plan", "final sound", "first chapter"];
-const STOP_RE = new RegExp(`(?:关卡|检查点|Gate|Checkpoint)\\s*([①②③④⑤]|E\\d|\\d)(?![0-9])(?:\\s*(?:${GATE_NAMES.join("|")}))?`, "gi");
+const STOP_RE = new RegExp(`(?:关卡|检查点|Gate|Checkpoint)\\s*([①②③④⑤]|E\\d|\\d)(?![0-9])(?:\\s*(?:${GATE_NAMES.slice().sort((a, b) => b.length - a.length).join("|")}))?`, "gi");   // longest name first: "sound plan" before "sound"
+const EAR = new Set(["E3"]);   // the stops a person listens to (tools/standing.py's LISTEN): 等你听, not 等你看
+function earOf(id) { return EAR.has(String(id || "").replace(/[a-z]+$/, "")); }
 function stopWords(s) {   // a stop written as a code inside a short status ("已定（关卡 ①）", "Gate ③ first draft") → its name ("已定（立意）", "初版"), once
   return String(s || "").replace(STOP_RE, (m, k) => { const g = gateKey("关卡 " + k) || k; return L.stn[g] || m; });
 }
@@ -514,6 +516,7 @@ function flowWord(fs) {   // a flow item's state in words: 已定 11-14, 已交�
   if (fs.open) return t("f_open");
   if (fs.mod === "sound" && (fs.state === "off" || fs.state === "past") && filmSilent()) return t("f_nosound");   // not 随初版听: there is nothing to hear
   if (fs.mod === "sound" && fs.state === "off") return t("f_off_sound");   // sound is no stop of its own: it is heard on the first draft's page
+  if (fs.state === "wait" && fs.S.some((s) => s.state === "waiting_person" && earOf(s.id))) return t("wait_ear");
   if (fs.state !== "done") return t(STATE_WORD[fs.state]);
   const d = shortDate(stopDate(fs.S)), ship = fs.S.some((s) => s.id === "deliver");
   return t(ship ? (d ? "f_delivered_d" : "f_delivered") : (d ? "f_done_d" : "f_done"), { d });

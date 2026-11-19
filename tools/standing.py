@@ -156,7 +156,7 @@ WORDS = {
 }
 MOD = {"1": "idea", "E0": "idea", "E1": "outline", "2": "board", "E2": "sound", "E3": "sound", "3": "cut", "E4": "cut", "E5": "cut", "deliver": "ship"}   # core.js's GATE_MOD
 PLURAL = {"1", "E0"}     # the concept cards, the style frames
-LISTEN = {"E2", "E3"}    # the sound plan and the final sound: listened to
+LISTEN = {"E3"}          # the final sound: listened to (the sound plan, E2, is a cue sheet: looked at)
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "3", "E4", "E5"]
 
 

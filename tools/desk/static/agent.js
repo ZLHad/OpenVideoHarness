@@ -19,7 +19,7 @@ const ASTR = {
     set_mode: "模式", set_model: "模型", set_effort: "思考深度", set_more: "更多设置", set_personal_off: "不带个人设置",
     pick_first: "选模型和思考深度", retry_login: "登录后重试",
     eff_tip: "思考越深，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时请它用：{x}；它没有的话，用它自己的默认。开始以后，上面写着用的是哪个，随时可以换。", new_own: "开始时用 {a} 自己的默认。开始以后，上面写着用的是哪个，随时可以换。", own_default: "{a} 自己的默认", eff_is: "思考深度{e}",
-    u_ctx: "对话记忆 {u} / {s}", u_cost: "花费约 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
+    u_ctx: "对话记忆 {u} / {s}", u_cost: "这个对话约花 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
     w_seven_day: "7 天", u_reset: "，{at} 恢复", w_five_hour: "5 小时", w_daily: "今天的", w_weekly: "这周的",
     ph_say: "对{x}说点什么，发送后马上到它那里…", ph_say0: "跟 {a} 说点什么，发送后马上到它那里…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
     you: "你", t_on: "对着 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你批准。", empty_c: "这里说的话会直接发给它；“这一站”页上记的意见，要点“交给 agent”才一起交出去。可以先问一句，比如：读一下简报，告诉我还缺什么。",
@@ -71,7 +71,7 @@ const ASTR = {
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
     pick_first: "Choose model and effort", retry_login: "Retry after sign-in",
     eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts by asking it for: {x}; if it doesn't offer that, its own default. Once started, the menus above show what is in use, and you can change it any time.", new_own: "Starts with {a}'s own default. Once started, the menus above show what is in use, and you can change it any time.", own_default: "{a}'s own default", eff_is: "{e} effort",
-    u_ctx: "Chat memory {u} / {s}", u_cost: "about {c} used", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
+    u_ctx: "Chat memory {u} / {s}", u_cost: "this chat: about {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
     w_seven_day: "7-day", u_reset: "; it resets {at}", w_five_hour: "5-hour", w_daily: "daily", w_weekly: "weekly",
     ph_say: "Say something about {x}; it goes as soon as you send…", ph_say0: "Say something to {a}; it goes as soon as you send…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
     you: "You", t_on: "on {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here goes to it at once; the notes on “This stop” go only when you press “Send to agent”. Try: read the brief and tell me what is missing.",
@@ -484,7 +484,7 @@ const AGENT = (() => {
     const h = $("#agHead"); if (!h) return;
     if (!h.dataset.ready) { h.dataset.ready = "1"; h.innerHTML = `<div class="ag-top" id="agTop"></div><div id="agSetBox"></div><div id="agUseBox"></div>`; Object.keys(DRAWN).forEach((k) => { DRAWN[k] = null; }); }
     const st = stateNow(), word = at(st.k, { v: st.v, x: st.x });
-    const el = S && S.running && S.turnAt ? secs(Date.now() / 1000 - S.turnAt) : "";
+    const el = S && S.running && S.turnAt && st.k !== "ag_waiting" ? secs(Date.now() / 1000 - S.turnAt) : "";   // waiting for the person: the word alone, never cut
     const list = histOf().filter((x) => !S || x.id !== S.id);
     const mark = (x) => (x.pending ? `<span class="chip wait">${esc(at("sp_wait"))}</span>` : x.running ? `<span class="chip agent">${esc(at("sp_doing"))}</span>` : "");
     const waits = list.filter((x) => x.pending).length;
