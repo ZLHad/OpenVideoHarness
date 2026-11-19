@@ -203,7 +203,9 @@ def studio_open():
         info = server.running_info(None, [])
         if not info:
             return False
-        since = datetime.datetime.fromisoformat(info["started"]).timestamp() if info.get("started") else None
+        since = info.get("since")   # epoch seconds; an older record only has its local "started"
+        if not isinstance(since, (int, float)):
+            since = datetime.datetime.fromisoformat(info["started"]).timestamp() if info.get("started") else None
         return activity._alive(info.get("pid"), since)
     except Exception:
         return False

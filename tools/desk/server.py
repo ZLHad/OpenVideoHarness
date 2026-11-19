@@ -1853,7 +1853,7 @@ def serve(project=None, port=None, idle=None, roots=(), only=False, code=None, o
         return 2
     info_p = _info_path(project, roots)
     # how it was started, so that bin/vh desk link can start it again alike: never the key or the token
-    info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds"),
+    info = {"pid": os.getpid(), "port": srv.port, "url": srv.url, "started": datetime.datetime.now().isoformat(timespec="seconds"), "since": time.time(),   # since: epoch seconds
             "roots": [os.path.realpath(r) for r in roots], "only": bool(only and project), "idle": idle, "owner": owner}
     if project:
         info["project"] = os.path.realpath(str(project))
