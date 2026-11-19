@@ -2357,10 +2357,14 @@ def column_wait_checks():
         out = []
         p = stage("channel")
         e = {k: v for k, v in dict(env, OVH_ACTIVITY_AGENT="0").items() if k != "OVH_GATE_STUDIO"}   # this check is of that very rule
+        r0 = subprocess.run(["bash", str(vh), "gate", str(p), "3"], capture_output=True, text=True, env=e, timeout=120)
         r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=e, timeout=120)
-        if r.returncode != 5 or "nothing was answered: Studio is not open" not in r.stderr or "wait for the person's reply in the chat" not in r.stderr \
+        if r.returncode != 5 or "nothing was answered: Studio is not open" not in r.stderr \
+                or "End your turn and wait for the person's reply in the chat (exit 5)" not in r.stderr \
                 or "reviewed on the page" not in r.stderr or "Studio 里打开了" in r.stdout:
             out.append(f"no Studio: {r.returncode} {r.stderr[-300:]}")
+        if r0.returncode != 0 or not r0.stdout.strip() or r.stdout != r0.stdout:   # what the agent passes on: the page's message, unchanged by --wait
+            out.append(f"--wait changed the message to pass on: {r0.returncode}, {r0.stdout[-200:]!r} → {r.stdout[-200:]!r}")
         r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=dict(e, OVH_GATE_STUDIO="0"), timeout=120)
         if r.returncode != 5 or "this run does not look for Studio" not in r.stderr:   # the real reason, never another
             out.append(f"not looked for: {r.returncode} {r.stderr[-200:]}")
@@ -2413,8 +2417,12 @@ def column_wait_checks():
             except subprocess.TimeoutExpired:
                 w.kill()
                 so, se = w.communicate()
-            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在后台等着" in so and "可以" in so):
+            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在后台等着" in so
+                                     and "可以" in so.split("我在后台等着")[-1] and "out/review/feedback/3-" in so):   # 0: a submission came, printed after the message
                 out.append(f"Studio open: key {key}, submit {fb[0]}, gate {w.returncode}, {se[-300:]} | {so[-300:]}")
+            r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait", "--timeout", "2"], capture_output=True, text=True, env=e, timeout=60)
+            if r.returncode != 3 or flag.exists():   # Studio open, nobody submits: it times out (3), never 0
+                out.append(f"a wait nobody answered: {r.returncode} {r.stderr[-200:]}")
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--page", "--wait"], capture_output=True, text=True, env=e, timeout=60)
             if r.returncode != 2:
                 out.append(f"--page --wait is a contradiction: {r.returncode}")
@@ -2436,8 +2444,9 @@ def column_wait_checks():
         return "; ".join(out) or None
     check("a standard film's stop opens in Studio while Studio is open, with the wait (the submit hands it over); a record Studio left behind, or one "
           "whose pid a later process took, is no Studio; without Studio it goes out as the page and --wait exits 5 (nothing answered: end the turn), "
-          "saying the real reason; quick's --wait is refused as before; an explicit --page wins, --page --wait is refused; Studio closing under a wait "
-          "ends it (6)", gate_channel)
+          "saying the real reason, its stdout the message without --wait byte for byte; quick's --wait is refused as before; an explicit --page wins, "
+          "--page --wait is refused; with --wait, 0 comes only with a submission (printed): nobody answering times out (3), Studio closing under a "
+          "wait ends it (6)", gate_channel)
 
     def studio_only():   # a standard film's default never starts a desk: Studio gone since the look, or unable to take the film → the page
         sys.path.insert(0, str(ROOT / "tools"))

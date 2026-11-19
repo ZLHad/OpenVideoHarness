@@ -19,10 +19,11 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
   --print-address   the desk channel, for a browser on another machine: show nothing; write an address that opens one
             page, once, within ten minutes, to your terminal alone (the message says only where it is). Refused with no
             terminal (an agent's shell has none) and while this film's desk runs (bin/vh desk link --print-address)
-  --wait    the desk channel: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout, default
-            7100 s; 4 when the agent it waits for is gone; 6 when the desk it waits on closed). Hosts with background wakeup
-            can run this in the background: the message is printed first. A standard film whose stop went out as the static
-            page by default (Studio not open): the page goes out, nothing is waited for, exit 5 (nothing was answered)
+  --wait    the desk channel: then wait like bin/vh desk wait (exit 0 only when a submission was received, and it is
+            printed; 3 after --timeout, default 7100 s; 4 when the agent it waits for is gone; 6 when the desk it waits on
+            closed). Hosts with background wakeup can run this in the background: the message is printed first. A standard
+            film's stop that went out as the static page by default (Studio not open): the page goes out as usual, exit 5:
+            nothing was answered; end the turn and wait for the person's reply in the chat
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
             to write is a {填：…} ({fill in: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
             never reaches the person. It carries "version": 1. A file already there is not overwritten (exit 2)
@@ -31,12 +32,13 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
             the error's shape (tools/jsonerr.py). Not with --wait, whose answer is the submission
 The page and the desk read the same out/review/gate-<n>.json: it is the one file a client renders for a stop. A page that goes out is also
 a snapshot of the project's text (bin/vh history); a failure to save it never stops the page.
-Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
+Exit: 0 the stop is out (with --wait: only when a submission was received, and it is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
 --wait without the desk, --init over a file, gate ③'s page while gate ① is not on record (standard, studio), or gate ② (in the plan, a BRIEF with a
 Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out ·
-4 --wait: the agent it waited for is gone · 5 --wait on a standard film's stop that went out as the static page: nothing was
-waited for and nothing answered (end the turn; the person replies in the chat) · 6 --wait: the desk it waited on closed.
+4 --wait: the agent it waited for is gone · 5 --wait, and a standard film's stop went out as the static page by default
+(Studio not open): the page goes out as usual; nothing was answered; end the turn and wait for the person's reply in the chat
+(stdout is the message to pass on, as without --wait) · 6 --wait: the desk it waited on closed.
 """
 import argparse, contextlib, json, os, re, sys
 from pathlib import Path

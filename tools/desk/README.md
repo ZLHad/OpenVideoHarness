@@ -10,10 +10,10 @@
 bin/vh studio [<项目>]                          # 给人用的那个名字：叫出 Studio 的窗口（就是不带项目的控制台，一个自己的窗口，再叫也不开第二个）；没在跑就先在后台起控制台（窗口关掉 12 小时后自己停），开着就把那个窗口带到最前，带项目就转到那支片子（不在控制台 roots 下的片子，先加进 Studio 的空间，同一个窗口）。agent 运行时也一样（人让它打开的）；输出只说发生了什么，不带地址
 bin/vh studio --print-address                  # 没有屏幕的机器（远程、ssh）：不开窗口，把一个开门地址写到你的终端里，给另一台机器的浏览器用（十分钟内、只能打开一页一次）；没有终端、或 Studio 已经在跑时拒绝
 bin/vh studio --install-icon [--no-shell] [--dir 文件夹]   # OVH Studio：Studio 自己的窗口（Electron，第一次下载约 130 MB），macOS 是 ~/Applications 里的 OVH Studio.app，Linux 是 ~/.local/share/applications 里的一个桌面项（--dir：全部放进那个文件夹，别处一概不碰）；--no-shell 装轻量启动器（打开浏览器的窗口）；--remove-icon 拿掉，--icon-status 看装的是哪种、指的是不是这份仓库
-bin/vh gate <项目> <n> [--desk|--page|--chat] [--wait] [--print-address]   # 一次停一条命令：查 gate-<n>.json，出静态页并记成这一轮（审阅方式：旗子、LOCAL.md，再按档位：studio 是审阅台，standard 在 Studio 开着时也是，否则是静态页；--wait 而这一站按默认落到静态页时，照常出页、说一声不用等、退出 0；`OVH_GATE_STUDIO=0` 时不去找 Studio，`tools/ci.sh` 整个运行都这样设，它的检查不碰不是自己起的 Studio），审阅方式是审阅台时把这一站开在 Studio 的窗口里（Studio 在跑就用它，不在它文件夹里的片子先加进它的空间；Studio 没在跑才在后台起这个项目的审阅台，12 小时没人访问自己停），打印聊天消息；--wait 再像 desk wait 一样等
+bin/vh gate <项目> <n> [--desk|--page|--chat] [--wait] [--print-address]   # 一次停一条命令：查 gate-<n>.json，出静态页并记成这一轮（审阅方式：旗子、LOCAL.md，再按档位：studio 是审阅台，standard 在 Studio 开着时也是，否则是静态页；--wait 而 `standard` 的这一站按默认落到静态页（Studio 没开）时，照常出页、退出 5：没有人答复，这一轮停下，等人在聊天里回；`OVH_GATE_STUDIO=0` 时不去找 Studio，`tools/ci.sh` 整个运行都这样设，它的检查不碰不是自己起的 Studio），审阅方式是审阅台时把这一站开在 Studio 的窗口里（Studio 在跑就用它，不在它文件夹里的片子先加进它的空间；Studio 没在跑才在后台起这个项目的审阅台，12 小时没人访问自己停），打印聊天消息；--wait 再像 desk wait 一样等
 bin/vh desk [--root 文件夹 …] [--port N] [--no-open] [--print-address]   # 控制台：bin/vh projects 找得到的所有项目（$OVH_PROJECTS、<仓库>/projects、每个 --root）；在终端里起时，起好就叫出它的窗口（--no-open 不开），agent 起的不开；终端里不显示地址，agent 和日志拿到的地址打开的页面只能看（--print-address 才把开门地址写到终端）；同样的 roots 已经有一个在跑，就只说一声
 bin/vh desk <项目> [--root 文件夹 …] [--port N] [--idle 秒] [--only]   # 同一个页面，打开在这个项目上，空间里照样有 roots 下的每一支片子；只听 127.0.0.1；默认 8780–8799 里第一个空闲端口；这个项目已经有一个在跑，就只打印它的地址；--idle：这么久没人访问就自己停；--only：只服务这一个项目（bin/vh gate 在后台起的就是 --only --idle 43200）
-bin/vh desk wait <项目> [--timeout 秒]          # 等人提交：打印反馈，退出码 0；超时退出码 3（默认 7100 s）
+bin/vh desk wait <项目> [--timeout 秒]          # 等人提交：收到提交才打印反馈、退出码 0；超时退出码 3（默认 7100 s）；等的 agent 没了退出码 4
 bin/vh desk feedback <项目> [--round 1b] [--json]   # 打印最近一次提交，并记为"已交给 agent"
 bin/vh desk data <项目>                        # 审阅台从项目里读出了什么（JSON），排查"为什么这一页是空的"时用
 bin/vh desk link [<项目>] [--root 目录 …] [--force] [--print-address]   # 重起它：停掉在跑的那一个，照原样再起，叫出新的窗口；之前的页面只能看（各有一个把窗口叫出来的按钮）
@@ -27,7 +27,7 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 
 **静态页也是这一站模块的只读版。** 关卡 ① 的静态页在关卡视图上面画立意和大纲，② 画分镜，E2、E3 画声音，用的是控制台同一套渲染（`static/core.js`、`modules.js`，加一个只给静态页的 `static/static.js`），数据是 `bin/vh review` 出页时按控制台的读法（`server.project_data`）读出来、只留这一站用得上的那些，写进页里的一个 JSON 块；文件地址相对页面所在的文件夹。没有写点评的框，什么也不发：模块上的立意卡和下面关卡视图里的同一件决定联动，回复照旧复制回聊天。模块已经画了的（立意卡、分镜格），关卡视图里藏起来，不再画一遍。关卡 ③ 和 E4、E5 没有模块：关卡视图的播放器和标尺就是成片模块的静态版。不开 JavaScript，或这个项目读不出来（老项目里缺这缺那），页面还是原来的关卡视图。
 
-`bin/vh gate`（`tools/gate.py`）把一次停要做的事做完：审阅方式取 `--desk` / `--page` / `--chat`，没有就取 `LOCAL.md` 的"审阅方式"一行，再没有就按档位（`studio` 审阅台；`standard` 在 Studio 开着、而且它接得下这支片子时是 Studio，不然是静态页，从不为它另起一个审阅台；`quick` 静态页）。每种方式都出静态页、打印聊天消息；审阅台方式再让审阅台把这一站开在 Studio 的窗口里，消息里说一句开好了（不带地址），没开成就说一句再试哪条命令。退出码：0 发出去了（`--wait` 时是收到了提交）；1 页面写了但不合规矩，不发消息也不起服务；2 没东西可发（没有 gate JSON、服务起不来、点名或按 LOCAL.md 不是审阅台却要 `--wait`、`quick` 要 `--wait`）；3 `--wait` 超时；4 `--wait` 等的那个 agent 没了；5 `--wait`，但 `standard` 的这一站按默认出了静态页：没有在等谁，也没有人答复（这一轮停下，人在聊天里回；标准输出照旧是交给人的那段话）；6 `--wait` 等着的审阅台或 Studio 关了。
+`bin/vh gate`（`tools/gate.py`）把一次停要做的事做完：审阅方式取 `--desk` / `--page` / `--chat`，没有就取 `LOCAL.md` 的"审阅方式"一行，再没有就按档位（`studio` 审阅台；`standard` 在 Studio 开着、而且它接得下这支片子时是 Studio，不然是静态页，从不为它另起一个审阅台；`quick` 静态页）。每种方式都出静态页、打印聊天消息；审阅台方式再让审阅台把这一站开在 Studio 的窗口里，消息里说一句开好了（不带地址），没开成就说一句再试哪条命令。退出码：0 发出去了（`--wait` 时只在收到了提交时，并把它打印出来）；1 页面写了但不合规矩，不发消息也不起服务；2 没东西可发（没有 gate JSON、服务起不来、点名或按 LOCAL.md 不是审阅台却要 `--wait`、`quick` 要 `--wait`）；3 `--wait` 超时；4 `--wait` 等的那个 agent 没了；5 `--wait`，而 `standard` 的这一站按默认落到静态页（Studio 没开）：照常出页、退出 5：没有人答复，这一轮停下，等人在聊天里回（标准输出照旧是交给人的那段话，和不带 `--wait` 时一样）；6 `--wait` 等着的审阅台或 Studio 关了。
 
 **一站的数据就是 `out/review/gate-<n>.json` 这一个文件。** 静态页（`bin/vh review`）、审阅台和以后的客户端都只渲染它（审阅台另外读下面这些项目文件），各自不另存一份。
 
