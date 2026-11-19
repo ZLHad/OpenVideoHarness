@@ -680,6 +680,7 @@ async function pollLive() {
   const r = await getJSON(`/api/p/${enc(PKEY)}/status`);
   const on = !!(r.ok && r.data && r.data.listening), el = $("#colHead .state");
   if (el) { el.classList.toggle("agent", on); el.hidden = !on; }
+  AGENT.listening(on);   // the conversation that waits for this stop in the background says so
   const mine = r.ok && r.data && r.data.key === PKEY, got = mine ? r.data.now || null : null;   // not answered, or its state unreadable: said as unknown
   if (D && D.status && (mine || !r.ok) && JSON.stringify([got, mine ? r.data.plan : D.status.plan]) !== JSON.stringify([D.status.now, D.status.plan])) {
     D.status.now = got; if (mine) D.status.plan = r.data.plan; renderNow();   // where it stands moved (a render's frames, the notes picked up)

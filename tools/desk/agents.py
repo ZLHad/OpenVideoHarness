@@ -50,6 +50,13 @@ CHUNK_GAP = 0.12     # s: the agent's text pieces within this are written as one
 SCOPE_KINDS = ("dec", "least", "deleg", "concept", "seg", "cap", "shot", "fact", "time", "atime", "led", "doc", "asset", "range",
                "chapter", "card")   # core.js's TARGET_RE: the kinds of thing the console can have selected
 ID_RE = re.compile(r"^[a-f0-9]{32}$")
+# The Claude adapter tells a client that asks for it (its "async tasks" extension) when Claude Code starts a turn of its own:
+# a background command it ran (bin/vh gate --wait, desk wait) ended after its turn, and it carries on. That turn arrives as a
+# task of type "turn" (async_task_spawned … async_task_state_update with a terminal state); the console makes it a turn of
+# the conversation: running, the film's lock, the stop button. Without the extension its words would come with no turn.
+ASYNC_TASKS = {"_meta": {"jetbrains": {"air": {"version": 1, "capabilities": ["asyncTasks"]}}}}
+TASK_ENDS = ("completed", "failed", "stopped")
+NOTES_JUST = 120     # s: notes handed over this recently, when its own turn begins, are what it carries on from
 
 # the adapters: the npm package that speaks ACP for each agent, pinned. size: on disk after install (macOS arm64, 2026-11-16)
 ADAPTERS = {
@@ -394,6 +401,8 @@ class Session:
         self._attach_lock = threading.RLock()   # attach → set_config (DSH defaults) → attach
         self._say_lock = threading.Lock()
         self._spot_lock = threading.Lock()
+        self.own = None            # the adapter's task id of the turn the agent started by itself, while it runs
+        self.own_next = None       # one that began while the person's turn was still ending: it runs once that turn ends
         self.turn = 0              # this conversation's turns, numbered: a turn ended here is not ended again by its late answer
         self._ended = 0
         for e in self.events:      # the state an old log ends in: what the page shows before it talks again
@@ -590,7 +599,15 @@ class Session:
             u = dict(u, configOptions=private_options(u["configOptions"]))
         if kind in ("agent_message_chunk", "agent_thought_chunk"):
             return self.chunk(u)
+        tid = u.get("asyncTaskId") if isinstance(u.get("asyncTaskId"), str) and len(u.get("asyncTaskId")) <= 500 else None
+        if kind == "async_task_spawned" and u.get("taskType") == "turn" and tid:
+            self._own_start(tid)
         self.emit("update", u=self._c(u))
+        if kind == "async_task_state_update" and u.get("state") in TASK_ENDS and tid:
+            if self.own_next == tid:   # it ended before the person's turn did: nothing to run
+                self.own_next = None
+            elif self.own is not None and tid == self.own:
+                self._end(self.turn, stop="cancelled" if u.get("state") == "stopped" else "error" if u.get("state") == "failed" else "end_turn", own=True)
         if kind in ("tool_call", "tool_call_update") and self.unplaced:
             got = ran_new(u) - self.slugs
             if got:   # it runs bin/vh new: kept with the conversation, so a restart still knows
@@ -679,6 +696,37 @@ class Session:
             prompt.append({"type": "text", "text": self.mgr.space_note})
         threading.Thread(target=self._turn, args=(prompt, self.turn), name=f"turn-{self.id[:6]}", daemon=True).start()
 
+    def _own_start(self, task):
+        """The agent began a turn by itself (the adapter's task of type "turn"): a turn of this conversation, as one the
+        person began is, with the film's lock when it can have it (it works either way: the page says who holds the film).
+        One that comes while the person's turn is still ending runs once that turn ends. notes: this film's submission was
+        just handed over (what it carries on from); otherwise it is said plainly (a wait that timed out, a render ending).
+        Whether someone else works on the film is looked at after (lsof can take a while; its end may come first)."""
+        with self._say_lock:
+            if self.running:
+                self.own_next = task
+                return
+            self.turn += 1
+            n = self.turn
+            got = True if self.unplaced else agentlock.acquire(self.project, {"kind": self.kind, "label": ADAPTERS[self.kind]["label"], "session": self.id,
+                                                                            "turn": n})
+            self.running, self.stopping, self.own, self.own_next = True, False, task, None
+            try:
+                notes = time.time() - (self.project / "out" / "review" / "feedback" / ".consumed").stat().st_mtime < NOTES_JUST
+            except OSError:
+                notes = False
+            self.emit("turn", state="start", own=True, notes=notes, **({} if got is True else {"locked": False}))
+
+        def after():
+            if got is True and not self.unplaced:   # someone else on the film (a terminal agent, a command of another's)
+                who = agentlock.occupants(self.project, self.mgr.adapter_pids(), self.id)
+                if any(w.get("why") != "waiting" for w in who) and self.own == task:
+                    self.emit("notice", code="own_busy")
+            time.sleep(TURN_TIMEOUT)   # an own turn has the person's turn's bound: never "working" for ever
+            if self.own == task and self._ended < n:
+                self._end(n, stop="error", error="own_timeout", own=True)
+        threading.Thread(target=after, name=f"own-{self.id[:6]}", daemon=True).start()
+
     def _end(self, n, **fields):
         """End turn n, once: what waits is cancelled, the lock goes, the page hears it. False when it had ended already."""
         with self._say_lock:
@@ -687,8 +735,11 @@ class Session:
             self._ended = n
             self.reject_waiting("turn_end")
             agentlock.release(self.project, self.id, n)
-            self.running, self.stopping = False, False
+            self.running, self.stopping, self.own = False, False, None
+            nxt, self.own_next = self.own_next, None
         self.emit("turn", state="end", **fields)
+        if nxt:   # a turn of its own that began while this one was ending
+            self._own_start(nxt)
         return True
 
     def _turn(self, prompt, n):
@@ -714,7 +765,19 @@ class Session:
         self.stopping = True
         self.emit("notice", code="stopping")
         peer = self.mgr.peers.get(self.kind)
-        if peer is not None and self.acp_id:
+        own = self.own
+        if peer is not None and self.acp_id and own:   # its own turn: no prompt of ours to cancel; the adapter stops the task
+
+            def ask():
+                try:
+                    peer.call("_session/async_task/stop", {"sessionId": self.acp_id, "asyncTaskId": own}, 30)
+                except acp.AcpError:
+                    try:
+                        peer.notify("session/cancel", {"sessionId": self.acp_id})
+                    except acp.AcpError:
+                        pass
+            threading.Thread(target=ask, name=f"stop-own-{self.id[:6]}", daemon=True).start()
+        elif peer is not None and self.acp_id:
             try:
                 peer.notify("session/cancel", {"sessionId": self.acp_id})
             except acp.AcpError:
@@ -774,6 +837,8 @@ class Session:
         self.live = False
         self.reject_waiting("agent_gone")   # the turn in flight ends by itself: its call hears the adapter is gone
         self.emit("notice", code="agent_gone", exit=code)
+        if self.own is not None:   # a turn it began by itself has no call to hear it: it ends here
+            self._end(self.turn, stop="error", error="agent_gone", own=True)
 
 
 def scope_note(scope):
@@ -969,7 +1034,8 @@ class Manager:
                 raise Unavailable("no_start", str(e))
             try:
                 res = p.call("initialize", {"protocolVersion": PROTOCOL,
-                                            "clientCapabilities": {"fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False},
+                                            "clientCapabilities": dict({"fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False},
+                                                                       **(ASYNC_TASKS if kind == "claude" else {})),
                                             "clientInfo": {"name": "ovh-desk", "title": "OpenVideoHarness console", "version": "1"}}, 90)
             except acp.AcpError as e:
                 tail = " / ".join(list(p.stderr)[-3:])
@@ -1021,6 +1087,9 @@ class Manager:
             if s.kind == kind:
                 s.live = False
                 s.reject_waiting("agent_gone")
+                if s.own is not None:   # a turn it began by itself has no call to hear the restart: it ends here
+                    s._end(s.turn, stop="error", error="agent_restarted", own=True)
+                s.own_next = None
         if p is not None:
             if wait:
                 p.close(0.2, 1.0)

@@ -3412,7 +3412,7 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"这一站已经在 Studio 里打开了"*"然后回到这里跟我说一声"*"我交了"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"在 Studio 里打开了"*"然后回到这里跟我说一声"*"我交了"*) true ;; *) false ;; esac \
     && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
     && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
     && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
@@ -4168,7 +4168,7 @@ print(" ".join(out))
 PY
 )
   if [ $rc = 0 ] && case "$a" in *'"where": "studio"'*'#/p/outside~'*'"opened": true'*'"joined": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
-    && [ $rcg = 0 ] && case "$g" in *"这一站已经在 Studio 里打开了"*) true ;; *) false ;; esac && [ "$listed" = "2 0" ] \
+    && [ $rcg = 0 ] && case "$g" in *"在 Studio 里打开了"*) true ;; *) false ;; esac && [ "$listed" = "2 0" ] \
     && [ "$(printf '%s\n' $w0 | grep -c '^launch$')" = 1 ] && ! printf '%s' "$w0" | grep -q second \
     && [ $rc2 = 0 ] && grep -q '"stopped": false' "$t/q0" && [ $rc3 = 1 ] && [ $rc4 = 0 ] && [ $rc5 = 0 ] && [ $rc6 = 0 ] && grep -q '"stopped": true' "$t/q1" && [ $rc7 = 1 ] \
     && [ "$left" = 0 ] && case "$wq" in *closed) true ;; *) false ;; esac \
@@ -12617,6 +12617,7 @@ CI_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-run.XXXXXX") || exit 2
 CI_TMP=${CI_TMP//\/\//\/}   # one / (a TMPDIR ending in / gives two)
 export TMPDIR="$CI_TMP"
 CI_OWN_TMP=" gate_checks decision_checks desk_checks console_checks agent_checks studio_checks activity_checks status_checks cancel_checks history_checks artifacts_checks "
+export OVH_GATE_STUDIO=0   # a standard film's stop does not look for a running Studio: the checks test the page and their own desks (the check of that rule clears it)
 unset OVH_PROJECTS
 # the desks a check starts in the background (bin/vh gate's is in a session of its own) are recorded and stopped when the
 # run ends, also when a signal ends it: a run stopped half-way used to leave a desk running for its 12 h --idle. Only the

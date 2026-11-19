@@ -1163,8 +1163,10 @@
             "a stop in one command: checks out/review/gate-<n>.json, builds",
             "the review page and makes it this round, opens the review desk when the stop is reviewed there (Studio when it runs,",
             "a film outside its folders joining it; the desk shows its window at the stop itself, and the message says so, with no address)",
-            "(LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;",
-            "--wait (desk): then waits for the submission like desk wait (tools/gate.py)"
+            "(LOCAL.md's 审阅方式; else studio: desk; standard: Studio while it is open, else the page; quick: page), prints the chat message;",
+            "--wait (desk): then waits like desk wait, exit 0 only when a submission was received; a standard film's stop that went out",
+            "as the static page by default (Studio not open): the page goes out as usual, exit 5: nothing was answered; end the turn",
+            "and wait for the person's reply in the chat (tools/gate.py)"
           ]
         },
         {

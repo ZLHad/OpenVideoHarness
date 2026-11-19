@@ -360,13 +360,15 @@ def _handed(subs):
                   [f for f, _ in subs])
 
 
-def wait(project, timeout, poll=1.0, out=sys.stdout):
+def wait(project, timeout, poll=1.0, out=sys.stdout, desk=None):
     """Hand the agent the reviewer's submission: print it, mark it consumed, return 0; 3 on timeout.
     A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
     timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
     feedback/.listening ({pid, since, until, project, agent}) so the desk can say an agent is waiting. agent: the agent
     program it runs under (activity.agent_of), when there is one; once that agent is gone, or the wait's own parent is (it
-    was re-parented: whatever program started it ended), the wait ends (4): nobody would read what it hands over."""
+    was re-parented: whatever program started it ended), the wait ends (4): nobody would read what it hands over. desk:
+    (pid, since) of the review desk (or Studio) the person submits on (bin/vh gate --wait); once it closes nothing more can
+    come, and the wait ends (6), saying so."""
     fdir = Path(project) / "out" / "review" / "feedback"
     flag = fdir / ".listening"
 
@@ -402,8 +404,13 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     looked = start
     while time.time() - start < timeout:
         gone = os.getppid() != parent
-        if not gone and agent and time.time() - looked >= 5:   # (ps every 5 s at most)
-            looked, gone = time.time(), not activity.agent_alive(agent)
+        if not gone and (agent or desk) and time.time() - looked >= 5:   # (ps every 5 s at most)
+            looked, gone = time.time(), bool(agent) and not activity.agent_alive(agent)
+            if not gone and desk and desk[0] and not activity._alive(*desk):   # the desk it waits on closed: nothing more can come
+                out.write("the review desk this wait was on has closed, and nothing was submitted: ask the person in the chat "
+                          f"(the page is {Path(project) / 'out' / 'review'})\n")
+                out.flush()
+                return done(6)
         if gone:   # the agent it waits for, or whatever started it, went away: nobody would read what it hands over
             out.write("the agent this wait was for is gone; the wait ends (the notes stay in Studio)\n")
             out.flush()

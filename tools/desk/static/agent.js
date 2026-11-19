@@ -14,6 +14,7 @@
 const ASTR = {
   zh: {
     tab_chat: "对话", tab_round: "这一站", tab_ask: "等你批准 {n}", tab_dec: "等你定 {n}", ask_bar: "{a} 在等你批准：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史",
+    ag_atstop: "片子等你拍板", n_own: "你交了意见，{a} 自己接着做了。", n_own_plain: "{a} 自己接着做下去了。", n_own_busy: "{a} 自己接着做了，但这支片子正被别的 agent 占着。",
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "思考深度", set_more: "更多设置", set_personal_off: "不带个人设置",
@@ -66,6 +67,7 @@ const ASTR = {
   },
   en: {
     tab_chat: "Chat", tab_round: "This stop", tab_ask: "{n} for your OK", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History",
+    ag_atstop: "Your call", n_own: "You sent your notes; {a} carried on by itself.", n_own_plain: "{a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another agent holds this film.",
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Needs OK",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
@@ -125,6 +127,7 @@ const AGENT = (() => {
   let KEYOK = true;   // the page holds this run's token (studio.js asks /api/hello); without it the box is not offered
   let KEYP = "", INFO = null, KIND = "", S = null, ES = null, BUSY = null, TAB = "", ERR = null, NEWBOX = false, tick = null, raf = 0;
   let NEWASK = {};   // the model and effort the person chose for the conversation they are about to start (only what they changed)
+  let LISTEN = false;   // this film's stop has an agent waiting for the person's submission (bin/vh desk wait, gate --wait: studio.js's poll)
   const kinds = () => ((INFO && INFO.agents) || []);
   const meta = (k) => kinds().find((a) => a.kind === k) || { kind: k, label: k };
   const label = () => meta(KIND).label || KIND;
@@ -143,7 +146,7 @@ const AGENT = (() => {
     const ty = e.type;
     if (ty === "user") { item("u" + e.seq, () => ({ kind: "user", text: e.text, scope: e.scope, t: e.t })); }
     else if (ty === "turn") {
-      if (e.state === "start") { S.running = true; S.stopping = false; S.turnAt = e.t; S.cur = null; }
+      if (e.state === "start") { S.running = true; S.stopping = false; S.turnAt = e.t; S.cur = null; if (e.own) item("o" + e.seq, () => ({ kind: "notice", code: e.locked === false ? "own_busy" : e.notes ? "own" : "own_plain" })); }
       else { const stopped = S.stopping || S.stopAsked; S.running = false; S.stopping = false; S.stopAsked = false; item("e" + e.seq, () => ({ kind: "end", stop: stopped && !e.error ? "cancelled" : e.stop, asked: stopped, error: e.error, took: S.turnAt ? e.t - S.turnAt : null })); S.turnAt = null; }
       if (KEYP !== SPACE && typeof renderFlow === "function") setTimeout(renderFlow, 0);   // the stops' lamps: the agent's while its turn runs
     } else if (ty === "state") { Object.assign(S.config, e); }
@@ -180,6 +183,7 @@ const AGENT = (() => {
     else if (k === "current_mode_update") { if (S.config.modes) S.config.modes = Object.assign({}, S.config.modes, { currentModeId: u.currentModeId }); }
     else if (k === "config_option_update") { if (Array.isArray(u.configOptions)) S.config.configOptions = u.configOptions; }
     else if (k === "available_commands_update") { /* the agent's commands: not offered in this column */ }
+    else if (/^async_task_/.test(k || "")) { /* its background work's lifecycle: the server turns its own turn into a turn; the commands are their tool calls */ }
     else item("x" + e.seq, () => ({ kind: "unknown", k: String(k || "?"), u }));
   }
 
@@ -423,6 +427,7 @@ const AGENT = (() => {
       return { k: cur === "thought" ? "ag_thinking" : "ag_working", cls: "agent" };
     }
     if (S.gone) return { k: "ag_gone", cls: "" };
+    if (LISTEN && KEYP !== SPACE) return { k: "ag_atstop", cls: "wait" };   // its turn ended, its wait goes on in the background
     return { k: S.items.length ? "ag_idle" : "ag_ready", cls: "" };
   }
   function optWord(cat, x) {   // a value of the agent's settings in our words when we know it, else its own name
@@ -565,6 +570,7 @@ const AGENT = (() => {
     if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
     if (it.kind === "notice" && it.code === "place_busy") return `<p class="ag-note warn">${esc(at("n_place_busy", { x: it.name || "", w: it.who || "?" }))}</p>`;
     if (it.kind === "notice" && it.code === "placed") return `<p class="ag-note ok">${esc(at("n_placed", { x: it.name || "" }))}</p>`;
+    if (it.kind === "notice" && /^own/.test(it.code || "")) return `<p class="ag-note${it.code === "own_busy" ? " warn" : " ok"}">${esc(at("n_" + it.code, { a: label() }))}</p>`;
     if (it.kind === "notice" && it.code === "restarted") return `<p class="ag-note warn">${esc(at("n_restarted", { a: label() }))}</p>`;
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
     if (it.kind === "unknown") return `<details class="ag-unknown"><summary>${esc(at("unknown", { a: label() }))}</summary><pre>${esc(cut(JSON.stringify(it.u, null, 1), 2000))}</pre></details>`;
@@ -831,6 +837,7 @@ const AGENT = (() => {
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab, fresh,
+    listening(on) { if (LISTEN !== !!on) { LISTEN = !!on; if (KEYP && KEYP !== SPACE) renderHead(); } },
     async tell(e, text) {   // Studio's own button (the column's one action): its own words (bin/vh status's, Studio's word table and numbers), sent in this
       // film's conversation, the newest one, else a new one; the box keeps the person's draft (it is filled only by them)
       if (!e || !e.isTrusted || !KEYP || KEYP === SPACE || !text || !KEYOK) return;
