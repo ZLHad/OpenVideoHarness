@@ -1918,6 +1918,20 @@ def handoff_checks():
           "while something runs), what is missing before the delivery; a short sentence, the rest on the line under it, no path on a card; "
           "the film's plan from its BRIEF and its own stops, a template line left out", unit)
 
+    def title():   # a film begun on the space, its BRIEF still the template's: the person's own sentence, shortened, not the dated folder
+        import server
+        p = stage("2026-11-19-sea-salt")
+        (p / "out" / "review").mkdir(parents=True, exist_ok=True)
+        for f in (p / "out" / "review").glob("gate-*.json"):
+            f.unlink()
+        a = p / ".ovh" / "agents"
+        a.mkdir(parents=True, exist_ok=True)
+        (a / ("0" * 32 + ".json")).write_text(json.dumps({"space": True, "placed": {"at": time.time()}}))
+        (a / ("0" * 32 + ".jsonl")).write_text(json.dumps({"seq": 1, "type": "user", "text": "做一支三十秒的竖屏短片，讲海盐是怎么晒出来的，配旁白"}, ensure_ascii=False) + "\n")
+        got, plain = server.film_title(p, p.name), server.film_title(p, "海盐的一生")
+        return None if (got, plain) == ("做一支三十秒的竖屏短片，讲海盐是怎么晒出来的…", "海盐的一生") else (got, plain)
+    check("a new film whose BRIEF has no title yet is called by the person's own sentence, shortened, not its dated folder; a BRIEF's title wins", title)
+
     g = stage("wait", "3")
 
     def stop_waits():

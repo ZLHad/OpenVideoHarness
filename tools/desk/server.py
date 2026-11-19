@@ -253,9 +253,36 @@ def _gate_pictures(project):
                 yield page.stem[5:], p
 
 
+def first_words(project, n=24):
+    """What the person first said in the conversation that made this film (begun on Studio's space), shortened; or None."""
+    d = Path(project) / ".ovh" / "agents"
+    try:
+        heads = sorted(d.glob("*.json"), key=lambda p: p.stat().st_mtime)
+    except OSError:
+        return None
+    for h in heads:
+        j = _load(h)
+        if not (isinstance(j, dict) and j.get("space") and j.get("placed")):
+            continue
+        try:
+            with open(h.with_suffix(".jsonl"), encoding="utf-8") as f:
+                for line in f:
+                    e = json.loads(line)
+                    if isinstance(e, dict) and e.get("type") == "user" and isinstance(e.get("text"), str) and e["text"].strip():
+                        x = " ".join(e["text"].split())
+                        if len(x) <= n:
+                            return x
+                        cut = max(x.rfind(c, 0, n) for c in "，,。；;：: ")   # at a pause in the sentence when there is one past its middle
+                        return (x[:cut] if cut > n // 2 else x[:n]).rstrip("，,。；;：: ") + "…"
+        except (OSError, ValueError):
+            continue
+    return None
+
+
 def film_title(project, title):
     """The film's name: BRIEF's (bin/vh status's title), else the newest gate page's title up to its stop's name
-    ("片名 · 关卡 ③ 初版" → "片名"), else the folder's name."""
+    ("片名 · 关卡 ③ 初版" → "片名"), else what the person first said when they asked for it on the space (shortened), else
+    the folder's name."""
     name = Path(project).name
     if title and title != name:
         return title
@@ -266,7 +293,7 @@ def film_title(project, title):
             head = re.split(r"\s+[·|｜—-]\s+(?=关卡|检查点|Gate|Checkpoint|E\d)", t.strip(), maxsplit=1)[0].strip()
             if head and head != t.strip():
                 return head
-    return title or name
+    return first_words(project) or title or name
 
 
 def ask_of(row, gid, gate):

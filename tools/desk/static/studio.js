@@ -626,7 +626,7 @@ async function submit() {
     return;
   }
   if (r && r.status === 409) { toast(t("moved")); $("#submitHint").textContent = t("moved"); return; }   // the address names another folder now
-  if (r) { let e = r.status; try { e = (await r.json()).error || e; } catch (x) { /* not JSON */ } toast(t("refused", { e })); return; }
+  if (r) { const k = "refused_" + r.status, m = STR[LANG][k] ? t(k) : t("refused_any"); toast(m); const h = $("#submitHint"); if (h) h.textContent = m; return; }   // the server's reason is its own English: the page says what happened, in the person's language
   copyText(text).then(() => toast(t("offline")), () => toast(t("offline2")));
   $("#confirm details").open = true;
 }
@@ -1164,7 +1164,9 @@ function CutModule(area) {
     const cover = ((D.mods || {}).covers || []).find((c) => c.ratio && c.ratio >= 1) || ((D.mods || {}).covers || [])[0];
     const dl = (stations().find((x) => x.id === "deliver") || {}).delivered, shipped = filmDelivered();
     const gone = ST.film_missing || (shipped ? ((dl && (dl.films || [])[0]) || "out/final.mp4") : ""), pics = shots.some(shotPic) ? "frames" : gone && cover ? "cover" : ST.sheet ? "sheet" : "";   // a film gone: its cover stands for it better than a contact sheet
-    const say = pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics) : gone ? t("film_gone0") : t("no_film0");
+    const nw = (D.status || {}).now, NL = LANG === "zh" ? "zh" : "en";   // a film on its way says so here as in the column (bin/vh status's now)
+    const making = !gone && nw && (nw.code === "running" ? nw.say[NL] : nw.code === "notes_taken" && nw.more ? nw.more[NL] : "");
+    const say = making ? [making, pics ? t("look_" + pics) : ""].filter(Boolean).join(LANG === "zh" ? "" : " ") : pics ? t(gone ? "film_gone_" + pics : "no_film_" + pics) : gone ? t("film_gone0") : t("no_film0");
     const tell = gone && !readOnly() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : "";
     frame.innerHTML = `<img id="cimg" alt=""${pics === "sheet" ? ` src="${esc(src(ST.sheet))}"` : pics === "cover" ? ` src="${esc(src(cover.path))}"` : ""}>${pics ? "" : `<p class="none" title="${esc(gone)}">${esc(say)}${tell}</p>`}<div class="safe" hidden></div>`;
     if (pics) screen.insertAdjacentHTML("beforeend", `<p class="screen-note" title="${esc(gone)}">${esc(say)}${tell}</p>`);
