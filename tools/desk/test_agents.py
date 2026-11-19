@@ -2356,7 +2356,7 @@ def column_wait_checks():
     def gate_channel():   # a standard film's stop: in Studio while Studio is open (with the wait), the page otherwise; a flag wins
         out = []
         p = stage("channel")
-        e = dict(env, OVH_ACTIVITY_AGENT="0")
+        e = {k: v for k, v in dict(env, OVH_ACTIVITY_AGENT="0").items() if k != "OVH_GATE_STUDIO"}   # this check is of that very rule
         r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait"], capture_output=True, text=True, env=e, timeout=120)
         if r.returncode != 0 or "nothing to wait for" not in r.stderr or "reviewed on the page" not in r.stderr or "Studio 里打开了" in r.stdout:
             out.append(f"no Studio: {r.returncode} {r.stderr[-300:]}")

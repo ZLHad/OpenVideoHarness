@@ -32,7 +32,7 @@ no desk, and bin/vh status counts it as not sent until a run of it goes through 
 --wait without the desk, --init over a file, gate ③'s page while gate ① is not on record (standard, studio), or gate ② (in the plan, a BRIEF with a
 Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out.
 """
-import argparse, contextlib, json, re, sys
+import argparse, contextlib, json, os, re, sys
 from pathlib import Path
 from urllib.parse import quote
 
@@ -196,7 +196,11 @@ def gate_seen(stop, lang):
 def studio_open():
     """Studio (the console) runs on this machine now: it is used, never started, for a standard film's stop. Its record must
     name a process that is alive and answers on its port (server.running_info), and that started no later than the record
-    says (a pid another process took since is not Studio): a record left behind falls back to the static page."""
+    says (a pid another process took since is not Studio): a record left behind falls back to the static page.
+    OVH_GATE_STUDIO=0: do not look (tools/ci.sh sets it: its checks test the page and their own desks, and must never reach
+    a Studio they did not start)."""
+    if os.environ.get("OVH_GATE_STUDIO") == "0":
+        return False
     try:
         import server
         import datetime
