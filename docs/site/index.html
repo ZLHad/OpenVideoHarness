@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenVideoHarness · A video harness for Claude Code and Codex</title>
-<meta name="description" content="A video workbench for Claude Code and Codex: the agent writes the code that renders the film, checks its own work, and you sign off at three checkpoints. 给 Claude Code 和 Codex 用的视频工作台：AI 写代码出片，你在三个节点拍板。">
+<meta name="description" content="Make videos with Claude Code or Codex. The agent writes and renders the film. Use Studio to comment on a shot, compare revisions and approve the cut. 给 Claude Code 和 Codex 用的视频工作台。说一句需求，agent 写代码出片，你在 Studio 点评和复审。">
 <meta name="theme-color" content="#04050A">
 <link rel="canonical" href="https://zlhad.top/OpenVideoHarness/docs/site/">
 <link rel="alternate" hreflang="en" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en">
 <link rel="alternate" hreflang="zh" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh">
 <meta property="og:type" content="website">
 <meta property="og:title" content="OpenVideoHarness">
-<meta property="og:description" content="A video workbench for Claude Code and Codex: the agent writes the code that renders the film, and you sign off at three checkpoints.">
+<meta property="og:description" content="Make videos with Claude Code or Codex. Review a shot in Studio and compare the revision with the original.">
 <meta property="og:url" content="https://zlhad.top/OpenVideoHarness/docs/site/">
 <meta property="og:image" content="https://zlhad.top/OpenVideoHarness/docs/site/img/04-intro.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -518,8 +518,12 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .steps h3 { font-size: 17px; font-weight: 600; margin: 4px 0 6px; }
 .cmd { position: relative; border-radius: 12px; color: var(--text); font-family: var(--mono); font-size: clamp(13px, 1vw, 15.5px); padding: 12px 84px 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 2.9em; background: rgba(8,10,20,.7); }
 .cmd .p { color: var(--cyan); user-select: none; }
-.cmd .caret { display: inline-block; width: .55em; height: 1.1em; background: var(--cyan); vertical-align: -3px; margin-left: 2px; animation: blink 1s steps(1) infinite; box-shadow: 0 0 8px var(--cyan); }
-.cmd.say { white-space: normal; font-family: var(--display); font-weight: 500; font-size: clamp(17px, 1.35vw, 22px); line-height: 1.35; letter-spacing: -.01em; padding-right: 14px; background: var(--glass); }
+.cmd code { font: inherit; }
+.cmd.say { white-space: normal; font-family: var(--display); font-weight: 500; font-size: clamp(17px, 1.35vw, 22px); line-height: 1.35; letter-spacing: -.01em; background: var(--glass); }
+.start-cli { margin-top: 8px; }
+.start-cli summary { color: var(--cyan); cursor: pointer; font-size: 14px; }
+.start-cli .cmd { margin-top: 6px; }
+.steps h3 + .fine, .steps .fine + .cmd { margin-bottom: 6px; }
 .copy { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--sans); font-size: 12.5px; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid var(--line); color: var(--text); transition: background .2s; }
 .copy:hover { background: rgba(107,230,255,.2); }
 .next { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14.5px; }
@@ -569,7 +573,7 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .sfilm .bigplay { background: linear-gradient(0deg, rgba(0,0,0,.4), rgba(0,0,0,0) 30%); padding: clamp(12px, 2vw, 22px); }
 .sfilm .bigplay > span { gap: 10px; padding: 10px 18px 10px 14px; font-size: 15px; }
 .sfilm .bigplay > span::before { border-left-width: 12px; border-top-width: 7px; border-bottom-width: 7px; }
-.sfilm.sound .bigplay { opacity: 0; pointer-events: none; }
+.sfilm.sound .bigplay { visibility: hidden; }
 @media (max-width: 640px) {   /* clear of the poster's title */
   .sfilm .bigplay { padding: 6px; }
   .sfilm .bigplay > span { gap: 7px; padding: 5px 11px 5px 9px; font-size: 12px; }
@@ -584,6 +588,10 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .studio-steps h3::before { counter-increment: st; content: "0" counter(st); font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--cyan); }
 html[data-lang="zh"] .studio-steps h3 { letter-spacing: .01em; }
 .studio-steps p { font-size: 14.5px; color: var(--text-2); margin: 0 4px; line-height: 1.55; }
+.studio-revision { margin-top: clamp(22px, 4vh, 44px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: center; gap: 16px 28px; }
+.studio-revision .shot-btn img { aspect-ratio: auto; }
+.studio-revision h3 { font-family: var(--display); font-size: clamp(21px, 2.1vw, 32px); line-height: 1.15; margin-bottom: 8px; }
+.studio-revision p { color: var(--text-2); max-width: 34em; }
 .studio-foot { margin-top: clamp(18px, 3.5vh, 36px); padding-top: 16px; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px 32px; align-items: center; }
 .themes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
 .themes figure { margin: 0; }
@@ -594,7 +602,7 @@ html[data-lang="zh"] .studio-steps h3 { letter-spacing: .01em; }
 .studio-open code { font-family: var(--mono); font-size: 13.5px; color: var(--cyan); }
 .studio-open .fine { display: block; margin-top: 8px; }
 @media (max-width: 1180px) { .studio-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .studio-foot { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .studio-steps { grid-template-columns: minmax(0, 1fr); } .themes { gap: 6px; } .themes figcaption { font-size: 11.5px; } }
+@media (max-width: 640px) { .studio-steps, .studio-revision { grid-template-columns: minmax(0, 1fr); } .themes { gap: 6px; } .themes figcaption { font-size: 11.5px; } }
 
 /* ---------- lightbox ---------- */
 .lightbox { position: fixed; inset: 0; z-index: 60; display: none; place-items: center; background: rgba(4,5,10,.78); padding: 16px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
@@ -774,10 +782,10 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <p class="eyebrow" data-r><span lang="en">A video harness for Claude Code and Codex</span><span lang="zh">给 Claude Code 和 Codex 用的视频工作台</span></p>
     <h1>OpenVideo<br>Harness</h1>
     <p class="tag split"><span lang="en">Not more tools. <em>Know-how.</em></span><span lang="zh">不缺工具，<em>缺门道。</em></span></p>
-    <p class="lede" data-r><span lang="en">Ask for a film in one sentence. The agent writes the code that renders it, from the idea, storyboard, script and style to the sound and the final cut. It checks its own work, and stops for your sign-off at the concept and the first draft, and at the storyboard too when the film is long, heavy to render or paid.</span><span lang="zh">一句话提需求，agent 写代码渲染成片：立意、分镜、脚本、风格、声音，一直到成片。它自己检查自己，在立意和初版停下来等你拍板；片子长、渲染重或要花钱时，分镜也先给你看。</span></p>
+    <p class="lede" data-r><span lang="en">Ask Claude Code or Codex for a film in Studio or the terminal. The agent writes the source, renders the film and checks the result. In Studio you can comment on a shot and compare the revised cut with the original.</span><span lang="zh">在 Studio 或终端说一句想做什么，Claude Code 或 Codex 就能写源码、渲染成片、检查结果。你可以指着镜头点评，再在 Studio 对照修改前后的成片。</span></p>
     <div class="cta" data-r>
       <a class="btn" href="#start"><span lang="en">Get started</span><span lang="zh">开始使用</span> <span class="arrow">→</span></a>
-      <a class="btn ghost" href="#film"><span lang="en">Watch the film</span><span lang="zh">看介绍片</span></a>
+      <a class="btn ghost" href="#studio"><span lang="en">See Studio in 17 s</span><span lang="zh">17 秒看 Studio</span></a>
       <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .8l2.2 4.5 5 .7-3.6 3.5.9 5L8 12.1 3.5 14.5l.9-5L.8 6l5-.7z"/></svg><span lang="en">Star on GitHub</span><span lang="zh">GitHub 点 Star</span></a>
     </div>
     <ul class="trust" data-r>
@@ -800,7 +808,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     </div>
     <figure class="studio-shot" data-r>
       <div class="sfilm" id="sfilm">
-        <video playsinline muted loop preload="none" poster="img/studio.jpg" data-aria-en="OVH Studio, a 17-second film" data-aria-zh="OVH Studio，17 秒的短片">
+        <video playsinline preload="none" poster="img/studio.jpg" data-aria-en="OVH Studio, a 17-second film" data-aria-zh="OVH Studio，17 秒的短片">
           <source src="media/studio-film.mp4" type="video/mp4">
           <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-film-e0448e73.mp4" type="video/mp4">
         </video>
@@ -814,6 +822,16 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <li data-r><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/note.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="The cut stop: a few seconds selected on the timeline and a note written about them"><img lang="zh" src="../assets/studio/note.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="成片这一站：时间线上选中几秒，写了一条对着这几秒的点评"></button><h3><span lang="en">Hand them over together</span><span lang="zh">攒几条一起交</span></h3><p><span lang="en">Notes gather in the right-hand column. A summary shows them before anything goes; your words land in the project's REVIEW.md, and the agent carries on from them.</span><span lang="zh">点评攒在右边一列，交之前先列一遍；你的原话记进项目的 REVIEW.md，agent 照着往下做。</span></p></li>
       <li data-r><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/decide.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="The concept stop: three concept cards with a frame each, the recommended one already chosen"><img lang="zh" src="../assets/studio/decide.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="立意这一站：三张立意卡各配一帧，推荐的那张已经选好"></button><h3><span lang="en">Decide on cards</span><span lang="zh">在卡片上定</span></h3><p><span lang="en">At the concept, the storyboard and the draft, what you decide is a few cards with the recommended one chosen. Change it with a click, or leave it, and submit once.</span><span lang="zh">到了立意、分镜、初版，要你定的是几张卡，推荐的已经选好。点一下就换，不动就照推荐，最后提交一次。</span></p></li>
     </ol>
+    <div class="studio-revision" data-r>
+      <button type="button" class="shot-btn" data-szoom>
+        <img lang="en" src="../assets/studio/revision.en.webp" width="1060" height="656" loading="lazy" decoding="async" alt="Studio comparing two cuts at the same timecode. Only the original shows the formula yet.">
+        <img lang="zh" src="../assets/studio/revision.zh.webp" width="1060" height="656" loading="lazy" decoding="async" alt="Studio 在同一时间点对比两版成片，左边的原版已经出现公式">
+      </button>
+      <div>
+        <h3><span lang="en">Compare the revision</span><span lang="zh">同一段改完了，接着复审</span></h3>
+        <p><span lang="en">When the agent attaches both cuts to your note, open it in <strong>Cut → Revisions</strong>. Play the same span in both cuts, switch which soundtrack you hear, then accept the revision or send another note.</span><span lang="zh">agent 把两版成片关联到你的意见后，从<strong>成片 → 复审</strong>打开。两版对齐播放，可切换试听音轨，再选通过或针对这一版继续提意见。</span></p>
+      </div>
+    </div>
     <div class="studio-foot" data-r>
       <div class="themes">
         <figure><button type="button" class="shot-btn" data-szoom><img lang="en" src="../assets/studio/theme-darkfield.en.webp" width="1440" height="900" loading="lazy" decoding="async" alt="Studio in the Darkfield theme"><img lang="zh" src="../assets/studio/theme-darkfield.zh.webp" width="1440" height="900" loading="lazy" decoding="async" alt="暗场主题的 Studio"></button><figcaption><b lang="en">Darkfield</b><b lang="zh">暗场</b><span lang="en">default</span><span lang="zh">默认</span></figcaption></figure>
@@ -834,17 +852,24 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <div class="start-grid">
       <div>
         <ol class="steps">
-          <li data-r><div><h3><span lang="en">Install (macOS or Linux)</span><span lang="zh">安装（macOS 或 Linux）</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</span><button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">Copy</button></div></div></li>
-          <li data-r><div><h3><span lang="en">Click OVH Studio, or open Claude Code in the folder</span><span lang="zh">点开 OVH Studio，或在目录里打开 Claude Code</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="cd ~/OpenVideoHarness && claude">cd ~/OpenVideoHarness &amp;&amp; claude</span><button class="copy" data-copy="cd ~/OpenVideoHarness && claude">Copy</button></div></div></li>
-          <li data-r><div><h3><span lang="en">Ask for a film</span><span lang="zh">一句话提需求</span></h3>
-            <div class="cmd say" lang="en"><span class="type" data-text="“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”">“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”</span></div>
-            <div class="cmd say" lang="zh"><span class="type" data-text="“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”">“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”</span></div>
+          <li data-r><div><h3><span lang="en">Install on macOS or Linux</span><span lang="zh">在 macOS 或 Linux 安装</span></h3><div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</code><button type="button" class="copy" data-aria-en="Copy the install command" data-aria-zh="复制安装命令">Copy</button></div></div></li>
+          <li data-r><div><h3><span lang="en">Open OVH Studio</span><span lang="zh">打开 OVH Studio</span></h3>
+            <p class="fine"><span lang="en">Open the app, choose your signed-in Claude Code or Codex in the agent column, and click <strong>Set it up</strong> if prompted. You can also launch Studio from the default install folder.</span><span lang="zh">打开应用，在右栏选择已登录的 Claude Code 或 Codex。看到适配器提示时点<strong>装上</strong>。也可以从默认安装目录启动 Studio。</span></p>
+            <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; bin/vh studio</code><button type="button" class="copy" data-aria-en="Copy the Studio launch command" data-aria-zh="复制 Studio 启动命令">Copy</button></div>
+            <details class="start-cli">
+              <summary><span lang="en">Use the terminal</span><span lang="zh">用终端开片</span></summary>
+              <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; codex</code><button type="button" class="copy" data-aria-en="Copy the Codex command" data-aria-zh="复制 Codex 命令">Copy</button></div>
+              <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; claude</code><button type="button" class="copy" data-aria-en="Copy the Claude Code command" data-aria-zh="复制 Claude Code 命令">Copy</button></div>
+            </details>
+          </div></li>
+          <li data-r><div><h3><span lang="en">Send a first request</span><span lang="zh">发送第一条需求</span></h3>
+            <div class="cmd say"><span data-copy-text lang="en">Quick draft: make a silent 15-second vertical explainer showing why doubling a square’s side length quadruples its area. Use a grid and on-screen text.</span><span data-copy-text lang="zh">快速出一版 15 秒的竖屏无声科普，用方格和画面文字讲清楚为什么正方形边长翻倍，面积变成四倍。</span><button type="button" class="copy" data-aria-en="Copy the sample request" data-aria-zh="复制示例需求">Copy</button></div>
           </div></li>
         </ol>
-        <p class="fine start-note" data-r><span lang="en">Needs macOS or Linux, Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. About 650 MB on disk, with <span data-n="refs">37</span> read-only reference repos. Step by step: the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started" target="_blank" rel="noopener">Getting Started</a>; behind a slow network, <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network</a>.</span><span lang="zh">需要 macOS 或 Linux、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。连同 <span data-n="refs">37</span> 个只读的参考仓库，约占 650 MB。一步步的说明见 wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B" target="_blank" rel="noopener">快速开始</a>；网络慢时看<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络</a>。</span></p>
+        <p class="fine start-note" data-r><span lang="en">Needs Git, Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. About 650 MB on disk including <span data-n="refs">37</span> read-only reference repos. <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started" target="_blank" rel="noopener">Step-by-step guide</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network</a></span><span lang="zh">需要 Git、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。连同 <span data-n="refs">37</span> 个只读参考仓库，约占 650 MB。<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B" target="_blank" rel="noopener">分步教程</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络</a></span></p>
       </div>
       <div class="flowcard" data-r>
-        <h4><span lang="en">What happens next</span><span lang="zh">接下来</span></h4>
+        <h4><span lang="en">Review stops for standard and studio</span><span lang="zh">标准档和精品档怎么审</span></h4>
         <ol class="gates">
           <li><b><span lang="en">① Directions and outline</span><span lang="zh">① 创意方向和大纲</span></b><span><span lang="en">Two or three ideas, each with one frame. You pick one.</span><span lang="zh">两三个创意方向，各配一帧画面，你选一个。</span></span></li>
           <li><b><span lang="en">② Storyboard</span><span lang="zh">② 分镜</span></b><span><span lang="en">A keyframe for every shot. A stop of its own when the film is long, heavy to render or paid; a short film's comes with the draft.</span><span lang="zh">每个镜头一张关键帧。片子长、渲染重或要花钱时单独停；短片的随初版一起给。</span></span></li>
@@ -856,7 +881,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <div><b>standard</b><span lang="en">one review round · 1–2 h</span><span lang="zh">一轮独立评审 · 1–2 小时</span></div>
           <div><b>studio</b><span lang="en">polished over rounds · 3 h+</span><span lang="zh">多轮打磨 · 3 小时以上</span></div>
         </div>
-        <p class="fine"><span lang="en">Times are for a 30-second film. Say "quick" and it runs straight through.</span><span lang="zh">时间按 30 秒的片子算。说"快速出一版"，它就一口气做完。</span></p>
+        <p class="fine"><span lang="en">Times are for a 30-second film. The quick request on this page goes straight through to a checked video.</span><span lang="zh">时间按 30 秒的片子算。这页的快出示例会直接做到检查完的成片。</span></p>
       </div>
     </div>
   </div>
@@ -1192,7 +1217,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">How long does a film take?</span><span lang="zh">做一支要多久？</span></summary>
-          <div class="a"><span lang="en">For a 30-second film: about 10–30 minutes at quick, 1–2 hours at standard, 3 hours or more at studio. Most of the time goes into checking and fixing. All three levels deliver a full-quality film; the level sets how often it stops and how many review rounds it runs.</span><span lang="zh">30 秒的片子：快出档 10–30 分钟，标准档 1–2 小时，精品档 3 小时以上，大部分时间花在自查和返工上。三档出的都是正式画质的成片，档位管的是中途停几次、审几轮。</span></div>
+          <div class="a"><span lang="en">For a 30-second film, allow roughly 10–30 minutes for quick, 1–2 hours for standard and 3 hours or more for studio. Most of the time goes into checking and fixing. All three deliver a full-quality film. Standard and studio stop for the direction and draft, with a separate storyboard review when the next step is costly.</span><span lang="zh">30 秒的片子，快出档约 10–30 分钟，标准档约 1–2 小时，精品档约 3 小时以上，大部分时间花在自查和返工上。三档都出正式画质。标准档和精品档在立意、初版停下来，下一步代价较大时也单独审分镜。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">What do I need?</span><span lang="zh">需要什么环境？</span></summary>
@@ -1200,7 +1225,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Does it work with Codex?</span><span lang="zh">能用 Codex 吗？</span></summary>
-          <div class="a"><span lang="en">Yes. <code>AGENTS.md</code> carries the same instructions as <code>CLAUDE.md</code>, and the installer registers the <code>open-video-harness</code> skill for both Claude Code and Codex, so asking for a video from any folder finds the workbench.</span><span lang="zh">能。<code>AGENTS.md</code> 和 <code>CLAUDE.md</code> 内容相同；安装时 <code>open-video-harness</code> skill 会同时注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，都能找到这里。</span></div>
+          <div class="a"><span lang="en">Yes. Select Codex in Studio and use <strong>Choose model and effort</strong> to see what your account offers before sending the first request. The installer also registers the <code>open-video-harness</code> skill for Codex and Claude Code, so either agent can find the workbench from another folder.</span><span lang="zh">能。在 Studio 选 Codex，发送第一条需求前可点<strong>选择模型和推理档</strong>，查看账号能用的选项。安装脚本也给 Codex 和 Claude Code 注册 <code>open-video-harness</code> skill，从别的目录也能找到工作台。</span></div>
         </details>
       </div>
       <div class="faq-col">
@@ -1217,8 +1242,8 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <div class="a"><span lang="en">The agent can't watch or listen. It reads rendered frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon), and type 09 hasn't been tried on real footage yet.</span><span lang="zh">agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听。目前只在 macOS（Apple Silicon）上完整跑过，第 09 类剪辑还没用真实素材试过。</span></div>
         </details>
         <details name="faq" data-r>
-          <summary><span lang="en">Does this page open from mainland China?</span><span lang="zh">在国内能打开这一页吗？</span></summary>
-          <div class="a"><span lang="en">It loads nothing from other sites: its two display fonts and every picture are in this repo. Only the films come from GitHub's release, and only once you press play, so they can be slow there; each film's folder and file are linked. For installing behind a slow network, see the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network ↗</a>.</span><span lang="zh">能。这一页不从别的网站加载任何东西：两种标题字体和所有图片都在本仓库里。只有片子来自 GitHub 的 Release，而且按下播放才载入，在国内可能比较慢；每支片子的目录和文件都有链接。网络慢时怎么安装，见 wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络 ↗</a>。</span></div>
+          <summary><span lang="en">Where does the page load its media from?</span><span lang="zh">官网的图片和视频从哪里加载？</span></summary>
+          <div class="a"><span lang="en">The fonts and images are served with this site. Studio's demo and the showcase films stream from GitHub Releases when you press play. The film folders link to their source and downloads. For installation help on a slow network, see the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network ↗</a>.</span><span lang="zh">字体和图片随官网一起提供。Studio 演示和成片样例按下播放后才从 GitHub Releases 加载。每支样片的目录也提供源码和下载链接。网络慢时怎么安装，见 Wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络 ↗</a>。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Is it an Anthropic project?</span><span lang="zh">是 Anthropic 官方项目吗？</span></summary>
@@ -1298,7 +1323,7 @@ const T = {
     gibbs: 'overshoot ≈ 9% of the jump, for any N',
     check: (f, o, d, n) => `Frame ${f}, rendered again right after frame ${o}: ${d.toLocaleString('en')} of ${n.toLocaleString('en')} pixels differ.` + (d ? '' : ' Identical.'),
     play: 'Play', pause: 'Pause',
-    copy: 'Copy', copied: 'Copied', select: 'Select it',
+    copy: 'Copy', copied: 'Copied', select: 'Selected',
     sheet: name => `${name}: the contact sheet Claude reviews`,
     tile: name => `${name}: play with sound`,
     yours: '<b>+ yours</b><small>borrow the grammar, not the shots</small>',
@@ -1311,7 +1336,7 @@ const T = {
     gibbs: '过冲约为跳变的 9%，N 再大也不消失',
     check: (f, o, d, n) => `第 ${f} 帧，紧接在第 ${o} 帧之后重渲：${n.toLocaleString('zh')} 个像素里有 ${d.toLocaleString('zh')} 个不同。` + (d ? '' : '完全一致。'),
     play: '播放', pause: '暂停',
-    copy: '复制', copied: '已复制', select: '请手动选中',
+    copy: '复制', copied: '已复制', select: '已选中',
     sheet: name => `${name}：Claude 审片时看的联系表`,
     tile: name => `${name}：带声音播放`,
     yours: '<b>+ 你的</b><small>借语法，不抄镜头</small>',
@@ -1768,51 +1793,17 @@ $$('[data-zoom]').forEach(b => b.addEventListener('click', () => { stopWall(); o
 $$('a.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
 onEnter.practice = () => $$('#practice [data-count]').forEach(el => countUp(el, 2400));
 
-/* ---------- get started: the commands type themselves ---------- */
-const caret = document.createElement('span'); caret.className = 'caret';
-let typing = 'no'; // no → on → done
-function finishTyping() {
-  if (typing !== 'on') return;
-  typing = 'done';
-  $$('#start .type').forEach(el => { el.textContent = el.dataset.text; });
-  caret.remove();
-}
-onEnter.start = () => {
-  if (typing !== 'no' || reduced) return; typing = 'on';
-  const els = $$('#start .type').filter(el => el.offsetParent !== null);
-  els.forEach(el => { el.textContent = ''; });
-  let k = 0;
-  const next = () => {
-    if (typing !== 'on' || k >= els.length) { typing = 'done'; return; }
-    const el = els[k], text = el.dataset.text, speed = k === 2 ? (CJK.test(text) ? 36 : 14) : 22;
-    let i = 0;
-    el.after(caret);
-    const tick = () => {
-      if (typing !== 'on') return;
-      i = Math.min(text.length, i + (k === 0 ? 2 : 1));
-      el.textContent = text.slice(0, i);
-      if (i < text.length) setTimeout(tick, speed);
-      else { k++; setTimeout(next, 260); }
-    };
-    tick();
-  };
-  setTimeout(next, 700);
-};
-
-/* ---------- Studio's film: muted on a loop where there is a mouse, from the start with sound on a click ---------- */
+/* ---------- Studio's film: load it only when a visitor presses play ---------- */
 const sfilm = $('#sfilm'), sv = $('video', sfilm);
-const sfilmHere = () => current >= 0 && sections[current].id === 'studio';
-function sfilmLoop() {   // muted, looping, no controls: the overlay offers sound
-  sfilm.classList.remove('sound'); sv.controls = false; sv.muted = true; sv.loop = true;
-  if (sfilmHere() && fine && !reduced) { const p = sv.play(); if (p) p.catch(() => {}); }
+function resetStudioFilm() {
+  sv.pause(); sv.controls = false; sfilm.classList.remove('sound');
 }
 $('.bigplay', sfilm).addEventListener('click', () => {
   pauseAll(sv); sfilm.classList.add('sound');
-  sv.loop = false; sv.muted = false; sv.currentTime = 0; sv.controls = true; const p = sv.play(); if (p) p.catch(() => {});
+  sv.currentTime = 0; sv.controls = true; sv.play().catch(resetStudioFilm);
 });
-sv.addEventListener('ended', () => { sv.blur(); sfilmLoop(); });
-onEnter.studio = () => { if (!sfilm.classList.contains('sound')) sfilmLoop(); };
-onLeave.studio = () => { sv.pause(); sfilm.classList.remove('sound'); sv.controls = false; sv.muted = true; sv.loop = true; };
+sv.addEventListener('ended', resetStudioFilm);
+onLeave.studio = resetStudioFilm;
 
 $$('[data-szoom]').forEach(b => b.addEventListener('click', () => {   // the Studio pictures: the one in the page's language, its alt as the caption
   const i = [...b.querySelectorAll('img')].find(x => x.offsetParent !== null) || $('img', b);
@@ -1844,8 +1835,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classLi
 
 /* ---------- copy buttons ---------- */
 $$('.copy').forEach(b => b.addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = tr().copied; }
-  catch { b.textContent = tr().select; }
+  const value = $(`[data-copy-text]:not([lang]), [data-copy-text][lang="${lang}"]`, b.parentElement);
+  try { await navigator.clipboard.writeText(value.textContent); b.textContent = tr().copied; }
+  catch {
+    const selection = window.getSelection(), range = document.createRange();
+    range.selectNodeContents(value);
+    selection.removeAllRanges(); selection.addRange(range);
+    b.textContent = tr().select;
+  }
   setTimeout(() => { b.textContent = tr().copy; }, 1600);
 }));
 
@@ -1870,7 +1867,6 @@ function applyLang(l) {
 }
 $('#langbtn').addEventListener('click', () => {
   const l = lang === 'zh' ? 'en' : 'zh';
-  finishTyping();
   const swap = () => {
     applyLang(l);
     try { localStorage.setItem('ovh-lang', l); } catch (e) { /* private mode */ }

@@ -4,30 +4,38 @@
 
 ### Making one good film is easy. Making a good one every time is the hard part.
 
-A video workbench for Claude Code and Codex. You say what you want in one sentence. The agent finds the idea, writes the film as code, checks its own work, and stops for your call at the concept and the first draft; when the film is long, heavy to render or costs money, it shows you the storyboard first too.
+A video workbench for Claude Code and Codex. Ask for a film in Studio or the terminal. The agent writes the source, renders the film and checks the result. In Studio you can make creative decisions, comment on a shot and compare the revision with the original.
 
-**English** · [中文](README.zh-CN.md) · [Website](https://zlhad.top/OpenVideoHarness/docs/site/) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
+**[Quick start](#quick-start)** · [Studio demo, 17 s with sound](https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#studio) · [Showcase films](#the-5-showcase-films-with-sound)
+
+**English** · [中文](README.zh-CN.md) · [Website](https://zlhad.top/OpenVideoHarness/docs/site/?lang=en) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
 
-<img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="Twelve moving moments from films made with this workbench: a black hole, a brake cylinder cut open, shadow puppets, a stock chart running through a grey city, a glowing map, a blue terrain, a gold track, ink wash, a pen drawing a steam engine, mirror-image molecules, a sea of films, paper silhouettes growing wings">
-
-<sub>Twelve moments from real films made with it. More below, some with sound.</sub>
-
-<a href="#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="960" alt="Studio's short film: the Studio window, with this repo's intro film in it, tips back into a screen on a desk; the words look, point, say and decide light up one by one in Chinese as a pointer scrubs the timeline, marks a second, types the note “push in a little closer here” and picks a card at a stop; then the picture fills the screen and settles into the OVH Studio icon"></a>
-
-<sub><b>Studio</b>: every stop of making a film, in one window where you look, point, say and decide (the four words in the film). <a href="https://zlhad.top/OpenVideoHarness/docs/site/#studio">With sound, 17 s, on the website</a></sub>
-
 </div>
+
+## Quick start
+
+You need macOS or Linux, Git, Node.js 22+, Chrome, FFmpeg, Python 3 with [uv](https://github.com/astral-sh/uv), and a signed-in Claude Code or Codex installation. [Requirements and limits](#requirements-cost-and-limits)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-cd ~/OpenVideoHarness && claude        # or: codex
 ```
 
----
+Choose where to start your film.
+
+- **Studio.** Open **OVH Studio** from Applications, or run `bin/vh studio` from the install folder. Select Claude Code or Codex in the agent column and choose **Set it up** if the adapter is missing. Send your request there.
+- **Terminal.** In the default install folder, run `cd ~/OpenVideoHarness && codex` or `cd ~/OpenVideoHarness && claude`, then send your request.
+
+For a first run, try this silent sample.
+
+> Quick draft: make a silent 15-second vertical explainer showing why doubling a square’s side length quadruples its area. Use a grid and on-screen text.
+
+The agent keeps the source and exports together in the film's project folder. With `quick` it goes straight through to a checked video. Ask for `standard` or `studio` to review the direction and draft, with a separate storyboard review when the next step is costly.
+
+[Step-by-step guide](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) · [Install options and updates](#install-options-and-updates)
 
 ## Why this exists
 
@@ -111,9 +119,24 @@ In the Codex column, **Choose model and effort** opens an empty chat and loads t
 
 Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` to open the same window. The `studio` level uses Studio for reviews by default. When Studio shows the agent is waiting, submission wakes it. Otherwise, return to the chat after submitting and say “check the desk”. The `standard` level uses a review page by default. You can also ask to review in Studio. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. [Open Studio](#open-studio) · [Studio file reference](tools/desk/README.md)
 
+<table>
+<tr>
+<td width="56%" valign="top"><img src="docs/assets/studio/revision.en.webp" width="100%" alt="Studio comparing two cuts at the same timecode. Only the original shows the formula yet."></td>
+<td valign="top"><b>Review the same moment in both cuts.</b><br>Once the agent attaches both cuts to your note, open it in <b>Cut → Revisions</b>. The cuts share a playhead, and you can switch which soundtrack you hear. Accept the revision or send another note on that version. From the terminal, <code>bin/vh desk revision</code> attaches the two cuts to the saved feedback.</td>
+</tr>
+</table>
+
+### Open Studio
+
+Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` in a terminal (`bin/vh studio <project>` lands on that film): it's the same window each time, and asking again only brings it to the front. Closing the window leaves Studio running in the background, so an agent at work carries on; click the icon again and the window comes back where it was; quitting OVH Studio is what stops it. A film kept in another folder joins this same window when you open it with `bin/vh studio <project>`.
+
+If the icon isn't there, `bin/vh studio --install-icon` adds it. Without OVH Studio, the window is your Chrome, Edge, Chromium or Brave; with none of those, a tab of your default browser.
+
 ## What it makes
 
 Moments from a dozen films the author made with it in about a month, about 100 minutes in all. Physics, chemistry, engineering, money, folklore, literature, essays: each in a world of its own. They're in Chinese, and silent here.
+
+[Watch the animated montage (GIF)](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif)
 
 <table>
 <tr>
@@ -215,33 +238,7 @@ A few rules never relax: every frame depends only on t; when there is sound, it 
 
 **We publish what we measure, including when it goes against us.** In one small blind test ([docs/research/06](docs/research/en/06-concept-first-ab.md)), the workflow's films had the fresher ideas, but the reviewer found the films made with only a few floor rules better made, and would have posted those. What it flagged became checks. The [research notes](docs/research/en/README.md) have the rest.
 
-## Quick start
-
-You need macOS or Linux, Node.js 22 or later, Google Chrome, FFmpeg, Python 3 with [uv](https://github.com/astral-sh/uv), and Claude Code or Codex ([full list](#requirements-cost-and-limits)).
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-cd ~/OpenVideoHarness && claude        # or: codex
-```
-
-The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos, registers the `open-video-harness` skills for Claude Code and Codex (so asking for a video from any folder finds it), and by default puts **OVH Studio** in your applications (on Linux, the app menu; `--no-icon` leaves it out). The repo takes about 650 MB on disk, about 380 MB of it without the reference repos; OVH Studio takes about 380 MB more, 130 MB of it the kept download.
-
-Once it's installed, there are two ways in:
-
-- **Click OVH Studio**: every film, every stop and what you have to decide are in this window, and the right-hand column talks straight to the agent (see [Studio](#studio) above).
-- **Open Claude Code or Codex in the folder** (`cd ~/OpenVideoHarness && claude`, or `codex`) and say what you want:
-
-> Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.
-
-Every new film starts from a sentence like that: say it to the agent in the terminal, or write it in the right-hand column of Studio's space and send it. Studio starts the agent you picked in this folder; once it has made the film, the window goes to it and the same conversation carries on there, its stops included. You can carry on from either side.
-
-What happens next:
-
-1. Two or three directions, each with one frame and a hook, plus an outline. You pick one.
-2. A storyboard with a keyframe for every shot.
-3. A first draft, with the review scores and the two or three things it likes least.
-
-The final render comes after you say yes. Don't want to stop? Say "quick": on a clean install, without the reference repos, a fresh agent working only from these docs had a silent 15-second film done in about five minutes. The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) walks from nothing to a first film.
+### Example prompts
 
 Say what the film is about, who it's for and where it will be shown; a long brief isn't needed.
 
@@ -253,12 +250,6 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 | Archive film | "A 40-second countdown film cut from public-domain NASA launch footage, with every clip's licence on record." |
 | Quick try | "A quick 15-second draft to see whether a cyber-glitch look suits my game trailer; don't ask me anything." |
 | Hands-on | "A 90-second explainer on how satellites avoid collisions, at the studio level. I'll choose the hook, the main character, the theme tune, the title and the cover; you decide the rest." |
-
-### Open Studio
-
-Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` in a terminal (`bin/vh studio <project>` lands on that film): it's the same window each time, and asking again only brings it to the front. Closing the window leaves Studio running in the background, so an agent at work carries on; click the icon again and the window comes back where it was; quitting OVH Studio is what stops it. A film kept in another folder joins this same window when you open it with `bin/vh studio <project>`.
-
-If the icon isn't there, `bin/vh studio --install-icon` adds it. Without OVH Studio, the window is your Chrome, Edge, Chromium or Brave; with none of those, a tab of your default browser.
 
 ## What's in the box
 
@@ -406,6 +397,8 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 - **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 
 ## Install options and updates
+
+By default the installer registers the skills for both agents and fetches 37 read-only reference repos. It uses about 650 MB on disk, or 380 MB with `--no-refs`. The Studio app uses about 380 MB more, including its cached installer.
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
