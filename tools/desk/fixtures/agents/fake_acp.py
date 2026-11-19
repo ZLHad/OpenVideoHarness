@@ -28,7 +28,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 KIND = sys.argv[1] if len(sys.argv) > 1 else "claude"
 SPEED = float(sys.argv[sys.argv.index("--speed") + 1]) if "--speed" in sys.argv else float(os.environ.get("FAKE_ACP_SPEED") or 1.0)
-SIGNED_OUT = "--signed-out" in sys.argv
+LOGIN_MARKER = Path(sys.argv[sys.argv.index("--login-marker") + 1]) if "--login-marker" in sys.argv else None
+SIGNED_OUT = "--signed-out" in sys.argv or (LOGIN_MARKER is not None and not LOGIN_MARKER.exists())
 NO_OPUS = "--no-opus" in sys.argv
 FX = json.loads((HERE / f"{KIND}.json").read_text(encoding="utf-8"))
 CLAUDE = json.loads((HERE / "claude.json").read_text(encoding="utf-8"))
@@ -243,6 +244,11 @@ def handle(msg):
     if m == "initialize":
         return send({"jsonrpc": "2.0", "id": rid, "result": FX["initialize"]})
     if m in ("session/new", "session/load", "session/resume"):
+        if KIND == "codex":
+            status = {"kind": "none", "label": "Not logged in"} if SIGNED_OUT else {"kind": "account", "account": {"email": "fixture@example.invalid"}}
+            send({"jsonrpc": "2.0", "method": "_auth/status_update", "params": {"authStatus": status}})
+            if SIGNED_OUT:
+                return send({"jsonrpc": "2.0", "id": rid, "error": {"code": -32000, "message": "Authentication required"}})
         sid = p.get("sessionId") if m != "session/new" else str(uuid.uuid4())
         if m != "session/new" and sid not in sessions and not os.environ.get("FAKE_ACP_REMEMBER"):
             pass   # a fresh process: the real ones read it from their own store; the stand-in just takes it
@@ -250,8 +256,11 @@ def handle(msg):
         if NO_OPUS:   # an adapter whose list has no Opus 5.5 and no xhigh
             for o in cfg.get("configOptions") or []:
                 o["options"] = [x for x in o.get("options") or [] if not (isinstance(x, dict) and (x.get("name") == "Opus 5.5" or x.get("value") == "xhigh"))]
-        if m == "session/new":   # what the client asked for (personal settings off: _meta.claudeCode.options.settingSources)
-            Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"new": {"_meta": p.get("_meta")}}) + "\n")
+        if m == "session/new":   # what the client asked for (personal settings and session instructions)
+            entry = {"_meta": p.get("_meta")}
+            if KIND == "codex":
+                entry.update(cwd=p.get("cwd"), systemPrompt=p.get("systemPrompt"))
+            Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"new": entry}) + "\n")
         sessions[sid] = {"cwd": p.get("cwd") or ".", "config": cfg, "cancel": threading.Event()}
         if m == "session/load":   # a load replays the conversation as updates first
             send({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": sid, "update": {
@@ -267,7 +276,7 @@ def handle(msg):
                 "sessionUpdate": "current_mode_update", "currentModeId": p.get("modeId")}}})
         return send({"jsonrpc": "2.0", "id": rid, "result": {}})
     if m == "session/set_config_option":
-        Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"set": {"id": p.get("configId"), "value": p.get("value")}}) + "\n")
+        Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"set": {"kind": KIND, "id": p.get("configId"), "value": p.get("value")}}) + "\n")
         s = sessions.get(p.get("sessionId"))
         for o in (s or {}).get("config", {}).get("configOptions", []):
             if o.get("id") == p.get("configId"):

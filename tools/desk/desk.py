@@ -89,7 +89,7 @@ def main(argv):
         ap.add_argument("--no-open", action="store_true", help="started in a terminal it shows Studio's window; this leaves it to "
                                                                "bin/vh studio (started otherwise it never shows one)")
     elif sub == "wait":
-        ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100, under Claude Code's 2 h)")
+        ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100)")
     elif sub == "feedback":
         ap.add_argument("--round", help="only this gate page (1, 2b, E3 …)")
         ap.add_argument("--json", action="store_true", help="print the JSON record instead of the text")

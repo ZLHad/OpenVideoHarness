@@ -616,7 +616,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if wait:
         where = f"the desk {desk['url']}" if desk else wait["page"] or "the chat"
         return out("person", f"the person reviews {wait['name']} on {where}: stop here, and write their words into REVIEW.md when they answer",
-                   [f"bin/vh desk wait {p}"] if desk and not desk.get("listening") else [], [R_DESK] if desk else [])
+                   read=[R_DESK] if desk else [])
     if st and st[-1]["state"] == "done":   # it went out: what is left of the stops before it no longer waits for anyone
         lessons = (project / "LESSONS.md").is_file() and legacy_lessons(project)
         return out("agent" if working else "nobody", busy + ("delivered" if lessons else "delivered: what this film taught goes into LESSONS.md"))
@@ -635,16 +635,17 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if todo and s["id"] != "1" and not (quick and s["kind"] == "deliver"):
         return scaffold_first()
     later = todo
+    key = s["id"]
+    pid = Path(s["page"]).stem[5:] if s["page"] else key
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
-            return out("agent", busy + f"read the person's submission for {s['name']}, then write what was decided into REVIEW.md", [f"bin/vh desk feedback {p}"], [R_DESK])
+            return out("agent", busy + f"read the person's submission for {s['name']}, then write what was decided into REVIEW.md",
+                       [f"bin/vh desk feedback {p} --round {pid}"], [R_DESK])
         if fb.get("handed"):
             return out("agent", busy + f"write what was decided and changed under the desk's section for {s['name']} in REVIEW.md (定了 / 改了)", [], [R_DESK])
         return out("agent", busy + (s["note"] or f"record the decision for {s['name']} in REVIEW.md"), [], [R_RECORD])
-    key = s["id"]
     mine = ", ".join(k for k, v in own.items() if v == key)   # what the person keeps at this stop
-    pid = Path(s["page"]).stem[5:] if s["page"] else key
     refused = R.refusal(project, pid)
     if refused is not None:
         return out("agent", busy + f"bin/vh gate refused the page for {s['name']}, so the person got nothing: fix it ({'; '.join(refused[:3])}), then send it again", [f"bin/vh gate {p} {pid}"], [R_PAGE])

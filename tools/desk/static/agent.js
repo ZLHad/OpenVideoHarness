@@ -17,6 +17,7 @@ const ASTR = {
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "推理", set_more: "更多设置", set_personal_off: "不带个人设置",
+    pick_first: "选择模型和推理档", retry_login: "登录后重试",
     eff_tip: "推理档越高，想得越久，用掉你订阅的额度也越多；在这里调低就行。", new_with: "开始时请它用 {x}；它没有的话，用它自己的默认。开始以后，上面写着用的是哪个，随时可以换。", new_own: "开始时用 {a} 自己的默认。开始以后，上面写着用的是哪个，随时可以换。", own_default: "{a} 自己的默认",
     u_ctx: "上下文 {u} / {s}", u_cost: "这个对话花了 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
     w_seven_day: "7 天", u_reset: "，{at} 恢复", w_five_hour: "5 小时", w_daily: "今天的", w_weekly: "这周的",
@@ -68,6 +69,7 @@ const ASTR = {
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Waiting for you",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
+    pick_first: "Choose model and effort", retry_login: "Retry after sign-in",
     eff_tip: "A higher effort thinks longer and uses more of your plan; lower it here.", new_with: "Starts by asking it for {x}; if it doesn't offer that, its own default. Once started, the menus above show what is in use, and you can change it any time.", new_own: "Starts with {a}'s own default. Once started, the menus above show what is in use, and you can change it any time.", own_default: "{a}'s own default",
     u_ctx: "Context {u} / {s}", u_cost: "This chat cost {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
     w_seven_day: "7-day", u_reset: "; it resets {at}", w_five_hour: "5-hour", w_daily: "daily", w_weekly: "weekly",
@@ -256,14 +258,18 @@ const AGENT = (() => {
     if (typeof spacePlaced === "function") spacePlaced(e.key, e.name);
   }
   async function start(kind, personal) {   // a new conversation: the agent starts (its settings show before the first word)
-    KIND = kind; BUSY = null; ERR = { code: "starting" }; S = null; render();
-    const r = await post("new", Object.assign({ kind, personal: personal !== false }, kind === KIND ? NEWASK : {}));
+    if (ERR && ERR.code === "starting") return;
+    const starting = { code: "starting" }, body = Object.assign({ kind, personal: personal !== false }, NEWASK);
     NEWASK = {};
+    close(); KIND = kind; BUSY = null; ERR = starting; render();
+    const r = await post("new", body);
+    if (ERR !== starting) return;   // the person switched chats or films while the adapter was starting
     if (r.data && r.data.id) {
       INFO.sessions = [r.data].concat((INFO.sessions || []).filter((x) => x.id !== r.data.id));
       if (r.ok) { open(r.data); ERR = null; } else { ERR = { code: r.data.error, detail: r.data.detail }; S = null; }
     } else ERR = { code: (r.data && r.data.error) || "no_start", detail: r.data && (r.data.detail || r.data.error) };
     render();
+    return S;
   }
   async function pickKind(kind) {
     KIND = kind; NEWBOX = false; ERR = null; NEWASK = {}; close();
@@ -280,7 +286,7 @@ const AGENT = (() => {
     if (!e || !e.isTrusted) return;   // only a real key press or click sends, and only what is in the box
     const ta = $("#agSay"), text = ta ? ta.value.trim() : "";
     if (!text) { if (ta) ta.focus(); return; }
-    if (!S) { await start(KIND, true); if (!S) return; }
+    if (!S && !(await start(KIND, true))) return;
     const sc = typeof SCOPE !== "undefined" && SCOPE && SCOPE.target ? SCOPE : null;
     const scope = sc ? { kind: sc.target.split(":")[0], id: sc.target.split(":").slice(1).join(":"), t: sc.t, t1: sc.t1, module: typeof MOD !== "undefined" ? MOD : "", label: sc.label } : null;
     const btn = $("#agSend"); if (btn) btn.disabled = true;
@@ -503,11 +509,17 @@ const AGENT = (() => {
       return `<div class="ag-empty">${h}<p${failed ? ' class="ag-bad"' : ""}>${failed ? esc(at(SAY[j.state], { a: m.label, m: Math.round((j.limit || 1800) / 60) })) : at("not_inst_b", { s: esc(about), l })}</p>${fall}${KEYOK ? `<div class="ag-opts"><button type="button" class="btn btn-primary" id="agInstall">${esc(at(failed && j.state !== "cancelled" ? "inst_again" : "inst_go"))}</button></div>` : ""}</div>`;
     }
     if (!KEYOK) return "";   // the note above the column says it once, with what to do
+    const signedOut = KIND === "codex" && (ERR ? ERR.code === "signed_out" : !S && m.signed_in === false);
+    const prepare = KIND === "codex" && !S && (!ERR || ERR.code === "signed_out")
+      ? `<button type="button" class="btn ghost xs" id="agPickFirst">${esc(at(signedOut ? "retry_login" : "pick_first"))}</button>` : "";
+    if (signedOut) {
+      return `<div class="ag-empty"><p class="ag-note warn">${esc(at("n_signed_out", { a: m.label, l: at("login_codex") }))}</p>${prepare}</div>`;
+    }
     if (ERR && ERR.code && ERR.code !== "starting") return `<div class="ag-empty bad"><h3>${esc(at("no_start_h", { a: m.label }))}</h3><p>${at("no_start_b", { l })}</p><pre>${esc(cut(ERR.detail || ERR.code, 600))}</pre></div>`;
-    if (KEYP === SPACE) return `<div class="ag-empty ag-space"><h3>${esc(at("sp_h"))}</h3>${S ? "" : startPicks()}<p>${esc(at("sp_b", { a: m.label }))}</p><p class="ag-mute">${esc(at("sp_c"))}</p><div class="ag-opts"><button type="button" class="btn ghost xs" id="agCopyAsk">${esc(at("sp_copy"))}</button></div></div>${ownHtml()}<section id="spaceRun"></section>`;
+    if (KEYP === SPACE) return `<div class="ag-empty ag-space"><h3>${esc(at("sp_h"))}</h3>${S ? "" : startPicks()}<p>${esc(at("sp_b", { a: m.label }))}</p><p class="ag-mute">${esc(at("sp_c"))}</p><div class="ag-opts">${prepare}<button type="button" class="btn ghost xs" id="agCopyAsk">${esc(at("sp_copy"))}</button></div></div>${ownHtml()}<section id="spaceRun"></section>`;
     const st = !S && INFO && (INFO.strays || [])[0];
     if (st) return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3><p>${esc(at("stray", { x: cut(st.first || "—", 40) }))}</p><div class="ag-opts"><button type="button" class="btn btn-primary" id="agBring" data-sid="${esc(st.id)}">${esc(at("stray_go"))}</button></div></div>`;
-    return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3>${S ? "" : startPicks()}<p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
+    return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3>${S ? "" : startPicks()}<p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${prepare}${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
   }
   function itemHtml(it) {
     const a = esc(label());
@@ -678,6 +690,7 @@ const AGENT = (() => {
       if (c) { copyText(c.dataset.copy).then(() => toast(at("copied"))); return; }
       if (e.target.closest("#agInstall") && e.isTrusted) { installKind(); return; }
       if (e.target.closest("#agInstallStop") && e.isTrusted) { installKind(true); return; }
+      if (e.target.closest("#agPickFirst") && e.isTrusted) { start(KIND, true); return; }
       if (e.target.closest("#agNewGo")) { const p = $("#agPersonal"); NEWBOX = false; start(KIND, p ? p.checked : true); return; }
       if (e.target.closest("#agNewNo")) { NEWBOX = false; render(); }
       const own = e.target.closest("[data-own]");
@@ -724,7 +737,7 @@ const AGENT = (() => {
     $("#agSay").placeholder = first ? at("sp_ph") : sc ? at("ph_say", { x: sc.label }) : at("ph_say0", { a: label() });
     $("#agSay").disabled = !meta(KIND).installed || !KEYOK;
     $("#agStop").hidden = !running; $("#agStop").disabled = !!(S && S.stopping);
-    $("#agSend").disabled = !meta(KIND).installed || !KEYOK;
+    $("#agSend").disabled = !meta(KIND).installed || !KEYOK || !!(ERR && ERR.code === "starting");
     f.classList.toggle("off", !KEYOK);
     const waitp = S ? Object.values(S.perms).filter((p) => !p.answered) : [];
     const ask = $("#agAsk"); ask.hidden = !waitp.length;

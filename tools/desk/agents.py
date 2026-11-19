@@ -28,10 +28,11 @@ With personal settings off (Claude Code only), the session starts from the proje
 Installed adapters live outside the repo, in $OVH_AGENTS_DIR or $XDG_CACHE_HOME/ovh/agents (~/.cache/ovh/agents), one
 folder a kind, each package pinned (ADAPTERS): bin/vh desk agents install <kind>.
 """
-import json, os, re, shutil, subprocess, sys, threading, time, uuid
+import json, os, re, shlex, shutil, subprocess, sys, threading, time, uuid
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+WORKSPACE = HERE.parent.parent
 sys.path.insert(0, str(HERE))
 import acp         # noqa: E402
 import agentlock   # noqa: E402
@@ -475,35 +476,45 @@ class Session:
         """A session in the running adapter for this conversation: the one it had (load or resume, as the agent can),
         else a new one. Raises Unavailable."""
         with self._attach_lock:
-            if self.live and self.mgr.peers.get(self.kind) is not None:
-                return
             peer, caps = self.mgr.peer(self.kind)
+            if self.live:
+                return
             params = {"cwd": self.cwd, "mcpServers": []}
             meta = self._meta()
-            res, how = None, "new"
+            res = None
+            sc = caps.get("sessionCapabilities") or {}
             if self.acp_id:
-                sc = caps.get("sessionCapabilities") or {}
                 try:
                     if caps.get("loadSession"):
                         self.replaying = True
-                        res, how = peer.call("session/load", dict(params, sessionId=self.acp_id, **({"_meta": meta} if meta else {})), 120), "load"
+                        res = peer.call("session/load", dict(params, sessionId=self.acp_id, **({"_meta": meta} if meta else {})), 120)
                     elif "resume" in sc:
-                        res, how = peer.call("session/resume", dict(params, sessionId=self.acp_id), 120), "resume"
+                        res = peer.call("session/resume", dict(params, sessionId=self.acp_id), 120)
                 except acp.AcpError:
                     res = None
                 finally:
                     self.replaying = False
-                if res is None and how in ("load", "resume"):
-                    how = "fresh"
-            if res is None:
+            new = res is None
+            if new:
+                if self.kind == "codex" and not self.unplaced and "systemPrompt" in sc:
+                    # A film outside this checkout may never load the harness's AGENTS.md by cwd discovery.
+                    guide = shlex.quote(str(WORKSPACE / "AGENTS.md"))
+                    command = shlex.join([str(WORKSPACE / "bin" / "vh"), "status", str(self.project)])
+                    note = (f"OpenVideoHarness Studio opened a conversation for an existing film. Follow {guide} and run `{command}` "
+                            "to find the next step. Use the existing review record and honor pending review stops when continuing production.")
+                    params["systemPrompt"] = {"mode": "append", "content": [{"type": "text", "text": note}]}
                 try:
                     res = peer.call("session/new", dict(params, **({"_meta": meta} if meta else {})), 180)
                 except acp.AcpError as e:
+                    if self.kind == "codex" and e.code == -32000:  # ACP auth_required
+                        self.mgr.auth[self.kind] = "unauthenticated"
+                        raise Unavailable("signed_out", str(e)) from e
                     raise Unavailable("session_refused", str(e))
                 if not isinstance(res, dict) or not res.get("sessionId"):
                     raise Unavailable("session_refused", "no sessionId")
                 if self.acp_id:
                     self.emit("notice", code="fresh")   # the agent will not remember what was said before
+                    self.note_again = self.unplaced     # send the space's direction again to a replacement session
                 self.acp_id = res["sessionId"]
                 self._header()
             self.mgr.by_acp[(self.kind, self.acp_id)] = self
@@ -511,10 +522,8 @@ class Session:
             self._state(res if isinstance(res, dict) else {})
             if self.mgr.auth.get(self.kind) == "unauthenticated":
                 self.emit("notice", code="signed_out")
-            if how in ("new", "fresh"):   # a conversation that could not be picked up starts fresh, as a new one does
+            if new:
                 self._defaults()
-            if how == "fresh" and self.unplaced:   # the agent remembers nothing: Studio's line goes with the next words again
-                self.note_again = True
 
     def _meta(self):
         """What session/new carries besides the folder: with personal settings off, Claude Code reads only the project's
@@ -690,6 +699,8 @@ class Session:
                 raise acp.AcpError("the agent stopped", code="gone")
             res = peer.call("session/prompt", {"sessionId": self.acp_id, "prompt": prompt}, TURN_TIMEOUT)
         except acp.AcpError as e:
+            if self.kind == "codex" and e.code == -32000:
+                self.mgr.auth[self.kind] = "unauthenticated"
             err = str(e)[:300]
         res = res if isinstance(res, dict) else {}
         self._end(n, stop=res.get("stopReason") or ("error" if err else None), usage=self._c(res.get("usage") or {}),
@@ -842,7 +853,7 @@ class Manager:
         self.url = url
         self.peers = {}        # kind → acp.Peer
         self.caps = {}         # kind → initialize's agentCapabilities (and agentInfo)
-        self.auth = {}         # kind → "authenticated" | "unauthenticated", as the adapter said last (auth/status_update)
+        self.auth = {}         # kind → "authenticated" | "unauthenticated", as the adapter said last
         self.sessions = {}     # our id → Session
         self.by_acp = {}       # (kind, acp session id) → Session
         self._lock = threading.RLock()
@@ -938,8 +949,13 @@ class Manager:
             raise Unavailable("closing")
         with self._starting[kind]:
             p = self.peers.get(kind)
-            if p is not None and p.alive():
-                return p, self.caps.get(kind) or {}
+            if p is not None:
+                # Codex only reads an external login at process startup. Retry an idle, signed-out adapter afresh.
+                refresh = (kind == "codex" and self.auth.get(kind) == "unauthenticated"
+                           and not any(s.kind == kind and s.running for s in list(self.sessions.values())))
+                if p.alive() and not refresh:
+                    return p, self.caps.get(kind) or {}
+                self.restart(kind, wait=True)
             cmd = command(kind)
             if cmd is None:
                 raise Unavailable("not_installed")
@@ -948,7 +964,7 @@ class Manager:
                 p = acp.Peer(argv, env=acp.clean_env(extra), cwd=str(home()), name=kind,
                              on_note=lambda m, prm, k=kind: self._note(k, m, prm),
                              on_request=lambda rid, m, prm, k=kind: self._request(k, rid, m, prm),
-                             on_exit=lambda code, k=kind: self._exit(k, code))
+                             on_exit=lambda code, k=kind: self._exit(k, p, code))
             except OSError as e:
                 raise Unavailable("no_start", str(e))
             try:
@@ -964,9 +980,16 @@ class Manager:
             return p, caps
 
     def _note(self, kind, method, params):
-        if method == "auth/status_update":   # signed in or not: the state only (the account's name and email are not kept)
-            state = params.get("state") if isinstance(params.get("state"), str) else None
-            if state and state != self.auth.get(kind):
+        if method in ("auth/status_update", "_auth/status_update"):
+            # codex-acp 2.6 reports an authStatus object. Keep only the normalized state.
+            state = params.get("state")
+            if method == "_auth/status_update":
+                status = params.get("authStatus")
+                identity = status.get("kind") if isinstance(status, dict) else None
+                if identity not in ("none", "account", "api_key", "gateway", "external"):
+                    return
+                state = "unauthenticated" if identity == "none" else "authenticated"
+            if state in ("authenticated", "unauthenticated") and state != self.auth.get(kind):
                 self.auth[kind] = state
                 if state == "unauthenticated":
                     for s in list(self.sessions.values()):
@@ -990,19 +1013,25 @@ class Manager:
         if s is not None and method not in ("session/request_permission",):
             s.emit("notice", code="unsupported", method=str(method)[:60])
 
-    def restart(self, kind):
+    def restart(self, kind, wait=False):
         """Stop this kind's adapter (TERM to its group) so that the next word starts it afresh; its conversations read on."""
         p = self.peers.pop(kind, None)
+        self.auth.pop(kind, None)
         for s in list(self.sessions.values()):
             if s.kind == kind:
                 s.live = False
                 s.reject_waiting("agent_gone")
         if p is not None:
+            if wait:
+                p.close(0.2, 1.0)
+                return
             t = threading.Thread(target=p.close, args=(0.5, 3.0), daemon=True)
             t.start()
             self._closing.append(t)   # the desk's shutdown waits for it too
 
-    def _exit(self, kind, code):
+    def _exit(self, kind, peer, code):
+        if self.peers.get(kind) is not peer:
+            return
         self.peers.pop(kind, None)
         for s in list(self.sessions.values()):
             if s.kind == kind and s.live:

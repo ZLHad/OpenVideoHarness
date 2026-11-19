@@ -18,7 +18,7 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
             page, once, within ten minutes, to your terminal alone (the message says only where it is). Refused with no
             terminal (an agent's shell has none) and while this film's desk runs (bin/vh desk link --print-address)
   --wait    the desk channel only: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout,
-            default 7100 s). An agent runs this in the background: the message is printed first, before the waiting
+            default 7100 s). Hosts with background wakeup can run this in the background: the message is printed first
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
             to write is a {填：…} ({fill in: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
             never reaches the person. It carries "version": 1. A file already there is not overwritten (exit 2)
@@ -238,7 +238,7 @@ def main(argv):
     for c in ("desk", "page", "chat"):
         how.add_argument(f"--{c}", dest="channel", action="store_const", const=c, help=f"review in the {c} this time")
     ap.add_argument("--wait", action="store_true", help="the desk only: then wait for the submission, like bin/vh desk wait")
-    ap.add_argument("--timeout", type=float, default=7100, help="with --wait: seconds (default 7100, under Claude Code's 2 h)")
+    ap.add_argument("--timeout", type=float, default=7100, help="with --wait: seconds (default 7100)")
     ap.add_argument("--port", type=int, help="the desk's port when it has to start (default: the first free of 8780–8799)")
     ap.add_argument("--print-address", action="store_true", help="the desk only, for a browser on another machine: open none, write an "
                                                                  "address that opens one page to your terminal alone (refused with no terminal, "
