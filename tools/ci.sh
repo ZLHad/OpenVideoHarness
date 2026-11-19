@@ -3412,7 +3412,7 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"这一站已经在 Studio 里打开了"*"然后回到这里跟我说一声“我交了”"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"这一站已经在 Studio 里打开了"*"然后回到这里跟我说一声"*"我交了"*) true ;; *) false ;; esac \
     && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
     && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
     && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
