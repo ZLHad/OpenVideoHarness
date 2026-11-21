@@ -26,6 +26,7 @@ homepage (docs/site/index.html):
     application/octet-stream, which WebKit (Safari) refuses unless the <source> says the type.
 Links to the web are not fetched (CI runs offline). Exit status: 0 all good, 1 a problem (each said), 2 usage.
 """
+import html as html_lib
 import ast, json, os, re, sys, unicodedata
 from pathlib import Path
 
@@ -398,6 +399,20 @@ def site_problems(have):
                 bad.append(f"{SITE}: RELEASE_SAMPLES gives {slug} {named.get(slug)!r}, tools/media.txt {assets.get(slug)!r}: write '{slug}': '{assets.get(slug)}'")
         elif slug in named:
             bad.append(f"{SITE}: RELEASE_SAMPLES names {slug}, a spec-1 style whose sample is in git")
+    # every command the page gives to copy is one a README gives on the same commit (whole, or after "cd ~/OpenVideoHarness
+    # && "), so the page cannot offer a command the repo does not have yet
+    readmes = "\n".join((ROOT / f).read_text(encoding="utf-8") for f in ("README.md", "README.zh-CN.md"))
+    for c in re.findall(r"<code data-copy-text>(.*?)</code>", html, re.S):
+        c = html_lib.unescape(re.sub(r"<[^>]+>", "", c)).strip()
+        if not any(f"`{x}`" in readmes or f"\n{x}\n" in readmes for x in (c, c.removeprefix("cd ~/OpenVideoHarness && "))):
+            bad.append(f"{SITE}: offers the command {c!r}, which no README gives (write it there first)")
+    # every command the page gives to copy is one a README gives on the same commit (whole, or after "cd ~/OpenVideoHarness
+    # && "), so the page cannot offer a command the repo does not have yet
+    readmes = "\n".join((ROOT / f).read_text(encoding="utf-8") for f in ("README.md", "README.zh-CN.md"))
+    for c in re.findall(r"<code data-copy-text>(.*?)</code>", html, re.S):
+        c = html_lib.unescape(re.sub(r"<[^>]+>", "", c)).strip()
+        if not any(f"`{x}`" in readmes or f"\n{x}\n" in readmes for x in (c, c.removeprefix("cd ~/OpenVideoHarness && "))):
+            bad.append(f"{SITE}: offers the command {c!r}, which no README gives (write it there first)")
     body = html[html.find("<body"):]
     tags = re.findall(r"<(\w+)\b[^>]*\blang=\"(en|zh)\"", body)
     en, zh = (sum(1 for tag, lang in tags if lang == want and tag != "small") for want in ("en", "zh"))
