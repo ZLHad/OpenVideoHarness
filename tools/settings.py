@@ -4,8 +4,8 @@ usage: bin/vh settings [--json]                         what they are now, and w
        bin/vh settings mirror cn|off|auto [--why TEXT]   the download mirrors (tools/mirrors.txt):
              cn    later downloads come from the mainland-China mirrors (bin/vh exports their variables for everything
                    it runs, the agents Studio starts included)
-             off   never: the official sources, and install.sh does not try the mirrors either
-             auto  the official sources; install.sh tries the official npm registry, Hugging Face and Google's storage
+             off   never: the official sources, and the installer does not try the mirrors either
+             auto  the official sources; the installer tries the official npm registry, Hugging Face and Google's storage
                    (Chrome) and switches to cn when one does not answer twice and its mirror does (the default: no
                    "mirror" key)
        bin/vh settings mirror --get                      cn, off or auto, alone on a line
@@ -13,7 +13,7 @@ usage: bin/vh settings [--json]                         what they are now, and w
                                                          is not here (HyperFrames has no setting for where it downloads it;
                                                          bin/vh new, render, hf, frames and settings mirror cn do this by
                                                          themselves); project: that project's HyperFrames, else styles/_swatch's
-       python3 tools/settings.py env [--mode cn]         the lines bin/vh and install.sh run (export NAME=value, unset NAME):
+       python3 tools/settings.py env [--mode cn]         the lines bin/vh and the installer run (export NAME=value, unset NAME):
                                                          with cn, the mirror variables; otherwise none, and the ones bin/vh
                                                          exported before (inherited: OVH_MIRROR=cn) taken out again
 
@@ -24,7 +24,7 @@ values). Shape, "version": 1 (keys only added, never renamed; a key this file do
 is written):
   {"version": 1,
    "mirror": "cn" | "off",          absent: auto
-   "mirror_why": "…",               who set it and why, in a sentence (install.sh's probe says what did not answer, and how)
+   "mirror_why": "…",               who set it and why, in a sentence (the installer's probe says what did not answer, and how)
    "mirror_at": "YYYY-MM-DD"}
 In-process (Studio): update(patch: dict) -> dict and set_mirror(mode, why=None) -> dict; load() reads, path() says where;
 env_changes(environ) -> {NAME: value, or None to take it out}: what a long-lived process (Studio's server) applies to its own
@@ -239,7 +239,7 @@ def own_config(row, environ=os.environ, cwd=None):
 
 
 def env_changes(environ=os.environ, mode=None, cwd=None):
-    """What bin/vh (and install.sh, and Studio's server) does to its environment for the mirror setting: {NAME: value to
+    """What bin/vh (and the installer, and Studio's server) does to its environment for the mirror setting: {NAME: value to
     export, or None to take out}. With cn: each mirror variable not set by the person (unset or empty, or already the
     mirror's value) and not named by their own npm or uv configuration, and OVH_MIRROR=cn. Otherwise, only when the
     environment came from a bin/vh run under cn (OVH_MIRROR=cn inherited): OVH_MIRROR, and each mirror variable that
@@ -305,8 +305,8 @@ def show(d, as_json=False):
         return
     print(f"this machine's settings: {path()}" + ("" if path().exists() else " (not written yet: the defaults)"))
     said = {"cn": "the mainland-China mirrors, for the downloads tools/mirrors.txt lists",
-            "off": "the official sources; install.sh does not try the mirrors",
-            "auto": "the official sources; install.sh switches to the mirrors when an official source does not answer and its mirror does"}[m]
+            "off": "the official sources; the installer does not try the mirrors",
+            "auto": "the official sources; the installer switches to the mirrors when an official source does not answer and its mirror does"}[m]
     print(f"  mirror  {m}: {said}" + (f" · {d['mirror_why']}" if d.get("mirror_why") else "")
           + (f" ({d['mirror_at']})" if d.get("mirror_at") else ""))
     for k, w in own:
@@ -341,7 +341,7 @@ def main(argv):
             for k, w in kept_own():
                 print(f"  {k}: your own source stays, {w}")
         else:
-            print(f"✓ downloads come from the official sources{'' if argv[1] == 'auto' else ', and install.sh does not try the mirrors'} (kept in {path()})")
+            print(f"✓ downloads come from the official sources{'' if argv[1] == 'auto' else ', and the installer does not try the mirrors'} (kept in {path()})")
         return 0
     print(f"bin/vh settings: unknown {' '.join(argv)} (bin/vh settings -h)", file=sys.stderr)
     return 2
