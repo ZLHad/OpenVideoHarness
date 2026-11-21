@@ -1314,7 +1314,7 @@ cmd_tts() {
   deps="$deps${np:+ $np}"
   # the local voice's first use downloads gigabytes: said first in one line (how much, how long, the way around it), and
   # uv's own download lines shown instead of quieted (tts.py adds the model's progress)
-  if [ "$prov" = qwen ] && command -v uv >/dev/null 2>&1 && ! uv run -q --no-project --offline $deps python -c "" >/dev/null 2>&1; then quiet=""; fresh=--packages-missing; fi
+  if [ "$prov" = qwen ] && command -v uv >/dev/null 2>&1 && ! on_ctrl_c uv run -q --no-project --offline $deps python -c "" >/dev/null 2>&1; then quiet=""; fresh=--packages-missing; fi   # (a Ctrl-C here ends bin/vh too)
   [ "$prov" != qwen ] || python3 "$ROOT/tools/audio/tts.py" --first-use qwen $fresh
   on_ctrl_c uv run $quiet --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
