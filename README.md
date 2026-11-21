@@ -4,7 +4,9 @@
 
 ### You direct. AI makes the film.
 
-An open-source workbench for making videos with AI. Say what you want in one sentence, and a coding agent such as Claude Code or Codex takes it from the idea and the storyboard through voice and music to a finished film with sound. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.
+An open-source, controllable workflow for making videos with code. Say what you want in one sentence, and a coding agent such as Claude Code or Codex writes the code and renders the film. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.
+
+Plenty of tools can turn a sentence or two into a video. The hard part is doing it under control, repeatably and at volume, inside your own workflow. That is what this project is for.
 
 **[Quick start](#quick-start)** · [Studio demo, 17 s with sound](https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#studio) · [Showcase films](#the-5-showcase-films-with-sound)
 
@@ -53,8 +55,8 @@ The agent keeps the source and exports together in the film's project folder. Wi
 
 <table>
 <tr>
-<td width="44%" valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play and turn the sound on: each harmonic sounds its own note.</sub></td>
-<td valign="top"><b>One sentence in, a finished film with sound out.</b><br>Voice, music, sound effects and captions are part of the process, so there is nothing to stitch on afterwards. The narration or the music goes down first, every word and beat gets a time, and the picture hangs on those times. The score can be written as code or be a track of your own, and sound effects land on the frame where things happen.</td>
+<td width="44%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="A flash crossing a detector, with a timer counting microseconds"><br><sub>Time is the only input. This flash is counted in microseconds.</sub></td>
+<td valign="top"><b>The film is code, so it stays under control.</b><br>Every frame depends on time alone, so the same moment always draws the same frame: it can be redone and spot-checked. A few seconds of a finished 4K film can be redrawn and put back without touching the rest. A render that stops picks up where it stopped. Every render is kept as a version, so the cut before and the cut after can be watched side by side.</td>
 </tr>
 <tr>
 <td valign="top"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="100%" alt="Studio in 17 seconds: the window opens, the cursor drags the playhead through the film, pins second 0:05, a note is written, the picture changes to match, and the cut is approved"></a><br><sub>Studio in 17 seconds: look, point, say, decide. Click for the version with sound.</sub></td>
@@ -69,16 +71,16 @@ The agent keeps the source and exports together in the film's project folder. Wi
 <td valign="top"><b>It settles what to say before it starts making.</b><br>Two or three concept cards come first, each with a frame and a hook. It says what every other film on your topic looks like, then goes somewhere else.</td>
 </tr>
 <tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="The agent reviewing a contact sheet of its own frames in a terminal"><br><sub>The agent going through its own frames.</sub></td>
+<td valign="top"><b>It checks its own work before you see it.</b><br>An agent can't see video or hear sound, so it measures everything it can. It reads contact sheets against a 20-point checklist, measures the sound, and hands the draft to a reviewer with a fresh context, who scores it on 8 points. <code>bin/vh check</code> catches frozen frames, flashes, subtitles too short to read and wrong colour tags, and names a way out of each.</td>
+</tr>
+<tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-24.gif" width="100%" alt="A neon arcade with a chat bubble and a glowing sign"><br><sub>A generated plate, with code on top, both on record.</sub></td>
 <td valign="top"><b>Any material can go into the cut.</b><br>Pictures drawn in code, archive footage, generated images, 3D models, recorded sound, and your own photos and recordings (those two still experimental) can share one film. One ledger keeps where each file came from, its licence and what it cost. No budget, no paid call.</td>
 </tr>
 <tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="A flash crossing a detector, with a timer counting microseconds"><br><sub>Time is the only input. This flash is counted in microseconds.</sub></td>
-<td valign="top"><b>A finished film can still be changed.</b><br>The film is source, and every frame depends on time alone. A few seconds of a finished 4K film can be redrawn and put back without touching the rest. A render that stops picks up where it stopped. Every render is kept as a version, so the cut before and the cut after can be watched side by side.</td>
-</tr>
-<tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="The agent reviewing a contact sheet of its own frames in a terminal"><br><sub>The agent going through its own frames.</sub></td>
-<td valign="top"><b>It checks its own work before you see it.</b><br>An agent can't see video or hear sound, so it measures everything it can. It reads contact sheets against a 20-point checklist, measures the sound, and hands the draft to a reviewer with a fresh context, who scores it on 8 points. <code>bin/vh check</code> catches frozen frames, flashes, subtitles too short to read and wrong colour tags, and names a way out of each.</td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play and turn the sound on: each harmonic sounds its own note.</sub></td>
+<td valign="top"><b>Sound is part of the same process.</b><br>Voice, music, sound effects and captions are part of the process, so there is nothing to stitch on afterwards. The narration or the music goes down first, every word and beat gets a time, and the picture hangs on those times. The score can be written as code or be a track of your own, and sound effects land on the frame where things happen.</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-19.gif" width="100%" alt="A glowing gold map of rivers and points of light"><br><sub>From a film of 33 minutes.</sub></td>
@@ -86,7 +88,9 @@ The agent keeps the source and exports together in the film's project folder. Wi
 </tr>
 </table>
 
-**And not one AI look.** Left alone, AI video drifts toward one face: dark background, glow, glass cards. Here are 32 of its 43 styles, all rendering the same sentence:
+**And it fits into your own workflow.** The whole thing is docs written for an agent plus one command line, `bin/vh`. A film is a folder, and its source, storyboard and review record are text. Switch agents, script it, make a dozen films a month: it is the same process.
+
+**Nor is it one AI look.** Left alone, AI video drifts toward one face: dark background, glow, glass cards. Here are 32 of its 43 styles, all rendering the same sentence:
 
 <a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="All the styles moving at once, each rendering the same sentence: every frame is code"></a>
 
@@ -209,11 +213,11 @@ The films live in the [`media` release](https://github.com/ZLHad/OpenVideoHarnes
 
 ## Why this exists
 
-Getting an AI to make a few seconds of motion is no longer remarkable. Turning that into a film you would publish is the hard part.
+There are plenty of video tools now. Give an agent or a model a sentence or two and it will make a video.
 
-What is this film saying, and how is it different from the hundreds on the same topic? Does this line stay up long enough to read, and is the number on screen true? Who makes the voice, the music and the sound effects, and how does the picture land on them? Does changing one thing disturb the rest? Is the tenth film as good as the first? The model doesn't look after any of that, and neither does the renderer.
+Making one, and making this an everyday job, are different things. Changing a few seconds often means redoing the whole film. Ask again with the same sentence and the pacing and the look may both change. By the tenth film nobody can say which step went wrong. To have it under control, repeatable and done at volume, inside your own workflow, a sentence or two is not enough: it takes a controllable workflow.
 
-OpenVideoHarness does: a process from the idea to the finished film, checks for everything that can be measured, and Studio, a window that lays the whole production out, all written so that an agent can follow it. A few rules never bend, and everything else is a default that a good idea can overrule.
+So we built this project. The film is code, and any frame can be redrawn alone. The process is written down: the idea, the storyboard, the sound and the checks each have their way of being done. Where it stops for a person is yours to set. All of it is written so that an agent can follow it: a few rules never bend, and everything else is a default that a good idea can overrule.
 
 It grew out of real films. Each time one went wrong, the lesson became a doc or a check, and the next film started from there.
 

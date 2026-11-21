@@ -4,7 +4,9 @@
 
 ### 你当导演，AI 做片。
 
-开源的 AI 视频制作工作台。说一句想做什么，Claude Code、Codex 这样的 agent 从立意、分镜、配音配乐一路做到带声音的成片。每一步都摆在 Studio 里：指着画面说一句，它去改，改完两版对照着看。
+用代码做视频的一套可控工作流，开源。说一句想做什么，Claude Code、Codex 这样的 agent 写代码、渲染成片。每一步都摆在 Studio 里：指着画面说一句，它去改，改完两版对照着看。
+
+一两句话让 AI 做出一支视频，现在很多工具都行。难的是可控、可重复、能成批地做，还能接进你自己的流程。这个项目做的就是这一套。
 
 **[快速开始](#快速开始)** · [Studio 演示，17 秒带声音](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio) · [看带声音的样片](#5-支样片点开有声音)
 
@@ -53,8 +55,8 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 <table>
 <tr>
-<td width="44%" valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开，打开声音：每个谐波有自己的音。</sub></td>
-<td valign="top"><b>一句话进去，带声音的成片出来。</b><br>配音、配乐、音效、字幕都在流程里，不用另找工具拼。旁白或音乐先定下来，量出每个字、每一拍的时间，画面就挂在这些时间上。配乐可以用代码写，也可以用你自己的曲子；音效落在动作发生的那一帧。</td>
+<td width="44%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="一道闪光穿过探测器，计时器按微秒走"><br><sub>时间是唯一的输入。这道闪光按微秒算。</sub></td>
+<td valign="top"><b>片子是代码，所以可控、可重复。</b><br>每一帧只由时间决定，同一个时刻永远画出同一帧，所以能重做、能抽查。一支做好的 4K 片子，可以只重画其中几秒放回去，别的地方一帧不动。渲染断了，从断的地方接着来。每次渲染留一个版本，改前改后能对照着看。</td>
 </tr>
 <tr>
 <td valign="top"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="100%" alt="Studio 的 17 秒演示：窗口打开，光标拖着播放头看片，点住 0:05 那一秒，写下一句意见，画面照着改了，最后点头放行"></a><br><sub>17 秒看 Studio：看、指、说、定。点开是带声音的那一版。</sub></td>
@@ -69,16 +71,16 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 <td valign="top"><b>先想清楚说什么，再动手。</b><br>先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</td>
 </tr>
 <tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="agent 在终端里审自己渲出的帧"><br><sub>agent 在审自己渲出的帧。</sub></td>
+<td valign="top"><b>交到你手上之前，它自己先查一遍。</b><br>agent 看不了视频，也听不了声音，所以凡是能量的都量。它对照 20 条的清单看联系表，用数据查声音，再把初版交给一个全新上下文的 reviewer，按 8 项打分。<code>bin/vh check</code> 能查出冻帧、闪烁、读不完的字幕和错误的色彩标记，每一项都告诉你怎么解决。</td>
+</tr>
+<tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-24.gif" width="100%" alt="霓虹街机厅，有一个对话气泡和发光招牌"><br><sub>底图是生成的，上面叠代码，都记在台账里。</sub></td>
 <td valign="top"><b>什么素材都能排进来。</b><br>代码画的画面、档案影像、生成的图、3D 模型、录来的声音，还有你自己的照片和录像（这两类还在试验），可以进同一支片子。一本台账记下每个文件的来源、许可和花费。没有预算，就不调付费接口。</td>
 </tr>
 <tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="一道闪光穿过探测器，计时器按微秒走"><br><sub>时间是唯一的输入。这道闪光按微秒算。</sub></td>
-<td valign="top"><b>做完了，还改得动。</b><br>片子是一份源码，每一帧只由时间决定。一支做好的 4K 片子，可以只重画其中几秒放回去，别的地方一帧不动。渲染断了，从断的地方接着来。每次渲染留一个版本，改前改后能对照着看。</td>
-</tr>
-<tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="agent 在终端里审自己渲出的帧"><br><sub>agent 在审自己渲出的帧。</sub></td>
-<td valign="top"><b>交到你手上之前，它自己先查一遍。</b><br>agent 看不了视频，也听不了声音，所以凡是能量的都量。它对照 20 条的清单看联系表，用数据查声音，再把初版交给一个全新上下文的 reviewer，按 8 项打分。<code>bin/vh check</code> 能查出冻帧、闪烁、读不完的字幕和错误的色彩标记，每一项都告诉你怎么解决。</td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开，打开声音：每个谐波有自己的音。</sub></td>
+<td valign="top"><b>声音也在这套流程里。</b><br>配音、配乐、音效、字幕不用另找工具拼。旁白或音乐先定下来，量出每个字、每一拍的时间，画面就挂在这些时间上。配乐可以用代码写，也可以用你自己的曲子；音效落在动作发生的那一帧。</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-19.gif" width="100%" alt="一张发光的金色地图，河流和光点"><br><sub>出自一支 33 分钟的片子。</sub></td>
@@ -86,7 +88,9 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 </tr>
 </table>
 
-**而且不是同一张 AI 脸。** 放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里是 43 种风格里的 32 种，下面每一格说的都是同一句话：
+**而且接得进你自己的流程。** 整套东西是写给 agent 读的文档，加一个命令行 `bin/vh`。一支片子就是一个文件夹，源码、分镜、审阅记录都是文本。换一个 agent、写进脚本、一个月做十几支，用的是同一套。
+
+**也不是同一张 AI 脸。** 放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里是 43 种风格里的 32 种，下面每一格说的都是同一句话：
 
 <a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="所有风格同时动起来，每种都在渲同一句话：每一帧，都是代码"></a>
 
@@ -209,11 +213,11 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 ## 为什么做这个
 
-让 AI 做一段会动的画面，现在已经不稀奇。难的是把它做成一支能发出去的片子。
+做视频的工具现在很多。给一个 agent 或一个模型一两句话，它就能做出一支视频。
 
-这支片子想说什么，和同题的几百支有什么不一样。这行字够不够时间读完，屏幕上的数字是不是真的。配音、配乐、音效谁来做，画面怎么卡上它们。改一处会不会牵动全片。做到第十支，还是不是这个水准。这些事模型不管，渲染引擎也不管。
+可做出一支，和把这件事做成日常，是两回事。想改其中几秒，往往只能整支重做。同一句话再来一次，节奏和画风可能全变。做到第十支，说不清是哪一步出了问题。要它可控、可重复、能成批地做，还要接进你自己的流程，靠一两句话不够，得有一套可控的工作流。
 
-OpenVideoHarness 管的就是这些：一套从立意到成片的流程，一批能量就量的检查，一个把整个过程摆出来的 Studio 窗口，都写成 agent 能照着做的样子。几条底线不让步，其余都是默认，好点子可以反着来。
+所以我们做了这个项目。片子是代码，哪一帧都能单独重画。流程是写下来的，立意、分镜、声音、检查各有各的做法。该停下来给人看的地方由你定。这些都写成 agent 能照着做的样子：几条底线不让步，其余都是默认，好点子可以反着来。
 
 它是从真片子里长出来的。哪支片子出了问题，教训就变成一篇文档或一项检查，下一支片子从这里接着做。
 
