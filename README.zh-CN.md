@@ -30,10 +30,12 @@
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
-装好后选一个入口开片。
+装好后选一个入口开片。哪个顺手用哪个，从哪里开的片子都会出现在 Studio 里。
 
 - **Studio**。从应用程序打开 **OVH Studio**，也可在安装目录运行 `bin/vh studio`。在右边选择 Claude Code 或 Codex。看到适配器安装提示时点「装上」，再发送需求。
 - **终端**。在默认安装目录运行 `cd ~/OpenVideoHarness && codex` 或 `cd ~/OpenVideoHarness && claude`，再发送需求。
+- **Claude Code 或 Codex 的桌面 App**。把安装目录（默认 `~/OpenVideoHarness`）当作项目打开，直接发送需求。
+- **在别的文件夹里**。安装时已经给 Claude Code 和 Codex 各注册了一个叫 `open-video-harness` 的 skill。所以不管开着哪个项目，说一句"做一支视频……"，agent 都会找到工作台照着做。片子默认建在工作台的 `projects/` 下，想放在别处就说一声。只想装这个 skill，见[安装选项](#安装更新和国内网络)。
 
 第一支可以试这条无声样片。
 
@@ -42,6 +44,10 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 源码和导出文件都留在这支片子的项目目录里。「快速出一版」会直接做到检查完的成片。要在立意和初版拍板，可以指定标准档或精品档。下一步代价较大时，分镜也会单独给你审。
 
 [分步教程](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) · [安装选项和更新](#安装更新和国内网络)
+
+<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.zh.webp" width="960" alt="OVH Studio 的窗口，开着一支片子的成片这一站：中间是星河的画面，下面是带缩略图的时间线，选中了 5 到 8 秒；右边是等你拍板的一张卡和两条对着镜头写下的意见，底下是“交给 agent”的按钮"></a></p>
+
+<p align="center"><sub>在 Studio 里做一支片子。顶上是片子走到了哪一站；指着时间线上的几秒或一个镜头写意见；右边是等你拍板的事，攒好一起交给 agent。画面里是本仓库自己的介绍片。</sub></p>
 
 ## 它哪里不一样
 

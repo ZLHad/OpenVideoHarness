@@ -30,10 +30,12 @@ You need macOS or Linux, Git, Node.js 22+, Chrome, FFmpeg, Python 3 with [uv](ht
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
-Choose where to start your film.
+Choose where to start your film. Use whichever suits you: a film started anywhere shows up in Studio.
 
 - **Studio.** Open **OVH Studio** from Applications, or run `bin/vh studio` from the install folder. Select Claude Code or Codex in the agent column and choose **Set it up** if the adapter is missing. Send your request there.
 - **Terminal.** In the default install folder, run `cd ~/OpenVideoHarness && codex` or `cd ~/OpenVideoHarness && claude`, then send your request.
+- **The Claude Code or Codex desktop app.** Open the install folder (`~/OpenVideoHarness` by default) as the project and send your request.
+- **From any other folder.** The installer registers a skill named `open-video-harness` with Claude Code and with Codex. So whichever project is open, ask for a video and the agent finds the workbench and follows it. Films go under the workbench's `projects/` unless you name another place. To install the skill alone, see [install options](#install-options-and-updates).
 
 For a first run, try this silent sample.
 
@@ -42,6 +44,10 @@ For a first run, try this silent sample.
 The agent keeps the source and exports together in the film's project folder. With `quick` it goes straight through to a checked video. Ask for `standard` or `studio` to review the direction and draft, with a separate storyboard review when the next step is costly.
 
 [Step-by-step guide](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) · [Install options and updates](#install-options-and-updates)
+
+<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.en.webp" width="960" alt="The OVH Studio window on a film's cut stop: the galaxy picture in the middle, under it a timeline with thumbnails and seconds 5 to 8 selected; on the right a card waiting for your decision and two notes written on shots, with the Send to agent button below"></a></p>
+
+<p align="center"><sub>Making a film in Studio. Along the top, where the film has got to. Point at a few seconds of the timeline, or at a shot, and write a note. On the right, what waits for your decision; hand it all to the agent together. The film on screen is this repo's own intro film.</sub></p>
 
 ## What makes it different
 
