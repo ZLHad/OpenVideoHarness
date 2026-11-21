@@ -123,7 +123,8 @@ def state(mgr, given=()):
     st = S.studio(d)
     kinds = A.catalog()
     return {"version": 1, "file": str(S.path()), "studio": st,
-            "mirror": {"mode": S.mirror(d), "why": d.get("mirror_why"), "at": d.get("mirror_at")},
+            "mirror": {"mode": S.mirror(d), "why": d.get("mirror_why"), "at": d.get("mirror_at"),
+                       "kept_own": [{"kind": k, "why": w} for k, w in (S.kept_own() if S.mirror(d) == "cn" else [])]},
             "agents": {"default": st["agent_default"],
                        "kinds": [{"kind": a["kind"], "label": a["label"], "installed": a["installed"], "size": a["size"],
                                   "choices": mgr.choices(a["kind"]) if mgr else None} for a in kinds]},
@@ -210,6 +211,11 @@ def post(handler):
             if value not in S.MODES:
                 raise ValueError(f"mirror: one of {', '.join(S.MODES)}")
             S.set_mirror(value, "set in Studio's settings")
+            for k, v in S.env_changes().items():   # Studio's own environment follows at once: the install it runs and the agents it starts next
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
         elif re.fullmatch(r"(model|effort):(\w+)", name):
             role, kind = name.split(":")
             offered = ((handler.server.agents.choices(kind) if kind in A.ADAPTERS else {}).get("offered") or {}).get(role) or []
@@ -220,6 +226,8 @@ def post(handler):
                 raise OSError(f"{A.picks_path()} was not written")
         else:
             raise ValueError(f"{name}: not a setting Studio changes")
+    except S.Newer:
+        return handler._error(409, "this computer's settings file was written by a newer OpenVideoHarness: not written over", "newer")
     except PermissionError as e:
         return handler._error(429, str(e))
     except ValueError as e:

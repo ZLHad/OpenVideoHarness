@@ -16,7 +16,7 @@ for d in ("tmp", "home/films", "config", "cache", "data", "agents", "profiles"):
     (T / d).mkdir(parents=True, exist_ok=True)
 FILMS = T / "home" / "films"   # a films folder in the home folder: the page shows it as ~/films
 REVEAL = T / "revealed.log"
-(T / "reveal.sh").write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{REVEAL}'\n")
+(T / "reveal.sh").write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{REVEAL}'\nenv > '{T / "reveal-env.txt"}'\n")   # (what a child of the console inherits, as the column's install does)
 (T / "reveal.sh").chmod(0o755)
 CONF = T / "config" / "ovh" / "settings.json"
 sys.path.insert(0, str(HERE))
@@ -173,6 +173,10 @@ def run():
     CONF.parent.mkdir(parents=True, exist_ok=True)
     CONF.write_text(json.dumps({"version": 1, "mirror": "cn", "mirror_at": "2026-11-01", "kept_for_later": {"a": 1}}), encoding="utf-8")
     ENV["OVH_PROBE_OFFLINE"] = str(T / "rec")   # the page's 测一下: answered from the recording doctor_keys_check made
+    out = subprocess.run([sys.executable, "-c", "import json, settings as S; print(json.dumps(S.env_changes(environ={}, mode='cn')))"],
+                         cwd=str(ROOT / "tools"), env=ENV, capture_output=True, text=True, timeout=60).stdout
+    CN = json.loads(out.strip().splitlines()[-1])   # Studio started under cn: what bin/vh exported for it
+    ENV.update(CN)
     d = Desk()
     try:
         def page():
@@ -195,7 +199,7 @@ def run():
                 return f"{st} {s}"
             bad = []
             if s["studio"] != {"studio_lang": None, "studio_theme": None, "agent_default": None}: bad.append(f"studio {s['studio']}")
-            if s["mirror"] != {"mode": "cn", "why": None, "at": "2026-11-01"}: bad.append(f"mirror {s['mirror']}")
+            if {k: s["mirror"].get(k) for k in ("mode", "why", "at")} != {"mode": "cn", "why": None, "at": "2026-11-01"} or not isinstance(s["mirror"].get("kept_own"), list): bad.append(f"mirror {s['mirror']}")
             L = s["local"]["lines"]
             if L.get("effort") != "quick" or L.get("budget") != "每支片子 5 美元" or L.get("review") is not None or L.get("sound") is not None or L.get("assets") is not None:
                 bad.append(f"LOCAL.md's lines (only list items; a template's {{…}}, its bracketed hint and a comment are no part of a value): {L}")
@@ -232,13 +236,21 @@ def run():
             st, s = d.req("POST", "/api/settings", {"name": "mirror", "value": "off"})
             c = conf()
             if st != 200 or c.get("mirror") != "off" or s["mirror"]["mode"] != "off" or not c.get("mirror_at"): bad.append(f"off: {st} {c}")
+            d.req("POST", "/api/settings", {"name": "reveal", "value": os.path.realpath(FILMS)})   # a child of the console now (the column's install is one)
+            for _ in range(50):
+                if (T / "reveal-env.txt").exists():
+                    break
+                time.sleep(0.1)
+            child = dict(x.split("=", 1) for x in (T / "reveal-env.txt").read_text().splitlines() if "=" in x)
+            if not CN.get("OVH_MIRROR") or "OVH_MIRROR" in child or any(child.get(k) == v for k, v in CN.items()):
+                bad.append(f"started under cn, switched to the official sources in the page: a child of the console still has the mirror {sorted(k for k, v in CN.items() if child.get(k) == v)}")
             st, s = d.req("POST", "/api/settings", {"name": "mirror", "value": "auto"})
             c = conf()
             if st != 200 or any(k in c for k in ("mirror", "mirror_at", "mirror_why")) or s["mirror"]["mode"] != "auto": bad.append(f"auto: {st} {c}")
             r = subprocess.run(["bash", str(ROOT / "bin" / "vh"), "settings", "mirror", "--get"], env=ENV, capture_output=True, text=True, timeout=60)
             if r.stdout.strip() != "auto": bad.append(f"bin/vh settings mirror --get says {r.stdout.strip()!r} {r.stderr[-200:]}")
             return "; ".join(bad) or None
-        check("the download mirror from the page: off, then automatic, through tools/settings.py, and bin/vh settings sees the same", mirror)
+        check("the download mirror from the page: off, then automatic, through tools/settings.py, and bin/vh settings sees the same; Studio started under the mirror, switched to the official sources, starts no child with the mirror's variables", mirror)
 
         def refusals():
             bad = []
@@ -262,7 +274,7 @@ def run():
                     break
                 time.sleep(0.1)
             got = REVEAL.read_text().split("\n")[:-1] if REVEAL.exists() else []
-            return None if st == 200 and got == [os.path.realpath(FILMS)] else f"{st}, opened {got}"
+            return None if st == 200 and got and set(got) == {os.path.realpath(FILMS)} else f"{st}, opened {got}"
         check("a films folder opens in the file browser (a stand-in here), that folder and nothing else", reveal)
 
         def services():

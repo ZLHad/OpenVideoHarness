@@ -22,8 +22,8 @@ const SETTINGS = (() => {
       f_unset_director: "没写：按努力程度的默认", f_unset_subagent: "没写：比 agent 自己便宜一档",
       f_how: "让 agent 帮你改。",
       mirror: "下载镜像", m_auto: "自动", m_cn: "国内镜像", m_off: "官方源",
-      m_auto_d: "从官方源下载；安装时官方源连不上，会自己换成国内镜像。", m_cn_d: "以后的下载走国内镜像。", m_off_d: "以后的下载走官方源。",
-      m_restart: "Studio 这一次运行里它自己发起的下载（比如右边的「装上」），重新打开 Studio 以后才跟着变。",
+      m_auto_d: "从官方源下载；安装时官方源连不上，会自己换成国内镜像。", m_cn_d: "以后的下载走国内镜像。", m_off_d: "以后的下载只从官方源。",
+      m_restart: "已经开着的对话里，agent 自己的 npm、uv 下载要新开一个对话才跟着变。", m_own: "这几处你自己设了别的源，照旧用你的：", newer: "这台电脑的设置文件是更新版本的 OpenVideoHarness 写的，这里不改它。",
       m_set: "（{d} 设的）", mc_lead: "做片子要的", mc_ok: "做片子要的都有了。", mc_rest: "别的做片子要的都有了。",
       mc_wait: "正在看这台电脑…", mc_fail: "这次没看成，过一会儿再打开这一页。", mc_agent_d: "在右边的对话里点「装上」。",
       v_quick: "快速", v_standard: "标准", v_studio: "精品", v_chat: "对话里", v_page: "网页", v_desk: "Studio", v_strict: "严格", v_record: "记下就能用",
@@ -60,8 +60,8 @@ const SETTINGS = (() => {
       f_unset_director: "Not set: the effort's own defaults", f_unset_subagent: "Not set: one tier cheaper than the agent's own",
       f_how: "Ask your agent to change it.",
       mirror: "Download mirror", m_auto: "Automatic", m_cn: "Mainland China mirrors", m_off: "Official sources",
-      m_auto_d: "Downloads come from the official sources; if they don't answer during install, it switches to the mirrors by itself.", m_cn_d: "Later downloads come from the mainland China mirrors.", m_off_d: "Later downloads come from the official sources.",
-      m_restart: "Downloads Studio itself starts in this run (like “Set it up” on the right) follow once Studio is reopened.",
+      m_auto_d: "Downloads come from the official sources; if they don't answer during install, it switches to the mirrors by itself.", m_cn_d: "Later downloads come from the mainland China mirrors.", m_off_d: "Later downloads come only from the official sources.",
+      m_restart: "In a chat that is already open, the agent's own npm and uv downloads follow from its next chat.", m_own: "These sources you set yourself stay yours:", newer: "This computer's settings file was written by a newer OpenVideoHarness, so it isn't changed here.",
       m_set: "(set {d})", mc_lead: "Needed for films", mc_ok: "Everything films need is here.", mc_rest: "Everything else films need is here.",
       mc_wait: "Looking at this computer…", mc_fail: "Couldn't look this time; open this page again in a moment.", mc_agent_d: "Press “Set it up” in the chat on the right.",
       v_quick: "Quick", v_standard: "Standard", v_studio: "Studio", v_chat: "In the chat", v_page: "A web page", v_desk: "Studio", v_strict: "Strict", v_record: "Allowed if recorded",
@@ -101,7 +101,7 @@ const SETTINGS = (() => {
   async function save(name, value, quiet) {
     const r = await call("POST", { name, value });
     if (r.ok && r.data && r.data.version) ST = r.data;
-    if (!quiet) toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : w("failed", { x: (r.data && r.data.error) || r.status }));
+    if (!quiet || (!r.ok && r.data && r.data.reason === "newer")) toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "newer" ? w("newer") : w("failed", { x: (r.data && r.data.error) || r.status }));
     return r.ok;
   }
 
@@ -211,7 +211,8 @@ const SETTINGS = (() => {
     const mode = M.mode || "auto", mirror = seg("mirror", [["auto", w("m_auto")], ["cn", w("m_cn")], ["off", w("m_off")]], mode, w("mirror"));
     const when = M.at ? ` <span class="st-dim">${esc(w("m_set", { d: M.at }))}</span>` : "";
     return `<p class="st-lead">${esc(w("f_lead"))}</p>`
-      + row(w("mirror"), mirror, esc(w("m_" + mode + "_d")) + when + `<br>${esc(w("m_restart"))}`)
+      + row(w("mirror"), mirror, esc(w("m_" + mode + "_d")) + when + `<br>${esc(w("m_restart"))}`
+        + ((M.kept_own || []).length ? `<br>${esc(w("m_own"))}${M.kept_own.map((o) => `<br><code>${esc(o.kind)}</code> ${esc(o.why)}`).join("")}` : ""))
       + ["effort", "review", "assets", "sound", "director", "subagent", "budget"].map((k) => row(w("f_" + k), val(k))).join("")
       + `<p class="st-note st-foot">${esc(w("f_how"))}</p>`;
   }
