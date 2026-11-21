@@ -22,6 +22,7 @@ this file does not know is kept as it is when another is written):
    "mirror": "cn" | "off",          absent: auto
    "mirror_why": "…",               who set it and why, in a sentence (install.sh's probe says what did not answer)
    "mirror_at": "YYYY-MM-DD"}
+In-process (Studio): update(patch: dict) -> dict and set_mirror(mode, why=None) -> dict; load() reads, path() says where.
 Every write goes through update(patch): under a lock (settings.json.lock), it reads the file as it is now, sets the keys
 it was given (None takes one out), keeps all the others, and writes the whole file to a temporary file moved into place,
 so two writers at once (Studio and a terminal) both land and a reader never sees half a file.
@@ -92,6 +93,18 @@ def update(patch):
     return d
 
 
+def set_mirror(mode, why=None):
+    """The mirror setting, as bin/vh settings mirror <mode> [--why TEXT] writes it, through update(), saying nothing (Studio's
+    settings panel calls it in-process; main() calls it and does the saying). mode: cn, off or auto (auto takes the keys
+    out). → the settings as written. It does not fetch HyperFrames' Chrome from the mirror: bin/vh settings mirror cn and
+    bin/vh new do that (bin/vh settings chrome alone)."""
+    if mode not in MODES:
+        raise ValueError(f"mirror: {mode!r} is not one of {', '.join(MODES)}")
+    on = mode != "auto"
+    return update({"mirror": mode if on else None, "mirror_at": datetime.date.today().isoformat() if on else None,
+                   "mirror_why": why if on and why else None})
+
+
 def save(d):
     """Write these keys (as update: under the lock, onto what is there now, nothing else taken out)."""
     return update(d)
@@ -159,9 +172,7 @@ def main(argv):
             print(mirror()); return 0
         if len(argv) < 2 or argv[1] not in MODES or (len(argv) > 2 and (argv[2] != "--why" or len(argv) != 4)):
             print("usage: bin/vh settings mirror cn|off|auto [--why TEXT]   (or --get)", file=sys.stderr); return 2
-        on = argv[1] != "auto"
-        update({"mirror": argv[1] if on else None, "mirror_at": datetime.date.today().isoformat() if on else None,
-                "mirror_why": argv[3] if on and len(argv) == 4 else None})
+        set_mirror(argv[1], argv[3] if len(argv) == 4 else None)
         if argv[1] == "cn":
             print(f"✓ downloads now come from the mainland-China mirrors ({operators()}; tools/mirrors.txt), kept in {path()};"
                   " bin/vh settings mirror off turns that off")

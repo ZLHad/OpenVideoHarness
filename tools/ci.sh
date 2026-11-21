@@ -1690,9 +1690,19 @@ sys.path.insert(0, "tools"); import settings
 settings.update({"mirror": "cn"}); settings.update({"mirror": None, "studio_theme": "dark"})
 d = json.load(open(settings.path()))
 print(sum(k[0] in "ab" and k[1:].isdigit() for k in d), d.get("mirror"), d.get("studio_theme"), d.get("version"))
+# set_mirror writes what the command writes, and leaves a key it does not know where it was
+mine = settings.set_mirror("cn", "a test"); subprocess.run([sys.executable, "tools/settings.py", "mirror", "off"], capture_output=True)
+cmd_off = {k: v for k, v in json.load(open(settings.path())).items() if k.startswith("mirror")}
+settings.set_mirror("off"); fn_off = {k: v for k, v in json.load(open(settings.path())).items() if k.startswith("mirror")}
+subprocess.run([sys.executable, "tools/settings.py", "mirror", "cn", "--why", "a test"], capture_output=True)
+cmd_cn = {k: v for k, v in json.load(open(settings.path())).items() if k.startswith("mirror")}
+last = settings.set_mirror("auto")
+print(mine.get("mirror"), mine.get("mirror_why"), cmd_off == fn_off, cmd_cn == {k: v for k, v in mine.items() if k.startswith("mirror")},
+      "mirror" in last, last.get("studio_theme"), last.get("a0"))
 PY
 )
-  if [ "$a" = "120 None dark 1" ]; then ok "settings: two writers at once both land (a lock, a fresh read, a merge); a key given as None goes, the others stay"
+  if [ "$a" = "120 None dark 1
+cn a test True True False dark 0" ]; then ok "settings: two writers at once both land (a lock, a fresh read, a merge); a key given as None goes, the others stay; set_mirror writes what bin/vh settings mirror writes, other keys untouched"
   else bad "settings with two writers: $a"; fi
   rm -rf "$mt"
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
