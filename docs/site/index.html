@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenVideoHarness · You direct. AI makes the film.</title>
-<meta name="description" content="An open-source workbench for making videos with AI. Say one sentence, and a coding agent such as Claude Code or Codex makes the whole film, with voice and music. You direct in Studio: comment on a shot, compare the cuts, approve. 开源的 AI 视频制作工作台。说一句话，agent 做出带声音的成片；你在 Studio 里当导演。">
+<meta name="description" content="An open-source, controllable workflow for making videos with code. Say one sentence, and a coding agent such as Claude Code or Codex writes the code and renders the film. You direct in Studio: comment on a shot, compare the cuts, approve. 用代码做视频的一套可控工作流，开源。说一句话，agent 写代码出片；你在 Studio 里当导演。">
 <meta name="theme-color" content="#04050A">
 <link rel="canonical" href="https://zlhad.top/OpenVideoHarness/docs/site/">
 <link rel="alternate" hreflang="en" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en">
 <link rel="alternate" hreflang="zh" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh">
 <meta property="og:type" content="website">
 <meta property="og:title" content="OpenVideoHarness">
-<meta property="og:description" content="Say one sentence, and a coding agent makes the whole film, with voice and music. You direct in Studio.">
+<meta property="og:description" content="A controllable workflow for making videos with code. Say one sentence, a coding agent renders the film, and you direct in Studio.">
 <meta property="og:url" content="https://zlhad.top/OpenVideoHarness/docs/site/">
 <meta property="og:image" content="https://zlhad.top/OpenVideoHarness/docs/site/img/04-intro.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -779,10 +779,10 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   <canvas class="galaxy" id="galaxy" aria-hidden="true"></canvas>
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="wrap">
-    <p class="eyebrow" data-r><span lang="en">The open-source workbench for making videos with AI</span><span lang="zh">开源的 AI 视频制作工作台</span></p>
+    <p class="eyebrow" data-r><span lang="en">Open source · a controllable workflow for making videos with code</span><span lang="zh">开源 · 用代码做视频的可控工作流</span></p>
     <h1>OpenVideo<br>Harness</h1>
     <p class="tag split"><span lang="en">You direct. <em>AI makes the film.</em></span><span lang="zh">你当导演，<em>AI 做片。</em></span></p>
-    <p class="lede" data-r><span lang="en">Say what you want in one sentence. A coding agent such as Claude Code or Codex takes it from the idea and the storyboard through voice and music to a finished film with sound. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.</span><span lang="zh">说一句想做什么，Claude Code、Codex 这样的 agent 从立意、分镜、配音配乐一路做到带声音的成片。每一步都摆在 Studio 里：指着镜头说一句，它去改，改完两版对照着看。</span></p>
+    <p class="lede" data-r><span lang="en">Say what you want in one sentence, and a coding agent such as Claude Code or Codex writes the code and renders the film. It can be controlled, repeated and fitted into your own workflow. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.</span><span lang="zh">说一句想做什么，Claude Code、Codex 这样的 agent 写代码、渲染成片。可控、可重复，接得进你自己的流程。每一步都摆在 Studio 里：指着镜头说一句，它去改，改完两版对照着看。</span></p>
     <div class="cta" data-r>
       <a class="btn" href="#start"><span lang="en">Get started</span><span lang="zh">开始使用</span> <span class="arrow">→</span></a>
       <a class="btn ghost" href="#studio"><span lang="en">See Studio in 17 s</span><span lang="zh">17 秒看 Studio</span></a>
@@ -893,8 +893,8 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <div class="why-copy">
       <p class="eyebrow" data-r><b>03</b><span lang="en">Why it exists</span><span lang="zh">为什么做它</span></p>
       <h2 class="split"><span lang="en">One great film is easy. <em>Every time is hard.</em></span><span lang="zh">做出一支好片不难，<em>每次都好才难。</em></span></h2>
-      <p data-r><span lang="en">Getting an AI to make a few seconds of motion is no longer remarkable. The hard part is <strong>turning that into a film you would publish</strong>: what it says, whether its text can be read in time, whether its numbers are true, who makes the sound.</span><span lang="zh">让 AI 做一段会动的画面，现在已经不稀奇。难的是<strong>把它做成一支能发出去的片子</strong>：想说什么，字来不来得及读，数字是不是真的，声音谁来做。</span></p>
-      <p data-r><span lang="en">And the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong>, <strong>Manim</strong> and <strong>Blender</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">而且同一个模型，这次惊艳，下次就可能节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Manim</strong>、<strong>Blender</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
+      <p data-r><span lang="en">Plenty of tools can turn a sentence or two into a video. The hard part is doing it <strong>under control, repeatably and at volume</strong>, inside your own workflow.</span><span lang="zh">一两句话让 AI 做出一支视频，现在很多工具都行。难的是<strong>可控、可重复、能成批地做</strong>，还能接进你自己的流程。</span></p>
+      <p data-r><span lang="en">The same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong>, <strong>Manim</strong> and <strong>Blender</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">同一个模型，这次惊艳，下次就可能节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Manim</strong>、<strong>Blender</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
       <p data-r><span lang="en">OpenVideoHarness is the missing layer: <strong>the process and the checks, from idea to final cut</strong>, written as docs an agent follows. It stays light on purpose: a few hard floors, and defaults that a good idea can overrule.</span><span lang="zh">OpenVideoHarness 补的就是这一层：<strong>从立意到成片的流程和检查</strong>，写成 agent 能照着做的文档。它故意写得很轻：几条底线不让步，其余都是默认，好点子可以反着来。</span></p>
     </div>
     <div class="stack" data-aria-en="Where OpenVideoHarness sits" data-aria-zh="OpenVideoHarness 在哪一层">
