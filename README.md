@@ -425,7 +425,22 @@ bash install.sh --no-icon                        # leave OVH Studio out of your 
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
 - The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, Python packages up to about 1.5 GB, and the default local voice's model about 2 GB (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
 
-Skill only, from inside the agent: in Claude Code, `/plugin install open-video-harness --marketplace ZLHad/OpenVideoHarness`; in Codex, `codex plugin marketplace add ZLHad/OpenVideoHarness`, then `codex plugin add open-video-harness@open-video-harness`; or `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench. That copy stays as it was when the repo changes; once the workbench is installed, `bin/vh install-skill` replaces it with a stub that follows the clone.
+Skill only, as a plugin of the agent's (two shell commands each; `--sparse` fetches the plugin's own folders, about 2 MB, not the whole repo):
+
+```bash
+claude plugin marketplace add ZLHad/OpenVideoHarness --sparse .claude-plugin plugins/open-video-harness
+claude plugin install open-video-harness@open-video-harness
+```
+
+```bash
+codex plugin marketplace add ZLHad/OpenVideoHarness --sparse .agents/plugins --sparse plugins/open-video-harness
+codex plugin add open-video-harness@open-video-harness
+```
+
+Or `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. Each is a pointer: on first use it asks before installing the workbench itself (the clone above).
+- **Updates.** The plugin changes only when its version does, and that happens when the skills change. Claude Code takes a new one after `claude plugin marketplace update open-video-harness` and `claude plugin update open-video-harness@open-video-harness`. Codex takes it after `codex plugin marketplace upgrade`, then `codex plugin add open-video-harness@open-video-harness` again.
+- **The `npx skills add` copy stays as it was.** Once the workbench is installed, `bin/vh install-skill` writes stubs that follow the clone, and `bin/vh doctor` says the copy is there.
+- **With both the plugin and the installer's stubs**, an agent lists the skill twice (`open-video-harness` and `open-video-harness:open-video-harness`). Both reach the same workbench. To keep one, remove the plugin (`claude plugin uninstall open-video-harness@open-video-harness`, `codex plugin remove open-video-harness@open-video-harness`), or install with `--no-skill`.
 
 ## Where things are
 

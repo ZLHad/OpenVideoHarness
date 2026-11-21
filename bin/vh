@@ -140,23 +140,28 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
   return 1
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
+stub_write() { # stub_write <folder> <name>: the stub for skills/<name> into <folder>/<name>/SKILL.md, as doctor.py --stub renders it
+  # (the skill's frontmatter, tools/skill_stub.md with the name and this clone, and the mark: install-skill's, untouched), through a
+  # temporary file moved into place. Fails, saying nothing, when it cannot be written
+  local d=$1 n=$2 tmp
+  mkdir -p "$d/$n" 2>/dev/null || return 1
+  tmp=$(mktemp "$d/$n/.SKILL.md.XXXXXX" 2>/dev/null) || return 1
+  python3 "$ROOT/tools/doctor.py" --stub "$n" "$ROOT" > "$tmp" 2>/dev/null && mv "$tmp" "$d/$n/SKILL.md" 2>/dev/null || { rm -f "$tmp"; return 1; }
+}
 cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter (what a host triggers on), this clone as the harness
-  # path, and a few lines that send the agent to <clone>/skills/<name>/SKILL.md, so a git pull updates what every host reads.
-  # tools/skill_stub.md is the stub's text; tools/doctor.py (skills_check) renders the same to compare with what is installed.
-  # Line ends come out LF from a CRLF checkout too (tr -d '\r'). A stub this clone wrote for a skill skills/ no longer has is
-  # removed: one whose Harness path line names this clone, alone in its folder; anything else there is left as it is
-  local which=${1:-all} dests=() d s n t body f line
+  # path, and a few lines that send the agent to <clone>/skills/<name>/SKILL.md, so a git pull updates what every host reads; last a
+  # line that marks it as install-skill's (doctor.py: skill_stub, stub_state). A stub this clone wrote for a skill skills/ no longer
+  # has is removed: one whose Harness path line names this clone, alone in its folder; anything else there is left as it is.
+  # Exit 1 when a stub could not be written
+  local which=${1:-all} dests=() d s n f line rc=0
   case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; all) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;;
     *) echo "usage: bin/vh install-skill [claude|codex|all]   (unknown target: $which)" >&2; exit 2 ;; esac
-  t=$(tr -d '\r' < "$ROOT/tools/skill_stub.md")
   line="Harness path (set by install.sh): $ROOT"
   for d in "${dests[@]}"; do
     for s in "$ROOT"/skills/*/SKILL.md; do
       n=$(basename "$(dirname "$s")")
-      body=${t//@NAME@/"$n"}; body=${body//@HARNESS@/"$ROOT"}   # quoted replacements: an & in the path stays an &
-      mkdir -p "$d/$n"
-      { tr -d '\r' < "$s" | awk 'NR == 1 && $0 == "---" { f = 1; print; next } f { print; if ($0 == "---") exit }'; printf '%s\n' "$body"; } > "$d/$n/SKILL.md"
-      echo "$c_ok skill → $d/$n/SKILL.md (a stub that reads $ROOT/skills/$n/SKILL.md)"
+      if stub_write "$d" "$n"; then echo "$c_ok skill → $d/$n/SKILL.md (a stub that reads $ROOT/skills/$n/SKILL.md)"
+      else echo "$c_no $d/$n/SKILL.md could not be written (is $d writable?)" >&2; rc=1; fi
     done
     for f in "$d"/*/SKILL.md; do
       [ -f "$f" ] || continue
@@ -164,25 +169,36 @@ cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter
       [ -f "$ROOT/skills/$n/SKILL.md" ] && continue
       tr -d '\r' < "$f" | grep -qxF "$line" || continue   # not this clone's: someone else's skill, or another clone's
       [ "$(ls -A "$(dirname "$f")")" = SKILL.md ] || { echo "! $f was written for this clone, but skills/ has no $n now; other files are beside it, so it is left: remove it yourself" >&2; continue; }
-      rm "$f" && rmdir "$(dirname "$f")" && echo "$c_ok removed $d/$n (skills/ has no $n now)"
+      if rm "$f" && rmdir "$(dirname "$f")"; then echo "$c_ok removed $d/$n (skills/ has no $n now)"; else rc=1; fi
     done
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
   echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
+  return $rc
 }
 cmd_studio() { # stdlib only; the desk it starts runs under this same bash. Before it opens (not for -h or the icon's own
-  # status, install and removal), this clone's outdated skill stubs are written again (skills_refresh)
+  # status, install and removal), this clone's stubs that are behind are written again (skills_refresh), quietly for
+  # --print-address and --json, whose output is read by a program
   export OVH_BASH=$BASH
-  case " $* " in *" -h "*|*" --help "*|*" --icon-status "*|*" --install-icon "*|*" --remove-icon "*) ;; *) skills_refresh ;; esac
+  case " $* " in *" -h "*|*" --help "*|*" --icon-status "*|*" --install-icon "*|*" --remove-icon "*) ;;
+    *" --print-address "*|*" --json "*) skills_refresh quiet ;; *) skills_refresh ;; esac
   exec python3 "$ROOT/tools/desk/studio.py" "$@"
 }
-skills_refresh() { # before Studio opens: the stubs bin/vh install-skill wrote for this clone that doctor calls outdated (a renamed or
-  # new skill, a changed description, a stub of an older shape) written again, in one line on stderr; never for a host whose skills
-  # nobody installed from this clone, and never a stub pointing at another clone that is there (tools/doctor.py --stale-skills)
-  local t
-  for t in $(python3 "$ROOT/tools/doctor.py" --stale-skills 2>/dev/null); do
-    case "$t" in claude|codex) cmd_install_skill "$t" >/dev/null 2>&1 && echo "skills: the $t stubs brought up to date (bin/vh install-skill $t; restart it to see them)" >&2 ;; esac
-  done
+skills_refresh() { # skills_refresh [quiet]: before Studio opens, the stubs install-skill wrote for this clone and nobody changed
+  # since, that are behind skills/ (a changed description, a stub of the shape before the mark), written again; only those files
+  # (tools/doctor.py --stale-skills): never a skill folder of someone else's, a whole copy (npx skills add), a stub edited by hand
+  # or one pointing at another clone, and no skill added that was not installed for that host. One line on stderr when it wrote
+  # something or could not; none otherwise, and none with quiet
+  local f n w=0 no=0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    n=$(basename "$(dirname "$f")")
+    [ -f "$ROOT/skills/$n/SKILL.md" ] || continue
+    if stub_write "$(dirname "$(dirname "$f")")" "$n"; then w=$((w + 1)); else no=$((no + 1)); fi
+  done < <(python3 "$ROOT/tools/doctor.py" --stale-skills 2>/dev/null)
+  [ "${1:-}" = quiet ] && return 0
+  [ $w = 0 ] || echo "skills: $w stub$([ $w = 1 ] || echo s) this clone wrote brought up to date (restart Claude Code or Codex to see them)" >&2
+  [ $no = 0 ] || echo "skills: $no stub$([ $no = 1 ] || echo s) could not be written; bin/vh doctor says which" >&2
   return 0
 }
 cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first, then AGENTS.md from CLAUDE.md
@@ -195,11 +211,13 @@ cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first,
   echo "$c_ok AGENTS.md regenerated from CLAUDE.md"
   # the plugin Claude Code and Codex install from this repo's marketplace (.claude-plugin/, .agents/plugins/) carries a copy
   # of each skill: a plugin is copied into the host's cache whole, so it cannot point back into skills/ (tools/ci.sh holds them equal)
-  local plug="$ROOT/plugins/open-video-harness/skills" s n d
+  local plug="$ROOT/plugins/open-video-harness/skills" s n d v
   [ -d "$ROOT/plugins/open-video-harness" ] || return 0   # (a copy of bin/vh without the plugin: nothing to copy into)
-  for s in "$ROOT"/skills/*/SKILL.md; do [ -f "$s" ] || continue; n=$(basename "$(dirname "$s")"); mkdir -p "$plug/$n"; cp "$s" "$plug/$n/SKILL.md"; done
+  for s in "$ROOT"/skills/*/SKILL.md; do   # each skill's whole folder, so a skill with files beside its SKILL.md ships whole
+    [ -f "$s" ] || continue; n=$(basename "$(dirname "$s")"); rm -rf "${plug:?}/$n"; mkdir -p "$plug"; cp -R "$(dirname "$s")" "$plug/$n"; done
   for d in "$plug"/*/; do [ -d "$d" ] || continue; n=$(basename "$d"); [ -f "$ROOT/skills/$n/SKILL.md" ] || rm -rf "$d"; done
-  echo "$c_ok plugins/open-video-harness/skills/ copied from skills/ (the plugin the marketplaces install)"
+  v=$(python3 "$ROOT/tools/plugin_version.py" --write) || exit 1   # the version moves when, and only when, the skills do
+  echo "$c_ok plugins/open-video-harness/skills/ copied from skills/ (the plugin the marketplaces install; version $v)"
 }
 
 cmd_setup() {

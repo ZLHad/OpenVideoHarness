@@ -1,8 +1,9 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
 usage: bin/vh doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]]
-  (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl; bin/vh studio asks --stale-skills: the hosts
-  whose stubs this clone wrote are outdated, one a line, and writes them again)
+  (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl; bin/vh studio asks --stale-skills: the stubs
+  install-skill wrote for this clone that are untouched and behind, one file a line, and writes them again; install-skill asks
+  --stub NAME HARNESS for a stub's text)
   --json        the same as JSON (below), the lines a person reads not printed
   --fill-local  also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from this check, where they still hold
                 the template's {…}; with no LOCAL.md, LOCAL.example.md is copied first. A line a person wrote stays;
@@ -38,7 +39,7 @@ Exit 0: it is a report (2 on a usage error or an unreadable table).
 minimum, not the pin, or older than max_age_days) · incomplete (found, a part it needs is not) · no_key · unsupported
 (not on this platform) · per_project · unchecked. A probe: ok · failed · skipped.
 """
-import contextlib, datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, tempfile, time
+import contextlib, datetime, glob, hashlib, http.client, json, os, platform, re, shutil, subprocess, sys, tempfile, time
 import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
@@ -413,10 +414,29 @@ SKILL_HOMES = (("~/.claude/skills", "claude"), ("~/.agents/skills", "codex"))   
 HARNESS_LINE = "Harness path (set by install.sh):"   # the one line install-skill rewrites: the clone a copy points at
 
 
+STUB_MARK = "<!-- bin/vh install-skill wrote this stub; sha256 of the lines above: "   # the last line of every stub it writes
+
+
+def stub_mark(text):
+    return f"{STUB_MARK}{hashlib.sha256(text.encode('utf-8')).hexdigest()} -->\n"
+
+
+def stub_state(text):
+    """Whose a SKILL.md is, by its last line: "ours" (install-skill wrote it, and it is as written), "edited" (a stub of
+    install-skill's, changed since: by hand, or something appended), or None (no mark: a whole copy, another installer's,
+    or a stub of the shape before the mark)."""
+    lines = text.splitlines(keepends=True)
+    at = [i for i, line in enumerate(lines) if line.startswith(STUB_MARK)]
+    if not at:
+        return None
+    return "ours" if at[-1] == len(lines) - 1 and stub_mark("".join(lines[:-1])).rstrip("\n") == lines[-1].rstrip("\n") else "edited"
+
+
 def skill_stub(text, name, harness):
     """What bin/vh install-skill writes for a skill: its frontmatter, then tools/skill_stub.md with the name and this clone
-    put in, line ends as LF whatever the checkout has (a CRLF one too). bin/vh renders the same with tr, awk and bash; the
-    two are held together by tools/ci.sh."""
+    put in, line ends as LF whatever the checkout has (a CRLF one too), and last the mark (stub_mark: the hash of all that),
+    by which doctor and the refresh know a stub install-skill wrote and nobody changed. bin/vh writes what this returns
+    (doctor.py --stub), so there is one renderer."""
     lines = text.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
     front = []
     if lines and lines[0].rstrip("\n") == "---":
@@ -425,7 +445,13 @@ def skill_stub(text, name, harness):
             if len(front) > 1 and line.rstrip("\n") == "---":
                 break
     stub = (ROOT / "tools" / "skill_stub.md").read_text(encoding="utf-8").replace("\r", "").rstrip("\n")
-    return "".join(front) + stub.replace("@NAME@", name).replace("@HARNESS@", harness) + "\n"
+    out = "".join(front) + stub.replace("@NAME@", name).replace("@HARNESS@", harness) + "\n"
+    return out + stub_mark(out)
+
+
+def after_front(text):   # a SKILL.md without its frontmatter and without the mark: the stub's own text
+    text = "".join(line for line in text.splitlines(keepends=True) if not line.startswith(STUB_MARK))
+    return text.split("\n---\n", 1)[1] if text.startswith("---\n") and "\n---\n" in text else text
 
 
 def is_clone(at):
@@ -447,8 +473,8 @@ def skills_check():
     or removed: it still triggers on its old description; install-skill removes those). A copy that points at another
     clone that is there is that clone's, and is left alone."""
     repo = {q.parent.name: q.read_text(encoding="utf-8") for q in sorted((ROOT / "skills").glob("*/SKILL.md"))}
-    body = lambda text: [line for line in text.splitlines() if not line.startswith(HARNESS_LINE)]
-    same, old, others = 0, {}, []
+    body = lambda text: [line for line in text.splitlines() if not line.startswith(HARNESS_LINE) and not line.startswith(STUB_MARK)]
+    same, old, others, refresh = 0, {}, [], []   # refresh: the files bin/vh studio may write again (install-skill's own, untouched)
     for folder, target in SKILL_HOMES:
         ours, absent = False, []
         try:
@@ -481,10 +507,18 @@ def skills_check():
                 others.append(at or "no clone")
                 continue
             ours = True
-            if body(got) == body(skill_stub(repo[name], name, str(ROOT))):
+            now = skill_stub(repo[name], name, at)
+            mark = stub_state(got)
+            if got == now:
                 same += 1
             elif body(got) == body(repo[name]):   # a whole copy, current today; it falls behind at the next pull
                 old.setdefault(target, []).append(f"{shown(f)} is a whole copy of skills/{name}/SKILL.md (it stays as it is when skills/ changes)")
+            elif mark == "edited":
+                old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now: it was changed after install-skill"
+                                                  " wrote it, so Studio leaves it as it is")
+            elif mark == "ours" or after_front(got) == after_front(now):   # untouched: its frontmatter, or the mark, behind
+                refresh.append(str(f))
+                old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now (Studio writes it again when it opens)")
             else:
                 old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now")
         if ours and absent:   # a skill added since this folder was installed
@@ -492,7 +526,7 @@ def skills_check():
     left = (f"; left alone: {len(others)} cop{'y' if len(others) == 1 else 'ies'} pointing at {', '.join(sorted(set(others)))}") if others else ""
     if old:
         how = "bin/vh install-skill" + (f" {next(iter(old))}" if len(old) == 1 else "")
-        return {"name": "skills", "state": "outdated", "targets": sorted(old), "note": "; ".join(x for v in old.values() for x in v)
+        return {"name": "skills", "state": "outdated", "targets": sorted(old), "refresh": refresh, "note": "; ".join(x for v in old.values() for x in v)
                 + f" → {how} (it writes stubs that read skills/ in this clone, so a git pull keeps them current, and removes"
                   f" the ones it wrote for skills this clone no longer has; an agent reads its skill when a session starts){left}"}
     if same:
@@ -812,10 +846,16 @@ def main(argv):
         x = argv[i]
         if x in ("-h", "--help"):
             print(__doc__.strip()); return 0
-        if x == "--stale-skills":   # bin/vh studio: the hosts whose stubs this clone wrote are outdated, one a line (it rewrites them)
-            stale = skills_check().get("targets", [])
+        if x == "--stale-skills":   # bin/vh studio: the stubs install-skill wrote for this clone, untouched and behind, one file a line
+            stale = skills_check().get("refresh", [])
             if stale:
                 print("\n".join(stale))
+            return 0
+        if x == "--stub":   # bin/vh install-skill: the stub for skills/<name> naming this harness (one renderer: skill_stub)
+            rest = argv[i + 1:]
+            if len(rest) != 2 or not (ROOT / "skills" / rest[0] / "SKILL.md").is_file():
+                print("usage: doctor.py --stub <skill in skills/> <harness path>", file=sys.stderr); return 2
+            sys.stdout.write(skill_stub((ROOT / "skills" / rest[0] / "SKILL.md").read_text(encoding="utf-8"), rest[0], rest[1]))
             return 0
         if x == "--check":
             t = json.loads(TABLE.read_text(encoding="utf-8"))

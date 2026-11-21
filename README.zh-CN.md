@@ -425,7 +425,22 @@ bash install.sh --no-icon                        # 不把 OVH Studio 放进应�
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。
 - 第一次渲染、第一次用声音工具时还会往 `~/.cache` 下载：Chrome 约 200 MB，Python 依赖最多约 1.5 GB，默认的本地配音模型约 2 GB（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。国内网络连不上 npm、PyPI、Hugging Face 或 Google Fonts 时，镜像设置见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 
-只装 skill，在 agent 里一条命令：Claude Code 里输入 `/plugin install open-video-harness --marketplace ZLHad/OpenVideoHarness`；Codex 里运行 `codex plugin marketplace add ZLHad/OpenVideoHarness`，再 `codex plugin add open-video-harness@open-video-harness`；也可以 `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。它只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。这样装的是整份副本，仓库更新了它不变；工作台装好以后跑一次 `bin/vh install-skill`，换成跟随克隆的短桩。
+只装 skill，作为 agent 的插件装（各两条终端命令；`--sparse` 只取插件自己的目录，约 2 MB，不拉整个仓库）：
+
+```bash
+claude plugin marketplace add ZLHad/OpenVideoHarness --sparse .claude-plugin plugins/open-video-harness
+claude plugin install open-video-harness@open-video-harness
+```
+
+```bash
+codex plugin marketplace add ZLHad/OpenVideoHarness --sparse .agents/plugins --sparse plugins/open-video-harness
+codex plugin add open-video-harness@open-video-harness
+```
+
+也可以 `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。装上的都只是指针：第一次用时先征得你同意，再装工作台本身（就是上面那份克隆）。
+- **更新**：插件只在版本号变了的时候更新，版本号只在 skill 改了的时候变。Claude Code 先 `claude plugin marketplace update open-video-harness`，再 `claude plugin update open-video-harness@open-video-harness`；Codex 先 `codex plugin marketplace upgrade`，再重新 `codex plugin add open-video-harness@open-video-harness`。
+- **`npx skills add` 装的副本不会跟着变**：工作台装好以后，`bin/vh install-skill` 会写跟随克隆的短桩，`bin/vh doctor` 也会提到那份副本。
+- **插件和安装脚本的短桩都装了时**，agent 里会列出两个（`open-video-harness` 和 `open-video-harness:open-video-harness`），走到的是同一个工作台。只留一个的话，卸掉插件（`claude plugin uninstall open-video-harness@open-video-harness`、`codex plugin remove open-video-harness@open-video-harness`），或者安装时加 `--no-skill`。
 
 ## 文档地图
 

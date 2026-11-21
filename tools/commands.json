@@ -150,7 +150,8 @@
       ],
       "writes": [
         "CLAUDE.md (its 命令行 line)",
-        "AGENTS.md"
+        "AGENTS.md",
+        "plugins/open-video-harness/skills/ (skills/ copied whole), its two plugin.json versions and skills.sha256 when the skills changed"
       ],
       "usage": [
         {
@@ -1253,6 +1254,7 @@
       ],
       "writes": [
         "what bin/vh desk writes, when it starts one (in the background, owner icon when the icon started it)",
+        "before it opens: ~/.claude/skills/*/SKILL.md, ~/.agents/skills/*/SKILL.md, only the stubs bin/vh install-skill wrote for this clone, untouched and behind skills/",
         "--install-icon: ~/Applications/OVH Studio.app (macOS) or ~/.local/share/applications/ovh-studio.desktop and ~/.local/share/ovh-studio/ (Linux; $XDG_DATA_HOME), or all of it in --dir"
       ],
       "usage": [

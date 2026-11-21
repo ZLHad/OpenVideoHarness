@@ -159,41 +159,89 @@ doc_checks() {
   if [ "$(tail -n +4 AGENTS.md)" = "$(cat CLAUDE.md)" ] && [ -n "$head" ]; then ok "AGENTS.md generated from CLAUDE.md"
   else bad "AGENTS.md is out of sync with CLAUDE.md: run bin/vh sync-agents"; fi
   # the plugin the two marketplaces install (.claude-plugin/marketplace.json for Claude Code, .agents/plugins/marketplace.json
-  # for Codex): its skills are skills/'s, copied by bin/vh sync-agents; the names agree everywhere; Claude's tracks commits
-  # (no version, so an update follows main), and so does Codex's
+  # for Codex): its skills are skills/'s folders, copied by bin/vh sync-agents; the names agree everywhere; its version moves
+  # when the skills change and only then (so a commit that leaves them is no new version)
   out=$(python3 - <<'PY' 2>&1
 import json, filecmp, os, glob
 bad = []
 skills = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob("skills/*/SKILL.md"))
 plug = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob("plugins/open-video-harness/skills/*/SKILL.md"))
 if skills != plug: bad.append(f"the plugin's skills {plug} are not skills/'s {skills}: bin/vh sync-agents")
-bad += [f"plugins/open-video-harness/skills/{n}/SKILL.md differs from skills/{n}/SKILL.md: bin/vh sync-agents" for n in set(skills) & set(plug)
-        if not filecmp.cmp(f"skills/{n}/SKILL.md", f"plugins/open-video-harness/skills/{n}/SKILL.md", shallow=False)]
+def tree(d): return sorted(os.path.relpath(os.path.join(r, f), d) for r, _, fs in os.walk(d) for f in fs)
+for n in set(skills) & set(plug):   # whole folders: a skill with files beside its SKILL.md ships whole
+    a_, b_ = f"skills/{n}", f"plugins/open-video-harness/skills/{n}"
+    if tree(a_) != tree(b_) or any(not filecmp.cmp(os.path.join(a_, f), os.path.join(b_, f), shallow=False) for f in tree(a_)):
+        bad.append(f"plugins/open-video-harness/skills/{n}/ differs from skills/{n}/: bin/vh sync-agents")
 cm, xm = json.load(open(".claude-plugin/marketplace.json")), json.load(open(".agents/plugins/marketplace.json"))
 cp, xp = json.load(open("plugins/open-video-harness/.claude-plugin/plugin.json")), json.load(open("plugins/open-video-harness/.codex-plugin/plugin.json"))
 names = {cm["plugins"][0]["name"], xm["plugins"][0]["name"], cp["name"], xp["name"]}
 if names != {"open-video-harness"}: bad.append(f"plugin names: {names}")
 if cm["plugins"][0]["source"] != "./plugins/open-video-harness" or xm["plugins"][0]["source"] != {"source": "local", "path": "./plugins/open-video-harness"}:
     bad.append("a marketplace does not point at ./plugins/open-video-harness")
-if "version" in cp or "version" in xp or "version" in cm["plugins"][0]: bad.append("a version is pinned: the plugin would stop following main")
+import subprocess   # the version moves with the skills and only with them (tools/plugin_version.py, written by bin/vh sync-agents)
+r = subprocess.run(["python3", "tools/plugin_version.py", "--check"], capture_output=True, text=True)
+if r.returncode: bad.append(r.stdout.strip() or r.stderr.strip())
+if "version" in cm["plugins"][0]: bad.append("the marketplace entry names a version: the manifests hold it")
 if xp.get("skills") != "./skills/": bad.append("Codex's plugin.json does not name ./skills/")
 print("\n".join(bad))
 PY
 )
-  if [ -z "$out" ]; then ok "the plugin the marketplaces install: skills/'s skills, copied; one name in the two marketplaces and two manifests; no version pinned"
+  if [ -z "$out" ]; then ok "the plugin the marketplaces install: skills/'s skill folders, copied whole; one name in the two marketplaces and two manifests; a version that moves with the skills"
   else bad "the plugin: $out"; fi
-  # bin/vh studio brings the stubs install-skill wrote for this clone up to date before it opens, quietly (one line on stderr):
-  # a stub for a host nobody installed into stays unwritten, and one pointing at another clone that is there stays as it is
-  sk=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX"); mkdir -p "$sk/other/bin" "$sk/home/.agents/skills/open-video-harness"; : > "$sk/other/bin/vh"
-  HOME="$sk/home" bash bin/vh install-skill claude >/dev/null 2>&1
-  sed 's/^description: /description: OLD /' "$sk/home/.claude/skills/open-video-harness/SKILL.md" > "$sk/x" && mv "$sk/x" "$sk/home/.claude/skills/open-video-harness/SKILL.md"
-  printf -- '---\nname: open-video-harness\ndescription: theirs\n---\nHarness path (set by install.sh): %s\n' "$sk/other" > "$sk/home/.agents/skills/open-video-harness/SKILL.md"
-  a=$(HOME="$sk/home" OVH_STUDIO_SHELL=none OVH_STUDIO_BROWSER=none bash bin/vh studio --no-such-flag 2>&1 >/dev/null | head -1)
-  if [ "$a" = "skills: the claude stubs brought up to date (bin/vh install-skill claude; restart it to see them)" ] \
-    && ! grep -q "OLD" "$sk/home/.claude/skills/open-video-harness/SKILL.md" && grep -q "theirs" "$sk/home/.agents/skills/open-video-harness/SKILL.md" \
-    && [ ! -e "$sk/home/.agents/skills/open-video-harness-web" ] && [ -z "$(HOME="$sk/home" python3 tools/doctor.py --stale-skills)" ]
-  then ok "studio: this clone's outdated stubs written again before it opens, in one line; another clone's stub and a host nobody installed into left alone"
-  else bad "studio's skill refresh: $a"; fi
+  # bin/vh studio writes again, before it opens, only the stubs install-skill wrote for this clone that nobody changed since
+  # and that are behind (a description changed in skills/, a stub of the shape before the mark), file by file: never someone
+  # else's skill folder beside them, another clone's stub, a whole copy (npx skills add, through a link too) or a stub edited by
+  # hand, and it adds no skill that host did not have. One line when it wrote something or could not; none on a normal start,
+  # none for --print-address or --json; not at all for -h and --icon-status
+  sk=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX"); mkdir -p "$sk/other/bin"; : > "$sk/other/bin/vh"
+  st() { HOME="$sk/$1" OVH_STUDIO_SHELL=none OVH_STUDIO_BROWSER=none bash bin/vh studio "${@:2}" 2>&1 >/dev/null | grep '^skills:'; }
+  old() { python3 - "$1" "$ROOT" <<'PY'   # the stub install-skill wrote for an older description: marked, untouched, behind skills/
+import os, sys
+sys.path.insert(0, "tools"); import doctor
+f, root = sys.argv[1], sys.argv[2]; n = os.path.basename(os.path.dirname(f))
+text = open(f"skills/{n}/SKILL.md", encoding="utf-8").read().replace("\ndescription: ", "\ndescription: OLD ", 1)
+open(f, "w", encoding="utf-8").write(doctor.skill_stub(text, n, root))
+PY
+  }
+  copyold() { sed 's/^description: /description: OLD /' "$1" > "$1.x" && mv "$1.x" "$1"; }
+  # a: a stale stub of this clone's beside someone else's open-video-harness-web
+  HOME="$sk/a" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/a/.claude/skills/open-video-harness/SKILL.md"
+  printf -- '---\nname: open-video-harness-web\ndescription: theirs\n---\nTheirs.\n' > "$sk/a/.claude/skills/open-video-harness-web/SKILL.md"
+  a=$(st a --no-such-flag); a2=$(st a --no-such-flag)
+  # b: another clone's stub beside a stale one of this clone's, in the same host
+  HOME="$sk/b" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/b/.claude/skills/open-video-harness-web/SKILL.md"
+  printf -- '---\nname: open-video-harness\ndescription: other clone\n---\nHarness path (set by install.sh): %s\n' "$sk/other" > "$sk/b/.claude/skills/open-video-harness/SKILL.md"
+  b=$(st b --no-such-flag)
+  # c: npx skills add's layout: a whole copy in ~/.agents/skills, a link to it from ~/.claude/skills
+  mkdir -p "$sk/c/.agents/skills" "$sk/c/.claude/skills"; cp -R skills/open-video-harness "$sk/c/.agents/skills/"; copyold "$sk/c/.agents/skills/open-video-harness/SKILL.md"
+  ln -s "$sk/c/.agents/skills/open-video-harness" "$sk/c/.claude/skills/open-video-harness"; cs=$(cksum < "$sk/c/.agents/skills/open-video-harness/SKILL.md")
+  c=$(st c --no-such-flag)
+  # d: a stub edited by hand (its mark no longer matches), and one of the shape before the mark (no mark, the stub's text as now)
+  HOME="$sk/d" bash bin/vh install-skill claude >/dev/null 2>&1
+  printf 'my own note\n' >> "$sk/d/.claude/skills/open-video-harness/SKILL.md"; ds=$(cksum < "$sk/d/.claude/skills/open-video-harness/SKILL.md")
+  grep -v '^<!-- bin/vh install-skill wrote this stub' "$sk/d/.claude/skills/open-video-harness-web/SKILL.md" > "$sk/x" && mv "$sk/x" "$sk/d/.claude/skills/open-video-harness-web/SKILL.md"
+  d=$(st d --no-such-flag); dn=$(HOME="$sk/d" python3 tools/doctor.py --json | python3 -c 'import json, sys; print(next(c for c in json.load(sys.stdin)["checks"] if c["name"] == "skills")["note"])')
+  # e: a stale stub in a folder that cannot be written; f: the quiet and the excluded flags
+  HOME="$sk/e" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/e/.claude/skills/open-video-harness/SKILL.md"; chmod 555 "$sk/e/.claude/skills/open-video-harness"
+  e=$(st e --no-such-flag); chmod 755 "$sk/e/.claude/skills/open-video-harness"
+  HOME="$sk/f" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/f/.claude/skills/open-video-harness/SKILL.md"
+  f=$(st f -h; st f --icon-status --json; grep -c OLD "$sk/f/.claude/skills/open-video-harness/SKILL.md"; st f --no-such-flag --print-address; st f --no-such-flag --json; grep -c OLD "$sk/f/.claude/skills/open-video-harness/SKILL.md")
+  if [ "$a" = "skills: 1 stub this clone wrote brought up to date (restart Claude Code or Codex to see them)" ] && [ -z "$a2" ] \
+    && ! grep -q OLD "$sk/a/.claude/skills/open-video-harness/SKILL.md" && grep -q Theirs "$sk/a/.claude/skills/open-video-harness-web/SKILL.md" \
+    && [ "$b" = "skills: 1 stub this clone wrote brought up to date (restart Claude Code or Codex to see them)" ] && grep -q "other clone" "$sk/b/.claude/skills/open-video-harness/SKILL.md" \
+    && [ -z "$c" ] && [ "$(cksum < "$sk/c/.agents/skills/open-video-harness/SKILL.md")" = "$cs" ] && [ ! -e "$sk/c/.claude/skills/open-video-harness-web" ] && [ ! -e "$sk/c/.agents/skills/open-video-harness-web" ] \
+    && [ "$d" = "skills: 1 stub this clone wrote brought up to date (restart Claude Code or Codex to see them)" ] && [ "$(cksum < "$sk/d/.claude/skills/open-video-harness/SKILL.md")" = "$ds" ] \
+    && grep -q '^<!-- bin/vh install-skill wrote this stub' "$sk/d/.claude/skills/open-video-harness-web/SKILL.md" && case "$dn" in *"it was changed after install-skill wrote it, so Studio leaves it as it is"*) true ;; *) false ;; esac \
+    && [ "$e" = "skills: 1 stub could not be written; bin/vh doctor says which" ] \
+    && [ "$f" = "1
+0" ] && [ ! -e "$sk/e/.agents" ]
+  then ok "studio: only this clone's untouched stubs that are behind written again, file by file (someone else's skill, another clone's stub, an npx copy through a link and a hand edit left; no skill added); one line when it wrote or could not, none on a normal start or for --print-address and --json, no refresh for -h and --icon-status"
+  else bad "studio's skill refresh: a=$a | a2=$a2 | b=$b | c=$c | d=$d / $dn | e=$e | f=$f"; fi
+  # install-skill says when it could not write a stub (exit 1), and the plugin's version follows its skills (tools/plugin_version.py)
+  mkdir -p "$sk/g/.claude"; : > "$sk/g/.claude/skills"; HOME="$sk/g" bash bin/vh install-skill claude >/dev/null 2>&1; rg=$?
+  pv=$(python3 tools/plugin_version.py --check 2>&1); rpv=$?
+  if [ $rg = 1 ] && [ $rpv = 0 ]; then ok "install-skill exits 1 when a stub cannot be written; the plugin's version and skills.sha256 match its skills"
+  else bad "install-skill's exit when it cannot write ($rg), the plugin's version ($rpv): $pv"; fi
   rm -rf "$sk"
   bytes=$(wc -c < AGENTS.md)
   if [ "$bytes" -le 32768 ]; then ok "AGENTS.md fits Codex's default 32 KiB project guidance limit ($((bytes)) bytes)"
@@ -951,7 +999,7 @@ if c["state"] != "ok" or "2 installed stubs" not in c["note"]:
 front = lambda text: text.split("\n---\n", 1)[0]
 HL = re.compile(r"(?m)^Harness path \(set by install\.sh\): (.*)$")   # (compared resolved: bin/vh writes its logical pwd, a link in it kept)
 here = lambda text: bool(HL.search(text)) and os.path.realpath(HL.search(text).group(1)) == os.path.realpath(os.getcwd())
-point = lambda text, at: HL.sub(lambda m: "Harness path (set by install.sh): " + at, text)
+point = lambda text, at: HL.sub(lambda m: "Harness path (set by install.sh): " + at, re.sub(r"(?m)^<!-- bin/vh install-skill wrote this stub;.*\n", "", text))
 for name in ("open-video-harness", "open-video-harness-web"):
     got = open(os.path.join(home, ".claude/skills", name, "SKILL.md"), encoding="utf-8").read()
     repo = open(os.path.join("skills", name, "SKILL.md"), encoding="utf-8").read()
@@ -979,6 +1027,7 @@ if c["state"] != "ok" or "left alone: 1 copy pointing at" not in c["note"]:
 odd = os.path.normpath(os.path.join(t, "a&b #c"))   # a clone path the bash replacement must write as it is (normpath: bash's pwd has no // in it)
 os.makedirs(os.path.join(odd, "bin")); os.makedirs(os.path.join(odd, "tools"))
 shutil.copy("bin/vh", os.path.join(odd, "bin")); shutil.copy("tools/skill_stub.md", os.path.join(odd, "tools")); shutil.copytree("skills", os.path.join(odd, "skills"))
+for f in ("tools/doctor.py", "tools/jsonerr.py"): shutil.copy(f, os.path.join(odd, "tools"))   # (install-skill writes what doctor.py --stub renders)
 oh = os.path.join(t, "oddhome")
 subprocess.run([sh, os.path.join(odd, "bin/vh"), "install-skill", "codex"], capture_output=True, text=True, env=dict(env, HOME=oh), check=True)
 got = open(os.path.join(oh, ".agents/skills/open-video-harness/SKILL.md"), encoding="utf-8").read()
@@ -986,7 +1035,7 @@ if "Harness path (set by install.sh): " + odd + "\n" not in got:
     bad.append(f"a clone path with & and #: {got[:400]!r}")
 # a CRLF checkout writes the same stub, frontmatter and all (awk's "---" and Python's would part on a \r otherwise)
 crlf = os.path.normpath(os.path.join(t, "crlf"))
-os.makedirs(os.path.join(crlf, "bin")); shutil.copy("bin/vh", os.path.join(crlf, "bin"))
+os.makedirs(os.path.join(crlf, "bin")); shutil.copy("bin/vh", os.path.join(crlf, "bin")); os.makedirs(os.path.join(crlf, "tools")); [shutil.copy(f, os.path.join(crlf, "tools")) for f in ("tools/doctor.py", "tools/jsonerr.py")]
 for src in ["tools/skill_stub.md"] + [os.path.join("skills", n, "SKILL.md") for n in os.listdir("skills") if os.path.isfile(os.path.join("skills", n, "SKILL.md"))]:
     os.makedirs(os.path.dirname(os.path.join(crlf, src)), exist_ok=True)
     open(os.path.join(crlf, src), "wb").write(open(src, "rb").read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
