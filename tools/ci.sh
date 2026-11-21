@@ -4625,6 +4625,17 @@ agent_checks() {   # the console's agent column (tools/desk/agents.py, acp.py, a
   rm -rf "$t"
 }
 
+settings_page_checks() {   # Studio's settings page (tools/desk/settings_api.py, static/settings.js, tools/settings.py's Studio
+  # keys) on a console of its own: its own HOME, temp folder, settings file and LOCAL.md, no window, no agent, no network
+  local t k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-settings.XXXXXX")
+  python3 tools/desk/test_settings.py "$t" > "$t/out" 2>&1
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "settings page: $m" ;; bad) bad "settings page: $m" ;; esac
+  done < "$t/out"
+  grep -qx end "$t/out" || bad "settings page: the test stopped: $(tail -n 3 "$t/out" | tr '\n' ' ')"
+  rm -rf "$t"
+}
+
 concept_checks() {   # bin/vh concept: the roulette (seeded by the project's name, what the project has and --not left out)
   # and the six-then-three board (pillow through uv: the same bytes for the same input)
   local t p a b c rc rc2 rc3
@@ -12756,7 +12767,7 @@ esac
 CI_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-run.XXXXXX") || exit 2
 CI_TMP=${CI_TMP//\/\//\/}   # one / (a TMPDIR ending in / gives two)
 export TMPDIR="$CI_TMP"
-CI_OWN_TMP=" gate_checks decision_checks desk_checks console_checks agent_checks studio_checks activity_checks status_checks cancel_checks history_checks artifacts_checks "
+CI_OWN_TMP=" gate_checks decision_checks desk_checks console_checks agent_checks settings_page_checks studio_checks activity_checks status_checks cancel_checks history_checks artifacts_checks "
 export OVH_GATE_STUDIO=0   # a standard film's stop does not look for a running Studio: the checks test the page and their own desks (the check of that rule clears it)
 unset OVH_PROJECTS
 # the desks a check starts in the background (bin/vh gate's is in a session of its own) are recorded and stopped when the

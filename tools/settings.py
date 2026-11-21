@@ -21,7 +21,11 @@ this file does not know is kept as it is when another is written):
   {"version": 1,
    "mirror": "cn" | "off",          absent: auto
    "mirror_why": "…",               who set it and why, in a sentence (install.sh's probe says what did not answer)
-   "mirror_at": "YYYY-MM-DD"}
+   "mirror_at": "YYYY-MM-DD",
+   "studio_lang": "zh" | "en",      Studio's language (absent: zh)
+   "studio_theme": "darkfield" | "prism" | "bridge",   Studio's look (absent: darkfield)
+   "agent_default": "claude" | "codex" | "dsh"}       the agent a new chat in Studio starts with (absent: the first one set up)
+  ("agent_picks" is taken for the models and efforts picked in Studio, should they move here from picks.json.)
 In-process (Studio): update(patch: dict) -> dict and set_mirror(mode, why=None) -> dict; load() reads, path() says where.
 Every write goes through update(patch): under a lock (settings.json.lock), it reads the file as it is now, sets the keys
 it was given (None takes one out), keeps all the others, and writes the whole file to a temporary file moved into place,
@@ -32,6 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MODES = ("cn", "off", "auto")
+STUDIO = {"studio_lang": ("zh", "en"), "studio_theme": ("darkfield", "prism", "bridge"), "agent_default": ("claude", "codex", "dsh")}
 
 
 def path():
@@ -115,6 +120,20 @@ def mirror(d=None):
     return m if m in ("cn", "off") else "auto"
 
 
+def studio(d=None):
+    """Studio's own settings: {studio_lang, studio_theme, agent_default}, each a value STUDIO allows, or None (not set, or
+    a value it does not know: Studio's default)."""
+    d = d if d is not None else load()
+    return {k: d.get(k) if d.get(k) in ok else None for k, ok in STUDIO.items()}
+
+
+def set_studio(name, value):
+    """One of Studio's settings (None: back to Studio's default) → the settings as kept. ValueError for any other name or value."""
+    if name not in STUDIO or value is not None and value not in STUDIO[name]:
+        raise ValueError(f"{name}={value!r}: not one of Studio's settings")
+    return update({name: value})
+
+
 def mirrors():
     """tools/mirrors.txt → [{kind, variable, official, mirror, who}]."""
     rows = []
@@ -149,7 +168,7 @@ def show(d, as_json=False):
     m = mirror(d)
     if as_json:
         print(json.dumps({"version": 1, "tool": "bin/vh settings", "file": str(path()), "settings": d, "mirror": m,
-                          "mirrors": mirrors(), "environment": in_effect()}, ensure_ascii=False, indent=1))
+                          "mirrors": mirrors(), "environment": in_effect(), "studio": studio(d)}, ensure_ascii=False, indent=1))
         return
     print(f"this machine's settings: {path()}" + ("" if path().exists() else " (not written yet: the defaults)"))
     said = {"cn": "the mainland-China mirrors, for every download (tools/mirrors.txt)",
@@ -158,6 +177,9 @@ def show(d, as_json=False):
     print(f"  mirror  {m}: {said}" + (f" · {d['mirror_why']}" if d.get("mirror_why") else "")
           + (f" ({d['mirror_at']})" if d.get("mirror_at") else ""))
     print("  bin/vh settings mirror cn|off|auto changes it")
+    st = {k: v for k, v in studio(d).items() if v}
+    if st:
+        print("  studio  " + ", ".join(f"{k} {v}" for k, v in st.items()) + " (Studio's settings page changes these)")
 
 
 def main(argv):

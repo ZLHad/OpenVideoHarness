@@ -63,6 +63,7 @@ function parse() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ""));
   if (!h) return HOME ? { view: "project", key: HOME } : { view: "home" };
   if (h === "/") return { view: "home" };
+  if (/^\/settings(\/|$)/.test(h)) return { view: "settings", sec: h.slice(10) };   // the settings page (settings.js)
   const m = h.match(/^\/p\/([^/]+)(?:\/(.*))?$/);
   if (m) {
     const rest = m[2] || "", g = rest.match(/^gate\/([A-Za-z0-9_-]{1,24})$/);
@@ -80,6 +81,7 @@ async function route() {
   const r = parse();
   closeSearch();
   if (r.view === "home") return showHome();
+  if (r.view === "settings") return SETTINGS.show(r.sec);
   return showProject(r);
 }
 window.addEventListener("hashchange", route);
@@ -107,7 +109,7 @@ function renderRail() {   // the space and a new film; a film's modules only whi
     return `<a class="mod" href="${projHash(PKEY, m)}" aria-current="${MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`;
   };
   const fresh = `<a class="mod" href="#/" data-new title="${esc(t("new_tip"))}">${svg("new")}<span>${esc(t("m_new"))}</span></a>`;   // the space's column, a fresh sentence
-  $("#rail").innerHTML = item("space") + fresh + (proj ? "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("") : "");
+  $("#rail").innerHTML = item("space") + fresh + (proj ? "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("") : "") + SETTINGS.railItem(proj);
 }
 $("#rail").addEventListener("click", (e) => { if (e.target.closest("[data-new]")) setTimeout(() => AGENT.fresh(), parse().view === "home" ? 0 : 300); });   // 新建: the space's column, a sentence for a new film
 $("#flow").addEventListener("click", (e) => { const b = e.target.closest("[data-go-mod]"); if (b && PKEY) go(projHash(PKEY, b.dataset.goMod)); });
@@ -215,7 +217,7 @@ async function machine() {   // asked once a page; again (a minute later at most
 function lacksHtml() {
   const L = (MACHINE && MACHINE.lacks) || [];
   if (!L.length) return "";
-  return `<aside class="lacks" aria-label="${esc(t("lacks_h"))}"><h2>${esc(t("lacks_h"))}</h2><ul>${L.map((x) => `<li><b>${esc(t("lk_" + x.what + "_n"))}</b>${esc(COLON())}${esc(x.what === "agent" ? t("lk_agent_s") : t(x.state === "outdated" ? "lk_old" : "lk_missing", { s: t("lk_" + x.what + "_s") }))} <span class="do">${esc(t("lk_" + x.what + "_d"))}</span></li>`).join("")}</ul></aside>`;
+  return `<aside class="lacks" aria-label="${esc(t("lacks_h"))}"><h2>${esc(t("lacks_h"))}</h2><ul>${L.map((x) => `<li><b>${esc(t("lk_" + x.what + "_n"))}</b>${esc(COLON())}${esc(x.what === "agent" ? t("lk_agent_s") : t(x.state === "outdated" ? "lk_old" : "lk_missing", { s: t("lk_" + x.what + "_s") }))} <span class="do">${esc(t("lk_" + x.what + "_d"))}</span></li>`).join("")}</ul>${parse().view === "home" ? `<a class="lacks-more" href="#/settings/machine">${esc(SETTINGS.word("see"))}</a>` : ""}</aside>`;
 }
 function copyText(s) {
   return new Promise((ok) => {

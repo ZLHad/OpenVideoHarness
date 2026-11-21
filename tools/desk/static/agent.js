@@ -205,7 +205,7 @@ const AGENT = (() => {
       if (typeof spacePlaced === "function") spacePlaced(INFO.went.key);
     }
     const saved = store_.get(`desk:agent:${KEYP}`) || {};
-    KIND = KIND || saved.kind || (kinds().find((a) => a.installed) || kinds()[0] || {}).kind || "claude";
+    KIND = KIND || saved.kind || (kinds().find((a) => a.installed && a.kind === INFO.default) || kinds().find((a) => a.installed) || kinds()[0] || {}).kind || "claude";   // INFO.default: the settings page's 新对话默认用
     return true;
   }
   let INSTWATCH = 0;

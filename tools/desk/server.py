@@ -87,12 +87,14 @@ import revisions as RV   # noqa: E402
 import reader          # noqa: E402
 import review          # noqa: E402  (tools/review.py: the gate view, the same markup as the static page)
 import agents as A     # noqa: E402  (the agents the column talks to: one adapter process a kind, a session a conversation)
+import settings_api as SA   # noqa: E402  (Studio's settings page: GET and POST /api/settings)
 
 STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charset=utf-8",
           "studio.css": "text/css; charset=utf-8", "studio.js": "text/javascript; charset=utf-8",
           "modules.css": "text/css; charset=utf-8", "modules.js": "text/javascript; charset=utf-8", "core.js": "text/javascript; charset=utf-8",
           "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8",
-          "reader.css": "text/css; charset=utf-8", "reader.js": "text/javascript; charset=utf-8"}
+          "reader.css": "text/css; charset=utf-8", "reader.js": "text/javascript; charset=utf-8",
+          "settings.css": "text/css; charset=utf-8", "settings.js": "text/javascript; charset=utf-8"}
 # GET /v/<key>/<path>: a project file on a page of its own (Studio's app opens the console's new-page links there)
 VIEW = {"image": {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif", ".bmp"}, "video": {".mp4", ".mov", ".m4v", ".webm"},
         "audio": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".opus"}, "page": {".html", ".htm"}, "markdown": {".md", ".markdown"},
@@ -1065,6 +1067,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json({"ok": True} if ok else {"ok": False, "reopen": True}, 200 if ok else 403)
         if path == "/api/presence":
             return self._presence()
+        if path == "/api/settings":   # Studio's settings page (settings_api.py): this machine's settings, never a secret
+            return SA.get(self)
         if path == "/api/machine":   # what this machine still lacks for making films (the space page says it, only when something is missing)
             return self._json(srv.machine())
         m = re.fullmatch(r"/api/p/([^/]+)/(data|stage|status|gate/([A-Za-z0-9_-]{1,24}))", path)
@@ -1148,7 +1152,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             strays = [{k: x.get(k) for k in ("id", "kind", "label", "first", "created", "running")} for x in mgr.strays(project, self.server.space)]
             if strays:
                 extra["strays"] = strays[:3]
-        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"]), choices=mgr.choices(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT,
+        return self._json({"agents": [dict(a, signed_in={"authenticated": True, "unauthenticated": False}.get(auth.get(a["kind"])), installing=mgr.install_state(a["kind"]), choices=mgr.choices(a["kind"])) for a in A.catalog()], "sessions": sessions, "pid": pid_of(project), "approval_timeout": A.APPROVAL_TIMEOUT, "default": SA.S.studio()["agent_default"],
                            "lock": {k: lock.get(k) for k in ("kind", "label", "session", "since")} if lock else None,
                            **extra, **({"error": err} if err else {})})
 
@@ -1423,6 +1427,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._error(404, "no such project")
         elif path == "/api/feedback" and self.server.project:
             project = self.server.project
+        elif path == "/api/settings":
+            return SA.post(self)
         elif path == "/api/claim":
             return self._claim()
         elif path == "/api/open":

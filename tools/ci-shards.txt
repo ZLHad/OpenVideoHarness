@@ -22,6 +22,7 @@ gate_checks 23
 desk_checks 14
 console_checks 12
 agent_checks 16
+settings_page_checks 6
 studio_checks 30
 looks_checks 17
 activity_checks 6
