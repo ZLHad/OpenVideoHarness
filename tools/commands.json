@@ -1631,7 +1631,7 @@
             "--candidates N: N takes a block, the one nearest the narration's median voice kept (N × the synthesis);",
             "warns of a line far off the take's seconds per character, and (with --align) of a phrase heard twice;",
             "--resume: continue the last run after a failed synthesis or transcription, same script and command)",
-            "providers: qwen (default, local open-source Qwen3-TTS; its first use downloads about 2.5 GB, said first, with the progress) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax"
+            "providers: qwen (default, local open-source Qwen3-TTS; its first use downloads about 2.6 GB, said first, with the progress) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax"
           ]
         }
       ]

@@ -26,8 +26,9 @@
 # your home directory, without asking:
 #   - the first hyperframes render: HyperFrames' own chrome-headless-shell (about 200 MB, ~/.cache/hyperframes)
 #   - the first bin/vh beats, music, sfx, qa or sheet: their Python packages, through uv (about 700 MB, ~/.cache/uv)
-#   - the first bin/vh tts with the default qwen provider (skipped with another one): its Python packages (about 750 MB, ~/.cache/uv)
-#     and the Qwen3-TTS model (1.8 GB, ~/.cache/huggingface); bin/vh tts says so before it starts and shows the progress
+#   - the first bin/vh tts with the default qwen provider (skipped with another one): its Python packages (about 0.8 GB, ~/.cache/uv)
+#     and the Qwen3-TTS model (1.8 GB, ~/.cache/huggingface); --align local adds the local Whisper (about 3.6 GB); bin/vh tts says
+#     so before it starts and shows the progress (the sizes: tools/audio/firstuse.py)
 #   - every bin/vh new short, promo, data or meme: about 140 MB of node_modules in that project
 # The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
@@ -65,7 +66,7 @@ if [ "$(uname -s)" = Darwin ] && [ "$(command -v git)" = /usr/bin/git ] && ! xco
   echo "✗ First this Mac needs Apple's command line tools (git comes with them): run xcode-select --install, then run this installer again."; exit 1
 fi
 missing=""
-for t in git node ffmpeg; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
+for t in git node ffmpeg python3; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done   # (bin/vh's commands run on python3)
 if [ -n "$missing" ]; then
   if [ "$(uname -s)" = Darwin ] && command -v brew >/dev/null 2>&1; then how="brew install${missing}"
   elif [ "$(uname -s)" = Darwin ]; then how="get Homebrew (https://brew.sh), then brew install${missing}"
@@ -120,13 +121,16 @@ fi
 ICON_LATER=""; ICON_DONE=""; ICON_HEADLESS=""; put_icon
 echo
 # the last lines: ready for a first film or not, what it still needs, how a voice comes here (the full report: bin/vh doctor)
-READY=""; bin/vh doctor --fill-local --first && READY=1
+st=0; bin/vh doctor --fill-local --first || st=$?   # 0 ready, 3 one thing not checked, else not ready
 echo
-if [ -n "$READY" ]; then echo "✓ OpenVideoHarness is ready at $DIR. Two ways to start:"
-else echo "✗ OpenVideoHarness is installed at $DIR; a first film still needs what is listed above. Then, two ways to start:"; fi
+case $st in 0) echo "✓ OpenVideoHarness is ready at $DIR. Two ways to start:" ;;
+  3) echo "OpenVideoHarness is installed at $DIR; one thing above could not be checked here. Two ways to start:" ;;
+  *) echo "✗ OpenVideoHarness is installed at $DIR; a first film still needs what is listed above. Then, two ways to start:" ;; esac
 if [ -n "$ICON_DONE" ]; then echo "  1. Click OVH Studio in your applications: your films, their stops and the agent, in one window."
 elif [ -n "$ICON_HEADLESS" ]; then echo "  1. Studio, in a browser on another computer: cd \"$DIR\" && bin/vh studio --print-address (this machine has no desktop)"
 else echo "  1. Studio, your films in one window: cd \"$DIR\" && bin/vh studio$([ -z "$ICON_LATER" ] || printf ' (bin/vh studio --install-icon puts it in your applications)')"; fi
 echo "  2. Open Claude Code or Codex in that folder (cd \"$DIR\" && claude) and say what film you want, e.g."
-echo "     \"快速出一版 15 秒的竖屏无声科普，用方格和画面文字讲清楚为什么正方形边长翻倍，面积变成四倍。\""
+case "${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}" in   # the example in the person's language (the README's silent first film)
+  zh*|ZH*) echo "     \"快速出一版 15 秒的竖屏无声科普，用方格和画面文字讲清楚为什么正方形边长翻倍，面积变成四倍。\"" ;;
+  *) echo "     \"Quick draft: make a silent 15-second vertical explainer showing why doubling a square's side length quadruples its area. Use a grid and on-screen text.\"" ;; esac
 echo "  The full report of this machine: bin/vh doctor"

@@ -2,7 +2,7 @@
 
 所有项目都通过 GitHub API 核实过存在性；⭐ 是约数，日期是最近一次 push。
 
-已拉到本地的仓库都在 `references/repos/`（运行 `references/fetch.sh` 更新），包括：
+下面这些仓库由 `references/fetch.sh` 拉进 `references/repos/`：安装时默认不拉，用到哪一个再拉哪一个（`bash references/fetch.sh <目录>`，拉之前说多大），`bash references/fetch.sh` 一次拉全（约 300 MB）。其中有：
 - PDoomVideo、functional-emotions-video、hyperframes-launches、remotion-skills；
 - HyperFrames 的 skills（部分检出）、Code2Video 的 prompts 和 src（部分检出）、3brown1blue 的 skill（部分检出）；
 - 2026-09-29 补：Battle-of-Austerlitz-Film、claude-animation-skill、product-film-skill、procedural-film，以及两份 Opus 5.5 作品目录（athemeroy、zhuyansen）。社区 skill 和目录的完整清单见 `community-skills.md`。

@@ -29,9 +29,11 @@ SIZES="
   story-to-handdrawn-video 3 video-shotcraft 11 video-talkcraft 18 viral-video-decomposer 4 vox-director <1
 "
 size_of() { printf '%s\n' $SIZES | awk -v d="$1" 'p { print; exit } $0 == d { p = 1 }'; }
-announce() {   # announce <owner/repo> <dir>：第一次拉一个之前，一行说清拉什么、从哪、多大
+announce() {   # announce <owner/repo> <dir>：只拉一个时，第一次拉之前一行说清拉什么、从哪、多大（拉全部时调用方已说过总共多大）
+  [ -n "$ARG" ] || return 0
   local mb; mb=$(size_of "$2")
-  echo "fetching $2 from github.com/$1 (${mb:+about $mb MB, }read-only, for agents to read)"
+  case "$mb" in "<1") mb="under 1 MB, " ;; "") ;; *) mb="about $mb MB, " ;; esac
+  echo "fetching $2 from github.com/$1 (${mb}read-only, for agents to read)"
 }
 MATCHED=""
 
@@ -58,12 +60,13 @@ skip() {       # 按参数决定是否跳过这一行；--neutralize 模式只�
   MATCHED=1; return 1
 }
 SKIPPED=""
-failed() {     # failed <dir> <原因>：一个上游拉不下来只跳过这一行，不中断其余仓库和调用本脚本的安装流程
-  echo "skip $1 ($2)"; SKIPPED="$SKIPPED $1"
+failed() {     # failed <dir> <原因>：一个上游拉不下来只跳过这一行，不中断其余仓库和调用本脚本的安装流程（拉全部时最后一行一起说）
+  [ -z "$ARG" ] || echo "skip $1 ($2)"; SKIPPED="$SKIPPED $1"
 }
 clone() {      # clone <owner/repo> <dir> [git clone 参数...]
   local r=$1 d=$2; shift 2
-  git clone -q --depth 1 "$@" "https://github.com/$r.git" "$d" || { failed "$d" "clone failed"; return 1; }
+  git clone -q --depth 1 "$@" "https://github.com/$r.git" "$d" 2>"${TMPDIR:-/tmp}/fetch-$d.err" || { failed "$d" "clone failed: $(tail -1 "${TMPDIR:-/tmp}/fetch-$d.err")"; rm -f "${TMPDIR:-/tmp}/fetch-$d.err"; return 1; }
+  rm -f "${TMPDIR:-/tmp}/fetch-$d.err"
 }
 
 full() {   # full <owner/repo> <dir>：整仓浅克隆
@@ -146,5 +149,6 @@ textonly annnguyentt/anatomy-reveal-skill       anatomy-reveal             # 用
 textonly EL4CTEO/blender-skills                 blender-skills             # Blender 5.2 的建模、UV、PBR、烘焙、绑骨、导出和资产质检 skill，`blender -b` 就能跑；bin/vh model3d check --blender 借它 asset-qa 的检查（MIT）
 
 [ -z "$ARG" ] || [ "$ARG" = --neutralize ] || [ -n "$MATCHED" ] || { echo "no reference repo named $ARG: the names are the second column of references/fetch.sh" >&2; exit 2; }
-[ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
+[ -z "$SKIPPED" ] || echo "skipped $(echo $SKIPPED | wc -w | tr -d ' ') (no network? re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
+[ -z "$ARG" ] || [ -z "$SKIPPED" ] || exit 1   # the one asked for did not come: say so in the exit status too
 exit 0
