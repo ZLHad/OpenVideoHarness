@@ -22,9 +22,11 @@ this file does not know is kept as it is when another is written):
    "mirror": "cn" | "off",          absent: auto
    "mirror_why": "…",               who set it and why, in a sentence (install.sh's probe says what did not answer)
    "mirror_at": "YYYY-MM-DD"}
-Written whole to a temporary file beside it and moved into place, so a reader never sees half a file.
+Every write goes through update(patch): under a lock (settings.json.lock), it reads the file as it is now, sets the keys
+it was given (None takes one out), keeps all the others, and writes the whole file to a temporary file moved into place,
+so two writers at once (Studio and a terminal) both land and a reader never sees half a file.
 """
-import datetime, json, os, sys, tempfile
+import contextlib, datetime, fcntl, json, os, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,9 +50,21 @@ def load():
     return d if isinstance(d, dict) else {"version": 1}
 
 
-def save(d):
+@contextlib.contextmanager
+def locked():
+    """The settings file's lock (settings.json.lock beside it, never removed: another process may hold the old one): held
+    by every write, so Studio and a terminal writing at once both land."""
+    p = path(); p.parent.mkdir(parents=True, exist_ok=True)
+    with open(str(p) + ".lock", "a+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _write(d):
     p = path()
-    p.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".settings.", suffix=".tmp", dir=p.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -59,6 +73,28 @@ def save(d):
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
+
+
+def update(patch):
+    """The one way to write: under the lock, read the file as it is now, set each key of patch (None takes a key out), keep
+    every other key (another writer's, or one this code does not know), and write the whole file to a temp file moved into
+    place. → the settings as written. Studio's settings panel and bin/vh settings both go through it."""
+    with locked():
+        d = load()
+        for k, v in patch.items():
+            if k == "version":
+                continue
+            if v is None:
+                d.pop(k, None)
+            else:
+                d[k] = v
+        _write(d)
+    return d
+
+
+def save(d):
+    """Write these keys (as update: under the lock, onto what is there now, nothing else taken out)."""
+    return update(d)
 
 
 def mirror(d=None):
@@ -123,14 +159,9 @@ def main(argv):
             print(mirror()); return 0
         if len(argv) < 2 or argv[1] not in MODES or (len(argv) > 2 and (argv[2] != "--why" or len(argv) != 4)):
             print("usage: bin/vh settings mirror cn|off|auto [--why TEXT]   (or --get)", file=sys.stderr); return 2
-        d = load()
-        for k in ("mirror", "mirror_why", "mirror_at"):
-            d.pop(k, None)
-        if argv[1] != "auto":
-            d.update(mirror=argv[1], mirror_at=datetime.date.today().isoformat())
-            if len(argv) == 4:
-                d["mirror_why"] = argv[3]
-        save(d)
+        on = argv[1] != "auto"
+        update({"mirror": argv[1] if on else None, "mirror_at": datetime.date.today().isoformat() if on else None,
+                "mirror_why": argv[3] if on and len(argv) == 4 else None})
         if argv[1] == "cn":
             print(f"✓ downloads now come from the mainland-China mirrors ({operators()}; tools/mirrors.txt), kept in {path()};"
                   " bin/vh settings mirror off turns that off")

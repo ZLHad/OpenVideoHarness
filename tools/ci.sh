@@ -1679,6 +1679,21 @@ print(d["mirror"], d["settings"].get("mirror_why"), e["npm_config_registry"], e[
     && grep -q '"mirror_why": "install.sh, ' "$mt/p1/ovh/settings.json"
   then ok "mirrors: kept in this machine's settings; bin/vh exports tools/mirrors.txt's variables with cn (a variable the person set stays); install.sh keeps cn only when the official npm registry does not answer and the mirror does; off is kept and stops the trying"
   else bad "mirrors: $a | $b | probe: $c / $d / $e / $f"; fi
+  # two writers at once (Studio's settings panel and a terminal) both land: settings.update holds a lock, re-reads, merges,
+  # keeps the keys it was not given
+  a=$(XDG_CONFIG_HOME="$mt/w" python3 - <<'PY' 2>&1
+import json, os, subprocess, sys
+code = "import sys; sys.path.insert(0, 'tools'); import settings\nfor i in range(60): settings.update({f'{sys.argv[1]}{i}': i})\n"
+ps = [subprocess.Popen([sys.executable, "-c", code, w]) for w in ("a", "b")]
+for q in ps: q.wait()
+sys.path.insert(0, "tools"); import settings
+settings.update({"mirror": "cn"}); settings.update({"mirror": None, "studio_theme": "dark"})
+d = json.load(open(settings.path()))
+print(sum(k[0] in "ab" and k[1:].isdigit() for k in d), d.get("mirror"), d.get("studio_theme"), d.get("version"))
+PY
+)
+  if [ "$a" = "120 None dark 1" ]; then ok "settings: two writers at once both land (a lock, a fresh read, a merge); a key given as None goes, the others stay"
+  else bad "settings with two writers: $a"; fi
   rm -rf "$mt"
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
   # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
