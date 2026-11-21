@@ -525,8 +525,10 @@ def check_hint(a, out):
 def canvas_texts(html, out, browser, force=False):
     """Export the live registry; texts.mjs owns exclusive creation so two writers cannot silently replace each other."""
     if not browser:   # "": bin/vh looked and found none; None: run without bin/vh
-        raise ValueError("canvas-film needs a headless Chrome: " + ("npx hyperframes browser ensure (in a HyperFrames project), "
-                         "install Chrome or Chromium, or set CHROME_PATH" if browser == "" else "run it as bin/vh readcheck, or pass --browser <chrome>"))
+        get = ("bin/vh settings chrome <project> (from the mirror)" if os.environ.get("OVH_MIRROR") == "cn"
+               else "npx hyperframes browser ensure (in a HyperFrames project)")
+        raise ValueError("canvas-film needs a headless Chrome: " + (f"{get}, install Chrome or Chromium, or set CHROME_PATH" if browser == ""
+                         else "run it as bin/vh readcheck, or pass --browser <chrome>"))
     cmd = ["node", str(Path(__file__).resolve().parent / "film" / "texts.mjs"), str(html), "--browser", browser,
            "--out", str(out)] + (["--force"] if force else [])
     proc = subprocess.Popen(cmd)

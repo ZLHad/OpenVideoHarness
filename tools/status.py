@@ -534,6 +534,10 @@ def hf_pin(project):
     return None
 
 
+def chrome_fetch(project):   # how to fetch HyperFrames' Chrome beforehand: from the mirror when it is on (bin/vh exports OVH_MIRROR)
+    return f"bin/vh settings chrome {shown(project)}" if os.environ.get("OVH_MIRROR") == "cn" else f"(cd {shown(project)} && npx hyperframes browser ensure)"
+
+
 def hf_chrome_note(project, proj):
     """HyperFrames' first snapshot or render downloads its own Chrome (chrome-headless-shell, about 200 MB, into
     ~/.cache/hyperframes, which it finds from the home folder) and shows nothing while it does: the words that say so, or "" once
@@ -559,7 +563,7 @@ def hf_chrome_note(project, proj):
     except OSError:
         pass
     return (f" (HyperFrames' first snapshot or render downloads its Chrome first, about 200 MB into ~/.cache/hyperframes, with nothing"
-            f" shown; (cd {shown(project)} && npx hyperframes browser ensure) fetches it beforehand and shows the download)")
+            f" shown; {chrome_fetch(project)} fetches it beforehand and shows the download)")
 
 
 def engine_docs(project, proj):

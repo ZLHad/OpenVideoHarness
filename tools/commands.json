@@ -128,12 +128,12 @@
       "writes": ["$XDG_CONFIG_HOME/ovh/settings.json (~/.config/ovh/settings.json)", "~/.cache/hyperframes/chrome (mirror cn: HyperFrames' Chrome from the mirror)"],
       "usage": [
         {
-          "synopsis": "settings [--json] | settings mirror cn|off|auto [--why TEXT] | settings mirror --get | settings chrome",
+          "synopsis": "settings [--json] | settings mirror cn|off|auto [--why TEXT] | settings mirror --get | settings chrome [project]",
           "text": [
-            "what this machine's settings are and where they are kept; mirror cn: every later download a command starts comes from the",
+            "what this machine's settings are and where they are kept; mirror cn: the downloads a command starts come from the",
             "mainland-China mirrors in tools/mirrors.txt (npm, uv, Hugging Face, Electron; HyperFrames' Chrome fetched from the mirror",
-            "now, as HyperFrames cannot be pointed at one; settings chrome does only that), off: never, auto: the official sources",
-            "(install.sh tries them first)"
+            "now, as HyperFrames cannot be pointed at one; settings chrome [project] does only that), a source of your own stays;",
+            "off: never, auto: the official sources (install.sh tries them first)"
           ]
         }
       ]

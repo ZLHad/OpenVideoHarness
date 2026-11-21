@@ -628,7 +628,7 @@ def cache_homes(has_chrome=False):
         ("HyperFrames", env("HYPERFRAMES_FONT_CACHE_DIR") or str(home("~/.cache/hyperframes/fonts")), "the fonts a film asks for; its Chrome is already there",
          "HYPERFRAMES_FONT_CACHE_DIR=<folder>") if has_chrome else
         ("HyperFrames", str(home("~/.cache/hyperframes")), "its Chrome on a first snapshot or render, about 200 MB, and its fonts",
-         "no setting moves it: let the sandbox write it, or fetch the Chrome once outside the sandbox (npx hyperframes browser ensure) "
+         "no setting moves it: let the sandbox write it, or fetch the Chrome once outside the sandbox (" + ("bin/vh settings chrome" if os.environ.get("OVH_MIRROR") == "cn" else "npx hyperframes browser ensure") + ") "
          "and give the fonts HYPERFRAMES_FONT_CACHE_DIR=<folder>"),
         ("bin/vh", os.path.join(xdg, "ovh"), "the font index of fonts and textcheck, HyperFrames' registry list", "XDG_CACHE_HOME=<folder>"),
     ]
@@ -994,7 +994,10 @@ def main(argv):
             print_module(m, r)
     print("- every bin/vh new short|promo|data|meme installs its own pinned HyperFrames into the project (about 140 MB of node_modules)")
     if first:
-        print(f"   still to come on first use: {', '.join(first)} (wiki: Getting Started; mirrors behind a slow or blocked network: wiki China-Network / 国内网络)")
+        mirrored = os.environ.get("OVH_MIRROR") == "cn"
+        print(f"   still to come on first use: {', '.join(first)} (wiki: Getting Started; "
+              + ("from the mainland-China mirrors, as this machine's settings say: bin/vh settings)" if mirrored else
+                 "mirrors behind a slow or blocked network: bin/vh settings mirror cn, wiki China-Network / 国内网络)"))
     if not a["probe"]:
         print("   bin/vh doctor --probe: also call each service with a key once, at an endpoint that costs nothing")
     return 0
