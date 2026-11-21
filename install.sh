@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --icon) ICON=yes; shift ;; --no-icon) ICON=no; shift ;;
   -h|--help) sed -n '2,32p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
 case "$SKILL" in claude|codex|all|none) ;; *) echo "unknown --skill '$SKILL' (claude|codex|all|none)"; exit 1 ;; esac
-case "$MIRROR" in ""|cn|off) ;; *) echo "unknown --mirror '$MIRROR' (cn|off)"; exit 1 ;; esac
+[ -z "$MIRROR" ] || case "$MIRROR" in cn|off) ;; *) echo "unknown --mirror '$MIRROR' (cn|off)"; exit 1 ;; esac
 say() { printf '\033[1m→ %s\033[0m\n' "$*"; }
 NOAPP="${XDG_DATA_HOME:-$HOME/.local/share}/ovh-studio/no-app"   # --no-icon once: kept here, so an update leaves OVH Studio out too (--icon clears it)
 put_icon() {   # OVH Studio in the applications, unasked (macOS, a Linux desktop): left alone when it is there and current, never
