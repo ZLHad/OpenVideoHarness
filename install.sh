@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # OpenVideoHarness one-line installer.
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-#   bash install.sh [--dir ~/OpenVideoHarness] [--refs] [--no-skill] [--skill claude|codex|all] [--obscura] [--icon | --no-icon]
+#   bash install.sh [--dir ~/OpenVideoHarness] [--refs] [--no-skill] [--skill claude|codex|all] [--mirror cn|off] [--obscura] [--icon | --no-icon]
 # What it does, and where it puts things:
 #   1. clone the repo into --dir, newest commit only (about 200 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
+#   1b. the download mirrors (tools/mirrors.txt): with neither --mirror nor a choice made before (bin/vh settings), try the official
+#      npm registry for 5 s; when it does not answer and the mainland-China mirror does, use the mirrors from here on, say so in one
+#      line, and keep the choice in ~/.config/ovh/settings.json, so later bin/vh downloads use them too (bin/vh settings mirror off
+#      turns that off). --mirror cn uses them without trying, --mirror off never. Never guessed from the language or time zone
 #   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.202), both inside --dir (about 180 MB of
 #      node_modules; npm also writes its own cache, ~/.npm). The read-only reference repos references/fetch.sh lists are not fetched:
 #      an agent fetches the one a doc points to when it first needs it (bash references/fetch.sh <name>, which says its size first);
@@ -33,12 +37,13 @@
 # The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
-DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=0; SKILL=all; OBSCURA=0; ICON=default
+DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=0; SKILL=all; OBSCURA=0; ICON=default; MIRROR=""
 while [ $# -gt 0 ]; do case "$1" in
-  --dir) DIR="$2"; shift 2 ;; --refs) REFS=1; shift ;; --no-refs) REFS=0; shift ;; --no-skill) SKILL=none; shift ;; --skill) SKILL="${2:?--skill needs claude|codex|all|none}"; shift 2 ;; --obscura) OBSCURA=1; shift ;;
+  --dir) DIR="$2"; shift 2 ;; --refs) REFS=1; shift ;; --no-refs) REFS=0; shift ;; --no-skill) SKILL=none; shift ;; --skill) SKILL="${2:?--skill needs claude|codex|all|none}"; shift 2 ;; --obscura) OBSCURA=1; shift ;; --mirror) MIRROR="${2:?--mirror needs cn or off}"; shift 2 ;;
   --icon) ICON=yes; shift ;; --no-icon) ICON=no; shift ;;
   -h|--help) sed -n '2,32p' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
 case "$SKILL" in claude|codex|all|none) ;; *) echo "unknown --skill '$SKILL' (claude|codex|all|none)"; exit 1 ;; esac
+case "$MIRROR" in ""|cn|off) ;; *) echo "unknown --mirror '$MIRROR' (cn|off)"; exit 1 ;; esac
 say() { printf '\033[1m→ %s\033[0m\n' "$*"; }
 NOAPP="${XDG_DATA_HOME:-$HOME/.local/share}/ovh-studio/no-app"   # --no-icon once: kept here, so an update leaves OVH Studio out too (--icon clears it)
 put_icon() {   # OVH Studio in the applications, unasked (macOS, a Linux desktop): left alone when it is there and current, never
@@ -99,6 +104,14 @@ if [ -d "$DIR/.git" ]; then say "updating $DIR"
 else say "cloning into $DIR (newest commit only)"
   git clone -q --depth 1 --single-branch "$REPO" "$DIR" || { echo "✗ Could not download OpenVideoHarness: check the network (or your proxy) and run this installer again."; exit 1; }; fi
 cd "$DIR"
+answers() { command -v curl >/dev/null 2>&1 && curl -fsS -m 5 -o /dev/null "$1" 2>/dev/null; }
+if [ -n "$MIRROR" ]; then bin/vh settings mirror "$MIRROR" --why "install.sh --mirror $MIRROR, $(date +%F)" | sed 's/^/  /'
+elif [ "$(bin/vh settings mirror --get 2>/dev/null)" = auto ] && ! answers https://registry.npmjs.org/ && answers https://registry.npmmirror.com/; then
+  bin/vh settings mirror cn --why "install.sh, $(date +%F): registry.npmjs.org did not answer in 5 s, registry.npmmirror.com did" >/dev/null
+  echo "  npm's registry did not answer in 5 s, so downloads come from the mainland-China mirrors from now on (npmmirror.com, TUNA, hf-mirror.com;"
+  echo "  tools/mirrors.txt). bin/vh settings mirror off turns that off."
+fi
+eval "$(python3 tools/settings.py env)"   # the mirrors, when they are on, for this script's own downloads too
 say "installing the bundled engine (ClaudeAnimationBase)"
 (cd engines/ClaudeAnimationBase && npm install --silent) || echo "! the hand-drawn engine's packages did not install; running this installer again finishes them"
 n=$(grep -cE '^(full|sparse|textonly) ' references/fetch.sh || true)   # counted from the list, so it cannot go stale
@@ -110,6 +123,7 @@ else had=0; [ ! -d references/repos ] || had=$(find references/repos -mindepth 2
 fi
 say "installing the renderer for style samples (HyperFrames, for bin/vh style)"
 (cd styles/_swatch && npm ci --silent) || echo "! the renderer for style samples did not install; it is tried again the first time a style sample is made"
+[ "${OVH_MIRROR:-}" != cn ] || bin/vh settings chrome   # with the mirrors on: HyperFrames' Chrome from the mirror now
 [ -f LOCAL.md ] || cp LOCAL.example.md LOCAL.md
 if [ "$SKILL" != none ]; then   # one line for the stubs it wrote (each says where it went when run by hand: bin/vh install-skill)
   say "telling Claude Code and Codex where this workbench is (skills)"

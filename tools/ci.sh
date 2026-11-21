@@ -1659,6 +1659,27 @@ PY
       else bad "first downloads here: $a | $b | no script ($re): $qcalls | progress lines: $g"; fi ;;
   esac
   rm -rf "$ft"
+  # the download mirrors: this machine's settings (tools/settings.py) in a file of their own; with "mirror": "cn" bin/vh exports
+  # the variables of tools/mirrors.txt for what it runs (one the person set stays theirs); install.sh tries the official npm
+  # registry first and keeps cn only when it does not answer and the mirror does; --mirror off is kept, and stops the trying
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-mirror.XXXXXX")
+  a=$(XDG_CONFIG_HOME="$t/c" vh settings mirror --get; XDG_CONFIG_HOME="$t/c" vh settings mirror cn --why "a test" >/dev/null
+      (unset npm_config_registry HF_ENDPOINT UV_DEFAULT_INDEX ELECTRON_MIRROR; XDG_CONFIG_HOME="$t/c" vh settings --json) | python3 -c 'import json, sys; d = json.load(sys.stdin); e = d["environment"]
+print(d["mirror"], d["settings"].get("mirror_why"), e["npm_config_registry"], e["HF_ENDPOINT"], e["UV_DEFAULT_INDEX"], e["ELECTRON_MIRROR"])'
+      XDG_CONFIG_HOME="$t/c" npm_config_registry=https://mine.example vh settings --json | python3 -c 'import json, sys; print(json.load(sys.stdin)["environment"]["npm_config_registry"])'
+      XDG_CONFIG_HOME="$t/c" vh settings mirror off >/dev/null; (unset npm_config_registry; XDG_CONFIG_HOME="$t/c" vh settings --json) | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["mirror"], d["environment"]["npm_config_registry"])'
+      XDG_CONFIG_HOME="$t/c" vh settings mirror nope 2>/dev/null; echo "exit $?")
+  b=$(awk '!/^#/ && NF { if ($4 !~ /^https:\/\//) print "not https: " $1 }' tools/mirrors.txt)
+  mkdir -p "$t/bin"; printf '#!/bin/sh\ncase "$*" in *registry.npmjs.org*) [ -n "$OFFICIAL" ] && exit 0; exit 28 ;; *) exit 0 ;; esac\n' > "$t/bin/curl"; chmod +x "$t/bin/curl"
+  sed -n '/^answers() {/,/^eval "\$(python3 tools\/settings.py env)"/p' install.sh > "$t/probe.sh"
+  probe() { (env PATH="$t/bin:$PATH" XDG_CONFIG_HOME="$t/$1" "${@:2}" bash -c '. "$1"; vh_get() { bin/vh settings mirror --get; }; echo "now $(vh_get) ${npm_config_registry:-official}"' _ "$t/probe.sh" 2>&1 | tail -1); }
+  c=$(MIRROR="" probe p1 env -u npm_config_registry); d=$(probe p2 env -u npm_config_registry OFFICIAL=1); e=$(probe p3 env -u npm_config_registry MIRROR=off); f=$(probe p3 env -u npm_config_registry MIRROR=)
+  if case "$a" in "auto"*"cn a test https://registry.npmmirror.com https://hf-mirror.com https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple https://npmmirror.com/mirrors/electron/"*"https://mine.example"*"off None"*"exit 2") true ;; *) false ;; esac \
+    && [ -z "$b" ] && [ -s "$t/probe.sh" ] && [ "$c" = "now cn https://registry.npmmirror.com" ] && [ "$d" = "now auto official" ] && [ "$e" = "now off official" ] && [ "$f" = "now off official" ] \
+    && grep -q '"mirror_why": "install.sh, ' "$t/p1/ovh/settings.json"
+  then ok "mirrors: kept in this machine's settings; bin/vh exports tools/mirrors.txt's variables with cn (a variable the person set stays); install.sh keeps cn only when the official npm registry does not answer and the mirror does; off is kept and stops the trying"
+  else bad "mirrors: $a | $b | probe: $c / $d / $e / $f"; fi
+  rm -rf "$t"
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
   # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
   vh recipes sample no-such-recipe >/dev/null 2>&1; rc=$?; vh recipes sample launch-15s >/dev/null 2>&1; rc2=$?

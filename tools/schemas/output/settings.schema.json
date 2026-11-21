@@ -1,0 +1,30 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/settings.schema.json",
+ "title": "bin/vh settings --json",
+ "description": "This machine's own settings (tools/settings.py: $XDG_CONFIG_HOME/ovh/settings.json), the mirror in effect, the mirror table (tools/mirrors.txt) and the mirror variables as bin/vh exported them.",
+ "type": "object",
+ "required": ["version", "tool", "file", "settings", "mirror", "mirrors", "environment"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "file": {"type": "string"},
+  "settings": {"type": "object"},
+  "mirror": {"enum": ["cn", "off", "auto"]},
+  "mirrors": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["kind", "variable", "official", "mirror", "who"],
+    "properties": {
+     "kind": {"type": "string"},
+     "variable": {"type": ["string", "null"]},
+     "official": {"type": "string"},
+     "mirror": {"type": "string"},
+     "who": {"type": "string"}
+    }
+   }
+  },
+  "environment": {"type": "object"}
+ }
+}

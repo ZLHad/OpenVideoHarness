@@ -197,6 +197,8 @@ def first_film(mods, checks, plat, found_by=None, env=os.environ, libs=None):
         lines.append("  The first render downloads its own Chrome once (about 0.2 GB).")
     if font and not zh_locale(env):
         lines.append("! Chinese text: no Chinese font here, so it would draw as boxes → sudo apt install fonts-noto-cjk")
+    if ((c.get("mirror") or {}).get("note") or "").startswith("cn:"):
+        lines.append("  Downloads come from the mainland-China mirrors (bin/vh settings mirror off turns that off).")
     if plat == "darwin-arm64":
         if (m.get("qwen3-tts") or {}).get("state") == "ok" and (m.get("mlx-audio") or {}).get("state") == "ok":
             lines.append("✓ Voice: the local voice is downloaded.")
@@ -679,6 +681,15 @@ def repo_checks(webgl, found_by):
         out.append({"name": "references", "state": "ok", "note": f"{have}/{want} repos fetched, {size_of(ROOT / 'references' / 'repos')}"})
     else:
         out.append({"name": "references", "state": "ok", "note": references_note(have, want, bytes_of(ROOT / "references" / "repos") if have else 0, install_says())})
+    try:   # the download mirrors this machine's settings say (tools/settings.py, tools/mirrors.txt)
+        import settings as S
+        d = S.load(); m = S.mirror(d); why = f" ({d['mirror_why']})" if d.get("mirror_why") else ""
+        out.append({"name": "mirror", "state": "ok", "note": {
+            "cn": f"cn: downloads come from the mainland-China mirrors ({S.operators()}; tools/mirrors.txt){why} → bin/vh settings mirror off turns that off",
+            "off": f"off: the official sources, and install.sh does not try the mirrors{why} → bin/vh settings mirror auto or cn changes it",
+            "auto": "auto: the official sources (install.sh tries the mainland-China mirrors when the official npm registry does not answer) → bin/vh settings mirror cn uses them now"}[m]})
+    except (OSError, ValueError, ImportError) as e:
+        out.append({"name": "mirror", "state": "unchecked", "note": f"tools/mirrors.txt or this machine's settings not readable: {e}"})
     local = ROOT / "LOCAL.md"
     if not local.exists():
         out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → bin/vh doctor --fill-local (copies LOCAL.example.md, writes this machine's lines)"})

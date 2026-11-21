@@ -1,0 +1,19 @@
+# Download mirrors for a network where the official sources do not answer (mainland China), in one place.
+# install.sh tries the official npm registry first (5 s); only when it does not answer and the mirror does, this machine's
+# settings get "mirror": "cn" ($XDG_CONFIG_HOME/ovh/settings.json, tools/settings.py), and from then on bin/vh exports the
+# variables below with the mirror column, so every later download goes there: npm (project packages, Studio's app and its
+# agent adapters), uv (Python packages, a Python build), Hugging Face (the local voice), Electron, and HyperFrames' Chrome,
+# which bin/vh fetches from the mirror itself because HyperFrames has no setting for it. A variable you set yourself wins.
+# install.sh --mirror cn uses them without trying, --mirror off never; bin/vh settings mirror cn|off|auto changes it later.
+# The checks the tools already make stay as they are, and do not trust the mirror: npm ci checks each package against the
+# lockfile's hash; Electron's download is checked against the checksums.json its npm package ships (itself under that
+# hash). uv's packages, the Hugging Face model, a Python build and Chrome have no hash pinned here: they are taken as the
+# mirror serves them over https, as they are taken from the official source.
+#
+# kind        variable                  official (tried first)                                                   mirror (cn)                                                       who runs the mirror
+npm           npm_config_registry       https://registry.npmjs.org                                               https://registry.npmmirror.com                                    npmmirror.com, run by the cnpm project
+pypi          UV_DEFAULT_INDEX          https://pypi.org/simple                                                  https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple              TUNA, Tsinghua University's open-source mirror
+python        UV_PYTHON_INSTALL_MIRROR  https://github.com/astral-sh/python-build-standalone/releases/download   https://registry.npmmirror.com/-/binary/python-build-standalone   npmmirror.com
+huggingface   HF_ENDPOINT               https://huggingface.co                                                   https://hf-mirror.com                                             hf-mirror.com, a non-profit community project, not Hugging Face's own
+electron      ELECTRON_MIRROR           https://github.com/electron/electron/releases/download/                  https://npmmirror.com/mirrors/electron/                           npmmirror.com
+chrome        -                         https://storage.googleapis.com/chrome-for-testing-public                 https://cdn.npmmirror.com/binaries/chrome-for-testing             npmmirror.com
