@@ -45,14 +45,19 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
             (beat map hits and beats, SFX event times). Lists the total and the 10 worst (time, bar:beat, ratio) to
             listen to by ear. One within ±--click-grace of a note of the note map (any part in it) is that note's
             attack: listed under "the score has a note here" (the 5 worst), not counted.
-voice alone: a mix of a voice and nothing else (the record bin/vh mix writes beside it, <mix>.mix.json, says voice= and no
-  music, sfx or events; or the stems' meta.json has no music or events) is scanned against that voice: a dropout or a
-  pumping dip where the voice itself pauses (as deep under its own section median, to within 4 dB: a profile mix moves each
-  line up to 3 dB; or silent under −60 dBFS there) is
-  its own phrasing, counted apart, not a failure; one the voice does not have (the mix lost it mid-word) still fails,
-  and so does a hard cut in the voice itself: a run of silence it enters at full voice (the 3 ms before it
-  within 20 dB of its median level), which bin/vh mix's room tone would otherwise hide. Said in a line at the top.
-  Digital silence stays the floor it is; bin/vh mix lays room tone under a voice with no music, so its pauses meet it.
+voice alone: a mix of a voice and nothing else is scanned against that voice: a dropout or a pumping dip where the voice
+  itself pauses (as deep under its own section median, to within 4 dB: a profile mix moves each line up to 3 dB; or 40 dB
+  under its own median level there) is its own phrasing, counted apart, not a failure; one the voice does not have (the mix
+  lost it mid-word) still fails. Taken as a voice alone only on evidence: the record bin/vh mix writes beside the mix
+  (<mix>.mix.json) vouches for this very mix (the mix and its inputs as built, checked as mux checks them) and names voice=
+  and no music, sfx, events or edit= (with --stems, no music or SFX in their meta.json or stems either); and the voice is
+  still what bin/vh tts joined from its line files (its timeline: --timeline, or timeline.<lang>.json beside
+  voiceover.<lang>.wav; each file sample for sample where the timeline puts it). Where the voice was changed after that
+  (a cut, a fade, a patch, a re-timing), its dips there are judged as in any mix. Without the evidence (no record, a record
+  that does not match, no timeline or no line files) the mix is judged as any mix, and a line at the top says why. A hole
+  the voice model left inside a line itself is not found: its shape does not tell it from a pause (on real narrations a
+  voice's own offsets are as steep as a cut). Digital silence stays the floor it is; bin/vh mix lays room tone under a
+  voice with no music, so its pauses meet it.
 evidence (scan): each open finding gets a line or a tail: the value against its threshold, bar:beat, what the note map
   does there (rests, between notes, a note held through it, notes that start in it and are not heard; for a click the
   nearest note and a note that ends there), and with --stems which stem carries it (a span: each stem's level over it
@@ -125,7 +130,8 @@ Known limits: pumping misses long shallow dips (≈ 300 ms at −8 dB fills half
   map's onsets and written lengths (a pluck's natural decay under a long written note is "held through": reported), and
   a texture (wind, rain) plays no notes, so its own dip between two notes reads as the score's.
 """
-import json, os, subprocess, sys
+import json, os, re, subprocess, sys
+from pathlib import Path
 import numpy as np
 from scipy.ndimage import median_filter, maximum_filter1d
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -282,17 +288,24 @@ def with_context(path, beats, events, stems, mode="all", project=None):
             f"With {'them' if len(missing) > 1 else 'it'}: {cmd}"
             + ("" if s else " (a mix made with stems=DIR also lets qa tell the music's own dips: --stems DIR)"))
 
-def voice_only(path, stems=None):
-    """The voice track of a mix made of a voice alone (no music, no SFX), else None: from the stems' meta.json, or the
-    record bin/vh mix writes beside the mix (<mix>.mix.json; a muxed film names its mix in <film>.mux.json). A voice-only
-    mix has no bed: its quiet stretches are the voice's own pauses, so the scan judges dips against the voice."""
-    if stems:
-        try:
-            ins = json.load(open(os.path.join(stems, "meta.json"), encoding="utf-8")).get("inputs") or {}
-        except (OSError, ValueError, AttributeError):
-            return None
-        v = stem(stems, "voice")
-        return v if v and not any(ins.get(k) for k in ("music", "events", "sfx")) else None
+AS_MADE_SEARCH = 0.01   # s: a line's file is looked for this far either side of where its timeline puts it
+AS_MADE_JOIN = 0.05     # s: differences this close together are one changed span
+
+
+def voice_alone(path, stems=None, timeline=None):
+    """A mix of a voice and nothing else → ({voice, raw, timeline, changed, source}, None); otherwise (None, a line saying
+    why it is judged as any mix, or None when nothing says it is a voice alone).
+    Only a record that vouches for this very mix counts: the one bin/vh mix writes beside it (<mix>.mix.json; a muxed film
+    names its mix in <film>.mux.json), checked as mux checks it (tools/audio/mixstate.py: the mix and every input as they
+    were built). Not alone: music, sfx, events or edit= in its arguments (an edit list puts the footage's sounds on the SFX
+    bus with no sfx= of its own); with the stems, music, SFX or an edit list in their meta.json, or a music or SFX stem
+    that is not silent. The voice is the record's own input (relative to the mix's folder); with the stems, the voice stem
+    (the bus as heard) is what the mix is held to. Then the voice is checked against the lines bin/vh tts joined it from
+    (its timeline: --timeline, the record's timeline=, else timeline.<lang>.json beside voiceover.<lang>.wav; each line's
+    file, sample for sample, where the timeline puts it): `changed` lists where it differs, a part changed after tts
+    made it (cut, faded, patched), judged there as any mix. A voice with no timeline, or whose line files are not here,
+    cannot be checked, and the mix is judged as any mix."""
+    import mixstate
     mix = os.path.abspath(path)
     try:
         rec = json.load(open(path + ".mux.json", encoding="utf-8"))
@@ -300,41 +313,100 @@ def voice_only(path, stems=None):
             mix = os.path.abspath(os.path.join(os.path.dirname(mix), rec["audio"]))
     except (OSError, ValueError):
         pass
+    record = mixstate.record_path(mix)
+    if not record.exists():
+        return None, None
     try:
-        rec = json.load(open(os.path.realpath(mix) + ".mix.json", encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(rec, dict) or rec.get("status") != "complete" or not isinstance(rec.get("args"), list):
-        return None
-    kv = dict(a.split("=", 1) for a in rec["args"] if isinstance(a, str) and "=" in a)
-    if not kv.get("voice") or any(kv.get(k) for k in ("music", "sfx", "events")):
-        return None
-    home = os.path.dirname(os.path.realpath(mix))   # the record's inputs are relative to the mix's folder
-    for i in rec.get("inputs") or []:
-        p = os.path.join(home, i.get("path", "")) if isinstance(i, dict) else ""
-        if os.path.basename(p) == os.path.basename(kv["voice"]) and os.path.isfile(p):
-            return p
-    return kv["voice"] if os.path.isfile(kv["voice"]) else None
+        state = mixstate.validate(Path(mix).resolve(), record)
+    except mixstate.InvalidMix:
+        return None, ("a mix record is here, but it does not match this mix (the mix or one of its inputs changed after bin/vh "
+                      "mix, or its build did not finish): it is not taken as a voice alone and is judged as any mix")
+    kv = dict(x.split("=", 1) for x in state["args"] if isinstance(x, str) and "=" in x)
+    if not kv.get("voice") or any(kv.get(k) for k in ("music", "sfx", "events", "edit")):
+        return None, None
+    home = Path(mix).resolve().parent
+    def given(name):   # an input named in the arguments, as the record keeps it (relative to the mix's folder)
+        want = os.path.normpath(kv[name]); tail = [x for x in want.split(os.sep) if x not in ("", ".", "..")]; hit = set()
+        for i in state["inputs"]:   # given relative to wherever bin/vh mix ran: the record's inputs that end the same way
+            q = os.path.normpath(str(home / i["path"]))
+            if q == want or (not os.path.isabs(want) and tail and q.split(os.sep)[-len(tail):] == tail):
+                hit.add(q)
+        return hit.pop() if len(hit) == 1 else None
+    raw = given("voice")
+    if raw is None:
+        return None, f"the mix record names voice={kv['voice']} but not which of its inputs that is: it is judged as any mix"
+    voice, source = raw, "the mix record"
+    if stems:
+        try:
+            ins = json.load(open(os.path.join(stems, "meta.json"), encoding="utf-8")).get("inputs") or {}
+        except (OSError, ValueError, AttributeError):
+            return None, None
+        if any(ins.get(k) for k in ("music", "events", "sfx", "edit")):
+            return None, None
+        for f in ["music.wav", "sfx.wav"] + sorted(f for f in os.listdir(stems) if f.startswith("sfx_") and f.endswith(".wav")):
+            q = os.path.join(stems, f)
+            if os.path.isfile(q) and float(np.abs(load(q)[0]).max(initial=0)) > 1e-5:
+                return None, None
+        voice, source = stem(stems, "voice") or raw, "the mix record and the stems"
+    tl = timeline or (given("timeline") if kv.get("timeline") else None)
+    if not tl:
+        m = re.fullmatch(r"voiceover((?:\.[\w-]+)?)\.wav", os.path.basename(raw))
+        q = os.path.join(os.path.dirname(raw), f"timeline{m.group(1)}.json") if m else None
+        tl = q if q and os.path.isfile(q) else None
+    if not tl:
+        return None, ("the mix is a voice alone, but no timeline of it is here (bin/vh tts writes timeline.<lang>.json beside "
+                      "voiceover.<lang>.wav), so the voice cannot be checked against the lines it was made from: judged as any mix")
+    changed, why = as_made(raw, tl)
+    if changed is None:
+        return None, f"the mix is a voice alone, but {why}, so the voice cannot be checked against them: judged as any mix"
+    return {"voice": voice, "raw": raw, "timeline": tl, "changed": changed, "source": source}, None
 
-def hard_cuts(voice, t_from, end, counted=()):
-    """A voice's runs of silence (every channel under -60 dBFS for 20 ms or more, inside the checked span) that it enters at
-    full voice: the 3 ms before the run within 20 dB of the voice's median 0.1 s level. A breath or a pause fades out
-    first (the 25 s demo film's: 36 dB and more under the median going in); a cut does not. The way out is not judged:
-    a stop consonant leaves its closure with a burst at full voice, and that is speech. A run already
-    counted as digital silence in the mix is left to that line. → [(start s, end s, edge dBFS, median dBFS)]"""
-    V, sr = load(voice); v = np.abs(V.astype(np.float64)).max(1)
-    db, _ = rms_db(V.astype(np.float64).mean(1), sr, .1, .1); med = float(np.median(db[db > -50])) if (db > -50).any() else -120.0
-    q = np.diff(np.concatenate([[0], (v < 1e-3).astype(np.int8), [0]])); w = int(.003 * sr)
-    edge = lambda i, j: 20 * np.log10(np.sqrt((V[max(0, i):max(0, j)].astype(np.float64) ** 2).mean()) + 1e-12) if j > i else -120.0   # noqa: E731
-    out = []
-    for i, j in zip(np.nonzero(q == 1)[0], np.nonzero(q == -1)[0]):
-        a, b = i / sr, j / sr
-        if j - i < .02 * sr or b < t_from or a > end or any(a < cb and b > ca for ca, cb in counted):
+
+def as_made(voice, timeline):
+    """Where a voiceover is no longer what bin/vh tts joined from its line files: each line's file (the timeline's "file",
+    relative to the project) is looked for, sample for sample, within AS_MADE_SEARCH of the line's start; the samples that
+    differ, and a line whose file is not found there, are a change. → ([(start s, end s)], None), or (None, why) when the
+    timeline or its line files are not there to check against."""
+    try:
+        doc = json.load(open(timeline, encoding="utf-8"))
+        segs = doc.get("segments") if isinstance(doc, dict) else doc
+        segs = [x for x in segs if isinstance(x, dict) and isinstance(x.get("start"), (int, float)) and isinstance(x.get("end"), (int, float))]
+    except (OSError, ValueError, AttributeError, TypeError):
+        return None, f"its timeline ({os.path.basename(timeline)}) is not one bin/vh tts wrote"
+    proj = os.path.dirname(os.path.dirname(os.path.abspath(timeline)))
+    files = {}
+    for x in segs:   # one file per line, or per block (--join): placed at its first line's start
+        f = x.get("file")
+        q = next((c for c in ([os.path.join(proj, f), os.path.join(os.path.dirname(os.path.abspath(timeline)), f)] if isinstance(f, str) else [])
+                  if os.path.isfile(c)), None)
+        if q is None:
+            return None, f"the line files its timeline names ({f or 'none'}) are not here"
+        files[q] = min(files.get(q, x["start"]), x["start"])
+    if not files:
+        return None, f"its timeline ({os.path.basename(timeline)}) has no lines"
+    V, sr = load(voice); v = V[:, 0]; out, drift, w = [], 0, int(AS_MADE_SEARCH * sr)
+    for f, start in sorted(files.items(), key=lambda kv: kv[1]):
+        L = load(f, sr)[0][:, 0]; n = len(L); nz = np.flatnonzero(L)
+        if not len(nz):
             continue
-        e = edge(i - w, i)   # the way in: a stop consonant leaves its closure at full voice too, and that is speech
-        if e > med - 20:
-            out.append((a, b, e, med))
-    return out
+        k0 = int(nz[0]); sig = L[k0:k0 + 4096]; exp = int(round(start * sr)) + drift
+        at = next((o for d in range(w + 1) for o in ((exp + d, exp - d) if d else (exp,))
+                   if 0 <= o and o + k0 + len(sig) <= len(v) and np.array_equal(v[o + k0:o + k0 + len(sig)], sig)), None)
+        if at is None:
+            out.append((start, start + n / sr)); continue
+        drift = at - int(round(start * sr))
+        d = np.flatnonzero(v[at:at + n] != L[:max(0, min(n, len(v) - at))]) if at < len(v) else np.arange(n)
+        if len(v) - at < n:
+            d = np.concatenate([d, np.arange(len(v) - at, n)])
+        if len(d):
+            br = np.flatnonzero(np.diff(d) > AS_MADE_JOIN * sr)
+            for i, j in zip(np.concatenate([[0], br + 1]), np.concatenate([br, [len(d) - 1]])):
+                out.append(((at + d[i]) / sr, (at + d[j] + 1) / sr))
+    merged = []
+    for a, b in sorted(out):
+        if merged and a - merged[-1][1] <= AS_MADE_JOIN: merged[-1] = (merged[-1][0], max(b, merged[-1][1]))
+        else: merged.append((a, b))
+    return merged, None
 
 def seconds(path):  # the first audio stream's length from the container (no decode), else None
     try:
@@ -470,11 +542,12 @@ def clusters(ts, gap=2.0):  # sorted times → [(first, last, count)], joining n
         else: out.append((t, t, 1))
     return out
 
-def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None, stems=None, clips=None, alone=False):
+def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None, stems=None, clips=None, alone=None):
     """→ (lines, failures, confirmed). conf: (entries, refused, file) from confirmed.json, or None outside a project.
     stems: the stems folder (evidence: which stem carries what); clips: a folder for ±CLIP_PAD s excerpts of the findings.
-    alone: the mix is the voice alone (voice_only): the voice's own pauses and phrasing are not dropouts or pumping,
-    the way the music stem's own dips are not; a dip the voice does not have (the mix lost it mid-word) still counts."""
+    alone: voice_alone's finding (the mix is a voice and nothing else): the voice's own pauses and phrasing are not
+    dropouts or pumping, the way the music stem's own dips are not, except where the voice was changed after bin/vh tts
+    made it (alone["changed"]); a dip the voice does not have (the mix lost it mid-word) still counts."""
     X, sr = load(path); x = X.astype(np.float64).mean(1); dur = len(x) / sr
     N, whole = score_notes(bm); slots = []   # slots: (line index, kind, a, b, click sample or None) for the evidence filled in at the end
     F = bm.get("fade"); end = t_to if t_to is not None else (F.get("start", F.get("from")) if isinstance(F, dict) else F[0] if isinstance(F, list)
@@ -498,30 +571,28 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
     out.append(f"[1] digital silence (< −60 dBFS, ≥ 20 ms): {len(inside)} inside the span" +
                ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b in sil) if sil else ""))
     pos = lambda t: f" · bar {barpos(bm, t)}" if barpos(bm, t) else ""   # noqa: E731
-    cuts = hard_cuts(voice, t_from, end, inside) if alone and voice else []   # under a room tone the mix hides them: the voice does not
-    fails += len(cuts)
-    if cuts:
-        out.append(f"    hard cuts to silence in the voice (it stops dead, not a breath; the room tone covers them in the mix): {len(cuts)}")
-        out += [f"    {a:8.3f}-{b:.3f} s  the voice drops from {e:.0f} dBFS to silence within 3 ms (a breath fades first: more than 20 dB under"
-                f" the voice's median {m:.0f} dBFS){pos(a)}" for a, b, e, m in cuts[:20]]
     for a, b in inside[:20]:   # a floor whatever the score does there: what it does is evidence, not an excuse
         slots.append((len(out), "silence", a, b, None)); txt = score_span(bm, N, whole, a, b, end)[1]
         out.append(f"    {a:8.3f}-{b:.3f} s  every channel under −60 dBFS for {(b - a) * 1000:.0f} ms (the floor: 20 ms){pos(a)}"
                    + (f" · {txt}" if txt else "") + " · a failure whatever the score does: keep a bed under a stop")
     db, tt = rms_db(x, sr, .1, .05); viol, nown, rest = [], 0, []
-    own = music_stem or (voice if alone else None)   # the track whose own dips are its own: the music, or a voice heard alone
+    own = music_stem or (alone["voice"] if alone else None)   # the track whose own dips are its own: the music, or a voice heard alone
     tol = 4.0 if alone and not music_stem else 1.0   # dB: a profile mix moves each line up to ±3 dB toward the median, so a voice
     # alone (the file before that) is as deep as the mix only to within those 3 dB, and the 1 dB a stem is held to
     has_too = "that the music stem has too: the score's own dynamics" if music_stem else "where the voice itself pauses: its own phrasing"
     Ms = load(own, sr)[0].astype(np.float64).mean(1) if own else None   # the music bus as heard (or the voice alone)
     if Ms is not None: sm, st_ = rms_db(Ms, sr, .1, .05); sdb = np.interp(tt, st_, sm, right=-120.0)
+    if alone:   # the voice silent: 40 dB under its own median (its file's level, not the film's: a quiet file is judged alike);
+        # not where it was changed after bin/vh tts made it: there its dips are the mix's to answer for
+        smed = float(np.median(sm[sm > sm.max() - 50])) if len(sm) and (sm > sm.max() - 50).any() else -120.0
+        edited = lambda tg, pad: np.array([any(a - pad <= x <= b + pad for a, b in alone["changed"]) for x in tg], bool) if alone["changed"] else np.zeros(len(tg), bool)   # noqa: E731
     for s in secs:
         m = (tt >= s["start"]) & (tt < s["end"])
         if m.any():
             med = np.median(db[m]); bad = m & (db < med - 12) & (tt >= t_from) & (tt <= end)
             ex = np.zeros(len(tt), bool)   # with the stems, window by window: the music stem as deep under its own median there
             if Ms is not None: ex = maximum_filter1d(np.median(sdb[m]) - sdb, 3) >= med - db - tol   # (less tol dB, ±1 window)
-            if alone and Ms is not None: ex |= maximum_filter1d((sdb < -60).astype(np.uint8), 3) > 0   # the voice itself silent there
+            if alone: ex = (ex | (maximum_filter1d((sdb < smed - 40).astype(np.uint8), 3) > 0)) & ~edited(tt, .1)   # the voice itself silent there
             nown += len(runs(bad & ex, tt, .05, 0))   # the score's own; the rest of a dropout stays one (a span is split)
             for a, b, i, j in runs(bad & ~ex, tt, .05, 0):   # with a note map: the score's rests and the room between its notes
                 why, txt = score_span(bm, N, whole, a, b, end)
@@ -548,7 +619,7 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         me, mt = rms_db(Ms, sr, .05, .01)
         mdip = np.interp(te, mt, median_filter(me, size=61, mode="nearest") - me)
     ex = maximum_filter1d(mdip, 5) >= dip - tol if mdip is not None else np.zeros(len(te), bool)   # frame by frame, ±2 frames
-    if alone and Ms is not None: ex |= maximum_filter1d((np.interp(te, mt, me) < -60).astype(np.uint8), 5) > 0   # the voice silent
+    if alone: ex = (ex | (maximum_filter1d((np.interp(te, mt, me) < smed - 40).astype(np.uint8), 5) > 0)) & ~edited(te, .1)   # the voice silent
     cand = [(a, b, i, j, float(dip[i:j].max())) for a, b, i, j in runs(dip > 4, te, .01, .06)
             if t_from <= a <= end and not any(-.05 <= a - h <= .40 for h, _ in hits) and not sag(i, j) and not talk[i]]
     pumps, score = [], 0
@@ -1235,11 +1306,16 @@ def main():
     old = stale(mix_path, [pos[2] if len(pos) > 2 else None, opt("--events"), pos[1] if len(pos) > 1 and pos[1] != "-" else None,
                            opt("--voice"), tlp, opt("--words")] + [in_stems(stems, p) for p in ins.values()], ev or sev, tl); out += old
     if mode in ("scan", "all"):
-        alone = None if bm or ev or sev else voice_only(mix_path, stems)   # a beat map or SFX events: there is more than a voice
-        if alone and not opt("--voice"):
-            out.append(f"the mix is a voice alone ({os.path.basename(alone)}, from {'the stems' if stems else 'the mix record'}): its own pauses and phrasing are not dropouts or pumping")
-        o, *f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or alone or stem(stems, "voice"), sev,
-                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf, stems, opt("--clips"), bool(alone)); out += o; fails += f[0]; nconf = f[1]
+        alone, why = (None, None) if bm or ev or sev else voice_alone(mix_path, stems, opt("--timeline"))   # a beat map or SFX events: more than a voice
+        if alone:
+            ch = alone["changed"]
+            out.append(f"the mix is a voice alone ({os.path.basename(alone['raw'])}, from {alone['source']}), as bin/vh tts joined it from its lines "
+                       f"({os.path.basename(alone['timeline'])}): its own pauses and phrasing are not dropouts or pumping"
+                       + (f"; changed since at {', '.join(f'{a:.2f}–{b:.2f}' for a, b in ch[:6])}{' …' if len(ch) > 6 else ''} s, judged there as any mix" if ch else ""))
+        elif why:
+            out.append(why)
+        o, *f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or (alone and alone["voice"]) or stem(stems, "voice"), sev,
+                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf, stems, opt("--clips"), alone); out += o; fails += f[0]; nconf = f[1]
     if mode in ("cues", "all") and (bm.get("hits") or ev):
         o, f, w, faint = cues(mix_path, bm, ev, float(opt("--fps", 30)), lib, root); out += o; fails += f; warns += w
     rev, nrep = ev or sev or meta.get("events") or [], 0   # the same sound again and again: a warning

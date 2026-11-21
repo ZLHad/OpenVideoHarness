@@ -2,70 +2,105 @@
 
 A synthesized narration has nothing between its words: the joins are exact digital zero and its own pauses fall under
 -60 dBFS, which the film's floor forbids (no digital silence in a film with sound). A recording made in a room never
-has that: it carries the room's own sound under every pause. This is that sound, made the same way each time:
-pink noise (ffmpeg's anoisesrc, one fixed seed per channel, so the two sides are not the same and the bytes are),
-high-passed at 60 Hz and low-passed at 5 kHz (a soft room, no hiss on top, no rumble under), at a fixed RMS level,
-faded in and out over the film's first and last half second so neither end starts with a step. It goes in after the
-mix's loudness gain, so its level in the film is the level asked for, and the film's integrated loudness and true peak
-stay as they were (it sits 40 dB and more under speech at -14 LUFS).
+has that: it carries the room's own sound under every pause. This is that sound, made the same way each time, in numpy
+and scipy as the rest of the mixer's sound is (not by an ffmpeg filter, whose output can change from one ffmpeg build to
+the next): white noise from numpy's PCG64 generator with one fixed seed per channel (the same film gives the same bytes,
+and the two sides differ), made pink by Kellet's three-pole filter, high-passed at 60 Hz and low-passed at 5 kHz
+(second-order Butterworth each: a soft room, no hiss on top, no rumble under), at a fixed RMS level. Its first and last
+half second ramp between FOUND and that level (raised cosine), so neither end starts with a step and the film's last
+samples are not digital silence either. It goes in after the mix's loudness gain, so its level in the film is the level
+asked for; the integrated loudness does not move (it sits 40 dB and more under speech at -14 LUFS), the true peak may
+rise by up to 0.1 dB (measured: -11.1 to -11.0 dBTP on a quiet voice, -1.57 to -1.56 against the limiter).
 
-The default level, DEFAULT_DB, and how it was found: on the 25 s demo film's voice-only mix (Qwen3-TTS, -14 LUFS), the
-bed at each level from -74 to -56 dBFS RMS in 1 dB steps, and bin/vh qa's digital-silence scan (every channel under
--60 dBFS for 20 ms or more) counted, with the longest stretch any part of the checked span spends with every
-channel under -60 dBFS. Without a bed: 22 runs, the longest 352 ms. At -74 to -69: 19 to 30 runs. At -68: 2 runs (23 ms).
-At -67: none, the longest stretch 10.8 ms (half the 20 ms the scan allows). At -66: none, 7.4 ms (a third of it): the
-quietest level accepted with margin, FOUND. At -60: 1.3 ms. The film's integrated loudness (-14.4 LUFS by ffmpeg's
-ebur128) and true peak (-1.5 dBFS) read the same with the bed at -60 as without it. Stdlib and ffmpeg only (the
-default chain runs on plain python3).
+The level, and how it was found: on the 25 s demo film's voice-only mix (Qwen3-TTS, -14 LUFS), this bed at each level
+from -74 to -56 dBFS RMS in 1 dB steps, and bin/vh qa's digital-silence scan (every channel under -60 dBFS for 20 ms or
+more) counted, with the longest stretch any part of the checked span spends with every channel under -60 dBFS. Without a
+bed: 22 runs, the longest 352 ms. At -74 to -69: 13 to 29 runs. At -68: 1 run (24 ms). At -67: none, the longest stretch
+13.2 ms (two thirds of the 20 ms the scan allows). At -66: none, 7.7 ms (well under half of it): the quietest level
+accepted with margin, FOUND. At -60: 1.3 ms. So room= takes FOUND … CEILING: quieter and the pauses fall back to digital silence, louder and
+the bed is heard under the voice. DEFAULT_DB is FOUND + 6 dB.
+
+bin/vh mix's default chain runs on plain python3 (ffmpeg does the mixing): it has the bed written by
+`uv run --with numpy --with scipy python roomtone.py render SECONDS LEVEL OUT` (raw float32, stereo, 48 kHz) and adds it
+as one more input; a profile mix (numpy already) calls bed() itself.
 """
-import subprocess
+import importlib.util, os, subprocess, sys
 
 SR = 48000
 SEEDS = (19530, 26117)        # one per channel: the same film gives the same bytes, and the sides differ
 HIGHPASS, LOWPASS = 60, 5000  # Hz
-FADE = 0.5                    # s: in at the head, out at the tail
-FOUND = -66.0                 # dBFS RMS: the quietest level the scan accepts with margin (measured 2026-11-22, below)
-DEFAULT_DB = -60.0            # FOUND + 6 dB, under the -58 dBFS ceiling the bed must not pass
+FADE = 0.5                    # s: ramped at the head and the tail
+FOUND = -66.0                 # dBFS RMS: the quietest level the scan accepts with margin (measured 2026-11-22, above)
+CEILING = -58.0               # dBFS RMS: no louder (heard under the voice)
+DEFAULT_DB = -60.0            # FOUND + 6 dB
+PINK_B = (0.049922035, -0.095993537, 0.050612699, -0.004408786)   # Kellet's pinking filter (−3 dB/octave from 10 Hz up)
+PINK_A = (1.0, -2.494956002, 2.017265875, -0.522189400)
+SETTLE = SR                   # samples made first and dropped: the filters' own start
+CHUNK = 1 << 20               # samples made at a time (a long film's bed in pieces, the filters' state carried over)
+CAL_S = 20                    # s of the bed at unit gain its level is measured on
 
 
-def source(seconds, level_db, label="bed"):
-    """An ffmpeg filtergraph that makes the bed: `seconds` long, stereo, 48 kHz, at `level_db` dBFS RMS, into [label]."""
-    n = round(seconds * SR)
-    cal = calibration()
-    nz = lambda s, o: f"anoisesrc=r={SR}:color=pink:seed={s}:amplitude=1:duration={seconds + 0.1:.4f}[{o}]"   # noqa: E731
-    out = max(0.0, n / SR - FADE)
-    return (f"{nz(SEEDS[0], label + 'l')};{nz(SEEDS[1], label + 'r')};"
-            f"[{label}l][{label}r]join=inputs=2:channel_layout=stereo,highpass=f={HIGHPASS},lowpass=f={LOWPASS},"
-            f"volume={level_db - cal:.4f}dB,atrim=end_sample={n},afade=t=in:st=0:d={FADE},afade=t=out:st={out:.4f}:d={FADE}[{label}]")
+def _channel(seed, n):
+    import numpy as np
+    from scipy.signal import butter, lfilter, sosfilt
+    rng = np.random.Generator(np.random.PCG64(seed))
+    sos = np.vstack([butter(2, HIGHPASS / (SR / 2), "high", output="sos"), butter(2, LOWPASS / (SR / 2), "low", output="sos")])
+    zp, zs = np.zeros(len(PINK_A) - 1), np.zeros((sos.shape[0], 2))
+    out, pos = np.empty(n), -SETTLE
+    while pos < n:
+        y, zp = lfilter(PINK_B, PINK_A, rng.standard_normal(CHUNK), zi=zp)
+        y, zs = sosfilt(sos, y, zi=zs)
+        lo, hi = max(0, -pos), min(CHUNK, n - pos)
+        if hi > lo:
+            out[pos + lo:pos + hi] = y[lo:hi]
+        pos += CHUNK
+    return out
 
 
 _CAL = None
 
 
 def calibration():
-    """The RMS (dBFS) of the filtered noise at amplitude 1, measured once from 20 s of it: what volume= has to move."""
+    """The bed's RMS (dBFS, both channels together) at unit gain, from its first CAL_S s: what the level has to move."""
     global _CAL
     if _CAL is None:
-        nz = lambda s: f"anoisesrc=r={SR}:color=pink:seed={s}:amplitude=1:duration=20"   # noqa: E731
-        g = (f"{nz(SEEDS[0])}[l];{nz(SEEDS[1])}[r];[l][r]join=inputs=2:channel_layout=stereo,highpass=f={HIGHPASS},"
-             f"lowpass=f={LOWPASS},astats=measure_perchannel=none:measure_overall=RMS_level")
-        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-filter_complex", g, "-f", "null", "-"],
-                           capture_output=True, text=True, check=True)
-        lines = [ln for ln in r.stderr.splitlines() if "RMS level dB" in ln]
-        _CAL = float(lines[-1].split(":")[-1])
+        import numpy as np
+        x = np.concatenate([_channel(s, CAL_S * SR) for s in SEEDS])
+        _CAL = float(10 * np.log10(np.mean(x ** 2)))
     return _CAL
 
 
-def render(seconds, level_db):
-    """The bed as raw float32 interleaved stereo bytes (the profile chain adds it in numpy)."""
-    g = source(seconds, level_db)
-    r = subprocess.run(["ffmpeg", "-v", "error", "-filter_complex", g, "-map", "[bed]", "-f", "f32le", "-acodec", "pcm_f32le", "-"],
-                       capture_output=True, check=True)
-    return r.stdout
+def bed(seconds, level_db):
+    """The bed: `seconds` long (rounded to a sample), stereo, at `level_db` dBFS RMS, ramped from FOUND at the head and to
+    FOUND at the tail. → float32 array (n, 2)."""
+    import numpy as np
+    n = round(seconds * SR)
+    x = np.stack([_channel(s, n) for s in SEEDS], 1) * 10 ** ((level_db - calibration()) / 20)
+    f = min(round(FADE * SR), n // 2)
+    if f:
+        floor = 10 ** ((min(FOUND, level_db) - level_db) / 20)
+        ramp = floor + (1 - floor) * (0.5 - 0.5 * np.cos(np.pi * np.arange(f) / f))
+        x[:f] *= ramp[:, None]
+        x[n - f:] *= ramp[::-1][:, None]
+    return x.astype(np.float32)
+
+
+def write(seconds, level_db, path):
+    """The bed as raw float32, interleaved stereo, 48 kHz, in `path`: here when numpy and scipy are, else through uv."""
+    if not all(importlib.util.find_spec(m) for m in ("numpy", "scipy")):   # plain python3: the default chain
+        try:
+            subprocess.run(["uv", "run", "-q", "--no-project", "--with", "numpy", "--with", "scipy", "python", os.path.abspath(__file__),
+                            "render", repr(float(seconds)), repr(float(level_db)), path], check=True)
+        except FileNotFoundError:
+            raise ValueError("room tone is made with numpy and scipy, through uv, which is not installed here "
+                             "(https://docs.astral.sh/uv/; room=off leaves the room tone out)") from None
+        return
+    with open(path, "wb") as f:
+        f.write(bed(seconds, level_db).tobytes())
 
 
 def level(kv):
-    """room= from the mix's arguments → the bed's level in dBFS RMS, or None (room=off). A number may go no louder than -50."""
+    """room= from the mix's arguments → the bed's level in dBFS RMS, or None (room=off). A number from FOUND to CEILING."""
     v = kv.get("room", "on")
     if v == "off":
         return None
@@ -74,7 +109,14 @@ def level(kv):
     try:
         x = float(v)
     except ValueError:
-        raise ValueError(f"room={v}: on (the default, {DEFAULT_DB:g} dBFS RMS), off, or a level in dBFS RMS such as -60")
-    if not -90 <= x <= -50:
-        raise ValueError(f"room={v}: a level between -90 and -50 dBFS RMS (a room under a voice is quiet)")
+        raise ValueError(f"room={v}: on (the default, {DEFAULT_DB:g} dBFS RMS), off, or a level from {FOUND:g} to {CEILING:g} dBFS RMS") from None
+    if not FOUND <= x <= CEILING:
+        raise ValueError(f"room={v}: a level from {FOUND:g} dBFS RMS (any quieter and the voice's pauses fall back to digital silence) "
+                         f"to {CEILING:g} (any louder and it is heard under the voice)")
     return x
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5 or sys.argv[1] != "render":
+        sys.exit("usage: roomtone.py render SECONDS LEVEL_DBFS OUT  (raw float32, stereo, 48 kHz)")
+    write(float(sys.argv[2]), float(sys.argv[3]), sys.argv[4])
