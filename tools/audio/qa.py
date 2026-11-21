@@ -45,6 +45,11 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
             (beat map hits and beats, SFX event times). Lists the total and the 10 worst (time, bar:beat, ratio) to
             listen to by ear. One within ±--click-grace of a note of the note map (any part in it) is that note's
             attack: listed under "the score has a note here" (the 5 worst), not counted.
+voice alone: a mix of a voice and nothing else (the record bin/vh mix writes beside it, <mix>.mix.json, says voice= and no
+  music, sfx or events; or the stems' meta.json has no music or events) is scanned against that voice: a dropout or a
+  pumping dip where the voice itself pauses (as deep under its own section median, or silent under −60 dBFS there) is
+  its own phrasing, counted apart, not a failure; one the voice does not have (the mix lost it mid-word) still fails.
+  Said in a line at the top. Digital silence stays the floor it is.
 evidence (scan): each open finding gets a line or a tail: the value against its threshold, bar:beat, what the note map
   does there (rests, between notes, a note held through it, notes that start in it and are not heard; for a click the
   nearest note and a note that ends there), and with --stems which stem carries it (a span: each stem's level over it
@@ -274,6 +279,40 @@ def with_context(path, beats, events, stems, mode="all", project=None):
             f"With {'them' if len(missing) > 1 else 'it'}: {cmd}"
             + ("" if s else " (a mix made with stems=DIR also lets qa tell the music's own dips: --stems DIR)"))
 
+def voice_only(path, stems=None):
+    """The voice track of a mix made of a voice alone (no music, no SFX), else None: from the stems' meta.json, or the
+    record bin/vh mix writes beside the mix (<mix>.mix.json; a muxed film names its mix in <film>.mux.json). A voice-only
+    mix has no bed: its quiet stretches are the voice's own pauses, so the scan judges dips against the voice."""
+    if stems:
+        try:
+            ins = json.load(open(os.path.join(stems, "meta.json"), encoding="utf-8")).get("inputs") or {}
+        except (OSError, ValueError, AttributeError):
+            return None
+        v = stem(stems, "voice")
+        return v if v and not any(ins.get(k) for k in ("music", "events", "sfx")) else None
+    mix = os.path.abspath(path)
+    try:
+        rec = json.load(open(path + ".mux.json", encoding="utf-8"))
+        if isinstance(rec, dict) and isinstance(rec.get("audio"), str):
+            mix = os.path.abspath(os.path.join(os.path.dirname(mix), rec["audio"]))
+    except (OSError, ValueError):
+        pass
+    try:
+        rec = json.load(open(os.path.realpath(mix) + ".mix.json", encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(rec, dict) or rec.get("status") != "complete" or not isinstance(rec.get("args"), list):
+        return None
+    kv = dict(a.split("=", 1) for a in rec["args"] if isinstance(a, str) and "=" in a)
+    if not kv.get("voice") or any(kv.get(k) for k in ("music", "sfx", "events")):
+        return None
+    home = os.path.dirname(os.path.realpath(mix))   # the record's inputs are relative to the mix's folder
+    for i in rec.get("inputs") or []:
+        p = os.path.join(home, i.get("path", "")) if isinstance(i, dict) else ""
+        if os.path.basename(p) == os.path.basename(kv["voice"]) and os.path.isfile(p):
+            return p
+    return kv["voice"] if os.path.isfile(kv["voice"]) else None
+
 def seconds(path):  # the first audio stream's length from the container (no decode), else None
     try:
         j = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=duration:format=duration",
@@ -408,9 +447,11 @@ def clusters(ts, gap=2.0):  # sorted times → [(first, last, count)], joining n
         else: out.append((t, t, 1))
     return out
 
-def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None, stems=None, clips=None):
+def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None, stems=None, clips=None, alone=False):
     """→ (lines, failures, confirmed). conf: (entries, refused, file) from confirmed.json, or None outside a project.
-    stems: the stems folder (evidence: which stem carries what); clips: a folder for ±CLIP_PAD s excerpts of the findings."""
+    stems: the stems folder (evidence: which stem carries what); clips: a folder for ±CLIP_PAD s excerpts of the findings.
+    alone: the mix is the voice alone (voice_only): the voice's own pauses and phrasing are not dropouts or pumping,
+    the way the music stem's own dips are not; a dip the voice does not have (the mix lost it mid-word) still counts."""
     X, sr = load(path); x = X.astype(np.float64).mean(1); dur = len(x) / sr
     N, whole = score_notes(bm); slots = []   # slots: (line index, kind, a, b, click sample or None) for the evidence filled in at the end
     F = bm.get("fade"); end = t_to if t_to is not None else (F.get("start", F.get("from")) if isinstance(F, dict) else F[0] if isinstance(F, list)
@@ -438,8 +479,10 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         slots.append((len(out), "silence", a, b, None)); txt = score_span(bm, N, whole, a, b, end)[1]
         out.append(f"    {a:8.3f}-{b:.3f} s  every channel under −60 dBFS for {(b - a) * 1000:.0f} ms (the floor: 20 ms){pos(a)}"
                    + (f" · {txt}" if txt else "") + " · a failure whatever the score does: keep a bed under a stop")
-    db, tt = rms_db(x, sr, .1, .05); viol, own, rest = [], 0, []
-    Ms = load(music_stem, sr)[0].astype(np.float64).mean(1) if music_stem else None   # the music bus as heard
+    db, tt = rms_db(x, sr, .1, .05); viol, nown, rest = [], 0, []
+    own = music_stem or (voice if alone else None)   # the track whose own dips are its own: the music, or a voice heard alone
+    has_too = "that the music stem has too: the score's own dynamics" if music_stem else "where the voice itself pauses: its own phrasing"
+    Ms = load(own, sr)[0].astype(np.float64).mean(1) if own else None   # the music bus as heard (or the voice alone)
     if Ms is not None: sm, st_ = rms_db(Ms, sr, .1, .05); sdb = np.interp(tt, st_, sm, right=-120.0)
     for s in secs:
         m = (tt >= s["start"]) & (tt < s["end"])
@@ -447,12 +490,13 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
             med = np.median(db[m]); bad = m & (db < med - 12) & (tt >= t_from) & (tt <= end)
             ex = np.zeros(len(tt), bool)   # with the stems, window by window: the music stem as deep under its own median there
             if Ms is not None: ex = maximum_filter1d(np.median(sdb[m]) - sdb, 3) >= med - db - 1.0   # (less 1 dB, ±1 window)
-            own += len(runs(bad & ex, tt, .05, 0))   # the score's own; the rest of a dropout stays one (a span is split)
+            if alone and Ms is not None: ex |= maximum_filter1d((sdb < -60).astype(np.uint8), 3) > 0   # the voice itself silent there
+            nown += len(runs(bad & ex, tt, .05, 0))   # the score's own; the rest of a dropout stays one (a span is split)
             for a, b, i, j in runs(bad & ~ex, tt, .05, 0):   # with a note map: the score's rests and the room between its notes
                 why, txt = score_span(bm, N, whole, a, b, end)
                 (rest if why else viol).append((a, b, s["name"], float(db[i:j].min()), med, txt))
     st = judged("qa.dropout", [{"a": a, "b": b} for a, b, *_ in viol]); fails += sum(x != "confirmed" for x, _ in st)
-    out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}" + (f" ({own} more that the music stem has too: the score's own dynamics)" if own else "")
+    out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}" + (f" ({nown} more {has_too})" if nown else "")
                + (f" ({len(rest)} more where the score itself is quiet, listed below, not counted)" if rest else ""))
     for (a, b, n, d, m, txt), (state, _) in list(zip(viol, st))[:40]:
         out.append(f"    {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f}{tag(state)}")
@@ -473,6 +517,7 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         me, mt = rms_db(Ms, sr, .05, .01)
         mdip = np.interp(te, mt, median_filter(me, size=61, mode="nearest") - me)
     ex = maximum_filter1d(mdip, 5) >= dip - 1.0 if mdip is not None else np.zeros(len(te), bool)   # frame by frame, ±2 frames
+    if alone and Ms is not None: ex |= maximum_filter1d((np.interp(te, mt, me) < -60).astype(np.uint8), 5) > 0   # the voice silent
     cand = [(a, b, i, j, float(dip[i:j].max())) for a, b, i, j in runs(dip > 4, te, .01, .06)
             if t_from <= a <= end and not any(-.05 <= a - h <= .40 for h, _ in hits) and not sag(i, j) and not talk[i]]
     pumps, score = [], 0
@@ -481,7 +526,7 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         score += len(runs(ex[i:j], te[i:j], .01, .06))
     st = judged("qa.pump", [{"a": a, "b": b} for a, b, _ in pumps]); fails += sum(x != "confirmed" for x, _ in st)
     out.append(f"[3] pumping (dip > 4 dB for ≥ 60 ms, not at a transient music hit): {len(pumps)}" +
-               (f" ({score} more that the music stem has too: the score's own dynamics)" if score else ""))
+               (f" ({score} more {has_too})" if score else ""))
     for (a, b, d), (state, _) in list(zip(pumps, st))[:40]:
         out.append(f"    {a:7.2f}-{b:7.2f} s  depth {d:.1f} dB{tag(state)}")
         if state != "confirmed":
@@ -1159,8 +1204,11 @@ def main():
     old = stale(mix_path, [pos[2] if len(pos) > 2 else None, opt("--events"), pos[1] if len(pos) > 1 and pos[1] != "-" else None,
                            opt("--voice"), tlp, opt("--words")] + [in_stems(stems, p) for p in ins.values()], ev or sev, tl); out += old
     if mode in ("scan", "all"):
-        o, *f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or stem(stems, "voice"), sev,
-                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf, stems, opt("--clips")); out += o; fails += f[0]; nconf = f[1]
+        alone = None if bm or ev or sev else voice_only(mix_path, stems)   # a beat map or SFX events: there is more than a voice
+        if alone and not opt("--voice"):
+            out.append(f"the mix is a voice alone ({os.path.basename(alone)}, from {'the stems' if stems else 'the mix record'}): its own pauses and phrasing are not dropouts or pumping")
+        o, *f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or alone or stem(stems, "voice"), sev,
+                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf, stems, opt("--clips"), bool(alone)); out += o; fails += f[0]; nconf = f[1]
     if mode in ("cues", "all") and (bm.get("hits") or ev):
         o, f, w, faint = cues(mix_path, bm, ev, float(opt("--fps", 30)), lib, root); out += o; fails += f; warns += w
     rev, nrep = ev or sev or meta.get("events") or [], 0   # the same sound again and again: a warning

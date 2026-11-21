@@ -2017,6 +2017,18 @@ print([x["evidence"]["duration"] for x in f])')
       a=$(qs "$t/cf/audio/drop.wav" --stems "$t/cf/st3" 2>&1); rc=$?; b=$(qs "$t/cf/audio/pump.wav" --stems "$t/cf/st4" 2>&1); rb=$?
       case "$rc:$a|$rb:$b" in 1:*"dropouts (0.1 s RMS < section median − 12 dB): 1 (1 more that the music stem has too"*"3.35-   5.95 s"*"|1:"*"pumping (dip > 4 dB for ≥ 60 ms, not at a transient music hit): 1"*"3.06-   3.23 s  depth 10.0 dB"*)
           ok "qa scan: a short dip of the music stem excuses only the windows it covers, for dropouts and pumping" ;; *) bad "qa: a short stem dip excused a longer one ($rc/$rb): $a | $b" ;; esac
+      # a voice alone (the mix record bin/vh mix wrote says voice= and nothing else): the voice's own pauses are not dropouts
+      # or pumping, a drop the mix has and the voice does not (mid-word) still is; with music in the record it is a mix as before
+      mkdir -p "$t/cf/vo" "$t/cf/vm"
+      vo() { ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='$1*sin(2*PI*220*t)*(1-0.98*between(t,3,3.4))$2':s=48000:d=10" -ac 2 -c:a pcm_s16le "$3"; }
+      vo 0.3 '' "$t/cf/vo/v.wav"; vo 0.5 '*(1-0.98*between(t,6,6.3))' "$t/cf/vo/mix.wav"; cp "$t/cf/vo/v.wav" "$t/cf/vm/v.wav"; cp "$t/cf/vo/mix.wav" "$t/cf/vm/mix.wav"
+      rec() { printf '{"version": 1, "status": "complete", "args": [%s], "inputs": [{"path": "v.wav", "sha256": "x"}]}\n' "$1" > "$2/mix.wav.mix.json"; }
+      rec '"voice=v.wav"' "$t/cf/vo"; rec '"voice=v.wav", "music=m.wav"' "$t/cf/vm"
+      a=$(qs "$t/cf/vo/mix.wav" 2>&1); rc=$?; b=$(qs "$t/cf/vm/mix.wav" 2>&1); rb=$?
+      case "$rc:$a|$rb:$b" in 1:*"the mix is a voice alone (v.wav, from the mix record)"*"dropouts (0.1 s RMS < section median − 12 dB): 1 (1 more where the voice itself pauses: its own phrasing)"*"6.0"*"|1:"*"dropouts (0.1 s RMS < section median − 12 dB): 2"*)
+          case "$b" in *"voice alone"*) bad "qa: a mix with music taken for a voice alone: $b" ;;
+            *) ok "qa scan: in a voice alone (from the mix record) its own pauses are not dropouts, a drop mid-voice still is; with music in the record, a mix as before" ;; esac ;;
+        *) bad "qa scan on a voice alone ($rc/$rb): $a | $b" ;; esac
       a=$(qs "$t/cf/audio/mix.wav" 2>&1); rc=$?
       case "$rc:$a" in 1:*'confirm? {"tool": "qa.dropout", "at": "3.100-4.900"'*'confirm? {"tool": "qa.click", "at": "5.950-6.650", "n": 3'*) ok "qa scan in a project offers confirm? lines for a dropout and a click burst" ;; *) bad "qa scan offers (rc $rc): $a" ;; esac
       printf '%s\n' "$a" | fill STORYBOARD.md#S01 "$t/cf/confirmed.json"
