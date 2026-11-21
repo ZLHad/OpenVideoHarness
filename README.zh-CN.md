@@ -2,17 +2,23 @@
 
 # OpenVideoHarness
 
-### 做出一支好片不难，每次都好才难。
+### 你当导演，AI 做片。
 
-给 Claude Code 和 Codex 用的视频工作台。在 Studio 或终端说一句想做什么，agent 写源码、渲染成片、检查结果。你可以在 Studio 拍板、指着镜头点评，再对照修改前后的成片。
+开源的 AI 视频制作工作台。说一句想做什么，Claude Code、Codex 这样的 agent 从立意、分镜、配音配乐一路做到带声音的成片。每一步都摆在 Studio 里：指着画面说一句，它去改，改完两版对照着看。
 
 **[快速开始](#快速开始)** · [Studio 演示，17 秒带声音](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio) · [看带声音的样片](#5-支样片点开有声音)
 
 [English](README.md) · **中文** · [官网](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
+![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex%20%7C%20DeepSeek%20Harness-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
+
+<a href="#能做出什么"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="十二支成片的片段同时在动：黑洞喷流、互为镜像的分子、刹车盘的热成像、水墨、皮影、数据做成的城市"></a>
+
+<sub>都是用它做出来的片子。一个月十二支，加起来约 100 分钟，最长一支 33 分钟、4K。</sub>
+
+**11 类视频 · 43 种风格 · 5 个引擎 · 配音、配乐、音效、字幕齐全 · 在你自己的电脑上跑 · MIT**
 
 </div>
 
@@ -24,10 +30,12 @@
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
-装好后选一个入口开片。
+装好后选一个入口开片。哪个顺手用哪个，从哪里开的片子都会出现在 Studio 里。
 
 - **Studio**。从应用程序打开 **OVH Studio**，也可在安装目录运行 `bin/vh studio`。在右边选择 Claude Code 或 Codex。看到适配器安装提示时点「装上」，再发送需求。
 - **终端**。在默认安装目录运行 `cd ~/OpenVideoHarness && codex` 或 `cd ~/OpenVideoHarness && claude`，再发送需求。
+- **Claude Code 或 Codex 的桌面 App**。把安装目录（默认 `~/OpenVideoHarness`）当作项目打开，直接发送需求。
+- **在别的文件夹里**。安装时已经给 Claude Code 和 Codex 各注册了一个叫 `open-video-harness` 的 skill。所以不管开着哪个项目，说一句"做一支视频……"，agent 都会找到工作台照着做。片子默认建在工作台的 `projects/` 下，想放在别处就说一声。只想装这个 skill，见[安装选项](#安装更新和国内网络)。
 
 第一支可以试这条无声样片。
 
@@ -37,48 +45,40 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 [分步教程](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) · [安装选项和更新](#安装更新和国内网络)
 
-## 为什么做这个
+<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.zh.webp" width="960" alt="OVH Studio 的窗口，开着一支片子的成片这一站：中间是星河的画面，下面是带缩略图的时间线，选中了 5 到 8 秒；右边是等你拍板的一张卡和两条对着镜头写下的意见，底下是“交给 agent”的按钮"></a></p>
 
-Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话，有时候出来的东西会吓你一跳：运动、字体、节奏都在线。这样的片子现在已经有好几百支。
-
-可是再来一次，同一个模型就可能节奏全乱、满屏发光、数字乱编。这不是渲染的问题。HyperFrames、Manim、Blender 负责把代码变成画面，至于这支片子到底要说什么、这行字够不够时间读完、屏幕上的数字是不是真的，它们都不管。
-
-**不缺工具，缺门道。**
-
-这个仓库就是把门道写下来，写成 agent 能照着做的样子：怎么想出一个不是人人都会先想到的立意，为什么先有声音再有画面，看不见片子又该怎么查片子。几条底线不让步，其余都是默认，好点子可以反着来。
-
-它是从真片子里长出来的。哪支片子出了问题，教训就变成一篇文档或一项检查，下一支片子从这里接着做。
+<p align="center"><sub>在 Studio 里做一支片子。顶上是片子走到了哪一站；指着时间线上的几秒或一个镜头写意见；右边是等你拍板的事，攒好一起交给 agent。画面里是本仓库自己的介绍片。</sub></p>
 
 ## 它哪里不一样
 
 <table>
 <tr>
-<td width="44%" valign="top"><a href="#studio"><img src="docs/assets/studio/theme-prism.zh.webp" width="100%" alt="Studio 的成片这一站，棱镜主题：画面、带缩略图的时间线，右边是这一轮要你定的两件事"></a><br><sub>Studio 的成片这一站，换成棱镜主题。</sub></td>
+<td width="44%" valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开，打开声音：每个谐波有自己的音。</sub></td>
+<td valign="top"><b>一句话进去，带声音的成片出来。</b><br>配音、配乐、音效、字幕都在流程里，不用另找工具拼。旁白或音乐先定下来，量出每个字、每一拍的时间，画面就挂在这些时间上。配乐可以用代码写，也可以用你自己的曲子；音效落在动作发生的那一帧。</td>
+</tr>
+<tr>
+<td valign="top"><a href="#studio"><img src="docs/assets/studio/theme-prism.zh.webp" width="100%" alt="Studio 的成片这一站，棱镜主题：画面、带缩略图的时间线，右边是这一轮要你定的两件事"></a><br><sub>Studio 的成片这一站，换成棱镜主题。</sub></td>
 <td valign="top"><b>整个流程，在一个窗口里。</b><br>在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整个制作流程：每支片子走到哪一站、在等谁，一眼看到；审片时指着一秒写一句，攒几条一起交给 agent；要你拍板的事是几张卡，点一下就定。</td>
 </tr>
 <tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="一条画成水墨山峦的股价线"><br><sub>一张股价图，同时也是一片山。</sub></td>
-<td valign="top"><b>写代码之前，先有立意。</b><br>先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</td>
-</tr>
-<tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="影片之海坍缩，上面写着“差的是什么”"><br><sub>第一道关卡上的原话："玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"。</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="影片之海坍缩，上面写着“差的是什么”"><br><sub>立意那一站上的原话："玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"。</sub></td>
 <td valign="top"><b>你来导演，它来干活。</b><br>它在立意和初版停下来等你；片子长、渲染重或要花钱，分镜也先给你看。还想亲自定钩子、配音、封面？点名就行。一个都不想管？说"直接出"。</td>
 </tr>
 <tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="一道闪光穿过探测器，计时器按微秒走"><br><sub>时间是唯一的输入。这道闪光按微秒算。</sub></td>
-<td valign="top"><b>每一帧都是时间的函数。</b><br>所以任何一帧都能单独画、乱序画、并行画。渲染断了，从断的地方接着来。一支做好的 4K 片子，可以只重画其中几秒放回去，别的地方一帧不动。</td>
-</tr>
-<tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="agent 在终端里审自己渲出的帧"><br><sub>agent 在审自己渲出的帧。</sub></td>
-<td valign="top"><b>它看不见，所以凡是能量的都量一遍。</b><br>agent 看不了视频，也听不了声音。所以它对照 20 条的清单看联系表，用数据查声音，再把初版交给一个全新上下文的 reviewer，按 8 项打分。<code>bin/vh check</code> 能查出冻帧、闪烁、读不完的字幕和错误的色彩标记，每一项都告诉你怎么解决。</td>
-</tr>
-<tr>
-<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开，打开声音：每个谐波有自己的音。</sub></td>
-<td valign="top"><b>先有声音，声音也是代码。</b><br>旁白或音乐先定下来，量出每个字、每一拍的时间，画面就挂在这些时间上。配乐用代码写，音效落在动作发生的那一帧。</td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="一条画成水墨山峦的股价线"><br><sub>一张股价图，同时也是一片山。</sub></td>
+<td valign="top"><b>先想清楚说什么，再动手。</b><br>先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-24.gif" width="100%" alt="霓虹街机厅，有一个对话气泡和发光招牌"><br><sub>底图是生成的，上面叠代码，都记在台账里。</sub></td>
-<td valign="top"><b>真材实料，都有记录。</b><br>档案影像、生成的图、录来的声音，一本台账记下每个文件的来源、许可和花费。没有预算，就不调付费接口。</td>
+<td valign="top"><b>什么素材都能排进来。</b><br>代码画的画面、档案影像、生成的图、3D 模型、录来的声音，还有你自己的照片和录像（这两类还在试验），可以进同一支片子。一本台账记下每个文件的来源、许可和花费。没有预算，就不调付费接口。</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="一道闪光穿过探测器，计时器按微秒走"><br><sub>时间是唯一的输入。这道闪光按微秒算。</sub></td>
+<td valign="top"><b>做完了，还改得动。</b><br>片子是一份源码，每一帧只由时间决定。一支做好的 4K 片子，可以只重画其中几秒放回去，别的地方一帧不动。渲染断了，从断的地方接着来。每次渲染留一个版本，改前改后能对照着看。</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="agent 在终端里审自己渲出的帧"><br><sub>agent 在审自己渲出的帧。</sub></td>
+<td valign="top"><b>交到你手上之前，它自己先查一遍。</b><br>agent 看不了视频，也听不了声音，所以凡是能量的都量。它对照 20 条的清单看联系表，用数据查声音，再把初版交给一个全新上下文的 reviewer，按 8 项打分。<code>bin/vh check</code> 能查出冻帧、闪烁、读不完的字幕和错误的色彩标记，每一项都告诉你怎么解决。</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-19.gif" width="100%" alt="一张发光的金色地图，河流和光点"><br><sub>出自一支 33 分钟的片子。</sub></td>
@@ -115,7 +115,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。在空间里，同一列就是开新片子的地方：写一句想做什么、发送，agent 一建好片子，这段对话就跟着进去。第一次和某个 agent 说话前要装一个适配器：在右边一列点「装上」，Studio 自己装好。
 
-在 Codex 对话栏点 **选择模型和推理档**，Studio 会先开一个空对话并加载模型列表，选好后再发送需求。账号提供 GPT‑6.2 时，常规制作可用 Sol，复杂镜头或跨引擎任务可用 Astra。终端里可在本仓库运行 `codex -m gpt-6.2-sol`，也可以用 `/model` 选择。[Codex 模型可用性](https://learn.chatgpt.com/docs/whats-new/gpt-62-astra-sol)
+用哪个模型、想多深，都在对话栏里选，Studio 记得你上次的选择。Codex 那一栏点 **选模型和思考深度**，它先开一个空对话，读出你的账号能用的模型，选好再发送需求。
 
 点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，提交即可唤醒它；其余情况提交后回原对话说一声"我交了"。标准档在 Studio 开着时也在 Studio 审，没开时发静态审阅页；也可以指定用哪个。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
 
@@ -135,8 +135,6 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 ## 能做出什么
 
 下面是作者用它在大约一个月里做的十二支片子的片段，这十二支加起来约 100 分钟。物理、化学、工程、金融、民俗、文学、思考，每支都有自己的世界。片子都是中文的，这里是无声的。
-
-[看十二段动态集锦（GIF）](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif)
 
 <table>
 <tr>
@@ -209,9 +207,19 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 片子都放在 [Release `media`](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media) 里，不进 git，克隆仓库不用下载它们。00–03 这四支先做成无声片，声音是后来配上的。社区里的同类作品和我们的拆解在 [`cases/`](cases/README.md)；你用本仓库做出的片子，也欢迎 PR 进 `showcase/`。
 
+## 为什么做这个
+
+让 AI 做一段会动的画面，现在已经不稀奇。难的是把它做成一支能发出去的片子。
+
+这支片子想说什么，和同题的几百支有什么不一样。这行字够不够时间读完，屏幕上的数字是不是真的。配音、配乐、音效谁来做，画面怎么卡上它们。改一处会不会牵动全片。做到第十支，还是不是这个水准。这些事模型不管，渲染引擎也不管。
+
+OpenVideoHarness 管的就是这些：一套从立意到成片的流程，一批能量就量的检查，一个把整个过程摆出来的 Studio 窗口，都写成 agent 能照着做的样子。几条底线不让步，其余都是默认，好点子可以反着来。
+
+它是从真片子里长出来的。哪支片子出了问题，教训就变成一篇文档或一项检查，下一支片子从这里接着做。
+
 ## 它怎么工作
 
-片子就是代码。agent 写一个页面（或一段 Manim 场景、一个 Blender 脚本），里面每一帧都是时间 t 的函数；浏览器（或 Manim、Blender）逐帧画出来，FFmpeg 再接上音轨。
+一支片子在这里是一份源码。agent 写一个页面（或一段 Manim 场景、一个 Blender 脚本），里面每一帧都是时间 t 的函数；真实影像、生成的图、3D 模型和声音按一张剪辑表排进来；浏览器（或 Manim、Blender）逐帧画出来，FFmpeg 再接上音轨。
 
 <p align="center"><img src="docs/assets/overview.zh.svg" width="720" alt="一句话需求经过判断类型、人工拍板的关卡、声音先行的代码渲染和自查，变成成片；右侧是仓库提供的东西"></p>
 
@@ -438,6 +446,8 @@ bash install.sh --no-icon                        # 不把 OVH Studio 放进应�
 | [HyperFrames](https://github.com/heygen-com/hyperframes)、[Remotion](https://github.com/remotion-dev/skills) 的官方 skills | 单个引擎的用法 | 在引擎之上：选引擎、定流程、定审美、做自查 |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | 全套 agent 视频制作系统 | 更轻：主要是 markdown、模板和一个命令行，任何 coding agent 都读得懂、改得动 |
 | [归藏 product-video skill](https://github.com/op7418/guizang-product-video-skill) | 专做软件产品更新片 | 覆盖更多类型，有人工拍板的关卡、风格库和中英双语声音 |
+| [OpenMotion](https://github.com/nexu-io/openmotion) | 参考片模板库加一个时间线编辑器，建在 HyperFrames 上 | 从立意做起，不从模板改；声音和检查都在流程里，引擎不止一个，在 Studio 里直接和 agent 说话 |
+| Claude Motion | Claude 应用里的动效功能：写动画代码，导出 MP4 | 开源，在你自己的电脑上跑，用你已有的 Claude Code 或 Codex；管的是整支片子：立意、声音、长片、检查 |
 
 ## 参与贡献
 

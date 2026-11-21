@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenVideoHarness · A video harness for Claude Code and Codex</title>
-<meta name="description" content="Make videos with Claude Code or Codex. The agent writes and renders the film. Use Studio to comment on a shot, compare revisions and approve the cut. 给 Claude Code 和 Codex 用的视频工作台。说一句需求，agent 写代码出片，你在 Studio 点评和复审。">
+<title>OpenVideoHarness · You direct. AI makes the film.</title>
+<meta name="description" content="An open-source workbench for making videos with AI. Say one sentence, and a coding agent such as Claude Code or Codex makes the whole film, with voice and music. You direct in Studio: comment on a shot, compare the cuts, approve. 开源的 AI 视频制作工作台。说一句话，agent 做出带声音的成片；你在 Studio 里当导演。">
 <meta name="theme-color" content="#04050A">
 <link rel="canonical" href="https://zlhad.top/OpenVideoHarness/docs/site/">
 <link rel="alternate" hreflang="en" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en">
 <link rel="alternate" hreflang="zh" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh">
 <meta property="og:type" content="website">
 <meta property="og:title" content="OpenVideoHarness">
-<meta property="og:description" content="Make videos with Claude Code or Codex. Review a shot in Studio and compare the revision with the original.">
+<meta property="og:description" content="Say one sentence, and a coding agent makes the whole film, with voice and music. You direct in Studio.">
 <meta property="og:url" content="https://zlhad.top/OpenVideoHarness/docs/site/">
 <meta property="og:image" content="https://zlhad.top/OpenVideoHarness/docs/site/img/04-intro.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -779,10 +779,10 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   <canvas class="galaxy" id="galaxy" aria-hidden="true"></canvas>
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="wrap">
-    <p class="eyebrow" data-r><span lang="en">A video harness for Claude Code and Codex</span><span lang="zh">给 Claude Code 和 Codex 用的视频工作台</span></p>
+    <p class="eyebrow" data-r><span lang="en">The open-source workbench for making videos with AI</span><span lang="zh">开源的 AI 视频制作工作台</span></p>
     <h1>OpenVideo<br>Harness</h1>
-    <p class="tag split"><span lang="en">Not more tools. <em>Know-how.</em></span><span lang="zh">不缺工具，<em>缺门道。</em></span></p>
-    <p class="lede" data-r><span lang="en">Ask Claude Code or Codex for a film in Studio or the terminal. The agent writes the source, renders the film and checks the result. In Studio you can comment on a shot and compare the revised cut with the original.</span><span lang="zh">在 Studio 或终端说一句想做什么，Claude Code 或 Codex 就能写源码、渲染成片、检查结果。你可以指着镜头点评，再在 Studio 对照修改前后的成片。</span></p>
+    <p class="tag split"><span lang="en">You direct. <em>AI makes the film.</em></span><span lang="zh">你当导演，<em>AI 做片。</em></span></p>
+    <p class="lede" data-r><span lang="en">Say what you want in one sentence. A coding agent such as Claude Code or Codex takes it from the idea and the storyboard through voice and music to a finished film with sound. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.</span><span lang="zh">说一句想做什么，Claude Code、Codex 这样的 agent 从立意、分镜、配音配乐一路做到带声音的成片。每一步都摆在 Studio 里：指着镜头说一句，它去改，改完两版对照着看。</span></p>
     <div class="cta" data-r>
       <a class="btn" href="#start"><span lang="en">Get started</span><span lang="zh">开始使用</span> <span class="arrow">→</span></a>
       <a class="btn ghost" href="#studio"><span lang="en">See Studio in 17 s</span><span lang="zh">17 秒看 Studio</span></a>
@@ -893,8 +893,8 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <div class="why-copy">
       <p class="eyebrow" data-r><b>03</b><span lang="en">Why it exists</span><span lang="zh">为什么做它</span></p>
       <h2 class="split"><span lang="en">One great film is easy. <em>Every time is hard.</em></span><span lang="zh">做出一支好片不难，<em>每次都好才难。</em></span></h2>
-      <p data-r><span lang="en">Claude Opus 5.5 writes video as code, and it has <strong>taste</strong>: in motion, in type, in pacing. The community has shared hundreds of these films; one collection alone holds 389, with their prompts.</span><span lang="zh">Claude Opus 5.5 能用代码写视频，而且有<strong>审美</strong>：运动、字体、节奏都在线。社区里已经有几百支这样的片子，光一个合集就收了 389 支，连同提示词。</span></p>
-      <p data-r><span lang="en">But the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong>, <strong>Manim</strong> and <strong>Blender</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">可同一个模型，这次惊艳，下次就节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Manim</strong>、<strong>Blender</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
+      <p data-r><span lang="en">Getting an AI to make a few seconds of motion is no longer remarkable. The hard part is <strong>turning that into a film you would publish</strong>: what it says, whether its text can be read in time, whether its numbers are true, who makes the sound.</span><span lang="zh">让 AI 做一段会动的画面，现在已经不稀奇。难的是<strong>把它做成一支能发出去的片子</strong>：想说什么，字来不来得及读，数字是不是真的，声音谁来做。</span></p>
+      <p data-r><span lang="en">And the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong>, <strong>Manim</strong> and <strong>Blender</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">而且同一个模型，这次惊艳，下次就可能节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Manim</strong>、<strong>Blender</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
       <p data-r><span lang="en">OpenVideoHarness is the missing layer: <strong>the process and the checks, from idea to final cut</strong>, written as docs an agent follows. It stays light on purpose: a few hard floors, and defaults that a good idea can overrule.</span><span lang="zh">OpenVideoHarness 补的就是这一层：<strong>从立意到成片的流程和检查</strong>，写成 agent 能照着做的文档。它故意写得很轻：几条底线不让步，其余都是默认，好点子可以反着来。</span></p>
     </div>
     <div class="stack" data-aria-en="Where OpenVideoHarness sits" data-aria-zh="OpenVideoHarness 在哪一层">
@@ -917,7 +917,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 <section class="slide" id="features" data-en="Features" data-zh="特性">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>04</b><span lang="en">What it adds</span><span lang="zh">它补上了什么</span></p><h2 class="split"><span lang="en">An engine renders. <em>This decides.</em></span><span lang="zh">引擎只管渲染，<em>这里拿主意。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>04</b><span lang="en">What it adds</span><span lang="zh">它补上了什么</span></p><h2 class="split"><span lang="en">From one sentence to a film, <em>every step looked after.</em></span><span lang="zh">一句话到成片，<em>每一步都有着落。</em></span></h2></div>
     </div>
     <div class="features" id="cards">
       <article class="card" data-r><div class="ill ill-idea" aria-hidden="true"><i></i><i></i><i></i></div><span class="n">01</span><h3><span lang="en">Idea first</span><span lang="zh">先想立意</span></h3><p><span lang="en">Two or three concept cards, each with one frame and a hook, before a line of code. It names what every other video on the topic looks like, and steers away.</span><span lang="zh">写代码之前，先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</span></p><span class="where">playbook/12-ideation.md</span></article>
@@ -1317,7 +1317,7 @@ let lang = root.dataset.lang === 'zh' ? 'zh' : 'en';
 /* ---------- the words the script writes, in both languages ---------- */
 const T = {
   en: {
-    title: 'OpenVideoHarness · A video harness for Claude Code and Codex',
+    title: 'OpenVideoHarness · You direct. AI makes the film.',
     frame: (t, f) => `t = ${t} s · frame ${f}`,
     terms: n => `${n} sine wave${n === 1 ? '' : 's'}`,
     gibbs: 'overshoot ≈ 9% of the jump, for any N',
@@ -1330,7 +1330,7 @@ const T = {
     lib: name => `${name}: its contact sheet`,
   },
   zh: {
-    title: 'OpenVideoHarness · 给 Claude Code 和 Codex 用的视频工作台',
+    title: 'OpenVideoHarness · 你当导演，AI 做片',
     frame: (t, f) => `t = ${t} 秒 · 第 ${f} 帧`,
     terms: n => `${n} 个正弦波`,
     gibbs: '过冲约为跳变的 9%，N 再大也不消失',

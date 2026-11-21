@@ -2,17 +2,23 @@
 
 # OpenVideoHarness
 
-### Making one good film is easy. Making a good one every time is the hard part.
+### You direct. AI makes the film.
 
-A video workbench for Claude Code and Codex. Ask for a film in Studio or the terminal. The agent writes the source, renders the film and checks the result. In Studio you can make creative decisions, comment on a shot and compare the revision with the original.
+An open-source workbench for making videos with AI. Say what you want in one sentence, and a coding agent such as Claude Code or Codex takes it from the idea and the storyboard through voice and music to a finished film with sound. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.
 
 **[Quick start](#quick-start)** · [Studio demo, 17 s with sound](https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#studio) · [Showcase films](#the-5-showcase-films-with-sound)
 
 **English** · [中文](README.zh-CN.md) · [Website](https://zlhad.top/OpenVideoHarness/docs/site/?lang=en) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
+![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex%20%7C%20DeepSeek%20Harness-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
+
+<a href="#what-it-makes"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="Moments from twelve finished films, all moving: a black hole's jet, mirror-image molecules, a brake disc in thermal false colour, ink wash, shadow puppets, a city built from data"></a>
+
+<sub>All made with it. A dozen films in a month, about 100 minutes in all; the longest runs 33 minutes in 4K.</sub>
+
+**11 video types · 43 styles · 5 engines · voice, music, sound effects and captions included · runs on your own computer · MIT**
 
 </div>
 
@@ -24,10 +30,12 @@ You need macOS or Linux, Git, Node.js 22+, Chrome, FFmpeg, Python 3 with [uv](ht
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
-Choose where to start your film.
+Choose where to start your film. Use whichever suits you: a film started anywhere shows up in Studio.
 
 - **Studio.** Open **OVH Studio** from Applications, or run `bin/vh studio` from the install folder. Select Claude Code or Codex in the agent column and choose **Set it up** if the adapter is missing. Send your request there.
 - **Terminal.** In the default install folder, run `cd ~/OpenVideoHarness && codex` or `cd ~/OpenVideoHarness && claude`, then send your request.
+- **The Claude Code or Codex desktop app.** Open the install folder (`~/OpenVideoHarness` by default) as the project and send your request.
+- **From any other folder.** The installer registers a skill named `open-video-harness` with Claude Code and with Codex. So whichever project is open, ask for a video and the agent finds the workbench and follows it. Films go under the workbench's `projects/` unless you name another place. To install the skill alone, see [install options](#install-options-and-updates).
 
 For a first run, try this silent sample.
 
@@ -37,48 +45,40 @@ The agent keeps the source and exports together in the film's project folder. Wi
 
 [Step-by-step guide](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) · [Install options and updates](#install-options-and-updates)
 
-## Why this exists
+<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.en.webp" width="960" alt="The OVH Studio window on a film's cut stop: the galaxy picture in the middle, under it a timeline with thumbnails and seconds 5 to 8 selected; on the right a card waiting for your decision and two notes written on shots, with the Send to agent button below"></a></p>
 
-Coding agents can already write a video. Give one a sentence and what comes back can startle you: real motion, real type, real rhythm. There are hundreds of films like that out there now.
-
-Ask again, and the same model loses the pacing, makes everything glow and invents a number. That isn't a rendering problem. HyperFrames, Manim and Blender turn code into pictures. None of them decides what the film is about, whether a line of text stays up long enough to read, or whether the number on screen is true.
-
-**What's missing isn't tools. It's craft.**
-
-This repo is that craft, written down where an agent can use it: how to find an idea that isn't the first one everybody has, why the sound comes before the picture, how to check a film you can't watch. A few rules never bend, and everything else is a default that a good idea can overrule.
-
-It grew out of real films. Each time one went wrong, the lesson became a doc or a check, and the next film started from there.
+<p align="center"><sub>Making a film in Studio. Along the top, where the film has got to. Point at a few seconds of the timeline, or at a shot, and write a note. On the right, what waits for your decision; hand it all to the agent together. The film on screen is this repo's own intro film.</sub></p>
 
 ## What makes it different
 
 <table>
 <tr>
-<td width="44%" valign="top"><a href="#studio"><img src="docs/assets/studio/theme-prism.en.webp" width="100%" alt="Studio's cut stop in the Prism theme: the picture, a timeline with thumbnails, and on the right the two things this round needs you to decide"></a><br><sub>Studio's cut stop, in the Prism theme.</sub></td>
+<td width="44%" valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play and turn the sound on: each harmonic sounds its own note.</sub></td>
+<td valign="top"><b>One sentence in, a finished film with sound out.</b><br>Voice, music, sound effects and captions are part of the process, so there is nothing to stitch on afterwards. The narration or the music goes down first, every word and beat gets a time, and the picture hangs on those times. The score can be written as code or be a track of your own, and sound effects land on the frame where things happen.</td>
+</tr>
+<tr>
+<td valign="top"><a href="#studio"><img src="docs/assets/studio/theme-prism.en.webp" width="100%" alt="Studio's cut stop in the Prism theme: the picture, a timeline with thumbnails, and on the right the two things this round needs you to decide"></a><br><sub>Studio's cut stop, in the Prism theme.</sub></td>
 <td valign="top"><b>The whole process, in one window.</b><br>On top of the skills and the command line, we built Studio, a visual window that makes the whole production easier to keep in hand: where each film has got to and who it waits for, at a glance; in review, point at a second and write a line, then hand a few of them to the agent together; what you decide is a few cards, a click each.</td>
 </tr>
 <tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="A stock chart drawn as an ink-wash mountain range"><br><sub>A stock chart that is also a mountain range.</sub></td>
-<td valign="top"><b>It has an idea before it has code.</b><br>Two or three concept cards come first, each with a frame and a hook. It says what every other film on your topic looks like, then goes somewhere else.</td>
-</tr>
-<tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="A sea of films collapsing under the words What's missing?"><br><sub>Said at the first stop: "glass, cosmos, a starry sky… dizzying".</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="A sea of films collapsing under the words What's missing?"><br><sub>Said at the concept stop: "glass, cosmos, a starry sky… dizzying".</sub></td>
 <td valign="top"><b>You direct. It does the work.</b><br>It stops for you at the concept and the first draft; when the film is long, heavy to render or costs money, at the storyboard too. Want to decide the hook, the voice or the cover as well? Name them. Want none of it? Say "just make it".</td>
 </tr>
 <tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="A flash crossing a detector, with a timer counting microseconds"><br><sub>Time is the only input. This flash is counted in microseconds.</sub></td>
-<td valign="top"><b>Every frame is a function of time.</b><br>So any frame can be drawn alone, in any order, in parallel. A render that stops picks up where it stopped. A few seconds of a finished 4K film can be redrawn and put back without touching the rest.</td>
-</tr>
-<tr>
-<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="The agent reviewing a contact sheet of its own frames in a terminal"><br><sub>The agent going through its own frames.</sub></td>
-<td valign="top"><b>It can't watch, so it measures everything it can.</b><br>An agent can't see video or hear sound. So it reads contact sheets against a 20-point checklist, measures the sound, and hands the draft to a reviewer with a fresh context, who scores it on 8 points. <code>bin/vh check</code> catches frozen frames, flashes, subtitles too short to read and wrong colour tags, and names a way out of each.</td>
-</tr>
-<tr>
-<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play and turn the sound on: each harmonic sounds its own note.</sub></td>
-<td valign="top"><b>Sound comes first, and it's code too.</b><br>The narration or the music goes down first. Every word and beat gets a time, and the picture hangs on those times. The score is written as code, and sound effects land on the frame where things happen.</td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="A stock chart drawn as an ink-wash mountain range"><br><sub>A stock chart that is also a mountain range.</sub></td>
+<td valign="top"><b>It settles what to say before it starts making.</b><br>Two or three concept cards come first, each with a frame and a hook. It says what every other film on your topic looks like, then goes somewhere else.</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-24.gif" width="100%" alt="A neon arcade with a chat bubble and a glowing sign"><br><sub>A generated plate, with code on top, both on record.</sub></td>
-<td valign="top"><b>Real material, on the record.</b><br>Archive footage, generated pictures, recorded sound: one ledger keeps where each file came from, its licence and what it cost. No budget, no paid call.</td>
+<td valign="top"><b>Any material can go into the cut.</b><br>Pictures drawn in code, archive footage, generated images, 3D models, recorded sound, and your own photos and recordings (those two still experimental) can share one film. One ledger keeps where each file came from, its licence and what it cost. No budget, no paid call.</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="A flash crossing a detector, with a timer counting microseconds"><br><sub>Time is the only input. This flash is counted in microseconds.</sub></td>
+<td valign="top"><b>A finished film can still be changed.</b><br>The film is source, and every frame depends on time alone. A few seconds of a finished 4K film can be redrawn and put back without touching the rest. A render that stops picks up where it stopped. Every render is kept as a version, so the cut before and the cut after can be watched side by side.</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="The agent reviewing a contact sheet of its own frames in a terminal"><br><sub>The agent going through its own frames.</sub></td>
+<td valign="top"><b>It checks its own work before you see it.</b><br>An agent can't see video or hear sound, so it measures everything it can. It reads contact sheets against a 20-point checklist, measures the sound, and hands the draft to a reviewer with a fresh context, who scores it on 8 points. <code>bin/vh check</code> catches frozen frames, flashes, subtitles too short to read and wrong colour tags, and names a way out of each.</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-19.gif" width="100%" alt="A glowing gold map of rivers and points of light"><br><sub>From a film of 33 minutes.</sub></td>
@@ -115,7 +115,7 @@ On top of the skills and the command line, we built Studio, a visual window that
 
 The right-hand column also talks straight to the agents on this machine (Claude Code, Codex, and DeepSeek Harness). Select a shot before you speak and it knows what you mean; what it read, what it ran and what it asks you to allow are laid out one by one. On the space, the same column starts a new film: write what you want and send it, and the conversation moves into the film as soon as the agent has made it. Before you first talk to an agent there, it needs an adapter: press “Set it up” in the column, and Studio installs it.
 
-In the Codex column, **Choose model and effort** opens an empty chat and loads the model list before you send your request. Pick GPT‑6.2 Sol for routine production or GPT‑6.2 Astra for a difficult sequence when your account offers them. In the terminal, run `codex -m gpt-6.2-sol` from this checkout, or choose a model with `/model`. [Codex model availability](https://learn.chatgpt.com/docs/whats-new/gpt-62-astra-sol)
+Which model to use and how hard it thinks are picked in the column, and Studio remembers your last choice. In the Codex column, **Choose model and effort** opens an empty chat and reads out the models your account offers before you send your request.
 
 Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` to open the same window. The `studio` level uses Studio for reviews by default. When Studio shows the agent is waiting, submission wakes it. Otherwise, return to the chat after submitting and say “I've sent it”. The `standard` level uses Studio while Studio is open, and a review page otherwise. You can also ask for either. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. [Open Studio](#open-studio) · [Studio file reference](tools/desk/README.md)
 
@@ -135,8 +135,6 @@ If the icon isn't there, `bin/vh studio --install-icon` adds it. Without OVH Stu
 ## What it makes
 
 Moments from a dozen films the author made with it in about a month, about 100 minutes in all. Physics, chemistry, engineering, money, folklore, literature, essays: each in a world of its own. They're in Chinese, and silent here.
-
-[Watch the animated montage (GIF)](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif)
 
 <table>
 <tr>
@@ -209,9 +207,19 @@ Press play and turn the sound on (players start muted). Each has a folder in [`s
 
 The films live in the [`media` release](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media), outside git, so a clone doesn't download them. Films 00–03 were finished silent and their sound was fitted afterwards. Community films in the same vein, and how they were made, are in [`cases/`](cases/README.md); films you make with this repo are welcome in `showcase/`.
 
+## Why this exists
+
+Getting an AI to make a few seconds of motion is no longer remarkable. Turning that into a film you would publish is the hard part.
+
+What is this film saying, and how is it different from the hundreds on the same topic? Does this line stay up long enough to read, and is the number on screen true? Who makes the voice, the music and the sound effects, and how does the picture land on them? Does changing one thing disturb the rest? Is the tenth film as good as the first? The model doesn't look after any of that, and neither does the renderer.
+
+OpenVideoHarness does: a process from the idea to the finished film, checks for everything that can be measured, and Studio, a window that lays the whole production out, all written so that an agent can follow it. A few rules never bend, and everything else is a default that a good idea can overrule.
+
+It grew out of real films. Each time one went wrong, the lesson became a doc or a check, and the next film started from there.
+
 ## How it works
 
-The film is code. The agent writes a page (or a Manim scene, or a Blender script) in which every frame is a function of its time t; a browser (or Manim, or Blender) draws each frame, and FFmpeg joins them with the soundtrack.
+Here a film is source. The agent writes a page (or a Manim scene, or a Blender script) in which every frame is a function of its time t; real footage, generated images, 3D models and sound are laid in by an edit list; a browser (or Manim, or Blender) draws each frame, and FFmpeg joins them with the soundtrack.
 
 <p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="A one-line request goes through type routing, the human sign-offs, sound-first code rendering and self-review to a finished film; beside it, what the repo provides"></p>
 
@@ -440,6 +448,8 @@ Most of the workflow docs are in Chinese; the READMEs, the wiki and the research
 | The official [HyperFrames](https://github.com/heygen-com/hyperframes) and [Remotion](https://github.com/remotion-dev/skills) skills | How to use one engine | Sits above the engines: choosing one, the process, the look, the checks |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | A full agent video production system | Lighter: mostly markdown, templates and one CLI that any coding agent can read and change |
 | [Guizang's product-video skill](https://github.com/op7418/guizang-product-video-skill) | Release films for software products | More types, human sign-offs, a style library, sound in Chinese and English |
+| [OpenMotion](https://github.com/nexu-io/openmotion) | A library of reference-film templates with a timeline editor, built on HyperFrames | Starts from an idea, not from a template; sound and checks are part of the process, there is more than one engine, and you talk to the agent inside Studio |
+| Claude Motion | The motion feature in the Claude apps: it writes animation code and exports an MP4 | Open source, runs on your own computer with the Claude Code or Codex you already have; it looks after the whole film: the idea, the sound, long films, the checks |
 
 ## Contributing
 
