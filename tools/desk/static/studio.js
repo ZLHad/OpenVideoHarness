@@ -54,7 +54,8 @@ function setLang(l) {
   $$("#themes [data-theme-set]").forEach((b) => { b.textContent = t("th_" + b.dataset.themeSet); });
 }
 function pickLang(fallback) {
-  let pick = null; try { pick = localStorage.getItem("desk:lang"); } catch (e) { /* no storage */ }
+  let pick = (document.querySelector('meta[name="desk-lang"]') || {}).content || null;   // as this machine keeps it (the settings page), else this browser's
+  if (pick !== "zh" && pick !== "en") try { pick = localStorage.getItem("desk:lang"); } catch (e) { /* no storage */ }
   return pick === "zh" || pick === "en" ? pick : fallback || (/^zh/i.test(navigator.language || "zh") ? "zh" : "en");
 }
 
@@ -104,7 +105,7 @@ function waitsIn(mod) { const f = FLOW.find((x) => x.mod === mod); return !!f &&
 function renderRail() {   // the space and a new film; a film's modules only while a film is open (on the space they would point at nothing, or at the last film)
   const proj = !!D;
   const item = (m) => {
-    if (m === "space") return `<a class="mod" href="#/" aria-current="${!proj ? "page" : "false"}">${svg("space")}<span>${esc(t("m_space"))}</span></a>`;
+    if (m === "space") return `<a class="mod" href="#/" aria-current="${parse().view === "home" ? "page" : "false"}">${svg("space")}<span>${esc(t("m_space"))}</span></a>`;
     const dot = waitsIn(m) ? '<i class="dot" aria-hidden="true"></i>' : "";
     return `<a class="mod" href="${projHash(PKEY, m)}" aria-current="${MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`;
   };

@@ -18,6 +18,7 @@
 .st-lead{color:var(--ink-2);font-size:var(--fs-small);margin:0 0 10px;max-width:36em}
 .st-foot{padding-top:12px;border-top:1px solid var(--rule)}
 .st-h{margin:24px 0 2px;font:500 var(--fs-small)/1.4 var(--sans);color:var(--ink-hi)}
+.st-paths li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
 .st-list,.st-paths{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:4px}
 .st-seg{display:inline-flex;flex-wrap:wrap;gap:6px}
 .st-seg button{min-height:32px;padding:0 14px;border:1px solid var(--rule-2);border-radius:var(--r-ctl);background:transparent;color:var(--ink-2);cursor:pointer;font-size:var(--fs-small)}

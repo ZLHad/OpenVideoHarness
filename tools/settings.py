@@ -172,8 +172,8 @@ def show(d, as_json=False):
         return
     print(f"this machine's settings: {path()}" + ("" if path().exists() else " (not written yet: the defaults)"))
     said = {"cn": "the mainland-China mirrors, for every download (tools/mirrors.txt)",
-            "off": "the official sources; install.sh does not try the mirrors",
-            "auto": "the official sources; install.sh switches to the mirrors when the official npm registry does not answer"}[m]
+            "off": "the official sources; the installer does not try the mirrors",
+            "auto": "the official sources; the installer switches to the mirrors when the official npm registry does not answer"}[m]
     print(f"  mirror  {m}: {said}" + (f" · {d['mirror_why']}" if d.get("mirror_why") else "")
           + (f" ({d['mirror_at']})" if d.get("mirror_at") else ""))
     print("  bin/vh settings mirror cn|off|auto changes it")
@@ -199,7 +199,7 @@ def main(argv):
             print(f"✓ downloads now come from the mainland-China mirrors ({operators()}; tools/mirrors.txt), kept in {path()};"
                   " bin/vh settings mirror off turns that off")
         else:
-            print(f"✓ downloads come from the official sources{'' if argv[1] == 'auto' else ', and install.sh does not try the mirrors'} (kept in {path()})")
+            print(f"✓ downloads come from the official sources{'' if argv[1] == 'auto' else ', and the installer does not try the mirrors'} (kept in {path()})")
         return 0
     print(f"bin/vh settings: unknown {' '.join(argv)} (bin/vh settings -h)", file=sys.stderr)
     return 2

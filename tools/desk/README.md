@@ -135,7 +135,7 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 | `GET /api/p/<键>/agent/<id>/events?token=…[&after=N]` | 这个对话的事件，SSE：先一个 `hello`（会话的状态、设置、agent 报的能力），然后 `after`（或 `Last-Event-ID`）之后的每一件，再来的边到边推；每 5 秒一行注释保活。要页面的令牌 |
 | `POST /api/p/<键>/agent/new` | `{kind, personal, model, effort}`：开一个新对话，起好 agent，带着它的设置回来；`model`、`effort` 是人在开新对话的框里挑的（可以不带），agent 报了这个值才设、并记成这一家下次的起点，没报就不管；没装 424，起不来 503。`GET …/agents` 每一家的 `choices` 是新对话会用什么开始：`{model, effort: {value, name, from}, offered}`，`from` 是 picked（你挑过的）、default（Studio 的默认）、dsh（桌面版的推理档）、agent（它自己的），`offered` 是这次运行里它报过的选项（没见过是 null） |
 | `GET /api/machine` | `{lacks: [{what, state}], platform}`：这台电脑还缺什么（`bin/vh doctor --json` 读出的 FFmpeg、Node、uv、git 没有或太旧，没有画网页用的浏览器，一家 agent 适配器都没装），空间页照它出那一块；不要令牌。什么都不缺时这次运行一直记着；缺东西时，隔一分钟以上再问会重新看一次（人可能已经装上了）；doctor 没说清楚时不记，回 `error` |
-| `GET /api/settings`、`POST /api/settings {name, value}` | 设置页（`settings_api.py`）：要令牌。GET 回 `{version: 1, file, studio, mirror, agents, local, about}`：Studio 自己的三项（`studio_lang`、`studio_theme`、`agent_default`，没设是 `null`）、下载镜像、每种 agent 装没装和新对话从什么模型和思考深度开始（`choices`，同对话列）、LOCAL.md 里人和 agent 都读的那几行（只读，模板的 `{…}` 和注释不算值）、版本。POST 只认这几个名字：`studio_lang`、`studio_theme`、`agent_default`（`null` 回到 Studio 的默认）、`mirror`（`cn`、`off`、`auto`）、`model:<kind>`、`effort:<kind>`（只认这次运行里这种 agent 在对话里给过的值，记进 `picks.json`）；别的名字、值、没有令牌、别的来源一律拒绝，什么都不改。写都经 `tools/settings.py`，从不直接写文件，也不写 LOCAL.md。 |
+| `GET /api/settings`、`POST /api/settings {name, value}` | 设置页（`settings_api.py`）：要令牌。GET 回 `{version: 1, file, studio, mirror, agents, roots, local, about}`：Studio 自己的三项（`studio_lang`、`studio_theme`、`agent_default`，没设是 `null`）、下载镜像、每种 agent 装没装和新对话从什么模型和思考深度开始（`choices`，同对话列）、LOCAL.md 里人和 agent 都读的那几行（只读，模板的 `{…}` 和注释不算值）、版本。POST 只认这几个名字：`studio_lang`、`studio_theme`、`agent_default`（`null` 回到 Studio 的默认；没装好的 agent 不收）、`mirror`（`cn`、`off`、`auto`）、`model:<kind>`、`effort:<kind>`（只认这次运行里这种 agent 在对话里给过的值，记进 `picks.json`，没写进去就报错）、`reveal`（值是 GET 列出的片子文件夹之一：在系统的文件浏览器里打开它，`$OVH_REVEAL` 可以换成别的命令，一分钟至多二十次）；别的名字、值、没有令牌、别的来源一律拒绝，什么都不改。写都经 `tools/settings.py`，从不直接写文件，也不写 LOCAL.md。 |
 | `POST /api/p/<键>/agent/install` | `{kind}`：人点了「装上」：控制台在后台运行 `bin/vh desk agents install <kind>`，回 `{installing: {state, since, took, said}}`（`state`：running、done、no_npm、timeout、cancelled、busy、failed；`limit` 是时限秒数；`said` 是它最后三行话，家目录写成 `~`，页面不显示）；`{kind, cancel: true}` 停下正在装的那一次；在装时再点是同一次；`kind` 不是三家之一（包括不是字符串）回 400；`GET …/agents` 的每一家带着同样的 `installing`，页面照它跟到装完 |
 | `GET /api/space/agents`、`GET /api/space/agent/<id>/events`、`POST /api/space/agent/new · install · <id>/say · answer · stop · mode · config` | 空间那一列：和片子里的同名地址一样（要令牌、同源、页面带着空间文件夹的 `pid`），对话是从空间开、还没建片子的那些；`new` 开的对话 agent 在工作台里干活；`events`、`stop` 等也找得到从这里开、已经建好片子的对话。片子建好时事件流里来一条 `{type: notice, code: placed, key, name}`（锁被别人拿着时是 `place_busy`）。`GET /api/space/agents?sid=<id>` 在那段对话已经建好片子时多一个 `went: {id, key}` |
 | `GET /api/p/<键>/agents` 的 `strays`、`POST /api/p/<键>/agent/<id>/bring` | 一支对话列还空着的新片子：可能是它的、从空间开的对话（跑过 `bin/vh new`、没找到自己的片子、这支片子是它开始以后才有的）；人点"把它带到这里"，那段对话就成了这支片子的（不在 `strays` 里的 409） |
@@ -152,12 +152,13 @@ bin/vh desk agents install <claude|codex|dsh>  # 装那一家的 ACP 适配器�
 
 左栏最下面一个"设置"，或者 ⌘,（Linux 上 Ctrl+,；Studio 自己的窗口里，菜单的"设置…"也是它）。一整页：左边分节（通用、agent、片子的默认、这台电脑、关于；账号的那一节先空着，不显示），一次看一节，右边的对话列照常在；"返回"和 Esc 回到打开它之前的那一页。
 
-- **存在哪**：能在这一页改的都记在这台电脑自己的设置文件里（`$XDG_CONFIG_HOME/ovh/settings.json`，只经 `tools/settings.py` 读写），换一个端口、开第二个窗口、在终端里都是同一份。语言和外观另在浏览器里留一份，开屏就用它；页面一连上就以设置文件为准，设置文件还没有、浏览器里有的，记进去。顶栏的语言和"主题"两个按钮照旧，改的是同一份。
-- **通用**：语言、外观（三个主题的小样）、片子放在哪（这个 Studio 找片子的文件夹；换地方不在页面上改：页面说让 agent 改、改完重开 Studio，因为 Studio 起来时就按这些文件夹定了自己是哪一个）。
-- **agent**：新对话默认用哪一种（只列装好的；对话列在没有别的记录时从它开始）；每种装好的 agent 的模型和思考深度：开过一次对话、agent 给过选项以后才能选（记进 `picks.json`，和对话列里选的是同一份），之前只写现在从什么开始。模式和"不带个人设置"按对话，留在对话里。
-- **片子的默认**：下载镜像（自动、国内镜像、官方源，同 `bin/vh settings mirror`）可以改；LOCAL.md 里人和 agent 都读的几行（默认努力程度、在哪看每一站、素材许可、声音库、谁拍板哪些事、帮手 agent 用的模型、默认预算）只显示，没写的写出没写时按什么，末尾一句"让 agent 帮你改"。这一页从不写 LOCAL.md。
+- **存在哪**：能在这一页改的都记在这台电脑自己的设置文件里（`$XDG_CONFIG_HOME/ovh/settings.json`，只经 `tools/settings.py` 读写），换一个端口、开第二个窗口、在终端里都是同一份。控制台把语言和外观写进它发出的页面，开屏就是它们；浏览器另留一份，设置文件还没有、浏览器里有的，记进去。页面上的选中照设置文件画，点哪个都写一次。顶栏的语言和"主题"两个按钮照旧，改的是同一份。
+- **右边那一列**：设置页里是空间的对话（从片子里打开也一样），上面一行说明这一点，免得把它当成片子的对话。没有这一次运行的令牌时，这一页什么都不显示，只说要在 Studio 的窗口里打开，带一个打开的按钮。
+- **通用**：语言、外观（三个主题的小样）、片子放在哪（这个 Studio 找片子的、真有的文件夹，家目录写成 `~`，每个后面"在访达里打开"（Linux："打开文件夹"），服务端只开这几个文件夹之一；换地方不在页面上改：页面说让 agent 改、改完重开 Studio，因为 Studio 起来时就按这些文件夹定了自己是哪一个）。
+- **agent**：新对话默认用哪一种（只列装好的、只认装好的；对话列里每点一次"新对话"、空间里每开一支新片，都从它开始；一个地方上次用的是哪种，只决定打开时显示哪段已有的对话）；每种装好的 agent 的模型和思考深度：开过一次对话、agent 给过选项以后才能选（记进 `picks.json`，和对话列里选的是同一份），之前只写现在从什么开始。模式和"不带个人设置"按对话，留在对话里。
+- **片子的默认**：下载镜像（自动、国内镜像、官方源，同 `bin/vh settings mirror`）可以改，页面写明 Studio 这一次运行里自己发起的下载要重开 Studio 才跟着变；LOCAL.md 里人和 agent 都读的几行（只认模板那样的列表项，值后面括号里的说明不算）（默认努力程度、在哪看每一站、素材许可、声音库、谁拍板哪些事、帮手 agent 用的模型、默认预算）只显示，没写的写出没写时按什么，末尾一句"让 agent 帮你改"。这一页从不写 LOCAL.md。
 - **这台电脑**：同空间页的"这台电脑上还缺"（`/api/machine`），什么都不缺时一句"做片子要的都有了"；空间页那一块多一个"去设置里看"。
-- **关于**：版本、工作台在哪、更新记录。
+- **关于**：版本（这份克隆所在的那一版，之后还有提交就加上提交号）、工作台在哪、这一版在 GitHub 上的发布说明。
 
 ## 读什么
 

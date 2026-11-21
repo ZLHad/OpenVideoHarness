@@ -205,7 +205,7 @@ const AGENT = (() => {
       if (typeof spacePlaced === "function") spacePlaced(INFO.went.key);
     }
     const saved = store_.get(`desk:agent:${KEYP}`) || {};
-    KIND = KIND || saved.kind || (kinds().find((a) => a.installed && a.kind === INFO.default) || kinds().find((a) => a.installed) || kinds()[0] || {}).kind || "claude";   // INFO.default: the settings page's 新对话默认用
+    KIND = KIND || saved.kind || defaultKind();   // this place's last agent decides which conversation shows; a new one starts with the default
     return true;
   }
   let INSTWATCH = 0;
@@ -274,6 +274,10 @@ const AGENT = (() => {
     } else ERR = { code: (r.data && r.data.error) || "no_start", detail: r.data && (r.data.detail || r.data.error) };
     render();
     return S;
+  }
+  function defaultKind(info) {   // a new conversation's agent: the settings page's 新对话默认用 when it is set up, else the first set up
+    const ks = ((info || INFO || {}).agents) || [], d = (info || INFO || {}).default;
+    return (ks.find((a) => a.installed && a.kind === d) || ks.find((a) => a.installed) || ks[0] || {}).kind || "claude";
   }
   async function pickKind(kind) {
     KIND = kind; NEWBOX = false; ERR = null; NEWASK = {}; close();
@@ -499,7 +503,7 @@ const AGENT = (() => {
     if (part("agTop", top)) {
       DRAWN.agState = null;
       $("#agKind").addEventListener("change", (e) => pickKind(e.target.value));
-      $("#agNew").addEventListener("click", async () => { if (KEYP === SPACE) return fresh(); NEWBOX = true; NEWASK = {}; await load(); render(); const b = $("#agNewGo"); if (b) b.focus(); });   // (load: the agent's list as this run last saw it)
+      $("#agNew").addEventListener("click", async () => { if (KEYP === SPACE) return fresh(); NEWBOX = true; NEWASK = {}; await load(); KIND = defaultKind(); render(); const b = $("#agNewGo"); if (b) b.focus(); });   // (load: the agent's list as this run last saw it)
       $$("#agTop [data-sid]").forEach((b) => b.addEventListener("click", () => back(b.dataset.sid)));
     }
     $("#agOrb").className = "ag-orb " + st.cls;
@@ -786,8 +790,9 @@ const AGENT = (() => {
   }
   async function fresh() {   // the space: a sentence box for another new film (the one open stays in the history, and goes on)
     close(); NEWBOX = false; ERR = null; BUSY = null; NEWASK = {};
+    await load(); KIND = defaultKind();   // a new film's conversation starts with the default agent
     store_.set(`desk:agent:${SPACE}`, { kind: KIND });
-    await load(); render();
+    render();
     const ta = $("#agSay"); if (ta) ta.focus();
   }
 
@@ -848,6 +853,6 @@ const AGENT = (() => {
     },
     _again: (e) => again(e),   // for tools/desk/test_agents.py (node): the busy line's "anyway" after a refused carry-on
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
-    _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
+    _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _defaultKind: defaultKind, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };
 })();

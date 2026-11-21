@@ -1056,6 +1056,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # code in its address for the token (POST /api/claim)
             page = (HERE / "static" / "index.html").read_text(encoding="utf-8").replace("{{TOKEN}}", "") \
                 .replace("{{HOME}}", srv.own_key or "")
+            st = SA.S.studio()   # Studio's look and language as this machine keeps them: the first paint already has them
+            page = page.replace("{{THEME}}", st["studio_theme"] or "").replace("{{LANG}}", st["studio_lang"] or "")
             return self._send(200, page.encode("utf-8"), "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
         if path.startswith("/static/") and path[8:] in STATIC:
             return self._send(200, (HERE / "static" / path[8:]).read_bytes(), STATIC[path[8:]])
