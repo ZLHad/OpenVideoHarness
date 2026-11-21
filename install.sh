@@ -104,7 +104,7 @@ n=$(grep -cE '^(full|sparse|textonly) ' references/fetch.sh || true)   # counted
 if [ "$REFS" = 1 ]; then
   say "fetching $n reference repos (about 300 MB, read-only, git-ignored)"
   references/fetch.sh || echo "! some reference repos were not fetched; bash references/fetch.sh fetches them later"
-else had=$(find references/repos -mindepth 2 -maxdepth 2 -name .git 2>/dev/null | wc -l | tr -d ' ')
+else had=0; [ ! -d references/repos ] || had=$(find references/repos -mindepth 2 -maxdepth 2 -name .git | wc -l | tr -d ' ')
   if [ "${had:-0}" -gt 0 ]; then echo "  the $had reference repos fetched before stay as they are (--refs updates them and fetches the rest)"; fi
 fi
 say "installing the renderer for style samples (HyperFrames, for bin/vh style)"
