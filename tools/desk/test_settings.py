@@ -16,7 +16,8 @@ for d in ("tmp", "home/films", "config", "cache", "data", "agents", "profiles"):
     (T / d).mkdir(parents=True, exist_ok=True)
 FILMS = T / "home" / "films"   # a films folder in the home folder: the page shows it as ~/films
 REVEAL = T / "revealed.log"
-(T / "reveal.sh").write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{REVEAL}'\nenv > '{T / "reveal-env.txt"}'\n")   # (what a child of the console inherits, as the column's install does)
+CHILD_ENV = T / "reveal-env.txt"
+(T / "reveal.sh").write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{REVEAL}'\nenv > '{CHILD_ENV}'\n")   # (what a child of the console inherits, as the column's install does)
 (T / "reveal.sh").chmod(0o755)
 CONF = T / "config" / "ovh" / "settings.json"
 sys.path.insert(0, str(HERE))
