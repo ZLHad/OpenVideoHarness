@@ -368,6 +368,14 @@ def site_problems(have):
         for f in (base / "img" / "styles" / f"{slug}.jpg", ROOT / "styles" / slug / "media" / "swatch.mp4"):
             if not f.is_file() and str(f.relative_to(ROOT)) not in fetched:
                 bad.append(f"{SITE}: the style {slug} has no {f.relative_to(ROOT)}")
+    # the "make one like this" sentence asks for a vertical short in the styles that come vertical too (tags.aspect "both")
+    vert = re.search(r"const STYLE_VERTICAL = new Set\((\[.*?\])\);", html, re.S)
+    want_v = sorted(q.parent.name for q in (ROOT / "styles").glob("*/tokens.json")
+                    if (json.loads(q.read_text(encoding="utf-8")).get("tags") or {}).get("aspect") == "both")
+    if not vert:
+        bad.append(f"{SITE}: no STYLE_VERTICAL list (the styles whose tokens.json says aspect both)")
+    elif sorted(json.loads(vert.group(1))) != want_v:
+        bad.append(f"{SITE}: STYLE_VERTICAL is not the styles whose tokens.json says aspect both: {want_v}")
     # a spec-2 style's tile plays its preview.mp4 (in git) and its lightbox the release asset: RELEASE_SAMPLES names them
     rel = re.search(r"const RELEASE_SAMPLES = \{(.*?)\};", html, re.S)
     named = dict(re.findall(r"'([a-z0-9-]+)': '([^']+)'", rel.group(1))) if rel else {}

@@ -438,6 +438,16 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 .film figcaption b { display: block; font-size: clamp(15px, 1.15vw, 18px); font-weight: 600; }
 .film figcaption q { display: block; font-family: var(--display); font-weight: 500; font-size: clamp(15px, 1.2vw, 19px); line-height: 1.25; color: var(--text-2); margin-top: 2px; letter-spacing: -.01em; }
 .film figcaption small { display: block; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+.say-mini { pointer-events: auto; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .25s, opacity .25s, margin .25s; }
+.film:hover .say-mini, .film:focus-within .say-mini { max-height: 40px; opacity: 1; margin-top: 7px; }
+@media (hover: none) { .say-mini { max-height: none; opacity: 1; margin-top: 7px; } }
+.say-mini [data-copy-text] { display: none; }
+.say-mini .copy.say-btn { position: static; transform: none; font-size: 12px; padding: 4px 10px; border-radius: 999px; color: var(--cyan); background: rgba(8,10,20,.6); }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); max-width: min(720px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 12px; background: rgba(12,14,26,.95); border: 1px solid var(--line); color: var(--text); font-size: 14px; line-height: 1.45; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 60; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.films.sees .say-mini { display: none; }
+.lb-say { flex-basis: 100%; margin-top: 2px; font-size: clamp(15px, 1.15vw, 18px); }
+.lb-cap code.lb-code { display: block; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
 .film .pbtn {
   position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 50%; z-index: 1;
   background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
@@ -521,6 +531,12 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .cmd code { font: inherit; }
 .cmd.say { white-space: normal; font-family: var(--display); font-weight: 500; font-size: clamp(17px, 1.35vw, 22px); line-height: 1.35; letter-spacing: -.01em; background: var(--glass); }
 .start-cli { margin-top: 8px; }
+.ways { list-style: none; display: grid; gap: 6px; margin: 0 0 10px; font-size: 14.5px; line-height: 1.45; color: var(--text-2); }
+.steps .ways li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 10px; }
+.steps .ways li::before { content: none; }
+.ways b { color: var(--text); font-weight: 600; }
+.ways code { font-family: var(--mono); font-size: .92em; color: var(--cyan); }
+@media (max-width: 640px) { .steps .ways li { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 .start-cli summary { color: var(--cyan); cursor: pointer; font-size: 14px; }
 .start-cli .cmd { margin-top: 6px; }
 .steps h3 + .fine, .steps .fine + .cmd { margin-bottom: 6px; }
@@ -853,13 +869,20 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <div>
         <ol class="steps">
           <li data-r><div><h3><span lang="en">Install on macOS or Linux</span><span lang="zh">在 macOS 或 Linux 安装</span></h3><div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</code><button type="button" class="copy" data-aria-en="Copy the install command" data-aria-zh="复制安装命令">Copy</button></div></div></li>
-          <li data-r><div><h3><span lang="en">Open OVH Studio</span><span lang="zh">打开 OVH Studio</span></h3>
-            <p class="fine"><span lang="en">Open the app, choose your signed-in Claude Code or Codex in the agent column, and click <strong>Set it up</strong> if prompted. You can also launch Studio from the default install folder.</span><span lang="zh">打开应用，在右栏选择已登录的 Claude Code 或 Codex。看到适配器提示时点<strong>装上</strong>。也可以从默认安装目录启动 Studio。</span></p>
-            <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; bin/vh studio</code><button type="button" class="copy" data-aria-en="Copy the Studio launch command" data-aria-zh="复制 Studio 启动命令">Copy</button></div>
+          <li data-r><div><h3><span lang="en">Pick a way in</span><span lang="zh">选一个入口</span></h3>
+            <ul class="ways">
+              <li><b><span lang="en">Studio</span><span lang="zh">Studio</span></b><span lang="en">Open <strong>OVH Studio</strong> from your applications, choose your signed-in Claude Code or Codex in the agent column, and click <strong>Set it up</strong> if prompted.</span><span lang="zh">从应用程序打开 <strong>OVH Studio</strong>，在右栏选已登录的 Claude Code 或 Codex，看到适配器提示时点<strong>装上</strong>。</span></li>
+              <li><b><span lang="en">Terminal</span><span lang="zh">终端</span></b><span lang="en">Open Claude Code or Codex in the install folder.</span><span lang="zh">在安装目录里打开 Claude Code 或 Codex。</span></li>
+              <li><b><span lang="en">Desktop app</span><span lang="zh">桌面 App</span></b><span lang="en">In the Claude Code or Codex app, open the install folder (<code>~/OpenVideoHarness</code>) as the project.</span><span lang="zh">在 Claude Code 或 Codex 的桌面 App 里，把安装目录（<code>~/OpenVideoHarness</code>）当作项目打开。</span></li>
+              <li><b><span lang="en">Any folder</span><span lang="zh">别的文件夹</span></b><span lang="en">The installer registers a skill for both agents, so “make a video …” finds the workbench from any project. Only the skill, from inside the agent: the commands below.</span><span lang="zh">安装时给两个 agent 都注册了 skill，在任何项目里说“做一支视频……”都能找到工作台。只装 skill、在 agent 里一条命令：见下面。</span></li>
+            </ul>
+            <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; claude</code><button type="button" class="copy" data-aria-en="Copy the Claude Code command" data-aria-zh="复制 Claude Code 命令">Copy</button></div>
             <details class="start-cli">
-              <summary><span lang="en">Use the terminal</span><span lang="zh">用终端开片</span></summary>
+              <summary><span lang="en">More commands: Studio, Codex, only the skill</span><span lang="zh">更多命令：Studio、Codex、只装 skill</span></summary>
+              <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; bin/vh studio</code><button type="button" class="copy" data-aria-en="Copy the Studio launch command" data-aria-zh="复制 Studio 启动命令">Copy</button></div>
               <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; codex</code><button type="button" class="copy" data-aria-en="Copy the Codex command" data-aria-zh="复制 Codex 命令">Copy</button></div>
-              <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>cd ~/OpenVideoHarness &amp;&amp; claude</code><button type="button" class="copy" data-aria-en="Copy the Claude Code command" data-aria-zh="复制 Claude Code 命令">Copy</button></div>
+              <div class="cmd"><span class="p" aria-hidden="true">&gt; </span><code data-copy-text>/plugin install open-video-harness --marketplace ZLHad/OpenVideoHarness</code><button type="button" class="copy" data-aria-en="Copy the Claude Code plugin command" data-aria-zh="复制 Claude Code 插件命令">Copy</button></div>
+              <div class="cmd"><span class="p" aria-hidden="true">$ </span><code data-copy-text>codex plugin marketplace add ZLHad/OpenVideoHarness &amp;&amp; codex plugin add open-video-harness@open-video-harness</code><button type="button" class="copy" data-aria-en="Copy the Codex plugin command" data-aria-zh="复制 Codex 插件命令">Copy</button></div>
             </details>
           </div></li>
           <li data-r><div><h3><span lang="en">Send a first request</span><span lang="zh">发送第一条需求</span></h3>
@@ -1104,7 +1127,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </video>
         <img class="sheet" data-src="../../showcase/02-short-leo-doppler/media/sheet.png" alt="Contact sheet of the science short">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
-        <figcaption><b><span lang="en">Vertical science short</span><span lang="zh">竖屏科普</span></b><q><span lang="en">Why does a low-orbit satellite's signal change pitch?</span><span lang="zh">为什么低轨卫星的信号会"变调"？</span></q><small><span lang="en">HyperFrames · 24.8 s · 1080×1920 · Chinese voice, two-language subtitles</span><span lang="zh">HyperFrames · 24.8 秒 · 1080×1920 · 中文配音，双语字幕</span></small></figcaption>
+        <figcaption><b><span lang="en">Vertical science short</span><span lang="zh">竖屏科普</span></b><q><span lang="en">Why does a low-orbit satellite's signal change pitch?</span><span lang="zh">为什么低轨卫星的信号会"变调"？</span></q><small><span lang="en">HyperFrames · 24.8 s · 1080×1920 · Chinese voice, two-language subtitles</span><span lang="zh">HyperFrames · 24.8 秒 · 1080×1920 · 中文配音，双语字幕</span></small><div class="say-mini"><span data-copy-text lang="en">Quick draft, the way showcase/02 was made: a 25-second vertical science short on why the sky is blue.</span><span data-copy-text lang="zh">照 showcase/02 的做法，快速出一版 25 秒的竖屏科普，讲为什么天空是蓝的。</span><button type="button" class="copy say-btn" data-toast data-aria-en="Copy a sentence to make one like this" data-aria-zh="复制一句话，照这个做一支"><span lang="en">Make one like this · copy the sentence</span><span lang="zh">照这个做一支 · 复制这句话</span></button></div></figcaption>
       </figure>
       <figure class="film" data-title-en="Math explainer" data-title-zh="数学讲解" data-r style="--sd:.12s">
         <video playsinline muted preload="none" poster="img/03-fourier.jpg">
@@ -1113,7 +1136,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </video>
         <img class="sheet" data-src="../../showcase/03-math-fourier/media/sheet.png" alt="Contact sheet of the math explainer">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
-        <figcaption><b><span lang="en">Math explainer, 3Blue1Brown style</span><span lang="zh">数学讲解，3Blue1Brown 风格</span></b><q><span lang="en">Building a square wave from sine waves</span><span lang="zh">用正弦波搭出方波</span></q><small><span lang="en">Manim · 25 s · English narration</span><span lang="zh">Manim · 25 秒 · 英文旁白</span></small></figcaption>
+        <figcaption><b><span lang="en">Math explainer, 3Blue1Brown style</span><span lang="zh">数学讲解，3Blue1Brown 风格</span></b><q><span lang="en">Building a square wave from sine waves</span><span lang="zh">用正弦波搭出方波</span></q><small><span lang="en">Manim · 25 s · English narration</span><span lang="zh">Manim · 25 秒 · 英文旁白</span></small><div class="say-mini"><span data-copy-text lang="en">Quick draft, the way showcase/03 was made: a 25-second 3Blue1Brown-style explainer on why the odd numbers from 1 always add up to a square.</span><span data-copy-text lang="zh">照 showcase/03 的做法，用 3Blue1Brown 的风格，快速出一版 25 秒的讲解：为什么从 1 开始的连续奇数加起来总是平方数。</span><button type="button" class="copy say-btn" data-toast data-aria-en="Copy a sentence to make one like this" data-aria-zh="复制一句话，照这个做一支"><span lang="en">Make one like this · copy the sentence</span><span lang="zh">照这个做一支 · 复制这句话</span></button></div></figcaption>
       </figure>
       <figure class="film" data-title-en="Hand-drawn short" data-title-zh="手绘短片" data-r style="--sd:.24s">
         <video playsinline muted preload="none" poster="img/01-clawd.jpg">
@@ -1122,7 +1145,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </video>
         <img class="sheet" data-src="../../showcase/01-handdrawn-clawd-leaf/media/sheet.png" alt="Contact sheet of the hand-drawn short">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
-        <figcaption><b><span lang="en">Hand-drawn short</span><span lang="zh">手绘短片</span></b><q><span lang="en">Clawd tries to film a falling autumn leaf</span><span lang="zh">Clawd 想拍下一片飘落的秋叶</span></q><small><span lang="en">p5.brush · 12 s · no words, score and foley</span><span lang="zh">p5.brush · 12 秒 · 无台词，配乐和拟音</span></small></figcaption>
+        <figcaption><b><span lang="en">Hand-drawn short</span><span lang="zh">手绘短片</span></b><q><span lang="en">Clawd tries to film a falling autumn leaf</span><span lang="zh">Clawd 想拍下一片飘落的秋叶</span></q><small><span lang="en">p5.brush · 12 s · no words, score and foley</span><span lang="zh">p5.brush · 12 秒 · 无台词，配乐和拟音</span></small><div class="say-mini"><span data-copy-text lang="en">Quick draft, the way showcase/01 was made: a 12-second hand-drawn short of a cat chasing a paper plane the wind carries off.</span><span data-copy-text lang="zh">照 showcase/01 的做法，快速出一版 12 秒的手绘小短片：一只猫追着一架被风吹走的纸飞机。</span><button type="button" class="copy say-btn" data-toast data-aria-en="Copy a sentence to make one like this" data-aria-zh="复制一句话，照这个做一支"><span lang="en">Make one like this · copy the sentence</span><span lang="zh">照这个做一支 · 复制这句话</span></button></div></figcaption>
       </figure>
       <figure class="film" data-title-en="Launch short" data-title-zh="发布短片" data-r style="--sd:.36s">
         <video playsinline muted preload="none" poster="img/00-launch.jpg">
@@ -1131,7 +1154,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </video>
         <img class="sheet" data-src="../../showcase/00-promo-launch-film/media/sheet.png" alt="Contact sheet of the launch short">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
-        <figcaption><b><span lang="en">Launch short</span><span lang="zh">发布短片</span></b><q><span lang="en">A short launch film for OpenVideoHarness itself</span><span lang="zh">给 OpenVideoHarness 自己做的发布短片</span></q><small><span lang="en">HyperFrames · 20 s · a sound for every move</span><span lang="zh">HyperFrames · 20 秒 · 每个动作都有声音</span></small></figcaption>
+        <figcaption><b><span lang="en">Launch short</span><span lang="zh">发布短片</span></b><q><span lang="en">A short launch film for OpenVideoHarness itself</span><span lang="zh">给 OpenVideoHarness 自己做的发布短片</span></q><small><span lang="en">HyperFrames · 20 s · a sound for every move</span><span lang="zh">HyperFrames · 20 秒 · 每个动作都有声音</span></small><div class="say-mini"><span data-copy-text lang="en">Quick draft, the way showcase/00 was made: a 20-second launch short for my open-source project (add its README link).</span><span data-copy-text lang="zh">照 showcase/00 的做法，快速出一版 20 秒的发布短片，给我的开源项目（附上它的 README 链接）。</span><button type="button" class="copy say-btn" data-toast data-aria-en="Copy a sentence to make one like this" data-aria-zh="复制一句话，照这个做一支"><span lang="en">Make one like this · copy the sentence</span><span lang="zh">照这个做一支 · 复制这句话</span></button></div></figcaption>
       </figure>
       <a class="film info" href="https://github.com/ZLHad/OpenVideoHarness/tree/main/showcase" target="_blank" rel="noopener" data-r>
         <b><span lang="en">Every film ships with its paper trail</span><span lang="zh">每支片子都附带完整的制作记录</span></b>
@@ -1364,6 +1387,14 @@ const STYLES = [
   ['walk-in-world', 'Walk-in World', '走进去的世界'], ['watercolor-pastoral', 'Watercolor Pastoral', '水彩田园'], ['whiteboard', 'Whiteboard Sketch', '白板速写'],
   ['y2k-chrome', 'Y2K Chrome', 'Y2K 铬面'],
 ];
+// the styles that also come vertical (tokens.json tags.aspect "both"): their "make one like this" sentence asks for a vertical
+// short, the others' for a landscape one (tools/readme.py check holds this list to the styles)
+const STYLE_VERTICAL = new Set(["bouncy-flat-2d", "brutalist-meme", "chalkboard", "deep-space-explainer", "editorial-data", "era-media-relay", "gold-line-dark", "guochao-festive", "halftone-comic", "isotype", "map-explainer", "paper-desk-dossier", "pastel-ui", "product-keynote", "risograph", "swiss-grid-type", "visual-investigation", "whiteboard", "y2k-chrome"]);
+const styleSay = (slug, en, zh) => STYLE_VERTICAL.has(slug)
+  ? { en: `Quick draft: a 20-second vertical short in the ${en} style (styles/${slug}), pictures and on-screen text, no narration, about why the sky is blue.`,
+      zh: `快速出一版 20 秒的竖屏短片，用「${zh}」风格（styles/${slug}），只用画面和文字、不配旁白，讲为什么天空是蓝的。` }
+  : { en: `Quick draft: a 20-second landscape short in the ${en} style (styles/${slug}), pictures and on-screen text, no narration, about why the sky is blue.`,
+      zh: `快速出一版 20 秒的横屏短片，用「${zh}」风格（styles/${slug}），只用画面和文字、不配旁白，讲为什么天空是蓝的。` };
 const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;   // the 5 s sample (swatch.mp4) of a spec-1 style
 // A spec-2 style (tokens.json "swatch": {"spec": 2}) keeps only its 2 s preview.mp4 in git; its full sample is a release
 // asset (tools/media.txt, release styles-media), named here. Its tile plays the preview; the lightbox plays the release
@@ -1763,7 +1794,7 @@ const tiles = STYLES.map(([slug, en, zh], i) => {
   const t = { b, v, slug, en, zh };
   v.addEventListener('ended', () => b.classList.remove('on'));
   b.addEventListener('mouseenter', () => playTile(t));
-  b.addEventListener('click', () => { stopWall(); openLightbox({ video: fullClip(slug), cap: lang === 'zh' ? zh : en, code: `bin/vh new promo my-film --style ${slug}` }); });
+  b.addEventListener('click', () => { stopWall(); openLightbox({ video: fullClip(slug), cap: lang === 'zh' ? zh : en, say: styleSay(slug, en, zh), code: `bin/vh new promo my-film --style ${slug}` }); });
   return t;
 });
 const yours = document.createElement('div'); yours.className = 'sw info';
@@ -1812,7 +1843,7 @@ $$('[data-szoom]').forEach(b => b.addEventListener('click', () => {   // the Stu
 
 /* ---------- lightbox ---------- */
 const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
-function openLightbox({ video, img, cap, code }) {
+function openLightbox({ video, img, cap, code, say }) {
   pauseAll();
   lbMedia.innerHTML = '';
   if (video) {   // a path, or { src, type, loop }: a release file goes through <source type> (WebKit refuses it as a bare src)
@@ -1825,7 +1856,13 @@ function openLightbox({ video, img, cap, code }) {
   if (img) { const i = new Image(); i.src = img; i.alt = cap; lbMedia.appendChild(i); }
   lbCap.innerHTML = '';
   const c = document.createElement('span'); c.textContent = cap; lbCap.appendChild(c);
-  if (code) { const k = document.createElement('code'); k.textContent = code; lbCap.appendChild(k); }
+  if (say) {   // a sentence to paste into Studio or an agent: "make one like this"
+    const d = document.createElement('div'); d.className = 'cmd say lb-say';
+    for (const l of ['en', 'zh']) { const t = document.createElement('span'); t.lang = l; t.dataset.copyText = ''; t.textContent = say[l]; d.appendChild(t); }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'copy'; b.textContent = tr().copy; bindCopy(b); d.appendChild(b);
+    lbCap.appendChild(d);
+  }
+  if (code) { const k = document.createElement('code'); k.textContent = code; if (say) k.className = 'lb-code'; lbCap.appendChild(k); }
   lb.classList.add('show');
 }
 function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; if (sections[current].id === 'styles') startWall(); }
@@ -1834,17 +1871,30 @@ lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('show')) closeLightbox(); });
 
 /* ---------- copy buttons ---------- */
-$$('.copy').forEach(b => b.addEventListener('click', async () => {
+function bindCopy(b) { b.addEventListener('click', async e => {
+  e.stopPropagation();   // a film card plays on a click: the copy button inside it must not
   const value = $(`[data-copy-text]:not([lang]), [data-copy-text][lang="${lang}"]`, b.parentElement);
-  try { await navigator.clipboard.writeText(value.textContent); b.textContent = tr().copied; }
-  catch {
+  const label = b.innerHTML;   // a button with its own words (a film card's) gets them back, the others their "Copy"
+  try {
+    await navigator.clipboard.writeText(value.textContent);
+    if (b.hasAttribute('data-toast')) toast(`${tr().copied}: ${value.textContent}`); else b.textContent = tr().copied;
+  }
+  catch {   // no clipboard (a page over http, a refusal): the sentence is shown to copy by hand
+    if (b.hasAttribute('data-toast')) { toast(value.textContent); return; }
     const selection = window.getSelection(), range = document.createRange();
     range.selectNodeContents(value);
     selection.removeAllRanges(); selection.addRange(range);
     b.textContent = tr().select;
   }
-  setTimeout(() => { b.textContent = tr().copy; }, 1600);
-}));
+  setTimeout(() => { if (b.hasAttribute('data-toast')) b.innerHTML = label; else b.textContent = tr().copy; }, 1600);
+}); }
+let toastTimer = null;
+function toast(text) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+$$('.copy').forEach(bindCopy);
 
 /* ---------- buttons lean toward the cursor ---------- */
 if (fine && !reduced) $$('.btn, .gh').forEach(b => {
@@ -1860,7 +1910,7 @@ function applyLang(l) {
   document.title = tr().title;
   railLabels();
   $$('[data-aria-en]').forEach(el => el.setAttribute('aria-label', el.dataset[l === 'zh' ? 'ariaZh' : 'ariaEn']));
-  $$('.copy').forEach(b => { b.textContent = tr().copy; });
+  $$('.copy:not([data-toast])').forEach(b => { b.textContent = tr().copy; });   // a card's button keeps its two-language words
   tiles.forEach(t => t.b.setAttribute('aria-label', tr().tile(l === 'zh' ? t.zh : t.en)));
   yours.innerHTML = tr().yours;
   ftSetPlaying(ft.playing); ftDraw(); ftShowCheck();
