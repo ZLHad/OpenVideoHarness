@@ -2,6 +2,87 @@
 
 What changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.
 
+## v0.7.0 — 2026-11-22
+
+A minor release: the hand-over between you and the agent, inside Studio. A film can start in Studio, the page says who it waits for, a change can be reviewed side by side, and the words on screen are plain. The README and the homepage now say what the project is for: a controllable workflow for making videos with code.
+
+### What's new
+
+- **Start a film in Studio:** write one sentence on the space page and send it. The conversation moves into the film as soon as the agent has made it.
+- **Who it waits for:** a film's page and `bin/vh status` say in a sentence where the film stands and whose turn it is, and only what the files can prove.
+- **Review a change:** after a note, the two cuts play side by side from the cut page; approve, or write another note on the new cut.
+- **A stop goes to Studio when Studio is open:** also for `standard` films. `bin/vh gate --wait` now tells an answered stop (exit 0) from a page nobody answered (exit 5).
+- **Plain words:** one name for each thing across Studio, the review pages and the installer; a check keeps retired words out.
+- **README and homepage:** the pitch, a picture of Studio at work, the 17-second Studio film in the feature table, and four ways to start (Studio, terminal, the desktop apps, the installed skill).
+
+The full entries follow, newest first.
+
+**README 和官网讲清“可控的工作流”，放上 Studio 的 17 秒演示**
+
+- Why: Studio 那一条原来配的是一张静态截图，看不出在里面怎么做片；17 秒的演示（看、指、说、定）早就做好了，只在官网上。
+- 中英文 README：Studio 那一条换成演示的无声循环，点开去官网看带声音的；文字补上四个动作。
+- 首屏和“为什么做这个”改成这样讲：一两句话让 AI 做出一支视频已经不难，难的是可控、可重复、能成批地做，还能接进自己的流程；这个项目是用代码做视频的一套可控工作流。“它哪里不一样”把“片子是代码，所以可控、可重复”排到第一条，声音那一条往后放，补一段“接得进你自己的流程”。官网首屏和“为什么”同步。
+
+**README 和官网换一种讲法：你当导演，AI 做片**
+
+- Why: 原来的首屏把项目讲成"给 Claude Code 和 Codex 用的工作台"和"用代码做视频"，讲窄了，还带着某一代模型的说法；带声音的成片、Studio、混着用的素材、长片这些特色排在后面。
+- 中英文 README：首屏换成一句话定位和十二支成片的动态墙。"它哪里不一样"按用的人得到什么重排：带声音的成片、Studio、你来导演、立意、素材、改得动、自查、长片。"为什么做这个"重写，不再提具体模型。Codex 那一段去掉了具体的模型名。"和其他项目的关系"加了 OpenMotion 和 Claude Motion 两行。
+- 官网：标题、简介、首屏和"为什么"一段同步换讲法。
+- README 的"快速开始"后面加了一张 Studio 的主图：真窗口里开着仓库自己的介绍片，停在初版等人看的那一站。入口补上了 Claude Code 和 Codex 的桌面 App，以及装好的 skill 让别的文件夹里也能开片。
+
+**Studio 的对话列跟得上 agent 在后台等这一站**
+
+- 对话里的 agent 把等这一站的命令放到后台、自己先停下来以后，这一列写"片子等你拍板"，不再是"空闲"。
+- 你点"交给 agent"以后，Claude Code 自己接着做的时候，这一列当成在做：有停止按钮，拿着片子的锁，做完放掉；记录里写一句"你交了意见，Claude Code 自己接着做了"（只在这支片子的意见刚交到它手里时；别的时候只说它自己接着做下去了）。Codex 和 DeepSeek Harness 不会自己接着做，照旧在这一列说一声。
+- Studio 开着时，`standard` 档的片子停下来等你的那一步也开在 Studio 里：`bin/vh gate` 看到 Studio 在跑才这样（不会为此起 Studio），带 `--wait` 时你点"交给 agent"它就接着做；Studio 没开、或者接不下这支片子时照旧出静态审阅页，`--wait` 这时退出 5，告诉 agent 没有人答复、先停下来在聊天里等你回；`quick` 不变。agent 给你的那句话直接说是哪一站、点"交给 agent"，不带命令。
+
+**Studio 里的字说人话：一个东西只有一个名字，状态说清在等谁**
+- Why: Studio、审阅页、OVH Studio 的对话框和安装时的几行，有不少字人第一眼读不懂：代号（关卡 ③、E3）、文件名（BRIEF.md）、命令（bin/vh patch）、内部的叫法（审阅台、控制台、上下文），同一个东西还有好几个名字（关卡、这一站、这一轮、待你定）。
+- 一个东西一个名字：停下来给人看的地方叫"这一站"，叫它自己的名字（立意、分镜、初版，检查点叫画风样张、配乐安排、定声音、第一章样片、定画面）；人写的一句话叫"意见"；把意见和决定交出去叫"交给 agent"；agent 要动手前问人叫"等你批准"；这个窗口就叫 Studio。
+- 不选、没写时一句话说清：不选就按推荐，没写意见就算通过。
+- agent 在对话里贴给人的那几行不再带代号（"初版 · 等你定 2 件"）；交了以后跟 agent 说"我交了"就行（说"看审阅台"也照样算）。
+- 量出来的数说清是什么：峰值带上 dBTP，响度、峰值、对话记忆和这个对话的花费都带上标签；新对话的开头写明"思考深度很高"，不再只剩一个"很高"。
+- 流程条上，没有声音的片子写"没有声音"，声音随初版一起听的写"随初版听"，两种情况分得开。
+- 片子现在到哪了的那句话（`bin/vh status` 的 `now:` 行是它的英文）用同一套名字：初版在英文里是 the first draft，检查点叫人的叫法，最终的声音说"等你听"（配乐安排是一张表，照旧"等你看"）；一条命令在做什么，Studio 和这句话说法一样（重渲改过的几段、做预览版、出上传版）。
+- 英文界面说的是同一件事：不再用 "(s)" 凑复数，"Send to agent"、"waiting for your OK" 各处一致；顶上的状态不再被截成 "Waiting for yo…"。
+- 表里二十几条已经没人显示的字删掉了（其中几条说的已经不对）；一项新检查保证中英文表的 key 一一对上，退下来的那些词不会再回到给人看的字里。
+
+**Studio 和 `bin/vh status` 说清每一步交到了谁手里**
+
+- 打开一支片子，右栏顶上一句短话说它现在怎么样、轮到谁，下面一行是细节，和 `bin/vh status` 新的 `now:` 几行是同样的字。只说磁盘能证明的：初版出来了等你看（交了以后 agent 会不会自己接着做，只在等着的那个进程和它等的 agent 都还活着时才说会）；你的意见存好了，还没有 agent 来取；agent 拿到了你的意见，正在改（只在真有东西在跑时）；正在渲染，340 / 900 帧；agent 停下了（只在一条命令中断、或 Studio 的一轮被停下后再没有别的动静时）；做这支片子的 agent 还开着；没有命令在跑时，说上一次动静是什么、在多久以前；照你说的改好了，等你复审；已交付（哪支成片、字幕、哪一版，文件点得开）。旁边至多一个按钮：去那一站，或者在这支片子的对话里让 agent 接着做（最近还有动静时先问一次）。空间的卡片写它的几个字。
+- 意见交给 agent 以后，那一站不再摆着没选过的卡片，而是写着交了什么、什么时候交的，可以改了再交。
+- 再下面一行小字是这支片子的打算（多长、竖屏横屏、有没有旁白、在哪几处停给你看），从 BRIEF 和这支片子自己的停读，没写清的不猜。`bin/vh status --json` 有 `now` 和 `plan`，`bin/vh projects --json` 每行也有；终端里轮到人、有东西在跑、停下了、交付了时多 `now:` 几行，原来的 `stops:`、`next:`、`read:` 各行不变。`bin/vh` 记下每条命令是在哪个 agent 程序下跑的；`bin/vh desk wait` 等的 agent 没了，它自己结束。
+- 交给 agent 没交成功时，页面用你的语言说发生了什么、该做什么；新片子的 BRIEF 还没写片名时，Studio 用你开片时那句话（截短）当名字；交付页底下那一条和成片的画面上，写的也是这支片子现在的样子（比如"正在渲染，340 / 900 帧"）。
+
+**在 README 和官网更快开始第一支片**
+
+- 中英文 README 先给安装、Studio 和终端的开片入口，以及一条能直接发送的无声示例。动态集锦和 Studio 演示按需打开。
+- 官网上的命令和样片需求可直接复制。Studio 演示点播，复审介绍使用实际的双语界面截图。
+
+**在 Studio 复审一条修改**
+
+- 成片的复审列表从原意见打开同一片段的修改前和修改后，两个画面同步播放，可切换试听音轨。
+- `bin/vh desk revision` 留存两版成片并绑定提交的意见。复审通过或要求再改从原有反馈渠道写入项目记录。
+
+**Codex 可在开片前选择 GPT‑6.2，接手时从项目记录恢复**
+- Why: Studio 原先在首次发送后才加载 Codex 的模型选项，外部影片也可能没加载工作台规则。Codex 新版 ACP 的登录通知此前没有被识别。
+- Codex 空对话可先选模型和推理档。Studio 识别 Codex 登录状态，并把规则和状态命令的路径交给已有影片的新会话。
+- Codex 出审阅页后可等人回来继续。`bin/vh status` 给出待处理反馈的轮次，CI 检查 `AGENTS.md` 是否符合 Codex 默认加载上限。
+
+**A new film starts inside Studio: one sentence in the space's column, and the conversation follows the film the agent makes**
+- Why: starting a film from Studio meant composing a sentence, copying it and pasting it to an agent somewhere else; only after that agent ran `bin/vh new` did the film show up and its column could talk.
+- The space's right-hand column is now the same agent column, one step earlier: it asks what film you want, shows the agent, model and effort it will use, and sends your sentence. Studio starts that agent in the workbench's own folder (where `CLAUDE.md` is), with one line of its own after your first words: you follow the film in Studio, review its stops there, and, when the console looks at another folder (`--root`, `$OVH_PROJECTS`), make the film there. Tool cards, requests to approve and stop work as in a film's column; questions the agent asks first stay in the column and your answer carries on.
+- When that conversation runs `bin/vh new <type> <slug>` and a real folder `<date>-<slug>` appears in the places a film may go (the console's roots, `$OVH_PROJECTS`, the clone's `projects/`) that was not there when the conversation began, the conversation becomes the film's: a turn in flight takes the film's lock (held by someone else: nothing moves, and the column says so), its record moves into `<film>/.ovh/agents/` in an order a crash cannot split, and the window goes to the film where the same conversation goes on. No command output is read (Codex reports only the exit code), so an old film, however edited or linked, is never taken for a new one, and two new films at once each keep their own conversation. When Studio cannot tell (the folder was renamed), the new film's empty column offers to bring that conversation in.
+- The space lists its new films' conversations that are working or waiting for you (also marked in the history), one click back to each; while Studio is open their requests are not refused by the timeout; a reload follows one that has meanwhile made its film. Conversations not yet in a film live in your data folder (`ovh-studio/space/`), the same for every console of yours.
+- "Copy for an agent elsewhere" stays as a small action under the sentence. New addresses `/api/space/agents` and `/api/space/agent/…`, behind the page's access like the film's ones (`tools/desk/README.md`).
+- Checks: `tools/desk/test_agents.py`'s space checks run the whole path with the stand-in adapters (sentence → conversation at the space → the film made → the film's conversation → a stop waits and a submission continues it → stop before and after the folder exists), two at once, one that asks first, Codex and DeepSeek Harness in their own shapes, a held lock, a renamed folder brought in by a click, a waiting request kept while Studio is open, the record seen from a console over other folders, and old films, links and other slugs never taken.
+- A film just made by `bin/vh new` no longer looks half decided: the flow strip marks a stop "agent 在做" only while a `bin/vh` command or the column's turn is running (else "还没定"), template placeholders in BRIEF and NOTES (`{…}`) count as not written (the concept, the spine, the material row, the outline's part), and the concept page says the concept is not decided yet instead of "立意已定".
+
+**Studio's short film ends on the new icon, and a release PR lands with a squash message GitHub accepts**
+- Why: the film went out with the old cyan-square icon in its first and last seconds and on its poster. And `tools/land.py ready` could not queue v0.6.0's PR, because its squash message (every gathered entry, 182 lines) was over the 16,383 characters GitHub accepts for one.
+- The film, its loop and its poster were rendered again with the diamond icon and uploaded to the release `media` under new names (`studio-film-e0448e73.mp4`, `studio-loop-7cfdbd0b.gif`, `studio-poster-05cab66f.jpg`), so main's earlier links and checksum keep working until this lands. The READMEs' loop, the homepage's `<source>` and `tools/media.txt` (the same local path, `docs/site/media/studio-film.mp4`, with the new asset and its sha256) point at them, and `docs/site/img/studio.jpg` is the new poster.
+- `tools/land.py`: when a squash message is over GitHub's limit (`MESSAGE_LIMIT`), the entries' titles alone become its body, a line each; when even those are too long, the subject goes alone. `land.py ready` says which. `tools/ci.sh`'s land checks cover both.
+
 ## v0.6.0 — 2026-11-17
 
 A minor release: Studio. The review desk has grown into one window for the whole making of a film. It shows where each film has got to, takes notes pointed at the picture, puts each stop's decision on cards, and has a column for talking to the agents on this machine. It comes up from its own app, OVH Studio, from `bin/vh studio`, or when you tell your agent "打开 Studio". The style library grows to 43 presets, and the READMEs and the homepage now lead with Studio and its short film.
