@@ -36,13 +36,16 @@ when nothing is missing but something could not be checked).
 
 --json, "version": 1 (these fields stay; new ones may be added): {"version", "tool", "platform", "modules": [{"name",
 "kind", "status" ("planned" when nothing calls it yet, else "used"), "required", "state", "found", "version", "keys":
-{VAR: true|false}, "note", "install", "probe": {"state", "note"} | null}], "checks": [{"name", "state", "note"}],
+{VAR: true|false}, "key_source": {VAR: "env" | "studio" | null} (saved in Studio's settings: tools/keys.py), "note",
+"install", "probe": {"state", "note"} | null}], "checks": [{"name", "state", "note"}],
 "first_run": [what the first runs still download], "counts": {state: n}}. state: ok · missing · outdated (under the
 minimum, not the pin, or older than max_age_days) · incomplete (found, a part it needs is not) · no_key · unsupported
 (not on this platform) · per_project · unchecked. A probe: ok · failed · skipped.
 """
 import contextlib, datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, tempfile, time
 import urllib.error, urllib.parse, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import keys   # noqa: E402  (tools/keys.py: a key from the environment, else saved in Studio's settings)
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -241,13 +244,14 @@ def hf_snapshot(model):
 def check_module(m, found_by, today):
     """One module on this machine: {state, found, version, keys, note}."""
     ck, ver, needs = m.get("check") or {}, m.get("version") or {}, m.get("needs") or {}
-    r = {"state": "ok", "found": None, "version": None, "keys": {}, "note": ""}
+    r = {"state": "ok", "found": None, "version": None, "keys": {}, "key_source": {}, "note": ""}
     notes = []
     if not platform_ok(needs.get("platform")):
         r.update(state="unsupported", note=f"for {needs['platform']} only; this is {this_platform()}" + (f": {m['elsewhere']}" if m.get("elsewhere") else ""))
         return r
     for k in needs.get("keys", []):
-        r["keys"][k] = bool(os.environ.get(k))
+        r["keys"][k] = bool(keys.get(k))
+        r["key_source"][k] = keys.source(k)   # env or studio (saved in Studio's settings), or None
     if ck.get("per_project"):
         r.update(state="per_project", note=f"each project has its own: {ck['per_project']}")
         return r
@@ -415,10 +419,10 @@ def probe(m, offline, recs):
     if not p:
         return None
     keyless = not (m.get("needs") or {}).get("keys") and not p.get("auth")
-    var = None if keyless else next((k for k in (m.get("needs") or {}).get("keys", []) if os.environ.get(k)), None)
+    var = None if keyless else next((k for k in (m.get("needs") or {}).get("keys", []) if keys.get(k)), None)
     if not var and not keyless:
         return {"state": "skipped", "note": "no key set"}
-    key, url = (os.environ[var] if var else ""), p["url"]
+    key, url = (keys.get(var) if var else ""), p["url"]
     if p.get("base_env") and os.environ.get(p["base_env"]):
         b = urllib.parse.urlsplit(os.environ[p["base_env"]])
         if not b.hostname or not (b.scheme == "https" or (b.scheme == "http" and b.hostname in LOCAL)):
@@ -826,7 +830,7 @@ def problems(t, commands=None):
             bad.append(f"{at}: the name is not lower-case letters, digits and -"); continue
         names.append(n)
         extra = set(m) - {"name", "kind", "status", "purpose", "version", "license", "needs", "adapter", "commands", "required", "check",
-                          "probe", "first_run", "install", "elsewhere"}
+                          "probe", "first_run", "install", "elsewhere", "cost", "key_url"}
         if extra:
             bad.append(f"{at}: fields doctor does not know: {sorted(extra)}")
         if m.get("kind") not in KINDS:
@@ -841,6 +845,10 @@ def problems(t, commands=None):
         ver = m.get("version")
         if not isinstance(ver, dict) or set(ver) - {"pin", "min", "range", "tested", "models", "max_age_days"}:
             bad.append(f"{at}: version is not an object of pin, min, range, tested, models, max_age_days")
+        if "cost" in m and m["cost"] not in ("free", "free_tier", "paid"):
+            bad.append(f"{at}: cost is not free, free_tier or paid")
+        if "key_url" in m and not (isinstance(m["key_url"], str) and m["key_url"].startswith("https://") and (m.get("needs") or {}).get("keys")):
+            bad.append(f"{at}: key_url is not an https address, or the module needs no key")
         needs = m.get("needs")
         if not isinstance(needs, dict) or set(needs) - {"keys", "programs", "account", "platform"}:
             bad.append(f"{at}: needs is not an object of keys, programs, account, platform")
@@ -897,8 +905,9 @@ def print_module(m, r):
     mark = OK if r["state"] == "ok" else NO if bad and m["required"] else WA if bad else "-"
     ck = m.get("check") or {}
     where = shown(r["found"]) if r["found"] and not r["version"] and (ck.get("program") or ck.get("finder") == "chrome") else ""
-    keys = [k for k, on in r["keys"].items() if on]
-    detail = " · ".join(x for x in (", ".join(keys) + " set" if keys else "", r["version"], where, r["note"]) if x)
+    src = r.get("key_source") or {}
+    have = [f"{k} set {'in Studio' if src.get(k) == 'studio' else 'in the environment'}" for k, on in r["keys"].items() if on]
+    detail = " · ".join(x for x in (", ".join(have), r["version"], where, r["note"]) if x)
     if r["state"] == "no_key" and m["commands"]:
         detail += f" (for bin/vh {', '.join(m['commands'])})"
     hint = f" → {r['install']}" if bad and r["install"] else ""

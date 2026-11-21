@@ -65,6 +65,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 import assets as A, budget, fetch, ledger   # noqa: E402,E401
+import keys   # noqa: E402  (tools/keys.py: the environment's key, else the one saved in Studio)
 
 PROG = "bin/vh image"
 SUB = ("gen", "cutout", "prices")
@@ -517,7 +518,7 @@ def paid_call(h, estimate, url, body, opener, timeout=180):
     host) settle at 0; a timeout, a reset or an answer that cannot be read leave the hold at the estimate, as such a
     call may have been billed. → the answer."""
     try:
-        return fetch.post_json(url, body, opener, secret={"x-goog-api-key": os.environ.get("GEMINI_API_KEY", "")}, timeout=timeout)
+        return fetch.post_json(url, body, opener, secret={"x-goog-api-key": keys.get("GEMINI_API_KEY") or ""}, timeout=timeout)
     except fetch.FetchError as e:
         if (e.status or 0) >= 400 or not e.sent:
             h.settle(0)
@@ -619,8 +620,8 @@ def cmd_gen(a):
         say("  nothing called (--dry-run)")
         return 0
     if a.provider == "gemini":
-        if not a.offline and not os.environ.get("GEMINI_API_KEY"):
-            raise Usage("set GEMINI_API_KEY (Google AI Studio → Get API key): it is read from the environment only")
+        if not a.offline and not keys.get("GEMINI_API_KEY"):
+            raise Usage("set GEMINI_API_KEY (Google AI Studio → Get API key), or save it in Studio's settings (Services)")
         if not plan["budget"]["ok"]:
             raise Failed(f"{plan['budget']['message']} (bin/vh image gen --dry-run shows the estimate)")
     if refs:

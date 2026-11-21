@@ -12768,6 +12768,7 @@ CI_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-run.XXXXXX") || exit 2
 CI_TMP=${CI_TMP//\/\//\/}   # one / (a TMPDIR ending in / gives two)
 export TMPDIR="$CI_TMP"
 CI_OWN_TMP=" gate_checks decision_checks desk_checks console_checks agent_checks settings_page_checks studio_checks activity_checks status_checks cancel_checks history_checks artifacts_checks "
+export OVH_KEYSTORE=none   # no key the person saved in Studio is found by a check (tools/keys.py): a "no key" check stays one, and nothing paid is called
 export OVH_GATE_STUDIO=0   # a standard film's stop does not look for a running Studio: the checks test the page and their own desks (the check of that rule clears it)
 unset OVH_PROJECTS
 # the desks a check starts in the background (bin/vh gate's is in a session of its own) are recorded and stopped when the

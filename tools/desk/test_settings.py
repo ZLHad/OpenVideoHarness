@@ -27,6 +27,46 @@ ENV = dict(os.environ, TMPDIR=str(T / "tmp"), HOME=str(T / "home"), XDG_CONFIG_H
            XDG_DATA_HOME=str(T / "data"), OVH_LOCAL_MD=str(LOCAL), OVH_AGENTS_DIR=str(T / "agents"), OVH_STUDIO_PROFILES=str(T / "profiles"),
            OVH_STUDIO_SHELL="none", OVH_STUDIO_BROWSER="none", OVH_GATE_STUDIO="0", BROWSER="/usr/bin/false",
            OVH_PROJECTS=str(T / "no-such-folder"), OVH_REVEAL=str(T / "reveal.sh"))
+for k in ("OVH_KEYSTORE", "OVH_KEYCHAIN", "OVH_KEYSTORE_SERVICE", "OVH_SECRET_TOOL"):   # (tools/ci.sh turns the store off: these checks have one of their own)
+    ENV.pop(k, None)
+for k in [k for k in ENV if "API_KEY" in k.upper() or k.upper().endswith(("_TOKEN", "_SECRET", "_PLAN_KEY"))]:   # no real key of the person's reaches anything here
+    del ENV[k]
+FAKE = "ovhTestKey" + os.urandom(6).hex()   # a made-up key: never a real one, and never seen in anything the checks read back
+MAC = sys.platform == "darwin" and shutil.which("security") is not None
+
+
+def stage_store():
+    """A password store of these checks' own. macOS: a keychain file in the scratch folder, made with HOME there too (so
+    the person's keychain search list is not touched), named on every call, under a service name of its own; deleted at
+    the end. Elsewhere: a stand-in secret-tool that keeps its secrets in a file and notes every argument it gets."""
+    ENV["OVH_KEYSTORE_SERVICE"] = "ovh-test-" + os.urandom(4).hex()
+    if MAC:
+        kc = T / "keys" / "test.keychain-db"
+        kc.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["security", "create-keychain", "-p", "made-up", str(kc)], env=ENV, check=True, capture_output=True, timeout=20)
+        ENV["OVH_KEYCHAIN"] = str(kc)
+        return
+    tool = T / "secret-tool"
+    tool.write_text(f"""#!{sys.executable}
+import json, os, sys
+store, log = {str(T / "secrets.json")!r}, {str(T / "secret-argv.log")!r}
+open(log, "a").write(json.dumps(sys.argv[1:]) + "\\n")
+d = json.load(open(store)) if os.path.exists(store) else {{}}
+a = sys.argv[1:]; at = dict(zip(a[-4::2], a[-3::2])); k = at.get("service", "") + "|" + at.get("key", "")
+if a[0] == "lookup":
+    if k in d: print(d[k]); sys.exit(0)
+    sys.exit(1)
+if a[0] == "store": d[k] = sys.stdin.read()
+if a[0] == "clear": d.pop(k, None)
+json.dump(d, open(store, "w"))
+""")
+    tool.chmod(0o755)
+    ENV["OVH_SECRET_TOOL"] = str(tool)
+
+
+def unstage_store():
+    if ENV.get("OVH_KEYCHAIN"):
+        subprocess.run(["security", "delete-keychain", ENV["OVH_KEYCHAIN"]], env=ENV, capture_output=True, timeout=20)
 
 
 def say(ok, what, why=""):
@@ -132,6 +172,7 @@ def run():
     pkg.parent.mkdir(parents=True, exist_ok=True); pkg.write_text(json.dumps({"version": codex["version"]}))
     CONF.parent.mkdir(parents=True, exist_ok=True)
     CONF.write_text(json.dumps({"version": 1, "mirror": "cn", "mirror_at": "2026-11-01", "kept_for_later": {"a": 1}}), encoding="utf-8")
+    ENV["OVH_PROBE_OFFLINE"] = str(T / "rec")   # the page's 测一下: answered from the recording doctor_keys_check made
     d = Desk()
     try:
         def page():
@@ -224,6 +265,32 @@ def run():
             return None if st == 200 and got == [os.path.realpath(FILMS)] else f"{st}, opened {got}"
         check("a films folder opens in the file browser (a stand-in here), that folder and nothing else", reveal)
 
+        def services():
+            bad = []
+            st, s = d.req("POST", "/api/settings", {"name": "key:GEMINI_API_KEY", "value": None})   # (the checks before saved one)
+            sv = {x["module"]: x for x in s.get("services", [])}
+            if list(sv) != ["gemini", "minimax", "elevenlabs", "dashscope"] or s.get("store") not in ("keychain", "secret-service"):
+                return f"services {list(sv)}, store {s.get('store')}"
+            if sv["gemini"]["keys"] != [{"name": "GEMINI_API_KEY", "source": None, "saved": False}] or sv["gemini"]["cost"] != "free_tier" \
+                    or not sv["gemini"]["key_url"].startswith("https://") or sv["minimax"]["cost"] != "paid":
+                bad.append(f"gemini before: {sv['gemini']}")
+            st, s = d.req("POST", "/api/settings", {"name": "key:GEMINI_API_KEY", "value": FAKE})
+            g = {x["module"]: x for x in s.get("services", [])}.get("gemini", {})
+            if st != 200 or FAKE in json.dumps(s) or g.get("keys") != [{"name": "GEMINI_API_KEY", "source": "studio", "saved": True}]:
+                bad.append(f"saving: {st} {g}")
+            st, t = d.req("POST", "/api/settings", {"name": "test:gemini"})
+            if st != 200 or (t.get("probe") or {}).get("state") != "ok": bad.append(f"测一下: {st} {t}")
+            for body in ({"name": "key:GEMINI_API_KEY", "value": "not a key"}, {"name": "key:PATH", "value": FAKE}, {"name": "test:openverse"}):
+                st, e = d.req("POST", "/api/settings", body)
+                if st != 400 or FAKE in json.dumps(e) or "not a key" in json.dumps(e): bad.append(f"{body['name']}: {st} {e}")
+            if d.req("POST", "/api/settings", {"name": "key:GEMINI_API_KEY", "value": FAKE}, token=False)[0] != 403: bad.append("saved without the token")
+            st, s = d.req("POST", "/api/settings", {"name": "key:GEMINI_API_KEY", "value": None})
+            if st != 200 or {x["module"]: x for x in s["services"]}["gemini"]["keys"][0]["saved"]: bad.append(f"taking it out: {st}")
+            d.req("POST", "/api/settings", {"name": "key:GEMINI_API_KEY", "value": FAKE})   # saved again, for what follows
+            if FAKE in d.log.read_text(): bad.append("the key is in the console's log")
+            return "; ".join(bad) or None
+        check("the services: each key's state and never the key; saved, tested at no cost (a recording here), refused when it is not a key, a key's name or a service with a key, taken out; nothing in the console's log", services)
+
         def local_untouched():
             return None if "默认努力程度：quick" in LOCAL.read_text(encoding="utf-8") and not list(T.glob("LOCAL.md.*")) else "LOCAL.md was written"
         check("nothing on the page writes LOCAL.md", local_untouched)
@@ -274,6 +341,91 @@ const click = (sel, extra) => Promise.all(on.click.map((f) => f({ target: { clos
         return f"a new conversation's agent: {r['kinds']}"
 
 
+def py(code, env=None):
+    """A few lines of Python in the checks' environment (the store staged), in tools/ → (exit, stdout + stderr)."""
+    r = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT / "tools"), env=env or ENV, capture_output=True, text=True, timeout=60)
+    return r.returncode, r.stdout + r.stderr
+
+
+def keys_module_check():
+    code = f"""
+import os, keys as K
+v = {FAKE!r}
+assert K.store_kind() in ("keychain", "secret-service"), K.store_kind()
+assert K.get("GEMINI_API_KEY") is None and K.source("GEMINI_API_KEY") is None
+K.save("GEMINI_API_KEY", v)
+assert K.stored("GEMINI_API_KEY") == v and K.get("GEMINI_API_KEY") == v and K.source("GEMINI_API_KEY") == "studio"
+os.environ["GEMINI_API_KEY"] = "fromTheEnvironment1"
+assert K.get("GEMINI_API_KEY") == "fromTheEnvironment1" and K.source("GEMINI_API_KEY") == "env"
+del os.environ["GEMINI_API_KEY"]
+for name, val in (("GEMINI_API_KEY", "has a space"), ("GEMINI_API_KEY", "-looksLikeAnOption"), ("GEMINI_API_KEY", "short"), ("HOME", v), ("SOME_API_KEY", v)):
+    try:
+        K.save(name, val); raise SystemExit(f"took {{name}}={{val!r}}")
+    except ValueError:
+        pass
+K.clear("ELEVENLABS_API_KEY")   # nothing saved: nothing to do
+print("ok")
+"""
+    rc, out = py(code)
+    if rc or out.strip() != "ok":
+        return out[-300:]
+    if not MAC and FAKE in (T / "secret-argv.log").read_text():
+        return "the key was an argument of secret-tool"
+    if subprocess.run([sys.executable, str(ROOT / "tools" / "keys.py"), "has", "GEMINI_API_KEY"], env=ENV, timeout=30).returncode != 0:
+        return "keys.py has: a saved key not found"
+
+
+def readers_check():
+    """Every place that reads one of the services' keys goes through tools/keys.py (nothing reads the environment for one)."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import keys as K
+    pat = re.compile(r"environ(?:\.get)?\(\s*[\"'](" + "|".join(K.KEY_NAMES) + r")[\"']|environ\[[\"'](" + "|".join(K.KEY_NAMES) + r")[\"']|\$\{?(" + "|".join(K.KEY_NAMES) + r")\b")
+    bad = []
+    for f in [ROOT / "bin" / "vh", *(ROOT / "tools").rglob("*.py")]:
+        if f.name in ("keys.py",) or f.name.startswith("test_") or "fixtures" in f.parts:
+            continue
+        for i, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if pat.search(line):
+                bad.append(f"{f.relative_to(ROOT)}:{i}")
+    return f"reads a key without tools/keys.py: {bad}" if bad else None
+
+
+def doctor_keys_check():
+    rec = T / "rec"; rec.mkdir(exist_ok=True)
+    (rec / "gemini.json").write_text(json.dumps({"models": [{"name": "models/" + n} for n in ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts",
+                                     "gemini-3.5-transcribe", "gemini-nano-banana-2.1", "gemini-3-pro-image", "lyria-3.5")]}))
+    (rec / "responses.json").write_text(json.dumps({"v": 1, "responses": [{"url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+                                                    "status": 200, "headers": {}, "body": "gemini.json"}]}))
+    doc = lambda *a: subprocess.run([sys.executable, str(ROOT / "tools" / "doctor.py"), *a], env=ENV, capture_output=True, text=True, timeout=120)   # noqa: E731
+    j, t, p = doc("--json"), doc(), doc("--json", "--probe", "--only", "gemini", "--offline", str(rec))
+    if FAKE in j.stdout + j.stderr + t.stdout + t.stderr + p.stdout + p.stderr:
+        return "doctor printed the key"
+    g = next(m for m in json.loads(j.stdout)["modules"] if m["name"] == "gemini")
+    if g["keys"] != {"GEMINI_API_KEY": True} or g["key_source"] != {"GEMINI_API_KEY": "studio"} or g["state"] != "ok":
+        return f"doctor --json: {g['keys']} {g.get('key_source')} {g['state']}"
+    if "GEMINI_API_KEY set in Studio" not in t.stdout:
+        return "doctor's line does not say the key is set in Studio"
+    pr = next(m for m in json.loads(p.stdout)["modules"] if m["name"] == "gemini")["probe"]
+    if not pr or pr["state"] != "ok":
+        return f"doctor --probe with the key saved in Studio: {pr}"
+
+
+def column_check():
+    """A command the agent column's agent runs (its environment has no key: acp.clean_env) finds a key saved in Studio."""
+    sys.path.insert(0, str(HERE))
+    import acp
+    keep = dict(os.environ)
+    try:
+        os.environ.clear(); os.environ.update(ENV)
+        env = acp.clean_env({k: ENV[k] for k in ("OVH_KEYCHAIN", "OVH_KEYSTORE_SERVICE", "OVH_SECRET_TOOL") if ENV.get(k)})
+    finally:
+        os.environ.clear(); os.environ.update(keep)
+    if any("API_KEY" in k for k in env):
+        return f"the column's environment carries a key: {[k for k in env if 'API_KEY' in k]}"
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "keys.py"), "has", "GEMINI_API_KEY"], env=env, timeout=30)
+    return None if r.returncode == 0 else "not found in the column's environment"
+
+
 def words_check():
     src = (HERE / "static" / "settings.js").read_text(encoding="utf-8")
     zh = src[src.index("    zh: {"):src.index("    en: {")]
@@ -285,9 +437,19 @@ def words_check():
 
 check("tools/settings.py: Studio's three settings, a value it does not know read as not set, any other name or value refused, other keys kept", module_check)
 check("the settings page's words: every one in both languages", words_check)
+check("every command that reads a service's key does it through tools/keys.py", readers_check)
 check("the page in node: this machine's look and language win over the browser's copy (which is kept when the file has none); the top bar's two buttons save; a new conversation starts with the default agent when it is set up", page_check)
+real_list = subprocess.run(["security", "list-keychains", "-d", "user"], capture_output=True, text=True).stdout if MAC else ""
 try:
+    stage_store()
+    check("tools/keys.py on a store of these checks' own: saved, found, the environment first, taken out; what is not a key or a key's name refused" + ("" if MAC else "; the key never an argument"), keys_module_check)
+    check("bin/vh doctor finds a key saved in Studio, says so, and probes with it (a recording), never printing it", doctor_keys_check)
+    check("a command run in the agent column's environment (no key in it) finds a key saved in Studio", column_check)
     run()
 except Exception as e:
     say(False, "the console for the settings page", f"{type(e).__name__}: {e}")
+finally:
+    unstage_store()
+    if MAC and subprocess.run(["security", "list-keychains", "-d", "user"], capture_output=True, text=True).stdout != real_list:
+        say(False, "the person's keychain search list", "changed")
 print("end", flush=True)
