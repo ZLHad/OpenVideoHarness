@@ -184,17 +184,17 @@ PY
   else bad "the plugin: $out"; fi
   # bin/vh studio brings the stubs install-skill wrote for this clone up to date before it opens, quietly (one line on stderr):
   # a stub for a host nobody installed into stays unwritten, and one pointing at another clone that is there stays as it is
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX"); mkdir -p "$t/other/bin" "$t/home/.agents/skills/open-video-harness"; : > "$t/other/bin/vh"
-  HOME="$t/home" bash bin/vh install-skill claude >/dev/null 2>&1
-  sed 's/^description: /description: OLD /' "$t/home/.claude/skills/open-video-harness/SKILL.md" > "$t/x" && mv "$t/x" "$t/home/.claude/skills/open-video-harness/SKILL.md"
-  printf -- '---\nname: open-video-harness\ndescription: theirs\n---\nHarness path (set by install.sh): %s\n' "$t/other" > "$t/home/.agents/skills/open-video-harness/SKILL.md"
-  a=$(HOME="$t/home" OVH_STUDIO_SHELL=none OVH_STUDIO_BROWSER=none bash bin/vh studio --no-such-flag 2>&1 >/dev/null | head -1)
+  sk=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX"); mkdir -p "$sk/other/bin" "$sk/home/.agents/skills/open-video-harness"; : > "$sk/other/bin/vh"
+  HOME="$sk/home" bash bin/vh install-skill claude >/dev/null 2>&1
+  sed 's/^description: /description: OLD /' "$sk/home/.claude/skills/open-video-harness/SKILL.md" > "$sk/x" && mv "$sk/x" "$sk/home/.claude/skills/open-video-harness/SKILL.md"
+  printf -- '---\nname: open-video-harness\ndescription: theirs\n---\nHarness path (set by install.sh): %s\n' "$sk/other" > "$sk/home/.agents/skills/open-video-harness/SKILL.md"
+  a=$(HOME="$sk/home" OVH_STUDIO_SHELL=none OVH_STUDIO_BROWSER=none bash bin/vh studio --no-such-flag 2>&1 >/dev/null | head -1)
   if [ "$a" = "skills: the claude stubs brought up to date (bin/vh install-skill claude; restart it to see them)" ] \
-    && ! grep -q "OLD" "$t/home/.claude/skills/open-video-harness/SKILL.md" && grep -q "theirs" "$t/home/.agents/skills/open-video-harness/SKILL.md" \
-    && [ ! -e "$t/home/.agents/skills/open-video-harness-web" ] && [ -z "$(HOME="$t/home" python3 tools/doctor.py --stale-skills)" ]
+    && ! grep -q "OLD" "$sk/home/.claude/skills/open-video-harness/SKILL.md" && grep -q "theirs" "$sk/home/.agents/skills/open-video-harness/SKILL.md" \
+    && [ ! -e "$sk/home/.agents/skills/open-video-harness-web" ] && [ -z "$(HOME="$sk/home" python3 tools/doctor.py --stale-skills)" ]
   then ok "studio: this clone's outdated stubs written again before it opens, in one line; another clone's stub and a host nobody installed into left alone"
   else bad "studio's skill refresh: $a"; fi
-  rm -rf "$t"
+  rm -rf "$sk"
   bytes=$(wc -c < AGENTS.md)
   if [ "$bytes" -le 32768 ]; then ok "AGENTS.md fits Codex's default 32 KiB project guidance limit ($((bytes)) bytes)"
   else bad "AGENTS.md exceeds Codex's default 32 KiB project guidance limit; move task-specific detail into the playbook"; fi

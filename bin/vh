@@ -170,6 +170,12 @@ cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
   echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
 }
+cmd_studio() { # stdlib only; the desk it starts runs under this same bash. Before it opens (not for -h or the icon's own
+  # status, install and removal), this clone's outdated skill stubs are written again (skills_refresh)
+  export OVH_BASH=$BASH
+  case " $* " in *" -h "*|*" --help "*|*" --icon-status "*|*" --install-icon "*|*" --remove-icon "*) ;; *) skills_refresh ;; esac
+  exec python3 "$ROOT/tools/desk/studio.py" "$@"
+}
 skills_refresh() { # before Studio opens: the stubs bin/vh install-skill wrote for this clone that doctor calls outdated (a renamed or
   # new skill, a changed description, a stub of an older shape) written again, in one line on stderr; never for a host whose skills
   # nobody installed from this clone, and never a stub pointing at another clone that is there (tools/doctor.py --stale-skills)
@@ -190,8 +196,9 @@ cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first,
   # the plugin Claude Code and Codex install from this repo's marketplace (.claude-plugin/, .agents/plugins/) carries a copy
   # of each skill: a plugin is copied into the host's cache whole, so it cannot point back into skills/ (tools/ci.sh holds them equal)
   local plug="$ROOT/plugins/open-video-harness/skills" s n d
-  for s in "$ROOT"/skills/*/SKILL.md; do n=$(basename "$(dirname "$s")"); mkdir -p "$plug/$n"; cp "$s" "$plug/$n/SKILL.md"; done
-  for d in "$plug"/*/; do n=$(basename "$d"); [ -f "$ROOT/skills/$n/SKILL.md" ] || rm -rf "$d"; done
+  [ -d "$ROOT/plugins/open-video-harness" ] || return 0   # (a copy of bin/vh without the plugin: nothing to copy into)
+  for s in "$ROOT"/skills/*/SKILL.md; do [ -f "$s" ] || continue; n=$(basename "$(dirname "$s")"); mkdir -p "$plug/$n"; cp "$s" "$plug/$n/SKILL.md"; done
+  for d in "$plug"/*/; do [ -d "$d" ] || continue; n=$(basename "$d"); [ -f "$ROOT/skills/$n/SKILL.md" ] || rm -rf "$d"; done
   echo "$c_ok plugins/open-video-harness/skills/ copied from skills/ (the plugin the marketplaces install)"
 }
 
@@ -1490,9 +1497,7 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   concept) shift; cmd_concept "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  studio) shift; export OVH_BASH=$BASH
-    case " $* " in *" -h "*|*" --help "*|*" --icon-status "*|*" --install-icon "*|*" --remove-icon "*) ;; *) skills_refresh ;; esac
-    exec python3 "$ROOT/tools/desk/studio.py" "$@" ;;   # stdlib only; the desk it starts runs under this same bash
+  studio) shift; cmd_studio "$@" ;;   # stdlib only; the desk it starts runs under this same bash
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only
