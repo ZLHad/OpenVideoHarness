@@ -10,10 +10,30 @@
 # 用法：bash references/fetch.sh               拉取或更新全部
 #       bash references/fetch.sh <dir>         只处理一个（dir 是下表第二列，例如 lemo-opuscar）
 #       bash references/fetch.sh --neutralize  不联网，只对已拉取的仓库重新做一遍中和
+#
+# 安装时默认不拉（install.sh --refs 才一次拉全）：文档指到哪一个，agent 第一次用时再拉那一个，拉之前用一行说清拉什么、多大。
 set -euo pipefail
 unset CDPATH   # an exported one could send these relative cds elsewhere (as in bin/vh)
 cd "$(dirname "$0")" && mkdir -p repos && cd repos
 ARG=${1:-}
+
+# 各仓库第一次拉下来占的磁盘（MB，含浅克隆的 .git；2026-11-22 在 macOS 上量的，合计约 300 MB）。拉之前那一行用它说大小；
+# 加一个仓库时在这里补一项（tools/ci.sh 查每一行都有）
+SIZES="
+  3brown1blue 1 Battle-of-Austerlitz-Film 2 Code2Video <1 MathLens <1 OpenMontage 27 PDoomVideo 8 Paper-Cut <1
+  anatomy-reveal <1 anatomy 14 awesome-claude-video-skills <1 awesome-opus5-5-videos 5 blender-skills 2
+  claude-animation-skill 6 data-animation-skills <1 faceless-shorts-creator 2 functional-emotions-video 18
+  gbro-collage-info 5 guizang-product-video 3 hand-drawn-explainer <1 huashu-art-motion 7 huashu-design 4
+  hyperframes-launches 12 hyperframes 11 lemo-opuscar 42 openfilm-examples 8 openfilm 59 opus55-catalog-zhuyansen 4
+  opus55-guide-athemeroy 7 procedural-film 13 product-film-skill <1 remotion-guofeng-starter <1 remotion-skills 2
+  story-to-handdrawn-video 3 video-shotcraft 11 video-talkcraft 18 viral-video-decomposer 4 vox-director <1
+"
+size_of() { printf '%s\n' $SIZES | awk -v d="$1" 'p { print; exit } $0 == d { p = 1 }'; }
+announce() {   # announce <owner/repo> <dir>：第一次拉一个之前，一行说清拉什么、从哪、多大
+  local mb; mb=$(size_of "$2")
+  echo "fetching $2 from github.com/$1 (${mb:+about $mb MB, }read-only, for agents to read)"
+}
+MATCHED=""
 
 AGENT_FILES=(.claude .agents CLAUDE.md CLAUDE.local.md AGENTS.md .mcp.json)
 agent_paths() { # 列出 $1 下所有层级的 agent 文件（跳过 .git），深的在前，保证先改子项再改父目录
@@ -34,7 +54,8 @@ neutralize() { # 更新后：改名为同目录下的 _upstream_*（git status �
 skip() {       # 按参数决定是否跳过这一行；--neutralize 模式只中和、不联网
   local d=$1
   if [ "$ARG" = "--neutralize" ]; then [ -d "$d" ] && neutralize "$d" && echo "ok  $d (neutralized)"; return 0; fi
-  [ -n "$ARG" ] && [ "$ARG" != "$d" ]
+  [ -n "$ARG" ] && [ "$ARG" != "$d" ] && return 0
+  MATCHED=1; return 1
 }
 SKIPPED=""
 failed() {     # failed <dir> <原因>：一个上游拉不下来只跳过这一行，不中断其余仓库和调用本脚本的安装流程
@@ -49,14 +70,14 @@ full() {   # full <owner/repo> <dir>：整仓浅克隆
   skip "$2" && return 0
   restore "$2"
   if [ -d "$2/.git" ]; then git -C "$2" pull --ff-only -q || true
-  else clone "$1" "$2" || return 0; fi
+  else announce "$1" "$2"; clone "$1" "$2" || return 0; fi
   neutralize "$2"; echo "ok  $2"
 }
 sparse() { # sparse <owner/repo> <dir> <path...>：只检出指定目录（大仓库用）
   local r=$1 d=$2; shift 2
   skip "$d" && return 0
   restore "$d"
-  if [ ! -d "$d/.git" ]; then clone "$r" "$d" --filter=blob:none --sparse || return 0; fi
+  if [ ! -d "$d/.git" ]; then announce "$r" "$d"; clone "$r" "$d" --filter=blob:none --sparse || return 0; fi
   git -C "$d" sparse-checkout set "$@" && git -C "$d" pull --ff-only -q || true
   neutralize "$d"; echo "ok  $d ($*)"
 }
@@ -64,7 +85,7 @@ textonly() { # textonly <owner/repo> <dir>：只检出代码和文档，跳过�
   local r=$1 d=$2 fresh=
   skip "$d" && return 0
   restore "$d"
-  if [ ! -d "$d/.git" ]; then clone "$r" "$d" --filter=blob:none --no-checkout || return 0; fresh=1; fi
+  if [ ! -d "$d/.git" ]; then announce "$r" "$d"; clone "$r" "$d" --filter=blob:none --no-checkout || return 0; fresh=1; fi
   git -C "$d" sparse-checkout set --no-cone '/*' '!*.mp4' '!*.mov' '!*.webm' '!*.mkv' '!*.gif' '!*.mp3' '!*.wav' '!*.m4a' '!*.aac' '!*.flac' \
     '!*.png' '!*.jpg' '!*.jpeg' '!*.webp' '!*.psd' '!*.ttf' '!*.otf' '!*.woff' '!*.woff2' '!*.zip' '!*.pdf' '!*.onnx' '!*.bin'
   # 新克隆只需检出；已有克隆要 pull（空参数的 checkout 总是成功，放在 || 前面会让 pull 永远跑不到）
@@ -124,5 +145,6 @@ textonly annnguyentt/anatomy-reveal-skill       anatomy-reveal             # 用
 # Blender 只做资产（见 engines/blender.md"只做资产"）
 textonly EL4CTEO/blender-skills                 blender-skills             # Blender 5.2 的建模、UV、PBR、烘焙、绑骨、导出和资产质检 skill，`blender -b` 就能跑；bin/vh model3d check --blender 借它 asset-qa 的检查（MIT）
 
+[ -z "$ARG" ] || [ "$ARG" = --neutralize ] || [ -n "$MATCHED" ] || { echo "no reference repo named $ARG: the names are the second column of references/fetch.sh" >&2; exit 2; }
 [ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
 exit 0

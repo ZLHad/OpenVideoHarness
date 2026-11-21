@@ -1565,6 +1565,44 @@ print(d.references_note(0, 37, 0, d.install_says())); print(d.references_note(31
   case "$a" in "0/37 repos fetched → bash references/fetch.sh (all 37: about $b;"*"31/37 repos fetched → bash references/fetch.sh (all 37: about 255 MB, at the size of the 31 here;"*)
       ok "doctor: the reference repos' size from the ones fetched (31 of 37 at 214 MB: about 255 MB), else as install.sh says it ($b)" ;;
     *) bad "doctor's line for the reference repos: $a (install.sh says: ${b:-nothing found})" ;; esac
+  # the reference repos are fetched on first use: references/fetch.sh knows each one's size, and says it in one line before
+  # a first fetch; a name it does not have is said, exit 2 (it used to do nothing)
+  a=$(bash -c 'cd references && sed -n "/^SIZES=\"/,/^\"/p" fetch.sh | tr " " "\n" | grep -v "^SIZES\|^\"\|^$" | paste - - | cut -f1 | sort' 2>&1)
+  b=$(grep -E '^(full|sparse|textonly) ' references/fetch.sh | awk '{print $3}' | sort)
+  c=$(bash references/fetch.sh no-such-repo 2>&1); rc=$?
+  if [ -n "$b" ] && [ "$a" = "$b" ] && [ "$rc" = 2 ] && case "$c" in "no reference repo named no-such-repo"*) true ;; *) false ;; esac \
+    && grep -q '^  else announce "$1" "$2"; clone' references/fetch.sh && grep -q 'REFS=0;' install.sh && grep -q -- '--refs) REFS=1' install.sh
+  then ok "references/fetch.sh: a size for each of the $(printf '%s\n' "$b" | wc -l | tr -d ' ') reference repos, said before a first fetch; an unknown name exits 2; install.sh fetches them only with --refs"
+  else bad "references/fetch.sh's sizes or names (exit $rc): $(diff <(printf '%s\n' "$a") <(printf '%s\n' "$b") | head -5 | tr '\n' ' ') | $c"; fi
+  # doctor --first, the installer's last lines: ready only when a first film has what it needs; what is missing, with how
+  # to get it; a voice line for this platform; a Chinese font missing is said (Linux)
+  a=$(python3 - <<'PY' 2>&1
+import sys; sys.path.insert(0, "tools"); import doctor as d
+ok = lambda n, **k: dict({"name": n, "state": "ok", "install": f"get {n}"}, **k)
+mods = [ok("node"), ok("ffmpeg"), ok("python3"), ok("uv"), ok("chrome"), ok("chrome-headless-shell", state="missing"), ok("claude-code"), ok("codex", state="missing"),
+        ok("qwen3-tts", state="missing"), ok("mlx-audio")]
+checks = [{"name": "browser", "state": "missing"}]
+l1, r1 = d.first_film(mods, checks, "darwin-arm64")   # no browser yet, but the first render brings its own: ready
+mods2 = [dict(m, state="missing") if m["name"] in ("uv", "claude-code") else m for m in mods]
+l2, r2 = d.first_film(mods2, checks + [{"name": "fonts", "state": "missing"}], "linux-arm64")   # no uv, no browser, no agent, no font
+print(r1, r2, len(l1), len(l2)); print("\n".join(l1 + ["--"] + l2))
+PY
+)
+  case "$a" in "True False 3 6"*"✓ Ready for a first film: Node, FFmpeg, uv, a browser to render with, Claude Code"*"downloads its own Chrome once"*"- Voice: the first bin/vh tts downloads the local voice once (about 2.5 GB"*"--provider edge"*"--"*"✗ Not ready for a first film yet"*"  uv → get uv"*"  a browser to render with → get chrome"*"  Claude Code or Codex →"*"! Chinese text"*"- Voice: bin/vh tts --provider edge"*)
+      ok "doctor --first: ready only with Node, FFmpeg, Python, uv, a browser (or a platform whose first render brings one) and an agent; each missing one with how to get it; the voice for the platform; a missing Chinese font said" ;;
+    *) bad "doctor --first: $(printf '%s' "$a" | head -c 600)" ;; esac
+  # bin/vh tts: the default provider is said in one place (tts.py), and the local voice's first use is said before it
+  # downloads, with the size, the time it may take and the way around it; nothing for another provider or a cached model
+  a=$(python3 tools/audio/tts.py --default-provider 2>&1)
+  b=$(HF_HOME="$(mktemp -d)" python3 tools/audio/tts.py --first-use qwen --packages-missing 2>&1)
+  c=$(python3 tools/audio/tts.py --first-use edge --packages-missing 2>&1)
+  want="first use of the local voice: about 2.5 GB to download once (its Python packages and the voice model)"
+  case "$(uname -s)-$(uname -m)" in Darwin-arm64) ;; *) want="" ;; esac   # elsewhere the local voice does not run, so nothing is said
+  if [ "$a" = qwen ] && case "$b" in *"$want"*) [ -n "$want" ] || [ -z "$b" ] ;; *) false ;; esac && [ -z "$c" ] \
+    && { [ -z "$want" ] || case "$b" in *"--provider edge (free, online"*) true ;; *) false ;; esac; } \
+    && grep -q 'prov=$(python3 "$ROOT/tools/audio/tts.py" --default-provider)' bin/vh
+  then ok "bin/vh tts: the default provider comes from tts.py alone; the local voice's first use is said before its 2.5 GB download (Apple Silicon), with the way around it; nothing for edge"
+  else bad "bin/vh tts's default and first-use line: $a | $b | $c"; fi
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
   # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
   vh recipes sample no-such-recipe >/dev/null 2>&1; rc=$?; vh recipes sample launch-15s >/dev/null 2>&1; rc2=$?

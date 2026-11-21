@@ -269,6 +269,54 @@ def hf_cached(model_id):
         return True
     return os.path.isdir(os.path.join(constants.HF_HUB_CACHE, "models--" + model_id.replace("/", "--"), "snapshots"))
 
+# The provider bin/vh tts uses when none is named: the one place to change it (bin/vh asks: tts.py --default-provider).
+DEFAULT_PROVIDER = "qwen"
+QWEN_MODEL = "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit"
+QWEN_SIZES = {"packages": 0.75, "model": 1.8}   # GB on disk the first time: mlx-audio and its packages (uv), the model (Hugging Face)
+
+def hub_dir():
+    """Where the Hugging Face Hub keeps models, worked out as huggingface_hub does (stdlib, before it is installed)."""
+    if os.environ.get("HF_HUB_CACHE"):
+        return Path(os.environ["HF_HUB_CACHE"])
+    home = os.environ.get("HF_HOME") or os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "huggingface")
+    return Path(home) / "hub"
+
+def model_dir(model_id):
+    return hub_dir() / ("models--" + model_id.replace("/", "--"))
+
+def first_use_line(provider, packages_missing=False):
+    """The one line bin/vh tts says before a provider's first run downloads gigabytes (or None: nothing that big to fetch):
+    how much, roughly how long, that the progress shows, and the way around it."""
+    if provider != "qwen" or not (sys.platform == "darwin" and platform.machine() == "arm64"):
+        return None
+    model_id = os.environ.get("QWEN_TTS_MODEL", QWEN_MODEL)
+    model = model_id == QWEN_MODEL and not os.path.isdir(os.path.expanduser(model_id)) and not list(model_dir(model_id).glob("snapshots/*/*.safetensors"))
+    parts = (["its Python packages"] if packages_missing else []) + (["the voice model"] if model else [])
+    if not parts:
+        return None
+    gb = (QWEN_SIZES["packages"] if packages_missing else 0) + (QWEN_SIZES["model"] if model else 0)
+    return (f"  first use of the local voice: about {gb:.1f} GB to download once ({' and '.join(parts)}); a few minutes on a fast line,"
+            f" half an hour or more on a slow one; the progress shows below. To skip it: --provider edge (free, online: the script"
+            f" goes to Microsoft's voice service)")
+
+def show_progress(folder, total_gb, every=10.0):
+    """A line every `every` seconds with how much a download has added to `folder` (the Hub's whole cache: its xet transfer
+    stages the parts outside the model's own folder), for output nobody watches live, where a progress bar is turned
+    off. → the thread's stop event."""
+    import threading
+    stop = threading.Event()
+    def size():
+        return sum(f.stat().st_size for f in Path(folder).rglob("*") if f.is_file() and not f.is_symlink()) if Path(folder).is_dir() else 0
+    base = size()
+    def run():
+        last = None
+        while not stop.wait(every):
+            got = round((size() - base) / 1e9, 1)
+            if got != last:
+                print(f"  voice model: {got:.1f} of about {total_gb} GB", flush=True); last = got
+    threading.Thread(target=run, daemon=True).start()
+    return stop
+
 _QWEN = {}
 def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
     # Set before the libraries are imported, which is when they read them; one set outside wins (TRANSFORMERS_VERBOSITY=info).
@@ -281,18 +329,22 @@ def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
     import contextlib, io
     import numpy as np
     from mlx_audio.tts.utils import load_model  # provided by `uv run --with mlx-audio`
-    default = "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit"
-    model_id = os.environ.get("QWEN_TTS_MODEL", default)
+    model_id = os.environ.get("QWEN_TTS_MODEL", QWEN_MODEL)
     if model_id not in _QWEN:
-        print(f"  loading {model_id}" + ("" if hf_cached(model_id) else " (not downloaded yet: " + ("about 2 GB " if model_id == default else "")
-                                         + "into the Hugging Face cache, once)") + " …", flush=True)
+        fresh = not hf_cached(model_id)
+        print(f"  loading {model_id}" + (" (not downloaded yet: " + (f"{QWEN_SIZES['model']} GB " if model_id == QWEN_MODEL else "")
+                                         + "into the Hugging Face cache, once)" if fresh else "") + " …", flush=True)
         said = io.StringIO()   # mlx-audio prints what it loads; shown only when loading fails
+        stop = show_progress(hub_dir(), QWEN_SIZES["model"] if model_id == QWEN_MODEL else "?") if fresh and not sys.stderr.isatty() else None
         try:
             with contextlib.redirect_stdout(said):
                 _QWEN[model_id] = load_model(model_id)
         except BaseException:
             sys.stdout.write(said.getvalue())
             raise
+        finally:
+            if stop:
+                stop.set()
     model = _QWEN[model_id]
     zh = lang.startswith("zh")
     kw = dict(text=text, speaker=voice or ("Serena" if zh else "Aiden"), language="Chinese" if zh else "English")
@@ -1151,8 +1203,15 @@ def usage_error(msg):   # a mistake in the command line: one line, exit 2 (a run
 def main():
     if sys.argv[1:2] == ["voices"] and (len(sys.argv) == 2 or sys.argv[2] in ("list", "design", "delete", "audition", "-h", "--help")):
         return voices_main(sys.argv[2:])
+    if sys.argv[1:] == ["--default-provider"]:   # for bin/vh tts, which picks the provider's packages before this runs
+        print(DEFAULT_PROVIDER); return
+    if sys.argv[1:2] == ["--first-use"] and len(sys.argv) in (3, 4):   # bin/vh tts: the line before a big first download
+        line = first_use_line(sys.argv[2], sys.argv[3:] == ["--packages-missing"])
+        if line:
+            print(line, flush=True)
+        return
     ap = argparse.ArgumentParser()
-    ap.add_argument("project"); ap.add_argument("--provider", choices=PROVIDERS, help="default qwen (with --resume: the run's provider)")
+    ap.add_argument("project"); ap.add_argument("--provider", choices=PROVIDERS, help=f"default {DEFAULT_PROVIDER} (with --resume: the run's provider)")
     ap.add_argument("--voice"); ap.add_argument("--lang", choices=["zh", "en"], help="spoken side (default zh; en for an English-only script)")
     ap.add_argument("--gap", type=float, default=0.25); ap.add_argument("--instruct")
     ap.add_argument("--keep-edges", action="store_true", help="keep the silence the provider puts before/after each line")
@@ -1207,7 +1266,7 @@ def main():
             sys.exit(f"--resume: GEMINI_TTS_STYLE was {man.get('style_env')!r} for the run, now {os.environ.get('GEMINI_TTS_STYLE')!r};"
                      f" set it back, or drop --resume to start over")
         a.provider, a.voice, a.instruct, a.keep_edges = man["provider"], man["voice"], man.get("instruct"), man["keep_edges"]
-    a.provider = a.provider or "qwen"
+    a.provider = a.provider or DEFAULT_PROVIDER
     gemini = a.provider.startswith("gemini")
     timed = a.provider in WORD_TIMED                                 # word timing from the provider itself
     penv = {k: os.environ.get(k) for k in MINIMAX_ENV} if a.provider == "minimax" else {}
