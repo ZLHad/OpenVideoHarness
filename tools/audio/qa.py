@@ -48,8 +48,10 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
 voice alone: a mix of a voice and nothing else (the record bin/vh mix writes beside it, <mix>.mix.json, says voice= and no
   music, sfx or events; or the stems' meta.json has no music or events) is scanned against that voice: a dropout or a
   pumping dip where the voice itself pauses (as deep under its own section median, or silent under −60 dBFS there) is
-  its own phrasing, counted apart, not a failure; one the voice does not have (the mix lost it mid-word) still fails.
-  Said in a line at the top. Digital silence stays the floor it is.
+  its own phrasing, counted apart, not a failure; one the voice does not have (the mix lost it mid-word) still fails,
+  and so does a hard cut in the voice itself: a run of silence it enters at full voice (the 3 ms before it
+  within 20 dB of its median level), which bin/vh mix's room tone would otherwise hide. Said in a line at the top.
+  Digital silence stays the floor it is; bin/vh mix lays room tone under a voice with no music, so its pauses meet it.
 evidence (scan): each open finding gets a line or a tail: the value against its threshold, bar:beat, what the note map
   does there (rests, between notes, a note held through it, notes that start in it and are not heard; for a click the
   nearest note and a note that ends there), and with --stems which stem carries it (a span: each stem's level over it
@@ -313,6 +315,26 @@ def voice_only(path, stems=None):
             return p
     return kv["voice"] if os.path.isfile(kv["voice"]) else None
 
+def hard_cuts(voice, t_from, end, counted=()):
+    """A voice's runs of silence (every channel under -60 dBFS for 20 ms or more, inside the checked span) that it enters at
+    full voice: the 3 ms before the run within 20 dB of the voice's median 0.1 s level. A breath or a pause fades out
+    first (the 25 s demo film's: 36 dB and more under the median going in); a cut does not. The way out is not judged:
+    a stop consonant leaves its closure with a burst at full voice, and that is speech. A run already
+    counted as digital silence in the mix is left to that line. → [(start s, end s, edge dBFS, median dBFS)]"""
+    V, sr = load(voice); v = np.abs(V.astype(np.float64)).max(1)
+    db, _ = rms_db(V.astype(np.float64).mean(1), sr, .1, .1); med = float(np.median(db[db > -50])) if (db > -50).any() else -120.0
+    q = np.diff(np.concatenate([[0], (v < 1e-3).astype(np.int8), [0]])); w = int(.003 * sr)
+    edge = lambda i, j: 20 * np.log10(np.sqrt((V[max(0, i):max(0, j)].astype(np.float64) ** 2).mean()) + 1e-12) if j > i else -120.0   # noqa: E731
+    out = []
+    for i, j in zip(np.nonzero(q == 1)[0], np.nonzero(q == -1)[0]):
+        a, b = i / sr, j / sr
+        if j - i < .02 * sr or b < t_from or a > end or any(a < cb and b > ca for ca, cb in counted):
+            continue
+        e = edge(i - w, i)   # the way in: a stop consonant leaves its closure at full voice too, and that is speech
+        if e > med - 20:
+            out.append((a, b, e, med))
+    return out
+
 def seconds(path):  # the first audio stream's length from the container (no decode), else None
     try:
         j = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=duration:format=duration",
@@ -475,6 +497,12 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
     out.append(f"[1] digital silence (< −60 dBFS, ≥ 20 ms): {len(inside)} inside the span" +
                ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b in sil) if sil else ""))
     pos = lambda t: f" · bar {barpos(bm, t)}" if barpos(bm, t) else ""   # noqa: E731
+    cuts = hard_cuts(voice, t_from, end, inside) if alone and voice else []   # under a room tone the mix hides them: the voice does not
+    fails += len(cuts)
+    if cuts:
+        out.append(f"    hard cuts to silence in the voice (it stops dead, not a breath; the room tone covers them in the mix): {len(cuts)}")
+        out += [f"    {a:8.3f}-{b:.3f} s  the voice drops from {e:.0f} dBFS to silence within 3 ms (a breath fades first: more than 20 dB under"
+                f" the voice's median {m:.0f} dBFS){pos(a)}" for a, b, e, m in cuts[:20]]
     for a, b in inside[:20]:   # a floor whatever the score does there: what it does is evidence, not an excuse
         slots.append((len(out), "silence", a, b, None)); txt = score_span(bm, N, whole, a, b, end)[1]
         out.append(f"    {a:8.3f}-{b:.3f} s  every channel under −60 dBFS for {(b - a) * 1000:.0f} ms (the floor: 20 ms){pos(a)}"

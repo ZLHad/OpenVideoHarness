@@ -2029,6 +2029,27 @@ print([x["evidence"]["duration"] for x in f])')
           case "$b" in *"voice alone"*) bad "qa: a mix with music taken for a voice alone: $b" ;;
             *) ok "qa scan: in a voice alone (from the mix record) its own pauses are not dropouts, a drop mid-voice still is; with music in the record, a mix as before" ;; esac ;;
         *) bad "qa scan on a voice alone ($rc/$rb): $a | $b" ;; esac
+      # room tone: bin/vh mix lays it under a voice with no music, so the pauses between its words (digital zero here, as a
+      # synthesized narration's joins are) are not digital silence and qa passes; room=off gives today's finding; a hard cut
+      # to zero inside a word still fails (in the voice, under the bed); a mix with music is the same bytes either way; the
+      # same voice mixed twice is the same bytes
+      mkdir -p "$t/cf/rt"; env='max(0,min(1,min(mod(t,1)/0.05,(0.7-mod(t,1))/0.05)))'
+      ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.3*sin(2*PI*220*t)*$env':s=48000:d=10" -ac 1 -c:a pcm_s16le "$t/cf/rt/v.wav"
+      ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.3*sin(2*PI*220*t)*$env*(1-between(t,4.3,4.5))':s=48000:d=10" -ac 1 -c:a pcm_s16le "$t/cf/rt/cut.wav"
+      ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.2*sin(2*PI*330*t)':s=48000:d=10" -ac 2 -c:a pcm_s16le "$t/cf/rt/m.wav"
+      mx() { python3 "$ROOT/tools/audio/mix.py" "$@" >/dev/null 2>&1; }
+      mx "$t/cf/rt/a.wav" voice="$t/cf/rt/v.wav"; mx "$t/cf/rt/a2.wav" voice="$t/cf/rt/v.wav"; mx "$t/cf/rt/off.wav" voice="$t/cf/rt/v.wav" room=off
+      mx "$t/cf/rt/c.wav" voice="$t/cf/rt/cut.wav"; mx "$t/cf/rt/vm.wav" voice="$t/cf/rt/v.wav" music="$t/cf/rt/m.wav"; mx "$t/cf/rt/vm-off.wav" voice="$t/cf/rt/v.wav" music="$t/cf/rt/m.wav" room=off
+      a=$(qs "$t/cf/rt/a.wav" 2>&1); rc=$?; b=$(qs "$t/cf/rt/off.wav" 2>&1); rb=$?; c=$(qs "$t/cf/rt/c.wav" 2>&1); rcut=$?
+      said=$(python3 "$ROOT/tools/audio/mix.py" "$t/cf/rt/a3.wav" voice="$t/cf/rt/v.wav" 2>&1 | tail -1)
+      rec=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["room"]["rms_dbfs"], json.load(open(sys.argv[2])).get("room"))' "$t/cf/rt/a.wav.mix.json" "$t/cf/rt/vm.wav.mix.json")
+      if [ $rc = 0 ] && case "$a" in *"digital silence (< −60 dBFS, ≥ 20 ms): 0 inside the span"*"✓ audio QA passed"*) true ;; *) false ;; esac \
+        && [ $rb = 1 ] && case "$b" in *"digital silence (< −60 dBFS, ≥ 20 ms): "[1-9]*) true ;; *) false ;; esac \
+        && [ $rcut = 1 ] && case "$c" in *"hard cuts to silence in the voice"*": 1"*"4.300-"*) true ;; *) false ;; esac \
+        && cmp -s "$t/cf/rt/a.wav" "$t/cf/rt/a2.wav" && cmp -s "$t/cf/rt/vm.wav" "$t/cf/rt/vm-off.wav" && ! cmp -s "$t/cf/rt/a.wav" "$t/cf/rt/off.wav" \
+        && [ "$rec" = "-60.0 None" ] && case "$said" in *"room tone under the voice at -60 dBFS RMS"*"room=off leaves it out"*) true ;; *) false ;; esac
+      then ok "mix: room tone under a voice with no music (-60 dBFS RMS, said, in the record): qa passes its pauses; room=off gives the digital silence back; a hard cut in the voice still fails; with music the same bytes; the same bytes twice"
+      else bad "mix's room tone ($rc/$rb/$rcut, record $rec): $(printf '%s' "$a" | grep -E '^\[1\]|^✓|^✗') | $(printf '%s' "$b" | grep -E '^\[1\]') | $(printf '%s' "$c" | grep -E 'hard cut|^✗') | $said"; fi
       a=$(qs "$t/cf/audio/mix.wav" 2>&1); rc=$?
       case "$rc:$a" in 1:*'confirm? {"tool": "qa.dropout", "at": "3.100-4.900"'*'confirm? {"tool": "qa.click", "at": "5.950-6.650", "n": 3'*) ok "qa scan in a project offers confirm? lines for a dropout and a click burst" ;; *) bad "qa scan offers (rc $rc): $a" ;; esac
       printf '%s\n' "$a" | fill STORYBOARD.md#S01 "$t/cf/confirmed.json"
