@@ -1182,8 +1182,9 @@ PY
   [ $rc = 2 ] && [ $a = 2 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
     || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
   rm -rf "$t"
-  # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"
+  # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it; a script is there,
+  # as with none tts writes the sample and fetches nothing)
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"; mkdir -p "$t/audio"; echo "A line." > "$t/audio/script.txt"
   a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" DASHSCOPE_API_KEY=ci vh tts "$t" --provider=dashscope)
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
