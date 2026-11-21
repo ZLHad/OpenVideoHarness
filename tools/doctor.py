@@ -1,7 +1,8 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
 usage: bin/vh doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]]
-  (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl)
+  (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl; bin/vh studio asks --stale-skills: the hosts
+  whose stubs this clone wrote are outdated, one a line, and writes them again)
   --json        the same as JSON (below), the lines a person reads not printed
   --fill-local  also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from this check, where they still hold
                 the template's {…}; with no LOCAL.md, LOCAL.example.md is copied first. A line a person wrote stays;
@@ -491,7 +492,7 @@ def skills_check():
     left = (f"; left alone: {len(others)} cop{'y' if len(others) == 1 else 'ies'} pointing at {', '.join(sorted(set(others)))}") if others else ""
     if old:
         how = "bin/vh install-skill" + (f" {next(iter(old))}" if len(old) == 1 else "")
-        return {"name": "skills", "state": "outdated", "note": "; ".join(x for v in old.values() for x in v)
+        return {"name": "skills", "state": "outdated", "targets": sorted(old), "note": "; ".join(x for v in old.values() for x in v)
                 + f" → {how} (it writes stubs that read skills/ in this clone, so a git pull keeps them current, and removes"
                   f" the ones it wrote for skills this clone no longer has; an agent reads its skill when a session starts){left}"}
     if same:
@@ -811,6 +812,11 @@ def main(argv):
         x = argv[i]
         if x in ("-h", "--help"):
             print(__doc__.strip()); return 0
+        if x == "--stale-skills":   # bin/vh studio: the hosts whose stubs this clone wrote are outdated, one a line (it rewrites them)
+            stale = skills_check().get("targets", [])
+            if stale:
+                print("\n".join(stale))
+            return 0
         if x == "--check":
             t = json.loads(TABLE.read_text(encoding="utf-8"))
             bad = problems(t, json.loads(COMMANDS.read_text(encoding="utf-8")) if COMMANDS.exists() else None)

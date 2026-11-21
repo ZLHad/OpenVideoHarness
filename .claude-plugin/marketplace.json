@@ -1,0 +1,22 @@
+{
+  "name": "open-video-harness",
+  "owner": {
+    "name": "ZLHad",
+    "url": "https://github.com/ZLHad"
+  },
+  "description": "OpenVideoHarness: a controllable workflow for making videos with code.",
+  "plugins": [
+    {
+      "name": "open-video-harness",
+      "source": "./plugins/open-video-harness",
+      "description": "Make videos with code through the OpenVideoHarness workbench: say what film you want, an agent writes the code, renders it, checks it and stops for you at the decisions that are yours. This plugin is the pointer; on first use it asks before installing the workbench.",
+      "category": "productivity",
+      "tags": [
+        "video",
+        "animation",
+        "video-as-code",
+        "explainer"
+      ]
+    }
+  ]
+}

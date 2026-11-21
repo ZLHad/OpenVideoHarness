@@ -158,6 +158,43 @@ doc_checks() {
   head=$(head -3 AGENTS.md)
   if [ "$(tail -n +4 AGENTS.md)" = "$(cat CLAUDE.md)" ] && [ -n "$head" ]; then ok "AGENTS.md generated from CLAUDE.md"
   else bad "AGENTS.md is out of sync with CLAUDE.md: run bin/vh sync-agents"; fi
+  # the plugin the two marketplaces install (.claude-plugin/marketplace.json for Claude Code, .agents/plugins/marketplace.json
+  # for Codex): its skills are skills/'s, copied by bin/vh sync-agents; the names agree everywhere; Claude's tracks commits
+  # (no version, so an update follows main), and so does Codex's
+  out=$(python3 - <<'PY' 2>&1
+import json, filecmp, os, glob
+bad = []
+skills = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob("skills/*/SKILL.md"))
+plug = sorted(os.path.basename(os.path.dirname(p)) for p in glob.glob("plugins/open-video-harness/skills/*/SKILL.md"))
+if skills != plug: bad.append(f"the plugin's skills {plug} are not skills/'s {skills}: bin/vh sync-agents")
+bad += [f"plugins/open-video-harness/skills/{n}/SKILL.md differs from skills/{n}/SKILL.md: bin/vh sync-agents" for n in set(skills) & set(plug)
+        if not filecmp.cmp(f"skills/{n}/SKILL.md", f"plugins/open-video-harness/skills/{n}/SKILL.md", shallow=False)]
+cm, xm = json.load(open(".claude-plugin/marketplace.json")), json.load(open(".agents/plugins/marketplace.json"))
+cp, xp = json.load(open("plugins/open-video-harness/.claude-plugin/plugin.json")), json.load(open("plugins/open-video-harness/.codex-plugin/plugin.json"))
+names = {cm["plugins"][0]["name"], xm["plugins"][0]["name"], cp["name"], xp["name"]}
+if names != {"open-video-harness"}: bad.append(f"plugin names: {names}")
+if cm["plugins"][0]["source"] != "./plugins/open-video-harness" or xm["plugins"][0]["source"] != {"source": "local", "path": "./plugins/open-video-harness"}:
+    bad.append("a marketplace does not point at ./plugins/open-video-harness")
+if "version" in cp or "version" in xp or "version" in cm["plugins"][0]: bad.append("a version is pinned: the plugin would stop following main")
+if xp.get("skills") != "./skills/": bad.append("Codex's plugin.json does not name ./skills/")
+print("\n".join(bad))
+PY
+)
+  if [ -z "$out" ]; then ok "the plugin the marketplaces install: skills/'s skills, copied; one name in the two marketplaces and two manifests; no version pinned"
+  else bad "the plugin: $out"; fi
+  # bin/vh studio brings the stubs install-skill wrote for this clone up to date before it opens, quietly (one line on stderr):
+  # a stub for a host nobody installed into stays unwritten, and one pointing at another clone that is there stays as it is
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX"); mkdir -p "$t/other/bin" "$t/home/.agents/skills/open-video-harness"; : > "$t/other/bin/vh"
+  HOME="$t/home" bash bin/vh install-skill claude >/dev/null 2>&1
+  sed 's/^description: /description: OLD /' "$t/home/.claude/skills/open-video-harness/SKILL.md" > "$t/x" && mv "$t/x" "$t/home/.claude/skills/open-video-harness/SKILL.md"
+  printf -- '---\nname: open-video-harness\ndescription: theirs\n---\nHarness path (set by install.sh): %s\n' "$t/other" > "$t/home/.agents/skills/open-video-harness/SKILL.md"
+  a=$(HOME="$t/home" OVH_STUDIO_SHELL=none OVH_STUDIO_BROWSER=none bash bin/vh studio --no-such-flag 2>&1 >/dev/null | head -1)
+  if [ "$a" = "skills: the claude stubs brought up to date (bin/vh install-skill claude; restart it to see them)" ] \
+    && ! grep -q "OLD" "$t/home/.claude/skills/open-video-harness/SKILL.md" && grep -q "theirs" "$t/home/.agents/skills/open-video-harness/SKILL.md" \
+    && [ ! -e "$t/home/.agents/skills/open-video-harness-web" ] && [ -z "$(HOME="$t/home" python3 tools/doctor.py --stale-skills)" ]
+  then ok "studio: this clone's outdated stubs written again before it opens, in one line; another clone's stub and a host nobody installed into left alone"
+  else bad "studio's skill refresh: $a"; fi
+  rm -rf "$t"
   bytes=$(wc -c < AGENTS.md)
   if [ "$bytes" -le 32768 ]; then ok "AGENTS.md fits Codex's default 32 KiB project guidance limit ($((bytes)) bytes)"
   else bad "AGENTS.md exceeds Codex's default 32 KiB project guidance limit; move task-specific detail into the playbook"; fi

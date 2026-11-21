@@ -425,7 +425,7 @@ bash install.sh --no-icon                        # leave OVH Studio out of your 
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
 - The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, Python packages up to about 1.5 GB, and the default local voice's model about 2 GB (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
 
-Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench. That copy stays as it was when the repo changes; once the workbench is installed, `bin/vh install-skill` replaces it with a stub that follows the clone.
+Skill only, from inside the agent: in Claude Code, `/plugin install open-video-harness --marketplace ZLHad/OpenVideoHarness`; in Codex, `codex plugin marketplace add ZLHad/OpenVideoHarness`, then `codex plugin add open-video-harness@open-video-harness`; or `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench. That copy stays as it was when the repo changes; once the workbench is installed, `bin/vh install-skill` replaces it with a stub that follows the clone.
 
 ## Where things are
 

@@ -170,6 +170,15 @@ cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
   echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
 }
+skills_refresh() { # before Studio opens: the stubs bin/vh install-skill wrote for this clone that doctor calls outdated (a renamed or
+  # new skill, a changed description, a stub of an older shape) written again, in one line on stderr; never for a host whose skills
+  # nobody installed from this clone, and never a stub pointing at another clone that is there (tools/doctor.py --stale-skills)
+  local t
+  for t in $(python3 "$ROOT/tools/doctor.py" --stale-skills 2>/dev/null); do
+    case "$t" in claude|codex) cmd_install_skill "$t" >/dev/null 2>&1 && echo "skills: the $t stubs brought up to date (bin/vh install-skill $t; restart it to see them)" >&2 ;; esac
+  done
+  return 0
+}
 cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first, then AGENTS.md from CLAUDE.md
   local m; m=$(python3 "$ROOT/tools/commands.py" claude-line --write "$ROOT/CLAUDE.md") || exit 1
   echo "$c_ok $m"
@@ -178,6 +187,12 @@ cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first,
     echo
     agents_body; } > "$ROOT/AGENTS.md"
   echo "$c_ok AGENTS.md regenerated from CLAUDE.md"
+  # the plugin Claude Code and Codex install from this repo's marketplace (.claude-plugin/, .agents/plugins/) carries a copy
+  # of each skill: a plugin is copied into the host's cache whole, so it cannot point back into skills/ (tools/ci.sh holds them equal)
+  local plug="$ROOT/plugins/open-video-harness/skills" s n d
+  for s in "$ROOT"/skills/*/SKILL.md; do n=$(basename "$(dirname "$s")"); mkdir -p "$plug/$n"; cp "$s" "$plug/$n/SKILL.md"; done
+  for d in "$plug"/*/; do n=$(basename "$d"); [ -f "$ROOT/skills/$n/SKILL.md" ] || rm -rf "$d"; done
+  echo "$c_ok plugins/open-video-harness/skills/ copied from skills/ (the plugin the marketplaces install)"
 }
 
 cmd_setup() {
@@ -1475,7 +1490,9 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   concept) shift; cmd_concept "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  studio) shift; export OVH_BASH=$BASH; exec python3 "$ROOT/tools/desk/studio.py" "$@" ;;   # stdlib only; the desk it starts runs under this same bash
+  studio) shift; export OVH_BASH=$BASH
+    case " $* " in *" -h "*|*" --help "*|*" --icon-status "*|*" --install-icon "*|*" --remove-icon "*) ;; *) skills_refresh ;; esac
+    exec python3 "$ROOT/tools/desk/studio.py" "$@" ;;   # stdlib only; the desk it starts runs under this same bash
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only
