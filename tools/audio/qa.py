@@ -47,7 +47,8 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
             attack: listed under "the score has a note here" (the 5 worst), not counted.
 voice alone: a mix of a voice and nothing else (the record bin/vh mix writes beside it, <mix>.mix.json, says voice= and no
   music, sfx or events; or the stems' meta.json has no music or events) is scanned against that voice: a dropout or a
-  pumping dip where the voice itself pauses (as deep under its own section median, or silent under −60 dBFS there) is
+  pumping dip where the voice itself pauses (as deep under its own section median, to within 4 dB: a profile mix moves each
+  line up to 3 dB; or silent under −60 dBFS there) is
   its own phrasing, counted apart, not a failure; one the voice does not have (the mix lost it mid-word) still fails,
   and so does a hard cut in the voice itself: a run of silence it enters at full voice (the 3 ms before it
   within 20 dB of its median level), which bin/vh mix's room tone would otherwise hide. Said in a line at the top.
@@ -509,6 +510,8 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
                    + (f" · {txt}" if txt else "") + " · a failure whatever the score does: keep a bed under a stop")
     db, tt = rms_db(x, sr, .1, .05); viol, nown, rest = [], 0, []
     own = music_stem or (voice if alone else None)   # the track whose own dips are its own: the music, or a voice heard alone
+    tol = 4.0 if alone and not music_stem else 1.0   # dB: a profile mix moves each line up to ±3 dB toward the median, so a voice
+    # alone (the file before that) is as deep as the mix only to within those 3 dB, and the 1 dB a stem is held to
     has_too = "that the music stem has too: the score's own dynamics" if music_stem else "where the voice itself pauses: its own phrasing"
     Ms = load(own, sr)[0].astype(np.float64).mean(1) if own else None   # the music bus as heard (or the voice alone)
     if Ms is not None: sm, st_ = rms_db(Ms, sr, .1, .05); sdb = np.interp(tt, st_, sm, right=-120.0)
@@ -517,7 +520,7 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         if m.any():
             med = np.median(db[m]); bad = m & (db < med - 12) & (tt >= t_from) & (tt <= end)
             ex = np.zeros(len(tt), bool)   # with the stems, window by window: the music stem as deep under its own median there
-            if Ms is not None: ex = maximum_filter1d(np.median(sdb[m]) - sdb, 3) >= med - db - 1.0   # (less 1 dB, ±1 window)
+            if Ms is not None: ex = maximum_filter1d(np.median(sdb[m]) - sdb, 3) >= med - db - tol   # (less tol dB, ±1 window)
             if alone and Ms is not None: ex |= maximum_filter1d((sdb < -60).astype(np.uint8), 3) > 0   # the voice itself silent there
             nown += len(runs(bad & ex, tt, .05, 0))   # the score's own; the rest of a dropout stays one (a span is split)
             for a, b, i, j in runs(bad & ~ex, tt, .05, 0):   # with a note map: the score's rests and the room between its notes
@@ -544,7 +547,7 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
     if Ms is not None:   # the music bus as heard: its own dips, on the same 10 ms grid
         me, mt = rms_db(Ms, sr, .05, .01)
         mdip = np.interp(te, mt, median_filter(me, size=61, mode="nearest") - me)
-    ex = maximum_filter1d(mdip, 5) >= dip - 1.0 if mdip is not None else np.zeros(len(te), bool)   # frame by frame, ±2 frames
+    ex = maximum_filter1d(mdip, 5) >= dip - tol if mdip is not None else np.zeros(len(te), bool)   # frame by frame, ±2 frames
     if alone and Ms is not None: ex |= maximum_filter1d((np.interp(te, mt, me) < -60).astype(np.uint8), 5) > 0   # the voice silent
     cand = [(a, b, i, j, float(dip[i:j].max())) for a, b, i, j in runs(dip > 4, te, .01, .06)
             if t_from <= a <= end and not any(-.05 <= a - h <= .40 for h, _ in hits) and not sag(i, j) and not talk[i]]
