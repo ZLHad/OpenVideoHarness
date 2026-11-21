@@ -4,8 +4,9 @@ A synthesized narration has nothing between its words: the joins are exact digit
 -60 dBFS, which the film's floor forbids (no digital silence in a film with sound). A recording made in a room never
 has that: it carries the room's own sound under every pause. This is that sound, made the same way each time, in numpy
 and scipy as the rest of the mixer's sound is (not by an ffmpeg filter, whose output can change from one ffmpeg build to
-the next): white noise from numpy's PCG64 generator with one fixed seed per channel (the same film gives the same bytes,
-and the two sides differ), made pink by Kellet's three-pole filter, high-passed at 60 Hz and low-passed at 5 kHz
+the next): white noise from a generator of its own (splitmix64 of the sample's number and one fixed seed per channel, in
+integer arithmetic, so the noise is the same on every machine and with every numpy; the two sides differ), made pink by
+Kellet's three-pole filter, high-passed at 60 Hz and low-passed at 5 kHz
 (second-order Butterworth each: a soft room, no hiss on top, no rumble under), at a fixed RMS level. Its first and last
 half second ramp between FOUND and that level (raised cosine), so neither end starts with a step and the film's last
 samples are not digital silence either. It goes in after the mix's loudness gain, so its level in the film is the level
@@ -15,12 +16,13 @@ rise by up to 0.1 dB (measured: -11.1 to -11.0 dBTP on a quiet voice, -1.57 to -
 The level, and how it was found: on the 25 s demo film's voice-only mix (Qwen3-TTS, -14 LUFS), this bed at each level
 from -74 to -56 dBFS RMS in 1 dB steps, and bin/vh qa's digital-silence scan (every channel under -60 dBFS for 20 ms or
 more) counted, with the longest stretch any part of the checked span spends with every channel under -60 dBFS. Without a
-bed: 22 runs, the longest 352 ms. At -74 to -69: 13 to 29 runs. At -68: 1 run (24 ms). At -67: none, the longest stretch
-13.2 ms (two thirds of the 20 ms the scan allows). At -66: none, 7.7 ms (well under half of it): the quietest level
-accepted with margin, FOUND. At -60: 1.3 ms. So room= takes FOUND … CEILING: quieter and the pauses fall back to digital silence, louder and
+bed: 22 runs, the longest 352 ms. At -74 to -69: 20 to 33 runs. At -68: 4 runs (27 ms). At -67: none, the longest stretch
+11.5 ms (more than half the 20 ms the scan allows). At -66: none, 9.3 ms (under half of it): the quietest level accepted with
+margin, FOUND. At -60: 1.3 ms. So room= takes FOUND … CEILING: quieter and the pauses fall back to digital silence, louder and
 the bed is heard under the voice. DEFAULT_DB is FOUND + 6 dB.
 
-bin/vh mix's default chain runs on plain python3 (ffmpeg does the mixing): it has the bed written by
+What the bed needs: numpy and scipy, which the default chain (plain python3, ffmpeg doing the mixing) gets through uv; offline
+with neither in uv's cache it stops with one line, and room=off mixes without it. It has the bed written by
 `uv run --with numpy --with scipy python roomtone.py render SECONDS LEVEL OUT` (raw float32, stereo, 48 kHz) and adds it
 as one more input; a profile mix (numpy already) calls bed() itself.
 """
@@ -40,15 +42,26 @@ CHUNK = 1 << 20               # samples made at a time (a long film's bed in pie
 CAL_S = 20                    # s of the bed at unit gain its level is measured on
 
 
+def _white(seed, start, n):
+    """Samples start … start+n-1 of the white noise for seed, uniform in [-1, 1): splitmix64 of (seed, the sample's number),
+    in 64-bit integer arithmetic that wraps, then its top 53 bits as a fraction: exact, so the bytes are ours."""
+    import numpy as np
+    with np.errstate(over="ignore"):
+        z = np.uint64(seed) * np.uint64(0xD1B54A32D192ED03) + (np.arange(start, start + n, dtype=np.uint64) + np.uint64(1)) * np.uint64(0x9E3779B97F4A7C15)
+        z = (z ^ (z >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+        z = (z ^ (z >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+        z = z ^ (z >> np.uint64(31))
+    return (z >> np.uint64(11)).astype(np.float64) * (2.0 ** -52) - 1.0
+
+
 def _channel(seed, n):
     import numpy as np
     from scipy.signal import butter, lfilter, sosfilt
-    rng = np.random.Generator(np.random.PCG64(seed))
     sos = np.vstack([butter(2, HIGHPASS / (SR / 2), "high", output="sos"), butter(2, LOWPASS / (SR / 2), "low", output="sos")])
     zp, zs = np.zeros(len(PINK_A) - 1), np.zeros((sos.shape[0], 2))
     out, pos = np.empty(n), -SETTLE
     while pos < n:
-        y, zp = lfilter(PINK_B, PINK_A, rng.standard_normal(CHUNK), zi=zp)
+        y, zp = lfilter(PINK_B, PINK_A, _white(seed, pos + SETTLE, CHUNK), zi=zp)
         y, zs = sosfilt(sos, y, zi=zs)
         lo, hi = max(0, -pos), min(CHUNK, n - pos)
         if hi > lo:
@@ -93,7 +106,10 @@ def write(seconds, level_db, path):
                             "render", repr(float(seconds)), repr(float(level_db)), path], check=True)
         except FileNotFoundError:
             raise ValueError("room tone is made with numpy and scipy, through uv, which is not installed here "
-                             "(https://docs.astral.sh/uv/; room=off leaves the room tone out)") from None
+                             "(https://docs.astral.sh/uv/; room=off mixes without it)") from None
+        except subprocess.CalledProcessError:
+            raise ValueError("room tone is made with numpy and scipy, and uv could not get them (offline, and not in its cache?): "
+                             "room=off mixes without it") from None
         return
     with open(path, "wb") as f:
         f.write(bed(seconds, level_db).tobytes())

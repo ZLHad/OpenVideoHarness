@@ -2024,7 +2024,7 @@ print([x["evidence"]["duration"] for x in f])')
       # record (a bed that drops out over a pause) is judged as any mix, and so are a record with edit=, stems with SFX, and a
       # voice with no timeline; the voice's "silent" is 40 dB under its own level, so a quiet file is judged alike
       voice_film() { uv run -q --no-project --with numpy python - "$@" <<'PY'
-import json, os, sys, wave
+import hashlib, json, os, sys, wave
 import numpy as np
 root, kind = sys.argv[1], sys.argv[2]; sr = 48000; gain = 10 ** (-55 / 20) if kind == "quiet" else 1.0
 def syllables(n, k):   # n of 0.22 s, a harmonic voice at 180 Hz; between them it dips 14 dB, never to zero
@@ -2037,19 +2037,32 @@ def line(k):   # four syllables, a comma's pause (40 ms down to zero, 300 ms of 
 def wav(p, x):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with wave.open(p, "wb") as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(np.round(np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
-parts, segs, at = [np.zeros(int(.3 * sr))], [], .3
+sha = lambda f: hashlib.sha256(open(os.path.join(root, f), "rb").read()).hexdigest()   # noqa: E731
+parts, segs, at, joined = [np.zeros(int(.3 * sr))], [], .3, [{"silence": int(.3 * sr)}]   # what tts joins, and records it joined
 for i in range(4):
     x = line(i); f = f"audio/vo/zh/{i + 1:02d}.wav"; wav(os.path.join(root, f), x)
     segs.append({"id": f"s{i + 1}", "text": "一二三四，五六七八。", "start": round(at, 3), "end": round(at + len(x) / sr, 3), "file": f})
-    parts += [x, np.zeros(int(.5 * sr))]; at += len(x) / sr + .5
+    parts += [x, np.zeros(int(.5 * sr))]; at += len(x) / sr + .5; joined += [{"file": f, "sha256": sha(f)}, {"silence": int(.5 * sr)}]
 v = np.concatenate(parts); c = int(round((segs[1]["start"] + .55) * sr)); h, L = int(.03 * sr), int(.3 * sr)   # line 2, its second syllable
 if kind == "fade": v[c:c + L] = 0; v[c - h:c] *= np.linspace(1, 0, h); v[c + L:c + L + h] *= np.linspace(0, 1, h)
 if kind == "hard": v[c:c + L] *= 10 ** (-30 / 20)
+if kind == "gap":   # 0.45 s of line 1's speech with a faded 0.15 s hole in it, put into the silence after line 1
+    g0, n = int(round(segs[0]["end"] * sr)) + int(.02 * sr), int(.45 * sr); src = v[int(segs[0]["start"] * sr):][:n].copy()
+    src[int(.15 * sr):int(.3 * sr)] = 0; src[int(.12 * sr):int(.15 * sr)] *= np.linspace(1, 0, int(.03 * sr)); v[g0:g0 + n] = src; c = g0
+if kind == "take":   # a hole punched into line 2's take after tts made it, and the voice joined again from it (tts --resume)
+    t2 = os.path.join(root, segs[1]["file"]); y = line(1); k = int(.55 * sr); y[k:k + L] = 0; y[k - h:k] *= np.linspace(1, 0, h); wav(t2, y)
+    v[c - h:c + L] = (v[c - h:c + L] * np.concatenate([np.linspace(1, 0, h), np.zeros(L)]))
 if kind == "quiet":   # the mix of this quiet voice, made by hand at +55 dB with a cut mid-word the voice does not have
     m = v / gain * .5; m[c:c + L] *= 10 ** (-30 / 20)   # and a floor under it, as a mix with room tone has (no digital silence)
     wav(os.path.join(root, "cut-mix.wav"), m + .003 * np.random.default_rng(7).standard_normal(len(m)))
+if kind in ("fx", "fxgap"):   # an effect bus: a beep over line 2's comma pause (fxgap: the effect itself drops out for 0.25 s)
+    t_ = np.arange(len(v)) / sr; s2 = segs[1]["start"]; fx = .3 * np.sin(2 * np.pi * 900 * t_) * ((t_ > s2 + .75) & (t_ < s2 + 1.35))
+    if kind == "fxgap": fx[(t_ > s2 + .93) & (t_ < s2 + 1.18)] = 0
+    wav(os.path.join(root, "audio/fx.wav"), fx)
 wav(os.path.join(root, "audio/voiceover.zh.wav"), v)
-json.dump({"provider": "stand-in", "lang": "zh", "duration": round(len(v) / sr, 3), "segments": segs}, open(os.path.join(root, "audio/timeline.zh.json"), "w"), ensure_ascii=False)
+doc = {"provider": "stand-in", "lang": "zh", "duration": round(len(v) / sr, 3), "segments": segs, "joined": joined}
+if kind == "paced": doc.pop("joined"); doc["pace"] = {"from": "audio/voiceover.zh.raw.wav"}; [x.pop("file") for x in segs]   # what bin/vh pace writes
+json.dump(doc, open(os.path.join(root, "audio/timeline.zh.json"), "w"), ensure_ascii=False)
 print(f"{c / sr:.2f}")
 PY
       }
@@ -2078,19 +2091,52 @@ json.dump({"version": 1, "status": "complete", "args": args, "args_sha256": M.js
 PY
       # stems: a profile mix of the voice alone, then the same with an SFX stem that is not silent
       ( cd "$t/cf/v-clean" && uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/mix.py" pmix.wav voice=audio/voiceover.zh.wav profile=explainer stems=st >/dev/null 2>&1 )
-      cp -R "$t/cf/v-clean/st" "$t/cf/v-clean/st-sfx"; ffmpeg -nostdin -v error -y -f lavfi -i "aevalsrc='0.1*sin(2*PI*900*t)*between(t,3,3.2)':s=48000:d=12" -ac 2 -c:a pcm_s16le "$t/cf/v-clean/st-sfx/sfx.wav"
+      cp -R "$t/cf/v-clean/st" "$t/cf/v-clean/st-mus"; ffmpeg -nostdin -v error -y -f lavfi -i "aevalsrc='0.1*sin(2*PI*330*t)':s=48000:d=12" -ac 2 -c:a pcm_s16le "$t/cf/v-clean/st-mus/music.wav"
       # no timeline: the same voice under another name
       mkdir -p "$t/cf/v-notl"; cp "$t/cf/v-clean/audio/voiceover.zh.wav" "$t/cf/v-notl/v.wav"; mxr "$t/cf/v-notl" mix.wav voice=v.wav
       a=$(qs "$t/cf/v-stale/mix.wav" 2>&1); rc=$?; b=$(qs "$t/cf/v-edit/mix.wav" 2>&1); rb=$?
-      c=$(qs "$t/cf/v-clean/pmix.wav" --stems "$t/cf/v-clean/st" 2>&1); rcc=$?; d=$(qs "$t/cf/v-clean/pmix.wav" --stems "$t/cf/v-clean/st-sfx" 2>&1); rd=$?
+      c=$(qs "$t/cf/v-clean/pmix.wav" --stems "$t/cf/v-clean/st" 2>&1); rcc=$?; d=$(qs "$t/cf/v-clean/pmix.wav" --stems "$t/cf/v-clean/st-mus" 2>&1); rd=$?
       e=$(qs "$t/cf/v-notl/mix.wav" 2>&1); re_=$?
       if [ $rc = 1 ] && case "$a" in *"a mix record is here, but it does not match this mix"*) true ;; *) false ;; esac \
-        && [ $rb = 1 ] && case "$b" in *"voice alone"*) false ;; *) true ;; esac \
+        && [ $rb = 1 ] && case "$b" in *"the mix record has an edit list"*"judged as any mix"*) true ;; *) false ;; esac \
         && [ $rcc = 0 ] && case "$c" in *"the mix is a voice alone (voiceover.zh.wav, from the mix record and the stems)"*) true ;; *) false ;; esac \
-        && [ $rd = 1 ] && case "$d" in *"voice alone"*) false ;; *) true ;; esac \
-        && [ $re_ = 1 ] && case "$e" in *"no timeline of it is here"*"judged as any mix"*) true ;; *) false ;; esac
-      then ok "qa scan: a mix changed after its record, a record with edit=, stems with a sound on the SFX bus and a voice with no timeline are judged as any mix; a profile mix of the voice alone with its stems is a voice alone"
+        && [ $rd = 1 ] && case "$d" in *"the stems have music"*"judged as any mix"*) true ;; *) false ;; esac \
+        && [ $re_ = 1 ] && case "$e" in *"the voice has no timeline here"*"judged as any mix"*) true ;; *) false ;; esac
+      then ok "qa scan: a mix changed after its record, a record with edit=, stems with music and a voice with no timeline are judged as any mix, each saying why; a profile mix of the voice alone with its stems is a voice alone"
       else bad "qa scan, what counts as a voice alone ($rc/$rb/$rcc/$rd/$re_): $(printf '%s' "$a" | grep -E 'record|^✓|^✗') | $(printf '%s' "$b" | grep -E 'voice alone|^✓|^✗') | $(printf '%s' "$c" | grep -E 'voice alone|^✓|^✗') | $(printf '%s' "$d" | grep -E 'voice alone|^✓|^✗') | $(printf '%s' "$e" | grep -E 'timeline|^✓|^✗')"; fi
+      # what bin/vh tts joined, every sample of it: speech put into a gap after the fact, and a take changed and joined again
+      # (--resume), fail there; a voice with an effect bus and no music: its own pauses count where the effect is silent;
+      # a paced voice, and a mix copied without its record, are judged as any mix with the line that says why
+      for k in gap take paced fx fxgap; do voice_film "$t/cf/v-$k" "$k" > "$t/cf/v-$k.at"; done
+      for k in gap take paced; do mxr "$t/cf/v-$k" mix.wav voice=audio/voiceover.zh.wav; done
+      mxr "$t/cf/v-fx" mix.wav voice=audio/voiceover.zh.wav sfx=audio/fx.wav; mxr "$t/cf/v-fxgap" mix.wav voice=audio/voiceover.zh.wav sfx=audio/fx.wav
+      mkdir -p "$t/cf/v-copy"; cp "$t/cf/v-clean/mix.wav" "$t/cf/v-copy/mix.wav"
+      a=$(qs "$t/cf/v-gap/mix.wav" 2>&1); rc=$?; b=$(qs "$t/cf/v-take/mix.wav" 2>&1); rb=$?; c=$(qs "$t/cf/v-paced/mix.wav" 2>&1); rcc=$?
+      d=$(qs "$t/cf/v-fx/mix.wav" 2>&1); rd=$?; e=$(qs "$t/cf/v-copy/mix.wav" 2>&1); re_=$?; f=$(qs "$t/cf/v-fxgap/mix.wav" 2>&1); rf=$?
+      gp=$(cat "$t/cf/v-gap.at")
+      if [ $rc = 1 ] && case "$a" in *"changed since at ${gp%?}"*"judged there as any mix"*"dropouts (0.1 s RMS < section median − 12 dB): "[1-9]*) true ;; *) false ;; esac \
+        && [ $rb = 1 ] && case "$b" in *"changed since at "*"judged there as any mix"*"dropouts (0.1 s RMS < section median − 12 dB): "[1-9]*) true ;; *) false ;; esac \
+        && [ $rcc = 1 ] && case "$c" in *"re-timed by bin/vh pace"*"judged as any mix"*) true ;; *) false ;; esac \
+        && [ $rd = 0 ] && case "$d" in *"the mix is a voice with sound effects and no music"*"an effect sounds over"*"✓ audio QA passed"*) true ;; *) false ;; esac \
+        && [ $re_ = 1 ] && case "$e" in *"no mix record beside it"*"judged as any mix"*) true ;; *) false ;; esac \
+        && [ $rf = 1 ] && case "$f" in *"an effect sounds over"*"dropouts (0.1 s RMS < section median − 12 dB): "[1-9]*) true ;; *) false ;; esac
+      then ok "qa scan: every sample of what bin/vh tts joined (speech put into a gap, a take changed and joined again fail there); a voice with an effect bus passes where the effect is silent, and an effect that drops out over a pause fails; a paced voice and a copied mix judged as any mix, saying why"
+      else bad "qa scan, the joined voice ($rc/$rb/$rcc/$rd/$re_): $(printf '%s' "$a" | grep -E 'voice|^✓|^✗') | $(printf '%s' "$b" | grep -E 'voice|^✓|^✗') | $(printf '%s' "$c" | grep -E 'pace|^✓|^✗') | $(printf '%s' "$d" | grep -E 'voice|^✓|^✗') | $(printf '%s' "$e" | grep -E 'record|^✓|^✗') | $(printf '%s' "$f" | grep -E 'effect|^\[2\]|^✓|^✗')"; fi
+      # tts --resume: a take kept from the run before that is not as tts made it is said, and recorded without its hash
+      a=$(cd "$t/cf/v-clean" && ROOT="$ROOT" python3 - <<'PY' 2>&1
+import json, os, sys
+sys.path.insert(0, os.path.join(os.environ["ROOT"], "tools/audio")); import tts
+from pathlib import Path
+vo, proj = Path("audio/vo/zh"), Path(".")
+parts = [vo / "01.wav", vo / "02.wav"]
+first = tts.joined_parts(parts, vo, proj, set(parts), set())          # made in this run: recorded
+open(vo / "02.wav", "ab").write(b"\0\0")                             # changed after
+again = tts.joined_parts(parts, vo, proj, set(), set())                # kept by --resume
+print(bool(first[1]["sha256"]), again[0]["sha256"] == first[0]["sha256"], again[1]["sha256"])
+PY
+)
+      case "$a" in *"02.wav: kept from the run before (--resume), but not as tts made it (changed since)"*"True True None") ok "tts: the takes' sha256 recorded as made; one kept by --resume and changed since is said and recorded without it" ;;
+        *) bad "tts's record of what it joined: $a" ;; esac
       # a quiet voice file (about −67 dBFS) heard alone: a cut the mix has and the voice does not still counts (its "silent"
       # is 40 dB under its own level, not under −60 dBFS, which all of it is)
       a=$(cd "$t/cf/v-quiet" && ROOT="$ROOT" uv run -q --no-project --with numpy --with scipy python - <<'PY' 2>&1
@@ -2116,6 +2162,8 @@ PY
       saidm=$(python3 "$ROOT/tools/audio/mix.py" "$t/cf/rt/vm2.wav" voice="$v" music="$t/cf/rt/m.wav" room=-62 2>&1)
       rng=""; for r in -66 -58 -66.5 -57.9 -80 loud; do python3 "$ROOT/tools/audio/mix.py" "$t/cf/rt/r.wav" voice="$v" room=$r >/dev/null 2>"$t/cf/rt/r.err"; rng="$rng $r:$?"; done
       why=$(cat "$t/cf/rt/r.err"; python3 "$ROOT/tools/audio/mix.py" "$t/cf/rt/r.wav" voice="$v" room=-80 2>&1)
+      mkdir -p "$t/cf/rt/nouv"; printf '#!/bin/sh\necho "error: Failed to download numpy" >&2; exit 1\n' > "$t/cf/rt/nouv/uv"; chmod +x "$t/cf/rt/nouv/uv"
+      off=$(PATH="$t/cf/rt/nouv:$PATH" python3 -S "$ROOT/tools/audio/mix.py" "$t/cf/rt/o.wav" voice="$v" 2>&1); roff=$?
       rec=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["room"]["rms_dbfs"], json.load(open(sys.argv[2])).get("room"))' "$t/cf/rt/a.wav.mix.json" "$t/cf/rt/vm.wav.mix.json")
       dead=$(uv run -q --no-project --with numpy python - "$t/cf/rt/a.wav" <<'PY'
 import subprocess, sys
@@ -2129,9 +2177,10 @@ PY
         && cmp -s "$t/cf/rt/a.wav" "$t/cf/rt/a2.wav" && cmp -s "$t/cf/rt/vm.wav" "$t/cf/rt/vm-off.wav" && ! cmp -s "$t/cf/rt/a.wav" "$t/cf/rt/off.wav" \
         && [ "$rec" = "-60.0 None" ] && case "$said" in *"room tone under the voice at -60 dBFS RMS"*"room=off leaves it out"*) true ;; *) false ;; esac \
         && case "$saidm" in *"room=-62: not used: the music is the bed under the voice's pauses"*) true ;; *) false ;; esac \
+        && [ $roff = 1 ] && case "$off" in *"uv could not get them"*"room=off mixes without it"*) true ;; *) false ;; esac \
         && [ "$rng" = " -66:0 -58:0 -66.5:1 -57.9:1 -80:1 loud:1" ] && case "$why" in *"room=loud: on (the default, -60 dBFS RMS), off, or a level from -66 to -58 dBFS RMS"*"room=-80: a level from -66 dBFS RMS"*"to -58"*) true ;; *) false ;; esac
       then ok "mix: room tone under a voice with no music (-60 dBFS RMS, said, in the record), no digital silence left anywhere in the film, its ends included; room=off gives it back; with music the same bytes, and room= says it is not used; the same bytes twice; room= only -66…-58"
-      else bad "mix's room tone (qa off $rb, digital silence runs $dead, record $rec, range$rng): $(printf '%s' "$b" | grep -E '^\[1\]') | $said | $saidm | $why"; fi
+      else bad "mix's room tone (qa off $rb, digital silence runs $dead, record $rec, range$rng, offline $roff): $(printf '%s' "$b" | grep -E '^\[1\]') | $said | $saidm | $why | $off"; fi
       a=$(qs "$t/cf/audio/mix.wav" 2>&1); rc=$?
       case "$rc:$a" in 1:*'confirm? {"tool": "qa.dropout", "at": "3.100-4.900"'*'confirm? {"tool": "qa.click", "at": "5.950-6.650", "n": 3'*) ok "qa scan in a project offers confirm? lines for a dropout and a click burst" ;; *) bad "qa scan offers (rc $rc): $a" ;; esac
       printf '%s\n' "$a" | fill STORYBOARD.md#S01 "$t/cf/confirmed.json"
