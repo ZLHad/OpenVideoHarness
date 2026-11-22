@@ -1,0 +1,30 @@
+# Download mirrors for a network where the official sources do not answer (mainland China), in one place.
+# install.sh tries the official npm registry (through npm), Hugging Face and Google's storage first (twice each, 5 s a try);
+# only when one does not answer and its mirror does, this machine's settings get "mirror": "cn" ($XDG_CONFIG_HOME/ovh/
+# settings.json, tools/settings.py), and from then on bin/vh exports the variables below with the mirror column for
+# everything it runs (the agents Studio starts too, so their own npm or uv goes there as well): npm (project packages,
+# Studio's app and its agent adapters), uv (Python packages, a Python build), Hugging Face (the local voice), Electron, and
+# HyperFrames' Chrome, which bin/vh fetches from the mirror itself because HyperFrames has no setting for it. A source you set
+# yourself stays yours: the variable in your environment, npm's registry in an .npmrc, uv's index in a uv.toml.
+# install.sh --mirror cn uses them without trying, --mirror off never; bin/vh settings mirror cn|off|auto changes it later.
+# Not covered (they still go to the official place): the git clone itself and references/fetch.sh (GitHub), install.sh
+# --obscura (GitHub releases), bin/vh hf add (HyperFrames' registry), bin/vh hdri (Poly Haven), and the Google Fonts that
+# ClaudeAnimationBase's studio.html loads.
+# What still checks a download, mirror or not, and what the mirror is trusted with:
+#   - checked: npm ci where a lockfile is (styles/_swatch, Studio's Electron shell, the agent adapters, ClaudeAnimationBase)
+#     checks each package against the lockfile's hash; Electron's zip is checked against the checksums.json its npm package
+#     ships (itself under that hash); uv checks a Python build against the sha256 built into uv (a substituted archive from a
+#     mirror folder is refused, tried 2026-11-22).
+#   - trusted to the mirror, wholly, as it is to npmjs.org today: what has no lockfile. bin/vh new's npm i -D hyperframes@<pin>
+#     and gsap with what they bring, npx --yes hyperframes@<pin> (bin/vh hf), the @puppeteer/browsers a folder without
+#     HyperFrames' node_modules runs (pinned to a version, not a hash): their packages and the hashes they are checked
+#     against both come from the mirror. So do uv's packages (uv run --with …, not pinned), the Hugging Face model, and
+#     HyperFrames' Chrome (no hash is pinned for it anywhere): over https, as from the official source.
+#
+# kind        variable                  official (tried first)                                                   mirror (cn)                                                       who runs the mirror
+npm           npm_config_registry       https://registry.npmjs.org                                               https://registry.npmmirror.com                                    npmmirror.com, run by the cnpm project
+pypi          UV_DEFAULT_INDEX          https://pypi.org/simple                                                  https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple              TUNA, Tsinghua University's open-source mirror
+python        UV_PYTHON_INSTALL_MIRROR  https://github.com/astral-sh/python-build-standalone/releases/download   https://registry.npmmirror.com/-/binary/python-build-standalone   npmmirror.com
+huggingface   HF_ENDPOINT               https://huggingface.co                                                   https://hf-mirror.com                                             hf-mirror.com, a non-profit community project, not Hugging Face's own
+electron      ELECTRON_MIRROR           https://github.com/electron/electron/releases/download/                  https://npmmirror.com/mirrors/electron/                           npmmirror.com
+chrome        -                         https://storage.googleapis.com/chrome-for-testing-public                 https://cdn.npmmirror.com/binaries/chrome-for-testing             npmmirror.com

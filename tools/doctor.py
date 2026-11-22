@@ -199,6 +199,8 @@ def first_film(mods, checks, plat, found_by=None, env=os.environ, libs=None):
         lines.append("  The first render downloads its own Chrome once (about 0.2 GB).")
     if font and not zh_locale(env):
         lines.append("! Chinese text: no Chinese font here, so it would draw as boxes → sudo apt install fonts-noto-cjk")
+    if ((c.get("mirror") or {}).get("note") or "").startswith("cn:"):
+        lines.append("  Downloads come from the mainland-China mirrors (bin/vh settings mirror off turns that off).")
     if plat == "darwin-arm64":
         if (m.get("qwen3-tts") or {}).get("state") == "ok" and (m.get("mlx-audio") or {}).get("state") == "ok":
             lines.append("✓ Voice: the local voice is downloaded.")
@@ -661,7 +663,7 @@ def cache_homes(has_chrome=False):
         ("HyperFrames", env("HYPERFRAMES_FONT_CACHE_DIR") or str(home("~/.cache/hyperframes/fonts")), "the fonts a film asks for; its Chrome is already there",
          "HYPERFRAMES_FONT_CACHE_DIR=<folder>") if has_chrome else
         ("HyperFrames", str(home("~/.cache/hyperframes")), "its Chrome on a first snapshot or render, about 200 MB, and its fonts",
-         "no setting moves it: let the sandbox write it, or fetch the Chrome once outside the sandbox (npx hyperframes browser ensure) "
+         "no setting moves it: let the sandbox write it, or fetch the Chrome once outside the sandbox (" + ("bin/vh settings chrome" if os.environ.get("OVH_MIRROR") == "cn" else "npx hyperframes browser ensure") + ") "
          "and give the fonts HYPERFRAMES_FONT_CACHE_DIR=<folder>"),
         ("bin/vh", os.path.join(xdg, "ovh"), "the font index of fonts and textcheck, HyperFrames' registry list", "XDG_CACHE_HOME=<folder>"),
     ]
@@ -714,6 +716,15 @@ def repo_checks(webgl, found_by):
         out.append({"name": "references", "state": "ok", "note": f"{have}/{want} repos fetched, {size_of(ROOT / 'references' / 'repos')}"})
     else:
         out.append({"name": "references", "state": "ok", "note": references_note(have, want, bytes_of(ROOT / "references" / "repos") if have else 0, install_says())})
+    try:   # the download mirrors this machine's settings say (tools/settings.py, tools/mirrors.txt)
+        import settings as S
+        d = S.load(); m = S.mirror(d); why = f" ({d['mirror_why']})" if d.get("mirror_why") else ""
+        out.append({"name": "mirror", "state": "ok", "note": {
+            "cn": f"cn: downloads come from the mainland-China mirrors ({S.operators()}; tools/mirrors.txt){why} → bin/vh settings mirror off turns that off",
+            "off": f"off: the official sources, and install.sh does not try the mirrors{why} → bin/vh settings mirror auto or cn changes it",
+            "auto": "auto: the official sources (install.sh tries the mainland-China mirrors when the official npm registry does not answer) → bin/vh settings mirror cn uses them now"}[m]})
+    except (OSError, ValueError, ImportError) as e:
+        out.append({"name": "mirror", "state": "unchecked", "note": f"tools/mirrors.txt or this machine's settings not readable: {e}"})
     local = ROOT / "LOCAL.md"
     if not local.exists():
         out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → bin/vh doctor --fill-local (copies LOCAL.example.md, writes this machine's lines)"})
@@ -1029,7 +1040,10 @@ def main(argv):
             print_module(m, r)
     print("- every bin/vh new short|promo|data|meme installs its own pinned HyperFrames into the project (about 140 MB of node_modules)")
     if first:
-        print(f"   still to come on first use: {', '.join(first)} (wiki: Getting Started; mirrors behind a slow or blocked network: wiki China-Network / 国内网络)")
+        mirrored = os.environ.get("OVH_MIRROR") == "cn"
+        print(f"   still to come on first use: {', '.join(first)} (wiki: Getting Started; "
+              + ("from the mainland-China mirrors, as this machine's settings say: bin/vh settings)" if mirrored else
+                 "mirrors behind a slow or blocked network: bin/vh settings mirror cn, wiki China-Network / 国内网络)"))
     if not a["probe"]:
         print("   bin/vh doctor --probe: also call each service with a key once, at an endpoint that costs nothing")
     return 0

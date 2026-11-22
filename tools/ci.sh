@@ -1745,6 +1745,106 @@ PY
       else bad "first downloads here: $a | $b | no script ($re): $qcalls | progress lines: $g"; fi ;;
   esac
   rm -rf "$ft"
+  # the download mirrors: this machine's settings (tools/settings.py) in a file of their own, read on every bin/vh run. With
+  # "mirror": "cn" bin/vh exports the variables of tools/mirrors.txt for what it runs; a source the person set stays theirs (the
+  # variable, npm's registry in an .npmrc, uv's index in a uv.toml); once it is not cn, the ones a bin/vh before exported
+  # (inherited, as Studio's agents have them) are taken out again, and a value of the person's own is left
+  mt=$(mktemp -d "${TMPDIR:-/tmp}/vh-mirror.XXXXXX"); mh="$mt/home"; mkdir -p "$mh"
+  mv_() { env -u npm_config_registry -u HF_ENDPOINT -u UV_DEFAULT_INDEX -u UV_INDEX_URL -u ELECTRON_MIRROR -u UV_PYTHON_INSTALL_MIRROR -u OVH_MIRROR -u NPM_CONFIG_USERCONFIG HOME="$mh" XDG_CONFIG_HOME="$mt/c" "$@"; }
+  envj() { python3 -c 'import json, sys; d = json.load(sys.stdin); e = d["environment"]; print(d["mirror"], " ".join(f"{k}={e[k]}" for k in sorted(e)), [k["kind"] for k in d.get("kept_own", [])])'; }
+  a=$(mv_ bin/vh settings mirror --get; mv_ bin/vh settings mirror cn --why "a test" >/dev/null; mv_ bin/vh settings --json | envj
+      mv_ npm_config_registry=https://mine.example bin/vh settings --json | envj
+      mv_ bin/vh settings mirror off >/dev/null
+      mv_ OVH_MIRROR=cn npm_config_registry=https://registry.npmmirror.com HF_ENDPOINT=https://hf-mirror.com UV_DEFAULT_INDEX=https://mine.example/simple bin/vh settings --json | envj
+      mv_ bin/vh settings mirror nope 2>/dev/null; echo "exit $?")
+  want="auto
+cn ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ HF_ENDPOINT=https://hf-mirror.com UV_DEFAULT_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple UV_PYTHON_INSTALL_MIRROR=https://registry.npmmirror.com/-/binary/python-build-standalone npm_config_registry=https://registry.npmmirror.com []
+cn ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ HF_ENDPOINT=https://hf-mirror.com UV_DEFAULT_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple UV_PYTHON_INSTALL_MIRROR=https://registry.npmmirror.com/-/binary/python-build-standalone npm_config_registry=https://mine.example ['npm']
+off ELECTRON_MIRROR=None HF_ENDPOINT=None UV_DEFAULT_INDEX=https://mine.example/simple UV_PYTHON_INSTALL_MIRROR=None npm_config_registry=None []
+exit 2"
+  # a registry of the person's own in their .npmrc and a uv.toml: not exported over, and said
+  mv_ bin/vh settings mirror cn >/dev/null; printf 'registry=https://corp.example/npm/\n' > "$mh/.npmrc"; mkdir -p "$mt/c/uv"; printf 'index-url = "https://corp.example/pypi/simple"\n' > "$mt/c/uv/uv.toml"
+  b=$(mv_ bin/vh settings --json | envj; mv_ bin/vh settings | grep -c 'your own source stays'); rm -f "$mh/.npmrc" "$mt/c/uv/uv.toml"
+  wantb="cn ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ HF_ENDPOINT=https://hf-mirror.com UV_DEFAULT_INDEX=None UV_PYTHON_INSTALL_MIRROR=https://registry.npmmirror.com/-/binary/python-build-standalone npm_config_registry=None ['npm', 'pypi']
+2"
+  c=$(awk '!/^#/ && NF { if ($4 !~ /^https:\/\//) print "not https: " $1 }' tools/mirrors.txt)
+  # HyperFrames' Chrome: only through the mirror helper with cn, and not for an inherited OVH_MIRROR once the setting is off; a
+  # folder with no HyperFrames is one line and exit 1 (the installer goes on past it)
+  hp="$mt/hfp"; mkdir -p "$hp/node_modules/hyperframes/dist" "$hp/node_modules/.bin"; printf 'var CHROME_VERSION = "152.0.1.2";\n' > "$hp/node_modules/hyperframes/dist/a.js"
+  printf '#!/bin/sh\necho "$*" >> "%s/browsers.log"\n' "$mt" > "$hp/node_modules/.bin/browsers"; chmod +x "$hp/node_modules/.bin/browsers"
+  d=$(mv_ bin/vh settings chrome "$hp" 2>&1 >/dev/null; mv_ bin/vh settings mirror off >/dev/null; mv_ OVH_MIRROR=cn bin/vh settings chrome "$hp"
+      mkdir -p "$mt/empty"; mv_ bin/vh settings mirror cn >/dev/null; mv_ bin/vh settings chrome "$mt/empty" 2>&1; echo "exit $?"; mv_ bin/vh settings mirror auto >/dev/null)
+  chr=$(sed -n '/settings chrome || true/p' install.sh | sed 's/  *#.*$//'); mkdir -p "$mt/inst/bin"; printf '#!/bin/sh\necho "! no HyperFrames yet" >&2; exit 1\n' > "$mt/inst/bin/vh"; chmod +x "$mt/inst/bin/vh"
+  e=$(cd "$mt/inst" && OVH_MIRROR=cn bash -euo pipefail -c "$chr; echo went on" 2>&1)
+  if [ "$a" = "$want" ] && [ "$b" = "$wantb" ] && [ -z "$c" ] && [ "$(cat "$mt/browsers.log" 2>/dev/null)" = "install chrome-headless-shell@152.0.1.2 --path $mh/.cache/hyperframes/chrome --base-url https://cdn.npmmirror.com/binaries/chrome-for-testing" ] \
+    && case "$d" in *"HyperFrames' Chrome 152.0.1.2 from the mirror"*"the mirrors are not on"*"no HyperFrames installed for $mt/empty yet"*"exit 1") true ;; *) false ;; esac \
+    && [ "$(printf '%s\n' "$e" | tail -1)" = "went on" ]
+  then ok "mirrors: read on every run; cn exports tools/mirrors.txt's variables (one the person set stays, and npm's or uv's own registry is not exported over, and said); off takes out what an earlier bin/vh exported, not the person's own; HyperFrames' Chrome through the mirror only with cn, a folder with no HyperFrames one line and the installer goes on"
+  else bad "mirrors: $a | own: $b | $c | chrome: $(cat "$mt/browsers.log" 2>/dev/null) / $d | installer: $e"; fi
+  # install.sh's probe: npmjs through npm (its own proxy counts), Hugging Face and Google's storage through curl, twice each;
+  # cn when one fails twice and its mirror answers, the reason saying what happened; one failed try is not a failure; off is
+  # kept and stops the trying; a choice that cannot be kept still uses the mirrors for this run
+  mkdir -p "$mt/bin"
+  printf '#!/bin/sh\n[ -n "$NPM_DOWN" ] && { echo "npm error code ENOTFOUND" >&2; exit 1; }; exit 0\n' > "$mt/bin/npm"
+  printf '#!/bin/sh\nfor a; do u=$a; done\ncase "$u" in *huggingface.co*) [ -n "$HF_DOWN" ] && exit 28; if [ -n "$HF_FLAKY" ] && [ ! -e "$HF_FLAKY" ]; then : > "$HF_FLAKY"; exit 6; fi ;; *registry.npmjs.org*) [ -n "$CURL_NPM_DOWN" ] && exit 7 ;; esac\nexit 0\n' > "$mt/bin/curl"
+  chmod +x "$mt/bin/npm" "$mt/bin/curl"
+  sed -n '/^reach() {/,/^eval "\$(python3 tools\/settings.py env/p' install.sh > "$mt/probe.sh"
+  probe() { (env -u npm_config_registry -u HF_ENDPOINT -u OVH_MIRROR PATH="$mt/bin:$PATH" HOME="$mh" XDG_CONFIG_HOME="$mt/$1" "${@:2}" bash -euo pipefail -c 'MIRROR=${MIRROR:-}; . "$1"; echo "now $(bin/vh settings mirror --get) ${HF_ENDPOINT:-official}"' _ "$mt/probe.sh" 2>&1 | tail -1); }
+  f1=$(probe p1 HF_DOWN=1); f2=$(probe p2); f3=$(probe p3 MIRROR=off HF_DOWN=1); f4=$(probe p4 HF_FLAKY="$mt/flaky"); f5=$(probe p5 CURL_NPM_DOWN=1); f6=$(probe p6 NPM_DOWN=1)
+  mkdir -p "$mt/ro"; chmod 555 "$mt/ro"; f7=$(probe ro HF_DOWN=1); chmod 755 "$mt/ro"
+  why=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["mirror_why"])' "$mt/p1/ovh/settings.json" 2>&1)
+  why6=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["mirror_why"])' "$mt/p6/ovh/settings.json" 2>&1)
+  if [ -s "$mt/probe.sh" ] && [ "$f1" = "now cn https://hf-mirror.com" ] && [ "$f2" = "now auto official" ] && [ "$f3" = "now off official" ] \
+    && [ "$f4" = "now auto official" ] && [ "$f5" = "now auto official" ] && [ "$f6" = "now cn https://hf-mirror.com" ] && [ "$f7" = "now auto https://hf-mirror.com" ] \
+    && case "$why" in "install.sh, "*": huggingface.co: it did not answer in 5 s, twice, and hf-mirror.com answered") true ;; *) false ;; esac \
+    && case "$why6" in *"registry.npmjs.org: its name did not resolve, twice, and registry.npmmirror.com answered") true ;; *) false ;; esac
+  then ok "install.sh's probe: npmjs through npm, Hugging Face and Google's storage twice each; cn when one fails and its mirror answers, with what happened; one failed try is not a failure; off is kept; a choice it cannot keep still uses the mirrors for this run"
+  else bad "install.sh's probe: $f1 / $f2 / $f3 / $f4 / $f5 / $f6 / $f7 | $why | $why6"; fi
+  # this machine's settings file: two writers both land (deterministically: the second writes while the first holds the lock
+  # between its read and its write); a key given as None goes, an unknown one stays; set_mirror writes what the command writes;
+  # a file that is not a JSON object is kept as settings.json.bad; one of a newer version is not written over; an XDG_CONFIG_HOME
+  # that is not absolute is ignored; a key nested in another is not the mirror; an unwritable folder is one line, no traceback
+  a=$(cd "$ROOT" && XDG_CONFIG_HOME="$mt/w" HOME="$mh" python3 - <<'PY' 2>&1
+import json, os, subprocess, sys, time
+sys.path.insert(0, "tools"); import settings
+first = ("import sys, time; sys.path.insert(0, 'tools'); import settings\n"
+         "with settings.locked():\n    d = settings.load(); open(sys.argv[1], 'w').close(); time.sleep(1.0); d['a'] = 1; settings._write(d)\n")
+flag = os.path.join(os.environ["XDG_CONFIG_HOME"], "held"); os.makedirs(os.environ["XDG_CONFIG_HOME"], exist_ok=True)
+pa = subprocess.Popen([sys.executable, "-c", first, flag])
+while not os.path.exists(flag): time.sleep(0.01)
+settings.update({"b": 1}); pa.wait()
+d = json.load(open(settings.path())); out = [d.get("a"), d.get("b")]
+settings.update({"mirror": "cn"}); settings.update({"mirror": None, "studio_theme": "dark"}); d = json.load(open(settings.path()))
+out += [d.get("mirror"), d.get("studio_theme"), d.get("version")]
+mine = settings.set_mirror("cn", "a test"); subprocess.run([sys.executable, "tools/settings.py", "mirror", "off"], capture_output=True)
+cmd_off = {k: v for k, v in json.load(open(settings.path())).items() if k.startswith("mirror")}
+settings.set_mirror("off"); fn_off = {k: v for k, v in json.load(open(settings.path())).items() if k.startswith("mirror")}
+out += [mine.get("mirror"), cmd_off == fn_off]
+p = settings.path(); p.write_text('{"mirror": "cn", "studio_theme": "da'); r = subprocess.run([sys.executable, "tools/settings.py", "mirror", "auto"], capture_output=True, text=True)
+out += [p.with_name("settings.json.bad").read_text().startswith('{"mirror": "cn"'), "kept as settings.json.bad" in r.stderr, settings.mirror()]
+p.write_text('{"version": 2, "mirror": "off"}'); r = subprocess.run([sys.executable, "tools/settings.py", "mirror", "cn"], capture_output=True, text=True)
+out += [r.returncode, json.loads(p.read_text())["version"], "newer" in r.stderr]
+p.write_text('{"version": 1, "x": {"mirror": "cn"}}'); out += [subprocess.run(["bash", "bin/vh", "settings", "mirror", "--get"], capture_output=True, text=True).stdout.strip()]
+clean = {k: v for k, v in os.environ.items() if k not in ("OVH_MIRROR", *(r["variable"] for r in settings.mirrors() if r["variable"]))}
+out += [all(v is None for v in json.loads(subprocess.run(["bash", "bin/vh", "settings", "--json"], capture_output=True, text=True, env=clean).stdout)["environment"].values())]
+out += [str(settings.path()).startswith(os.environ["XDG_CONFIG_HOME"]),
+        subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, 'tools'); import settings; print(settings.path())"],
+                       capture_output=True, text=True, env=dict(os.environ, XDG_CONFIG_HOME="rel")).stdout.strip() == os.path.join(os.environ["HOME"], ".config/ovh/settings.json")]
+ro = os.path.join(os.environ["XDG_CONFIG_HOME"], "..", "ro2"); os.makedirs(ro); os.chmod(ro, 0o555)
+r = subprocess.run([sys.executable, "tools/settings.py", "mirror", "cn"], capture_output=True, text=True, env=dict(os.environ, XDG_CONFIG_HOME=os.path.abspath(ro)))
+os.chmod(ro, 0o755); out += [r.returncode, "Traceback" in r.stderr, "could not be kept" in r.stderr]
+print(*out)
+PY
+)
+  if [ "$a" = "1 1 None dark 1 cn True True True auto 1 2 True auto True True True 1 False True" ]
+  then ok "settings: two writers both land (the second waits for the first's lock); None takes a key out, an unknown one stays; set_mirror writes what the command writes; a broken file kept as .bad; a newer version not written over; one reader (a nested key is not the mirror); a relative XDG_CONFIG_HOME ignored; an unwritable folder one line"
+  else bad "settings: $a"; fi
+  # the help prints the whole header; a project made under cn records the mirror in its own lockfile, so no committed one may
+  x=$(bash install.sh -h); lk=$(git ls-files '*package-lock.json' | xargs grep -l 'npmmirror\|tuna.tsinghua\|hf-mirror' 2>/dev/null)
+  if case "$x" in *"--mirror cn|off"*"the first bin/vh tts with the default qwen provider"*"every bin/vh new short, promo, data or meme"*"Getting Started"*) true ;; *) false ;; esac && [ -z "$lk" ]
+  then ok "install.sh -h prints its whole header; no committed lockfile names a mirror"
+  else bad "install.sh -h or a lockfile with a mirror in it: $(printf '%s' "$x" | tail -2) | $lk"; fi
+  rm -rf "$mt"
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
   # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
   vh recipes sample no-such-recipe >/dev/null 2>&1; rc=$?; vh recipes sample launch-15s >/dev/null 2>&1; rc2=$?
@@ -9285,7 +9385,7 @@ for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("fra
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
     if C.is_ours(cmd, cl):
         bad.append(f"is_ours, not: {cmd}, {cl}")
-known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "studio.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
+known = {"doctor.py", "settings.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "studio.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py", "words.py"}
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")

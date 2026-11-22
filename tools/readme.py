@@ -26,6 +26,7 @@ homepage (docs/site/index.html):
     application/octet-stream, which WebKit (Safari) refuses unless the <source> says the type.
 Links to the web are not fetched (CI runs offline). Exit status: 0 all good, 1 a problem (each said), 2 usage.
 """
+import html as html_lib
 import ast, json, os, re, sys, unicodedata
 from pathlib import Path
 
@@ -368,6 +369,14 @@ def site_problems(have):
         for f in (base / "img" / "styles" / f"{slug}.jpg", ROOT / "styles" / slug / "media" / "swatch.mp4"):
             if not f.is_file() and str(f.relative_to(ROOT)) not in fetched:
                 bad.append(f"{SITE}: the style {slug} has no {f.relative_to(ROOT)}")
+    # the "make one like this" sentence asks for a vertical short in the styles that come vertical too (tags.aspect "both")
+    vert = re.search(r"const STYLE_VERTICAL = new Set\((\[.*?\])\);", html, re.S)
+    want_v = sorted(q.parent.name for q in (ROOT / "styles").glob("*/tokens.json")
+                    if (json.loads(q.read_text(encoding="utf-8")).get("tags") or {}).get("aspect") == "both")
+    if not vert:
+        bad.append(f"{SITE}: no STYLE_VERTICAL list (the styles whose tokens.json says aspect both)")
+    elif sorted(json.loads(vert.group(1))) != want_v:
+        bad.append(f"{SITE}: STYLE_VERTICAL is not the styles whose tokens.json says aspect both: {want_v}")
     # a spec-2 style's tile plays its preview.mp4 (in git) and its lightbox the release asset: RELEASE_SAMPLES names them
     rel = re.search(r"const RELEASE_SAMPLES = \{(.*?)\};", html, re.S)
     named = dict(re.findall(r"'([a-z0-9-]+)': '([^']+)'", rel.group(1))) if rel else {}
@@ -390,6 +399,20 @@ def site_problems(have):
                 bad.append(f"{SITE}: RELEASE_SAMPLES gives {slug} {named.get(slug)!r}, tools/media.txt {assets.get(slug)!r}: write '{slug}': '{assets.get(slug)}'")
         elif slug in named:
             bad.append(f"{SITE}: RELEASE_SAMPLES names {slug}, a spec-1 style whose sample is in git")
+    # every command the page gives to copy is one a README gives on the same commit (whole, or after "cd ~/OpenVideoHarness
+    # && "), so the page cannot offer a command the repo does not have yet
+    readmes = "\n".join((ROOT / f).read_text(encoding="utf-8") for f in ("README.md", "README.zh-CN.md"))
+    for c in re.findall(r"<code data-copy-text>(.*?)</code>", html, re.S):
+        c = html_lib.unescape(re.sub(r"<[^>]+>", "", c)).strip()
+        if not any(f"`{x}`" in readmes or f"\n{x}\n" in readmes for x in (c, c.removeprefix("cd ~/OpenVideoHarness && "))):
+            bad.append(f"{SITE}: offers the command {c!r}, which no README gives (write it there first)")
+    # every command the page gives to copy is one a README gives on the same commit (whole, or after "cd ~/OpenVideoHarness
+    # && "), so the page cannot offer a command the repo does not have yet
+    readmes = "\n".join((ROOT / f).read_text(encoding="utf-8") for f in ("README.md", "README.zh-CN.md"))
+    for c in re.findall(r"<code data-copy-text>(.*?)</code>", html, re.S):
+        c = html_lib.unescape(re.sub(r"<[^>]+>", "", c)).strip()
+        if not any(f"`{x}`" in readmes or f"\n{x}\n" in readmes for x in (c, c.removeprefix("cd ~/OpenVideoHarness && "))):
+            bad.append(f"{SITE}: offers the command {c!r}, which no README gives (write it there first)")
     body = html[html.find("<body"):]
     tags = re.findall(r"<(\w+)\b[^>]*\blang=\"(en|zh)\"", body)
     en, zh = (sum(1 for tag, lang in tags if lang == want and tag != "small") for want in ("en", "zh"))
