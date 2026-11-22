@@ -1286,8 +1286,9 @@ PY
   if [ -z "$a" ] && [ "$(cat "$t/nk/audio/voiceover.wav")" = take ] && [ ! -e "$t/nk/audio/vo" ]; then ok "tts: a provider with no key says the key it needs and what works with none, before anything is fetched or the last take deleted"
   else bad "tts with no key:$a"; fi
   # --resume with every line voiced asks the provider nothing, so it needs no key; with one left it does (the run is made with a
-  # key and no dashscope package, which fails after writing _run.json)
+  # key, a budget and no dashscope package, which fails after writing _run.json)
   if command -v ffmpeg >/dev/null; then
+    printf -- '- Budget: ¥1\n' >> "$t/nk/BRIEF.md"   # dashscope is billed per use: no budget, and it stops before _run.json
     b=$(PATH="$t/nkbin:$PATH" DASHSCOPE_API_KEY=ci python3 "$ROOT/tools/audio/tts.py" "$t/nk" --provider dashscope 2>&1); rc=$?
     c=$(env -u DASHSCOPE_API_KEY python3 "$ROOT/tools/audio/tts.py" "$t/nk" --provider dashscope --resume 2>&1); r2=$?
     ffmpeg -v error -f lavfi -i 'sine=d=0.4:r=24000' -y "$t/nk/audio/vo/zh/01.wav"
@@ -1467,8 +1468,8 @@ with tempfile.TemporaryDirectory() as d:
     # minimax gives its own word times (a stand-in for its API: a burst per character, 0.15 s, or 0.24 s every other take, and
     # its subtitles): with --candidates, the other take copied over _block01.wav is cut by that take's own words file, and
     # a take that is no candidate of the block stops the run (no --align gemini to cut it by), saying so
-    os.environ["MINIMAX_API_KEY"] = "ci-stub"; mm = {"n": 0}
-    def fake_mm(text, voice, lang, emotion):
+    os.environ["MINIMAX_TOKEN_PLAN_KEY"] = "ci-stub"; mm = {"n": 0}   # the Token Plan key: not billed per use, so no budget asked
+    def fake_mm(text, voice, lang, emotion, **kw):
         b = 0.24 if mm["n"] % 2 else 0.15; mm["n"] += 1
         x, subs, t = [np.zeros(int(0.05 * SR))], [], 0.05
         for part in re.split(r"(<#[\d.]+#>)", text):
@@ -6587,7 +6588,7 @@ want(spend(p) == [], "a refusal wrote to the spend log")
 # 2 the Token Plan key: not per use, no meter
 os.environ["MINIMAX_TOKEN_PLAN_KEY"] = "ci-plan"
 want(tts.metered(p, "minimax", "bin/vh tts") is None, "the Token Plan key was metered")
-del os.environ["MINIMAX_TOKEN_PLAN_KEY"]
+os.environ["MINIMAX_TOKEN_PLAN_KEY"] = ""   # empty: not set (tools/keys.py)
 want(all(tts.metered(p, x, "t") is None for x in ("qwen", "say", "edge", "gemini", "gemini-lite")), "a free provider was metered")
 
 # 3 a budget: held, settled at usage_characters × $100 per million
