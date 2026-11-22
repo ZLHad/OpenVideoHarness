@@ -60,7 +60,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 </tr>
 <tr>
 <td valign="top"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="100%" alt="Studio 的 17 秒演示：窗口打开，光标拖着播放头看片，点住 0:05 那一秒，写下一句意见，画面照着改了，最后点头放行"></a><br><sub>17 秒看 Studio：看、指、说、定。点开是带声音的那一版。</sub></td>
-<td valign="top"><b>整个流程，在一个窗口里。</b><br>在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整个制作流程：每支片子走到哪一站、在等谁，一眼看到；审片时指着一秒写一句，攒几条一起交给 agent；要你拍板的事是几张卡，点一下就定。用起来就四个动作：<b>看</b>片子走到哪，<b>指</b>住某一秒或一个镜头，<b>说</b>一句想怎么改，在卡片上<b>定</b>下来。</td>
+<td valign="top"><b>整个流程，在一个窗口里。</b><br>在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整个制作流程：每支片子走到哪一站、在等谁，一眼看到；审片时指着一秒写一句，攒几条一起交给 agent；要你拍板的事是几张卡，点一下就定。用起来就四个动作：<b>看</b>片子走到哪，<b>指</b>住某一秒或一个镜头，<b>说</b>一句想怎么改，在卡片上<b>定</b>下来。外观、语言、默认用哪个 agent、各家在线服务的 API Key，都在 Studio 的设置页里改，不用碰配置文件。</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="影片之海坍缩，上面写着“差的是什么”"><br><sub>立意那一站上的原话："玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"。</sub></td>

@@ -1,7 +1,0 @@
-**连不上官方源时，安装自动改用国内镜像，之后的下载都跟着走**
-- Why: 在国内网络下，第一次安装和第一次做片要连 npm、PyPI、Hugging Face、GitHub Releases 和 Google 的存储；原来要照 wiki 手动设三四个变量、另跑两条命令装 Chrome，Studio 应用的 Electron 下载没有写怎么办。
-- 安装时先试官方的 npm 源（经 npm 试，它自己的代理设置算数）、Hugging Face 和 Google 的存储（Chrome），各试两次、每次 5 秒；哪个连不上、它的国内镜像连得上，就改用国内镜像，用一句话说明是哪个、怎么连不上，并记在这台机器自己的设置里（`~/.config/ovh/settings.json`）。不按语言或时区猜。`--mirror cn` 直接用，`--mirror off` 不用，也记下来。这之前装的，`bin/vh settings mirror cn` 打开。
-- 镜像的地址集中在 `tools/mirrors.txt` 一个文件里，每一行写明是谁在运营（npmmirror.com、清华 TUNA、hf-mirror.com）。设置每次都从文件读：镜像打开时，`bin/vh` 给它运行的每条命令设好 npm、uv（Python 包和 Python 本身）、Hugging Face 和 Electron 的镜像变量，Studio 起的 agent 也一样；关掉以后，之前继承下来的这些变量下一次运行就拿掉。你自己设的源不动：环境变量，`.npmrc` 里 npm 的源，`uv.toml` 里 uv 的源。HyperFrames 下载 Chrome 没有可设的地方，`bin/vh new`、`render`、`hf`、`frames` 和 `bin/vh settings chrome [项目]` 从镜像替它下好。不走镜像的：GitHub（克隆、`references/fetch.sh`、`--obscura`）、`bin/vh hf add`、`bin/vh hdri`、手绘引擎 studio 页面的 Google Fonts。
-- 新命令 `bin/vh settings`：看这台机器的设置，`bin/vh settings mirror cn|off|auto` 改镜像，`--json` 给 Studio 的设置面板读。`bin/vh doctor` 多一行说现在走哪里、怎么关。
-- 校验：有 lockfile 的地方（`styles/_swatch`、Studio 的 Electron 壳、agent 适配器、ClaudeAnimationBase），npm ci 按 lockfile 里的哈希核对每个包；Electron 按它自己的包里带的 checksums.json 核对；uv 按它自带的 sha256 核对 Python 的构建（试过：从镜像目录换进去的包会被拒）。没有 lockfile 的就完全信任镜像，和今天信任 npmjs.org 一样：`bin/vh new` 装的 hyperframes 和 gsap、`npx hyperframes@<版本>`、没有 node_modules 时用的 @puppeteer/browsers（钉了版本，没钉哈希），包和核对它的哈希都来自镜像；uv 的包、Hugging Face 的模型、HyperFrames 的 Chrome 也是照收。
-- 切到镜像以后，uv 会按新的源重新下载之前缓存过的 Python 包（它的缓存按源区分）。
