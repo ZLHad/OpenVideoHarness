@@ -218,7 +218,7 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
     so does one asking for more than 90 s. The delay and the quota are read from the first 8 KB of the body: a long quota
     message puts "retry in Ns" past the first 500 bytes, which are all that the error message repeats. A call that fails
     for good raises GeminiError."""
-    key = keys.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
+    key = keys.get("GEMINI_API_KEY") or sys.exit(keys.stopping("GEMINI_API_KEY"))
     url = f"{GEMINI_API}/{path}" + (f"?{urllib.parse.urlencode(query, doseq=True)}" if query else "")
     data = None if body is None else json.dumps(body).encode()
     k = limited = 0
@@ -250,17 +250,17 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
 
 # ---------- providers: each writes a WAV at `out` and may return word/char timings ----------
 
-KEY_OF = {"gemini": "GEMINI_API_KEY (Google AI Studio → Get API key)", "gemini-lite": "GEMINI_API_KEY (Google AI Studio → Get API key)",
-          "minimax": "MINIMAX_TOKEN_PLAN_KEY (Token Plan) or MINIMAX_API_KEY (pay-as-you-go), from platform.minimax.io",
-          "elevenlabs": "ELEVENLABS_API_KEY (elevenlabs.io)", "dashscope": "DASHSCOPE_API_KEY (Alibaba Cloud Model Studio, 阿里云百炼)"}
+KEY_OF = {"gemini": ["GEMINI_API_KEY"], "gemini-lite": ["GEMINI_API_KEY"], "minimax": ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"],   # Token Plan first
+          "elevenlabs": ["ELEVENLABS_API_KEY"], "dashscope": ["DASHSCOPE_API_KEY"]}
 
 def no_key(provider):
-    """Exit (1) on a provider with no key: the key it needs, and what works with none on this machine."""
+    """Exit (1) on a provider with no key: tools/keys.py's sentence (where to set it, where to get one), and what works with
+    none on this machine; on the run's record as no_key."""
     if sys.platform == "darwin" and platform.machine() == "arm64":
-        free = "the local default needs no key: leave the provider out, bin/vh tts <project> (qwen, free, about " + firstuse.gb(firstuse.total(["qwen"])) + " on first use)"
+        free = "or leave the provider out for this computer's own voice, which needs no key (qwen, free, about " + firstuse.gb(firstuse.total(["qwen"])) + " on first use)"
     else:
-        free = "the local default (qwen) needs no key but only runs on Apple Silicon; here --provider edge needs none (free, online)"
-    sys.exit(f"set {KEY_OF[provider]} for {provider}; {free}")
+        free = "or --provider edge, which needs no key (free, online; the local default, qwen, runs only on Apple Silicon)"
+    sys.exit(keys.stopping(KEY_OF[provider], free))
 
 def hf_cached(model_id):
     """The model is on this machine: a local folder, or a snapshot in the Hugging Face cache, found where the Hub itself
@@ -1122,10 +1122,9 @@ def audition(a):
     if a.align == "local":
         need_local_asr()
     if (gemini or a.align == "gemini") and not keys.get("GEMINI_API_KEY"):
-        sys.exit("voices audition: set GEMINI_API_KEY (Google AI Studio → Get API key)"
-                 + (f" for --provider {a.provider}" if gemini else " for --align gemini") + "; nothing was synthesized")
+        sys.exit("voices audition: " + keys.stopping("GEMINI_API_KEY", (f"--provider {a.provider}" if gemini else "--align gemini") + " needs it; nothing was synthesized"))
     if a.provider == "minimax" and not minimax_key()[0]:
-        sys.exit("voices audition: set MINIMAX_TOKEN_PLAN_KEY or MINIMAX_API_KEY for --provider minimax; nothing was synthesized")
+        sys.exit("voices audition: " + keys.stopping(KEY_OF["minimax"], "nothing was synthesized"))
     try:
         import voicefeat
     except ImportError:
@@ -1268,7 +1267,7 @@ def main():
     if a.align == "local":   # before anything is synthesized or deleted
         need_local_asr()
     if align and a.align != "local" and not keys.get("GEMINI_API_KEY"):
-        sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key): --align gemini / --join transcribe with Gemini (or --align local)")
+        sys.exit(keys.stopping("GEMINI_API_KEY", "--align gemini and --join transcribe with Gemini; or --align local, on this computer"))
     if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
         sys.exit(f"--resume: --gap was {man.get('gap')} for the run, now {a.gap}; in a joined minimax request it is part of the"
                  f" text: pass --gap {man.get('gap')}, or drop --resume to start over")
@@ -1287,7 +1286,7 @@ def main():
             blocks.append([s])
     wavs = [f"{i+1:02d}.wav" for i in range(len(segs))] if join == "none" else [f"_block{i+1:02d}.wav" for i in range(len(blocks))]
     voiced = a.resume and all((vo / f).exists() and ((vo / f).with_suffix(".words.json").exists() or not timed) for f in wavs)   # the synthesis loops' own test
-    if not voiced and a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not keys.get(KEY_OF[a.provider].split()[0]):
+    if not voiced and a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not keys.get(KEY_OF[a.provider][0]):
         no_key(a.provider)                                           # before anything is synthesized or deleted; --resume with all voiced needs none
     if a.provider == "minimax":
         minimax_settings()                                           # a value out of range exits here, not mid-run

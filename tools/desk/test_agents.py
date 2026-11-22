@@ -1901,6 +1901,22 @@ def handoff_checks():
         pending_busy = one(stations=both_, activity={"running": [render]})
         taken = one(stations=handed, activity={"running": [render]})
         unknown = one(activity={"running": [{"cmd": "foo-bar"}]})
+        import keys   # a film waiting on a service's API Key: on no store of anyone's, with no key in the environment
+        kept = {k: os.environ.pop(k) for k in [*keys.KEY_NAMES, "OVH_KEYSTORE"] if k in os.environ}
+        os.environ["OVH_KEYSTORE"] = "none"; keys._CACHE.pop("kind", None); keys.forget()
+        try:
+            nk = lambda cmd, names, t=now - 90: {"cmd": cmd, "state": "failed", "exit": 1, "start": t - 10, "end": t, "error": {"code": "no_key", "message": keys.missing(names)}}   # noqa: E731
+            ok = lambda cmd, t: {"cmd": cmd, "state": "ok", "exit": 0, "start": t - 10, "end": t}   # noqa: E731
+            key_tts = one(activity={"recent": [nk("tts", "GEMINI_API_KEY")]})
+            key_mm = one(activity={"recent": [nk("tts", ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"])]})
+            key_image = one(activity={"recent": [nk("image", "GEMINI_API_KEY"), ok("render", now - 30)]})   # another command after it: still waiting
+            key_again = one(activity={"recent": [nk("tts", "GEMINI_API_KEY"), ok("tts", now - 30)]})       # the same command again, fine: no more
+            key_old_way = one(activity={"recent": [{"cmd": "tts", "state": "failed", "exit": 1, "start": now - 100, "end": now - 90, "error": {"code": "failed", "message": "set GEMINI_API_KEY"}}]})
+            os.environ["GEMINI_API_KEY"] = "madeUpForThisCheck1"
+            key_set = one(activity={"recent": [nk("tts", "GEMINI_API_KEY")]})
+            del os.environ["GEMINI_API_KEY"]
+        finally:
+            os.environ.pop("OVH_KEYSTORE", None); os.environ.update(kept); keys._CACHE.pop("kind", None); keys.forget()
         got = {
             "paused": one(paused=True)["code"], "revision": one(review={"revisions": [{"state": "pending", "available": True}]})["code"],
             "setup": one(next_step={"do": "the engine's scaffold is not there: this makes it"})["code"], "idle": one()["code"],
@@ -1932,6 +1948,11 @@ def handoff_checks():
                            for v in ("TTS voice, no music", "Charon, 不要背景音乐", "none (music only)")],
             "short": all(not any(x in json.dumps(y["short"]) for x in ("/", ".mp4", "bin/vh")) for y in (gone, found, taken, unknown)),
             "ago": ["3 天", "2 小时"],
+            "key_tts": [key_tts["code"], key_tts["you"], key_tts["tone"], key_tts["say"], key_tts["more"]["zh"], key_tts["short"]["zh"], key_tts["act"],
+                        key_tts["facts"]["keys"], key_tts["facts"]["service"]],
+            "key_mm": [key_mm["say"]["en"], key_mm["facts"]["keys"]],
+            "key_image": [key_image["say"]["zh"], key_image["more"]["en"]],
+            "key_gone": [key_again["code"], key_set["code"], key_old_way["code"]],
         }
         want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
                 "gone": ["stopped", "agent 停下了：渲染中断了。", "nudge", False],
@@ -1949,13 +1970,20 @@ def handoff_checks():
                 "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、定声音、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the final sound, the first draft"},
                 "plan_cn": {"zh": "没有旁白，中间不停，做完给你看", "en": "No narration, no stops on the way: you see it finished"},
                 "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first draft"}, "short": True,
-                "plan_voice": ["有旁白", "有旁白", "没有旁白"], "ago": [standing.ago(2.99 * 86400)[0], standing.ago(100 * 60)[0]]}
+                "plan_voice": ["有旁白", "有旁白", "没有旁白"], "ago": [standing.ago(2.99 * 86400)[0], standing.ago(100 * 60)[0]],
+                "key_tts": ["needs_key", "decide", "you", {"zh": "配音停下了：还没有 Gemini 的 API Key。", "en": "The voice-over stopped: there's no Gemini API Key yet."},
+                            "在设置 → 服务里填上，再让 agent 接着做。不想用在线服务，也可以让 agent 换成这台电脑上的声音。", "等 API Key",
+                            {"kind": "settings", "mod": None, "sub": "services", "label": {"zh": "去设置 → 服务", "en": "Open Settings → Services"}}, ["GEMINI_API_KEY"], "gemini"],
+                "key_mm": ["The voice-over stopped: there's no MiniMax API Key yet.", ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"]],
+                "key_image": ["出图停下了：还没有 Gemini 的 API Key。", "Set it up in Settings → Services, then ask the agent to carry on."],
+                "key_gone": ["idle", "idle", "idle"]}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
           "findings, one stopped on purpose, a later run that went fine, the console ending, are not); the newest notes nobody took come first; "
           "working on them only while something runs; never that nobody works on the film; whose move as waiting_on; a command not in the table "
           "is no name on the page; the final sound is listened to and the sound plan looked at, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
-          "a checkpoint) and leaves out what it does not", unit)
+          "a checkpoint) and leaves out what it does not; a command that stopped for a service's API Key says so, what to do and where (Settings → Services), "
+          "until the key is set or the same command ran again without stopping for it", unit)
 
     def title():   # a film begun on the space, its BRIEF still the template's: the person's own sentence, shortened, not the dated folder
         import server

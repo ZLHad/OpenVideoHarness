@@ -15,6 +15,7 @@ The codes are stable; a client branches on them, not on the words:
   exists        what it would make is there already
   refused       a rule says no: a page that breaks one, a render before gate ① is on record
   missing_tool  a program it needs is not installed (the hint says which way to get it)
+  no_key        a service's API Key is not set (tools/keys.py says which and where; bin/vh status says it while the film waits)
   timeout       it waited as long as it was told to
   failed        anything else that went wrong while it worked (exit 1 as a rule)
 A record the command prints of its own stays as it is: bin/vh check --json on a film it cannot read, bin/vh doctor --json
