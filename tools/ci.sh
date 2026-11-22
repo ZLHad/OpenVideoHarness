@@ -11208,12 +11208,12 @@ for (const exe of process.argv.slice(1)) {
   try { const { browser, sessionId } = await launchTab(exe, [], ["Page"]); console.log("TAB", sessionId); await browser.close(); }
   catch (e) { console.log("FAILED", e.message.slice(0, 60)); }
 }' "$t/late" "$t/never" "$t/no-such-browser" 2>&1)
-  case "$a" in "the browser did not start (the browser is gone (exit 1)): starting another
-TAB s1
-the browser did not start (the browser is gone (exit 1)): starting another
-FAILED the browser is gone (exit 1)
-FAILED the browser is gone (ENOENT)"*) ok "browser: one that did not start is started once more (said), one that never starts fails after the second, a program not there is not tried again" ;;
-    *) bad "browser start, once more: $a" ;; esac
+  # (counted, not in order: the lines come on stdout and stderr; the reason is the platform's: exit 1, or EPIPE/ECONNRESET on Linux)
+  if [ "$(printf '%s\n' "$a" | grep -c '^the browser did not start (the browser is gone (.*)): starting another$')" = 2 ] \
+    && ! printf '%s\n' "$a" | grep -q 'ENOENT.*starting another' && [ "$(printf '%s\n' "$a" | grep -cx 'TAB s1')" = 1 ] \
+    && [ "$(printf '%s\n' "$a" | grep -c '^FAILED the browser is gone (')" = 2 ] && [ "$(printf '%s\n' "$a" | grep -c '^FAILED the browser is gone (ENOENT)')" = 1 ]
+  then ok "browser: one that did not start is started once more (said), one that never starts fails after the second, a program not there is not tried again"
+  else bad "browser start, once more: $a"; fi
   a=$(vh frames tools/film/fixture --at 5 --out "$t/e" 2>&1); rc=$?
   case "$rc:$a" in 2:*"outside the film"*) ok "frames: a time outside the film exits 2" ;; *) bad "frames outside the film: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   if command -v ffmpeg >/dev/null; then
