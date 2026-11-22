@@ -195,12 +195,12 @@ MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3
 
 和生图、Lyria 一样，这几家按字数计费，没有预算就不调：`bin/vh tts` 和 `bin/vh voices audition` 用 `elevenlabs`、`dashscope`，或者只有 `MINIMAX_API_KEY`（没有 Token Plan 的 key）的 `minimax` 时，先读片子的预算（BRIEF 的 `Budget:`，没有再看 `LOCAL.md` 的默认预算；预算的写法见 `tools/assets/budget.py`）。
 
-- **先 key，后预算**：两样都缺时先说缺 key，预算没 key 也用不上；
-- **整次先估**：在发出第一个请求、删掉旧配音之前，按这次要合成的句子（`--resume` 只算没做完的，`--candidates N` 算 N 份）估字数和价钱。没有预算、预算是 0，或者超出预算，就不调，说清要在 BRIEF 写什么、还差多少。预算的币种要和计费的币种一样：国际站按美元，国内站（`MINIMAX_BASE_URL` 在 minimaxi.com）和百炼北京（默认）按人民币；
+- **先 key，后预算**：两样都缺时先说缺 key，预算没 key 也用不上。拦不拦看 key 设在哪个名字下：设在 `MINIMAX_TOKEN_PLAN_KEY` 下的都当 Token Plan，不拦，所以别把按量付费的 key 存在这个名字下；
+- **整次先估**：在发出第一个请求、删掉旧配音之前，按这次要合成的句子（`--resume` 只算没做完的，`--candidates N` 算 N 份）估字数和价钱。没有预算、预算是 0，或者超出预算，就不调，说清要在 BRIEF 写什么、还差多少，退出码 1。预算的币种要和计费的币种一样：国际站按美元，国内站（`MINIMAX_BASE_URL` 在 minimaxi.com 或 minimax.cn）和百炼北京（默认）按人民币；
 - **每个请求先占后结**：请求发出前按估价占住，回答回来按它报的计费字数结账（MiniMax 的 `extra_info.usage_characters`，百炼的 `usage.characters`）。ElevenLabs 的回答不报字数，按估价结，是上限：套餐里含的字数不按次扣，结尾那行和账上都写明。报错的回答（HTTP 错误、MiniMax 的错误码）和根本没发出去的请求记 0；超时或回答被截断的保留估价，因为可能已经扣了，并且说出来。MiniMax 自己重试的每一次都是一个请求；
-- **字数怎么算**：按各家价格页的说法，MiniMax 和百炼一个汉字算 2 个字符（MiniMax 国际站的页面没写，按国内站的算法，取大的），ElevenLabs 每个字符算 1 个；
+- **字数怎么算**：数的是请求里实际发出去的文字（MiniMax 的停顿标记照发出去的样子算）。MiniMax 和百炼的价格页说一个汉字算 2 个字符，这里把所有非 ASCII 字符（〇、全角标点、假名也算）都按 2 个算，估出来只会多不会少（MiniMax 国际站的页面没写，按国内站的算法）；ElevenLabs 每个字符算 1 个；
 - **记在哪**：片子的 `assets/spend.jsonl`（`bin/vh assets list`、`bin/vh status` 和审阅页里的预算行都读它）。`bin/vh tts` 结束时多一行：这次几个请求、花了多少、预算还剩多少；
-- **价格表**：`python3 tools/audio/speechcost.py` 列出每家、每个接入点、每个模型的价格和出处页（2026-11-22 读）。表里没有的模型（`MINIMAX_TTS_MODEL`、`ELEVENLABS_MODEL`、`DASHSCOPE_TTS_MODEL` 设成别的）或接入点（`MINIMAX_BASE_URL`、`DASHSCOPE_BASE_URL` 指到别处）：价钱不知道，只要 BRIEF 有一个不为 0 的预算（一个数或 `不限`）就调，每个请求记成"价钱不知道，可能已扣费"；
+- **价格表**：`python3 tools/audio/speechcost.py` 列出每家、每个接入点、每个模型的价格和出处页（2026-11-22 读）。模型名不分大小写。表里没有的模型（`MINIMAX_TTS_MODEL`、`ELEVENLABS_MODEL`、`DASHSCOPE_TTS_MODEL` 设成别的）：按同一接入点最贵的那个模型算，照常占住、结账，并说明价钱是估的。表里没有的接入点（`MINIMAX_BASE_URL`、`DASHSCOPE_BASE_URL` 指到别处，比如代理）：价钱不知道，只要预算不为 0（BRIEF 的 `Budget:` 或 `LOCAL.md` 的默认预算，一个数或 `不限`）就调，每个请求记成"价钱不知道，可能已扣费"；
 - **试音**：`bin/vh voices audition` 按文本文件所在的片子（往上找 BRIEF.md）读预算、记账；文本不在任何片子里时不调，说清要放进片子的文件夹。
 - **照旧用，不要预算**：本地的 `qwen`、`say`；不要 key 的 `edge`；`gemini`、`gemini-lite` 和 `--align gemini`（先用免费额度）；Token Plan 的 key（花套餐额度）。
 

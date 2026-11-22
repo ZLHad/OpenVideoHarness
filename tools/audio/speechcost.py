@@ -8,10 +8,10 @@ Billed per use, so not called without a budget (CLAUDE.md: 按次计费的配音
 Used as before, with no budget: qwen and say (on this machine), edge (no key, not billed), gemini, gemini-lite and
 --align gemini (the free quota first).
 
-The prices (PRICES) are the providers' own pages, read on CHECKED; each entry names its page. Characters are counted as
-those pages count them: a Chinese character (Han, kanji, hanja) as 2 for MiniMax and DashScope, every character as 1 for
-ElevenLabs. MiniMax's international page does not say how it counts; its China page's rule (2) is used there too, the
-larger of the two.
+The prices (PRICES) are the providers' own pages, read on CHECKED; each entry names its page; a model's name is matched
+whatever its case. Characters are counted in the body a request carries (tts.body_of), as those pages count them, rounded
+up: where a Chinese character counts as 2 (MiniMax, DashScope), every character that is not ASCII counts as 2; ElevenLabs
+counts each as 1. MiniMax's international page does not say how it counts; its China page's rule is used there too.
 
 A run: check() before any request and before anything is deleted (the key comes first: a budget is no use without one)
 takes the whole run's estimate against the budget; no budget, or one it would go over, and nothing is called, with what to
@@ -19,12 +19,14 @@ write. Then each request is held at its own estimate and settled at what the ans
 extra_info.usage_characters, DashScope's usage.characters × the price) or, for ElevenLabs, whose answer says nothing, at the
 estimate: an upper bound, since characters a plan includes are not billed per use (the record says so). An error answer
 and a request that never left settle at 0; a timeout or an answer cut off keeps the estimate, as such a request may have
-been billed (said). A model or an endpoint the table does not have: called only with a Budget line (an amount or 不限),
-and recorded as cost not known, maybe billed.
+been billed (said). A model the table does not have, on an endpoint it has: priced as that endpoint's most expensive
+model, with the usual hold and settle, and said to be assumed. An endpoint the table does not have (a proxy, a stand-in):
+called only with a budget that is not 0 (BRIEF's Budget or LOCAL.md's 默认预算, an amount or 不限), and each request is
+recorded as cost not known, maybe billed.
 
   python3 tools/audio/speechcost.py [--json]     the table: provider, endpoint, model, price, page
 """
-import contextlib, json, os, re, sys
+import contextlib, json, os, sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -52,7 +54,6 @@ PRICES = {
 }
 NAME = {"minimax": "MiniMax pay-as-you-go (MINIMAX_API_KEY)", "elevenlabs": "ElevenLabs", "dashscope": "Alibaba Cloud Model Studio (DashScope)"}
 UPPER = "ElevenLabs' answer does not say what it billed: settled at the estimate, an upper bound (characters a plan includes are not billed per use)"
-HAN = re.compile(r"[㐀-䶿一-鿿豈-﫿\U00020000-\U0003134f]")
 
 
 def paid(provider, minimax_var=None):
@@ -84,8 +85,10 @@ def film_of(path):
 
 
 def chars(text, cjk):
-    """The characters billed for text: every character once, a Chinese one cjk times."""
-    return len(text) + (cjk - 1) * len(HAN.findall(text))
+    """The characters billed for the body a request carries. cjk 1: every character once (ElevenLabs). cjk 2 (the pages that
+    count a Chinese character as 2): every character that is not ASCII as 2, not only Han: 〇, full-width punctuation and
+    kana too, so the estimate is an upper bound and a budget that passes the check is not run out half way."""
+    return len(text) if cjk == 1 else sum(1 if ord(c) < 128 else 2 for c in text)
 
 
 def rate(provider, model, env=None):
@@ -97,10 +100,15 @@ def rate(provider, model, env=None):
         cur = {"minimax": "USD", "dashscope": "CNY", "elevenlabs": "USD"}.get(provider, "USD")
         where = (env if env is not None else os.environ).get("MINIMAX_BASE_URL" if provider == "minimax" else "DASHSCOPE_BASE_URL")
         return {"currency": cur, "cjk": 2, "unknown": f"an endpoint the price table does not have ({where})"}
-    if model not in t["models"]:
-        return {"currency": t["currency"], "cjk": t["cjk"], "unknown": f"{model} is not in the price table ({t['page']}, read {CHECKED})"}
-    return {"currency": t["currency"], "each": t["models"][model] / t["per"], "cjk": t["cjk"], "page": t["page"],
-            "upper": bool(t.get("upper")), "endpoint": ep, "price": f"{budget.money(t['models'][model], t['currency'])} per {t['per']:,} characters"}
+    known = {m.lower(): m for m in t["models"]}
+    hit = known.get(str(model).strip().lower())                  # speech-2.8-HD is speech-2.8-hd
+    assumed = None
+    if hit is None:                                              # a model the table does not have, on a known endpoint: its
+        hit = max(t["models"], key=t["models"].get)              # highest listed price, said, so a budget still holds
+        assumed = f"{model} is not in the price table ({t['page']}, read {CHECKED}): priced as its most expensive listed model, {hit}"
+    price = f"{budget.money(t['models'][hit], t['currency'])} per {t['per']:,} characters"
+    return {"currency": t["currency"], "each": t["models"][hit] / t["per"], "cjk": t["cjk"], "page": t["page"], "upper": bool(t.get("upper")),
+            "endpoint": ep, "assumed": assumed, "price": price + (" (assumed)" if assumed else "")}
 
 
 class Refused(Exception):
@@ -133,7 +141,7 @@ class Meter:
             if not (b["unlimited"] or any(v > 0 for v in b["amounts"].values())):
                 raise Refused(f"{what}: refused: it is billed per use and its price is not known here ({self.rate['unknown']}), and "
                               f"{'the budget is 0' if b['from'] else 'there is no budget'}. Write - Budget: and an amount (or 不限) in "
-                              f"BRIEF.md's Spec to allow it; each request is then recorded as cost not known, maybe billed")
+                              f"BRIEF.md's Spec (or 默认预算 in LOCAL.md) to allow it; each request is then recorded as cost not known, maybe billed")
             return None
         total = round(sum(self.cost(t) for t in texts), 6)
         c = budget.check(self.project, total, self.rate["currency"])
@@ -148,7 +156,7 @@ class Meter:
         never left, r.maybe() for one that timed out and is tried again; leaving with any other exception keeps the
         estimate as spent too. Both of those say it may have been billed."""
         r = _Request()
-        what = f"{self.who} {self.model}: {what}"
+        what = f"{self.who} {self.model}: {what}" + (f" (price assumed: {self.rate['assumed']})" if self.rate.get("assumed") else "")
         if "unknown" in self.rate:
             try:
                 yield r
@@ -187,6 +195,7 @@ class Meter:
             return f"  {self.who}: no request billed in this run · {budget.line(self.project)}"
         cost = "cost not known, maybe billed" if "unknown" in self.rate else budget.money(round(self.spent, 6), self.rate["currency"])
         return (f"  {self.who}: {self.requests} request(s), {cost} · {budget.line(self.project)}"
+                + (f"\n  (price assumed: {self.rate['assumed']})" if self.rate.get("assumed") else "")
                 + (f"\n  ({UPPER})" if self.rate.get("upper") else ""))
 
 

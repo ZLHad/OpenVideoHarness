@@ -657,8 +657,13 @@ def minimax_words(subs, text):
             prev = t1s[i]
     return char_words(list(text), t0s, t1s)
 
+def body_of(provider, text):
+    """The text a provider's request carries, which is what it bills: MiniMax's with its pause marks at the edges dropped
+    and each run of them merged and rewritten (split_pauses: <#0.5#> goes as <#0.50#>); the others' as given."""
+    return split_pauses(text)[1] if provider == "minimax" else text
+
 def p_minimax(text, voice, out: Path, tmp: Path, lang, instruct=None):
-    text = split_pauses(text)[1]                                     # a mark must sit between two spoken words
+    text = body_of("minimax", text)                                  # a mark must sit between two spoken words
     voice = voice or ("Chinese (Mandarin)_Reliable_Executive" if lang.startswith("zh") else "English_expressive_narrator")
     audio, subs = minimax_tts(text, voice, lang, minimax_emotion(instruct), out=out)
     raw = tmp / "mm.wav"; raw.write_bytes(audio); to_wav(raw, out)
@@ -1245,7 +1250,7 @@ def audition(a):
                          f" film's folder; nothing was synthesized")
             METER = metered(film, a.provider, "bin/vh voices audition")
             try:
-                METER.check([spoken] * len(voices))
+                METER.check([body_of(a.provider, spoken)] * len(voices))
             except speechcost.Refused as e:
                 sys.exit(f"voices audition: {e}; nothing was synthesized")
     try:
@@ -1422,15 +1427,16 @@ def main():
     METER = None if voiced else metered(proj, a.provider, "bin/vh tts")   # billed per use: the budget, after the key (no use without one)
     if METER:                                                    # the whole run against it, before anything is deleted or sent
         to_send = lambda s: strip_tags(spoken(s), reactions, pauses=a.provider != "minimax")   # what prepare() gives these providers
+        body = lambda x: body_of(a.provider, x)                  # what the request carries, as the provider bills it
         kept = lambda f: a.resume and f.exists() and (f.with_suffix(".words.json").exists() or not timed)   # the loops' own test
         whole = lambda blk: (linked([to_send(s) for s in blk]) if timed else ("" if a.lang == "zh" else " ").join(to_send(s) for s in blk))
         if join == "none":
-            todo = [to_send(s) for i, s in enumerate(segs) if not kept(vo / f"{i+1:02d}.wav")]
+            todo = [body(to_send(s)) for i, s in enumerate(segs) if not kept(vo / f"{i+1:02d}.wav")]
         elif a.candidates > 1:                                   # N takes of each block not made yet
-            todo = [whole(blk) for bi, blk in enumerate(blocks) if not (a.resume and (vo / f"_block{bi+1:02d}.wav").exists())
+            todo = [body(whole(blk)) for bi, blk in enumerate(blocks) if not (a.resume and (vo / f"_block{bi+1:02d}.wav").exists())
                     for c in range(a.candidates) if not kept(vo / f"_block{bi+1:02d}.c{c+1}.wav")]
         else:
-            todo = [whole(blk) for bi, blk in enumerate(blocks) if not kept(vo / f"_block{bi+1:02d}.wav")]
+            todo = [body(whole(blk)) for bi, blk in enumerate(blocks) if not kept(vo / f"_block{bi+1:02d}.wav")]
         import speechcost
         try:
             METER.check(todo)

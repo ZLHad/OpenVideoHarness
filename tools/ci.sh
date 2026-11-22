@@ -6528,18 +6528,39 @@ paid_speech_checks() {   # a voice billed per use (tools/audio/speechcost.py, th
   # request that never left at 0, a timeout at its estimate; over the budget, by how much; yuan for China's endpoints; an
   # endpoint or model the table lacks needs a Budget line and is recorded as cost not known; end to end, a stand-in T2A
   # server and bin/vh tts' end line; an audition outside a film refused
-  local t p a b rc rc2
+  local t p a b c d e rc rc2 rc3 rc4 rc5
   if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then skip "a voice billed per use" "no ffmpeg"; return; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/k"; mkdir -p "$p/audio/vo/zh"
   printf '# BRIEF\n\n## Spec\n\n' > "$p/BRIEF.md"; printf '卫星飞过去了。\n\n夏天你也在呼气。\n' > "$p/audio/script.txt"; echo keep > "$p/audio/vo/zh/01.wav"
   ptts() { env -u MINIMAX_TOKEN_PLAN_KEY -u NO_PROXY -u no_proxy OVH_KEYSTORE=none OVH_LOCAL_MD="$t/none.md" HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 "$@"; }
   a=$(ptts env -u MINIMAX_API_KEY python3 "$ROOT/tools/audio/tts.py" "$p" --provider minimax 2>&1); rc=$?
   b=$(ptts env MINIMAX_API_KEY=ci python3 "$ROOT/tools/audio/tts.py" "$p" --provider minimax 2>&1); rc2=$?
-  if [ "$rc:$rc2" = 1:1 ] && case "$a" in *"no MiniMax API Key"*) ! case "$a" in *Budget*) true ;; *) false ;; esac ;; *) false ;; esac \
+  c=$(ptts env ELEVENLABS_API_KEY=ci python3 "$ROOT/tools/audio/tts.py" "$p" --provider elevenlabs --voice v 2>&1); rc3=$?
+  d=$(ptts env DASHSCOPE_API_KEY=ci python3 "$ROOT/tools/audio/tts.py" "$p" --provider dashscope 2>&1); rc4=$?
+  if [ "$rc:$rc2:$rc3:$rc4" = 1:1:1:1 ] && case "$a" in *"no MiniMax API Key"*) ! case "$a" in *Budget*) true ;; *) false ;; esac ;; *) false ;; esac \
     && case "$b" in *"MiniMax pay-as-you-go (MINIMAX_API_KEY) · speech-2.8-hd · 2 request(s)"*"no budget"*"write - Budget:"*) true ;; *) false ;; esac \
+    && case "$c" in *"ElevenLabs · eleven_multilingual_v2 · 2 request(s)"*"no budget"*"write - Budget:"*) true ;; *) false ;; esac \
+    && case "$d" in *"Alibaba Cloud Model Studio (DashScope) · qwen3-tts-flash · 2 request(s)"*"no budget"*"write - Budget: ¥"*) true ;; *) false ;; esac \
     && [ "$(cat "$p/audio/vo/zh/01.wav")" = keep ] && [ ! -e "$p/assets" ]
-  then ok "a voice billed per use: with no key the key is said first, with no budget nothing is called, deleted or recorded and what to write is said"
-  else bad "a voice billed per use, refused ($rc/$rc2): $a | $b"; fi
+  then ok "a voice billed per use: with no key the key is said first; with no budget (minimax pay-as-you-go, elevenlabs, dashscope) nothing is called, deleted or recorded, exit 1, and what to write is said"
+  else bad "a voice billed per use, refused ($rc/$rc2/$rc3/$rc4): $a | $b | $c | $d"; fi
+  # the estimate is of the body each request carries: a pause mark written <#0.5#> goes as <#0.50#>, one character more,
+  # so a budget of exactly the text as written ($0.0037 here, $0.0038 as sent) is refused before anything
+  mkdir -p "$t/m/audio"; printf '# BRIEF\n\n- Budget: $0.0037\n' > "$t/m/BRIEF.md"; printf '卫星<#0.5#>飞过去了。\n\n夏天你也在呼气。\n' > "$t/m/audio/script.txt"
+  e=$(ptts env MINIMAX_API_KEY=ci python3 "$ROOT/tools/audio/tts.py" "$t/m" --provider minimax 2>&1); rc5=$?
+  if [ "$rc5" = 1 ] && case "$e" in *"about 38 characters"*"short"*) true ;; *) false ;; esac && [ ! -e "$t/m/assets/spend.jsonl" ]
+  then ok "a voice billed per use: the estimate counts the body as sent (a pause mark rewritten to two decimals), so a budget for the text as written is refused"
+  else bad "a voice billed per use, the body as sent (exit $rc5): $e"; fi
+  # --candidates N: the run's estimate counts N takes of each block (uv for numpy; the dead proxy only inside it, so uv
+  # can still reach its index): one take of each fits the budget, two do not, so nothing is called or deleted
+  if command -v uv >/dev/null; then
+    printf -- '- Budget: $0.004\n' >> "$p/BRIEF.md"   # one take of the two blocks: 30 characters, $0.003; two takes: $0.006
+    e=$(env -u MINIMAX_TOKEN_PLAN_KEY -u NO_PROXY -u no_proxy OVH_KEYSTORE=none OVH_LOCAL_MD="$t/none.md" MINIMAX_API_KEY=ci uv run -q --no-project --with numpy -- \
+      env HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 python "$ROOT/tools/audio/tts.py" "$p" --provider minimax --join block --candidates 2 2>&1); rc5=$?
+    if [ "$rc5" = 1 ] && case "$e" in *"· 4 request(s)"*"short"*) true ;; *) false ;; esac && [ "$(cat "$p/audio/vo/zh/01.wav")" = keep ] && [ ! -e "$p/assets/spend.jsonl" ]
+    then ok "a voice billed per use: --candidates 2 counts two takes of each block in the run's estimate, and a budget for one is refused before anything"
+    else bad "a voice billed per use, --candidates (exit $rc5): $e"; fi
+  else skip "a voice billed per use, --candidates" "no uv"; fi
   a=$(python3 - "$ROOT" "$t/u" <<'PY' 2>&1
 import io, json, os, sys, types, urllib.error, urllib.request
 from pathlib import Path
@@ -6572,8 +6593,8 @@ def answer(seq):   # urlopen stand-in: each call takes the next item (a dict →
         return Ans(x if isinstance(x, bytes) else json.dumps(x).encode())
     urllib.request.urlopen = urlopen
 tts.time.sleep = lambda s: None
-text = "卫星飞过去了。Satellites pass."          # 6 Han characters (2 each) + 17 others = 29 characters billed
-want(speechcost.chars(text, 2) == 29 and speechcost.chars(text, 1) == 23, f"chars: {speechcost.chars(text, 2)} {speechcost.chars(text, 1)}")
+text = "卫星飞过去了。Satellites pass."          # 7 characters not ASCII (2 each, 。 too) + 16 others = 30 characters billed
+want(speechcost.chars(text, 2) == 30 and speechcost.chars(text, 1) == 23, f"chars: {speechcost.chars(text, 2)} {speechcost.chars(text, 1)}")
 ok_mm = {"base_resp": {"status_code": 0}, "data": {"audio": "00", "subtitle_file": "https://x/s.json"}, "extra_info": {"usage_characters": 26}}
 
 # 1 no budget: refused before anything, saying what to write
@@ -6597,7 +6618,7 @@ tts.METER = tts.metered(p, "minimax", "bin/vh tts"); tts.METER.check([text])
 answer([ok_mm, b"[]"])
 tts.minimax_tts(text, "v", "zh", out=Path(".01.part.wav"))
 s = spend(p)
-want([x["kind"] for x in s] == ["hold", "settle"] and abs(s[0]["amount"] - 0.0029) < 1e-9 and abs(s[1]["amount"] - 0.0026) < 1e-9
+want([x["kind"] for x in s] == ["hold", "settle"] and abs(s[0]["amount"] - 0.003) < 1e-9 and abs(s[1]["amount"] - 0.0026) < 1e-9
      and "01.wav" in s[1]["what"] and s[1]["tool"] == "bin/vh tts", f"held and settled: {s}")
 # 4 an error status: settled at 0, the error raised
 answer([{"base_resp": {"status_code": 1004, "status_msg": "auth"}}])
@@ -6610,7 +6631,7 @@ want(spend(p)[-1]["kind"] == "settle" and spend(p)[-1]["amount"] == 0, f"an erro
 answer([TimeoutError("timed out"), ok_mm, b"[]"])
 tts.minimax_tts(text, "v", "zh", out=Path(".03.part.wav"))
 st = [x for x in spend(p) if x["kind"] == "settle"][-2:]
-want([round(x["amount"], 6) for x in st] == [0.0029, 0.0026] and st[0]["hold"] != st[1]["hold"], f"timeout then retry: {st}")
+want([round(x["amount"], 6) for x in st] == [0.003, 0.0026] and st[0]["hold"] != st[1]["hold"], f"timeout then retry: {st}")
 # 6 a request that never left: 0
 answer([urllib.error.URLError(ConnectionRefusedError(61, "refused"))] * 3)
 try:
@@ -6624,11 +6645,11 @@ m = tts.metered(p2, "minimax", "bin/vh tts")
 try:
     m.check([text]); bad.append("over the budget did not refuse")
 except speechcost.Refused as e:
-    want("short" in str(e) and "$0.0019" in str(e), f"over said: {e}")
+    want("short" in str(e) and "$0.002" in str(e), f"over said: {e}")
 # 8 a China-platform key: yuan, ¥3.5 per 10,000
 os.environ["MINIMAX_BASE_URL"] = "https://api.minimaxi.com"
 m = tts.metered(p, "minimax", "bin/vh tts")
-want(m.rate["currency"] == "CNY" and abs(m.cost(text) - 0.01015) < 1e-9, f"China platform: {m.rate}")
+want(m.rate["currency"] == "CNY" and abs(m.cost(text) - 0.0105) < 1e-9, f"China platform: {m.rate}")
 try:
     m.check([text]); bad.append("a USD budget took a CNY call")
 except speechcost.Refused as e:
@@ -6644,6 +6665,27 @@ try:
 except speechcost.Refused as e:
     want("not known" in str(e), f"unknown refused: {e}")
 del os.environ["MINIMAX_BASE_URL"]
+
+# 9b a model the table lacks, on an endpoint it has: priced as its most expensive model, said, and a budget still holds;
+# a model's name in another case is the same model; every character that is not ASCII counts 2; the body is what is sent
+os.environ["MINIMAX_TTS_MODEL"] = "speech-2.9-hd"
+m = tts.metered(film("assumed", "$0.0001"), "minimax", "bin/vh tts")
+want(m.rate.get("assumed") and abs(m.rate["each"] - 100 / 1e6) < 1e-12 and "(assumed)" in m.rate["price"], f"an unlisted model: {m.rate}")
+try:
+    m.check([text, text]); bad.append("an unlisted model went past a $0.0001 budget")
+except speechcost.Refused as e:
+    want("short" in str(e) and "(assumed)" in str(e), f"an unlisted model refused: {e}")
+os.environ["MINIMAX_TTS_MODEL"] = "Speech-2.8-TURBO"
+m = tts.metered(p, "minimax", "bin/vh tts")
+want(not m.rate.get("assumed") and abs(m.rate["each"] - 60 / 1e6) < 1e-12, f"a model's name in another case: {m.rate}")
+del os.environ["MINIMAX_TTS_MODEL"]
+os.environ["ELEVENLABS_MODEL"] = "eleven_monolingual_v1"
+m = tts.metered(p, "elevenlabs", "bin/vh tts")
+want(m.rate.get("assumed") and abs(m.rate["each"] - 0.08 / 1000) < 1e-12, f"an older ElevenLabs model: {m.rate}")
+del os.environ["ELEVENLABS_MODEL"]
+want(speechcost.chars("〇かな，", 2) == 8 and speechcost.chars("〇かな，", 1) == 4, f"not ASCII: {speechcost.chars('〇かな，', 2)}")
+want(tts.body_of("minimax", "<#0.3#>前面<#0.5#>后面") == "前面<#0.50#>后面" and tts.body_of("elevenlabs", "a<#0.5#>b") == "a<#0.5#>b",
+     f"the body: {tts.body_of('minimax', '<#0.3#>前面<#0.5#>后面')!r}")
 
 # 10 ElevenLabs: settled at the estimate (an upper bound, said); an HTTP error at 0
 tts.to_wav = lambda src, dst: Path(dst).write_bytes(b"")
@@ -6661,7 +6703,7 @@ except urllib.error.HTTPError:
     pass
 want(spend(p)[-1]["amount"] == 0, f"elevenlabs 401 not 0: {spend(p)[-1]}")
 
-# 11 DashScope (Beijing, yuan): settled at usage.characters × ¥0.8 per 10,000; an error answer at 0
+# 11 DashScope (Beijing, yuan): settled at usage.characters × ¥0.8 per 10,000 (26 billed, 30 estimated); an error answer at 0
 fake = types.ModuleType("dashscope")
 class MMC:
     nxt = None
@@ -6671,9 +6713,9 @@ fake.MultiModalConversation = MMC; sys.modules["dashscope"] = fake
 urllib.request.urlretrieve = lambda url, dst: Path(dst).write_bytes(b"")
 p = film("ds", "¥1")
 tts.METER = tts.metered(p, "dashscope", "bin/vh tts"); tts.METER.check([text])
-MMC.nxt = types.SimpleNamespace(output=types.SimpleNamespace(audio=types.SimpleNamespace(url="https://x/a.wav")), usage={"characters": 30})
+MMC.nxt = types.SimpleNamespace(output=types.SimpleNamespace(audio=types.SimpleNamespace(url="https://x/a.wav")), usage={"characters": 26})
 tts.p_dashscope(text, "Cherry", Path(t / ".01.part.wav"), t, "zh")
-want(abs(spend(p)[-1]["amount"] - 30 * 0.8 / 10000) < 1e-9 and spend(p)[-1]["currency"] == "CNY", f"dashscope: {spend(p)[-1]}")
+want(abs(spend(p)[-1]["amount"] - 26 * 0.8 / 10000) < 1e-9 and spend(p)[-1]["currency"] == "CNY", f"dashscope: {spend(p)[-1]}")
 MMC.nxt = types.SimpleNamespace(output=None, status_code=400, message="bad")
 try:
     tts.p_dashscope(text, "Cherry", Path(t / ".02.part.wav"), t, "zh"); bad.append("a DashScope error did not exit")
