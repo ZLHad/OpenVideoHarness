@@ -192,10 +192,22 @@ function askClone() {   // a click: ask the clone to show Studio; it starts this
   });
 }
 
+function openSettings(_item, focused) {   // the menu's 设置… (⌘,): the window in front goes to Studio's settings page, in place
+  const win = focused && !focused.isDestroyed() ? focused : BrowserWindow.getFocusedWindow();
+  if (!win) return;
+  try {
+    const u = new URL(win.webContents.getURL());
+    if (u.protocol !== "http:" || !["/", "/index.html"].includes(u.pathname)) return;   // a reader window: no settings there
+    u.hash = "/settings";
+    win.webContents.loadURL(u.href);   // only the part after # changes: the page stays and follows its hash
+  } catch (e) { /* no page yet */ }
+}
+
 function menu() {
   const m = [
     ...(MAC ? [{ label: "OVH Studio", submenu: [
       { role: "about", label: T("关于 OVH Studio", "About OVH Studio") }, { type: "separator" },
+      { label: T("设置…", "Settings…"), accelerator: "CmdOrCtrl+,", click: openSettings }, { type: "separator" },
       { role: "hide", label: T("隐藏 OVH Studio", "Hide OVH Studio") }, { role: "hideOthers", label: T("隐藏其他", "Hide Others") },
       { role: "unhide", label: T("全部显示", "Show All") }, { type: "separator" },
       { role: "quit", label: T("退出 OVH Studio", "Quit OVH Studio") }] }] : []),
@@ -212,7 +224,7 @@ function menu() {
       { role: "minimize", label: T("最小化", "Minimize") }, { role: "zoom", label: T("缩放", "Zoom") },
       { role: "close", label: T("关闭窗口", "Close Window") },   // ⌘W / Ctrl+W
       ...(MAC ? [{ type: "separator" }, { role: "front", label: T("前置全部窗口", "Bring All to Front") }] : [])] },
-    ...(MAC ? [] : [{ label: T("文件", "File"), submenu: [{ role: "quit", label: T("退出", "Quit") }] }]),
+    ...(MAC ? [] : [{ label: T("文件", "File"), submenu: [{ label: T("设置…", "Settings…"), accelerator: "CmdOrCtrl+,", click: openSettings }, { type: "separator" }, { role: "quit", label: T("退出", "Quit") }] }]),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(m));
 }

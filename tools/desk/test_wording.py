@@ -24,7 +24,7 @@ WORDS_KEEP = {"proj_ph"}   # the film's folder inside a command, in that command
 TERMINAL_OK = re.compile(r"bin/vh|\.md\b|\bproxy\b")   # a terminal line may name the command to run, a file, the network's proxy
 CJK = re.compile(r"[一-鿿]")
 PROSE = re.compile(r"[A-Za-z]{2,}[,:;.!?]? [A-Za-z]{2,}")   # English words a space apart: not an identifier, a key or a file name
-PAGES = ["tools/desk/static/studio.js", "tools/desk/static/ui.js", "tools/desk/static/reader.js", "tools/desk/static/index.html",
+PAGES = ["tools/desk/static/studio.js", "tools/desk/static/settings.js", "tools/desk/static/ui.js", "tools/desk/static/reader.js", "tools/desk/static/index.html",
          "tools/desk/shell/main.js", "tools/desk/launcher/shell-boot.js"]
 TERMINAL = ["install.sh", "tools/desk/launcher/studio-launch.sh", "tools/desk/launcher/studio.applescript"]
 
