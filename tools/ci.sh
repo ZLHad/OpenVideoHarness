@@ -4562,7 +4562,8 @@ starts = [e for e in ev if e["event"] == "start"]
 want(len(starts) == 1 and not starts[0]["code_in_argv"], f"the app started {len(starts)} times, or with a code on its command line: {starts}")
 want(kinds.count("window") == 1 and kinds.count("raised") >= 3 and "claimed" in kinds and "present" in kinds, f"one window, raised after: {kinds}")
 want(any(e["event"] == "told" and e["data"].get("go", "").startswith("/p/demo~") for e in ev), "the window was not sent to the film")
-want(kinds[-2:] == ["closed", "quit"] or kinds[-1] == "quit", f"the console stopped, the app did not close its window and quit: {kinds[-3:]}")
+end = [k for k in kinds if k != "lost"]   # a window's stream ending (lost) can be noted after quit: its own thread, a race
+want(end[-2:] == ["closed", "quit"] or end[-1] == "quit", f"the console stopped, the app did not close its window and quit: {kinds[-3:]}")
 want("Studio is open in its own window" in a and "its window is in front" in b and two.count("its window is in front") == 2, f"said: {a!r} | {b!r} | {two!r}")
 want("Studio is open in a browser window (Studio's own app did not open)" in c, f"an app that cannot start: {c!r}")
 want("Studio is open in a browser window (Studio's own app no longer finds OpenVideoHarness where it was installed: ask your agent to put the Studio icon back)" in m
