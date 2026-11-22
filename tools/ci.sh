@@ -11064,6 +11064,27 @@ const b = await launch(process.argv[1]); const t0 = Date.now();
 const r = await Promise.race([b.close().then(() => "closed"), new Promise((ok) => setTimeout(() => ok("hung"), 30000))]);
 console.log(r, Math.round((Date.now() - t0) / 1000)); process.exit(0);' "$t/stuck" 2>&1)
   case "$a" in "closed "[0-9]|"closed 1"[0-9]) ok "browser: one that ignores Browser.close and SIGTERM is killed, and close() returns ($a s)" ;; *) bad "browser close on a stuck browser: $a" ;; esac
+  # a browser that did not start (gone before its first answer here; no answer within 60 s on a busy runner) is started
+  # once more, said; one that never starts fails after the second; a program that is not there is not tried again
+  printf '%s\n' 'import json, os, sys' 'mark = sys.argv[1]' \
+    'if not os.path.exists(mark): open(mark, "w").close(); sys.exit(1)' \
+    'buf = b""' 'while True:' '    d = os.read(3, 65536)' '    if not d: break' '    buf += d' \
+    '    while b"\0" in buf:' '        raw, buf = buf.split(b"\0", 1); m = json.loads(raw)' \
+    '        r = {"Browser.getVersion": {"product": "Stub/1"}, "Target.createTarget": {"targetId": "t1"}, "Target.attachToTarget": {"sessionId": "s1"}}.get(m["method"], {})' \
+    '        os.write(4, json.dumps({"id": m["id"], "result": r}).encode() + b"\0")' \
+    '        if m["method"] == "Browser.close": sys.exit(0)' > "$t/late.py"
+  printf '#!/bin/sh\nexec python3 "%s" "%s"\n' "$t/late.py" "$t/late.started" > "$t/late"; printf '#!/bin/sh\nexit 1\n' > "$t/never"; chmod +x "$t/late" "$t/never"
+  a=$(node --input-type=module -e 'import { launchTab } from "./tools/textcheck/browser.mjs";
+for (const exe of process.argv.slice(1)) {
+  try { const { browser, sessionId } = await launchTab(exe, [], ["Page"]); console.log("TAB", sessionId); await browser.close(); }
+  catch (e) { console.log("FAILED", e.message.slice(0, 60)); }
+}' "$t/late" "$t/never" "$t/no-such-browser" 2>&1)
+  case "$a" in "the browser did not start (the browser is gone (exit 1)): starting another
+TAB s1
+the browser did not start (the browser is gone (exit 1)): starting another
+FAILED the browser is gone (exit 1)
+FAILED the browser is gone (ENOENT)"*) ok "browser: one that did not start is started once more (said), one that never starts fails after the second, a program not there is not tried again" ;;
+    *) bad "browser start, once more: $a" ;; esac
   a=$(vh frames tools/film/fixture --at 5 --out "$t/e" 2>&1); rc=$?
   case "$rc:$a" in 2:*"outside the film"*) ok "frames: a time outside the film exits 2" ;; *) bad "frames outside the film: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   if command -v ffmpeg >/dev/null; then
