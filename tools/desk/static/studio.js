@@ -210,14 +210,15 @@ async function showHome(quiet) {
 /* the sample wall: the repo's own showcase films, the four the homepage shows (docs/site/index.html), each with the homepage's
    poster and "make one like this" sentence (core.js smp_*; tools/desk/test_wording.py holds the two to each other). Its one
    button puts the sentence in the space's box for a new film and starts nothing. An empty space shows it open, as the page;
-   with films of your own it is folded under them, one click away (this viewer's choice is kept) */
+   with films of your own it is folded under them, one click away; so is it where the column drops under the page (≤ 900 px:
+   four full-width cards would push the box a few screens down). This viewer's own open or close is kept */
 const SAMPLES = [   // the server gives each poster and film at /samples/<id>.jpg|.mp4 (server.py SAMPLES); the numbers are the films' own
   { id: "short", secs: 24.8, w: 1080, h: 1920 },
   { id: "math", secs: 25, w: 1920, h: 1080, style: "dark-math" },
   { id: "handdrawn", secs: 12, w: 1920, h: 1080, style: "watercolor-pastoral" },
   { id: "launch", secs: 20, w: 1920, h: 1080, style: "product-keynote" },
 ];
-let wallOpen = (() => { try { return localStorage.getItem("desk:samples") === "open"; } catch (e) { return false; } })();
+let wallPick = (() => { try { return localStorage.getItem("desk:samples") || ""; } catch (e) { return ""; } })();   // "open", "closed", or not chosen
 function wallHtml(films) {
   const here = new Set((LIST && LIST.samples) || []);
   const cards = SAMPLES.map((x) => {
@@ -230,15 +231,16 @@ function wallHtml(films) {
       <span class="smp-act"><button type="button" class="btn" data-smp-go="${esc(x.id)}">${esc(t("smp_go"))}</button></span></div>`;
   }).join("");
   const body = `<p class="smp-b">${esc(t("smp_b"))}</p><div class="cards smp-cards">${cards}</div>`;
-  const head = `<h2>${esc(t("smp_h"))}<span class="n">${SAMPLES.length}</span></h2>`;
-  return films ? `<details class="sect smp-wall" id="smpWall"${wallOpen ? " open" : ""}><summary>${head}</summary>${body}</details>`
-    : `<section class="sect smp-wall">${head}${body}</section>`;
+  const open = wallPick ? wallPick === "open" : !films && !matchMedia("(max-width: 900px)").matches;
+  return `<details class="sect smp-wall" id="smpWall"${open ? " open" : ""}><summary><h2>${esc(t("smp_h"))}<span class="n">${SAMPLES.length}</span></h2></summary>${body}</details>`;
 }
 function wallWire(root) {
   const d = $("#smpWall", root);
-  if (d) d.addEventListener("toggle", () => { wallOpen = d.open; try { localStorage.setItem("desk:samples", d.open ? "open" : ""); } catch (e) { /* private window */ } });
+  if (d) $("summary", d).addEventListener("click", () => setTimeout(() => {   // the person's own open or close (not the page drawing it)
+    wallPick = d.open ? "open" : "closed"; try { localStorage.setItem("desk:samples", wallPick); } catch (e) { /* private window */ }
+  }, 0));
   $$("[data-smp-go]", root).forEach((b) => b.addEventListener("click", async (e) => {
-    if (await AGENT.offer(e, b.dataset.smpGo)) toast(t("smp_filled"));
+    AGENT.offer(e, b.dataset.smpGo);   // it says what happened (filled, kept until an agent is set up or the chat stops, look-only)
   }));
 }
 /* what this machine still lacks (bin/vh doctor, asked once a run by the console): a quiet panel on the space, nothing when all is there */

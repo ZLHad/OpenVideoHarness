@@ -160,3 +160,8 @@
 .ag-ask[hidden]{display:none}
 .ag-busy .ag-opts{margin-left:auto}
 @media (max-width:900px){.col.chat .agent{min-height:70vh}.ag-thread{max-height:60vh}}
+/* the space's sample wall: the sentence the person picked, kept until the box can take it (an agent set up, the chat stopped) */
+.ag-offer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;border:1px solid var(--you-line);background:var(--panel-2);color:var(--ink);font-size:var(--fs-label);line-height:1.55;border-radius:var(--r-card)}
+.ag-offer[hidden]{display:none}
+.ag-offer .ag-opts{margin-left:auto}
+.ag-offer-keep{margin:10px 0 0;padding:8px 10px;border-left:2px solid var(--you-line);color:var(--ink);font-size:var(--fs-small);line-height:1.5}

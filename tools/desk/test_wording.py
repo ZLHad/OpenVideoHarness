@@ -20,8 +20,8 @@ RETIRED_ZH = re.compile(r"审阅台|控制台|关卡|检查点|这一轮|这一�
                         r"硬规则|写成意见|记成点评|提交|锁时|样板章|样帧|锁画面|项目|BRIEF|\.md\b|bin/vh|" + CODE)
 RETIRED_EN = re.compile(r"(?i)\bdesk\b|\bconsole\b|\bgate\b|checkpoint|\bround\b|\bcomments?\b|feedback|submission|\bsubmit|\(s\)|untouched|"
                         r"to allow|\bcontext\b|\bproxy\b|hard rule|conversation|bin/vh|\.md\b|timing lock|sample chapter|first cut|" + CODE)
-WORDS_KEEP = {"proj_ph",   # the film's folder inside a command, in that command's tooltip (<项目> / <project>)
-              "smp_launch_say"}   # the homepage's sentence the person sends to the agent: 我的开源项目 is their software, not a film
+WORDS_KEEP = {"proj_ph"}   # the film's folder inside a command, in that command's tooltip (<项目> / <project>)
+WORDS_OK = {"smp_launch_say": "我的开源项目"}   # a word a key may say: the homepage's sentence names the person's software, not a film
 TERMINAL_OK = re.compile(r"bin/vh|\.md\b|\bproxy\b")   # a terminal line may name the command to run, a file, the network's proxy
 CJK = re.compile(r"[一-鿿]")
 PROSE = re.compile(r"[A-Za-z]{2,}[,:;.!?]? [A-Za-z]{2,}")   # English words a space apart: not an identifier, a key or a file name
@@ -173,7 +173,7 @@ def wording_check():
                 bad.append(f"{name}.{key} only in {'/'.join(v)}")
             elif k not in WORDS_KEEP:
                 for lang, rx in (("zh", RETIRED_ZH), ("en", RETIRED_EN)):
-                    m = rx.search(str(v[lang]))
+                    m = rx.search(str(v[lang]).replace(WORDS_OK.get(k, "\0"), ""))
                     if m:
                         bad.append(f"{name}.{key} ({lang}) says {m.group(0)!r}")
     core = (HERE / "static" / "core.js").read_text(encoding="utf-8")

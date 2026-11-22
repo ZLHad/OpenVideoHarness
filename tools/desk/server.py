@@ -99,12 +99,27 @@ STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charse
           "reader.css": "text/css; charset=utf-8", "reader.js": "text/javascript; charset=utf-8",
           "settings.css": "text/css; charset=utf-8", "settings.js": "text/javascript; charset=utf-8"}
 # GET /samples/<id>.jpg|.mp4: the space's sample wall (studio.js SAMPLES): the repo's own showcase films, the same four the
-# homepage shows, each with the homepage's poster, and the film itself once tools/fetch_media.sh has put it in this clone.
-# These files and nothing else of the clone: the showcase is in no root, so /f/ cannot give them.
-SAMPLES = {"short": ("docs/site/img/02-doppler.jpg", "showcase/02-short-leo-doppler/media/final.mp4"),   # the homepage's order
-           "math": ("docs/site/img/03-fourier.jpg", "showcase/03-math-fourier/media/final.mp4"),
-           "handdrawn": ("docs/site/img/01-clawd.jpg", "showcase/01-handdrawn-clawd-leaf/media/final.mp4"),
-           "launch": ("docs/site/img/00-launch.jpg", "showcase/00-promo-launch-film/media/final.mp4")}
+# homepage shows, each with the homepage's poster, and the film itself once tools/fetch_media.sh has put it in this clone
+# (found where tools/media.txt says that release file goes). These files and nothing else of the clone: the films are in no
+# root, so /f/ cannot give them.
+SAMPLES = {"short": ("docs/site/img/02-doppler.jpg", "02-vertical-science-short.mp4"),   # the homepage's order
+           "math": ("docs/site/img/03-fourier.jpg", "03-math-explainer.mp4"),
+           "handdrawn": ("docs/site/img/01-clawd.jpg", "01-handdrawn-short.mp4"),
+           "launch": ("docs/site/img/00-launch.jpg", "00-launch-short.mp4")}
+
+
+def sample_file(sid, kind):
+    """The clone's path of a sample's poster ("jpg") or film ("mp4", from tools/media.txt), or None."""
+    if sid not in SAMPLES:
+        return None
+    poster, asset = SAMPLES[sid]
+    if kind == "jpg":
+        return poster
+    try:
+        rows = (WORKSPACE / "tools" / "media.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    return next((r.split()[0] for r in rows if len(r.split()) == 3 and r.split()[1] == asset), None)
 # GET /v/<key>/<path>: a project file on a page of its own (Studio's app opens the console's new-page links there)
 VIEW = {"image": {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif", ".bmp"}, "video": {".mp4", ".mov", ".m4v", ".webm"},
         "audio": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".opus"}, "page": {".html", ".htm"}, "markdown": {".md", ".markdown"},
@@ -1075,7 +1090,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._projects()
         m = re.fullmatch(r"/samples/([a-z]+)\.(jpg|mp4)", path)
         if m and m.group(1) in SAMPLES:
-            return self._file(WORKSPACE, SAMPLES[m.group(1)][m.group(2) == "mp4"])
+            f = sample_file(m.group(1), m.group(2))
+            return self._file(WORKSPACE, f) if f else self._error(404, "no such sample")
         if path == "/api/hello":   # does the page hold this run's token? (one from an earlier run does not count); if not, why, and the way out
             given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
             ok = secrets.compare_digest(given, srv.token.encode("ascii"))
@@ -1291,7 +1307,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         rows.sort(key=rank)
         self._json({"version": 1, "home": self.server.own_key, "roots": rec["roots"], "count": len(rows),
                     "waiting": sum(1 for r in rows if r.get("state") == "waiting_person"), "projects": rows,
-                    "samples": [k for k, (_, film) in SAMPLES.items() if (WORKSPACE / film).is_file()]})   # the wall's films in this clone
+                    "samples": [k for k in SAMPLES if (f := sample_file(k, "mp4")) and self._resolve(WORKSPACE, f)]})   # what /samples/ serves
 
     def _data(self, project, key):
         try:

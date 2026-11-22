@@ -4132,6 +4132,16 @@ want(isinstance(smp, list) and set(smp) <= {"short", "math", "handdrawn", "launc
      f"the sample wall's posters and films: {smp} {s} {h.get('Content-Type')}")
 for p in ("/samples/nope.jpg", "/samples/short.png", "/samples/..%2fserver.py", "/samples/", "/samples/short.jpg/x"):
     want(req("GET", p)[0] == 404, f"{p} answered")
+film = "showcase/02-short-leo-doppler/media/final.mp4"   # a film linked in from outside the clone: neither listed nor served
+if not os.path.lexists(film) and os.path.isdir(os.path.dirname(film)):
+    outside = os.path.join(os.path.dirname(root), "outside.mp4")
+    open(outside, "wb").write(b"\x00" * 64)
+    os.symlink(outside, film)
+    try:
+        want("short" not in json.loads(req("GET", "/api/projects")[2]).get("samples", []) and req("GET", "/samples/short.mp4")[0] == 404,
+             "a film linked in from outside the clone is listed or served")
+    finally:
+        os.remove(film)
 fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
     "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
 H = {"Content-Type": "application/json", "X-Desk-Token": token}
