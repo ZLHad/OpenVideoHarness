@@ -147,6 +147,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import firstuse   # noqa: E402  the big first downloads: their sizes, the line before them, their progress
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import keys   # noqa: E402  an API key: the environment's, else the one saved in Studio's settings (tools/keys.py)
 
 RESUME = None   # what a stop keeps for a resume, once a line is on disk
 
@@ -216,7 +218,7 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
     so does one asking for more than 90 s. The delay and the quota are read from the first 8 KB of the body: a long quota
     message puts "retry in Ns" past the first 500 bytes, which are all that the error message repeats. A call that fails
     for good raises GeminiError."""
-    key = os.environ.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
+    key = keys.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
     url = f"{GEMINI_API}/{path}" + (f"?{urllib.parse.urlencode(query, doseq=True)}" if query else "")
     data = None if body is None else json.dumps(body).encode()
     k = limited = 0
@@ -335,7 +337,7 @@ def p_edge(text, voice, out: Path, tmp: Path, lang, instruct=None):
     return None
 
 def p_elevenlabs(text, voice, out: Path, tmp: Path, lang, instruct=None):
-    key = os.environ.get("ELEVENLABS_API_KEY") or no_key("elevenlabs")
+    key = keys.get("ELEVENLABS_API_KEY") or no_key("elevenlabs")
     voice = voice or sys.exit("--voice <voice_id> is required for elevenlabs")
     body = json.dumps({"text": text, "model_id": os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")}).encode()
     req = urllib.request.Request(f"https://api.elevenlabs.io/v1/text-to-speech/{voice}/with-timestamps?output_format=mp3_44100_128",
@@ -358,7 +360,7 @@ def char_words(chars, starts, ends):
 
 def p_dashscope(text, voice, out: Path, tmp: Path, lang, instruct=None):
     import dashscope  # provided by `uv run --with dashscope`
-    key = os.environ.get("DASHSCOPE_API_KEY") or no_key("dashscope")
+    key = keys.get("DASHSCOPE_API_KEY") or no_key("dashscope")
     if os.environ.get("DASHSCOPE_BASE_URL"):
         dashscope.base_http_api_url = os.environ["DASHSCOPE_BASE_URL"]
     resp = dashscope.MultiModalConversation.call(
@@ -415,8 +417,11 @@ class MinimaxError(RuntimeError):
 
 def minimax_key():
     """(key, its variable): the Token Plan key first, since only it spends Token Plan credits."""
-    var = next((k for k in ("MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY") if os.environ.get(k)), None)
-    return (os.environ[var], var) if var else (None, None)
+    for var in ("MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"):
+        key = keys.get(var)
+        if key:
+            return key, var
+    return None, None
 
 def minimax_hint(code, base):
     if code in (1004, 2049):                                         # authentication failed / invalid api key
@@ -1116,7 +1121,7 @@ def audition(a):
     gemini = a.provider.startswith("gemini")
     if a.align == "local":
         need_local_asr()
-    if (gemini or a.align == "gemini") and not os.environ.get("GEMINI_API_KEY"):
+    if (gemini or a.align == "gemini") and not keys.get("GEMINI_API_KEY"):
         sys.exit("voices audition: set GEMINI_API_KEY (Google AI Studio → Get API key)"
                  + (f" for --provider {a.provider}" if gemini else " for --align gemini") + "; nothing was synthesized")
     if a.provider == "minimax" and not minimax_key()[0]:
@@ -1262,7 +1267,7 @@ def main():
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
     if a.align == "local":   # before anything is synthesized or deleted
         need_local_asr()
-    if align and a.align != "local" and not os.environ.get("GEMINI_API_KEY"):
+    if align and a.align != "local" and not keys.get("GEMINI_API_KEY"):
         sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key): --align gemini / --join transcribe with Gemini (or --align local)")
     if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
         sys.exit(f"--resume: --gap was {man.get('gap')} for the run, now {a.gap}; in a joined minimax request it is part of the"
@@ -1282,7 +1287,7 @@ def main():
             blocks.append([s])
     wavs = [f"{i+1:02d}.wav" for i in range(len(segs))] if join == "none" else [f"_block{i+1:02d}.wav" for i in range(len(blocks))]
     voiced = a.resume and all((vo / f).exists() and ((vo / f).with_suffix(".words.json").exists() or not timed) for f in wavs)   # the synthesis loops' own test
-    if not voiced and a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not os.environ.get(KEY_OF[a.provider].split()[0]):
+    if not voiced and a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not keys.get(KEY_OF[a.provider].split()[0]):
         no_key(a.provider)                                           # before anything is synthesized or deleted; --resume with all voiced needs none
     if a.provider == "minimax":
         minimax_settings()                                           # a value out of range exits here, not mid-run

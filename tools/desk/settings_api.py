@@ -10,6 +10,12 @@ Both routes need this run's token. GET answers {version: 1, file, studio, mirror
 {name, value} (studio_lang, studio_theme, agent_default, mirror, model:<kind>, effort:<kind>) and answers the same as GET,
 or {name: "reveal", value: <one of roots' paths>}: that folder opens in the system's file browser ($OVH_REVEAL, a command,
 stands in for it; twenty a minute).
+
+The services (tools/modules.json's services with needs.keys): GET's services lists each with its keys, where a command
+finds each (env, studio or none) and whether one is saved in Studio, never a key itself; store says what keeps them
+(keychain, secret-service or none: tools/keys.py). POST {name: "key:<NAME>", value: <the key> or null} saves or takes out
+the key saved in Studio; {name: "test:<module>"} asks the service once at its free address (bin/vh doctor --probe --only
+<module>; $OVH_PROBE_OFFLINE: answered from that folder's recordings), ten a minute, → {ok, probe: {state, note}}.
 """
 import os, re, secrets, subprocess, sys, threading, time
 from pathlib import Path
@@ -20,6 +26,8 @@ sys.path.insert(0, str(HERE.parent))
 import settings as S   # noqa: E402  (tools/settings.py: this machine's settings file, its one reader and writer)
 import agents as A     # noqa: E402
 import projects as PJ  # noqa: E402  (where this console looks for films)
+import keys as K       # noqa: E402  (tools/keys.py: the services' keys, the environment's or saved in this computer's store)
+import json            # noqa: E402
 
 # LOCAL.md's lines shown on the page: id → the labels a line may start with (as the tools that read them accept)
 LOCAL_LINES = (
@@ -91,6 +99,24 @@ def roots(given):
     return out
 
 
+def services():
+    """[{module, keys: [{name, source, saved}], cost, key_url, probe}]: the services a key opens, as tools/modules.json has them."""
+    try:
+        t = json.loads((WORKSPACE / "tools" / "modules.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    out = []
+    for m in t.get("modules") or []:
+        names = (m.get("needs") or {}).get("keys") or []
+        if m.get("kind") != "service" or not names:
+            continue
+        ks = []
+        for n in names:
+            ks.append({"name": n, "source": K.source(n), "saved": bool(K.stored(n))})   # (the store asked once per name: tools/keys.py)
+        out.append({"module": m["name"], "keys": ks, "cost": m.get("cost"), "key_url": m.get("key_url"), "probe": bool(m.get("probe"))})
+    return out
+
+
 def state(mgr, given=()):
     d = S.load()
     st = S.studio(d)
@@ -101,7 +127,7 @@ def state(mgr, given=()):
             "agents": {"default": st["agent_default"],
                        "kinds": [{"kind": a["kind"], "label": a["label"], "installed": a["installed"], "size": a["size"],
                                   "choices": mgr.choices(a["kind"]) if mgr else None} for a in kinds]},
-            "roots": roots(given), "local": local_lines(),
+            "roots": roots(given), "local": local_lines(), "services": services(), "store": K.store_kind(),
             "about": dict(version(), workspace=shown(os.path.realpath(WORKSPACE)))}
 
 
@@ -116,7 +142,28 @@ def get(handler):
     return handler._json(state(handler.server.agents, handler.server.roots))
 
 
-REVEALED, REVEAL_LOCK = [], threading.Lock()
+REVEALED, REVEAL_LOCK, TESTED = [], threading.Lock(), []
+
+
+def test(module):
+    """Ask one service once at its free address (bin/vh doctor's probe) → {state, note}: never a key in what comes back."""
+    if module not in {s["module"] for s in services()}:
+        raise ValueError(f"test: {module!r} is not a service with a key")
+    with REVEAL_LOCK:
+        now = time.time()
+        TESTED[:] = [x for x in TESTED if now - x < 60]
+        if len(TESTED) >= 10:
+            raise PermissionError("asked too often: try again in a minute")
+        TESTED.append(now)
+    argv = [os.environ.get("OVH_BASH") or "bash", str(WORKSPACE / "bin" / "vh"), "doctor", "--json", "--probe", "--only", module]
+    if os.environ.get("OVH_PROBE_OFFLINE"):
+        argv += ["--offline", os.environ["OVH_PROBE_OFFLINE"]]
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+        m = next(x for x in json.loads(r.stdout)["modules"] if x["name"] == module)
+        return m.get("probe") or {"state": "skipped", "note": "not asked"}
+    except (OSError, ValueError, StopIteration, KeyError, subprocess.SubprocessError) as e:
+        return {"state": "failed", "note": f"could not ask ({type(e).__name__})"}
 
 
 def reveal(path):
@@ -144,6 +191,17 @@ def post(handler):
                 raise ValueError("reveal: not one of the folders Studio finds films in")
             reveal(value)
             return handler._json({"ok": True})
+        if name.startswith("key:"):   # a key: saved in (or taken out of) this computer's store; never said back
+            n = name[4:]
+            if n not in K.KEY_NAMES:
+                raise ValueError(f"{n}: not the name of a key a service needs")
+            if value is None:
+                K.clear(n)
+            else:
+                K.save(n, value)
+            return handler._json(state(handler.server.agents, handler.server.roots))
+        if name.startswith("test:"):
+            return handler._json({"ok": True, "probe": test(name[5:])})
         if name == "agent_default" and value is not None and not (value in A.ADAPTERS and A.installed(value)):
             raise ValueError(f"agent_default: {value!r} is not set up in Studio")
         if name in S.STUDIO:
@@ -167,6 +225,10 @@ def post(handler):
                 raise OSError(f"{A.picks_path()} was not written")
         else:
             raise ValueError(f"{name}: not a setting Studio changes")
+    except K.NotAKey as e:   # (tools/keys.py's messages name the key's variable, never the key; the page says them in its own words)
+        return handler._error(400, str(e), "not_a_key")
+    except K.NotKept as e:
+        return handler._error(500, f"could not keep it: {e}", "no_store" if K.store_kind() == "none" else "not_kept")
     except S.Newer:
         return handler._error(409, "this computer's settings file was written by a newer OpenVideoHarness: not written over", "newer")
     except PermissionError as e:
@@ -174,5 +236,5 @@ def post(handler):
     except ValueError as e:
         return handler._error(400, str(e))
     except OSError as e:
-        return handler._error(500, f"could not keep it ({type(e).__name__})")
+        return handler._error(500, f"could not keep it: {e}")
     return handler._json(state(handler.server.agents, handler.server.roots))

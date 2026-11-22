@@ -579,7 +579,7 @@
       "reads": [
         "the prompt (--prompt, --prompt-file) and the reference pictures (--ref; cast:<id>: <project>/cast/<id>/'s, bin/vh cast)",
         "<project>/BRIEF.md (Budget; Output for the aspect), LOCAL.md (默认预算)",
-        "GEMINI_API_KEY from the environment; or the codex CLI, signed in with ChatGPT",
+        "GEMINI_API_KEY from the environment or Studio's settings (tools/keys.py); or the codex CLI, signed in with ChatGPT",
         "--offline <folder>: recorded answers"
       ],
       "writes": [
@@ -1636,7 +1636,7 @@
       "stages": ["4"],
       "reads": [
         "<project>/audio/script.txt",
-        "a cloud provider's key, from the environment"
+        "a cloud provider's key, from the environment or Studio's settings (tools/keys.py)"
       ],
       "writes": [
         "<project>/audio/voiceover.<lang>.wav",
@@ -1691,7 +1691,7 @@
       "stages": ["4", "3"],
       "reads": [
         "--text f.txt (audition)",
-        "the provider's key, from the environment"
+        "the provider's key, from the environment or Studio's settings (tools/keys.py)"
       ],
       "writes": [
         "--out dir: a WAV per voice and audition.json (audition)",
@@ -1871,7 +1871,7 @@
       "stages": ["4"],
       "reads": [
         "<score.json>",
-        "--provider lyria: the prompt, GEMINI_API_KEY from the environment, <project>/BRIEF.md (Budget)"
+        "--provider lyria: the prompt, GEMINI_API_KEY from the environment or Studio's settings (tools/keys.py), <project>/BRIEF.md (Budget)"
       ],
       "writes": [
         "<out.wav>",

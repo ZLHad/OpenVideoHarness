@@ -11,7 +11,7 @@ usage: bin/vh doctor [--json] [--first] [--fill-local] [--probe [--only a,b] [--
   --fill-local  also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from this check, where they still hold
                 the template's {…}; with no LOCAL.md, LOCAL.example.md is copied first. A line a person wrote stays;
                 the other lines' {…} are their defaults (the installer runs this)
-  --probe       also call each service that has a key set, once, at an endpoint that costs nothing (Gemini's model
+  --probe       also call each service that has a key set, once per key set, at an endpoint that costs nothing (Gemini's model
                 list, MiniMax's system voices, ElevenLabs' user, Model Studio's model list): is the key taken, is the
                 interface there; and each public one that takes no key (scout's: fxtwitter, Bilibili's view, the hot
                 lists): does it still answer the way the adapter reads it. Without it doctor never touches the network
@@ -38,13 +38,16 @@ when nothing is missing but something could not be checked).
 
 --json, "version": 1 (these fields stay; new ones may be added): {"version", "tool", "platform", "modules": [{"name",
 "kind", "status" ("planned" when nothing calls it yet, else "used"), "required", "state", "found", "version", "keys":
-{VAR: true|false}, "note", "install", "probe": {"state", "note"} | null}], "checks": [{"name", "state", "note"}],
+{VAR: true|false}, "key_source": {VAR: "env" | "studio" | null} (saved in Studio's settings: tools/keys.py), "note",
+"install", "probe": {"state", "note"} | null}], "checks": [{"name", "state", "note"}],
 "first_run": [what the first runs still download], "counts": {state: n}}. state: ok · missing · outdated (under the
 minimum, not the pin, or older than max_age_days) · incomplete (found, a part it needs is not) · no_key · unsupported
 (not on this platform) · per_project · unchecked. A probe: ok · failed · skipped.
 """
 import contextlib, datetime, glob, hashlib, http.client, json, os, platform, re, shutil, subprocess, sys, tempfile, time
 import urllib.error, urllib.parse, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import keys   # noqa: E402  (tools/keys.py: a key from the environment, else saved in Studio's settings)
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -243,13 +246,14 @@ def hf_snapshot(model):
 def check_module(m, found_by, today):
     """One module on this machine: {state, found, version, keys, note}."""
     ck, ver, needs = m.get("check") or {}, m.get("version") or {}, m.get("needs") or {}
-    r = {"state": "ok", "found": None, "version": None, "keys": {}, "note": ""}
+    r = {"state": "ok", "found": None, "version": None, "keys": {}, "key_source": {}, "note": ""}
     notes = []
     if not platform_ok(needs.get("platform")):
         r.update(state="unsupported", note=f"for {needs['platform']} only; this is {this_platform()}" + (f": {m['elsewhere']}" if m.get("elsewhere") else ""))
         return r
     for k in needs.get("keys", []):
-        r["keys"][k] = bool(os.environ.get(k))
+        r["keys"][k] = bool(keys.get(k))
+        r["key_source"][k] = keys.source(k)   # env or studio (saved in Studio's settings), or None
     if ck.get("per_project"):
         r.update(state="per_project", note=f"each project has its own: {ck['per_project']}")
         return r
@@ -410,17 +414,30 @@ def apply_needs(modules, results):
 
 
 def probe(m, offline, recs):
-    """Call a service once at its free endpoint, with the first of its keys that is set (a public one that takes no key:
-    without one). {state, note}. The key goes in a header that no redirect carries on, only over https (or to this
-    machine), and no answer's text is passed on."""
+    """Call a service at its free endpoint once with each of its keys that is set (MiniMax's two: each is asked, and
+    the note says which one failed), or once without a key for a public one that takes none. {state, note}: ok when
+    every key is taken. The key goes in a header that no redirect carries on, only over https (or to this machine),
+    and no answer's text is passed on."""
     p = m.get("probe")
     if not p:
         return None
     keyless = not (m.get("needs") or {}).get("keys") and not p.get("auth")
-    var = None if keyless else next((k for k in (m.get("needs") or {}).get("keys", []) if os.environ.get(k)), None)
-    if not var and not keyless:
+    if keyless:
+        return probe_one(p, None, offline, recs)
+    vars_ = [k for k in (m.get("needs") or {}).get("keys", []) if keys.get(k)]
+    if not vars_:
         return {"state": "skipped", "note": "no key set"}
-    key, url = (os.environ[var] if var else ""), p["url"]
+    said = [(v, probe_one(p, v, offline, recs)) for v in vars_]
+    if len(said) == 1:
+        return said[0][1]
+    bad = [(v, r) for v, r in said if r["state"] != "ok"]
+    return {"state": "failed" if bad else "ok",
+            "note": "; ".join(r["note"] if v in r["note"] else f"{v}: {r['note']}" for v, r in (bad or said))}
+
+
+def probe_one(p, var, offline, recs):
+    """One call to a probe's endpoint, with the key named var (None: no key)."""
+    key, url = (keys.get(var) if var else ""), p["url"]
     if p.get("base_env") and os.environ.get(p["base_env"]):
         b = urllib.parse.urlsplit(os.environ[p["base_env"]])
         if not b.hostname or not (b.scheme == "https" or (b.scheme == "http" and b.hostname in LOCAL)):
@@ -861,7 +878,7 @@ def problems(t, commands=None):
             bad.append(f"{at}: the name is not lower-case letters, digits and -"); continue
         names.append(n)
         extra = set(m) - {"name", "kind", "status", "purpose", "version", "license", "needs", "adapter", "commands", "required", "check",
-                          "probe", "first_run", "install", "elsewhere"}
+                          "probe", "first_run", "install", "elsewhere", "cost", "key_url"}
         if extra:
             bad.append(f"{at}: fields doctor does not know: {sorted(extra)}")
         if m.get("kind") not in KINDS:
@@ -876,6 +893,10 @@ def problems(t, commands=None):
         ver = m.get("version")
         if not isinstance(ver, dict) or set(ver) - {"pin", "min", "range", "tested", "models", "max_age_days"}:
             bad.append(f"{at}: version is not an object of pin, min, range, tested, models, max_age_days")
+        if "cost" in m and m["cost"] not in ("free", "free_tier", "paid"):
+            bad.append(f"{at}: cost is not free, free_tier or paid")
+        if "key_url" in m and not (isinstance(m["key_url"], str) and m["key_url"].startswith("https://") and (m.get("needs") or {}).get("keys")):
+            bad.append(f"{at}: key_url is not an https address, or the module needs no key")
         needs = m.get("needs")
         if not isinstance(needs, dict) or set(needs) - {"keys", "programs", "account", "platform"}:
             bad.append(f"{at}: needs is not an object of keys, programs, account, platform")
@@ -932,8 +953,9 @@ def print_module(m, r):
     mark = OK if r["state"] == "ok" else NO if bad and m["required"] else WA if bad else "-"
     ck = m.get("check") or {}
     where = shown(r["found"]) if r["found"] and not r["version"] and (ck.get("program") or ck.get("finder") == "chrome") else ""
-    keys = [k for k, on in r["keys"].items() if on]
-    detail = " · ".join(x for x in (", ".join(keys) + " set" if keys else "", r["version"], where, r["note"]) if x)
+    src = r.get("key_source") or {}
+    have = [f"{k} set {'in Studio' if src.get(k) == 'studio' else 'in the environment'}" for k, on in r["keys"].items() if on]
+    detail = " · ".join(x for x in (", ".join(have), r["version"], where, r["note"]) if x)
     if r["state"] == "no_key" and m["commands"]:
         detail += f" (for bin/vh {', '.join(m['commands'])})"
     hint = f" → {r['install']}" if bad and r["install"] else ""

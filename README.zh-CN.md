@@ -404,9 +404,21 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 | LaTeX | Manim 里的公式 |
 | Blender 5.2 | 只有路径追踪的镜头和整理 3D 模型才要；沙箱目前只在 macOS 上有 |
 
-- **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住；key 一律从环境变量读。
+- **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住。API Key 从环境变量读，或者用 Studio 设置页里存的（见 [API Key](#api-key)）。
 - **时间**：30 秒的标准档片子大约 1–2 小时，大部分花在自查和返工上。
 - **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，事先要备好的三样见 [engines/README.md](engines/README.md#linux渲染前要先备好的三样)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
+
+### API Key
+
+配音默认用这台电脑上的声音，不用 API Key。在线服务（Gemini、MiniMax、ElevenLabs、阿里云百炼）要用各家网站上的 API Key。把它粘贴到 Studio 的设置页（设置 → 服务）：存在这台电脑的钥匙串里（Linux 上是 Secret Service），不写进任何文件，终端里和 Studio 的对话里，每条命令都找得到。
+
+没有这样的地方可存时，把 key 写进终端每次启动都会读的那个文件（macOS 是 `~/.zshrc`，多数 Linux 是 `~/.bashrc`），再开一个新终端，从那里打开 Studio：
+
+```bash
+echo 'export GEMINI_API_KEY=把你的key粘贴在这里' >> ~/.zshrc
+```
+
+其他几家的变量名，设置页上都写着。这样设的 key，比 Studio 里存的同名 key 先用。有 API Key 不等于有预算：出图和 Lyria 作曲没写预算就不调；用这几家配音、逐字对时、试音，是直接调用，花的是那个账户的钱。
 
 ## 安装、更新和国内网络
 

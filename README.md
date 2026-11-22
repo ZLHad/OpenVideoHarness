@@ -404,9 +404,21 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 | LaTeX | formulas in Manim |
 | Blender 5.2 | only for path-traced shots and preparing 3D models; its sandbox is macOS-only for now |
 
-- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made; keys are always read from environment variables.
+- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made. API keys come from the environment or from Studio's settings ([API Key](#api-key)).
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
 - **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
+
+### API Key
+
+Voices are made on this computer by default and need no API Key. An online service (Gemini, MiniMax, ElevenLabs, Alibaba Cloud Model Studio) needs the API Key from its own site. Paste it into Studio's settings (Settings → Services): it's kept in the computer's Keychain (on Linux, the Secret Service), never written into a file, and every command finds it, in the terminal and in Studio's chat.
+
+Where there is no such store, put the key in the file your terminal reads each time it starts (`~/.zshrc` on macOS, `~/.bashrc` on most Linux), then open a new terminal and start Studio from it:
+
+```bash
+echo 'export GEMINI_API_KEY=paste-your-key-here' >> ~/.zshrc
+```
+
+The settings page lists the other services' names. A key set this way is used before one saved in Studio, name by name. An API Key isn't a budget: pictures and Lyria music are not made without a budget, while voices, word timing and auditions with these services are called directly and bill that account.
 
 ## Install options and updates
 
