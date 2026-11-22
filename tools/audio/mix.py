@@ -63,11 +63,19 @@ break). The order is voice anchor → music VMR → SFX classes → depth → ma
           seconds, an event's "id", or with an events.json header (tools/audio/time_refs.py) a reference such as @a4>
   stems=  a folder for the buses as heard at the final gain (voice, music, sfx, sfx_<class>.wav) and meta.json with
           every decision and each event's level: `bin/vh qa mix --stems DIR` reads it.
+ROOM TONE (both chains): a voice with no music gets a bed of room tone under the whole film (tools/audio/roomtone.py):
+pink noise from fixed seeds, made in numpy and scipy, 60 Hz–5 kHz, at -60 dBFS RMS after the loudness gain, its first and
+last half second ramped up from and down to -66 dBFS (never to zero), so the voice's pauses are a quiet room and not the
+digital silence the film's floor forbids; the film's loudness stays as it was, its true peak may rise by up to 0.1 dB.
+room=off leaves it out, room=<dB> sets another level from -66 (any quieter and the pauses fall back to digital silence)
+to -58 (any louder and it is heard); a mix with music never gets one (room= then says so in a line). The mix record says
+it ("room"), and the report line ends with it. The default chain has uv make it (numpy and scipy) and adds it in ffmpeg.
 Deterministic (seeded room IRs, no threads, no ffmpeg filters in the signal path; ffmpeg only decodes and, for a
 non-WAV out, encodes): the same inputs give the same bytes. About 3–4 s for a 25 s film on an M3 Max.
 """
 import json, os, re, subprocess, sys, time
 from mixstate import Build, InvalidMix
+import roomtone
 import time_refs
 
 try:   # the profile path only: the default chain needs nothing but ffmpeg
@@ -82,12 +90,12 @@ def loudness(stderr):  # loudnorm's print_format=json block → {"input_i", "inp
     return json.loads(re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", stderr, re.S).group(0))
 
 USAGE = ("usage: bin/vh mix <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav] [edit=edit.json] [music_db=-6] [sfx_db=0] [voice_db=0] "
-         "[duck=voice|on|off] [duck_ratio=1.6] [lufs=-14] [tp=-1.5]\n"
+         "[duck=voice|on|off] [duck_ratio=1.6] [lufs=-14] [tp=-1.5] [room=on|off|dB]\n"
          "       bin/vh mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=vo.wav] [music=m.wav] "
          "[events=events.json [lib=DIR] [root=DIR] [roles=roles.json] [keep=t1,t2] | sfx=s.wav] [edit=edit.json] [timeline=timeline.json] "
-         "[stems=DIR] [dur=S] [fade=S] [music_db=-6] [sfx_db=0] [voice_db=0] [lufs=-14] [tp=-1.65]")
+         "[stems=DIR] [dur=S] [fade=S] [music_db=-6] [sfx_db=0] [voice_db=0] [lufs=-14] [tp=-1.65] [room=on|off|dB]")
 PROFILE_KEYS = ("profile", "events", "lib", "root", "timeline", "roles", "stems", "keep", "dur", "fade")
-KEYS = ("voice", "music", "sfx", "edit", "music_db", "sfx_db", "voice_db", "duck", "duck_ratio", "lufs", "tp") + PROFILE_KEYS
+KEYS = ("voice", "music", "sfx", "edit", "music_db", "sfx_db", "voice_db", "duck", "duck_ratio", "lufs", "tp", "room") + PROFILE_KEYS
 
 def main():
     if sys.argv[1:2] in (["-h"], ["--help"]): print(USAGE); sys.exit(0)
@@ -110,6 +118,17 @@ def main():
             except (ValueError, subprocess.CalledProcessError) as e:
                 shutil.rmtree(tmp, ignore_errors=True)
                 sys.exit(f"edit={kv['edit']}: {e}")
+        try:   # room tone: a voice with no music (after edit=, which may bring music) gets a bed under its pauses
+            room = roomtone.level(kv)   # a room= it cannot use is still refused
+        except ValueError as e:
+            sys.exit(str(e))
+        if room is not None and not (kv.get("voice") and not kv.get("music")):
+            if "room" in kv:
+                said.append(f"room={kv['room']}: not used: " + ("the music is the bed under the voice's pauses" if kv.get("voice") else "there is no voice to lay it under"))
+            room = None
+        kv["_room"] = room
+        build.state["room"] = None if room is None else {"rms_dbfs": room, "color": "pink", "seeds": list(roomtone.SEEDS),
+                                                          "band_hz": [roomtone.HIGHPASS, roomtone.LOWPASS], "fade_s": roomtone.FADE}
         try:
             if kv.get("profile", "none") == "none":
                 report = default_chain(build.temp, kv, out)
@@ -175,6 +194,19 @@ def default_chain(out, kv, final_out=None):   # ffmpeg only; the audio is unchan
     # sample count above (apad, atrim) would mean a quarter of the intended time; with it both passes run the same
     # graph and the conversion sits right before loudnorm
     pre = ";".join(f) + ";" + "".join(tracks) + f"amix=inputs={len(tracks)}:duration=longest:dropout_transition=0:normalize=0,aformat=sample_rates=48000"
+    room = kv.get("_room"); bed_in = []
+    if room is not None:   # the bed, made once by roomtone (numpy, through uv here) beside the output, one more input
+        bed = out + ".room.f32"
+        try: roomtone.write(N / 48000, room, bed)
+        except ValueError as e: sys.exit(str(e))
+        bed_in = ["-f", "f32le", "-ar", "48000", "-ac", "2", "-i", bed]
+    try:
+        return _passes(out, kv, final_out, ins, bed_in, buses, keys, ducked, pre, N, room)
+    finally:
+        if bed_in and os.path.exists(bed_in[-1]):
+            os.unlink(bed_in[-1])
+
+def _passes(out, kv, final_out, ins, bed_in, buses, keys, ducked, pre, N, room):   # measure, then gain (and limit) until it lands
     lufs, tp = float(kv.get("lufs", -14)), float(kv.get("tp", -1.5))
     ln = f"loudnorm=I={lufs}:TP={tp}:LRA=20:print_format=json"          # used only as a meter (BS.1770 I, true peak, LRA)
     # pass 1: measure loudness, and the peak of every 10 ms at 4× oversampling (≈ true peak) to see what the gain hits
@@ -189,7 +221,9 @@ def default_chain(out, kv, final_out=None):   # ffmpeg only; the audio is unchan
         over = [p + gain > ceil for p in peaks]
         n = sum(1 for i, o in enumerate(over) if o and not (i and over[i - 1]))   # peaks = runs of 10 ms blocks over it
         chain = f"volume={gain:.3f}dB" + (f",aresample=192000,alimiter=limit={10 ** (ceil / 20):.6f}:level=false:latency=true,aresample=48000" if n else "") + f",apad=whole_len={N},atrim=end_sample={N}"
-        subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", pre + f",{chain}[out]", "-map", "[out]", "-ar", "48000", out], check=True)
+        tail = ("[out]" if room is None else   # the room tone after the gain: its level in the film is the one asked for
+                f"[m];[{len(buses)}:a]aformat=sample_rates=48000:channel_layouts=stereo[bed];[m][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[out]")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, *bed_in, "-filter_complex", pre + f",{chain}{tail}", "-map", "[out]", "-ar", "48000", out], check=True)
         o = loudness(subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", out, "-af", ln, "-f", "null", "-"],
                                     capture_output=True, text=True, check=True).stderr)   # last pass: measure the file
         i, t = float(o["input_i"]), float(o["input_tp"])
@@ -200,7 +234,11 @@ def default_chain(out, kv, final_out=None):   # ffmpeg only; the audio is unchan
         last, gain = (gain, i), gain + (lufs - i) / slope
     how = f"static gain {gain:+.2f} dB" + (f" + true-peak limiter ({n} peak{'s' * (n > 1)}, up to {max(peaks) + gain - ceil:.1f} dB of reduction)" if n else "")
     return (f"{final_out or out}  (stereo · {' + '.join(k for k, _ in buses)}{f', ducked by {chr(43).join(keys)}' if ducked else ''} · {how} · "
-          f"measured {o['input_i']} LUFS, true peak {o['input_tp']} dBTP, LRA {o['input_lra']} LU · input {m['input_i']} LUFS, LRA {m['input_lra']} LU)")
+          f"measured {o['input_i']} LUFS, true peak {o['input_tp']} dBTP, LRA {o['input_lra']} LU · input {m['input_i']} LUFS, LRA {m['input_lra']} LU)"
+          + room_said(room))
+
+def room_said(room):
+    return "" if room is None else f"\n  + room tone under the voice at {room:g} dBFS RMS, so its pauses are not digital silence (room=off leaves it out)"
 
 # ═════════════════════════════════════════════ mix profiles ═════════════════════════════════════════════
 # The numbers are LU re the anchor unless noted. Designed and measured in the mix lab (2026-10-01): the narrated
@@ -872,6 +910,10 @@ def layered(out, kv, final_out=None, extra_events=()):
     t0 = time.time()
     Z, stems, g, meta = mixdown(P, buses.pop("voice"), buses.pop("music"), events, kv.get("lib"), kv.get("root"), buses.pop("sfx"), timeline, dur, fade,
                              float(kv.get("lufs", -14)), float(kv.get("tp", -1.65)), roles, mdb, sdb, keep, class_stems="stems" in kv)
+    room = kv.get("_room")
+    if room is not None:   # the room tone after the master gain; the loudness and true peak measured again with it
+        Z = Z + roomtone.bed(len(Z) / SR, room).astype(np.float64)
+        meta.update(lufs=integrated(kpow(Z)), tp=true_peak(Z), room={"rms_dbfs": room})
     save(out, Z)
     if "stems" in kv:   # paths in meta.json are relative to the stems folder, so qa --stems works from anywhere
         d = kv["stems"]; os.makedirs(d, exist_ok=True); rel = lambda p: os.path.relpath(os.path.abspath(p), os.path.abspath(d))
@@ -889,7 +931,7 @@ def layered(out, kv, final_out=None, extra_events=()):
             json.dump(meta, fh, ensure_ascii=False, indent=1, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
     what = " + ".join([k for k in ("voice", "music") if k in kv] + ([f"{len(meta['events'])} SFX events"] if events else ["sfx"] if "sfx" in kv else []))
     return (f"{final_out or out}  (stereo · profile {name} · {what} · {meta['how']} · measured {meta['lufs']:.2f} LUFS (BS.1770), "
-          f"true peak {meta['tp']:.2f} dBTP · mixed in {time.time() - t0:.1f} s)" + (f" · stems {kv['stems']}" if "stems" in kv else ""))
+          f"true peak {meta['tp']:.2f} dBTP · mixed in {time.time() - t0:.1f} s)" + (f" · stems {kv['stems']}" if "stems" in kv else "") + room_said(room))
 
 if __name__ == "__main__":
     try:
