@@ -1901,21 +1901,47 @@ def handoff_checks():
         pending_busy = one(stations=both_, activity={"running": [render]})
         taken = one(stations=handed, activity={"running": [render]})
         unknown = one(activity={"running": [{"cmd": "foo-bar"}]})
-        import keys   # a film waiting on a service's API Key: on no store of anyone's, with no key in the environment
+        import keys   # a film waiting on a service's API Key: on no store of anyone's, with no key in the environment, on a platform made up
         kept = {k: os.environ.pop(k) for k in [*keys.KEY_NAMES, "OVH_KEYSTORE"] if k in os.environ}
         os.environ["OVH_KEYSTORE"] = "none"; keys._CACHE.pop("kind", None); keys.forget()
+        real_machine, real_codex = keys.machine, keys.has_codex
         try:
-            nk = lambda cmd, names, t=now - 90: {"cmd": cmd, "state": "failed", "exit": 1, "start": t - 10, "end": t, "error": {"code": "no_key", "message": keys.missing(names)}}   # noqa: E731
+            keys.machine, keys.has_codex = (lambda: ("darwin", "arm64")), (lambda: False)
+            nk = lambda cmd, names, need=None, t=now - 900: {"cmd": cmd, "state": "failed", "exit": 1, "start": t - 10, "end": t,   # noqa: E731
+                                                              "error": dict({"code": "no_key", "message": keys.missing(names)}, **({"need": need, "keys": [names] if isinstance(names, str) else names} if need else {}))}
             ok = lambda cmd, t: {"cmd": cmd, "state": "ok", "exit": 0, "start": t - 10, "end": t}   # noqa: E731
+            bad = lambda cmd, t, **k: dict({"cmd": cmd, "state": "failed", "exit": 1, "start": t - 10, "end": t}, **k)   # noqa: E731
+            two_lines = lambda n: [n["code"], n["more"]["zh"].split("。")[1] + "。" if n["code"] == "needs_key" else None]   # noqa: E731
             key_tts = one(activity={"recent": [nk("tts", "GEMINI_API_KEY")]})
-            key_mm = one(activity={"recent": [nk("tts", ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"])]})
-            key_image = one(activity={"recent": [nk("image", "GEMINI_API_KEY"), ok("render", now - 30)]})   # another command after it: still waiting
-            key_again = one(activity={"recent": [nk("tts", "GEMINI_API_KEY"), ok("tts", now - 30)]})       # the same command again, fine: no more
-            key_old_way = one(activity={"recent": [{"cmd": "tts", "state": "failed", "exit": 1, "start": now - 100, "end": now - 90, "error": {"code": "failed", "message": "set GEMINI_API_KEY"}}]})
+            key_mm = one(activity={"recent": [nk("tts", ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"], "voice")]})
+            key_image = one(activity={"recent": [nk("image", "GEMINI_API_KEY", "image"), ok("render", now - 30)]})   # another kind of work after it: still waiting
+            key_timing = one(activity={"recent": [nk("tts", "GEMINI_API_KEY", "timing")]})   # tts --align gemini on the local voice: the timing line, not the voice one
+            settled = {   # what a later run does to it
+                "tts_again": one(activity={"recent": [nk("tts", "GEMINI_API_KEY", "voice"), ok("tts", now - 30)]})["code"],
+                "voices_then_tts": one(activity={"recent": [nk("voices", "GEMINI_API_KEY", "voice"), ok("tts", now - 60), ok("render", now - 30)]})["code"],
+                "pace_then_tts": one(activity={"recent": [nk("pace", "GEMINI_API_KEY", "timing"), ok("tts", now - 30)]})["code"],
+                "pace_then_render": one(activity={"recent": [nk("pace", "GEMINI_API_KEY", "timing"), ok("render", now - 30)]})["code"],
+                "image_then_failed_check": one(activity={"recent": [nk("image", "GEMINI_API_KEY", "image"), bad("check", now - 30)]})["code"],
+                "image_then_stopped": one(activity={"recent": [nk("image", "GEMINI_API_KEY", "image"), dict(bad("render", now - 30), exit=130, cancelled=True)]})["code"],
+                "image_then_image": one(activity={"recent": [nk("image", "GEMINI_API_KEY", "image"), ok("image", now - 30)]})["code"],
+                "old_way": one(activity={"recent": [bad("tts", now - 90, error={"code": "failed", "message": "set GEMINI_API_KEY"})]})["code"],
+                "whole_log": one(activity={"recent": [ok("render", now - 50 + i) for i in range(5)], "key_stop": nk("tts", "GEMINI_API_KEY", "voice")})["code"],
+                "whole_log_none": one(activity={"recent": [nk("tts", "GEMINI_API_KEY", "voice")], "key_stop": None})["code"],
+            }
+            keys.has_codex = lambda: True
+            key_codex = one(activity={"recent": [nk("image", "GEMINI_API_KEY", "image")]})
+            keys.has_codex = lambda: False
+            keys.machine = lambda: ("darwin", "x86_64")   # an Intel Mac: macOS's own voice; no local timing
+            intel = [two_lines(one(activity={"recent": [nk("tts", "GEMINI_API_KEY", need)]})) for need in ("voice", "timing")]
+            keys.machine = lambda: ("linux", "x86_64")   # Linux: no voice or timing of its own; music still composed here
+            linux = [two_lines(one(activity={"recent": [nk(c, "GEMINI_API_KEY", need)]})) for c, need in (("tts", "voice"), ("pace", "timing"), ("music", "music"))]
+            words = {"voice": keys.local_way("voice")[1], "timing": keys.local_way("timing", "--align whisper")[1]}   # what the command says there
+            keys.machine = lambda: ("darwin", "arm64")
             os.environ["GEMINI_API_KEY"] = "madeUpForThisCheck1"
-            key_set = one(activity={"recent": [nk("tts", "GEMINI_API_KEY")]})
+            key_set = one(activity={"recent": [nk("tts", "GEMINI_API_KEY", "voice")]})
             del os.environ["GEMINI_API_KEY"]
         finally:
+            keys.machine, keys.has_codex = real_machine, real_codex
             os.environ.pop("OVH_KEYSTORE", None); os.environ.update(kept); keys._CACHE.pop("kind", None); keys.forget()
         got = {
             "paused": one(paused=True)["code"], "revision": one(review={"revisions": [{"state": "pending", "available": True}]})["code"],
@@ -1952,7 +1978,8 @@ def handoff_checks():
                         key_tts["facts"]["keys"], key_tts["facts"]["service"]],
             "key_mm": [key_mm["say"]["en"], key_mm["facts"]["keys"]],
             "key_image": [key_image["say"]["zh"], key_image["more"]["en"]],
-            "key_gone": [key_again["code"], key_set["code"], key_old_way["code"]],
+            "key_timing": key_timing["more"]["en"], "key_codex": key_codex["more"]["zh"], "key_set": key_set["code"], "settled": settled,
+            "key_intel": intel, "key_linux": linux, "key_linux_words": [w.split(" (")[0] for w in words.values()],
         }
         want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
                 "gone": ["stopped", "agent 停下了：渲染中断了。", "nudge", False],
@@ -1975,15 +2002,22 @@ def handoff_checks():
                             "在设置 → 服务里填上，再让 agent 接着做。不想用在线服务，也可以让 agent 换成这台电脑上的声音。", "等 API Key",
                             {"kind": "settings", "mod": None, "sub": "services", "label": {"zh": "去设置 → 服务", "en": "Open Settings → Services"}}, ["GEMINI_API_KEY"], "gemini"],
                 "key_mm": ["The voice-over stopped: there's no MiniMax API Key yet.", ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"]],
-                "key_image": ["出图停下了：还没有 Gemini 的 API Key。", "Set it up in Settings → Services, then ask the agent to carry on."],
-                "key_gone": ["idle", "idle", "idle"]}
+                "key_image": ["出图停下了：还没有 Gemini 的 API Key。", "Set it up in Settings → Services, then ask the agent to carry on. This computer has no way to do it without an API Key."],
+                "key_timing": "Set it up in Settings → Services, then ask the agent to carry on. Or ask the agent to time the words on this computer, with no service.",
+                "key_codex": "在设置 → 服务里填上，再让 agent 接着做。也可以让 agent 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "key_set": "idle",
+                "settled": {"tts_again": "idle", "voices_then_tts": "idle", "pace_then_tts": "idle", "pace_then_render": "needs_key", "image_then_failed_check": "idle",
+                            "image_then_stopped": "needs_key", "image_then_image": "idle", "old_way": "idle", "whole_log": "needs_key", "whole_log_none": "idle"},
+                "key_intel": [["needs_key", "不想用在线服务，也可以让 agent 换成 macOS 自带的声音（够打草稿）。"], ["needs_key", "这台电脑上没有不用 API Key 的办法。"]],
+                "key_linux": [["needs_key", "这台电脑上没有不用 API Key 的办法。"], ["needs_key", "这台电脑上没有不用 API Key 的办法。"], ["needs_key", "不想用在线服务，也可以让 agent 在这台电脑上作曲。"]],
+                "key_linux_words": ["this computer has no voice of its own that needs no key", "this computer has no way of its own to time the words"]}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
           "findings, one stopped on purpose, a later run that went fine, the console ending, are not); the newest notes nobody took come first; "
           "working on them only while something runs; never that nobody works on the film; whose move as waiting_on; a command not in the table "
           "is no name on the page; the final sound is listened to and the sound plan looked at, plurals agree; the plan says what the BRIEF says plainly (none (music only), 2 min 30 s, "
           "a checkpoint) and leaves out what it does not; a command that stopped for a service's API Key says so, what to do and where (Settings → Services), "
-          "until the key is set or the same command ran again without stopping for it", unit)
+          "with the line under it chosen by what the key was for and by what this computer has (a made-up Apple Silicon Mac, Intel Mac and Linux; Codex there or not), "
+          "until the key is set, a later run did the same kind of work fine, or a later run failed; read from the whole log", unit)
 
     def title():   # a film begun on the space, its BRIEF still the template's: the person's own sentence, shortened, not the dated folder
         import server

@@ -128,6 +128,9 @@ WORDS = {
     "needs_key": ("{x}停下了：还没有 {s} 的 API Key。", "{T} stopped: there's no {s} API Key yet."),
     "needs_key.more": ("在设置 → 服务里填上，再让 agent 接着做。", "Set it up in Settings → Services, then ask the agent to carry on."),
     "needs_key.voice": ("不想用在线服务，也可以让 agent 换成这台电脑上的声音。", "Or ask the agent to use this computer's own voice, with no service."),
+    "needs_key.voice_say": ("不想用在线服务，也可以让 agent 换成 macOS 自带的声音（够打草稿）。", "Or ask the agent to use macOS's own voice, with no service (good enough for a draft)."),
+    "needs_key.image_codex": ("也可以让 agent 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "Or ask the agent to make the pictures with Codex, on the ChatGPT plan, with no API Key."),
+    "needs_key.only": ("这台电脑上没有不用 API Key 的办法。", "This computer has no way to do it without an API Key."),
     "needs_key.timing": ("不想用在线服务，也可以让 agent 在这台电脑上对时间。", "Or ask the agent to time the words on this computer, with no service."),
     "needs_key.music": ("不想用在线服务，也可以让 agent 在这台电脑上作曲。", "Or ask the agent to compose the music on this computer, with no service."),
     "needs_key.short": ("等 API Key", "waiting for an API Key"),
@@ -448,36 +451,56 @@ def act_settings(label, sub):
     return {"kind": "settings", "mod": None, "sub": sub, "label": label}
 
 
-LOCAL_WAY = {"tts": "voice", "voices": "voice", "pace": "timing", "music": "music"}   # what works on this computer instead, by command
+DOES = {"tts": {"voice", "timing"}, "voices": {"voice"}, "pace": {"timing"}, "music": {"music"}, "image": {"image"}}   # the kinds of work a run that ended fine did
+NEED_OF = {"tts": "voice", "voices": "voice", "pace": "timing", "music": "music", "image": "image"}   # a record that does not say what its key was for
+
+
+def need_of(r):
+    return (r.get("error") or {}).get("need") or NEED_OF.get(r.get("cmd"))
+
+
+def key_stop(runs):
+    """The newest finished run that stopped for want of an API Key (code no_key) that nothing after it settled, or None.
+    A later run that did the same kind of work fine settles it (a voice-over clears a voice or a timing stop; a picture an
+    image stop); a later run of anything that failed or was cut off takes the line, since it is newer news; one stopped on
+    purpose, and the console's own run, count for neither. The whole log is read (bin/vh status passes it as
+    activity.key_stop), not a window of the last few runs."""
+    done = [r for r in runs if r.get("state") in ("ok", "failed", "gone") and r.get("cmd") != "desk"]
+    at = max((i for i, r in enumerate(done) if r.get("state") == "failed" and (r.get("error") or {}).get("code") == "no_key"), default=None)
+    if at is None:
+        return None
+    need = need_of(done[at])
+    for r in done[at + 1:]:
+        if r.get("cancelled") or r.get("exit") in (130, 143):
+            continue
+        if r.get("state") == "gone" or r.get("exit") != 0:
+            return None
+        if need in DOES.get(r.get("cmd"), ()):
+            return None
+    return done[at]
 
 
 def needs_key(o):
-    """The run that stopped for want of a service's API Key (its record's code no_key, tools/keys.py) while that key is
-    still not set, as the newest run of its command: (run, the key names it waits on, the service), or None. Once the key
-    is set (in Studio or the environment), or the command ran again and did not stop for it, the film waits no more."""
-    newest = {}
-    for r in (o.get("activity") or {}).get("recent") or []:
-        if r.get("state") in ("running", "gone") or not r.get("cmd"):
-            continue
-        if (r.get("end") or 0) >= (newest.get(r["cmd"], {}).get("end") or 0):
-            newest[r["cmd"]] = r
-    hits = [r for r in newest.values() if r.get("exit") not in (0, None) and (r.get("error") or {}).get("code") == "no_key"]
-    if not hits:
+    """The run that stopped for want of a service's API Key (key_stop) while that key is still not set: (run, the key names
+    it waits on, the service, what the key was for), or None. Once a key it names is set (in Studio or the environment),
+    the film waits no more."""
+    act = o.get("activity") or {}
+    r = act["key_stop"] if "key_stop" in act else key_stop(act.get("recent") or [])
+    if not r:
         return None
     try:
         import keys
     except Exception:
         return None
-    for r in sorted(hits, key=lambda x: x.get("end") or 0, reverse=True):
-        names = [n for n in keys.KEY_NAMES if re.search(r"\b" + n + r"\b", (r.get("error") or {}).get("message") or "")]
-        try:
-            left = keys.wanted(names)
-        except Exception:
-            left = []
-        if left:
-            m = keys.module_of(left[0]) or {}
-            return r, left, m.get("name")
-    return None
+    err = r.get("error") or {}
+    names = [n for n in err.get("keys") or [] if n in keys.KEY_NAMES] or [n for n in keys.KEY_NAMES if re.search(r"\b" + n + r"\b", err.get("message") or "")]
+    try:
+        left = keys.wanted(names)
+    except Exception:
+        left = []
+    if not left:
+        return None
+    return r, left, (keys.module_of(left[0]) or {}).get("name"), need_of(r)
 
 
 def act_tell(label, text, confirm=False, secondary=False):
@@ -577,12 +600,16 @@ def of(project, o, now=None):
         return say("no_record", who, "none", both("no_record"), [both("no_record.more")])
     nk = needs_key(o)
     if nk:   # only the person can give a key: what to do and where, and what works without one
-        r, names, svc = nk
+        r, names, svc, need = nk
         c, sv = cmd_words(r), both(f"svc.{svc}") if f"svc.{svc}" in WORDS else two(svc or "", svc or "")
-        way = LOCAL_WAY.get(r.get("cmd"))
+        try:   # what does the same work with no key on this computer (the platform decides: tools/keys.py)
+            import keys
+            way = keys.local_way(need)[0] if need else None
+        except Exception:
+            way = None
         return say("needs_key", who, "decide", two(w("needs_key", 0, x=c[0], s=sv["zh"]), w("needs_key", 1, T=cap(c[2]), s=sv["en"])),
-                   [both("needs_key.more"), both(f"needs_key.{way}") if way else None], both("needs_key.short"),
-                   act_settings(both("act.settings"), "services"), cmd=r.get("cmd"), keys=names, service=svc)
+                   [both("needs_key.more"), both(f"needs_key.{way}" if way else "needs_key.only")], both("needs_key.short"),
+                   act_settings(both("act.settings"), "services"), cmd=r.get("cmd"), keys=names, service=svc, need=need)
     # the agent's move, and nothing works on the film now: the last thing seen and when; "stopped" only on positive evidence
     do = (o.get("next_step") or {}).get("do") or ""
     made = (o.get("media") or {}).get("film") or next((r["path"] for r in o.get("renders") or []), None)

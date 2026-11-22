@@ -141,7 +141,7 @@ Providers (API keys come from environment variables only, never from files):
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
 """
-import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, signal, subprocess, sys, tempfile, time, unicodedata
+import argparse, base64, difflib, hashlib, json, os, re, shutil, signal, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
@@ -256,11 +256,7 @@ KEY_OF = {"gemini": ["GEMINI_API_KEY"], "gemini-lite": ["GEMINI_API_KEY"], "mini
 def no_key(provider):
     """Exit (1) on a provider with no key: tools/keys.py's sentence (where to set it, where to get one), and what works with
     none on this machine; on the run's record as no_key."""
-    if sys.platform == "darwin" and platform.machine() == "arm64":
-        free = "or leave the provider out for this computer's own voice, which needs no key (qwen, free, about " + firstuse.gb(firstuse.total(["qwen"])) + " on first use)"
-    else:
-        free = "or --provider edge, which needs no key (free, online; the local default, qwen, runs only on Apple Silicon)"
-    sys.exit(keys.stopping(KEY_OF[provider], free))
+    sys.exit(keys.stopping(KEY_OF[provider], "voice", size=firstuse.gb(firstuse.total(["qwen"]))))   # (what works with none: per platform, tools/keys.py)
 
 def hf_cached(model_id):
     """The model is on this machine: a local folder, or a snapshot in the Hugging Face cache, found where the Hub itself
@@ -1122,9 +1118,9 @@ def audition(a):
     if a.align == "local":
         need_local_asr()
     if (gemini or a.align == "gemini") and not keys.get("GEMINI_API_KEY"):
-        sys.exit("voices audition: " + keys.stopping("GEMINI_API_KEY", (f"--provider {a.provider}" if gemini else "--align gemini") + " needs it; nothing was synthesized"))
+        sys.exit("voices audition: " + keys.stopping("GEMINI_API_KEY", "voice" if gemini else "timing", (f"--provider {a.provider}" if gemini else "--align gemini") + " needs it; nothing was synthesized"))
     if a.provider == "minimax" and not minimax_key()[0]:
-        sys.exit("voices audition: " + keys.stopping(KEY_OF["minimax"], "nothing was synthesized"))
+        sys.exit("voices audition: " + keys.stopping(KEY_OF["minimax"], "voice", "nothing was synthesized"))
     try:
         import voicefeat
     except ImportError:
@@ -1267,7 +1263,7 @@ def main():
     if a.align == "local":   # before anything is synthesized or deleted
         need_local_asr()
     if align and a.align != "local" and not keys.get("GEMINI_API_KEY"):
-        sys.exit(keys.stopping("GEMINI_API_KEY", "--align gemini and --join transcribe with Gemini; or --align local, on this computer"))
+        sys.exit(keys.stopping("GEMINI_API_KEY", "timing", "--align gemini and --join transcribe time the words with Gemini"))
     if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
         sys.exit(f"--resume: --gap was {man.get('gap')} for the run, now {a.gap}; in a joined minimax request it is part of the"
                  f" text: pass --gap {man.get('gap')}, or drop --resume to start over")

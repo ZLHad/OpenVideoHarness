@@ -555,6 +555,16 @@ def first_run_check():
         return f"bin/vh status while the film waits: {now['code']} {now['act']}"
     if "now: The voice-over stopped: there's no Gemini API Key yet." not in vh("status", str(film)).stdout:
         return "bin/vh status's now: line"
+    if now.get("facts", {}).get("need") != "voice":
+        return f"what the key was for: {now.get('facts')}"
+    r = vh("music", str(film), "--provider", "lyria", "--prompt", "a calm tide")   # bin/vh exec's into lyria.py: it ends its own run
+    runs = json.loads(vh("activity", str(film), "--json").stdout)["runs"]
+    mus = [x for x in runs if x.get("cmd") == "music"]
+    if r.returncode != 2 or "Studio's Settings → Services" not in r.stderr or not mus or mus[-1].get("state") != "failed" or mus[-1].get("exit") != 2:
+        return f"bin/vh music --provider lyria with no key: exit {r.returncode}, its run {mus[-1:] and {k: mus[-1].get(k) for k in ('state', 'exit')}}, {r.stderr[-200:]!r}"
+    now = json.loads(vh("status", str(film), "--json").stdout)["now"]
+    if now["code"] != "needs_key" or now["facts"].get("cmd") != "music" or now["facts"].get("need") != "music":
+        return f"bin/vh status after the music stop: {now['code']} {now['facts']}"
     rc, out = py(f"import keys as K\nK.save('GEMINI_API_KEY', {FAKE!r})")
     try:
         if rc:
@@ -585,7 +595,7 @@ try:
     check("tools/keys.py on a store of these checks' own: saved, found, the environment first, taken out; what is not a key or a key's name refused; the store asked once per name (a missing key and a store with no answer too), a save or removal seen at once" + ("" if MAC else "; the key never an argument"), keys_module_check)
     check("bin/vh doctor finds a key saved in Studio, says so, and probes with it (a recording), with each of MiniMax's two when both are saved, never printing one", doctor_keys_check)
     check("a command run in the agent column's environment (no key in it) finds a key saved in Studio", column_check)
-    check("a voice-over with no key: the command says where to set it and where to get one (code no_key on its record); bin/vh status says the film waits on the key, with the way to Settings → Services, and no more once it is saved", first_run_check)
+    check("a voice-over, then Lyria's music, with no key: each command says where to set it and where to get one (code no_key and what the key was for on its record; the music run ends as failed, not cut off); bin/vh status says the film waits on the key, with the way to Settings → Services, and no more once it is saved", first_run_check)
     run()
 except Exception as e:
     say(False, "the console for the settings page", f"{type(e).__name__}: {e}")

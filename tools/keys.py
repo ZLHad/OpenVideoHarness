@@ -30,7 +30,7 @@ their own, OVH_SECRET_TOOL a stand-in for secret-tool (Linux); OVH_KEYSTORE=none
 OVH_KEYSTORE=none for all its checks and passes it on where a check builds an environment of its own (acp.clean_env
 keeps it too); a check that never set it still runs with a scratch HOME, whose search list has no keychain of the person's.
 """
-import json, os, re, shutil, subprocess, sys
+import json, os, platform, re, shutil, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -205,13 +205,48 @@ def missing(names, instead=None):
     return s + (f"; {instead}" if instead else "")
 
 
-def stopping(names, instead=None):
-    """missing(), put on the run's record with the code no_key (once a run; nothing outside a logged run): → the sentence,
-    for the caller to print and stop with."""
+def machine():
+    """(sys.platform, the processor): what decides the ways that need no key (a check fakes it)."""
+    return sys.platform, platform.machine()
+
+
+def has_codex():
+    return shutil.which("codex") is not None   # as bin/vh doctor finds it (tools/modules.json's codex: the program on PATH)
+
+
+def local_way(need, align="--align local", size=None):
+    """What does the same work with no API Key here: (word, the command's words). word is what tools/standing.py says
+    (voice, voice_say, timing, music, image_codex), None when this computer has no such way (the words say so plainly, or
+    are None). need: voice | timing | music | image."""
+    plat, cpu = machine()
+    apple = plat == "darwin" and cpu == "arm64"
+    if need == "voice":
+        if apple:
+            return "voice", "or leave the provider out for this computer's own voice, which needs no key (qwen, free" + (f", about {size} on first use)" if size else ")")
+        if plat == "darwin":
+            return "voice_say", "or --provider say, macOS's own voice on this computer, which needs no key (free; good enough for a draft)"
+        return None, "this computer has no voice of its own that needs no key (the local one, qwen, runs only on Apple Silicon); --provider edge needs none, but it is an online service"
+    if need == "timing":
+        if apple:
+            return "timing", f"or {align}, which times the words on this computer with no key"
+        return None, f"this computer has no way of its own to time the words ({align} runs only on Apple Silicon)"
+    if need == "music":
+        return "music", "or bin/vh music without --provider, composed on this computer with no key"
+    if need == "image":
+        return ("image_codex", "or --provider codex, on the ChatGPT plan Codex is signed in with (no API Key)") if has_codex() else (None, None)
+    return None, None
+
+
+def stopping(names, need=None, tail=None, align="--align local", size=None):
+    """missing() with what works with no key here (local_way), put on the run's record with the code no_key, what the key
+    was for (need) and its names (once a run; nothing outside a logged run): → the sentence, for the caller to print and
+    stop with."""
+    names = [names] if isinstance(names, str) else list(names)
+    instead = "; ".join(x for x in (local_way(need, align, size)[1], tail) if x) or None
     msg = missing(names, instead)
     try:
         import jsonerr
-        jsonerr.report("no_key", msg, "Studio's Settings → Services takes the key")
+        jsonerr.report("no_key", msg, "Studio's Settings → Services takes the key", need=need, keys=names)
     except Exception:   # the sentence is said all the same
         pass
     return msg

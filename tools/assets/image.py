@@ -621,7 +621,7 @@ def cmd_gen(a):
         return 0
     if a.provider == "gemini":
         if not a.offline and not keys.get("GEMINI_API_KEY"):
-            raise Usage(keys.stopping("GEMINI_API_KEY"))
+            raise Usage(keys.stopping("GEMINI_API_KEY", "image"))
         if not plan["budget"]["ok"]:
             raise Failed(f"{plan['budget']['message']} (bin/vh image gen --dry-run shows the estimate)")
     if refs:
