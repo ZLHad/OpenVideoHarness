@@ -57,11 +57,11 @@ cmd_doctor() {
   case "${1:-}" in ""|-*) ;; *) python3 "$ROOT/tools/engine_copy.py" "$@"; return ;; esac
   # this machine: tools/doctor.py reads tools/modules.json and reports; bin/vh hands it what its own finders find (the
   # browser the page tools take, the chrome-headless-shell HyperFrames pins) and the WebGL probe, which runs only here
-  command -v python3 >/dev/null 2>&1 || { doctor_bare "$@"; return 0; }
+  command -v python3 >/dev/null 2>&1 || { doctor_bare "$@"; case " $* " in *" --first "*) return 1 ;; esac; return 0; }   # --first: not ready
   local a skip="" live="" rec=""
   for a in "$@"; do   # a usage error is said at once (by doctor.py), before the probe below
     if [ -n "$skip" ]; then skip=""; continue; fi
-    case "$a" in -h|--help) exec python3 "$ROOT/tools/doctor.py" -h ;; --json|--fill-local|--only=*) ;; --only) skip=1 ;; --probe) live=1 ;; --offline=*) rec=1 ;; --offline) rec=1 skip=1 ;;
+    case "$a" in -h|--help) exec python3 "$ROOT/tools/doctor.py" -h ;; --json|--fill-local|--first|--only=*) ;; --only) skip=1 ;; --probe) live=1 ;; --offline=*) rec=1 ;; --offline) rec=1 skip=1 ;;
       *) exec python3 "$ROOT/tools/doctor.py" "$@" ;; esac
   done
   [ -z "$rec" ] || [ -n "$live" ] || exec python3 "$ROOT/tools/doctor.py" "$@"
@@ -182,7 +182,7 @@ cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first,
 
 cmd_setup() {
   echo "→ installing ClaudeAnimationBase deps"; (cd "$ROOT/engines/ClaudeAnimationBase" && npm install --silent)
-  echo "→ fetching reference repos"; "$ROOT/references/fetch.sh"
+  echo "→ fetching all $(grep -cE '^(full|sparse|textonly) ' "$ROOT/references/fetch.sh") reference repos (about 300 MB; an install fetches each on first use instead)"; "$ROOT/references/fetch.sh"
   echo "→ installing the style swatch renderer"; (cd "$ROOT/styles/_swatch" && npm ci --silent)
   [ -f "$ROOT/LOCAL.md" ] || cp "$ROOT/LOCAL.example.md" "$ROOT/LOCAL.md"
   echo "→ smoke test"
@@ -1299,11 +1299,12 @@ cmd_tts() {
   [ -d "$proj" ] || { echo "$c_no bin/vh tts: no such project: $proj" >&2; exit 2; }   # before uv builds an environment; tts.py would make the folder
   shift
   while [ $# -gt 0 ] && [ ${#pos[@]} -lt 4 ] && [[ "$1" != --* ]]; do pos+=("$1"); shift; done   # positionals stop at the first --flag
-  local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev="" np=""
+  local prov=${pos[0]:-} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev="" np="" kinds=()
+  [ -n "$prov" ] || prov=$(python3 "$ROOT/tools/audio/tts.py" --default-provider)   # tts.py's DEFAULT_PROVIDER, the one place it is set
   for a in "$@"; do   # tts.py's own --provider X / --provider=X picks the dependencies too; the last one wins, as in argparse
     [ "$prev" = --provider ] && prov=$a
-    case "$a" in --provider=*) prov=${a#--provider=} ;; --candidates|--candidates=*) np="--with numpy" ;; --align=local) np="$np --with mlx-whisper" ;; esac   # the takes are measured with numpy
-    [ "$prev|$a" = "--align|local" ] && np="$np --with mlx-whisper"   # a local Whisper for the word times
+    case "$a" in --provider=*) prov=${a#--provider=} ;; --candidates|--candidates=*) np="--with numpy" ;; --align=local) np="$np --with mlx-whisper"; kinds+=(whisper) ;; esac   # the takes are measured with numpy
+    [ "$prev|$a" = "--align|local" ] && { np="$np --with mlx-whisper"; kinds+=(whisper); }   # a local Whisper for the word times
     prev=$a
   done
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --candidates, --min-sim, --vocab, --resume)
@@ -1311,20 +1312,40 @@ cmd_tts() {
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;;
     dashscope) [ -z "${DASHSCOPE_API_KEY:-}" ] || deps="--with dashscope" ;; esac   # no key: tts.py says so, with no package fetched first
   deps="$deps${np:+ $np}"
-  on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
+  # no script yet: tts.py writes a sample and stops, with no package fetched for it (it needs none for that)
+  [ -f "$proj/audio/script.txt" ] || exec python3 "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov"
+  [ "$prov" != qwen ] || kinds+=(qwen)
+  first_use ${kinds[@]+"${kinds[@]}"}
+  on_ctrl_c uv run $uvq --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
+}
+first_use() { # first_use [kind…]: before a command that can start one of the big first downloads (qwen: the local voice; whisper:
+  # the local Whisper), say it in one line (tools/audio/firstuse.py: how much, how long, the way around it, its sizes in one
+  # place) and set uvq to show uv's own download lines instead of quieting them; the model's progress comes from the tool.
+  # Apple Silicon only: elsewhere these do not run, and the command says so itself
+  local k pk miss=""
+  uvq=-q
+  [ $# -gt 0 ] && [ "$(uname -s) $(uname -m)" = "Darwin arm64" ] && command -v uv >/dev/null 2>&1 || return 0
+  for k in "$@"; do
+    pk=$(python3 "$ROOT/tools/audio/firstuse.py" --package "$k") || continue
+    on_ctrl_c uv run -q --no-project --offline --with "$pk" python -c "" >/dev/null 2>&1 || miss="$miss${miss:+,}$k"   # (a Ctrl-C here ends bin/vh too)
+  done
+  [ -z "$miss" ] || uvq=""
+  python3 "$ROOT/tools/audio/firstuse.py" "$(IFS=,; echo "$*")" ${miss:+--packages-missing "$miss"}
 }
 cmd_voices() { # audition measures the takes (numpy) and synthesizes with the provider's own packages, through uv
   [ $# -gt 0 ] || set -- list
   [ "$1" = audition ] || { python3 "$ROOT/tools/audio/tts.py" voices "$@"; return; }
-  local a prev="" prov=gemini deps="--with numpy"
-  for a in "$@"; do [ "$prev" = --provider ] && prov=$a; [ "$prev|$a" = "--align|local" ] && deps="$deps --with mlx-whisper"; case "$a" in --provider=*) prov=${a#--provider=} ;; --align=local) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
-  case "$prov" in qwen) deps="$deps --with mlx-audio" ;; edge) deps="$deps --with edge-tts" ;; dashscope) deps="$deps --with dashscope" ;; esac
-  on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" voices "$@"
+  local a prev="" prov=gemini deps="--with numpy" kinds=()
+  for a in "$@"; do [ "$prev" = --provider ] && prov=$a; [ "$prev|$a" = "--align|local" ] && { deps="$deps --with mlx-whisper"; kinds+=(whisper); }; case "$a" in --provider=*) prov=${a#--provider=} ;; --align=local) deps="$deps --with mlx-whisper"; kinds+=(whisper) ;; esac; prev=$a; done
+  case "$prov" in qwen) deps="$deps --with mlx-audio"; kinds+=(qwen) ;; edge) deps="$deps --with edge-tts" ;; dashscope) deps="$deps --with dashscope" ;; esac
+  first_use ${kinds[@]+"${kinds[@]}"}
+  on_ctrl_c uv run $uvq --no-project $deps python "$ROOT/tools/audio/tts.py" voices "$@"
 }
 cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Apple Silicon)
-  local a prev="" deps="--with numpy"
-  for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper|--align:local|*:--align=local) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
-  on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
+  local a prev="" deps="--with numpy" kinds=()
+  for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper|--align:local|*:--align=local) deps="$deps --with mlx-whisper"; kinds=(whisper) ;; esac; prev=$a; done
+  first_use ${kinds[@]+"${kinds[@]}"}
+  on_ctrl_c uv run $uvq --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
 cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
   local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]" x

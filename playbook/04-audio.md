@@ -62,7 +62,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 | provider | 什么时候用 |
 |---|---|
-| `qwen`（默认） | 本地开源 Qwen3-TTS，免费、离线，首次下载约 2 GB；0.6B 模型念英文短句偶尔停不下来，每条都要查 |
+| `qwen`（默认） | 本地开源 Qwen3-TTS，免费、离线，首次下载约 2.6 GB（`bin/vh tts` 开始前先说，并显示进度）；0.6B 模型念英文短句偶尔停不下来，每条都要查 |
 | `gemini` | 云端，表演力最好，能用一句话导演语气，适合讲解旁白和双人对话；要 `GEMINI_API_KEY` |
 | `minimax` | 云端 MiniMax（`speech-2.8-hd`），中文音色多（`Chinese (Mandarin)_*`）。`--join all` 整份稿一个请求，从头到尾一个声音；自带逐字时间，不用转写；支持停顿标记 `<#0.4#>` 和发音词典 `@pronounce`。语气只认一个情绪词。要 `MINIMAX_TOKEN_PLAN_KEY` 或 `MINIMAX_API_KEY`，细节见 `tools/audio/README.md` 的"MiniMax" |
 | `say` / `edge` | 打草稿；只能念，不能演 |

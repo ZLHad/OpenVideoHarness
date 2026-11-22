@@ -1,8 +1,11 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
-usage: bin/vh doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]]
+usage: bin/vh doctor [--json] [--first] [--fill-local] [--probe [--only a,b] [--offline DIR]]
   (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl)
   --json        the same as JSON (below), the lines a person reads not printed
+  --first       only the few lines a first film needs (the installer ends with them): ready or not, what is missing
+                for a first silent film and how to get it, how a voice comes here. Exit 1 when it is not ready, 3 when
+                nothing is missing but something could not be checked (the render browser's libraries on Linux)
   --fill-local  also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from this check, where they still hold
                 the template's {…}; with no LOCAL.md, LOCAL.example.md is copied first. A line a person wrote stays;
                 the other lines' {…} are their defaults (the installer runs this)
@@ -28,7 +31,8 @@ wrote against the stub it would write now (a stub reads skills/ in the clone, so
 a whole copy stays as it was when the repo moves on); studio-icon, the launcher bin/vh studio --install-icon makes
 (installed or not, which clone it runs, made by an earlier launcher or picture); caches, whether the folders a first run downloads into (uv's,
 npm's, Hugging Face's, HyperFrames', bin/vh's own) can be written, tried with a file made and removed.
-Exit 0: it is a report (2 on a usage error or an unreadable table).
+Exit 0: it is a report (2 on a usage error or an unreadable table; with --first, 1 when a first film still lacks something, 3
+when nothing is missing but something could not be checked).
 
 --json, "version": 1 (these fields stay; new ones may be added): {"version", "tool", "platform", "modules": [{"name",
 "kind", "status" ("planned" when nothing calls it yet, else "used"), "required", "state", "found", "version", "keys":
@@ -110,11 +114,99 @@ def install_says():
 
 
 def references_note(have, want, fetched, said):
-    """doctor's line for references/repos when some are not fetched: the whole set's size worked out from the ones that
-    are (fetched: their bytes), else what install.sh says (said), else none."""
+    """doctor's line for references/repos when not all are fetched, which is the default (they come on first use): the
+    whole set's size worked out from the ones that are (fetched: their bytes), else what install.sh says (said), else none."""
     size = f"about {mb_text(fetched * want / have)}, at the size of the {have} here" if have and fetched else f"about {said}" if said else None
-    return (f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}{': ' + size if size else ''}; agents read them for the case studies;"
-            " the one a doc points to, references/repos/<dir>/…: bash references/fetch.sh <dir>)")
+    return (f"{have}/{want} repos fetched; an agent fetches the one a doc points to when it first needs it (bash references/fetch.sh <dir>,"
+            f" which says its size first); all {want} now: bash references/fetch.sh{' (' + size + ')' if size else ''}")
+
+
+OWN_CHROME = ("darwin-arm64", "darwin-x86_64", "linux-x86_64")   # where HyperFrames downloads its own chrome-headless-shell
+BROWSER_LIBS = {"libnss3.so": "libnss3", "libnspr4.so": "libnspr4"}   # what a fresh Ubuntu with ffmpeg still lacked for it (engines/README.md)
+
+
+def zh_locale(env=os.environ):
+    """The person's language is Chinese: the first of LC_ALL, LC_MESSAGES, LANG that is set starts with zh."""
+    v = next((env[k] for k in ("LC_ALL", "LC_MESSAGES", "LANG") if env.get(k)), "")
+    return v.lower().startswith("zh")
+
+
+def browser_libs(plat, path=None, run=subprocess.run):
+    """Linux: the system libraries the render browser needs that are missing → (missing .so names, checked). With a browser
+    found, what ldd says is "not found" in it; with none yet on a platform where the first render downloads one, whether the
+    linker knows libnss3 and libnspr4 (ldconfig -p). Not Linux: nothing to check ([], True). No ldd or ldconfig: ([], False)."""
+    if not plat.startswith("linux"):
+        return [], True
+    try:
+        if path and os.path.isfile(path):
+            out = run(["ldd", path], capture_output=True, text=True, timeout=20).stdout
+            return sorted({ln.split()[0] for ln in out.splitlines() if "not found" in ln}), True
+        ldc = shutil.which("ldconfig") or ("/sbin/ldconfig" if os.path.exists("/sbin/ldconfig") else None)
+        if not ldc:
+            return [], False
+        out = run([ldc, "-p"], capture_output=True, text=True, timeout=20).stdout
+        return [so for so in BROWSER_LIBS if so not in out], True
+    except (OSError, subprocess.SubprocessError):
+        return [], False
+
+
+def first_film(mods, checks, plat, found_by=None, env=os.environ, libs=None):
+    """--first, the few lines install.sh ends with: is this machine ready for a first (silent) film, what it lacks for one,
+    and how a voice comes. → (lines, "ready" | "not" | "unchecked"). Ready only with nothing missing a first film needs:
+    Node, FFmpeg, Python 3, uv, a browser to render with (or a platform where the first render downloads its own) and the
+    system libraries it needs (Linux), an agent, and in a Chinese locale a Chinese font. "unchecked": nothing missing, but
+    the browser's libraries could not be checked. libs: browser_libs's answer, given by the tests."""
+    sys.path.insert(0, str(ROOT / "tools" / "audio"))
+    import firstuse
+    m, c = {x["name"]: x for x in mods}, {x["name"]: x for x in checks}
+    lack, unsure = [], []
+    for name, what in (("node", "Node 22 or newer"), ("ffmpeg", "FFmpeg"), ("python3", "Python 3"),
+                       ("uv", "uv (it runs the Python tools: contact sheets, sound checks, the voice)")):
+        r = m.get(name)
+        if r and r["state"] != "ok":
+            lack.append(f"{what} → {r.get('install') or 'install it'}")
+    own = plat in OWN_CHROME
+    if (c.get("browser") or {}).get("state") != "ok" and not own:
+        lack.append(f"a browser to render with → {(m.get('chrome') or {}).get('install') or 'set CHROME_PATH'}")
+    elif plat.startswith("linux"):
+        found_by = found_by or {}
+        missing, checked = libs if libs is not None else browser_libs(plat, found_by.get("hf-chrome") or found_by.get("chrome"))
+        missing = sorted(missing)
+        if missing:
+            pkgs = [BROWSER_LIBS[so] for so in missing if so in BROWSER_LIBS]
+            lack.append(f"the render browser's system libraries ({', '.join(missing)}) → "
+                        + (f"sudo apt install {' '.join(pkgs)}" if len(pkgs) == len(missing) else "install the packages that give them"))
+        elif not checked:
+            unsure.append("the render browser's system libraries: no ldd or ldconfig here to ask; the first render names any it misses"
+                          " (engines/README.md, Linux：渲染前要先备好的三样)")
+    agents = [w for n, w in (("claude-code", "Claude Code"), ("codex", "Codex")) if (m.get(n) or {}).get("state") == "ok"]
+    old = [(w, m[n]) for n, w in (("claude-code", "Claude Code"), ("codex", "Codex")) if (m.get(n) or {}).get("state") == "outdated"]
+    if not agents:
+        lack += ([f"{w} is out of date ({r.get('version') or r.get('note') or 'too old'}) → update it" for w, r in old] if old else
+                 ["Claude Code or Codex → claude.com/claude-code, or npm install -g @openai/codex"])
+    font = (c.get("fonts") or {}).get("state") == "missing"
+    if font and zh_locale(env):
+        lack.append("a Chinese font (Chinese text would draw as boxes) → sudo apt install fonts-noto-cjk")
+    if lack:
+        lines = ["✗ Not ready for a first film yet. It still needs:"] + [f"  {x}" for x in lack]
+    elif unsure:
+        lines = [f"? Nearly ready for a first film: Node, FFmpeg, Python 3, uv and {' and '.join(agents)} are here; not checked:"] + [f"  {x}" for x in unsure]
+    else:
+        lines = [f"✓ Ready for a first film: Node, FFmpeg, Python 3, uv, a browser to render with, {' and '.join(agents)}"]
+    if not lack and (m.get("chrome-headless-shell") or {}).get("state") != "ok" and own:
+        lines.append("  The first render downloads its own Chrome once (about 0.2 GB).")
+    if font and not zh_locale(env):
+        lines.append("! Chinese text: no Chinese font here, so it would draw as boxes → sudo apt install fonts-noto-cjk")
+    if plat == "darwin-arm64":
+        if (m.get("qwen3-tts") or {}).get("state") == "ok" and (m.get("mlx-audio") or {}).get("state") == "ok":
+            lines.append("✓ Voice: the local voice is downloaded.")
+        else:
+            lines.append(f"- Voice: the first bin/vh tts downloads the local voice once (about {firstuse.gb(firstuse.total(['qwen']))};"
+                         " it says so first and shows the progress). --provider edge needs only a small package (free, online).")
+    else:
+        lines.append("- Voice: bin/vh tts --provider edge (free, online; only a small package), or a cloud voice with a key;"
+                     " the local voice needs Apple Silicon.")
+    return lines, "not" if lack else "unchecked" if unsure else "ready"
 
 
 def this_platform():
@@ -137,7 +229,7 @@ def uv_has(pkgs):
 
 def hf_snapshot(model):
     """The Hugging Face snapshot folder of a model with weights in it, or None."""
-    hub = os.environ.get("HF_HUB_CACHE") or os.path.join(os.environ.get("HF_HOME") or str(home("~/.cache/huggingface")), "hub")
+    hub = os.environ.get("HF_HUB_CACHE") or os.path.join(os.environ.get("HF_HOME") or os.path.join(os.environ.get("XDG_CACHE_HOME") or str(home("~/.cache")), "huggingface"), "hub")
     for snap in sorted(glob.glob(os.path.join(hub, "models--" + model.replace("/", "--"), "snapshots", "*", ""))):
         if glob.glob(os.path.join(snap, "*.safetensors")):
             return snap
@@ -530,7 +622,7 @@ def cache_homes(has_chrome=False):
     return [
         ("uv", uv or str(home("~/.cache/uv")), "the Python packages of beats, music, qa, tts and the other uv tools", "UV_CACHE_DIR=<folder>"),
         ("npm", env("npm_config_cache") or env("NPM_CONFIG_CACHE") or str(home("~/.npm")), "bin/vh new's npm install and every npx hyperframes", "NPM_CONFIG_CACHE=<folder>"),
-        ("Hugging Face", env("HF_HOME") or str(home("~/.cache/huggingface")), "the local voice's model, about 2 GB", "HF_HOME=<folder>"),
+        ("Hugging Face", env("HF_HOME") or str(home("~/.cache/huggingface")), "the local voice's model, 1.8 GB", "HF_HOME=<folder>"),
         ("HyperFrames", env("HYPERFRAMES_FONT_CACHE_DIR") or str(home("~/.cache/hyperframes/fonts")), "the fonts a film asks for; its Chrome is already there",
          "HYPERFRAMES_FONT_CACHE_DIR=<folder>") if has_chrome else
         ("HyperFrames", str(home("~/.cache/hyperframes")), "its Chrome on a first snapshot or render, about 200 MB, and its fonts",
@@ -586,7 +678,7 @@ def repo_checks(webgl, found_by):
     if have >= want:
         out.append({"name": "references", "state": "ok", "note": f"{have}/{want} repos fetched, {size_of(ROOT / 'references' / 'repos')}"})
     else:
-        out.append({"name": "references", "state": "missing", "note": references_note(have, want, bytes_of(ROOT / "references" / "repos") if have else 0, install_says())})
+        out.append({"name": "references", "state": "ok", "note": references_note(have, want, bytes_of(ROOT / "references" / "repos") if have else 0, install_says())})
     local = ROOT / "LOCAL.md"
     if not local.exists():
         out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → bin/vh doctor --fill-local (copies LOCAL.example.md, writes this machine's lines)"})
@@ -805,7 +897,7 @@ def print_module(m, r):
 
 
 def main(argv):
-    a = {"json": False, "probe": False, "fill-local": False, "offline": None, "only": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
+    a = {"json": False, "probe": False, "fill-local": False, "first": False, "offline": None, "only": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
     i = 0
     while i < len(argv):
         x = argv[i]
@@ -820,7 +912,7 @@ def main(argv):
                 print(f"tools/modules.json: {len(t['modules'])} modules")
             return 1 if bad else 0
         k, eq, v = x[2:].partition("=")
-        if x in ("--json", "--probe", "--fill-local"):
+        if x in ("--json", "--probe", "--fill-local", "--first"):
             a[x[2:]] = True
         elif k in ("offline", "only", "chrome", "hf-chrome", "hf-pin", "webgl") and x.startswith("--"):
             if not eq:
@@ -829,7 +921,7 @@ def main(argv):
                 i += 1; v = argv[i]
             a[k] = v
         else:
-            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
+            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--first] [--fill-local] [--probe [--only a,b] [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
             return 2
         i += 1
     if (a["offline"] or a["only"] is not None) and not a["probe"]:
@@ -855,9 +947,15 @@ def main(argv):
         pr = probe(m, a["offline"], recs) if a["probe"] and (only is None or m["name"] in only) else None
         mods[i] = {"name": m["name"], "kind": m["kind"], "status": m.get("status", "used"), "required": m["required"], **r,
                    "install": (m.get("install") or {}).get("macos" if sys.platform == "darwin" else "linux"), "probe": pr}
-    if a["fill-local"]:   # before the checks, so the LOCAL.md line says what is there now
-        print(fill_local(mods), file=sys.stderr if a["json"] else sys.stdout)
+    if a["fill-local"]:   # before the checks, so the LOCAL.md line says what is there now (--first: written, not said)
+        said = fill_local(mods)
+        if not a["first"]:
+            print(said, file=sys.stderr if a["json"] else sys.stdout)
     checks = repo_checks(a["webgl"], found_by)
+    if a["first"] and not a["json"]:
+        lines, state = first_film(mods, checks, this_platform(), found_by)
+        print("\n".join(lines))
+        return {"ready": 0, "not": 1, "unchecked": 3}[state]
     first = [m.get("first_run") for m, r in zip(t["modules"], mods) if m.get("first_run") and r["state"] == "missing"]
     counts = {}
     for x in mods + checks:

@@ -69,6 +69,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import tts   # noqa: E402  parse_script, align_lines, transcribe, asr_record: one alignment for the whole harness
+import firstuse   # noqa: E402  the local Whisper's model: its first download's progress
 try:
     import numpy as np
 except ImportError:              # -h on a plain python3; bin/vh pace runs it with numpy
@@ -215,9 +216,14 @@ def asr_words(wav, engine, lang, texts, cuts, tmp):
             import mlx_whisper
         except ImportError:
             sys.exit("--align whisper needs mlx-whisper (Apple Silicon; bin/vh pace adds it with --align whisper)")
-        r = mlx_whisper.transcribe(str(wav), path_or_hf_repo=os.environ.get("WHISPER_MODEL", "mlx-community/whisper-large-v3-turbo"),
-                                   word_timestamps=True, language=lang, condition_on_previous_text=False,
-                                   initial_prompt="".join(texts)[:120] if lang == "zh" else None)   # simplified characters, the terms
+        stop = firstuse.progress("whisper")   # its model's first download (1.6 GB), where no progress bar shows
+        try:
+            r = mlx_whisper.transcribe(str(wav), path_or_hf_repo=firstuse.model_id("whisper"),
+                                       word_timestamps=True, language=lang, condition_on_previous_text=False,
+                                       initial_prompt="".join(texts)[:120] if lang == "zh" else None)   # simplified characters, the terms
+        finally:
+            if stop:
+                stop.set()
         return [{"w": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
                 for sg in r.get("segments", []) for w in sg.get("words", []) if w["word"].strip()]
     dur, pieces, t0, prev = probe_len(wav), [], 0.0, None

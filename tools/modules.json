@@ -242,8 +242,8 @@
       "commands": ["tts", "voices"],
       "required": false,
       "check": {"hf_model": {"env": "QWEN_TTS_MODEL", "default": "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit"}},
-      "first_run": "Qwen3-TTS model 2 GB",
-      "install": {"macos": "the first bin/vh tts with the default provider fetches it (about 2 GB) from Hugging Face"}
+      "first_run": "Qwen3-TTS model 1.8 GB",
+      "install": {"macos": "the first bin/vh tts with the default provider fetches it (1.8 GB) from Hugging Face, said first"}
     },
     {
       "name": "mlx-audio",
@@ -257,8 +257,8 @@
       "commands": ["tts", "voices"],
       "required": false,
       "check": {"uv": ["mlx-audio"]},
-      "first_run": "mlx-audio 0.75 GB",
-      "install": {"macos": "the first bin/vh tts with the default provider fetches it and its packages (about 750 MB)"}
+      "first_run": "mlx-audio 0.8 GB",
+      "install": {"macos": "the first bin/vh tts with the default provider fetches it and its packages (about 0.8 GB), said first"}
     },
     {
       "name": "mlx-whisper",
