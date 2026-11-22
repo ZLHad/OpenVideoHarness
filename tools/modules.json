@@ -242,8 +242,8 @@
       "commands": ["tts", "voices"],
       "required": false,
       "check": {"hf_model": {"env": "QWEN_TTS_MODEL", "default": "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit"}},
-      "first_run": "Qwen3-TTS model 2 GB",
-      "install": {"macos": "the first bin/vh tts with the default provider fetches it (about 2 GB) from Hugging Face"}
+      "first_run": "Qwen3-TTS model 1.8 GB",
+      "install": {"macos": "the first bin/vh tts with the default provider fetches it (1.8 GB) from Hugging Face, said first"}
     },
     {
       "name": "mlx-audio",
@@ -257,8 +257,8 @@
       "commands": ["tts", "voices"],
       "required": false,
       "check": {"uv": ["mlx-audio"]},
-      "first_run": "mlx-audio 0.75 GB",
-      "install": {"macos": "the first bin/vh tts with the default provider fetches it and its packages (about 750 MB)"}
+      "first_run": "mlx-audio 0.8 GB",
+      "install": {"macos": "the first bin/vh tts with the default provider fetches it and its packages (about 0.8 GB), said first"}
     },
     {
       "name": "mlx-whisper",
@@ -307,6 +307,7 @@
       "purpose": "Google's Gemini API: bin/vh tts gemini and gemini-lite, word timing with --align gemini (tts, pace), the voice library and voice design (voices), pictures (image gen: Nano Banana 2.1 for drafts, Nano Banana Pro for finals) and music (music --provider lyria: Lyria 3.5), both through the Interactions API.",
       "version": {"models": ["gemini-3.8-flash-tts (GEMINI_TTS_MODEL)", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe (GEMINI_ASR_MODEL)", "gemini-nano-banana-2.1 (image gen --tier draft)", "gemini-3-pro-image (image gen --tier final)", "lyria-3.5 (music --provider lyria)", "lyria-3-clip-preview"]},
       "license": "Google's Gemini API terms; its speech carries an inaudible SynthID watermark, so AI narration is disclosed (NOTES.md); so do its pictures (image gen: AIGC on record)",
+      "cost": "free_tier", "key_url": "https://aistudio.google.com/apikey",
       "needs": {"keys": ["GEMINI_API_KEY"], "account": "a Google AI Studio API key; the free tier has a daily quota"},
       "adapter": ["tools/audio/tts.py (gemini_call)", "tools/audio/pace.py", "tools/assets/image.py (gemini_body, media_of)", "tools/audio/lyria.py"],
       "commands": ["tts", "pace", "voices", "image", "music"],
@@ -322,6 +323,7 @@
       "purpose": "MiniMax's T2A v2 speech: bin/vh tts minimax, with word timing from its own subtitles.",
       "version": {"models": ["speech-2.8-hd (MINIMAX_TTS_MODEL)"]},
       "license": "MiniMax's terms",
+      "cost": "paid", "key_url": "https://platform.minimax.io",
       "needs": {"keys": ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"], "account": "the international platform (platform.minimax.io): a Token Plan key spends its credits, a pay-as-you-go key the account's balance; a China-platform key needs MINIMAX_BASE_URL=https://api.minimaxi.com"},
       "adapter": ["tools/audio/tts.py (minimax)"],
       "commands": ["tts"],
@@ -338,6 +340,7 @@
       "purpose": "ElevenLabs speech with timestamps: bin/vh tts elevenlabs.",
       "version": {"models": ["eleven_multilingual_v2 (ELEVENLABS_MODEL)"]},
       "license": "ElevenLabs' terms",
+      "cost": "paid", "key_url": "https://elevenlabs.io/app/settings/api-keys",
       "needs": {"keys": ["ELEVENLABS_API_KEY"], "account": "an ElevenLabs account and API key"},
       "adapter": ["tools/audio/tts.py (elevenlabs)"],
       "commands": ["tts"],
@@ -352,6 +355,7 @@
       "purpose": "Alibaba Cloud Model Studio speech through the dashscope SDK: bin/vh tts dashscope.",
       "version": {"models": ["qwen3-tts-flash (DASHSCOPE_TTS_MODEL)"]},
       "license": "Alibaba Cloud's terms; the SDK: Apache-2.0",
+      "cost": "paid", "key_url": "https://bailian.console.aliyun.com",
       "needs": {"keys": ["DASHSCOPE_API_KEY"], "programs": ["uv"], "account": "an Alibaba Cloud Model Studio key; the international site needs DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/api/v1"},
       "adapter": ["tools/audio/tts.py (dashscope)"],
       "commands": ["tts"],

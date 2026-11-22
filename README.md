@@ -265,7 +265,7 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 73 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 74 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|
@@ -404,26 +404,39 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 | LaTeX | formulas in Manim |
 | Blender 5.2 | only for path-traced shots and preparing 3D models; its sandbox is macOS-only for now |
 
-- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made; keys are always read from environment variables.
+- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made. API keys come from the environment or from Studio's settings ([API Key](#api-key)).
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
 - **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 
+### API Key
+
+Voices are made on this computer by default and need no API Key. An online service (Gemini, MiniMax, ElevenLabs, Alibaba Cloud Model Studio) needs the API Key from its own site. Paste it into Studio's settings (Settings → Services): it's kept in the computer's Keychain (on Linux, the Secret Service), never written into a file, and every command finds it, in the terminal and in Studio's chat.
+
+Where there is no such store, put the key in the file your terminal reads each time it starts (`~/.zshrc` on macOS, `~/.bashrc` on most Linux), then open a new terminal and start Studio from it:
+
+```bash
+echo 'export GEMINI_API_KEY=paste-your-key-here' >> ~/.zshrc
+```
+
+The settings page lists the other services' names. A key set this way is used before one saved in Studio, name by name. An API Key isn't a budget: pictures and Lyria music are not made without a budget, while voices, word timing and auditions with these services are called directly and bill that account.
+
 ## Install options and updates
 
-By default the installer registers the skills for both agents and fetches 37 read-only reference repos. It uses about 650 MB on disk, or 380 MB with `--no-refs`. The Studio app uses about 380 MB more, including its cached installer.
+By default the installer registers the skills for both agents and uses about 400 MB on disk. The 37 read-only reference repos agents can read are not fetched then: an agent fetches the one a doc points to when it first needs it, saying its size first; `--refs` fetches them all now (about 300 MB more). The Studio app uses about 380 MB more, including its cached installer.
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
-bash install.sh --no-refs                        # skip the reference repos for now (references/fetch.sh later)
+bash install.sh --refs                           # fetch all 37 reference repos now (about 300 MB)
+bash install.sh --mirror cn                      # use the mainland-China mirrors (--mirror off: never; without it the official sources come first)
 bash install.sh --no-skill                       # don't register the global skill
 bash install.sh --no-icon                        # leave OVH Studio out of your applications (bin/vh studio --install-icon adds it later)
 ```
 
-- Nothing asks a question. On macOS and on a Linux desktop the installer puts OVH Studio, Studio's own window, in your applications (Electron: about 130 MB downloaded once, 260 MB on disk); when a step fails it says what to do next in one sentence. It ends with the two ways to start: click OVH Studio, or open Claude Code or Codex in the folder and say what film you want.
+- Nothing asks a question. On macOS and on a Linux desktop the installer puts OVH Studio, Studio's own window, in your applications (Electron: about 130 MB downloaded once, 260 MB on disk); when a step fails it says what to do next in one sentence. It ends with a few lines: ready for a first film or not, what it still needs and how to get it, how a voice comes on this machine, and the two ways to start: click OVH Studio, or open Claude Code or Codex in the folder and say what film you want (`bin/vh doctor` has the full report).
 - The installer fetches only the newest commit: the repo itself is about 95 MB to download and 200 MB on disk, before its packages and the reference repos. To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
 - To update, run the installer again with the same options (or `git pull`); `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed. The installed skills are short stubs that read `skills/` in the clone, so they follow the update; `bin/vh doctor` says in the rare case one needs `bin/vh install-skill` again.
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
-- The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, Python packages up to about 1.5 GB, and the default local voice's model about 2 GB (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
+- The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, the sound tools' Python packages about 0.7 GB, and the default local voice about 2.6 GB (its packages 0.8 GB, its model 1.8 GB), which `bin/vh tts` says before it starts and shows the progress of (`--provider edge` needs only a small package). The local Whisper behind `--align local` is about 3.6 GB more, said the same way (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). Where the official sources are blocked: the installer tries the official npm registry, Hugging Face and Google's storage first (twice each), and when one does not answer and its mainland-China mirror does, it switches to the mirrors (npmmirror, Tsinghua's TUNA, hf-mirror, listed in `tools/mirrors.txt`) and says which and why. From then on the downloads `bin/vh` starts follow: npm, Python packages, the local voice's model, Electron, the Chrome renders use, and an agent's own `npm` or `uv` in a session Studio started. A registry you set yourself (an `.npmrc`, a `uv.toml`, the variable) stays yours. `bin/vh settings mirror off` turns it off; installed before this, `bin/vh settings mirror cn` turns it on. Not covered: GitHub (the clone itself, `references/fetch.sh`, `--obscura`), `bin/vh hf add`, `bin/vh hdri` (Poly Haven) and the Google Fonts the hand-drawn engine's studio page loads. More on the wiki's [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) page.
 
 Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench. That copy stays as it was when the repo changes; once the workbench is installed, `bin/vh install-skill` replaces it with a stub that follows the clone.
 

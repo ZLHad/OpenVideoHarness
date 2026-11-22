@@ -25,6 +25,10 @@ If none exists, ask the user for permission, then install it:
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
+Read the installer's last lines, not its exit status: it exits 0 whenever the install itself worked, and its last lines
+say whether a first film can be made here ("✗ Not ready for a first film yet" lists what is missing, each with how to
+get it). Tell the user what is missing before starting a film.
+
 ## 2. Follow the harness, not this file
 
 Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) and follow it:

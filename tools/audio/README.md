@@ -169,7 +169,7 @@ bin/vh tts projects/<p> minimax "Chinese (Mandarin)_Reliable_Executive" zh --joi
 MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3          # 默认音色，语速 1.25，句间停 0.3 s
 ```
 
-- **key 和接口**：请求发到国际站 `https://api.minimax.io/v1/t2a_v2`。key 只从环境变量读，先找 `MINIMAX_TOKEN_PLAN_KEY`（Token Plan 的 Subscription Key，花的是买的 Credits），没有再用 `MINIMAX_API_KEY`（按量付费，账户没有余额时报 `1008 insufficient balance`）。买了 Credits 却只设了按量付费的 key，也是 1008。国际站的 key 发到国内站 `api.minimaxi.com` 会报 `2049 invalid api key`，所以默认走国际站；用国内站（platform.minimaxi.com）的 key 时，设 `MINIMAX_BASE_URL=https://api.minimaxi.com`。报错只写 key 来自哪个变量，不写 key 本身；
+- **key 和接口**：请求发到国际站 `https://api.minimax.io/v1/t2a_v2`。key 先从环境变量读，没有再用 Studio 设置页里存的（`tools/keys.py`），先找 `MINIMAX_TOKEN_PLAN_KEY`（Token Plan 的 Subscription Key，花的是买的 Credits），没有再用 `MINIMAX_API_KEY`（按量付费，账户没有余额时报 `1008 insufficient balance`）。买了 Credits 却只设了按量付费的 key，也是 1008。国际站的 key 发到国内站 `api.minimaxi.com` 会报 `2049 invalid api key`，所以默认走国际站；用国内站（platform.minimaxi.com）的 key 时，设 `MINIMAX_BASE_URL=https://api.minimaxi.com`。报错只写 key 来自哪个变量，不写 key 本身；
 - **音色**：`--voice` 写系统音色的 id。中文音色都以 `Chinese (Mandarin)_` 开头，例如 `Chinese (Mandarin)_Reliable_Executive`（沉稳的中年男声，默认）、`_News_Anchor`（女声新闻主播）、`_Male_Announcer`、`_Radio_Host`；英文默认 `English_expressive_narrator`。全部系统音色（2026-10-07 有 332 个）用 `POST /v1/get_voice`、body `{"voice_type": "system"}` 列出，`bin/vh voices` 只管 Gemini：
 
   ```bash

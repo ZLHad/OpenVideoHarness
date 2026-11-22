@@ -70,7 +70,7 @@
       "writes": ["LOCAL.md (--fill-local: its machine lines that still hold the template; LOCAL.example.md copied first when there is none)"],
       "usage": [
         {
-          "synopsis": "doctor [--json] [--fill-local] [--probe [--only a,b] [--offline DIR]]",
+          "synopsis": "doctor [--json] [--first] [--fill-local] [--probe [--only a,b] [--offline DIR]]",
           "text": [
             "what this machine can use, from tools/modules.json (tools/doctor.py): each outside module's program and version (under the",
             "minimum, not the pin, or older than its max_age_days: outdated), the parts it needs, packages in uv's cache, a model in",
@@ -79,7 +79,9 @@
             "--probe: also call each service with a key, and each public one that takes none, once, at an endpoint that costs",
             "nothing (--only a,b: these modules alone; --offline DIR: answered from responses recorded the way",
             "tools/assets/fetch.py records them); --fill-local: also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎)",
-            "where they still hold the template, never a line a person wrote (the installer runs it). Exit 0: it is a report"
+            "where they still hold the template, never a line a person wrote (the installer runs it). --first: only the few lines",
+            "a first film needs (the installer ends with them): ready or not, what is missing and how to get it, how a voice",
+            "comes here (exit 1 when not ready). Exit 0: it is a report"
           ]
         },
         {
@@ -113,6 +115,25 @@
           "synopsis": "setup",
           "text": [
             "install ClaudeAnimationBase deps + fetch reference repos"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "summary": "This machine's own settings, the ones that are not secret, kept once for every clone and for Studio: for now the download mirrors (tools/mirrors.txt), cn, off or auto.",
+      "when": "when downloads are blocked or slow where you are (install.sh switches to the mirrors by itself when the official npm registry does not answer), or to turn the mirrors off again",
+      "stages": ["env"],
+      "reads": ["$XDG_CONFIG_HOME/ovh/settings.json (~/.config/ovh/settings.json)", "tools/mirrors.txt"],
+      "writes": ["$XDG_CONFIG_HOME/ovh/settings.json (~/.config/ovh/settings.json)", "~/.cache/hyperframes/chrome (mirror cn: HyperFrames' Chrome from the mirror)"],
+      "usage": [
+        {
+          "synopsis": "settings [--json] | settings mirror cn|off|auto [--why TEXT] | settings mirror --get | settings chrome [project]",
+          "text": [
+            "what this machine's settings are and where they are kept; mirror cn: the downloads a command starts come from the",
+            "mainland-China mirrors in tools/mirrors.txt (npm, uv, Hugging Face, Electron; HyperFrames' Chrome fetched from the mirror",
+            "now, as HyperFrames cannot be pointed at one; settings chrome [project] does only that), a source of your own stays;",
+            "off: never, auto: the official sources (install.sh tries them first)"
           ]
         }
       ]
@@ -557,7 +578,7 @@
       "reads": [
         "the prompt (--prompt, --prompt-file) and the reference pictures (--ref; cast:<id>: <project>/cast/<id>/'s, bin/vh cast)",
         "<project>/BRIEF.md (Budget; Output for the aspect), LOCAL.md (默认预算)",
-        "GEMINI_API_KEY from the environment; or the codex CLI, signed in with ChatGPT",
+        "GEMINI_API_KEY from the environment or Studio's settings (tools/keys.py); or the codex CLI, signed in with ChatGPT",
         "--offline <folder>: recorded answers"
       ],
       "writes": [
@@ -1613,7 +1634,7 @@
       "stages": ["4"],
       "reads": [
         "<project>/audio/script.txt",
-        "a cloud provider's key, from the environment"
+        "a cloud provider's key, from the environment or Studio's settings (tools/keys.py)"
       ],
       "writes": [
         "<project>/audio/voiceover.<lang>.wav",
@@ -1629,7 +1650,7 @@
             "--candidates N: N takes a block, the one nearest the narration's median voice kept (N × the synthesis);",
             "warns of a line far off the take's seconds per character, and (with --align) of a phrase heard twice;",
             "--resume: continue the last run after a failed synthesis or transcription, same script and command)",
-            "providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax"
+            "providers: qwen (default, local open-source Qwen3-TTS; its first use downloads about 2.6 GB, said first, with the progress) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax"
           ]
         }
       ]
@@ -1668,7 +1689,7 @@
       "stages": ["4", "3"],
       "reads": [
         "--text f.txt (audition)",
-        "the provider's key, from the environment"
+        "the provider's key, from the environment or Studio's settings (tools/keys.py)"
       ],
       "writes": [
         "--out dir: a WAV per voice and audition.json (audition)",
@@ -1848,7 +1869,7 @@
       "stages": ["4"],
       "reads": [
         "<score.json>",
-        "--provider lyria: the prompt, GEMINI_API_KEY from the environment, <project>/BRIEF.md (Budget)"
+        "--provider lyria: the prompt, GEMINI_API_KEY from the environment or Studio's settings (tools/keys.py), <project>/BRIEF.md (Budget)"
       ],
       "writes": [
         "<out.wav>",

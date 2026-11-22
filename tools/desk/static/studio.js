@@ -54,7 +54,8 @@ function setLang(l) {
   $$("#themes [data-theme-set]").forEach((b) => { b.textContent = t("th_" + b.dataset.themeSet); });
 }
 function pickLang(fallback) {
-  let pick = null; try { pick = localStorage.getItem("desk:lang"); } catch (e) { /* no storage */ }
+  let pick = (document.querySelector('meta[name="desk-lang"]') || {}).content || null;   // as this machine keeps it (the settings page), else this browser's
+  if (pick !== "zh" && pick !== "en") try { pick = localStorage.getItem("desk:lang"); } catch (e) { /* no storage */ }
   return pick === "zh" || pick === "en" ? pick : fallback || (/^zh/i.test(navigator.language || "zh") ? "zh" : "en");
 }
 
@@ -63,6 +64,7 @@ function parse() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ""));
   if (!h) return HOME ? { view: "project", key: HOME } : { view: "home" };
   if (h === "/") return { view: "home" };
+  if (/^\/settings(\/|$)/.test(h)) return { view: "settings", sec: h.slice(10) };   // the settings page (settings.js)
   const m = h.match(/^\/p\/([^/]+)(?:\/(.*))?$/);
   if (m) {
     const rest = m[2] || "", g = rest.match(/^gate\/([A-Za-z0-9_-]{1,24})$/);
@@ -80,6 +82,7 @@ async function route() {
   const r = parse();
   closeSearch();
   if (r.view === "home") return showHome();
+  if (r.view === "settings") return SETTINGS.show(r.sec);
   return showProject(r);
 }
 window.addEventListener("hashchange", route);
@@ -102,12 +105,12 @@ function waitsIn(mod) { const f = FLOW.find((x) => x.mod === mod); return !!f &&
 function renderRail() {   // the space and a new film; a film's modules only while a film is open (on the space they would point at nothing, or at the last film)
   const proj = !!D;
   const item = (m) => {
-    if (m === "space") return `<a class="mod" href="#/" aria-current="${!proj ? "page" : "false"}">${svg("space")}<span>${esc(t("m_space"))}</span></a>`;
+    if (m === "space") return `<a class="mod" href="#/" aria-current="${parse().view === "home" ? "page" : "false"}">${svg("space")}<span>${esc(t("m_space"))}</span></a>`;
     const dot = waitsIn(m) ? '<i class="dot" aria-hidden="true"></i>' : "";
     return `<a class="mod" href="${projHash(PKEY, m)}" aria-current="${MOD === m ? "page" : "false"}" data-mod="${m}">${svg(m)}<span>${esc(t("m_" + m))}</span>${dot}</a>`;
   };
   const fresh = `<a class="mod" href="#/" data-new title="${esc(t("new_tip"))}">${svg("new")}<span>${esc(t("m_new"))}</span></a>`;   // the space's column, a fresh sentence
-  $("#rail").innerHTML = item("space") + fresh + (proj ? "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("") : "");
+  $("#rail").innerHTML = item("space") + fresh + (proj ? "<hr>" + ["idea", "outline", "board", "sound", "cut", "ship"].map(item).join("") + '<span class="grow"></span><hr>' + ["assets", "ledger"].map(item).join("") : "") + SETTINGS.railItem(proj);
 }
 $("#rail").addEventListener("click", (e) => { if (e.target.closest("[data-new]")) setTimeout(() => AGENT.fresh(), parse().view === "home" ? 0 : 300); });   // 新建: the space's column, a sentence for a new film
 $("#flow").addEventListener("click", (e) => { const b = e.target.closest("[data-go-mod]"); if (b && PKEY) go(projHash(PKEY, b.dataset.goMod)); });
@@ -215,7 +218,7 @@ async function machine() {   // asked once a page; again (a minute later at most
 function lacksHtml() {
   const L = (MACHINE && MACHINE.lacks) || [];
   if (!L.length) return "";
-  return `<aside class="lacks" aria-label="${esc(t("lacks_h"))}"><h2>${esc(t("lacks_h"))}</h2><ul>${L.map((x) => `<li><b>${esc(t("lk_" + x.what + "_n"))}</b>${esc(COLON())}${esc(x.what === "agent" ? t("lk_agent_s") : t(x.state === "outdated" ? "lk_old" : "lk_missing", { s: t("lk_" + x.what + "_s") }))} <span class="do">${esc(t("lk_" + x.what + "_d"))}</span></li>`).join("")}</ul></aside>`;
+  return `<aside class="lacks" aria-label="${esc(t("lacks_h"))}"><h2>${esc(t("lacks_h"))}</h2><ul>${L.map((x) => `<li><b>${esc(t("lk_" + x.what + "_n"))}</b>${esc(COLON())}${esc(x.what === "agent" ? t("lk_agent_s") : t(x.state === "outdated" ? "lk_old" : "lk_missing", { s: t("lk_" + x.what + "_s") }))} <span class="do">${esc(t("lk_" + x.what + "_d"))}</span></li>`).join("")}</ul>${parse().view === "home" ? `<a class="lacks-more" href="#/settings/machine">${esc(SETTINGS.word("see"))}</a>` : ""}</aside>`;
 }
 function copyText(s) {
   return new Promise((ok) => {
@@ -476,6 +479,7 @@ function renderNow() {   // where this film stands, in bin/vh status's own sente
   const armed = a.kind === "tell" && a.confirm && NOWARM === PKEY;   // an offer that asks once more: the first click arms it
   const quiet = a.secondary && !armed, cls = quiet ? "btn btn-quiet xs now-second" : a.secondary ? "btn" : "btn btn-primary";   // a second line, or the one thing to do
   const btn = a.kind === "tell" ? `<button type="button" class="${cls}" id="nowTell">${esc(armed ? t("now_sure") : a.label[L])}</button>${armed ? `<button type="button" class="btn btn-quiet xs" id="nowNot">${esc(t("cancel"))}</button>` : ""}`
+    : a.kind === "settings" ? `<a class="btn btn-primary" href="#/settings/${enc(a.sub || "")}">${esc(a.label[L])}</a>`   // only the person can give it (an API Key): the settings page's section
     : mod && mod !== MOD ? `<a class="btn" href="${projHash(PKEY, mod + (a.sub ? "/" + a.sub : ""))}">${esc(a.label[L])} →</a>` : "";   // already on that page: no button to it
   const opens = (txt) => ((n.facts || {}).paths || []).reduce((h, p) => h.split(esc(p)).join(`<a href="/v/${enc(PKEY)}/${String(p).split("/").map(enc).join("/")}" target="_blank" rel="noopener">${esc(p)}</a>`), esc(txt));   // a file the words name opens
   const html = `<p class="now-say"><i aria-hidden="true"></i><span>${esc(n.say[L])}</span></p>${n.more ? `<p class="now-more">${opens(n.more[L])}</p>` : ""}${armed ? `<p class="now-more">${esc(t("now_sure_note"))}</p>` : ""}${btn ? `<div class="now-act">${btn}</div>` : ""}${plan ? `<p class="now-plan">${esc(plan[L])}</p>` : ""}`;

@@ -31,4 +31,4 @@
 - 动画必须用 `useCurrentFrame()` 加 `interpolate()` 驱动。CSS transition、CSS animation 和 Tailwind 的动画类在渲染时都不会正确生效。
 - 字幕：`@remotion/install-whisper-cpp` 的 `transcribe()`，再加 `toCaptions`。
 - 配音：用 ElevenLabs 为每个场景生成一个 mp3，在 `calculateMetadata` 里读取音频时长，设置 `durationInFrames`。
-- 官方 skills 已拉到本地：`references/repos/remotion-skills/skills/`。
+- 官方 skills 在 `references/repos/remotion-skills/skills/`（没有就先 `bash references/fetch.sh remotion-skills`，约 2 MB）。

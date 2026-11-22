@@ -265,7 +265,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 ## 工具一览
 
-工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 73 条命令，每条命令加 `-h` 看用法。
+工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 74 条命令，每条命令加 `-h` 看用法。
 
 | | 命令 | 做什么 |
 |---|---|---|
@@ -404,26 +404,39 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 | LaTeX | Manim 里的公式 |
 | Blender 5.2 | 只有路径追踪的镜头和整理 3D 模型才要；沙箱目前只在 macOS 上有 |
 
-- **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住；key 一律从环境变量读。
+- **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住。API Key 从环境变量读，或者用 Studio 设置页里存的（见 [API Key](#api-key)）。
 - **时间**：30 秒的标准档片子大约 1–2 小时，大部分花在自查和返工上。
 - **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，事先要备好的三样见 [engines/README.md](engines/README.md#linux渲染前要先备好的三样)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
 
+### API Key
+
+配音默认用这台电脑上的声音，不用 API Key。在线服务（Gemini、MiniMax、ElevenLabs、阿里云百炼）要用各家网站上的 API Key。把它粘贴到 Studio 的设置页（设置 → 服务）：存在这台电脑的钥匙串里（Linux 上是 Secret Service），不写进任何文件，终端里和 Studio 的对话里，每条命令都找得到。
+
+没有这样的地方可存时，把 key 写进终端每次启动都会读的那个文件（macOS 是 `~/.zshrc`，多数 Linux 是 `~/.bashrc`），再开一个新终端，从那里打开 Studio：
+
+```bash
+echo 'export GEMINI_API_KEY=把你的key粘贴在这里' >> ~/.zshrc
+```
+
+其他几家的变量名，设置页上都写着。这样设的 key，比 Studio 里存的同名 key 先用。有 API Key 不等于有预算：出图和 Lyria 作曲没写预算就不调；用这几家配音、逐字对时、试音，是直接调用，花的是那个账户的钱。
+
 ## 安装、更新和国内网络
 
-默认给两个 agent 注册 skill，并拉取 37 个只读参考仓库。合计约占 650 MB，用 `--no-refs` 安装约占 380 MB。Studio 应用另占约 380 MB，含缓存的安装包。
+默认给两个 agent 注册 skill，约占 400 MB。37 个只读参考仓库安装时不拉：agent 用到文档指的那一个时再拉，拉之前先说多大；`--refs` 在安装时一次拉全（再约 300 MB）。Studio 应用另占约 380 MB，含缓存的安装包。
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # 装到别的位置
-bash install.sh --no-refs                        # 先不拉参考仓库（之后用 references/fetch.sh 拉）
+bash install.sh --refs                           # 安装时就把 37 个参考仓库拉全（约 300 MB）
+bash install.sh --mirror cn                      # 直接用国内镜像（--mirror off：不用；不写时先试官方源）
 bash install.sh --no-skill                       # 不注册全局 skill
 bash install.sh --no-icon                        # 不把 OVH Studio 放进应用程序（以后 bin/vh studio --install-icon 再放）
 ```
 
-- 安装时什么都不问。macOS 和 Linux 桌面上，它会把 OVH Studio（Studio 自己的窗口）放进应用程序（Electron：第一次下载约 130 MB，占约 260 MB 磁盘）；哪一步没成，它用一句话说接下来做什么。最后告诉你两种开始的办法：点 OVH Studio，或者在这个文件夹里打开 Claude Code 或 Codex，说你想做什么片子。
+- 安装时什么都不问。macOS 和 Linux 桌面上，它会把 OVH Studio（Studio 自己的窗口）放进应用程序（Electron：第一次下载约 130 MB，占约 260 MB 磁盘）；哪一步没成，它用一句话说接下来做什么。最后几行说清这台机器能不能做第一支片、还缺什么、怎么补，配音在这台机器上怎么来，以及两种开始的办法：点 OVH Studio，或者在这个文件夹里打开 Claude Code 或 Codex，说你想做什么片子（完整的报告在 `bin/vh doctor`）。
 - 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
 - 更新：用同样的参数再运行一次安装命令（或者 `git pull`）；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。装出去的 skill 是指回克隆里 `skills/` 的短桩，跟着一起更新；少数要重装的时候（`bin/vh install-skill`），`bin/vh doctor` 会说。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。
-- 第一次渲染、第一次用声音工具时还会往 `~/.cache` 下载：Chrome 约 200 MB，Python 依赖最多约 1.5 GB，默认的本地配音模型约 2 GB（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。国内网络连不上 npm、PyPI、Hugging Face 或 Google Fonts 时，镜像设置见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
+- 第一次渲染、第一次用声音工具时还会往 `~/.cache` 下载：Chrome 约 200 MB，声音工具的 Python 依赖约 0.7 GB，默认的本地配音约 2.6 GB（依赖 0.8 GB、模型 1.8 GB；`bin/vh tts` 开始前会先说，并显示进度；`--provider edge` 只要一个小包）；`--align local` 用的本地 Whisper 另需约 3.6 GB，同样先说（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。国内网络：安装时先试官方的 npm 源、Hugging Face 和 Google 的存储（各试两次），哪个连不上、它的国内镜像连得上，就改用国内镜像（npmmirror、清华 TUNA、hf-mirror，列在 `tools/mirrors.txt`），并说明是哪个、为什么。之后 `bin/vh` 起的下载都跟着走：npm、Python 包、本地配音模型、Electron、渲染用的 Chrome，还有 Studio 起的 agent 自己跑的 `npm`、`uv`。你自己设过的源（`.npmrc`、`uv.toml` 或那个变量）不动。`bin/vh settings mirror off` 关掉；这之前装的，`bin/vh settings mirror cn` 打开。不走镜像的：GitHub（克隆本身、`references/fetch.sh`、`--obscura`）、`bin/vh hf add`、`bin/vh hdri`（Poly Haven），以及手绘引擎的 studio 页面加载的 Google Fonts。其余细节见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 
 只装 skill：`npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。它只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。这样装的是整份副本，仓库更新了它不变；工作台装好以后跑一次 `bin/vh install-skill`，换成跟随克隆的短桩。
 

@@ -37,6 +37,7 @@ ROOT = HERE.parent.parent
 sys.path.insert(0, str(ROOT / "tools" / "assets"))
 sys.path.insert(0, str(ROOT / "tools"))
 import assets as A, budget, fetch, image, ledger   # noqa: E402,E401
+import keys   # noqa: E402  (tools/keys.py: the environment's key, else the one saved in Studio)
 
 PROG = "bin/vh music --provider lyria"
 API = image.API
@@ -131,8 +132,8 @@ def cmd_gen(a):
         say(f"  {chk['message']}")
         say("  nothing called (--dry-run)")
         return 0
-    if not a.offline and not os.environ.get("GEMINI_API_KEY"):
-        raise Usage("set GEMINI_API_KEY (Google AI Studio → Get API key): it is read from the environment only")
+    if not a.offline and not keys.get("GEMINI_API_KEY"):
+        raise Usage(keys.stopping("GEMINI_API_KEY", "music"))
     if not chk["ok"]:
         raise Failed(f"{chk['message']} (--dry-run shows the price)")
     folder = project / GENMUSIC / cid
@@ -254,7 +255,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    import activity   # bin/vh exec's into this (cmd_music): this process writes the run's end, or the run reads as cut off
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(activity.exiting(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

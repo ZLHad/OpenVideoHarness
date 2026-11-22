@@ -46,7 +46,7 @@
 - **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。版本字段新文件一律拼 `version`；已有文件的 `v`（`edit.json`、台账、活动记录这些）不改名。
 - **新的中间文件在 `tools/artifacts.json` 登记一项。** 一支片子里多了一种文件（命令写的，或者工具开始读的），就加一项：路径、谁写谁读、什么时候必须有、怎么判过期（`stale`，判不了就是 `null`）、`bin/vh clean` 怎么处理它。工具和客户端要靠它的形状时，在 `tools/schemas/` 放一份 schema 和好坏两种 fixture，只用 `tools/schemalite.py` 读得懂的关键字；字段只加不改，所以 schema 只钉必需的字段和类型，允许多字段。`bin/vh artifacts check` 查表和命令表、schema、`tools/clean.py` 对得上：`tools/commands.json` 的 `writes`、`reads` 里 `<project>/…` 的路径没有对应的一项，CI 就不过。反过来，一项里列的 writer，在 `tools/commands.json` 里要有一行 `writes` 写到它的路径（自由文本说不清的，在 `tools/artifacts.py` 的 `NOT_SAID` 里写明原因）。
 - **检查给出路。** `bin/vh check` 新报一类问题（checkrec.py 的一种 kind）时，在 `tools/remedies.json` 给它配一两条出路：能解决它的配方筛选、命令或文档的一节。检查只报告，出路只给选项；`tools/remedies.py check` 查每条都真有其物。
-- **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key、平台，以及依赖这张表里的哪些模块（`needs`，模块名写在 `programs` 里，只在某个平台能用的再写 `elsewhere`：别处用什么）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）。key 只放进 header，不进 URL，不跟着重定向走，只走 https（本机除外），不打印，失败时也只报状态码和错误码。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
+- **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key、平台，以及依赖这张表里的哪些模块（`needs`，模块名写在 `programs` 里，只在某个平台能用的再写 `elsewhere`：别处用什么）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）；要 key 的服务再写 `cost`（`free`、`free_tier`、`paid`）和 `key_url`（去哪拿 key 的 https 地址），Studio 设置页的"服务"一节照它们画。key 只放进 header，不进 URL，不跟着重定向走，只走 https（本机除外），不打印，失败时也只报状态码和错误码。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
 
 ## 加一个风格
 
@@ -124,7 +124,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 - **有 `--offline <文件夹>`。** 命令照常跑，只是响应从录音里取（`fetch.Replay`；Range 照样回答，续传也能离线测）。找不到对应的 URL 就失败，不会偷偷联网。
 - **CI 只测解析、台账写入和许可分类。** 用录好的响应跑命令，查三样：解析出的字段；写进 `assets/ledger.json` 的记录，对着 `tools/assets/asset.schema.json` 查；许可落进哪一类（`tools/assets/licenses.py`，对照表是 `tools/assets/fixtures/licenses.tsv`）。活的接口不进 CI，由 `bin/vh doctor --probe` 探（`tools/modules.json` 里登记的服务）。
 
-调付费接口的命令还要守预算：每次调用都包在 `tools/assets/budget.py` 的 `with budget.hold(项目, 估价, 币种, 做什么) as h:` 里。它在锁里检查并预占这笔估价，没有预算或者超了就拒绝，并说差多少；几个进程同时调用也不会一起越过预算。调用完用 `h.settle(实际花费)` 结算，没计费就记 0；出了异常没结算，按估价算。登记产物时把花费交给 `ledger.add(…, cost=…)`，花费记录里已有的不会重记。key 只从环境变量读，放在请求头里，不进 URL、录音和日志；记录和报错里的 URL 都去掉 query 的值（`fetch.redact`），带 key、token、签名的 URL 不录。
+调付费接口的命令还要守预算：每次调用都包在 `tools/assets/budget.py` 的 `with budget.hold(项目, 估价, 币种, 做什么) as h:` 里。它在锁里检查并预占这笔估价，没有预算或者超了就拒绝，并说差多少；几个进程同时调用也不会一起越过预算。调用完用 `h.settle(实际花费)` 结算，没计费就记 0；出了异常没结算，按估价算。登记产物时把花费交给 `ledger.add(…, cost=…)`，花费记录里已有的不会重记。key 一律经 `tools/keys.py` 取（先环境变量，没有再用人在 Studio 设置页里存的那一份，它在系统自己的密码库里），放在请求头里，不进 URL、录音和日志；记录和报错里的 URL 都去掉 query 的值（`fetch.redact`），带 key、token、签名的 URL 不录。
 
 ## 在 GitHub 上启用规则集
 
