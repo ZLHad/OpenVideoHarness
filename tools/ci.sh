@@ -4910,7 +4910,7 @@ words_checks() {   # bin/vh words (tools/words.py): a report on a script's sente
   local t
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if python3 - "$t" "$VH_BASH" <<'PY'
-import json, os, subprocess, sys
+import json, os, re, subprocess, sys
 t, sh = sys.argv[1], sys.argv[2]
 def w(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -4969,7 +4969,7 @@ j = json.loads(vh(p, "--json", "--all").stdout)
 if [h.get("allowed_by", "").endswith("STYLE.md") for h in next(c for c in j["checks"] if c["id"] == "not_but")["hits"]] != [True]:
     bad.append("--all does not list the allowed hit with where it was allowed")
 txt = vh(p).stdout
-if "L9  答案很简单：频率在变" not in txt or "L8" in txt or "allowed by the style guide" not in txt or "not checked:" not in txt:
+if "L9  答案很简单：频率在变" not in txt or re.search(r"^\s*L8\s", txt, re.M) or "allowed by the style guide" not in txt or "not checked:" not in txt:   # L8: the line-number column (a temp path may hold "L8")
     bad.append(f"the text report: {txt[:400]!r}")
 q = os.path.join(t, "q")   # no SCRIPT.md: what the voice reads
 w(f"{q}/audio/script.txt", "# a comment: 不是这个，而是那个\n@speakers A=Kore B=Puck\n@a [轻快，不是指示，而是语气] A: 先看这里。 || not this, but that\n@b 卫星飞过去了。 || 不是英文，而是中文\n@c 与其说是速度，不如说是时间。\n")
