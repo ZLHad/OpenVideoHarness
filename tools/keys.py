@@ -9,15 +9,29 @@ usage: python3 tools/keys.py has <NAME>       exit 0 when a command would find t
        python3 tools/keys.py where            each name: env, studio or -, and what kind of store this computer has
        (there is no command that prints a key)
 
+"The environment first" is per name: MINIMAX_API_KEY set in the environment and MINIMAX_TOKEN_PLAN_KEY saved in Studio
+are both found, and tts.py's MiniMax takes the Token Plan key first, wherever each came from.
+
+A process asks the store once per name (what it found, nothing, or no answer within LOOKUP_S seconds, is remembered
+until save or clear changes that name, or forget()): a store that is slow or locked costs a command a few seconds once,
+never on every request of a long run.
+
+Who can read a saved key: the item is made by /usr/bin/security with the Keychain's default access, so any program run
+as this user (an agent in Studio's column included) reads it without a prompt, as it could read the person's shell
+files. The Secret Service is the same once the person's login has unlocked it.
+
 Tests: OVH_KEYCHAIN=<file> names a keychain of their own on every call (macOS), OVH_KEYSTORE_SERVICE a service name of
-their own, OVH_SECRET_TOOL a stand-in for secret-tool (Linux); OVH_KEYSTORE=none turns the store off.
+their own, OVH_SECRET_TOOL a stand-in for secret-tool (Linux); OVH_KEYSTORE=none turns the store off. tools/ci.sh sets
+OVH_KEYSTORE=none for all its checks and passes it on where a check builds an environment of its own (acp.clean_env
+keeps it too); a check that never set it still runs with a scratch HOME, whose search list has no keychain of the person's.
 """
 import json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:+/=-]{7,511}")   # what a provider's API key looks like: no space, no quote, no newline
-_CACHE = {}
+VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:+/=-]{7,2047}")   # what a provider's API key looks like (JWT-style ones run past 600): no space, quote or newline
+LOOKUP_S, WRITE_S = 3, 10   # seconds a store may take to answer a lookup, and a save or a clear
+_CACHE, _FOUND = {}, {}   # the store's kind; name → the saved key or None, as this process last asked the store
 
 
 def key_names():
@@ -41,6 +55,14 @@ def service():
     return os.environ.get("OVH_KEYSTORE_SERVICE") or "OpenVideoHarness"
 
 
+class NotAKey(ValueError):
+    """A value that does not look like an API key (Studio's page says so in the person's language)."""
+
+
+class NotKept(OSError):
+    """The store did not take a save or a clear, or there is no store."""
+
+
 def _known(name):
     if name not in KEY_NAMES:
         raise ValueError(f"{name}: not the name of a key a service needs (tools/modules.json)")
@@ -57,7 +79,7 @@ def store_kind():
         elif sys.platform.startswith("linux") and _secret_tool():
             try:   # a lookup of nothing: exit 1 when the Secret Service answers, an error message when there is none to answer
                 r = subprocess.run([_secret_tool(), "lookup", "service", service(), "key", "-"], capture_output=True, text=True,
-                                   timeout=5, stdin=subprocess.DEVNULL)
+                                   timeout=LOOKUP_S, stdin=subprocess.DEVNULL)
                 kind = "secret-service" if r.returncode in (0, 1) and not r.stderr.strip() else "none"
             except (OSError, subprocess.SubprocessError):
                 kind = "none"
@@ -74,17 +96,32 @@ def _keychain():
     return [k] if k else []
 
 
-def _run(argv, stdin=None):
+def _run(argv, stdin=None, timeout=LOOKUP_S):
     try:
-        return subprocess.run(argv, input=stdin, capture_output=True, text=True, timeout=10,
+        return subprocess.run(argv, input=stdin, capture_output=True, text=True, timeout=timeout,
                               stdin=None if stdin is not None else subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError):
         return None
 
 
 def stored(name):
-    """The key saved in Studio for this name, or None (no store, nothing saved, the store did not answer)."""
+    """The key saved in Studio for this name, or None (no store, nothing saved, the store did not answer): asked once
+    per process, then remembered."""
     _known(name)
+    if name not in _FOUND:
+        _FOUND[name] = _lookup(name)
+    return _FOUND[name]
+
+
+def forget(name=None):
+    """Ask the store again next time (one name, or all): for a long-running process when something else changed it."""
+    if name is None:
+        _FOUND.clear()
+    else:
+        _FOUND.pop(name, None)
+
+
+def _lookup(name):
     kind = store_kind()
     if kind == "keychain":
         r = _run(["security", "find-generic-password", "-s", service(), "-a", name, "-w", *_keychain()])
@@ -113,16 +150,17 @@ def save(name, value):
     a key; OSError: no store, or it did not take it."""
     _known(name)
     if not isinstance(value, str) or not VALUE.fullmatch(value):
-        raise ValueError(f"{name}: that is not an API key (8 to 512 letters, digits and . _ : + / = -, starting with a letter or digit)")
+        raise NotAKey(f"{name}: that is not an API key (8 to 2048 letters, digits and . _ : + / = -, starting with a letter or digit)")
     kind = store_kind()
     if kind == "keychain":   # security's own prompt reads the line on stdin: the key never is an argument of a process
-        r = _run(["security", "-i"], stdin=f'add-generic-password -U -s "{service()}" -a {name} -l "{service()} {name}" -w {value} {" ".join(chr(34) + k + chr(34) for k in _keychain())}\n')
+        r = _run(["security", "-i"], timeout=WRITE_S, stdin=f'add-generic-password -U -s "{service()}" -a {name} -l "{service()} {name}" -w {value} {" ".join(chr(34) + k + chr(34) for k in _keychain())}\n')
     elif kind == "secret-service":
-        r = _run([_secret_tool(), "store", f"--label={service()} {name}", "service", service(), "key", name], stdin=value)
+        r = _run([_secret_tool(), "store", f"--label={service()} {name}", "service", service(), "key", name], stdin=value, timeout=WRITE_S)
     else:
-        raise OSError("this computer has no password store: the key can only come from the environment")
-    if r is None or r.returncode != 0 or stored(name) != value:
-        raise OSError(f"{name} was not saved ({kind} did not take it)")
+        raise NotKept("this computer has no password store: the key can only come from the environment")
+    _FOUND[name] = _lookup(name)   # what the store holds now, asked afresh
+    if r is None or r.returncode != 0 or _FOUND[name] != value:
+        raise NotKept(f"{name} was not saved ({kind} did not take it)")
 
 
 def clear(name):
@@ -130,11 +168,12 @@ def clear(name):
     _known(name)
     kind = store_kind()
     if kind == "keychain":
-        _run(["security", "delete-generic-password", "-s", service(), "-a", name, *_keychain()])
+        _run(["security", "delete-generic-password", "-s", service(), "-a", name, *_keychain()], timeout=WRITE_S)
     elif kind == "secret-service":
-        _run([_secret_tool(), "clear", "service", service(), "key", name])
-    if stored(name):
-        raise OSError(f"{name} is still saved ({kind} did not take it out)")
+        _run([_secret_tool(), "clear", "service", service(), "key", name], timeout=WRITE_S)
+    _FOUND[name] = _lookup(name)
+    if _FOUND[name]:
+        raise NotKept(f"{name} is still saved ({kind} did not take it out)")
 
 
 def main(argv):

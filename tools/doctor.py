@@ -9,7 +9,7 @@ usage: bin/vh doctor [--json] [--first] [--fill-local] [--probe [--only a,b] [--
   --fill-local  also write LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from this check, where they still hold
                 the template's {…}; with no LOCAL.md, LOCAL.example.md is copied first. A line a person wrote stays;
                 the other lines' {…} are their defaults (the installer runs this)
-  --probe       also call each service that has a key set, once, at an endpoint that costs nothing (Gemini's model
+  --probe       also call each service that has a key set, once per key set, at an endpoint that costs nothing (Gemini's model
                 list, MiniMax's system voices, ElevenLabs' user, Model Studio's model list): is the key taken, is the
                 interface there; and each public one that takes no key (scout's: fxtwitter, Bilibili's view, the hot
                 lists): does it still answer the way the adapter reads it. Without it doctor never touches the network
@@ -412,16 +412,29 @@ def apply_needs(modules, results):
 
 
 def probe(m, offline, recs):
-    """Call a service once at its free endpoint, with the first of its keys that is set (a public one that takes no key:
-    without one). {state, note}. The key goes in a header that no redirect carries on, only over https (or to this
-    machine), and no answer's text is passed on."""
+    """Call a service at its free endpoint once with each of its keys that is set (MiniMax's two: each is asked, and
+    the note says which one failed), or once without a key for a public one that takes none. {state, note}: ok when
+    every key is taken. The key goes in a header that no redirect carries on, only over https (or to this machine),
+    and no answer's text is passed on."""
     p = m.get("probe")
     if not p:
         return None
     keyless = not (m.get("needs") or {}).get("keys") and not p.get("auth")
-    var = None if keyless else next((k for k in (m.get("needs") or {}).get("keys", []) if keys.get(k)), None)
-    if not var and not keyless:
+    if keyless:
+        return probe_one(p, None, offline, recs)
+    vars_ = [k for k in (m.get("needs") or {}).get("keys", []) if keys.get(k)]
+    if not vars_:
         return {"state": "skipped", "note": "no key set"}
+    said = [(v, probe_one(p, v, offline, recs)) for v in vars_]
+    if len(said) == 1:
+        return said[0][1]
+    bad = [(v, r) for v, r in said if r["state"] != "ok"]
+    return {"state": "failed" if bad else "ok",
+            "note": "; ".join(r["note"] if v in r["note"] else f"{v}: {r['note']}" for v, r in (bad or said))}
+
+
+def probe_one(p, var, offline, recs):
+    """One call to a probe's endpoint, with the key named var (None: no key)."""
     key, url = (keys.get(var) if var else ""), p["url"]
     if p.get("base_env") and os.environ.get(p["base_env"]):
         b = urllib.parse.urlsplit(os.environ[p["base_env"]])

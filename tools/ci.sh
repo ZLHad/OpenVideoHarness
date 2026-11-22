@@ -823,7 +823,7 @@ nxt, first = LocalServer(("127.0.0.1", 0), Next), LocalServer(("127.0.0.1", 0), 
 for srv in (nxt, first):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 live = subprocess.run([sys.executable, "tools/doctor.py", "--json", "--probe", "--only", "minimax,dashscope"], capture_output=True, text=True, encoding="utf-8",
-                      env={"PATH": stub, "HOME": t, "HF_HOME": os.path.join(t, "hf"), "MINIMAX_API_KEY": keys["MINIMAX_API_KEY"],
+                      env={"PATH": stub, "HOME": t, "OVH_KEYSTORE": "none", "HF_HOME": os.path.join(t, "hf"), "MINIMAX_API_KEY": keys["MINIMAX_API_KEY"],
                            "MINIMAX_BASE_URL": f"http://127.0.0.1:{first.server_address[1]}", "DASHSCOPE_API_KEY": keys["DASHSCOPE_API_KEY"],
                            "DASHSCOPE_BASE_URL": "http://example.invalid/api/v1"})
 outs += [live.stdout, live.stderr]
@@ -859,7 +859,7 @@ for d in ("/bin", "/usr/bin"):
             os.symlink(os.path.join(d, n), os.path.join(bare, n))
 shell = shutil.which(sh) if os.sep not in sh else sh
 for args in ([], ["--json"]):
-    r = subprocess.run([shell, "bin/vh", "doctor", *args], capture_output=True, text=True, encoding="utf-8", env={"PATH": stub + os.pathsep + bare, "HOME": t})
+    r = subprocess.run([shell, "bin/vh", "doctor", *args], capture_output=True, text=True, encoding="utf-8", env={"PATH": stub + os.pathsep + bare, "HOME": t, "OVH_KEYSTORE": "none"})
     ok_ = r.returncode == 0 and (json.loads(r.stdout)["modules"][1] == {"name": "node", "state": "outdated", "note": "v18.19.0 (22 or newer needed)"} if args
                                  else all(w in r.stdout for w in ("python3  not found", "node  v18.19.0 (22 or newer needed)", "ffmpeg", "uv  uv 0.9.0", "git", "chrome", "needs python3")))
     if not ok_:
@@ -1015,7 +1015,7 @@ import json, os, subprocess, sys
 t = sys.argv[1]
 stub = os.path.join(t, "stub"); os.makedirs(stub)
 def gx():
-    r = subprocess.run([sys.executable, "tools/doctor.py", "--json"], capture_output=True, text=True, encoding="utf-8", env={"PATH": stub, "HOME": t})
+    r = subprocess.run([sys.executable, "tools/doctor.py", "--json"], capture_output=True, text=True, encoding="utf-8", env={"PATH": stub, "HOME": t, "OVH_KEYSTORE": "none"})
     return {m["name"]: m for m in json.loads(r.stdout)["modules"]}["manimgx"]
 def put(name, body):
     f = os.path.join(stub, name)

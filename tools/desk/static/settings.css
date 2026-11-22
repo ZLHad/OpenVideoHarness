@@ -63,6 +63,8 @@
 .sv-form{display:flex;gap:8px;grid-column:2/-1}
 .sv-form input{flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--rule-2);border-radius:var(--r-ctl);padding:6px 10px;color:var(--ink);font:var(--fs-small)/1.4 var(--mono)}
 .sv-form input:focus{outline:none;border-color:var(--you)}
+.sv-in{-webkit-text-security:disc}   /* the key's box: masked by style, not a password box a browser would offer to remember */
+.sv-err{color:var(--wait)}
 .sv-test.ok{color:var(--ok,var(--ink))}
 .sv-get{display:inline-block;margin-top:6px;color:var(--you);font-size:var(--fs-label);text-decoration:none}
 .sv-get:hover{text-decoration:underline}

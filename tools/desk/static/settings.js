@@ -39,9 +39,12 @@ const SETTINGS = (() => {
       ph: "粘贴 {s} 的 API Key", get_key: "去哪拿 API Key", clear_note: "拿掉以后，用到它的命令会停下来告诉你。",
       t_wait: "正在问…", t_ok: "能用了", t_fail: "没通过，服务的回答：{x}", t_skip: "还没有 API Key 可以测", t_free: "测一下不花钱。",
       sv_kept_keychain: "存在这台电脑的钥匙串里，不写进任何文件。", sv_kept_secret: "存在这台电脑的密码库里，不写进任何文件。",
-      sv_none: "这台电脑上没有密码库，API Key 只能写在环境变量里：{v}。",
+      sv_none: "这台电脑上没有 Studio 能妥善保管 API Key 的地方。要用在线服务，就把 API Key 写进终端每次启动都会读的那个文件，再从新开的终端里打开 Studio。", how: "怎么写",
+      e_not_a_key: "这不像 API Key：从服务商的页面把它整段复制下来，不带空格和引号，再粘贴一次。",
+      e_not_kept: "没存进去：{s}没收下。再粘贴一次试试；还是不行，就照说明写进终端启动时读的文件。", e_not_cleared: "没拿掉：{s}没响应。再试一次。",
+      s_keychain: "钥匙串", s_secret: "密码库",
       sv_env_note: "在终端里设的环境变量，这一页不一定看得到；在这里填上的，终端里和右边的对话里都用得上。",
-      sv_budget: "有 API Key 不等于能花钱：收费的调用还要片子或这台电脑写了预算。这台电脑的默认预算：{x}",
+      sv_budget: "有 API Key 不等于有预算。出图和 Lyria 作曲，片子和这台电脑都没写预算就不调；用这几家配音、给字幕对时间、试音，是直接调用，花的是那个账户的钱（有免费额度的先用免费额度）。这台电脑的默认预算：{x}",
       nokey: "这一页要在 Studio 的窗口里打开才看得到。", reopen: "在 Studio 窗口里打开",
     },
     en: {
@@ -77,9 +80,12 @@ const SETTINGS = (() => {
       ph: "Paste your {s} API Key", get_key: "Get an API Key", clear_note: "Once removed, commands that need it stop and tell you.",
       t_wait: "Asking…", t_ok: "Works", t_fail: "Didn't work; the service said: {x}", t_skip: "No API Key to test yet", t_free: "Testing costs nothing.",
       sv_kept_keychain: "Kept in this computer's Keychain, never written into any file.", sv_kept_secret: "Kept in this computer's password store, never written into any file.",
-      sv_none: "This computer has no password store; an API Key can only come from the environment: {v}.",
+      sv_none: "This computer has no place where Studio can keep an API Key safely. To use an online service, put the API Key in the file your terminal reads each time it starts, then open Studio from a new terminal.", how: "How",
+      e_not_a_key: "That doesn't look like an API Key: copy the whole key from the provider's page, with no spaces or quotes, and paste it again.",
+      e_not_kept: "Not saved: {s} didn't take it. Paste it again; if it still fails, put it in the file your terminal reads when it starts.", e_not_cleared: "Not removed: {s} didn't answer. Try again.",
+      s_keychain: "the Keychain", s_secret: "the password store",
       sv_env_note: "Environment variables set in your terminal may not show on this page; a key set here works in the terminal and in the chat on the right.",
-      sv_budget: "An API Key isn't a budget: a paid call also needs a budget on the film or this computer. This computer's default budget: {x}",
+      sv_budget: "An API Key isn't a budget. Pictures and Lyria music are not made unless the film or this computer has a budget; voices, caption timing and auditions with these services are called directly and bill that account (a free tier is used first). This computer's default budget: {x}",
       nokey: "This page shows only in Studio's own window.", reopen: "Open in Studio's window",
     },
   };
@@ -88,7 +94,14 @@ const SETTINGS = (() => {
   const SECTIONS = [{ id: "general" }, { id: "agent" }, { id: "services" }, { id: "films" }, { id: "machine" }, { id: "about" }, { id: "account", hidden: true }];
   const THEMES = ["darkfield", "prism", "bridge"];
   let ST = null, BACK = "#/", SEC = "general";
-  let EDIT = "", ARM = "", TESTS = {};   // the services: the key being typed, the key whose 拿掉 asks once more, each service's last test
+  let EDIT = "", ARM = "", TESTS = {}, SVERR = {};   // the services: the key being typed, the key whose 拿掉 asks once more, each service's last test, what a failed save of a key said
+  const HOWTO = () => `https://github.com/ZLHad/OpenVideoHarness/blob/main/README${LANG === "en" ? "" : ".zh-CN"}.md#api-key`;   // the front page's "API Key": how to put a key where the terminal reads it
+  const why_err = (r) => {   // a refusal of the console's as the page's own word (said in the language shown), when it gave a reason
+    const why = r.data && r.data.reason;
+    return why === "not_a_key" ? "e_not_a_key" : why === "not_kept" ? "e_not_kept" : why === "no_store" ? "sv_none" : null;
+  };
+  const store_word = () => w(ST && ST.store === "secret-service" ? "s_secret" : "s_keychain");
+  const said_err = (r) => { const k = why_err(r); return k ? w(k, { s: store_word() }) : null; };
 
   async function call(method, body) {
     try {
@@ -101,7 +114,7 @@ const SETTINGS = (() => {
   async function save(name, value, quiet) {
     const r = await call("POST", { name, value });
     if (r.ok && r.data && r.data.version) ST = r.data;
-    if (!quiet || (!r.ok && r.data && r.data.reason === "newer")) toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "newer" ? w("newer") : w("failed", { x: (r.data && r.data.error) || r.status }));
+    if (!quiet || (!r.ok && r.data && r.data.reason === "newer")) toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "newer" ? w("newer") : said_err(r) || w("failed", { x: (r.data && r.data.error) || r.status }));
     return r.ok;
   }
 
@@ -182,7 +195,8 @@ const SETTINGS = (() => {
     const anySaved = list.some((s) => s.keys.some((k) => k.saved));
     const keyRow = (s, k) => {
       const label = (W.zh["k_" + k.name] ? w("k_" + k.name) : w("k_key")), status = w(k.source === "env" ? "st_env" : k.source === "studio" ? "st_studio" : "st_none");
-      if (EDIT === k.name) return `<div class="sv-key"><span class="st-dim">${esc(label)}</span><form class="sv-form" data-sv-form="${esc(k.name)}"><input type="password" autocomplete="off" spellcheck="false" id="svIn" placeholder="${esc(w("ph", { s: w("sv_" + s.module) }))}" aria-label="${esc(w("sv_" + s.module))} · ${esc(label)}"><button type="submit" class="btn">${esc(w("b_save"))}</button><button type="button" class="btn btn-quiet" data-sv-cancel>${esc(w("b_cancel"))}</button></form></div>`;
+      // (no <form> and no password box: a browser would offer to keep the key in its own password manager; the box is masked by its style)
+      if (EDIT === k.name) return `<div class="sv-key"><span class="st-dim">${esc(label)}</span><div class="sv-form" data-sv-form="${esc(k.name)}"><input type="text" class="sv-in" autocomplete="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" id="svIn" placeholder="${esc(w("ph", { s: w("sv_" + s.module) }))}" aria-label="${esc(w("sv_" + s.module))} · ${esc(label)}"><button type="button" class="btn" data-sv-save>${esc(w("b_save"))}</button><button type="button" class="btn btn-quiet" data-sv-cancel>${esc(w("b_cancel"))}</button></div>${SVERR[k.name] ? `<p class="st-note sv-err" role="alert">${esc(SVERR[k.name].k ? w(SVERR[k.name].k, { s: store_word() }) : SVERR[k.name].x)}${["e_not_kept", "sv_none"].includes(SVERR[k.name].k) ? ` <a href="${esc(HOWTO())}" target="_blank" rel="noopener">${esc(w("how"))} ↗</a>` : ""}</p>` : ""}</div>`;
       const acts = store === "none" ? "" : k.saved ? `<button type="button" class="btn btn-quiet xs" data-sv-edit="${esc(k.name)}">${esc(w("b_replace"))}</button><button type="button" class="btn btn-quiet xs${ARM === k.name ? " warn" : ""}" data-sv-clear="${esc(k.name)}">${esc(w(ARM === k.name ? "b_clear_sure" : "b_clear"))}</button>`
         : k.source === "env" ? "" : `<button type="button" class="btn xs" data-sv-edit="${esc(k.name)}">${esc(w("b_set"))}</button>`;
       return `<div class="sv-key"><span class="st-dim">${esc(label)}</span><span class="sv-st${k.source ? " on" : ""}">${esc(status)}</span><span class="sv-acts">${acts}</span>${ARM === k.name ? `<p class="st-note">${esc(w("clear_note"))}</p>` : ""}</div>`;
@@ -195,11 +209,10 @@ const SETTINGS = (() => {
         + s.keys.map((k) => keyRow(s, k)).join("")
         + `${said ? `<p class="st-note sv-test${t && t.state === "ok" ? " ok" : ""}">${esc(said)}</p>` : ""}${s.key_url ? `<a class="sv-get" href="${esc(s.key_url)}" target="_blank" rel="noopener">${esc(w("get_key"))} ↗</a>` : ""}</section>`;
     };
-    const names = list.flatMap((s) => s.keys.map((k) => k.name)).join(", ");
     return `<p class="st-lead">${esc(w("sv_lead"))}</p>`
-      + (store === "none" ? `<p class="st-note">${esc(w("sv_none", { v: names }))}</p>` : anySaved ? `<p class="st-note sv-kept">${esc(w(store === "keychain" ? "sv_kept_keychain" : "sv_kept_secret"))}</p>` : "")
+      + (store === "none" ? `<p class="st-note">${esc(w("sv_none"))} <a href="${esc(HOWTO())}" target="_blank" rel="noopener">${esc(w("how"))} ↗</a></p>` : anySaved ? `<p class="st-note sv-kept">${esc(w(store === "keychain" ? "sv_kept_keychain" : "sv_kept_secret"))}</p>` : "")
       + list.map(card).join("")
-      + `<p class="st-note st-foot">${esc(w("sv_env_note"))}<br>${esc(w("sv_budget", { x: L.budget || w("f_unset") }))}</p>`;
+      + `<p class="st-note st-foot">${store === "none" ? "" : `${esc(w("sv_env_note"))}<br>`}${esc(w("sv_budget", { x: L.budget || w("f_unset") }))}</p>`;
   }
   function films() {
     const L = (ST.local && ST.local.lines) || {}, M = ST.mirror || {};
@@ -248,27 +261,36 @@ const SETTINGS = (() => {
     if (b) choose(b);
   });
   document.addEventListener("click", async (e) => {   // the services' buttons (the page's own clicks only)
-    const b = e.target.closest(".settings [data-sv-edit], .settings [data-sv-cancel], .settings [data-sv-clear], .settings [data-sv-test]");
+    const b = e.target.closest(".settings [data-sv-edit], .settings [data-sv-cancel], .settings [data-sv-save], .settings [data-sv-clear], .settings [data-sv-test]");
     if (!b || !e.isTrusted) return;
-    if (b.dataset.svEdit) { EDIT = b.dataset.svEdit; ARM = ""; draw(); const i = $("#svIn"); if (i) i.focus(); return; }
-    if (b.hasAttribute("data-sv-cancel")) { EDIT = ""; draw(); return; }
+    if (b.dataset.svEdit) { EDIT = b.dataset.svEdit; ARM = ""; SVERR = {}; draw(); const i = $("#svIn"); if (i) i.focus(); return; }
+    if (b.hasAttribute("data-sv-cancel")) { EDIT = ""; SVERR = {}; draw(); return; }
+    if (b.hasAttribute("data-sv-save")) return sendKey(b.closest("[data-sv-form]"));
     if (b.dataset.svClear) {
       if (ARM !== b.dataset.svClear) { ARM = b.dataset.svClear; EDIT = ""; draw(); return; }
-      ARM = ""; await save("key:" + b.dataset.svClear, null); draw(); return;
+      ARM = ""; const r = await call("POST", { name: "key:" + b.dataset.svClear, value: null });
+      if (r.ok && r.data && r.data.version) ST = r.data;
+      toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "not_kept" ? w("e_not_cleared", { s: w(ST && ST.store === "secret-service" ? "s_secret" : "s_keychain") }) : said_err(r) || w("failed", { x: (r.data && r.data.error) || r.status }));
+      draw(); return;
     }
     const m = b.dataset.svTest; TESTS[m] = "wait"; draw();
     const r = await call("POST", { name: "test:" + m });
     TESTS[m] = r.ok && r.data && r.data.probe ? r.data.probe : { state: "failed", note: r.status === 403 ? w("nokey") : String((r.data && r.data.error) || r.status) };
     if (parse().view === "settings") draw();
   });
-  document.addEventListener("submit", async (e) => {   // a key typed into the box: sent once, the box emptied at once, never kept in the page
-    const f = e.target.closest(".settings [data-sv-form]");
-    if (!f) return;
-    e.preventDefault();
-    const i = f.querySelector("input"), v = i.value.trim(); i.value = "";
-    if (!v || !e.isTrusted) return;
-    const name = f.dataset.svForm; EDIT = "";
-    await save("key:" + name, v); draw();
+  async function sendKey(f) {   // a key typed into the box: sent once, the box emptied at once, never kept in the page
+    const i = f && f.querySelector("input");
+    if (!i) return;
+    const v = i.value.trim(), name = f.dataset.svForm; i.value = "";
+    if (!v) return;
+    const r = await call("POST", { name: "key:" + name, value: v });
+    if (r.ok && r.data && r.data.version) { ST = r.data; EDIT = ""; SVERR = {}; toast(w("saved")); }
+    else SVERR = { [name]: r.status === 403 ? { k: "nokey" } : why_err(r) ? { k: why_err(r) } : { x: w("failed", { x: (r.data && r.data.error) || r.status }) } };   // the box stays open, empty, with what to do next
+    if (parse().view === "settings") { draw(); const n = $("#svIn"); if (n && EDIT) n.focus(); }
+  }
+  document.addEventListener("keydown", (e) => {   // Enter in the key's box sends it (there is no form to submit)
+    if (e.key !== "Enter" || !e.isTrusted || e.isComposing || !(e.target.matches && e.target.matches(".settings .sv-in"))) return;
+    e.preventDefault(); sendKey(e.target.closest("[data-sv-form]"));
   });
   document.addEventListener("change", async (e) => {
     const s = e.target.closest(".settings select[data-set]");

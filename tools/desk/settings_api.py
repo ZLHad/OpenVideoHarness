@@ -112,8 +112,7 @@ def services():
             continue
         ks = []
         for n in names:
-            saved = bool(K.stored(n))
-            ks.append({"name": n, "source": "env" if os.environ.get(n) else "studio" if saved else None, "saved": saved})
+            ks.append({"name": n, "source": K.source(n), "saved": bool(K.stored(n))})   # (the store asked once per name: tools/keys.py)
         out.append({"module": m["name"], "keys": ks, "cost": m.get("cost"), "key_url": m.get("key_url"), "probe": bool(m.get("probe"))})
     return out
 
@@ -226,6 +225,10 @@ def post(handler):
                 raise OSError(f"{A.picks_path()} was not written")
         else:
             raise ValueError(f"{name}: not a setting Studio changes")
+    except K.NotAKey as e:   # (tools/keys.py's messages name the key's variable, never the key; the page says them in its own words)
+        return handler._error(400, str(e), "not_a_key")
+    except K.NotKept as e:
+        return handler._error(500, f"could not keep it: {e}", "no_store" if K.store_kind() == "none" else "not_kept")
     except S.Newer:
         return handler._error(409, "this computer's settings file was written by a newer OpenVideoHarness: not written over", "newer")
     except PermissionError as e:
@@ -233,5 +236,5 @@ def post(handler):
     except ValueError as e:
         return handler._error(400, str(e))
     except OSError as e:
-        return handler._error(500, f"could not keep it: {e}")   # (tools/keys.py's messages name the key's variable, never the key)
+        return handler._error(500, f"could not keep it: {e}")
     return handler._json(state(handler.server.agents, handler.server.roots))

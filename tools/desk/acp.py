@@ -22,7 +22,9 @@ GUARD = Path(__file__).resolve().parent / "acp_guard.py"
 KEEP_ENV = ("HOME", "USER", "LOGNAME", "SHELL", "LANG", "TMPDIR", "PATH",
             # a proxy or a company's certificates the person's login goes through
             "HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "all_proxy", "no_proxy",
-            "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE")
+            "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE",
+            # not a secret: "no password store" (tools/keys.py), so a console under tools/ci.sh starts agents that find no saved key
+            "OVH_KEYSTORE")
 # a key in the environment would bill the person's API account instead of using their subscription, and the host's
 # session variables (a Claude Code running the desk) would point the agent at the host's own endpoint and state
 DROP_PREFIX = ("ANTHROPIC_", "CLAUDE", "OPENAI_", "CODEX_", "DEEPSEEK_", "GEMINI_", "GOOGLE_API", "AWS_", "AZURE_")
