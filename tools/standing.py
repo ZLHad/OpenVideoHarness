@@ -59,7 +59,7 @@ WORDS = {
     "cmd.captions": ("做字幕", "making the subtitles", "the subtitles"), "cmd.cues": ("对时间", "lining up the timing", "the timing"),
     "cmd.readcheck": ("查字停得够不够久", "checking the words stay long enough to read", "the reading-time check"), "cmd.textcheck": ("查画面文字", "checking the text on screen", "the text check"),
     "cmd.timeline": ("排时间线", "laying out the timeline", "the timeline"), "cmd.peaks": ("画波形", "drawing the waveform", "the waveform"),
-    "cmd.bgm": ("配乐", "picking the music", "the music"), "cmd.voices": ("试听声音", "trying voices", "the voice trial"),
+    "cmd.bgm": ("配乐", "picking the music", "the music"), "cmd.voices": ("试听声音", "trying voices", "the voice trial"), "cmd.pace": ("调配音的快慢", "evening out the voice's pace", "the voice's pace"),
     "cmd.edit": ("排剪辑表", "laying out the edit", "the edit"), "cmd.footage": ("找素材", "finding footage", "the footage"),
     "cmd.rhythm": ("画节奏图", "drawing the rhythm chart", "the rhythm chart"), "cmd.beats": ("找节拍", "finding the beats", "the beats"),
     "cmd.determinism": ("查同一帧重渲是否一样", "checking a frame renders the same twice", "the same-frame check"), "cmd.hf": ("跑引擎", "running the engine", "the engine run"),
@@ -124,6 +124,18 @@ WORDS = {
     "gap.cut": ("初版还没定", "the first draft is not decided yet"), "gap.check": ("成片没过检查", "the film has not passed its check"),
     "gap.final": ("正式版还没做好或还没检查", "the final is not made or not checked yet"),
     "setup": ("引擎还没装好。", "The engine is not set up yet."),
+    # a command stopped because a service's API Key is not set, and it still is not (tools/keys.py)
+    "needs_key": ("{x}停下了：还没有 {s} 的 API Key。", "{T} stopped: there's no {s} API Key yet."),
+    "needs_key.more": ("在设置 → 服务里填上，再让 agent 接着做。", "Set it up in Settings → Services, then ask the agent to carry on."),
+    "needs_key.voice": ("不想用在线服务，也可以让 agent 换成这台电脑上的声音。", "Or ask the agent to use this computer's own voice, with no service."),
+    "needs_key.voice_say": ("不想用在线服务，也可以让 agent 换成 macOS 自带的声音（够打草稿）。", "Or ask the agent to use macOS's own voice, with no service (good enough for a draft)."),
+    "needs_key.image_codex": ("也可以让 agent 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "Or ask the agent to make the pictures with Codex, on the ChatGPT plan, with no API Key."),
+    "needs_key.only": ("这台电脑上没有不用 API Key 的办法。", "This computer has no way to do it without an API Key."),
+    "needs_key.timing": ("不想用在线服务，也可以让 agent 在这台电脑上对时间。", "Or ask the agent to time the words on this computer, with no service."),
+    "needs_key.music": ("不想用在线服务，也可以让 agent 在这台电脑上作曲。", "Or ask the agent to compose the music on this computer, with no service."),
+    "needs_key.short": ("等 API Key", "waiting for an API Key"),
+    "svc.gemini": ("Gemini", "Gemini"), "svc.minimax": ("MiniMax", "MiniMax"), "svc.elevenlabs": ("ElevenLabs", "ElevenLabs"),
+    "svc.dashscope": ("阿里云百炼", "Alibaba Cloud Model Studio"),
     "setup.more": ("agent 接着做时会先装它（要联网）。", "The agent sets it up first when it carries on (it needs the network)."),
     "setup.short": ("引擎还没装好", "engine not set up"),
     "unknown": ("读不出这支片子现在到哪了。", "Where this film stands could not be worked out."), "unknown.short": ("读不出", "unreadable"),
@@ -133,6 +145,7 @@ WORDS = {
     "next": ("下一步是{s}。", "Next: {s}."), "next.notes": ("下一步：照你的意见改{s}。", "Next: {s}, changed as your notes say."),
     # the buttons, and the words a tell button sends (only these words, numbers and times: nothing else from the project)
     "act.look": ("去{v}{s}", "{V} {s}"), "act.revision": ("去复审", "Review the change"), "act.ship": ("打开交付", "Open the delivery"),
+    "act.settings": ("去设置 → 服务", "Open Settings → Services"),
     "act.go_cut": ("去看初版", "Go to the first draft"), "act.go_ship": ("去看交付", "Go to the delivery"),
     "act.carry": ("让 agent 接着做", "Ask the agent to carry on"), "act.fetch": ("让 agent 来看意见", "Ask the agent to read your notes"),
     "act.carry_open": ("它要是没反应，在这里叫一个 agent 接着做", "If it does not answer, ask an agent here to carry on"),
@@ -434,6 +447,62 @@ def act_open(mod, label, sub=None):
     return {"kind": "open", "mod": mod, "sub": sub, "label": label}
 
 
+def act_settings(label, sub):
+    return {"kind": "settings", "mod": None, "sub": sub, "label": label}
+
+
+DOES = {"tts": {"voice", "timing"}, "voices": {"voice"}, "pace": {"timing"}, "music": {"music"}, "image": {"image"}}   # the kinds of work a run that ended fine did
+NEED_OF = {"tts": "voice", "voices": "voice", "pace": "timing", "music": "music", "image": "image"}   # a record that does not say what its key was for
+
+
+def need_of(r):
+    return (r.get("error") or {}).get("need") or NEED_OF.get(r.get("cmd"))
+
+
+def key_stop(runs):
+    """The newest finished run that stopped for want of an API Key (code no_key) that nothing after it settled, or None.
+    A later run that did the same kind of work fine settles it (a voice-over clears a voice or a timing stop; a picture an
+    image stop); a later run of anything that failed or was cut off takes the line, since it is newer news; one stopped on
+    purpose, and the console's own run, count for neither. The whole log is read (bin/vh status passes it as
+    activity.key_stop), not a window of the last few runs."""
+    done = [r for r in runs if r.get("state") in ("ok", "failed", "gone") and r.get("cmd") != "desk"]
+    at = max((i for i, r in enumerate(done) if r.get("state") == "failed" and (r.get("error") or {}).get("code") == "no_key"), default=None)
+    if at is None:
+        return None
+    need = need_of(done[at])
+    for r in done[at + 1:]:
+        if r.get("cancelled") or r.get("exit") in (130, 143):
+            continue
+        if r.get("state") == "gone" or r.get("exit") != 0:
+            return None
+        if need in DOES.get(r.get("cmd"), ()):
+            return None
+    return done[at]
+
+
+def needs_key(o):
+    """The run that stopped for want of a service's API Key (key_stop) while that key is still not set: (run, the key names
+    it waits on, the service, what the key was for), or None. Once a key it names is set (in Studio or the environment),
+    the film waits no more."""
+    act = o.get("activity") or {}
+    r = act["key_stop"] if "key_stop" in act else key_stop(act.get("recent") or [])
+    if not r:
+        return None
+    try:
+        import keys
+    except Exception:
+        return None
+    err = r.get("error") or {}
+    names = [n for n in err.get("keys") or [] if n in keys.KEY_NAMES] or [n for n in keys.KEY_NAMES if re.search(r"\b" + n + r"\b", err.get("message") or "")]
+    try:
+        left = keys.wanted(names)
+    except Exception:
+        left = []
+    if not left:
+        return None
+    return r, left, (keys.module_of(left[0]) or {}).get("name"), need_of(r)
+
+
 def act_tell(label, text, confirm=False, secondary=False):
     return {"kind": "tell", "label": label, "text": text, "confirm": bool(confirm), "secondary": bool(secondary)}
 
@@ -529,6 +598,18 @@ def of(project, o, now=None):
                    paths=([film] if film and not gone else []) + subs, film=film, subtitles=subs, version=vid)
     if any(s["state"] == "no_record" for s in st):
         return say("no_record", who, "none", both("no_record"), [both("no_record.more")])
+    nk = needs_key(o)
+    if nk:   # only the person can give a key: what to do and where, and what works without one
+        r, names, svc, need = nk
+        c, sv = cmd_words(r), both(f"svc.{svc}") if f"svc.{svc}" in WORDS else two(svc or "", svc or "")
+        try:   # what does the same work with no key on this computer (the platform decides: tools/keys.py)
+            import keys
+            way = keys.local_way(need)[0] if need else None
+        except Exception:
+            way = None
+        return say("needs_key", who, "decide", two(w("needs_key", 0, x=c[0], s=sv["zh"]), w("needs_key", 1, T=cap(c[2]), s=sv["en"])),
+                   [both("needs_key.more"), both(f"needs_key.{way}" if way else "needs_key.only")], both("needs_key.short"),
+                   act_settings(both("act.settings"), "services"), cmd=r.get("cmd"), keys=names, service=svc, need=need)
     # the agent's move, and nothing works on the film now: the last thing seen and when; "stopped" only on positive evidence
     do = (o.get("next_step") or {}).get("do") or ""
     made = (o.get("media") or {}).get("film") or next((r["path"] for r in o.get("renders") or []), None)

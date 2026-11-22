@@ -15,6 +15,7 @@ The codes are stable; a client branches on them, not on the words:
   exists        what it would make is there already
   refused       a rule says no: a page that breaks one, a render before gate ① is on record
   missing_tool  a program it needs is not installed (the hint says which way to get it)
+  no_key        a service's API Key is not set (tools/keys.py says which and where; bin/vh status says it while the film waits)
   timeout       it waited as long as it was told to
   failed        anything else that went wrong while it worked (exit 1 as a rule)
 A record the command prints of its own stays as it is: bin/vh check --json on a film it cannot read, bin/vh doctor --json
@@ -50,17 +51,17 @@ def record(code, message, hint=None):
     return {"version": 1, "error": {"code": code, "message": message, "hint": hint if hint is not None else HINTS.get(code)}}
 
 
-def _note(code, message):
+def _note(code, message, **extra):
     try:
         import activity
-        activity.note(message, level="error", code=code)
+        activity.note(message, level="error", code=code, **extra)
     except Exception:   # the failure is said all the same
         pass
 
 
-def report(code, message, hint=None):
-    """The failure on record, once a run: JSON on stdout with --json (unless a record is out already), a note in the log. The
-    line a person reads is the caller's."""
+def report(code, message, hint=None, **extra):
+    """The failure on record, once a run: JSON on stdout with --json (unless a record is out already), a note in the log
+    (with extra's fields: no_key's need and keys). The line a person reads is the caller's."""
     global _said
     if _said:
         return
@@ -71,7 +72,7 @@ def report(code, message, hint=None):
         hint = activity.scrub(activity._text(str(hint))) if hint is not None else None
     except Exception:
         message = str(message)
-    _note(code, message)
+    _note(code, message, **extra)
     if wanted() and not (_out is not None and _out.count):
         print(json.dumps(record(code, message, hint), ensure_ascii=False), flush=True)
 

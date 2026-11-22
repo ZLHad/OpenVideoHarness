@@ -5,6 +5,11 @@ password store (macOS: the Keychain; Linux: the Secret Service through secret-to
 A key never goes into a file, a log, a URL, an event or the page, and never onto a command line (where the process list
 shows it): it is written to the store through standard input. Only names in KEY_NAMES are read or written here.
 
+A command that stops because a key is missing says one sentence, the same everywhere (missing()): which service and key,
+where to set it (Studio's Settings → Services, or the environment), where to get one, and what works with none; stopping()
+also puts it on the run's record with the code no_key (tools/jsonerr.py), which bin/vh status and Studio say while the
+film waits on that key (tools/standing.py).
+
 usage: python3 tools/keys.py has <NAME>       exit 0 when a command would find that key (environment or store), else 1
        python3 tools/keys.py where            each name: env, studio or -, and what kind of store this computer has
        (there is no command that prints a key)
@@ -25,7 +30,7 @@ their own, OVH_SECRET_TOOL a stand-in for secret-tool (Linux); OVH_KEYSTORE=none
 OVH_KEYSTORE=none for all its checks and passes it on where a check builds an environment of its own (acp.clean_env
 keeps it too); a check that never set it still runs with a scratch HOME, whose search list has no keychain of the person's.
 """
-import json, os, re, shutil, subprocess, sys
+import json, os, platform, re, shutil, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -174,6 +179,83 @@ def clear(name):
     _FOUND[name] = _lookup(name)
     if _FOUND[name]:
         raise NotKept(f"{name} is still saved ({kind} did not take it out)")
+
+
+SERVICE = {"gemini": "Gemini", "minimax": "MiniMax", "elevenlabs": "ElevenLabs", "dashscope": "Alibaba Cloud Model Studio"}   # as Studio's page names them
+
+
+def module_of(name):
+    """tools/modules.json's service whose keys include this name, or None."""
+    try:
+        t = json.loads((ROOT / "tools" / "modules.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return next((m for m in t.get("modules") or [] if name in ((m.get("needs") or {}).get("keys") or [])), None)
+
+
+def missing(names, instead=None):
+    """The sentence for a command that stops because none of these keys (one service's) is set."""
+    names = [names] if isinstance(names, str) else list(names)
+    m = module_of(names[0]) or {}
+    said = " or ".join(names)
+    s = f"no {SERVICE.get(m.get('name'), m.get('name') or 'service')} API Key ({said}): paste one into Studio's Settings → Services"
+    if m.get("key_url"):
+        s += f" (get one at {m['key_url']})"
+    s += f", or set {said} in the environment"
+    return s + (f"; {instead}" if instead else "")
+
+
+def machine():
+    """(sys.platform, the processor): what decides the ways that need no key (a check fakes it)."""
+    return sys.platform, platform.machine()
+
+
+def has_codex():
+    return shutil.which("codex") is not None   # as bin/vh doctor finds it (tools/modules.json's codex: the program on PATH)
+
+
+def local_way(need, align="--align local", size=None):
+    """What does the same work with no API Key here: (word, the command's words). word is what tools/standing.py says
+    (voice, voice_say, timing, music, image_codex), None when this computer has no such way (the words say so plainly, or
+    are None). need: voice | timing | music | image."""
+    plat, cpu = machine()
+    apple = plat == "darwin" and cpu == "arm64"
+    if need == "voice":
+        if apple:
+            return "voice", "or leave the provider out for this computer's own voice, which needs no key (qwen, free" + (f", about {size} on first use)" if size else ")")
+        if plat == "darwin":
+            return "voice_say", "or --provider say, macOS's own voice on this computer, which needs no key (free; good enough for a draft)"
+        return None, "this computer has no voice of its own that needs no key (the local one, qwen, runs only on Apple Silicon); --provider edge needs none, but it is an online service"
+    if need == "timing":
+        if apple:
+            return "timing", f"or {align}, which times the words on this computer with no key"
+        return None, f"this computer has no way of its own to time the words ({align} runs only on Apple Silicon)"
+    if need == "music":
+        return "music", "or bin/vh music without --provider, composed on this computer with no key"
+    if need == "image":
+        return ("image_codex", "or --provider codex, on the ChatGPT plan Codex is signed in with (no API Key)") if has_codex() else (None, None)
+    return None, None
+
+
+def stopping(names, need=None, tail=None, align="--align local", size=None):
+    """missing() with what works with no key here (local_way), put on the run's record with the code no_key, what the key
+    was for (need) and its names (once a run; nothing outside a logged run): → the sentence, for the caller to print and
+    stop with."""
+    names = [names] if isinstance(names, str) else list(names)
+    instead = "; ".join(x for x in (local_way(need, align, size)[1], tail) if x) or None
+    msg = missing(names, instead)
+    try:
+        import jsonerr
+        jsonerr.report("no_key", msg, "Studio's Settings → Services takes the key", need=need, keys=names)
+    except Exception:   # the sentence is said all the same
+        pass
+    return msg
+
+
+def wanted(names):
+    """The key names a no_key message names that are still not set: [] once any of them is (the film waits no more)."""
+    names = [n for n in names if n in KEY_NAMES]
+    return [] if any(get(n) for n in names) else names
 
 
 def main(argv):

@@ -133,7 +133,7 @@ def cmd_gen(a):
         say("  nothing called (--dry-run)")
         return 0
     if not a.offline and not keys.get("GEMINI_API_KEY"):
-        raise Usage("set GEMINI_API_KEY (Google AI Studio → Get API key), or save it in Studio's settings (Services)")
+        raise Usage(keys.stopping("GEMINI_API_KEY", "music"))
     if not chk["ok"]:
         raise Failed(f"{chk['message']} (--dry-run shows the price)")
     folder = project / GENMUSIC / cid
@@ -255,7 +255,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    import activity   # bin/vh exec's into this (cmd_music): this process writes the run's end, or the run reads as cut off
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(activity.exiting(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

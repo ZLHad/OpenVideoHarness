@@ -11,7 +11,7 @@
    "type": "object",
    "required": ["code", "message", "hint"],
    "properties": {
-    "code": {"enum": ["usage", "no_project", "not_found", "invalid", "exists", "refused", "missing_tool", "timeout", "failed"]},
+    "code": {"enum": ["usage", "no_project", "not_found", "invalid", "exists", "refused", "missing_tool", "no_key", "timeout", "failed"]},
     "message": {"type": "string"},
     "hint": {"type": ["string", "null"]}
    }
