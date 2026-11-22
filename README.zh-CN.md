@@ -438,7 +438,22 @@ bash install.sh --no-icon                        # 不把 OVH Studio 放进应�
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。
 - 第一次渲染、第一次用声音工具时还会往 `~/.cache` 下载：Chrome 约 200 MB，声音工具的 Python 依赖约 0.7 GB，默认的本地配音约 2.6 GB（依赖 0.8 GB、模型 1.8 GB；`bin/vh tts` 开始前会先说，并显示进度；`--provider edge` 只要一个小包）；`--align local` 用的本地 Whisper 另需约 3.6 GB，同样先说（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。国内网络：安装时先试官方的 npm 源、Hugging Face 和 Google 的存储（各试两次），哪个连不上、它的国内镜像连得上，就改用国内镜像（npmmirror、清华 TUNA、hf-mirror，列在 `tools/mirrors.txt`），并说明是哪个、为什么。之后 `bin/vh` 起的下载都跟着走：npm、Python 包、本地配音模型、Electron、渲染用的 Chrome，还有 Studio 起的 agent 自己跑的 `npm`、`uv`。你自己设过的源（`.npmrc`、`uv.toml` 或那个变量）不动。`bin/vh settings mirror off` 关掉；这之前装的，`bin/vh settings mirror cn` 打开。不走镜像的：GitHub（克隆本身、`references/fetch.sh`、`--obscura`）、`bin/vh hf add`、`bin/vh hdri`（Poly Haven），以及手绘引擎的 studio 页面加载的 Google Fonts。其余细节见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 
-只装 skill：`npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。它只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。这样装的是整份副本，仓库更新了它不变；工作台装好以后跑一次 `bin/vh install-skill`，换成跟随克隆的短桩。
+只装 skill，作为 agent 的插件装（各两条终端命令；`--sparse` 只取插件自己的目录，约 2 MB，不拉整个仓库）：
+
+```bash
+claude plugin marketplace add ZLHad/OpenVideoHarness --sparse .claude-plugin plugins/open-video-harness
+claude plugin install open-video-harness@open-video-harness
+```
+
+```bash
+codex plugin marketplace add ZLHad/OpenVideoHarness --sparse .agents/plugins --sparse plugins/open-video-harness
+codex plugin add open-video-harness@open-video-harness
+```
+
+也可以 `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。装上的都只是指针：第一次用时先征得你同意，再装工作台本身（就是上面那份克隆）。
+- **更新**：插件只在版本号变了的时候更新，版本号只在 skill 改了的时候变。Claude Code 先 `claude plugin marketplace update open-video-harness`，再 `claude plugin update open-video-harness@open-video-harness`；Codex 先 `codex plugin marketplace upgrade`，再重新 `codex plugin add open-video-harness@open-video-harness`。
+- **`npx skills add` 装的副本不会跟着变**：工作台装好以后，`bin/vh install-skill` 会写跟随克隆的短桩，`bin/vh doctor` 也会提到那份副本。
+- **插件和安装脚本的短桩都装了时**，agent 里会列出两个（`open-video-harness` 和 `open-video-harness:open-video-harness`），走到的是同一个工作台。只留一个的话，卸掉插件（`claude plugin uninstall open-video-harness@open-video-harness`、`codex plugin remove open-video-harness@open-video-harness`），或者安装时加 `--no-skill`。
 
 ## 文档地图
 

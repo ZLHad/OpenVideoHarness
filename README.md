@@ -438,7 +438,22 @@ bash install.sh --no-icon                        # leave OVH Studio out of your 
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
 - The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, the sound tools' Python packages about 0.7 GB, and the default local voice about 2.6 GB (its packages 0.8 GB, its model 1.8 GB), which `bin/vh tts` says before it starts and shows the progress of (`--provider edge` needs only a small package). The local Whisper behind `--align local` is about 3.6 GB more, said the same way (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). Where the official sources are blocked: the installer tries the official npm registry, Hugging Face and Google's storage first (twice each), and when one does not answer and its mainland-China mirror does, it switches to the mirrors (npmmirror, Tsinghua's TUNA, hf-mirror, listed in `tools/mirrors.txt`) and says which and why. From then on the downloads `bin/vh` starts follow: npm, Python packages, the local voice's model, Electron, the Chrome renders use, and an agent's own `npm` or `uv` in a session Studio started. A registry you set yourself (an `.npmrc`, a `uv.toml`, the variable) stays yours. `bin/vh settings mirror off` turns it off; installed before this, `bin/vh settings mirror cn` turns it on. Not covered: GitHub (the clone itself, `references/fetch.sh`, `--obscura`), `bin/vh hf add`, `bin/vh hdri` (Poly Haven) and the Google Fonts the hand-drawn engine's studio page loads. More on the wiki's [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) page.
 
-Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. It's a pointer: on first use it asks before installing the full workbench. That copy stays as it was when the repo changes; once the workbench is installed, `bin/vh install-skill` replaces it with a stub that follows the clone.
+Skill only, as a plugin of the agent's (two shell commands each; `--sparse` fetches the plugin's own folders, about 2 MB, not the whole repo):
+
+```bash
+claude plugin marketplace add ZLHad/OpenVideoHarness --sparse .claude-plugin plugins/open-video-harness
+claude plugin install open-video-harness@open-video-harness
+```
+
+```bash
+codex plugin marketplace add ZLHad/OpenVideoHarness --sparse .agents/plugins --sparse plugins/open-video-harness
+codex plugin add open-video-harness@open-video-harness
+```
+
+Or `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`. Each is a pointer: on first use it asks before installing the workbench itself (the clone above).
+- **Updates.** The plugin changes only when its version does, and that happens when the skills change. Claude Code takes a new one after `claude plugin marketplace update open-video-harness` and `claude plugin update open-video-harness@open-video-harness`. Codex takes it after `codex plugin marketplace upgrade`, then `codex plugin add open-video-harness@open-video-harness` again.
+- **The `npx skills add` copy stays as it was.** Once the workbench is installed, `bin/vh install-skill` writes stubs that follow the clone, and `bin/vh doctor` says the copy is there.
+- **With both the plugin and the installer's stubs**, an agent lists the skill twice (`open-video-harness` and `open-video-harness:open-video-harness`). Both reach the same workbench. To keep one, remove the plugin (`claude plugin uninstall open-video-harness@open-video-harness`, `codex plugin remove open-video-harness@open-video-harness`), or install with `--no-skill`.
 
 ## Where things are
 
