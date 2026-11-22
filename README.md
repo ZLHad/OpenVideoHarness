@@ -410,20 +410,20 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 
 ## Install options and updates
 
-By default the installer registers the skills for both agents and fetches 37 read-only reference repos. It uses about 650 MB on disk, or 380 MB with `--no-refs`. The Studio app uses about 380 MB more, including its cached installer.
+By default the installer registers the skills for both agents and uses about 400 MB on disk. The 37 read-only reference repos agents can read are not fetched then: an agent fetches the one a doc points to when it first needs it, saying its size first; `--refs` fetches them all now (about 300 MB more). The Studio app uses about 380 MB more, including its cached installer.
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
-bash install.sh --no-refs                        # skip the reference repos for now (references/fetch.sh later)
+bash install.sh --refs                           # fetch all 37 reference repos now (about 300 MB)
 bash install.sh --no-skill                       # don't register the global skill
 bash install.sh --no-icon                        # leave OVH Studio out of your applications (bin/vh studio --install-icon adds it later)
 ```
 
-- Nothing asks a question. On macOS and on a Linux desktop the installer puts OVH Studio, Studio's own window, in your applications (Electron: about 130 MB downloaded once, 260 MB on disk); when a step fails it says what to do next in one sentence. It ends with the two ways to start: click OVH Studio, or open Claude Code or Codex in the folder and say what film you want.
+- Nothing asks a question. On macOS and on a Linux desktop the installer puts OVH Studio, Studio's own window, in your applications (Electron: about 130 MB downloaded once, 260 MB on disk); when a step fails it says what to do next in one sentence. It ends with a few lines: ready for a first film or not, what it still needs and how to get it, how a voice comes on this machine, and the two ways to start: click OVH Studio, or open Claude Code or Codex in the folder and say what film you want (`bin/vh doctor` has the full report).
 - The installer fetches only the newest commit: the repo itself is about 95 MB to download and 200 MB on disk, before its packages and the reference repos. To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
 - To update, run the installer again with the same options (or `git pull`); `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed. The installed skills are short stubs that read `skills/` in the clone, so they follow the update; `bin/vh doctor` says in the rare case one needs `bin/vh install-skill` again.
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
-- The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, Python packages up to about 1.5 GB, and the default local voice's model about 2 GB (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
+- The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, the sound tools' Python packages about 0.7 GB, and the default local voice about 2.6 GB (its packages 0.8 GB, its model 1.8 GB), which `bin/vh tts` says before it starts and shows the progress of (`--provider edge` needs only a small package). The local Whisper behind `--align local` is about 3.6 GB more, said the same way (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)). If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
 
 Skill only, as a plugin of the agent's (two shell commands each; `--sparse` fetches the plugin's own folders, about 2 MB, not the whole repo):
 

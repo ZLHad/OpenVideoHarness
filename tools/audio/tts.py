@@ -145,6 +145,8 @@ import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, signa
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import firstuse   # noqa: E402  the big first downloads: their sizes, the line before them, their progress
 
 RESUME = None   # what a stop keeps for a resume, once a line is on disk
 
@@ -253,7 +255,7 @@ KEY_OF = {"gemini": "GEMINI_API_KEY (Google AI Studio → Get API key)", "gemini
 def no_key(provider):
     """Exit (1) on a provider with no key: the key it needs, and what works with none on this machine."""
     if sys.platform == "darwin" and platform.machine() == "arm64":
-        free = "the local default needs no key: leave the provider out, bin/vh tts <project> (qwen, free, about 2 GB on first use)"
+        free = "the local default needs no key: leave the provider out, bin/vh tts <project> (qwen, free, about " + firstuse.gb(firstuse.total(["qwen"])) + " on first use)"
     else:
         free = "the local default (qwen) needs no key but only runs on Apple Silicon; here --provider edge needs none (free, online)"
     sys.exit(f"set {KEY_OF[provider]} for {provider}; {free}")
@@ -269,6 +271,10 @@ def hf_cached(model_id):
         return True
     return os.path.isdir(os.path.join(constants.HF_HUB_CACHE, "models--" + model_id.replace("/", "--"), "snapshots"))
 
+# The provider bin/vh tts uses when none is named: the one place to change it (bin/vh asks: tts.py --default-provider).
+DEFAULT_PROVIDER = "qwen"
+QWEN_MODEL = firstuse.KINDS["qwen"]["model"]   # its size, and the line said before a first download: tools/audio/firstuse.py
+
 _QWEN = {}
 def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
     # Set before the libraries are imported, which is when they read them; one set outside wins (TRANSFORMERS_VERBOSITY=info).
@@ -276,23 +282,27 @@ def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
     # progress bar redrawn with \r is noise in output nobody watches live (an agent's).
     os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
     os.environ.setdefault("HF_HUB_VERBOSITY", "error")
+    stop = firstuse.progress("qwen")   # before the bars are turned off below: it reads whether they will show
     if not sys.stderr.isatty():
         os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
     import contextlib, io
     import numpy as np
     from mlx_audio.tts.utils import load_model  # provided by `uv run --with mlx-audio`
-    default = "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit"
-    model_id = os.environ.get("QWEN_TTS_MODEL", default)
+    model_id = os.environ.get("QWEN_TTS_MODEL", QWEN_MODEL)
     if model_id not in _QWEN:
-        print(f"  loading {model_id}" + ("" if hf_cached(model_id) else " (not downloaded yet: " + ("about 2 GB " if model_id == default else "")
-                                         + "into the Hugging Face cache, once)") + " …", flush=True)
-        said = io.StringIO()   # mlx-audio prints what it loads; shown only when loading fails
+        fresh = not hf_cached(model_id)
+        print(f"  loading {model_id}" + (" (not downloaded yet: " + (f"{firstuse.KINDS['qwen']['model_gb']} GB " if model_id == QWEN_MODEL else "")
+                                         + "into the Hugging Face cache, once)" if fresh else "") + " …", flush=True)
+        said = io.StringIO()   # mlx-audio prints what it loads; shown only when loading fails (the progress goes to the real stdout)
         try:
             with contextlib.redirect_stdout(said):
                 _QWEN[model_id] = load_model(model_id)
         except BaseException:
             sys.stdout.write(said.getvalue())
             raise
+        finally:
+            if stop:
+                stop.set()
     model = _QWEN[model_id]
     zh = lang.startswith("zh")
     kw = dict(text=text, speaker=voice or ("Serena" if zh else "Aiden"), language="Chinese" if zh else "English")
@@ -809,9 +819,14 @@ def transcribe_local(wav: Path, lang, vocab=None):
     the terms go into Whisper's initial prompt (it has no custom vocabulary)."""
     import mlx_whisper   # bin/vh tts adds it with --align local
     prompt = ("，".join(vocab) if vocab else None) or None
-    r = mlx_whisper.transcribe(str(wav), path_or_hf_repo=os.environ.get("WHISPER_MODEL", "mlx-community/whisper-large-v3-turbo"),
-                               word_timestamps=True, language=lang if lang in ("zh", "en", "ja", "ko") else None, condition_on_previous_text=False,
-                               initial_prompt=prompt)
+    stop = firstuse.progress("whisper")   # its model's first download (1.6 GB), where no progress bar shows
+    try:
+        r = mlx_whisper.transcribe(str(wav), path_or_hf_repo=firstuse.model_id("whisper"),
+                                   word_timestamps=True, language=lang if lang in ("zh", "en", "ja", "ko") else None, condition_on_previous_text=False,
+                                   initial_prompt=prompt)
+    finally:
+        if stop:
+            stop.set()
     words = [{"w": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
              for sg in r.get("segments", []) for w in sg.get("words", []) if str(w.get("word", "")).strip()]
     return str(r.get("text", "")).strip(), words
@@ -1151,8 +1166,10 @@ def usage_error(msg):   # a mistake in the command line: one line, exit 2 (a run
 def main():
     if sys.argv[1:2] == ["voices"] and (len(sys.argv) == 2 or sys.argv[2] in ("list", "design", "delete", "audition", "-h", "--help")):
         return voices_main(sys.argv[2:])
+    if sys.argv[1:] == ["--default-provider"]:   # for bin/vh tts, which picks the provider's packages before this runs
+        print(DEFAULT_PROVIDER); return
     ap = argparse.ArgumentParser()
-    ap.add_argument("project"); ap.add_argument("--provider", choices=PROVIDERS, help="default qwen (with --resume: the run's provider)")
+    ap.add_argument("project"); ap.add_argument("--provider", choices=PROVIDERS, help=f"default {DEFAULT_PROVIDER} (with --resume: the run's provider)")
     ap.add_argument("--voice"); ap.add_argument("--lang", choices=["zh", "en"], help="spoken side (default zh; en for an English-only script)")
     ap.add_argument("--gap", type=float, default=0.25); ap.add_argument("--instruct")
     ap.add_argument("--keep-edges", action="store_true", help="keep the silence the provider puts before/after each line")
@@ -1207,7 +1224,7 @@ def main():
             sys.exit(f"--resume: GEMINI_TTS_STYLE was {man.get('style_env')!r} for the run, now {os.environ.get('GEMINI_TTS_STYLE')!r};"
                      f" set it back, or drop --resume to start over")
         a.provider, a.voice, a.instruct, a.keep_edges = man["provider"], man["voice"], man.get("instruct"), man["keep_edges"]
-    a.provider = a.provider or "qwen"
+    a.provider = a.provider or DEFAULT_PROVIDER
     gemini = a.provider.startswith("gemini")
     timed = a.provider in WORD_TIMED                                 # word timing from the provider itself
     penv = {k: os.environ.get(k) for k in MINIMAX_ENV} if a.provider == "minimax" else {}

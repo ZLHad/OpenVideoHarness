@@ -109,7 +109,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 - **`font-weight: 800` 在 macOS 自带的 PingFang SC 上等于 600。** 现象：字幕规格写了字重 800，渲出来却不够粗，也没有报错。原因：PingFang SC 只有 6 个字重，从 Ultralight 到 Semibold（CSS 的 100–600），没有 Bold 和 Heavy；请求 700、800、900 都落到 600，实测渲出的字和 600 逐像素相同，浏览器也不会再合成粗体。解决：用 PingFang SC 就写 600，并在 STYLE.md 里记下；真要 800，自己带一个有这个字重的字体（Noto Sans SC 等，不联网的取法见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)），或者换一个有更粗字重的系统字体（比如 Songti SC 有 900，`styles/_swatch/README.md` 的字体表列了各字体实测可用的字重）。
 - **`--format png-sequence` 写出的是 RGBA，而且不画 `html`、`body` 的背景。** 那些地方 alpha = 0，元素自己的底色会留下。0.8.82 连合成根元素（带 `data-composition-id` 的那个）上的 `background` 也不画；0.8.202 画它，根元素有不透明的底色时整帧不透明，PNG 就成了不带 alpha 的 RGB（2026-10-26 用 html、body、根元素三种写法各测一遍）。做确定性检查时要留意，细节和比对办法见 `playbook/02-verification.md` 的"确定性"一节。
 - **现成的块和组件**（字幕样式、lower-third、转场、图表等，0.8.202 的 registry 有 448 个）：`bin/vh hf catalog <词>` 查，`bin/vh hf add <项目> <名字>` 装。它把项目的 `hyperframes.json` 钉到这个版本的 tag（HyperFrames 默认取 GitHub `main` 上最新的那份），装进来的文件记进素材台账，并提示里面用了 CSS 动画、`Math.random` 或联网加载的地方。
-- **不要运行 `npx hyperframes skills update`**。skill 文档已经拉到本地，直接读：`references/repos/hyperframes/skills/`（工作流和参考资料）、`references/repos/hyperframes/_upstream_claude/skills/`（motion-doctrine 等内部规范，写动画前先读 motion-doctrine）。
+- **不要运行 `npx hyperframes skills update`**。skill 文档在参考仓库里（没有就先 `bash references/fetch.sh hyperframes`，约 11 MB），直接读：`references/repos/hyperframes/skills/`（工作流和参考资料）、`references/repos/hyperframes/_upstream_claude/skills/`（motion-doctrine 等内部规范，写动画前先读 motion-doctrine）。
 - 想让所有项目都能用 `/hyperframes`、`/faceless-explainer` 等命令，可以装成 Claude Code 的用户级插件（`claude plugin marketplace add heygen-com/hyperframes && claude plugin install hyperframes@hyperframes`）。这会修改全局配置，**必须先征得用户同意**。
 - **没有 `@font-face` 的字体，渲染时会去 Google Fonts 取。** `render`、`snapshot`、`check` 每次运行都请求，连不上就挂住（render 停在 5% 的 "Compiling composition"）。lint 拦不住其中两种：它别名表里的名字（Arial、Helvetica Neue、Menlo 等）没有声明也算通过，渲染时被换成 Inter、JetBrains Mono 去取；以 `sans-serif` 这类通用族名开头的栈，前面会被补上 Inter。所以本机字体也写 `@font-face`、`src` 用 `local()`，栈里排第一的写声明过的字体，照 `bin/vh hf-init` 搭的脚手架做。渲染日志里出现 `[Compiler] Injected deterministic @font-face rules`，就是还有字体没声明。国内网络下的做法见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 - **字体里缺的字**：字体在、字不在时，浏览器换一个字体画这个字，哪个字体都没有就画成空的缺字字形（苹方的是空白），lint 和渲染都不报。`bin/vh fonts check <项目>` 用 HyperFrames 自己的运行时抽帧，查每个 clip 的 DOM 字和 canvas 字实际由哪个字体画（2026-10-12 在一台 Mac 上：showcase 00 的 "LF Mono" 里有三个汉字落到了苹方，showcase 02 的"Δ"落到了 Arial）。HyperFrames 渲染时把 Google 字体换成它缓存的一份，这个检查看的是页面声明的字体，所以 `local()` 和项目里的字体文件最准。
@@ -251,7 +251,7 @@ npx remotion studio                        # 预览
 ```
 
 - 许可：个人和 3 人以内的公司免费，超过这个规模需要购买授权。
-- 官方 skills 已拉到本地：`references/repos/remotion-skills/skills/`。
+- 官方 skills 在 `references/repos/remotion-skills/skills/`（没有就先 `bash references/fetch.sh remotion-skills`，约 2 MB）。
 
 ## Manim CE（Python），装进每个项目
 

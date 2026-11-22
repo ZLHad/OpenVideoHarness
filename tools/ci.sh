@@ -1268,8 +1268,9 @@ PY
   [ $rc = 2 ] && [ $a = 2 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
     || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
   rm -rf "$t"
-  # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"
+  # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it; a script is there,
+  # as with none tts writes the sample and fetches nothing)
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"; mkdir -p "$t/audio"; echo "A line." > "$t/audio/script.txt"
   a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" DASHSCOPE_API_KEY=ci vh tts "$t" --provider=dashscope)
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
@@ -1648,9 +1649,102 @@ print(sum("hold-confirm" in x for x in rows(row)))' 2>&1 | tr '\n' ' ')
   a=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import doctor as d
 print(d.references_note(0, 37, 0, d.install_says())); print(d.references_note(31, 37, 214e6, None))' 2>&1)
   b=$(grep -o 'reference repos (about [0-9.]* [MG]B' install.sh | grep -o '[0-9.]* [MG]B')
-  case "$a" in "0/37 repos fetched → bash references/fetch.sh (all 37: about $b;"*"31/37 repos fetched → bash references/fetch.sh (all 37: about 255 MB, at the size of the 31 here;"*)
+  case "$a" in "0/37 repos fetched; an agent fetches the one a doc points to when it first needs it"*"all 37 now: bash references/fetch.sh (about $b)"*"31/37 repos fetched;"*"(about 255 MB, at the size of the 31 here)"*)
       ok "doctor: the reference repos' size from the ones fetched (31 of 37 at 214 MB: about 255 MB), else as install.sh says it ($b)" ;;
     *) bad "doctor's line for the reference repos: $a (install.sh says: ${b:-nothing found})" ;; esac
+  # the reference repos come on first use: references/fetch.sh <dir> says what, from where and how big before it fetches one,
+  # for each kind of fetch (full, sparse, text only), through a stand-in git; one asked for by name that does not come exits 1;
+  # every repo has a size; an unknown name exits 2; a full fetch with no network is one line and exit 0; install.sh fetches
+  # them all only with --refs
+  ft=$(mktemp -d "${TMPDIR:-/tmp}/vh-fetch.XXXXXX"); mkdir -p "$ft/references" "$ft/bin"; cp references/fetch.sh "$ft/references/"
+  printf '#!/bin/sh\ncase "$1" in clone) [ -n "$FAIL" ] && { echo "fatal: could not resolve host" >&2; exit 128; }; for a; do d=$a; done; mkdir -p "$d/.git" ;; esac\nexit 0\n' > "$ft/bin/git"; chmod +x "$ft/bin/git"
+  fe() { env PATH="$ft/bin:$PATH" "$@" bash "$ft/references/fetch.sh" ${FA[@]+"${FA[@]}"} 2>&1; }
+  FA=(PDoomVideo); a=$(fe); FA=(hyperframes); b=$(fe); FA=(vox-director); c=$(fe)   # full, sparse, text only
+  FA=(Paper-Cut); d=$(fe FAIL=1); rd=$?; FA=(no-such-repo); e=$(fe); re=$?; rm -rf "$ft/references/repos"; FA=(); f=$(fe FAIL=1); rf=$?
+  sz=$(sed -n '/^SIZES="/,/^"/p' references/fetch.sh | tr " " "\n" | grep -v '^SIZES\|^"\|^$' | paste - - | cut -f1 | sort)
+  names=$(grep -E '^(full|sparse|textonly) ' references/fetch.sh | awk '{print $3}' | sort)
+  if case "$a" in "fetching PDoomVideo from github.com/JohnHeibel/PDoomVideo (about "*" MB, read-only"*) true ;; *) false ;; esac \
+    && case "$b" in "fetching hyperframes from github.com/heygen-com/hyperframes (about "*) true ;; *) false ;; esac \
+    && case "$c" in "fetching vox-director from github.com/Alisa0808/vox-director (under 1 MB, read-only"*) true ;; *) false ;; esac \
+    && [ $rd = 1 ] && case "$d" in *"skip Paper-Cut (clone failed: fatal: could not resolve host)"*) true ;; *) false ;; esac \
+    && [ $re = 2 ] && case "$e" in "no reference repo named no-such-repo"*) true ;; *) false ;; esac \
+    && [ $rf = 0 ] && [ "$(printf '%s\n' "$f" | wc -l | tr -d ' ')" = 1 ] && case "$f" in "skipped $(printf '%s\n' "$names" | wc -l | tr -d ' ') (no network?"*) true ;; *) false ;; esac \
+    && [ -n "$names" ] && [ "$sz" = "$names" ] && grep -q 'REFS=0;' install.sh && grep -q -- '--refs) REFS=1' install.sh
+  then ok "references/fetch.sh: one repo by name says what, where from and how big first (full, sparse and text only), exits 1 when it did not come, 2 for an unknown name; every repo has a size; all of them with no network: one line, exit 0; install.sh only with --refs"
+  else bad "references/fetch.sh ($rd/$re/$rf): $a | $b | $c | $d | $e | $(printf '%s' "$f" | head -c 200)"; fi
+  rm -rf "$ft"
+  # doctor --first, the installer's last lines: ready only when a first film has what it needs; each missing one with how to
+  # get it; in a Chinese locale a missing Chinese font is not ready; on Linux the render browser's missing libraries are not
+  # ready, and libraries it could not ask about are "not checked" (exit 3), not ready; an outdated agent is told to update;
+  # with no python3 at all (bin/vh's bare doctor) it is not ready either (exit 1)
+  a=$(python3 - <<'PY' 2>&1
+import sys; sys.path.insert(0, "tools"); import doctor as d
+ok = lambda n, **k: dict({"name": n, "state": "ok", "install": f"get {n}"}, **k)
+mods = [ok("node"), ok("ffmpeg"), ok("python3"), ok("uv"), ok("chrome"), ok("chrome-headless-shell", state="missing"), ok("claude-code"), ok("codex", state="missing"),
+        ok("qwen3-tts", state="missing"), ok("mlx-audio")]
+nob = [{"name": "browser", "state": "missing"}]; nofont = nob + [{"name": "fonts", "state": "missing"}]
+r = []
+r.append(d.first_film(mods, nob, "darwin-arm64"))                                                     # the first render brings its own Chrome
+mods2 = [dict(m, state="missing") if m["name"] in ("uv", "claude-code") else m for m in mods]
+r.append(d.first_film(mods2, nofont, "linux-arm64", libs=([], True)))                                 # no uv, no browser, no agent
+r.append(d.first_film(mods, nofont, "linux-x86_64", env={"LANG": "zh_CN.UTF-8"}, libs=([], True)))  # zh, no Chinese font
+r.append(d.first_film(mods, nofont, "linux-x86_64", env={"LANG": "en_US.UTF-8"}, libs=([], True)))  # en: said, still ready
+r.append(d.first_film(mods, nob, "linux-x86_64", env={}, libs=(["libnss3.so", "libnspr4.so"], True)))
+r.append(d.first_film(mods, nob, "linux-x86_64", env={}, libs=([], False)))
+mods3 = [dict(m, state="outdated", version="1.0") if m["name"] == "claude-code" else m for m in mods]
+r.append(d.first_film(mods3, nob, "darwin-arm64"))
+print(" ".join(st for _, st in r))
+for lines, _ in r: print("\n".join(lines)); print("--")
+PY
+)
+  ft=$(mktemp -d "${TMPDIR:-/tmp}/vh-nopy.XXXXXX"); mkdir -p "$ft/bin"
+  for f in /usr/bin/* /bin/*; do n=$(basename "$f"); case "$n" in python*|pydoc*) continue ;; esac; [ -e "$ft/bin/$n" ] || ln -s "$f" "$ft/bin/$n"; done
+  for n in node ffmpeg git; do command -v "$n" >/dev/null && ln -sf "$(command -v "$n")" "$ft/bin/$n"; done
+  b=$(PATH="$ft/bin" "$VH_BASH" "$ROOT/bin/vh" doctor --first 2>&1); rb=$?; rm -rf "$ft"
+  if case "$a" in "ready not not ready not unchecked not"*) true ;; *) false ;; esac \
+    && case "$a" in *"✓ Ready for a first film: Node, FFmpeg, Python 3, uv, a browser to render with, Claude Code"*"downloads its own Chrome once"*"- Voice: the first bin/vh tts downloads the local voice once (about 2.6 GB"*"--provider edge needs only a small package"*) true ;; *) false ;; esac \
+    && case "$a" in *"  uv (it runs the Python tools"*"  a browser to render with → get chrome"*"  Claude Code or Codex →"*"- Voice: bin/vh tts --provider edge (free, online; only a small package)"*) true ;; *) false ;; esac \
+    && case "$a" in *"  a Chinese font (Chinese text would draw as boxes) → sudo apt install fonts-noto-cjk"*"! Chinese text: no Chinese font here"*) true ;; *) false ;; esac \
+    && case "$a" in *"the render browser's system libraries (libnspr4.so, libnss3.so) → sudo apt install libnspr4 libnss3"*"? Nearly ready"*"not checked:"*"Claude Code is out of date (1.0) → update it"*) true ;; *) false ;; esac \
+    && [ $rb = 1 ] && case "$b" in *"python3  not found"*) true ;; *) false ;; esac
+  then ok "doctor --first: ready only with Node, FFmpeg, Python 3, uv, a browser (or a platform whose first render brings one) and its libraries, an agent, a Chinese font in a Chinese locale; each missing one with how to get it; libraries not asked about are not checked (3); an old agent is told to update; no python3: not ready (1)"
+  else bad "doctor --first (no python3: exit $rb): $(printf '%s' "$a" | head -c 900) | $(printf '%s' "$b" | head -3)"; fi
+  # the big first downloads (tools/audio/firstuse.py) are said by bin/vh before they start: tts with the local voice and with
+  # --align local, voices audition with the local voice, pace --align whisper (uv and the Hub stood in for: uv says the
+  # packages are not cached); uv then runs without -q, so its download lines show; a project with no script gets the sample
+  # and no package at all; the model's progress reaches the terminal even inside the redirect a loader runs in. Apple Silicon:
+  # the lines; elsewhere these do not run, and nothing is said
+  ft=$(mktemp -d "${TMPDIR:-/tmp}/vh-firstuse.XXXXXX"); mkdir -p "$ft/bin" "$ft/p/audio" "$ft/q"; echo "一句话" > "$ft/p/audio/script.txt"; : > "$ft/t.txt"
+  printf '#!/bin/sh\necho "uv $*" >> "%s/calls"\ncase "$*" in *--offline*) exit 1 ;; esac\nexit 0\n' "$ft" > "$ft/bin/uv"; chmod +x "$ft/bin/uv"
+  fu() { env PATH="$ft/bin:$PATH" HF_HOME="$ft/hf" "$VH_BASH" "$ROOT/bin/vh" "$@" 2>&1; }
+  a=$(fu tts "$ft/p"); b=$(fu tts "$ft/p" --align local); c=$(fu voices audition --provider qwen --voices x --text "$ft/t.txt"); d=$(fu pace "$ft/p" --align whisper)
+  calls=$(cat "$ft/calls" 2>/dev/null); : > "$ft/calls"; e=$(fu tts "$ft/q"); re=$?; qcalls=$(cat "$ft/calls" 2>/dev/null)
+  g=$(python3 - "$ft/hf" <<'PY'
+import contextlib, io, os, subprocess, sys, time
+code = ("import contextlib, io, sys, time, os; sys.path.insert(0, 'tools/audio'); import firstuse; d = sys.argv[1]; os.makedirs(d, exist_ok=True)\n"
+        "with contextlib.redirect_stdout(io.StringIO()):\n"
+        "    st = firstuse.show_progress(1.8, every=0.2, folder=d)\n"
+        "    for i in range(3): open(os.path.join(d, f'x{i}'), 'wb').write(b'0' * 100_000_000); time.sleep(0.35)\n"
+        "    st.set()\n")
+r = subprocess.run([sys.executable, "-c", code, sys.argv[1]], capture_output=True, text=True)
+print(r.stdout.count("model:"))
+PY
+)
+  case "$(uname -s) $(uname -m)" in
+    "Darwin arm64")
+      if case "$a" in *"first use of the local voice: about 2.6 GB to download once"*"--provider edge needs only a small package"*) true ;; *) false ;; esac \
+        && case "$b" in *"first use of the local Whisper and the local voice: about 6.2 GB"*) true ;; *) false ;; esac \
+        && case "$c" in *"first use of the local voice"*) true ;; *) false ;; esac && case "$d" in *"first use of the local Whisper: about 3.6 GB"*"--align gemini"*) true ;; *) false ;; esac \
+        && printf '%s\n' "$calls" | grep -q '^uv run --no-project --with mlx-audio' && ! printf '%s\n' "$calls" | grep -q '^uv run -q --no-project --with mlx-audio' \
+        && [ $re = 1 ] && [ -z "$qcalls" ] && [ -s "$ft/q/audio/script.txt" ] && [ "${g:-0}" -ge 2 ]
+      then ok "first downloads: tts, tts --align local, voices audition and pace --align whisper say theirs first (size, the way around), uv shows its lines; no script: the sample and no package; the model's progress gets past a redirect"
+      else bad "first downloads: $a | $b | $c | $d | calls: $(printf '%s' "$calls" | head -c 300) | no script ($re): $qcalls | progress lines: $g"; fi ;;
+    *)
+      if ! printf '%s' "$a$b$c$d" | grep -q "first use of" && [ $re = 1 ] && [ -z "$qcalls" ] && [ "${g:-0}" -ge 2 ]
+      then ok "first downloads: not on this platform (the local voice and Whisper are Apple Silicon only), so nothing said; no script: the sample and no package; the model's progress gets past a redirect"
+      else bad "first downloads here: $a | $b | no script ($re): $qcalls | progress lines: $g"; fi ;;
+  esac
+  rm -rf "$ft"
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
   # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
   vh recipes sample no-such-recipe >/dev/null 2>&1; rc=$?; vh recipes sample launch-15s >/dev/null 2>&1; rc2=$?

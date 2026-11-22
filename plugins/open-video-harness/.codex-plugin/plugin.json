@@ -1,6 +1,6 @@
 {
   "name": "open-video-harness",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Make videos with code through the OpenVideoHarness workbench: say what film you want, an agent writes the code, renders it, checks it and stops for you at the decisions that are yours. This plugin is the pointer; on first use it asks before installing the workbench.",
   "author": {
     "name": "ZLHad",
