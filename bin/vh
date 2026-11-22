@@ -1365,7 +1365,7 @@ cmd_tts() {
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --candidates, --min-sim, --vocab, --resume)
   [ "$voice" = "-" ] && voice=""; [ "$lang" = "-" ] && lang=""; [ "$instruct" = "-" ] && instruct=""   # no lang: tts.py picks zh, or en for an English-only script
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;;
-    dashscope) [ -z "${DASHSCOPE_API_KEY:-}" ] || deps="--with dashscope" ;; esac   # no key: tts.py says so, with no package fetched first
+    dashscope) python3 "$ROOT/tools/keys.py" has DASHSCOPE_API_KEY && deps="--with dashscope" ;; esac   # no key (environment or Studio): tts.py says so, with no package fetched first
   deps="$deps${np:+ $np}"
   # no script yet: tts.py writes a sample and stops, with no package fetched for it (it needs none for that)
   [ -f "$proj/audio/script.txt" ] || exec python3 "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov"

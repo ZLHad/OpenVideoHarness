@@ -48,3 +48,25 @@
   .st-nav a[aria-current=page]{border-bottom-color:var(--you)}
   .st-row{grid-template-columns:1fr;gap:4px}
 }
+/* the services: one card a service, a line a key */
+.sv{padding:14px 0 12px;border-top:1px solid var(--rule)}
+.sv-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:6px}
+.sv-h b{color:var(--ink-hi);font-weight:500;font-size:var(--fs-small)}
+.sv-h .btn{margin-left:auto}
+.sv-d{color:var(--ink-3);font-size:var(--fs-label)}
+.sv-key{display:grid;grid-template-columns:170px minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:4px 0;font-size:var(--fs-small)}
+.sv-key .st-note,.sv-key .sv-form{grid-column:1/-1}
+.sv-st{color:var(--ink-3)}
+.sv-st.on{color:var(--ink)}
+.sv-acts{display:flex;gap:6px}
+.sv-acts .warn{color:var(--wait);border-color:var(--wait-line)}
+.sv-form{display:flex;gap:8px;grid-column:2/-1}
+.sv-form input{flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--rule-2);border-radius:var(--r-ctl);padding:6px 10px;color:var(--ink);font:var(--fs-small)/1.4 var(--mono)}
+.sv-form input:focus{outline:none;border-color:var(--you)}
+.sv-in{-webkit-text-security:disc}   /* the key's box: masked by style, not a password box a browser would offer to remember */
+.sv-err{color:var(--wait)}
+.sv-test.ok{color:var(--ok,var(--ink))}
+.sv-get{display:inline-block;margin-top:6px;color:var(--you);font-size:var(--fs-label);text-decoration:none}
+.sv-get:hover{text-decoration:underline}
+.sv-kept{margin:0 0 6px}
+@media (max-width:900px){.sv-key{grid-template-columns:1fr auto}.sv-key>.st-dim{grid-column:1/-1}.sv-form{grid-column:1/-1}}

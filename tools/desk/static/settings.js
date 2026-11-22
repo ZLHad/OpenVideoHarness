@@ -8,7 +8,7 @@ const SETTINGS = (() => {
   const W = {
     zh: {
       title: "设置", back: "返回", rail: "设置", rail_tip: "设置（⌘,）",
-      s_general: "通用", s_agent: "agent", s_films: "片子的默认", s_machine: "这台电脑", s_about: "关于", s_account: "账号",
+      s_general: "通用", s_agent: "agent", s_services: "服务", s_films: "片子的默认", s_machine: "这台电脑", s_about: "关于", s_account: "账号",
       lang: "语言", look: "外观", th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥",
       where: "片子放在哪", where_how: "想换个地方，让 agent 帮你改，改完重新打开 Studio。", where_none: "还没有这样的文件夹。", reveal: "在访达里打开", reveal_other: "打开文件夹",
       ag_default: "新对话默认用", ag_not: "还没装", ag_not_how: "在右边的对话里点「装上」。", ag_model: "模型", ag_effort: "思考深度",
@@ -18,7 +18,7 @@ const SETTINGS = (() => {
       f_lead: "这些是这台电脑给每支片子的默认。片子自己写了的，以片子的为准。",
       f_effort: "默认努力程度", f_review: "在哪看每一站", f_assets: "素材许可", f_sound: "声音库", f_director: "谁拍板哪些事",
       f_subagent: "帮手 agent 用的模型", f_budget: "默认预算", f_unset: "没写", f_unset_effort: "没写：按标准", f_unset_review: "没写：按努力程度",
-      f_unset_assets: "没写：严格", f_unset_sound: "没写：用 ~/.ovh/sound", f_unset_budget: "没写：不调收费的接口",
+      f_unset_assets: "没写：严格", f_unset_sound: "没写：用 ~/.ovh/sound", f_unset_budget: "没写：不调收费的服务",
       f_unset_director: "没写：按努力程度的默认", f_unset_subagent: "没写：比 agent 自己便宜一档",
       f_how: "让 agent 帮你改。",
       mirror: "下载镜像", m_auto: "自动", m_cn: "国内镜像", m_off: "官方源",
@@ -29,11 +29,27 @@ const SETTINGS = (() => {
       v_quick: "快速", v_standard: "标准", v_studio: "精品", v_chat: "对话里", v_page: "网页", v_desk: "Studio", v_strict: "严格", v_record: "记下就能用",
       ab_version: "版本", ab_where: "工作台在哪", ab_news: "更新了什么", ab_news_link: "这一版的说明",
       saved: "记下了", see: "去设置里看", failed: "没记下：{x}",
+      sv_lead: "配音默认用这台电脑上的声音，不用 API Key。下面的在线服务，用到哪家再设哪家。",
+      sv_gemini: "Gemini（Google）", sv_gemini_d: "在线配音、给字幕对时间、出图、作曲", sv_minimax: "MiniMax", sv_minimax_d: "在线配音",
+      sv_elevenlabs: "ElevenLabs", sv_elevenlabs_d: "在线配音", sv_dashscope: "阿里云百炼", sv_dashscope_d: "在线配音",
+      k_key: "API Key", k_MINIMAX_TOKEN_PLAN_KEY: "Token Plan 的 API Key", k_MINIMAX_API_KEY: "按量计费的 API Key",
+      c_free: "免费", c_free_tier: "有免费额度", c_paid: "收费",
+      st_none: "没设", st_studio: "在 Studio 里设了", st_env: "在环境变量里设了（优先用它）",
+      b_set: "填上", b_replace: "换一个", b_clear: "拿掉", b_clear_sure: "确定拿掉", b_test: "测一下", b_save: "保存", b_cancel: "取消",
+      ph: "粘贴 {s} 的 API Key", get_key: "去哪拿 API Key", clear_note: "拿掉以后，用到它的命令会停下来告诉你。",
+      t_wait: "正在问…", t_ok: "能用了", t_fail: "没通过，服务的回答：{x}", t_skip: "还没有 API Key 可以测", t_free: "测一下不花钱。",
+      sv_kept_keychain: "存在这台电脑的钥匙串里，不写进任何文件。", sv_kept_secret: "存在这台电脑的密码库里，不写进任何文件。",
+      sv_none: "这台电脑上没有 Studio 能妥善保管 API Key 的地方。要用在线服务，就把 API Key 写进终端每次启动都会读的那个文件，再从新开的终端里打开 Studio。", how: "怎么写",
+      e_not_a_key: "这不像 API Key：从服务商的页面把它整段复制下来，不带空格和引号，再粘贴一次。",
+      e_not_kept: "没存进去：{s}没收下。再粘贴一次试试；还是不行，就照说明写进终端启动时读的文件。", e_not_cleared: "没拿掉：{s}没响应。再试一次。",
+      s_keychain: "钥匙串", s_secret: "密码库",
+      sv_env_note: "在终端里设的环境变量，这一页不一定看得到；在这里填上的，终端里和右边的对话里都用得上。",
+      sv_budget: "有 API Key 不等于有预算。出图和 Lyria 作曲，片子和这台电脑都没写预算就不调；用这几家配音、给字幕对时间、试音，是直接调用，花的是那个账户的钱（有免费额度的先用免费额度）。这台电脑的默认预算：{x}",
       nokey: "这一页要在 Studio 的窗口里打开才看得到。", reopen: "在 Studio 窗口里打开",
     },
     en: {
       title: "Settings", back: "Back", rail: "Settings", rail_tip: "Settings (⌘,)",
-      s_general: "General", s_agent: "Agent", s_films: "Film defaults", s_machine: "This computer", s_about: "About", s_account: "Account",
+      s_general: "General", s_agent: "Agent", s_services: "Services", s_films: "Film defaults", s_machine: "This computer", s_about: "About", s_account: "Account",
       lang: "Language", look: "Look", th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge",
       where: "Where films are kept", where_how: "To keep them somewhere else, ask your agent to change it, then reopen Studio.", where_none: "No such folder yet.", reveal: "Show in Finder", reveal_other: "Open folder",
       ag_default: "New chats start with", ag_not: "Not set up", ag_not_how: "Press “Set it up” in the chat on the right.", ag_model: "Model", ag_effort: "Effort",
@@ -54,14 +70,38 @@ const SETTINGS = (() => {
       v_quick: "Quick", v_standard: "Standard", v_studio: "Studio", v_chat: "In the chat", v_page: "A web page", v_desk: "Studio", v_strict: "Strict", v_record: "Allowed if recorded",
       ab_version: "Version", ab_where: "Where the workbench is", ab_news: "What's new", ab_news_link: "This version's notes",
       saved: "Saved", see: "See it in Settings", failed: "Not saved: {x}",
+      sv_lead: "Voices are made on this computer by default, no API Key needed. Set up an online service below only when you want it.",
+      sv_gemini: "Gemini (Google)", sv_gemini_d: "online voices, timing the captions, pictures, music", sv_minimax: "MiniMax", sv_minimax_d: "online voices",
+      sv_elevenlabs: "ElevenLabs", sv_elevenlabs_d: "online voices", sv_dashscope: "Alibaba Cloud Model Studio", sv_dashscope_d: "online voices",
+      k_key: "API Key", k_MINIMAX_TOKEN_PLAN_KEY: "Token Plan API Key", k_MINIMAX_API_KEY: "Pay-as-you-go API Key",
+      c_free: "Free", c_free_tier: "Free tier", c_paid: "Paid",
+      st_none: "Not set", st_studio: "Set in Studio", st_env: "Set in the environment (used first)",
+      b_set: "Set up", b_replace: "Replace", b_clear: "Remove", b_clear_sure: "Yes, remove", b_test: "Test", b_save: "Save", b_cancel: "Cancel",
+      ph: "Paste your {s} API Key", get_key: "Get an API Key", clear_note: "Once removed, commands that need it stop and tell you.",
+      t_wait: "Asking…", t_ok: "Works", t_fail: "Didn't work; the service said: {x}", t_skip: "No API Key to test yet", t_free: "Testing costs nothing.",
+      sv_kept_keychain: "Kept in this computer's Keychain, never written into any file.", sv_kept_secret: "Kept in this computer's password store, never written into any file.",
+      sv_none: "This computer has no place where Studio can keep an API Key safely. To use an online service, put the API Key in the file your terminal reads each time it starts, then open Studio from a new terminal.", how: "How",
+      e_not_a_key: "That doesn't look like an API Key: copy the whole key from the provider's page, with no spaces or quotes, and paste it again.",
+      e_not_kept: "Not saved: {s} didn't take it. Paste it again; if it still fails, put it in the file your terminal reads when it starts.", e_not_cleared: "Not removed: {s} didn't answer. Try again.",
+      s_keychain: "the Keychain", s_secret: "the password store",
+      sv_env_note: "Environment variables set in your terminal may not show on this page; a key set here works in the terminal and in the chat on the right.",
+      sv_budget: "An API Key isn't a budget. Pictures and Lyria music are not made unless the film or this computer has a budget; voices, caption timing and auditions with these services are called directly and bill that account (a free tier is used first). This computer's default budget: {x}",
       nokey: "This page shows only in Studio's own window.", reopen: "Open in Studio's window",
     },
   };
   const w = (k, v) => String((W[LANG] || W.zh)[k] != null ? (W[LANG] || W.zh)[k] : W.en[k] != null ? W.en[k] : k).replace(/\{(\w+)\}/g, (_, x) => (v && v[x] != null ? v[x] : ""));
   // the sections, in order; account waits for accounts (not shown)
-  const SECTIONS = [{ id: "general" }, { id: "agent" }, { id: "films" }, { id: "machine" }, { id: "about" }, { id: "account", hidden: true }];
+  const SECTIONS = [{ id: "general" }, { id: "agent" }, { id: "services" }, { id: "films" }, { id: "machine" }, { id: "about" }, { id: "account", hidden: true }];
   const THEMES = ["darkfield", "prism", "bridge"];
   let ST = null, BACK = "#/", SEC = "general";
+  let EDIT = "", ARM = "", TESTS = {}, SVERR = {};   // the services: the key being typed, the key whose 拿掉 asks once more, each service's last test, what a failed save of a key said
+  const HOWTO = () => `https://github.com/ZLHad/OpenVideoHarness/blob/main/README${LANG === "en" ? "" : ".zh-CN"}.md#api-key`;   // the front page's "API Key": how to put a key where the terminal reads it
+  const why_err = (r) => {   // a refusal of the console's as the page's own word (said in the language shown), when it gave a reason
+    const why = r.data && r.data.reason;
+    return why === "not_a_key" ? "e_not_a_key" : why === "not_kept" ? "e_not_kept" : why === "no_store" ? "sv_none" : null;
+  };
+  const store_word = () => w(ST && ST.store === "secret-service" ? "s_secret" : "s_keychain");
+  const said_err = (r) => { const k = why_err(r); return k ? w(k, { s: store_word() }) : null; };
 
   async function call(method, body) {
     try {
@@ -74,7 +114,7 @@ const SETTINGS = (() => {
   async function save(name, value, quiet) {
     const r = await call("POST", { name, value });
     if (r.ok && r.data && r.data.version) ST = r.data;
-    if (!quiet || (!r.ok && r.data && r.data.reason === "newer")) toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "newer" ? w("newer") : w("failed", { x: (r.data && r.data.error) || r.status }));
+    if (!quiet || (!r.ok && r.data && r.data.reason === "newer")) toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "newer" ? w("newer") : said_err(r) || w("failed", { x: (r.data && r.data.error) || r.status }));
     return r.ok;
   }
 
@@ -109,7 +149,7 @@ const SETTINGS = (() => {
     const area = $("#stage"), y = area.scrollTop, f = $("#stage :focus"), refocus = f && (f.dataset.val || f.dataset.themeSet || f.dataset.set);
     const nav = SECTIONS.filter((s) => !s.hidden).map((s) => `<a href="#/settings/${s.id}" aria-current="${s.id === SEC ? "page" : "false"}">${esc(w("s_" + s.id))}</a>`).join("");
     area.innerHTML = `<section class="module settings"><div class="mh"><h1>${esc(w("title"))}</h1><a class="st-back btn btn-quiet" href="${esc(BACK)}">${esc(w("back"))}</a></div>
-      <div class="st-wrap"><nav class="st-nav" aria-label="${esc(w("title"))}">${nav}</nav><div class="st-body">${({ general, agent, films, machine: machineSec, about })[SEC]()}</div></div></section>`;
+      <div class="st-wrap"><nav class="st-nav" aria-label="${esc(w("title"))}">${nav}</nav><div class="st-body">${({ general, agent, services, films, machine: machineSec, about })[SEC]()}</div></div></section>`;
     area.scrollTop = y;
     if (refocus) { const b = [...area.querySelectorAll("[role=radio], select")].find((x) => (x.dataset.val || x.dataset.themeSet || x.dataset.set) === refocus); if (b) b.focus(); }
   }
@@ -149,6 +189,30 @@ const SETTINGS = (() => {
       out += `<h2 class="st-h">${esc(k.label)}</h2>` + row(w("ag_model"), one("model")) + row(w("ag_effort"), one("effort"), later ? esc(w("ag_later")) : "");
     }
     return out;
+  }
+  function services() {
+    const store = ST.store || "none", list = ST.services || [], L = (ST.local && ST.local.lines) || {};
+    const anySaved = list.some((s) => s.keys.some((k) => k.saved));
+    const keyRow = (s, k) => {
+      const label = (W.zh["k_" + k.name] ? w("k_" + k.name) : w("k_key")), status = w(k.source === "env" ? "st_env" : k.source === "studio" ? "st_studio" : "st_none");
+      // (no <form> and no password box: a browser would offer to keep the key in its own password manager; the box is masked by its style)
+      if (EDIT === k.name) return `<div class="sv-key"><span class="st-dim">${esc(label)}</span><div class="sv-form" data-sv-form="${esc(k.name)}"><input type="text" class="sv-in" autocomplete="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" id="svIn" placeholder="${esc(w("ph", { s: w("sv_" + s.module) }))}" aria-label="${esc(w("sv_" + s.module))} · ${esc(label)}"><button type="button" class="btn" data-sv-save>${esc(w("b_save"))}</button><button type="button" class="btn btn-quiet" data-sv-cancel>${esc(w("b_cancel"))}</button></div>${SVERR[k.name] ? `<p class="st-note sv-err" role="alert">${esc(SVERR[k.name].k ? w(SVERR[k.name].k, { s: store_word() }) : SVERR[k.name].x)}${["e_not_kept", "sv_none"].includes(SVERR[k.name].k) ? ` <a href="${esc(HOWTO())}" target="_blank" rel="noopener">${esc(w("how"))} ↗</a>` : ""}</p>` : ""}</div>`;
+      const acts = store === "none" ? "" : k.saved ? `<button type="button" class="btn btn-quiet xs" data-sv-edit="${esc(k.name)}">${esc(w("b_replace"))}</button><button type="button" class="btn btn-quiet xs${ARM === k.name ? " warn" : ""}" data-sv-clear="${esc(k.name)}">${esc(w(ARM === k.name ? "b_clear_sure" : "b_clear"))}</button>`
+        : k.source === "env" ? "" : `<button type="button" class="btn xs" data-sv-edit="${esc(k.name)}">${esc(w("b_set"))}</button>`;
+      return `<div class="sv-key"><span class="st-dim">${esc(label)}</span><span class="sv-st${k.source ? " on" : ""}">${esc(status)}</span><span class="sv-acts">${acts}</span>${ARM === k.name ? `<p class="st-note">${esc(w("clear_note"))}</p>` : ""}</div>`;
+    };
+    const card = (s) => {
+      const t = TESTS[s.module], has = s.keys.some((k) => k.source);
+      const test = s.probe && has ? `<button type="button" class="btn btn-quiet xs" data-sv-test="${esc(s.module)}" title="${esc(w("t_free"))}">${esc(w("b_test"))}</button>` : "";
+      const said = !t ? "" : t === "wait" ? w("t_wait") : t.state === "ok" ? w("t_ok") : t.state === "skipped" ? w("t_skip") : w("t_fail", { x: t.note || "" });
+      return `<section class="sv" aria-label="${esc(w("sv_" + s.module))}"><div class="sv-h"><b>${esc(w("sv_" + s.module))}</b><span class="chip quiet">${esc(w("c_" + (s.cost || "paid")))}</span><span class="sv-d">${esc(w("sv_" + s.module + "_d"))}</span>${test}</div>`
+        + s.keys.map((k) => keyRow(s, k)).join("")
+        + `${said ? `<p class="st-note sv-test${t && t.state === "ok" ? " ok" : ""}">${esc(said)}</p>` : ""}${s.key_url ? `<a class="sv-get" href="${esc(s.key_url)}" target="_blank" rel="noopener">${esc(w("get_key"))} ↗</a>` : ""}</section>`;
+    };
+    return `<p class="st-lead">${esc(w("sv_lead"))}</p>`
+      + (store === "none" ? `<p class="st-note">${esc(w("sv_none"))} <a href="${esc(HOWTO())}" target="_blank" rel="noopener">${esc(w("how"))} ↗</a></p>` : anySaved ? `<p class="st-note sv-kept">${esc(w(store === "keychain" ? "sv_kept_keychain" : "sv_kept_secret"))}</p>` : "")
+      + list.map(card).join("")
+      + `<p class="st-note st-foot">${store === "none" ? "" : `${esc(w("sv_env_note"))}<br>`}${esc(w("sv_budget", { x: L.budget || w("f_unset") }))}</p>`;
   }
   function films() {
     const L = (ST.local && ST.local.lines) || {}, M = ST.mirror || {};
@@ -195,6 +259,38 @@ const SETTINGS = (() => {
     if (rv) { if (e.isTrusted) save("reveal", rv.dataset.reveal, true); return; }
     const b = e.target.closest('.settings [role="radio"]');
     if (b) choose(b);
+  });
+  document.addEventListener("click", async (e) => {   // the services' buttons (the page's own clicks only)
+    const b = e.target.closest(".settings [data-sv-edit], .settings [data-sv-cancel], .settings [data-sv-save], .settings [data-sv-clear], .settings [data-sv-test]");
+    if (!b || !e.isTrusted) return;
+    if (b.dataset.svEdit) { EDIT = b.dataset.svEdit; ARM = ""; SVERR = {}; draw(); const i = $("#svIn"); if (i) i.focus(); return; }
+    if (b.hasAttribute("data-sv-cancel")) { EDIT = ""; SVERR = {}; draw(); return; }
+    if (b.hasAttribute("data-sv-save")) return sendKey(b.closest("[data-sv-form]"));
+    if (b.dataset.svClear) {
+      if (ARM !== b.dataset.svClear) { ARM = b.dataset.svClear; EDIT = ""; draw(); return; }
+      ARM = ""; const r = await call("POST", { name: "key:" + b.dataset.svClear, value: null });
+      if (r.ok && r.data && r.data.version) ST = r.data;
+      toast(r.ok ? w("saved") : r.status === 403 ? w("nokey") : r.data && r.data.reason === "not_kept" ? w("e_not_cleared", { s: w(ST && ST.store === "secret-service" ? "s_secret" : "s_keychain") }) : said_err(r) || w("failed", { x: (r.data && r.data.error) || r.status }));
+      draw(); return;
+    }
+    const m = b.dataset.svTest; TESTS[m] = "wait"; draw();
+    const r = await call("POST", { name: "test:" + m });
+    TESTS[m] = r.ok && r.data && r.data.probe ? r.data.probe : { state: "failed", note: r.status === 403 ? w("nokey") : String((r.data && r.data.error) || r.status) };
+    if (parse().view === "settings") draw();
+  });
+  async function sendKey(f) {   // a key typed into the box: sent once, the box emptied at once, never kept in the page
+    const i = f && f.querySelector("input");
+    if (!i) return;
+    const v = i.value.trim(), name = f.dataset.svForm; i.value = "";
+    if (!v) return;
+    const r = await call("POST", { name: "key:" + name, value: v });
+    if (r.ok && r.data && r.data.version) { ST = r.data; EDIT = ""; SVERR = {}; toast(w("saved")); }
+    else SVERR = { [name]: r.status === 403 ? { k: "nokey" } : why_err(r) ? { k: why_err(r) } : { x: w("failed", { x: (r.data && r.data.error) || r.status }) } };   // the box stays open, empty, with what to do next
+    if (parse().view === "settings") { draw(); const n = $("#svIn"); if (n && EDIT) n.focus(); }
+  }
+  document.addEventListener("keydown", (e) => {   // Enter in the key's box sends it (there is no form to submit)
+    if (e.key !== "Enter" || !e.isTrusted || e.isComposing || !(e.target.matches && e.target.matches(".settings .sv-in"))) return;
+    e.preventDefault(); sendKey(e.target.closest("[data-sv-form]"));
   });
   document.addEventListener("change", async (e) => {
     const s = e.target.closest(".settings select[data-set]");
