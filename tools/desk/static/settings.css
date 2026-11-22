@@ -1,0 +1,50 @@
+/* Studio's settings page (settings.js): its sections on the left, one section at a time; the theme's own values only. */
+.module.settings{max-width:980px}
+.settings .mh{justify-content:space-between;align-items:center}
+.st-wrap{display:grid;grid-template-columns:180px minmax(0,1fr);gap:28px;align-items:start}
+.st-nav{display:flex;flex-direction:column;gap:2px;position:sticky;top:0}
+.st-nav a{padding:7px 12px;border-radius:var(--r-ctl);color:var(--ink-2);text-decoration:none;font-size:var(--fs-small);border-left:2px solid transparent}
+.st-nav a:hover{color:var(--ink);background:var(--panel-2)}
+.st-nav a[aria-current=page]{color:var(--ink-hi);background:var(--panel-2);border-left-color:var(--you)}
+.st-body{min-width:0;max-width:640px}
+.st-row{display:grid;grid-template-columns:170px minmax(0,1fr);gap:8px 20px;padding:14px 0;border-top:1px solid var(--rule)}
+.st-row:first-child{border-top:0;padding-top:2px}
+.st-k{color:var(--ink-2);font-size:var(--fs-small);padding-top:6px}
+.st-v{min-width:0;font-size:var(--fs-small);color:var(--ink)}
+.st-v p{margin:6px 0 0}
+.st-v code{font:var(--fs-label)/1.6 var(--mono);color:var(--ink-2);word-break:break-all}
+.st-note{color:var(--ink-3);font-size:var(--fs-label);line-height:1.6;margin:8px 0 0}
+.st-dim{color:var(--ink-3)}
+.st-lead{color:var(--ink-2);font-size:var(--fs-small);margin:0 0 10px;max-width:36em}
+.st-foot{padding-top:12px;border-top:1px solid var(--rule)}
+.st-h{margin:24px 0 2px;font:500 var(--fs-small)/1.4 var(--sans);color:var(--ink-hi)}
+.st-paths li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.st-list,.st-paths{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+.st-seg{display:inline-flex;flex-wrap:wrap;gap:6px}
+.st-seg button{min-height:32px;padding:0 14px;border:1px solid var(--rule-2);border-radius:var(--r-ctl);background:transparent;color:var(--ink-2);cursor:pointer;font-size:var(--fs-small)}
+.st-seg button:hover{color:var(--ink)}
+.st-seg button[aria-checked=true]{color:var(--ink-hi);border-color:var(--you);background:var(--you-soft)}
+.st-v select{background:var(--panel-2);border:1px solid var(--rule-2);color:var(--ink);padding:6px 8px;border-radius:var(--r-ctl);font-size:var(--fs-small);max-width:100%}
+.st-looks{display:flex;flex-wrap:wrap;gap:10px}
+.st-look{display:flex;flex-direction:column;gap:7px;padding:8px;border:1px solid var(--rule-2);border-radius:var(--r-card);background:transparent;cursor:pointer;color:var(--ink-2);font-size:var(--fs-label);width:118px}
+.st-look[aria-checked=true]{border-color:var(--you);color:var(--ink-hi)}
+.st-look i{display:block;height:58px;border-radius:calc(var(--r-card) - 2px);padding:10px;position:relative;overflow:hidden}
+.st-look b{display:block;height:5px;margin:0 0 6px;border-radius:2px}
+.st-look b:nth-child(1){width:60%}.st-look b:nth-child(2){width:85%;opacity:.5}.st-look b:nth-child(3){width:34%;height:9px;margin-top:9px}
+/* each look's own colours (ui.css holds them on :root only, so the three swatches say them here) */
+.st-look-darkfield i{background:#111111;border:1px solid rgba(255,255,255,.08)}
+.st-look-darkfield b{background:#ebe8e2}.st-look-darkfield b:nth-child(3){background:#5ec9dc}
+.st-look-prism i{background:radial-gradient(120% 90% at 20% 0,rgba(167,139,250,.28),transparent 60%),#04060b;border:1px solid rgba(255,255,255,.085)}
+.st-look-prism b{background:#e9eef7}.st-look-prism b:nth-child(3){background:#4fd1e8;box-shadow:0 0 10px -2px rgba(79,209,232,.7)}
+.st-look-bridge i{background:linear-gradient(rgba(150,178,200,.06) 1px,transparent 1px) 0 0/10px 10px,linear-gradient(90deg,rgba(150,178,200,.06) 1px,transparent 1px) 0 0/10px 10px,#06080a;border:1px solid rgba(150,178,200,.42);border-radius:0}
+.st-look-bridge b{background:#dde5ec;border-radius:0}.st-look-bridge b:nth-child(3){background:#3dd6f0}
+.lacks-more{display:inline-block;margin-top:6px;color:var(--you);font-size:var(--fs-label);text-decoration:none}
+.lacks-more:hover{text-decoration:underline}
+.settings .lacks{margin:0}
+@media (max-width:900px){
+  .st-wrap{grid-template-columns:1fr;gap:12px}
+  .st-nav{flex-direction:row;flex-wrap:wrap;position:static}
+  .st-nav a{border-left:0;border-bottom:2px solid transparent}
+  .st-nav a[aria-current=page]{border-bottom-color:var(--you)}
+  .st-row{grid-template-columns:1fr;gap:4px}
+}
