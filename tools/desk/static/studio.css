@@ -146,11 +146,11 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 /* the sample wall (studio.js wallHtml): the showcase films under your own, folded once you have some; the button puts a sentence in the box */
 .smp-wall{margin-top:34px}
 .smp-wall>summary{list-style:none;cursor:pointer}.smp-wall>summary::-webkit-details-marker{display:none}
-.smp-wall>summary>h2,.smp-wall>h2{display:flex;align-items:baseline;gap:10px;margin:0 0 12px;font:500 var(--fs-small)/1.4 var(--sans);color:var(--ink-2);letter-spacing:var(--label-track);text-transform:var(--label-case)}
+.smp-wall>summary>h2{display:flex;align-items:baseline;gap:10px;margin:0 0 12px;font:500 var(--fs-small)/1.4 var(--sans);color:var(--ink-2);letter-spacing:var(--label-track);text-transform:var(--label-case)}
 .smp-wall>summary>h2::before{content:"▸";color:var(--ink-2);font-size:14px;transition:transform .16s var(--ease)}
 .smp-wall[open]>summary>h2::before{transform:rotate(90deg)}
 .smp-wall>summary:hover>h2{color:var(--ink)}
-.smp-wall>summary>h2::after,.smp-wall>h2::after{content:"";flex:1;border-top:1px solid var(--rule);transform:translateY(-4px)}
+.smp-wall>summary>h2::after{content:"";flex:1;border-top:1px solid var(--rule);transform:translateY(-4px)}
 .smp-wall h2 .n{font-family:var(--mono);color:var(--ink-3)}
 .smp-cards{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}   /* the four side by side on a laptop */
 .smp-b{margin:0 0 16px;max-width:46em;font-size:var(--fs-small);color:var(--ink-2);line-height:1.55}
