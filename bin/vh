@@ -8,6 +8,16 @@ set -euo pipefail
 unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 c_ok=$'\033[32m✓\033[0m'; c_no=$'\033[31m✗\033[0m'; c_wa=$'\033[33m!\033[0m'
+# this machine's settings (tools/settings.py) are read on every run, so a change reaches every process at its next bin/vh:
+# with "mirror": "cn" bin/vh exports the mirror variables of tools/mirrors.txt for what it runs, the agents Studio starts
+# included (one the person set stays theirs: in the environment, or npm's or uv's own configuration); otherwise it takes out
+# again the ones a bin/vh before it exported (inherited OVH_MIRROR=cn). One reader, settings.py; python3 runs only when the
+# file names a mirror or a mirror was inherited (an XDG_CONFIG_HOME that is not absolute is ignored, as settings.py does)
+_cf=${XDG_CONFIG_HOME:-}; case "$_cf" in /*) ;; *) _cf=$HOME/.config ;; esac
+if [ -n "${OVH_MIRROR:-}" ] || { [ -f "$_cf/ovh/settings.json" ] && grep -q '"mirror"' "$_cf/ovh/settings.json" 2>/dev/null; }; then
+  if _env=$(python3 "$ROOT/tools/settings.py" env 2>/dev/null); then eval "$_env"; fi
+fi
+unset _cf _env
 
 declare -a TYPES=(
   "math:01-math-science-explainer:数学/科学原理讲解（Manim）"
@@ -126,6 +136,38 @@ hf_pin() { # hf_pin <dir>: the Chrome version pinned by the HyperFrames in the n
   [ ${#files[@]} -gt 0 ] || return 1
   awk -F'"' -v k="var $k = " '$1 == k && $2 ~ /^[0-9][0-9.]*$/ { print $2; f = 1; exit } END { exit !f }' "${files[@]}" 2>/dev/null
 }
+hf_mods() { # hf_mods <dir>: the folder at or above dir whose node_modules holds HyperFrames (as hf_pin looks), else fails
+  local d
+  [ -n "${1:-}" ] && d=$(cd "$1" 2>/dev/null && pwd) || return 1
+  while [ ! -d "$d/node_modules/hyperframes" ]; do [ "$d" = / ] && return 1; d=$(dirname "$d"); done
+  echo "$d"
+}
+hf_chrome_mirror() { # hf_chrome_mirror <dir>: with the mirror on (cn) and no chrome-headless-shell yet at the version the HyperFrames
+  # installed for dir pins (dir has none: styles/_swatch's), fetch it from the mirror into the folder HyperFrames looks in:
+  # HyperFrames has no setting for where it downloads its Chrome, so without this the first render would go to
+  # storage.googleapis.com anyway. With the @puppeteer/browsers HyperFrames' own node_modules holds (under its lockfile's
+  # hash where there is one), else the one pinned here; no hash is pinned for the Chrome itself. Its lines go to stderr
+  [ "${OVH_MIRROR:-}" = cn ] || return 0
+  local d m pin base cli
+  m=$(hf_mods "${1:-.}") || m=$(hf_mods "$ROOT/styles/_swatch") || return 0
+  pin=$(hf_pin "$m") || return 0
+  [ -n "$(shell_folder "$HOME/.cache/hyperframes/chrome/chrome-headless-shell" "$pin" 2>/dev/null)" ] && return 0
+  base=$(awk '$1 == "chrome" { print $4 }' "$ROOT/tools/mirrors.txt")
+  if [ -x "$m/node_modules/.bin/browsers" ]; then cli=("$m/node_modules/.bin/browsers"); else cli=(npx --yes "@puppeteer/browsers@$PUPPETEER_BROWSERS"); fi
+  echo "→ HyperFrames' Chrome $pin from the mirror ($base, about 93 MB), into ~/.cache/hyperframes/chrome, where its first render looks" >&2
+  (cd "$m" && "${cli[@]}" install "chrome-headless-shell@$pin" --path "$HOME/.cache/hyperframes/chrome" --base-url "$base" >/dev/null 2>&1) \
+    || { echo "$c_wa HyperFrames' Chrome did not come from the mirror; the first render tries its own download (bin/vh settings chrome tries again)" >&2; return 1; }
+}
+PUPPETEER_BROWSERS=3.2.3   # the @puppeteer/browsers HyperFrames 0.8.202 brings, for a folder without node_modules
+chrome_hint() { # chrome_hint <dir>: how to get the chrome-headless-shell HyperFrames renders with, in words for a message
+  if [ "${OVH_MIRROR:-}" = cn ]; then echo "bin/vh settings chrome ${1:-<project>} (from the mirror)"; else echo "npx hyperframes browser ensure (in a HyperFrames project)"; fi
+}
+hf_shell_any() { # hf_shell_any <dir>: hf_shell, and with the mirror on and none here yet, after fetching it from the mirror
+  hf_shell "${1:-}" && return 0
+  [ "${OVH_MIRROR:-}" = cn ] || return 1
+  hf_chrome_mirror "${1:-.}" >/dev/null || return 1
+  hf_shell "${1:-}"
+}
 old_mac() { [ "$(uname)" = Darwin ] && [ "$(uname -r | cut -d. -f1)" -lt 22 ]; }   # macOS 12 or older: HyperFrames stops Chrome at 150
 shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome-headless-shell version, else (no version given) the newest;
   # only a folder with the browser in it counts (an interrupted download leaves an empty one). Folders are <platform>-<version>
@@ -169,6 +211,18 @@ cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
   echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
+}
+cmd_settings() { # this machine's settings (tools/settings.py, -h); the mirror turned on also fetches HyperFrames' Chrome from it now,
+  # since HyperFrames cannot be pointed at a mirror itself
+  if [ "${1:-}" = chrome ]; then   # settings chrome [project]: HyperFrames' Chrome from the mirror now, when the mirror is on and it is not here
+    [ $# -le 2 ] || { echo "usage: bin/vh settings chrome [project]" >&2; return 2; }
+    [ "${OVH_MIRROR:-}" = cn ] || { echo "the mirrors are not on (bin/vh settings mirror cn): HyperFrames downloads its own Chrome at the first render"; return 0; }
+    local w=${2:-$ROOT/styles/_swatch}
+    hf_mods "$w" >/dev/null || { echo "$c_wa no HyperFrames installed for ${2:-styles/_swatch} yet (${2:+bin/vh hf-init it, or }cd ${2:-styles/_swatch} && npm ci): nothing to fetch Chrome for" >&2; return 1; }
+    hf_chrome_mirror "$w"; return $?
+  fi
+  python3 "$ROOT/tools/settings.py" "$@" || return $?
+  if [ "${1:-}" = mirror ] && [ "${2:-}" = cn ] && [ -d "$ROOT/styles/_swatch/node_modules/hyperframes" ]; then OVH_MIRROR=cn; hf_chrome_mirror "$ROOT/styles/_swatch" || true; fi
 }
 cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first, then AGENTS.md from CLAUDE.md
   local m; m=$(python3 "$ROOT/tools/commands.py" claude-line --write "$ROOT/CLAUDE.md") || exit 1
@@ -855,8 +909,8 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   local b=${CHROME_PATH:-} d
   if [ -z "$b" ] || [ ! -x "$b" ]; then
     d=$(arg_dir "$@")
-    b=$(hf_shell "$d") || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
-    hf_chrome "$d" >/dev/null || echo "$c_wa not the chrome-headless-shell hyperframes render uses for this project, so text can lay out a little differently in the film (npx hyperframes browser ensure there fetches it)" >&2
+    b=$(hf_shell_any "$d") || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: $(chrome_hint "$d"), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+    hf_chrome "$d" >/dev/null || echo "$c_wa not the chrome-headless-shell hyperframes render uses for this project, so text can lay out a little differently in the film ($(chrome_hint "$d") fetches it)" >&2
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
@@ -888,7 +942,7 @@ film_browser() { # film_browser <command> [dir]: the browser the page-contract t
   # render uses for dir, else the newest in ~/.cache/puppeteer, else Chrome or Chromium); the command is for the message
   local b=${CHROME_PATH:-}
   if [ -z "$b" ] || [ ! -x "$b" ]; then
-    b=$(hf_shell "${2:-}") || b=$(chrome_path) || { echo "$c_no bin/vh $1 needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; return 1; }
+    b=$(hf_shell_any "${2:-}") || b=$(chrome_path) || { echo "$c_no bin/vh $1 needs a headless Chrome: $(chrome_hint "${2:-}"), install Chrome or Chromium, or set CHROME_PATH" >&2; return 1; }
   fi
   echo "$b"
 }
@@ -1051,6 +1105,7 @@ PY
   done
   shopt -u dotglob; rm -rf "$tmp"
   (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "hyperframes@${HYPERFRAMES_VERSION:-0.8.202}" >/dev/null 2>&1) || echo "$c_wa could not pin hyperframes locally (offline?)"
+  hf_chrome_mirror "$dir"   # with the mirror on: its Chrome now, from the mirror, not at the first render from Google's
   # the scaffold loads GSAP from a CDN; an offline render then hangs silently, so vend it locally (same pinned version)
   local gv; gv=$(grep -o 'cdn.jsdelivr.net/npm/gsap@[0-9.]*' "$dir"/*.html 2>/dev/null | head -1 | sed 's/.*gsap@//') || true
   if [ -n "$gv" ] && (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "gsap@$gv" >/dev/null 2>&1); then
@@ -1421,7 +1476,9 @@ cmd_web() { # stdlib + the existing Chrome CDP transport; Obscura is an explicit
   case "$1" in fetch|shot) b=$(film_browser web "${2:-}" 2>/dev/null) || b="" ;; esac
   CHROME_PATH="${b:-${CHROME_PATH:-}}" python3 "$ROOT/tools/web/web.py" "$@"
 }
-cmd_hf() { [ $# -gt 0 ] || { cmd_usage hf >&2; exit 2; }; python3 "$ROOT/tools/hf.py" "$@"; }   # stdlib; add runs HyperFrames' own add
+cmd_hf() { [ $# -gt 0 ] || { cmd_usage hf >&2; exit 2; }   # stdlib; add runs HyperFrames' own add
+  case "${1:-}" in -h|--help) ;; *) hf_chrome_mirror "$(arg_dir "${@:2}")" || true ;; esac   # with the mirror on: its Chrome first, from there
+  python3 "$ROOT/tools/hf.py" "$@"; }
 cmd_components() { python3 "$ROOT/tools/components.py" "$@"; }   # stdlib; check reads component.js through node, sample runs the swatch renderer
 cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver >&2; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
 cmd_looks() { [ $# -gt 0 ] || { cmd_usage looks >&2; exit 2; }; python3 "$ROOT/tools/looks.py" "$@"; }         # ffmpeg; the ledger outside the repo
@@ -1450,11 +1507,12 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     words) cmd_usage words; echo; exec python3 "$ROOT/tools/words.py" -h ;;   # + what it reads, the checks and the --json fields
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
+    settings) cmd_usage settings; echo; exec python3 "$ROOT/tools/settings.py" -h ;;   # + the file's shape
     frames|render|determinism|cues|patch) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words|studio) ;;   # (new: once the project is made; words only reads; studio opens a page, and the desk it starts logs its own run)
+  ""|help|-h|--help|setup|install-skill|settings|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words|studio) ;;   # (new: once the project is made; words only reads; studio opens a page, and the desk it starts logs its own run)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) case "${2:-}" in data|agents) ;; *) act_start "$@" || true ;; esac ;;   # agents: no project (it installs into a cache)
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
@@ -1481,6 +1539,7 @@ case "${1:-help}" in
   doctor) shift; cmd_doctor "$@" ;; setup) cmd_setup ;; types) cmd_types ;;
   tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; timemap) shift; cmd_timemap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
+  settings) shift; cmd_settings "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   bgm) shift; cmd_bgm "$@" ;;
   sound) shift; cmd_sound "$@" ;;

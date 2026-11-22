@@ -22,7 +22,7 @@ import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
 ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history",
-       "history-save", "history-diff", "history-restore", "gate", "new", "proxy", "thumbs", "words")
+       "history-save", "history-diff", "history-restore", "gate", "new", "proxy", "thumbs", "words", "settings")
 
 
 class VH:
@@ -47,7 +47,7 @@ def fixture(t, sh):
     """The projects: p (bin/vh new, a film, its render, check, version and delivery records, a ledger, a cast and research folder, a
     log with each kind of line), z (the desk's fixture with a page and a submission), e (an edit list), and bad things for the
     failures. → (vh, p, z, e, whether there is a film)."""
-    vh = VH(sh, {"OVH_PROJECTS": f"{t}/projects"})
+    vh = VH(sh, {"OVH_PROJECTS": f"{t}/projects", "XDG_CONFIG_HOME": f"{t}/config"})   # (settings: this run's own)
     r = vh("new", "math", "ci-contract")
     if r.returncode:
         raise SystemExit(f"bin/vh new: exit {r.returncode}: {r.stderr[-400:]}")
@@ -113,7 +113,7 @@ def outputs(vh, p, z, e, has_film):
             ("edit-list", ["edit", "list", e]), ("edit-build", ["edit", "build", e]), ("assets-list", ["assets", "list", p]), ("artifacts-list", ["artifacts", "list", p]),
             ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"]), ("history", ["history", "list", p]),
             ("history-save", ["history", "save", p]), ("history-diff", ["history", "diff", p]), ("history-restore", ["history", "restore", p, "NOTES.md", "--at", "s1"]), ("gate", ["gate", z, "1", "--page"]), ("new", ["new", "math", "ci-contract-too"]),
-            ("words", ["words", z]), ("words", ["words", f"{z}/SCRIPT.md", "--all"])]
+            ("words", ["words", z]), ("words", ["words", f"{z}/SCRIPT.md", "--all"]), ("settings", ["settings"])]
     if has_film:
         runs.insert(0, ("check", ["check", f"{p}/out/final.mp4"]))   # first: status and the others have its record
         runs.append(("peaks", ["peaks", f"{p}/out/final.mp4", "--bins", "8"]))

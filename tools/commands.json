@@ -120,6 +120,25 @@
       ]
     },
     {
+      "name": "settings",
+      "summary": "This machine's own settings, the ones that are not secret, kept once for every clone and for Studio: for now the download mirrors (tools/mirrors.txt), cn, off or auto.",
+      "when": "when downloads are blocked or slow where you are (install.sh switches to the mirrors by itself when the official npm registry does not answer), or to turn the mirrors off again",
+      "stages": ["env"],
+      "reads": ["$XDG_CONFIG_HOME/ovh/settings.json (~/.config/ovh/settings.json)", "tools/mirrors.txt"],
+      "writes": ["$XDG_CONFIG_HOME/ovh/settings.json (~/.config/ovh/settings.json)", "~/.cache/hyperframes/chrome (mirror cn: HyperFrames' Chrome from the mirror)"],
+      "usage": [
+        {
+          "synopsis": "settings [--json] | settings mirror cn|off|auto [--why TEXT] | settings mirror --get | settings chrome [project]",
+          "text": [
+            "what this machine's settings are and where they are kept; mirror cn: the downloads a command starts come from the",
+            "mainland-China mirrors in tools/mirrors.txt (npm, uv, Hugging Face, Electron; HyperFrames' Chrome fetched from the mirror",
+            "now, as HyperFrames cannot be pointed at one; settings chrome [project] does only that), a source of your own stays;",
+            "off: never, auto: the official sources (install.sh tries them first)"
+          ]
+        }
+      ]
+    },
+    {
       "name": "install-skill",
       "summary": "Register the skills in skills/ for Claude Code, Codex or both: short stubs that read skills/<skill>/SKILL.md in this clone, so a git pull updates them.",
       "when": "once, so that a video request in any folder finds this repo; again only when bin/vh doctor's skills line says so",
