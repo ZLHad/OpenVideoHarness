@@ -2,6 +2,97 @@
 
 What changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.
 
+## v0.8.0 — 2026-11-22
+
+A minor release: the first film gets easier, and Studio gets a settings page. The install is lighter and finds its way around sources that do not answer, the keys of online services are set in Studio, and a voice billed per use waits for a budget.
+
+### What's new
+
+- **A lighter install:** the one-line install took 17 seconds and 389 MB on the machine we measured (it was 90 seconds and 710 MB). Its last screen is nine lines: ready for a first film or not, what is missing, how to start. A first download of several GB says its size before it starts.
+- **Mirrors when the official sources do not answer:** the installer tries the npm registry, Hugging Face and Chrome's storage, and uses mainland-China mirrors only when one of them fails and its mirror answers. `bin/vh settings mirror cn|off|auto` changes it later.
+- **Studio's settings page:** language, look, the default agent, the download mirror and this computer's defaults, in one place.
+- **API keys in Studio:** Gemini, MiniMax, ElevenLabs and Alibaba Cloud Model Studio. A key is kept in the system's own password store (the Keychain on macOS, the Secret Service on Linux), never in a file, and the page only ever knows whether it is set. A key in the environment is still used first.
+- **A missing key says what to do:** the command and the film's page in Studio say in one sentence where to set it, where to get one, and what does the same work on this computer without it.
+- **A voice billed per use needs a budget:** MiniMax pay-as-you-go, ElevenLabs and DashScope are not called without a `Budget:` line, as generated pictures and Lyria music already were. Local voices, Gemini and MiniMax's Token Plan work as before.
+- **Voice-only films pass the sound check:** `bin/vh mix` lays a quiet room tone under a voice with no music, and `bin/vh qa` no longer reads the pauses between sentences as dropouts.
+- **A plugin for Claude Code and Codex:** two commands each fetch only the skills, about 2 MB, without the whole repository.
+- **Homepage:** every sample film and style carries a "make one like this" line, and the quick start lists four ways in.
+
+Not verified in this release: the mirrors on a network that really blocks the official sources; the room tone by ear; the Secret Service on a real Linux desktop (a stand-in only).
+
+The full entries follow, newest first.
+
+**页面工具起浏览器时，没起来的那一次再起一个**
+- Why: 机器忙的时候，Chrome 冷启动偶尔 60 秒都没回第一句话，`bin/vh readcheck --export` 这类命令就整个失败；紧接着再起一次，通常马上就回。
+- 页面工具（textcheck、readcheck 的导出、frames、render 等）起的浏览器，60 秒没回第一句话，或者回话之前就退出了，就关掉它、再起一个，并且说一句；第二个也没起来才报错。找不到浏览器程序的，不再试。
+
+**按次计费的配音也要预算：MiniMax 按量付费、ElevenLabs、阿里云百炼没写预算就不调**
+- Why: Studio 设置页存的 key 现在每条命令都读得到，Studio 对话里的 agent 也能调这几家收费的配音；出图和 Lyria 作曲早就要预算，配音还是直接调用、花账户的钱。
+- `bin/vh tts` 和 `bin/vh voices audition` 用 `elevenlabs`、`dashscope`，或者只有按量付费 key（`MINIMAX_API_KEY`）的 `minimax` 时，先读片子的预算（BRIEF 的 `Budget:`，没有再看 `LOCAL.md` 的默认预算）。没有预算、预算是 0，或者这次会超出，就不调，说清要写什么、还差多少；这一步在发出第一个请求、删掉旧配音之前。缺 key 和缺预算都有时，先说缺 key。
+- 每个请求先按字数占住估价，回答回来按它报的计费字数结账（MiniMax 的 `usage_characters`、百炼的 `usage.characters`），记进片子的 `assets/spend.jsonl`；结束时多一行：几个请求、花了多少、预算还剩多少。ElevenLabs 的回答不报字数，按估价记，是上限（套餐里含的字数不按次扣），那一行和账上都写明。报错的回答和没发出去的请求记 0；超时的保留估价，并且说可能已经扣了。
+- 价格照各家价格页（2026-11-22 读，页面地址写在 `tools/audio/speechcost.py` 里，`python3 tools/audio/speechcost.py` 列出）：MiniMax 国际站 speech-2.8-hd 每百万字符 $100、turbo $60，国内站每万字符 ¥3.5、¥2；ElevenLabs 多语种 v2 每千字符 $0.08；百炼 qwen3-tts-flash 北京每万字符 ¥0.8、新加坡 $0.1。MiniMax 和百炼的页面说一个汉字算 2 个字符，这里所有非 ASCII 字符都按 2 个算，估价只多不少。表里没有的模型按同一接入点最贵的模型算，并说明是估的；表里没有的接入点（比如代理），只要有不为 0 的预算就调，记成"价钱不知道，可能已扣费"。
+- 试音按文本文件所在的片子读预算、记账；文本不在任何片子里时不调。
+- 照旧用，不要预算：本机的声音（`qwen`、`say`）、不要 key 的 `edge`、Gemini 配音和 `--align gemini`（先用免费额度）、MiniMax 的 Token Plan key（花套餐额度，tts 先用它）。
+- 两个预算占位在同一毫秒里时，记账的编号以前会重，结掉一个会把另一个也当成结了；编号现在加了一个计数。
+- Studio 设置页和 README"API Key"一节关于预算的那句话照新规则改了。
+
+**在 Claude Code 和 Codex 里作为插件装上（只取约 2 MB）；打开 Studio 时更新安装脚本写下、没人改过的旧 skill 短桩**
+- Why: 原来要么跑安装脚本，要么用 `npx skills add`；在 agent 自己的插件市场里搜不到、装不上。另外，旧版本写下的 skill 短桩过期以后，要等人看了 `bin/vh doctor` 再手动重装。
+- 仓库本身是一个插件市场：`.claude-plugin/marketplace.json`（Claude Code）和 `.agents/plugins/marketplace.json`（Codex），指向 `plugins/open-video-harness/`，里面是两个 skill 目录的完整副本（`bin/vh sync-agents` 从 `skills/` 复制，CI 逐个文件核对）和两家各自的清单。版本号只在 skill 改了的时候加一（`tools/plugin_version.py`，sync-agents 写，CI 核对），所以没改 skill 的提交不算新版本。装法各两条终端命令，带 `--sparse` 只取插件自己的目录：Claude Code 约 1.8 MB，Codex 约 2.6 MB（不带就是整个仓库，二百多 MB）。更新：Claude Code 先 `claude plugin marketplace update`，再 `claude plugin update`；Codex 先 `codex plugin marketplace upgrade`，再重新 `codex plugin add`。装上的仍是指针：第一次用时征得同意，再装完整的工作台。插件和安装脚本的短桩都装了时会列出两个同名的 skill，README 写了卸哪个。首页「快速开始」里展开「只装 skill」也是这几条命令，和 README 一致。
+- 安装脚本写的短桩最后一行是一个记号，带着上面内容的哈希。`bin/vh studio` 打开之前，只重写本克隆写过、记号对得上（没人改过）、又落后于 `skills/` 的那几个文件，在 stderr 说一行；平常打开什么都不说，`--print-address`、`--json` 也不说，`-h`、`--icon-status` 不做。别人的 skill 目录、指向另一个克隆的短桩、`npx skills add` 的整份副本（经过软链接的也一样）、手改过的短桩都不动，也不替某个 agent 加它没装过的 skill；手改过的，`bin/vh doctor` 会说。`bin/vh install-skill` 写不进去时退出码是 1。
+
+**只有旁白的片子：混音默认垫一层房间底噪，`bin/vh qa` 不再把句间停顿当成问题**
+- Why: 一支只有人声的有声片，混完跑 `bin/vh qa` 会报几十处问题（25 秒的样片：22 处数字静音、21 处掉音、39 处抽吸）。合成的人声在句与句之间是精确的零，逗号处也低于 −60 dBFS；qa 又拿给配乐用的尺子量人声。新人分不清哪些要紧，agent 只能临时加一层配乐。
+- `bin/vh mix`：有人声、没有配乐时，默认在整片下面垫一层房间底噪（两个声道各一个固定种子的粉噪，用 numpy 和 scipy 做，60 Hz–5 kHz，−60 dBFS RMS，首尾 0.5 s 在 −66 dBFS 和它之间渐变，不落到零），加在响度增益之后，整片响度不变、真峰值最多高 0.1 dB，同样的输入得到同样的字节。电平是量出来的：−66 dBFS 是数字静音检查有余量地通过的最低电平，再高 6 dB。混音记录和报告都写着它；`room=off` 不垫，`room=<dB>` 换电平（只收 −66…−58）；有配乐的片子一个字节都不变，给了 `room=` 会说一句不用它。"有声片里不出现数字静音"这条底线不变。
+- `bin/vh qa`：能证明这支混音是一条人声（或人声加音效、没有配乐）时，按人声自己的轨道判：人声自己停顿处的低谷是它的呼吸，单列出来不算问题；人声正发声、混音却掉下去的地方照样算掉音。证据要两样：混音旁边的记录对得上这支混音和它的每个输入（和 `bin/vh mux` 查的一样），里面只有 `voice=`（可以有音效），没有配乐、`edit=`；人声还是 `bin/vh tts` 拼出来的样子。`bin/vh tts` 现在在时间轴里记下人声由哪些片段、哪些静音依次拼成（`joined`，每个片段带它生成时的 sha256），qa 逐个采样比对，片段之间的静音也比。之后被剪过、淡过、补过的地方，`--resume` 重新拼进来的改过的片段（tts 会说一句），以及有音效在响的地方，照常判；所以在人声里挖洞、往句间塞东西都照样判失败。缺一样（没有记录、记录对不上、有配乐、没有时间轴、时间轴是以前的、人声被 `bin/vh pace` 重新排过时），就和别的混音一样判，开头一行说为什么。同一支样片：掉音 21 → 0，抽吸 39 → 0。
+
+**少了 API Key 时，命令和 Studio 都用一句话说清去哪设、去哪拿、不用它还能怎么做**
+- Why: 配音、对时间、出图、作曲缺 key 时，原来各说各的（"set GEMINI_API_KEY (Google AI Studio → Get API key)"），只说了环境变量；Studio 里只看得到"配音结束时报了问题"，人不知道片子在等什么、该去哪里补。
+- 缺 key 停下的命令（`bin/vh tts` 各家、`--align gemini`、`voices audition`、`pace --align gemini`、`music --provider lyria`、`image gen`）都说同一句：哪一家、哪个 key，在 Studio 的设置 → 服务里填上（或者设环境变量），去哪拿，不用它时这台电脑上还能怎么做。能怎么做看这台电脑：Apple Silicon 上是本地配音、本地对时间；Intel Mac 上是 macOS 自带的声音；Linux 上没有本地的，就直说；作曲哪里都能在本地做；出图装了 Codex 时可以走 ChatGPT 的订阅。这句由 `tools/keys.py` 写，记进这次运行的记录，代码是新的 `no_key`，还记下 key 拿来做什么（配音、对时间、作曲、出图）。
+- `bin/vh status` 和 Studio 的现状行在片子等 key 时说："配音停下了：还没有 Gemini 的 API Key。在设置 → 服务里填上，再让 agent 接着做。"Studio 里那一行带一个按钮，点了直接到设置 → 服务。下面那句按 key 拿来做什么来说（配音的 key 说本地声音，对时间的 key 说本地对时间）。key 设上了（Studio 里或环境变量里）、后来同类的活做成了、或者后来别的命令失败了，这句就不说了。
+- `music --provider lyria` 的运行现在会记下结束，不再被当成中断。
+- 不花钱：检查在调用之前，什么都没调就停。
+
+**Studio 的设置页里能填 API Key：存在这台电脑的钥匙串里，终端和 Studio 里的对话都用得上**
+- Why: 配音、出图、作曲这些在线服务要 API Key，原来只能写成终端里的环境变量；Studio 里的对话根本拿不到，新人也不知道该去哪拿、怎么设。
+- 设置页多一节"服务"：Gemini、MiniMax、ElevenLabs、阿里云百炼，各写用来做什么、免费还是收费、去哪拿 API Key；可以填上、换一个、拿掉，"测一下"用服务不花钱的地址问一次。配音默认仍用这台电脑上的声音，不用任何 key。
+- 填的 key 存进系统自己的密码库（macOS 的钥匙串；Linux 上有 Secret Service 时用它，没有就照旧只能用环境变量），不写进任何文件，页面以后只知道设没设。环境变量里有的，仍然优先用环境变量的。
+- 所有读 key 的命令都改成先看环境变量、再看 Studio 里存的（`tools/keys.py`）；`bin/vh doctor` 说清是"在 Studio 里设了"还是"在环境变量里设了"。
+- 一台电脑上同一个变量名，环境变量里的先用；没有再用 Studio 里存的。每个命令对每个名字只问一次密码库，问不到（没有、超过 3 秒没回）也记住，不会在长时间配音的半路因为密码库卡一下就停。
+- "测一下"对设了的每个 key 各问一次（MiniMax 两个都设了就问两次），哪个没通过说哪个。
+- 没有密码库的电脑，页面说清要把 key 写进终端启动时读的文件，并链到 README 新加的"API Key"一节。
+- 有 API Key 不等于有预算：出图和 Lyria 作曲没写预算就不调；用这几家配音、逐字对时、试音，现在是直接调用，花的是那个账户的钱。存在钥匙串里的 key，这个用户运行的程序（包括 Studio 对话里的 agent）都读得到，所以对话里的 agent 现在也能调这几家收费的配音。预算规则本身这次没改。
+
+**Studio 有了设置页：语言、外观、默认的 agent 和这台电脑的默认放在一处**
+- Why: Studio 的设置散在几处：语言和主题是顶栏的两个按钮，记在浏览器里，Studio 换一个端口就回到默认；模型和思考深度只在对话里选；这台电脑缺什么是空间页单独一块；LOCAL.md 里的默认要打开文件看。
+- 左栏最下面一个"设置"，或者 ⌘,（Studio 自己的窗口里菜单也有"设置…"）。分通用、agent、片子的默认、这台电脑、关于几节，一次看一节。
+- 语言、外观、新对话默认用哪个 agent 记在这台电脑的设置文件里（`~/.config/ovh/settings.json`，和下载镜像同一份），换端口、开第二个窗口都还在。顶栏的两个按钮照旧，改的是同一份。
+- 模型和思考深度：agent 在对话里给过选项以后，这里也能选，和对话里选的是同一份。
+- 下载镜像可以在这里换；LOCAL.md 里的默认（努力程度、在哪看每一站、预算等）只显示，没写的说明没写时按什么，要改让 agent 改。
+
+**官网：每支样片、每种风格都带一句"照这个做一支"；快速开始列出四个入口**
+- Why: 新来的人第一步卡在"该说什么"。官网上的样片和风格只能看，不能直接拿来开片。
+- 作品区：每张片子的左上角（播放键对面）有一个"照这个做一支 · 复制这句话"：鼠标移上去或用键盘 Tab 到它时出现，触屏上一直显示。复制的是一句同类片子、换一个新题目的快出需求；发布短片那句留了一个要你填的空（［在这里贴上它的链接］）。页面底部说一声复制了什么，点开风格大图时这行字自己收起。点它不会播片。
+- 风格墙：点开一种风格，样片下面是一句可复制的话：用这种风格快出一版 20 秒的短片，只用画面和文字、不配旁白（避开第一次的配音下载），横屏或竖屏按这种风格支持的画幅；`bin/vh new … --style` 那行命令留在下面。`tools/readme.py check` 核对哪些风格算竖屏。
+- 快速开始第二步改成四个入口，每个入口带自己的命令，和 README 一样的顺序：Studio（`bin/vh studio`）、终端（`codex`、`claude`）、Claude Code 或 Codex 的桌面 App、别的文件夹（只装 skill：`npx skills add …`）。`tools/readme.py check` 新查一条：页面上每一条可复制的命令，同一个提交的 README 里都要有，页面就不会先于仓库给出还没有的命令。
+
+**连不上官方源时，安装自动改用国内镜像，之后的下载都跟着走**
+- Why: 在国内网络下，第一次安装和第一次做片要连 npm、PyPI、Hugging Face、GitHub Releases 和 Google 的存储；原来要照 wiki 手动设三四个变量、另跑两条命令装 Chrome，Studio 应用的 Electron 下载没有写怎么办。
+- 安装时先试官方的 npm 源（经 npm 试，它自己的代理设置算数）、Hugging Face 和 Google 的存储（Chrome），各试两次、每次 5 秒；哪个连不上、它的国内镜像连得上，就改用国内镜像，用一句话说明是哪个、怎么连不上，并记在这台机器自己的设置里（`~/.config/ovh/settings.json`）。不按语言或时区猜。`--mirror cn` 直接用，`--mirror off` 不用，也记下来。这之前装的，`bin/vh settings mirror cn` 打开。
+- 镜像的地址集中在 `tools/mirrors.txt` 一个文件里，每一行写明是谁在运营（npmmirror.com、清华 TUNA、hf-mirror.com）。设置每次都从文件读：镜像打开时，`bin/vh` 给它运行的每条命令设好 npm、uv（Python 包和 Python 本身）、Hugging Face 和 Electron 的镜像变量，Studio 起的 agent 也一样；关掉以后，之前继承下来的这些变量下一次运行就拿掉。你自己设的源不动：环境变量，`.npmrc` 里 npm 的源，`uv.toml` 里 uv 的源。HyperFrames 下载 Chrome 没有可设的地方，`bin/vh new`、`render`、`hf`、`frames` 和 `bin/vh settings chrome [项目]` 从镜像替它下好。不走镜像的：GitHub（克隆、`references/fetch.sh`、`--obscura`）、`bin/vh hf add`、`bin/vh hdri`、手绘引擎 studio 页面的 Google Fonts。
+- 新命令 `bin/vh settings`：看这台机器的设置，`bin/vh settings mirror cn|off|auto` 改镜像，`--json` 给 Studio 的设置面板读。`bin/vh doctor` 多一行说现在走哪里、怎么关。
+- 校验：有 lockfile 的地方（`styles/_swatch`、Studio 的 Electron 壳、agent 适配器、ClaudeAnimationBase），npm ci 按 lockfile 里的哈希核对每个包；Electron 按它自己的包里带的 checksums.json 核对；uv 按它自带的 sha256 核对 Python 的构建（试过：从镜像目录换进去的包会被拒）。没有 lockfile 的就完全信任镜像，和今天信任 npmjs.org 一样：`bin/vh new` 装的 hyperframes 和 gsap、`npx hyperframes@<版本>`、没有 node_modules 时用的 @puppeteer/browsers（钉了版本，没钉哈希），包和核对它的哈希都来自镜像；uv 的包、Hugging Face 的模型、HyperFrames 的 Chrome 也是照收。
+- 切到镜像以后，uv 会按新的源重新下载之前缓存过的 Python 包（它的缓存按源区分）。
+
+**安装更轻，最后一屏只说第一支片要知道的事；几个 GB 的第一次下载都先说一声**
+- Why: 在干净的机器上量过，安装 90 秒里有 71 秒、305 MB 在拉参考仓库，而第一支片用不到它们；安装最后一屏是 60 多行 doctor，十几行黄色提示大多和第一支片无关，Linux 上真挡路的缺项淹在里面，最后照样说"ready"；本地配音第一次用要静默下载约 2.6 GB。
+- 37 个参考仓库安装时不再拉：agent 用到文档指的那一个时再拉，`references/fetch.sh <目录>` 拉之前用一行说清拉什么、从哪、多大（大小表在脚本里，CI 查每一个都有）；指名的那一个没拉下来就退出 1，名字写错退出 2；拉全部时断网只说一行。`install.sh --refs` 一次拉全；`--no-refs` 照旧认，现在就是默认。之前拉过的留着不动。`bin/vh doctor` 不再把没拉的参考仓库当成缺项。`bin/vh setup` 仍然拉全部，先说约 300 MB。
+- 安装最后几行换成 `bin/vh doctor --first`：能不能做第一支片，缺什么、一句怎么补（Node、FFmpeg、Python 3、uv、能渲染的浏览器和它要的系统库、一个 agent；中文环境下还有中文字体），配音在这台机器上怎么来；有缺的就不说 ready，没法检查的（Linux 上问不到浏览器的系统库）说"没检查"，也不说 ready。完整报告照旧是 `bin/vh doctor`。安装前就要 python3。skill 注册只说一行。示例句跟着你的语言：中文环境是 README 那条无声 15 秒，其他是它的英文版。skill 里写明：安装看最后几行，不看退出码。
+- 几个 GB 的第一次下载，开始前都先说一行：约多大、大概多久、显示进度，以及不用下载的办法。本地配音（`bin/vh tts`、`voices audition`）约 2.6 GB，`--provider edge` 只要一个小包（免费，在线：稿子会发到微软的配音服务）；本地 Whisper（`tts`、`voices audition --align local`、`pace --align whisper`）约 3.6 GB，`--align gemini` 不用下载。Python 包的下载逐个显示，模型下载每 10 秒说一次下了多少（输出给 agent 看、或者外面关了进度条时）。大小只记在 `tools/audio/firstuse.py` 一处，doctor 也从那里读。`bin/vh tts` 先查稿子：没有稿子时写一份示例就停，一个包都不下。
+- 默认配音只在 `tools/audio/tts.py` 的 `DEFAULT_PROVIDER` 一处设，`bin/vh tts` 问它。
+- doctor 找本地配音模型时也看 `XDG_CACHE_HOME`（Hugging Face 自己就这样找）。
+- README 中英文和官网的安装大小按实测更新：安装约 400 MB，`--refs` 再约 300 MB，本地配音约 2.6 GB，本地 Whisper 约 3.6 GB。
+
 ## v0.7.0 — 2026-11-22
 
 A minor release: the hand-over between you and the agent, inside Studio. A film can start in Studio, the page says who it waits for, a change can be reviewed side by side, and the words on screen are plain. The README and the homepage now say what the project is for: a controllable workflow for making videos with code.
