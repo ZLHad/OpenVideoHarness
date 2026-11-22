@@ -94,8 +94,16 @@ After synthesis, two warnings (nothing is changed): a line whose seconds per cha
        a transcript the second check is skipped, and that is said.
 Auditions (bin/vh voices audition): the same text in each voice → <out>/<voice>.wav and <out>/audition.json (pitch
        median, speech rate, and with --align gemini what the transcript disagrees with), for a review page.
+Billed per use (elevenlabs, dashscope, and minimax with MINIMAX_API_KEY alone): not called without a budget, like a
+       generated picture: the film's Budget line in BRIEF.md, else 默认预算 in LOCAL.md (tools/assets/budget.py). After
+       the key check and before any request or anything deleted, the run's estimate (its characters × the provider's
+       price, tools/audio/speechcost.py) is checked: no budget, or one it would go over, and nothing is called, said with
+       what to write. Each request is held, then settled at what the answer says was billed (ElevenLabs': the estimate,
+       an upper bound), in the film's assets/spend.jsonl; the run ends with a line of what it spent. An audition reads
+       the budget of the film its text file is in, and refuses a text in no film. Local voices, edge, gemini and the
+       Token Plan key are used as before.
 
-Providers (API keys come from environment variables only, never from files):
+Providers (an API key: the environment's, else the one saved in Studio's settings, tools/keys.py; never a file):
   qwen        DEFAULT. Local open-source Qwen3-TTS (Apache-2.0) on Apple Silicon via mlx-audio, offline and free.
               Model: QWEN_TTS_MODEL (default mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit, ~2 GB download
               on first use). Voices — zh: Serena (warm female, default), Vivian, Uncle_Fu, Dylan (Beijing),
@@ -105,8 +113,9 @@ Providers (API keys come from environment variables only, never from files):
   edge        Microsoft Edge online voices via the unofficial edge-tts package (free; may break).
   dashscope   Cloud Qwen3-TTS on Alibaba Cloud Model Studio (阿里云百炼): DASHSCOPE_API_KEY,
               DASHSCOPE_TTS_MODEL (default qwen3-tts-flash), voice e.g. Cherry, DASHSCOPE_BASE_URL (intl).
+              Billed per use: needs the film's budget (below).
   elevenlabs  ELEVENLABS_API_KEY; --voice <voice_id>; ELEVENLABS_MODEL (default eleven_multilingual_v2);
-              returns character-level timing.
+              returns character-level timing. Billed per use: needs the film's budget (below).
   gemini      Google Gemini 3.8 Flash TTS (gemini-3.8-flash-tts, released 2026-09-23): GEMINI_API_KEY from Google AI
               Studio. Free tier (its content may be used to improve Google products) and paid tier: $0.50 / 1M text
               tokens in, $9 / 1M audio tokens out (≈ $0.00225 per 10 s) through 2026-12-31, doubling to $1 / $18
@@ -124,7 +133,8 @@ Providers (API keys come from environment variables only, never from files):
               2026-12-31, $1 / $12 from 2027-01-01; for bulk single-speaker narration.
   minimax     MiniMax T2A v2 (speech-2.8-hd) on the international platform, POST https://api.minimax.io/v1/t2a_v2.
               Key: MINIMAX_TOKEN_PLAN_KEY (Token Plan subscription key, spends its credits) first, else MINIMAX_API_KEY
-              (pay-as-you-go: "1008 insufficient balance" when the account has no balance). The China host
+              (pay-as-you-go: "1008 insufficient balance" when the account has no balance; billed per use, so with this
+              key alone it needs the film's budget, below). The China host
               api.minimaxi.com rejects international keys (2049); a China-platform key (platform.minimaxi.com) needs
               MINIMAX_BASE_URL=https://api.minimaxi.com.
               --voice: a system voice id (default zh "Chinese (Mandarin)_Reliable_Executive", en "English_expressive_narrator";
@@ -143,7 +153,7 @@ Providers (API keys come from environment variables only, never from files):
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
 """
-import argparse, base64, difflib, hashlib, json, os, re, shutil, signal, subprocess, sys, tempfile, time, unicodedata
+import argparse, base64, contextlib, difflib, hashlib, json, os, re, shutil, signal, socket, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
@@ -153,6 +163,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import keys   # noqa: E402  an API key: the environment's, else the one saved in Studio's settings (tools/keys.py)
 
 RESUME = None   # what a stop keeps for a resume, once a line is on disk
+METER = None    # a run billed per use: its requests held against the film's budget (tools/audio/speechcost.py)
 
 SR = 48000
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta"
@@ -280,6 +291,37 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
 
 # ---------- providers: each writes a WAV at `out` and may return word/char timings ----------
 
+PER_USE = ("minimax", "elevenlabs", "dashscope")   # billed per use (minimax: with MINIMAX_API_KEY only): tools/audio/speechcost.py
+
+def paid_model(provider):
+    """The model a per-use provider is asked for (what its price is looked up by)."""
+    return {"minimax": os.environ.get("MINIMAX_TTS_MODEL", "speech-2.8-hd"), "elevenlabs": os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
+            "dashscope": os.environ.get("DASHSCOPE_TTS_MODEL", "qwen3-tts-flash")}[provider]
+
+def metered(project, provider, tool):
+    """A speechcost.Meter when this provider bills this run per use (minimax: only with MINIMAX_API_KEY), else None."""
+    if provider not in PER_USE:
+        return None
+    import speechcost
+    var = minimax_key()[1] if provider == "minimax" else None
+    return speechcost.Meter(project, provider, paid_model(provider), tool, var) if speechcost.paid(provider, var) else None
+
+class _Free:      # a request nobody bills per use: nothing to record
+    def billed(self, count=None): pass
+    def not_billed(self): pass
+    def maybe(self): pass
+
+def billing(text, out):
+    """One provider request: held against the budget and settled (speechcost.Meter.request) when the run is billed per use."""
+    if METER is None:
+        return contextlib.nullcontext(_Free())
+    m = re.match(r"^\.(.+)\.part(\.\w+)$", out.name)            # into_place's name for the take being made
+    return METER.request(text, m.group(1) + m.group(2) if m else out.name)
+
+def never_sent(e):
+    """A request that never left (refused, no such host): nothing was billed."""
+    return isinstance(getattr(e, "reason", None), (ConnectionRefusedError, socket.gaierror))
+
 KEY_OF = {"gemini": ["GEMINI_API_KEY"], "gemini-lite": ["GEMINI_API_KEY"], "minimax": ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"],   # Token Plan first
           "elevenlabs": ["ELEVENLABS_API_KEY"], "dashscope": ["DASHSCOPE_API_KEY"]}
 
@@ -365,11 +407,20 @@ def p_edge(text, voice, out: Path, tmp: Path, lang, instruct=None):
 def p_elevenlabs(text, voice, out: Path, tmp: Path, lang, instruct=None):
     key = keys.get("ELEVENLABS_API_KEY") or no_key("elevenlabs")
     voice = voice or sys.exit("--voice <voice_id> is required for elevenlabs")
-    body = json.dumps({"text": text, "model_id": os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")}).encode()
+    body = json.dumps({"text": text, "model_id": paid_model("elevenlabs")}).encode()
     req = urllib.request.Request(f"https://api.elevenlabs.io/v1/text-to-speech/{voice}/with-timestamps?output_format=mp3_44100_128",
                                  data=body, headers={"xi-api-key": key, "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        resp = json.loads(r.read())
+    with billing(text, out) as bill:                                 # the answer does not say what it billed: the estimate
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                resp = json.loads(r.read())
+        except urllib.error.HTTPError:
+            bill.not_billed(); raise
+        except urllib.error.URLError as e:
+            if never_sent(e):
+                bill.not_billed()
+            raise
+        bill.billed()
     mp3 = tmp / "el.mp3"; mp3.write_bytes(base64.b64decode(resp["audio_base64"])); to_wav(mp3, out)
     a = resp.get("alignment") or {}
     return char_words(a.get("characters", []), a.get("character_start_times_seconds", []), a.get("character_end_times_seconds", []))
@@ -389,12 +440,22 @@ def p_dashscope(text, voice, out: Path, tmp: Path, lang, instruct=None):
     key = keys.get("DASHSCOPE_API_KEY") or no_key("dashscope")
     if os.environ.get("DASHSCOPE_BASE_URL"):
         dashscope.base_http_api_url = os.environ["DASHSCOPE_BASE_URL"]
-    resp = dashscope.MultiModalConversation.call(
-        model=os.environ.get("DASHSCOPE_TTS_MODEL", "qwen3-tts-flash"), api_key=key, text=text,
-        voice=voice or "Cherry", language_type="Chinese" if lang.startswith("zh") else "English", stream=False)
-    url = resp.output.audio.url if getattr(resp, "output", None) else sys.exit(f"dashscope error: {resp}")
+    with billing(text, out) as bill:
+        resp = dashscope.MultiModalConversation.call(
+            model=paid_model("dashscope"), api_key=key, text=text,
+            voice=voice or "Cherry", language_type="Chinese" if lang.startswith("zh") else "English", stream=False)
+        if not getattr(resp, "output", None):                        # an error answer: nothing synthesized
+            bill.not_billed(); sys.exit(f"dashscope error: {resp}")
+        bill.billed(_field(getattr(resp, "usage", None), "characters"))   # usage.characters: what the answer says was billed
+    url = resp.output.audio.url
     raw = tmp / "ds.wav"; urllib.request.urlretrieve(url, raw); to_wav(raw, out)
     return None
+
+def _field(o, k):   # a field of the DashScope SDK's answer: a dict that also takes attributes
+    try:
+        return o[k]
+    except (KeyError, TypeError, IndexError):
+        return getattr(o, k, None)
 
 def gemini_model(provider):
     return os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-lite-tts" if provider == "gemini-lite" else "gemini-3.8-flash-tts")
@@ -494,10 +555,12 @@ def _minimax_get(url, timeout, tries=3):
                 raise MinimaxError(f"minimax: could not download the subtitles: {e}")
             time.sleep(3 * (k + 1))
 
-def minimax_tts(text, voice, lang, emotion=None, timeout=600, tries=3):
+def minimax_tts(text, voice, lang, emotion=None, timeout=600, tries=3, out=None):
     """T2A v2 (platform.minimax.io/docs/api-reference/speech-t2a-http), one non-streaming request → (WAV bytes, the
     subtitle file's items). The key travels in the Authorization header only. 1000, 1001, 1002 and 1039, 5xx and
-    network errors are retried twice; any other error fails at once, with a hint for a rejected key or no balance."""
+    network errors are retried twice; any other error fails at once, with a hint for a rejected key or no balance.
+    With the pay-as-you-go key every attempt is held against the budget (billing) and settled at the answer's
+    extra_info.usage_characters; an error status or an HTTP error at 0; a timeout keeps the estimate."""
     key, var = minimax_key()
     if not key:
         no_key("minimax")
@@ -507,7 +570,7 @@ def minimax_tts(text, voice, lang, emotion=None, timeout=600, tries=3):
     vs = {"voice_id": voice, **minimax_settings(), "text_normalization": True}
     if emotion:
         vs["emotion"] = emotion
-    body = {"model": os.environ.get("MINIMAX_TTS_MODEL", "speech-2.8-hd"), "text": text, "stream": False, "voice_setting": vs,
+    body = {"model": paid_model("minimax"), "text": text, "stream": False, "voice_setting": vs,
             "audio_setting": {"sample_rate": 44100, "format": "wav", "channel": 1},
             "language_boost": "Chinese" if lang.startswith("zh") else "English",
             "subtitle_enable": True, "subtitle_type": "word", "output_format": "hex"}
@@ -518,24 +581,37 @@ def minimax_tts(text, voice, lang, emotion=None, timeout=600, tries=3):
         last = k == tries - 1
         req = urllib.request.Request(url, data=json.dumps(body).encode(),
                                      headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                resp = json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            if e.code >= 500 and not last:
-                time.sleep(3 * (k + 1)); continue
-            raise MinimaxError(f"minimax HTTP {e.code}: {e.read()[:BODY_SHOW].decode(errors='replace')}")
-        except (urllib.error.URLError, TimeoutError) as e:
-            if not last:
-                time.sleep(3 * (k + 1)); continue
-            raise MinimaxError(f"minimax: {e}")
-        br = resp.get("base_resp") or {}
-        code = br.get("status_code")
-        if code in MINIMAX_RETRY and not last:
-            time.sleep((10 if code in (1002, 1039) else 3) * (k + 1)); continue
-        if code != 0:
-            hint = minimax_hint(code, base)
-            raise MinimaxError(f"minimax error {code}: {br.get('status_msg')} (key from {var})" + (f"; {hint}" if hint else ""))
+        wait = None
+        with billing(text, out or Path("minimax.wav")) as bill:       # each attempt is a request of its own
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    resp = json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                bill.not_billed()
+                if e.code < 500 or last:
+                    raise MinimaxError(f"minimax HTTP {e.code}: {e.read()[:BODY_SHOW].decode(errors='replace')}")
+                wait = 3 * (k + 1)
+            except (urllib.error.URLError, TimeoutError) as e:     # a timeout may have been billed: its estimate stays
+                if never_sent(e):
+                    bill.not_billed()
+                elif not last:
+                    bill.maybe()
+                if last:
+                    raise MinimaxError(f"minimax: {e}")
+                wait = 3 * (k + 1)
+            else:
+                br = resp.get("base_resp") or {}
+                code = br.get("status_code")
+                if code != 0:                                         # an error status: nothing synthesized
+                    bill.not_billed()
+                    if code not in MINIMAX_RETRY or last:
+                        hint = minimax_hint(code, base)
+                        raise MinimaxError(f"minimax error {code}: {br.get('status_msg')} (key from {var})" + (f"; {hint}" if hint else ""))
+                    wait = (10 if code in (1002, 1039) else 3) * (k + 1)
+                else:
+                    bill.billed((resp.get("extra_info") or {}).get("usage_characters"))
+        if wait:
+            time.sleep(wait); continue
         d = resp.get("data") or {}
         if not d.get("audio") or not d.get("subtitle_file"):
             raise MinimaxError(f"minimax: no audio or no subtitle file in the response: {json.dumps(resp)[:300]}")
@@ -581,10 +657,15 @@ def minimax_words(subs, text):
             prev = t1s[i]
     return char_words(list(text), t0s, t1s)
 
+def body_of(provider, text):
+    """The text a provider's request carries, which is what it bills: MiniMax's with its pause marks at the edges dropped
+    and each run of them merged and rewritten (split_pauses: <#0.5#> goes as <#0.50#>); the others' as given."""
+    return split_pauses(text)[1] if provider == "minimax" else text
+
 def p_minimax(text, voice, out: Path, tmp: Path, lang, instruct=None):
-    text = split_pauses(text)[1]                                     # a mark must sit between two spoken words
+    text = body_of("minimax", text)                                  # a mark must sit between two spoken words
     voice = voice or ("Chinese (Mandarin)_Reliable_Executive" if lang.startswith("zh") else "English_expressive_narrator")
-    audio, subs = minimax_tts(text, voice, lang, minimax_emotion(instruct))
+    audio, subs = minimax_tts(text, voice, lang, minimax_emotion(instruct), out=out)
     raw = tmp / "mm.wav"; raw.write_bytes(audio); to_wav(raw, out)
     words = minimax_words(subs, strip_tags(text, reactions=False))   # prepare() already dropped backchannels
     if words is None:
@@ -1151,13 +1232,31 @@ def audition(a):
         sys.exit("voices audition: " + keys.stopping("GEMINI_API_KEY", "voice" if gemini else "timing", (f"--provider {a.provider}" if gemini else "--align gemini") + " needs it; nothing was synthesized"))
     if a.provider == "minimax" and not minimax_key()[0]:
         sys.exit("voices audition: " + keys.stopping(KEY_OF["minimax"], "voice", "nothing was synthesized"))
+    if a.provider in ("elevenlabs", "dashscope") and not keys.get(KEY_OF[a.provider][0]):
+        sys.exit("voices audition: " + keys.stopping(KEY_OF[a.provider], "voice", "nothing was synthesized"))
+    plain = strip_tags(raw)                                          # what is counted and compared
+    spoken = PAUSES.sub(_pause, raw) if gemini else strip_tags(raw, pauses=False) if a.provider == "minimax" else plain
+    units, unit = _units(plain, lang), ("chars/s" if lang == "zh" else "syll/s")
+    global METER
+    METER = None
+    if a.provider in PER_USE:                                        # billed per use: the film's budget, after the key
+        import speechcost
+        var = minimax_key()[1] if a.provider == "minimax" else None
+        if speechcost.paid(a.provider, var):
+            film = speechcost.film_of(src)
+            if film is None:
+                sys.exit(f"voices audition: --provider {a.provider} is billed per use ({speechcost.paid(a.provider, var)}), and {src} is in no"
+                         f" film's folder (no BRIEF.md at or above it): no budget allows it and nothing records it. Put the text in the"
+                         f" film's folder; nothing was synthesized")
+            METER = metered(film, a.provider, "bin/vh voices audition")
+            try:
+                METER.check([body_of(a.provider, spoken)] * len(voices))
+            except speechcost.Refused as e:
+                sys.exit(f"voices audition: {e}; nothing was synthesized")
     try:
         import voicefeat
     except ImportError:
         sys.exit("voices audition measures the takes with numpy: run it as bin/vh voices audition")
-    plain = strip_tags(raw)                                          # what is counted and compared
-    spoken = PAUSES.sub(_pause, raw) if gemini else strip_tags(raw, pauses=False) if a.provider == "minimax" else plain
-    units, unit = _units(plain, lang), ("chars/s" if lang == "zh" else "syll/s")
     out = Path(a.out) if a.out else src.with_name(f"audition-{src.stem}"); out.mkdir(parents=True, exist_ok=True)
     rows, bad = [], 0
     with tempfile.TemporaryDirectory() as td:
@@ -1186,6 +1285,8 @@ def audition(a):
     (out / "audition.json").write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"→ {out}/audition.json and {sum('file' in r for r in rows)} WAV(s)"
           + ("" if a.align in ("gemini", "local") else " · misread words: --align gemini (or local) transcribes each take"))
+    if METER:
+        print(METER.line())
     sys.exit(1 if bad else 0)
 
 # ---------- main ----------
@@ -1322,6 +1423,25 @@ def main():
         if size > MINIMAX_MAX_CHARS:                                 # before the last take is deleted
             sys.exit(f"minimax: the request from @{first} would be {size} characters, over the limit of {MINIMAX_MAX_CHARS}: "
                      + {"all": "use --join block (blank lines in script.txt split it)", "block": "split that block with a blank line"}.get(join, "split the line"))
+    global METER
+    METER = None if voiced else metered(proj, a.provider, "bin/vh tts")   # billed per use: the budget, after the key (no use without one)
+    if METER:                                                    # the whole run against it, before anything is deleted or sent
+        to_send = lambda s: strip_tags(spoken(s), reactions, pauses=a.provider != "minimax")   # what prepare() gives these providers
+        body = lambda x: body_of(a.provider, x)                  # what the request carries, as the provider bills it
+        kept = lambda f: a.resume and f.exists() and (f.with_suffix(".words.json").exists() or not timed)   # the loops' own test
+        whole = lambda blk: (linked([to_send(s) for s in blk]) if timed else ("" if a.lang == "zh" else " ").join(to_send(s) for s in blk))
+        if join == "none":
+            todo = [body(to_send(s)) for i, s in enumerate(segs) if not kept(vo / f"{i+1:02d}.wav")]
+        elif a.candidates > 1:                                   # N takes of each block not made yet
+            todo = [body(whole(blk)) for bi, blk in enumerate(blocks) if not (a.resume and (vo / f"_block{bi+1:02d}.wav").exists())
+                    for c in range(a.candidates) if not kept(vo / f"_block{bi+1:02d}.c{c+1}.wav")]
+        else:
+            todo = [body(whole(blk)) for bi, blk in enumerate(blocks) if not kept(vo / f"_block{bi+1:02d}.wav")]
+        import speechcost
+        try:
+            METER.check(todo)
+        except speechcost.Refused as e:
+            sys.exit(str(e))
     if not a.resume:
         shutil.rmtree(vo, ignore_errors=True); vo.mkdir(parents=True)
     grids = {}
@@ -1665,6 +1785,8 @@ def main():
     if trimmed > 0.05:
         print(f"  trimmed {trimmed:.2f} s of provider silence at line edges (--keep-edges to keep it)")
     print(f"→ {joined.relative_to(proj)} ({tl['duration']}s) · audio/timeline.{a.lang}.json · captions: bin/vh captions {a.project}")
+    if METER:
+        print(METER.line())
     activity.note(f"{len(segs)} line(s), {tl['duration']} s, {a.provider} {a.voice or ''}".rstrip(), [joined, audio / f"timeline.{a.lang}.json"])
     import timeline_lint   # the checks captions and pace rely on: say now what they would refuse later
     if (lint := timeline_lint.lint(tl, a.lang)):

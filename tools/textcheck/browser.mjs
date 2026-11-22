@@ -70,7 +70,7 @@ export async function launch(exe, flags = []) {
   proc.stderr.on("data", (d) => { stderr = (stderr + d).slice(-4000); });
   const out = proc.stdio[3], inp = proc.stdio[4];
   const pending = new Map(), waiters = [], listeners = [];
-  let chunks = [], id = 0, dead = null, started = false;
+  let chunks = [], id = 0, dead = null, started = false, unspawned = false;
   // a browser that exits or crashes fails every call still waiting, so nothing hangs until the watchdog
   const gone = (why) => {
     if (dead) return;
@@ -82,7 +82,7 @@ export async function launch(exe, flags = []) {
   };
   const exited = new Promise((res) => {
     proc.on("exit", (code, sig) => { gone(sig || `exit ${code}`); res(); });
-    proc.on("error", (e) => { stderr += String(e); gone(e.code || "error"); res(); });
+    proc.on("error", (e) => { stderr += String(e); unspawned = true; gone(e.code || "error"); res(); });   // no such program, not runnable
   });
   out.on("error", (e) => gone(e.code || "pipe error"));
   inp.on("error", (e) => gone(e.code || "pipe error"));
@@ -143,7 +143,11 @@ export async function launch(exe, flags = []) {
     // 60 s: a cold start on a busy CI runner has taken over 30 (a rerun of the same code passed)
     version = await within(send("Browser.getVersion"), 60000, () => new Error("the browser did not answer within 60 s"));
     started = true;
-  } catch (e) { killGroup(proc); await within(exited, 3000); removeProfile(); if (!LIVE.size) disarm(); throw e; }   // a Chrome that never answered may ignore SIGTERM
+  } catch (e) {   // a Chrome that never answered may ignore SIGTERM
+    killGroup(proc); await within(exited, 3000); removeProfile(); if (!LIVE.size) disarm();
+    e.notStarted = !unspawned;   // it ran but never answered, or was gone first: launchTab starts another, once
+    throw e;
+  }
   return { send, once, on, close, version: version.product };
 }
 
@@ -153,11 +157,21 @@ export async function launch(exe, flags = []) {
 // at a time, none of 3550 for chrome-headless-shell. Then not even a browser-wide command answers, and only a new browser
 // helps. Without a limit here a tool with no watchdog of its own (render's workers) would wait for ever.
 const TAB_TRIES = 3;
+// A browser that did not start (no answer to its first command within 60 s, or gone before one) is started once more:
+// a busy CI runner's cold start has missed the 60 s once where the next start answered at once
+const START_TRIES = 2;
 class NoAnswer extends Error {}
 export async function launchTab(exe, flags, domains) {
   const TAB_ANSWER_S = Math.max(30, Number(process.env.OVH_PAGE_TIMEOUT) || 0);   // a slow machine's way to give it longer, never less
   for (let n = 1; ; n++) {
-    const browser = await launch(exe, flags);
+    let browser;
+    for (let k = 1; ; k++) {
+      try { browser = await launch(exe, flags); break; }
+      catch (e) {
+        if (!e.notStarted || k === START_TRIES) throw e;
+        console.error(`the browser did not start (${e.message}): starting another`);
+      }
+    }
     const answer = (method, params, session) => {
       let timer;
       return Promise.race([browser.send(method, params, session), new Promise((_, no) => { timer = setTimeout(() => no(new NoAnswer(`${method} had no answer within ${TAB_ANSWER_S} s`)), TAB_ANSWER_S * 1000); })]).finally(() => clearTimeout(timer));

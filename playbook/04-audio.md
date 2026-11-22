@@ -64,9 +64,11 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 |---|---|
 | `qwen`（默认） | 本地开源 Qwen3-TTS，免费、离线，首次下载约 2.6 GB（`bin/vh tts` 开始前先说，并显示进度）；0.6B 模型念英文短句偶尔停不下来，每条都要查 |
 | `gemini` | 云端，表演力最好，能用一句话导演语气，适合讲解旁白和双人对话；要 `GEMINI_API_KEY` |
-| `minimax` | 云端 MiniMax（`speech-2.8-hd`），中文音色多（`Chinese (Mandarin)_*`）。`--join all` 整份稿一个请求，从头到尾一个声音；自带逐字时间，不用转写；支持停顿标记 `<#0.4#>` 和发音词典 `@pronounce`。语气只认一个情绪词。要 `MINIMAX_TOKEN_PLAN_KEY` 或 `MINIMAX_API_KEY`，细节见 `tools/audio/README.md` 的"MiniMax" |
+| `minimax` | 云端 MiniMax（`speech-2.8-hd`），中文音色多（`Chinese (Mandarin)_*`）。`--join all` 整份稿一个请求，从头到尾一个声音；自带逐字时间，不用转写；支持停顿标记 `<#0.4#>` 和发音词典 `@pronounce`。语气只认一个情绪词。要 `MINIMAX_TOKEN_PLAN_KEY` 或 `MINIMAX_API_KEY`，细节见 `tools/audio/README.md` 的"MiniMax"。Token Plan 的 key 先用，花套餐额度，不要预算；只有按量付费的 `MINIMAX_API_KEY` 时按次计费，要预算（见下） |
 | `say` / `edge` | 打草稿；只能念，不能演 |
-| `elevenlabs` / `dashscope` | 接口已留，还没实测 |
+| `elevenlabs` / `dashscope` | 接口已留，还没实测；都按次计费，要预算（见下） |
+
+**按次计费的配音要预算**：MiniMax 按量付费的 key、ElevenLabs、阿里云百炼（`dashscope`）按字数计费，和生图、Lyria 一样，BRIEF 的 `Budget:` 和 `LOCAL.md` 的默认预算都没写就不调（`bin/vh tts` 和 `bin/vh voices audition` 在发出第一个请求、删掉旧的配音之前就停下，说清要写什么）；写一个数或 `不限` 就算授权。整次合成先按字数估一遍，超出预算就不调，说清还差多少；每个请求先占住估价，再按回答里的计费字数结账（ElevenLabs 的回答不报字数，按估价记，是上限：套餐里含的字数不按次扣），都记进片子的 `assets/spend.jsonl`。缺 key 和缺预算都有时，先说缺 key。价格和出处：`python3 tools/audio/speechcost.py`。本地的 `qwen`、`say`，不要 key 的 `edge`，`gemini`（先用免费额度）和 `--align gemini` 照旧用，不要预算。
 
 **每条配音都要查**：加 `--align gemini` 让机器逐句转写、对稿（见下一节），或者至少看一眼 `timeline.<lang>.json` 里每句的时长。被标出来的句子重跑，或者换 provider。
 - 相似度只抓得住跑偏的句子：长句里多一个"啊"，或者"32 亿"念成了"3.2 亿"，相似度几乎不变，掉不到 0.85 以下，不会被标出来。一支 2026-10 的片子每次合成后，把每章的音频和那章的稿子一起交给 Gemini，让它逐句说出念得和稿子不一样的地方：三次抓到多余的"啊""呢"，一次抓到念错的数字。

@@ -44,7 +44,7 @@ const SETTINGS = (() => {
       e_not_kept: "没存进去：{s}没收下。再粘贴一次试试；还是不行，就照说明写进终端启动时读的文件。", e_not_cleared: "没拿掉：{s}没响应。再试一次。",
       s_keychain: "钥匙串", s_secret: "密码库",
       sv_env_note: "在终端里设的环境变量，这一页不一定看得到；在这里填上的，终端里和右边的对话里都用得上。",
-      sv_budget: "有 API Key 不等于有预算。出图和 Lyria 作曲，片子和这台电脑都没写预算就不调；用这几家配音、给字幕对时间、试音，是直接调用，花的是那个账户的钱（有免费额度的先用免费额度）。这台电脑的默认预算：{x}",
+      sv_budget: "有 API Key 不等于有预算。出图、Lyria 作曲和按次计费的配音（MiniMax 按量付费、ElevenLabs、阿里云百炼），片子和这台电脑都没写预算就不调；本机的声音、Gemini（先用免费额度）和 MiniMax 的 Token Plan key 照旧用。这台电脑的默认预算：{x}",
       nokey: "这一页要在 Studio 的窗口里打开才看得到。", reopen: "在 Studio 窗口里打开",
     },
     en: {
@@ -85,7 +85,7 @@ const SETTINGS = (() => {
       e_not_kept: "Not saved: {s} didn't take it. Paste it again; if it still fails, put it in the file your terminal reads when it starts.", e_not_cleared: "Not removed: {s} didn't answer. Try again.",
       s_keychain: "the Keychain", s_secret: "the password store",
       sv_env_note: "Environment variables set in your terminal may not show on this page; a key set here works in the terminal and in the chat on the right.",
-      sv_budget: "An API Key isn't a budget. Pictures and Lyria music are not made unless the film or this computer has a budget; voices, caption timing and auditions with these services are called directly and bill that account (a free tier is used first). This computer's default budget: {x}",
+      sv_budget: "An API Key isn't a budget. Pictures, Lyria music and voices billed per use (MiniMax pay-as-you-go, ElevenLabs, Alibaba Cloud Model Studio) are not made unless the film or this computer has a budget; this computer's own voices, Gemini (its free tier first) and MiniMax's Token Plan key are used as before. This computer's default budget: {x}",
       nokey: "This page shows only in Studio's own window.", reopen: "Open in Studio's window",
     },
   };

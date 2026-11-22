@@ -418,7 +418,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 echo 'export GEMINI_API_KEY=把你的key粘贴在这里' >> ~/.zshrc
 ```
 
-其他几家的变量名，设置页上都写着。这样设的 key，比 Studio 里存的同名 key 先用。有 API Key 不等于有预算：出图和 Lyria 作曲没写预算就不调；用这几家配音、逐字对时、试音，是直接调用，花的是那个账户的钱。
+其他几家的变量名，设置页上都写着。这样设的 key，比 Studio 里存的同名 key 先用。有 API Key 不等于有预算：出图、Lyria 作曲和按次计费的配音（MiniMax 按量付费、ElevenLabs、阿里云百炼）没写预算就不调；本机的声音、Gemini（逐字对时、试音也一样，先用免费额度）和 MiniMax 的 Token Plan key 照旧用。
 
 ## 安装、更新和国内网络
 

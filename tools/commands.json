@@ -1636,12 +1636,14 @@
       "stages": ["4"],
       "reads": [
         "<project>/audio/script.txt",
-        "a cloud provider's key, from the environment or Studio's settings (tools/keys.py)"
+        "a cloud provider's key, from the environment or Studio's settings (tools/keys.py)",
+        "for a voice billed per use (elevenlabs, dashscope, minimax with MINIMAX_API_KEY alone): the film's Budget (BRIEF.md, else LOCAL.md)"
       ],
       "writes": [
         "<project>/audio/voiceover.<lang>.wav",
         "<project>/audio/timeline.<lang>.json",
-        "<project>/audio/vo/<lang>/NN.wav"
+        "<project>/audio/vo/<lang>/NN.wav",
+        "<project>/assets/spend.jsonl (a voice billed per use: each request held, then settled)"
       ],
       "usage": [
         {
@@ -1652,7 +1654,8 @@
             "--candidates N: N takes a block, the one nearest the narration's median voice kept (N × the synthesis);",
             "warns of a line far off the take's seconds per character, and (with --align) of a phrase heard twice;",
             "--resume: continue the last run after a failed synthesis or transcription, same script and command)",
-            "providers: qwen (default, local open-source Qwen3-TTS; its first use downloads about 2.6 GB, said first, with the progress) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax"
+            "providers: qwen (default, local open-source Qwen3-TTS; its first use downloads about 2.6 GB, said first, with the progress) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax;",
+            "billed per use (dashscope, elevenlabs, minimax with MINIMAX_API_KEY alone): not called without the film's budget, the run's estimate checked first (prices: python3 tools/audio/speechcost.py)"
           ]
         }
       ]
@@ -1691,10 +1694,12 @@
       "stages": ["4", "3"],
       "reads": [
         "--text f.txt (audition)",
-        "the provider's key, from the environment or Studio's settings (tools/keys.py)"
+        "the provider's key, from the environment or Studio's settings (tools/keys.py)",
+        "a voice billed per use: the Budget of the film the text file is in"
       ],
       "writes": [
         "--out dir: a WAV per voice and audition.json (audition)",
+        "the film's assets/spend.jsonl (an audition with a voice billed per use)",
         "--out f.wav (design)"
       ],
       "usage": [

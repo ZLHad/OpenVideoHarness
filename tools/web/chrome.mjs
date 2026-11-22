@@ -10,10 +10,11 @@ const warnings = [];
 let browser, timer, stage = "checking the URL";
 const fail = (message) => { console.error(`web: ${message}`); process.exit(1); };
 // The whole run's last-resort deadline; bin/vh web passes it (tools/web/web.py chrome_budget). Each of the two attempts may
-// spend launchTab's own recovery (up to 3 launches: a first answer within 60 s, the tab's within OVH_PAGE_TIMEOUT or 30 s,
-// a close) before the page's own steps: the load, the settle, a selector's wait, then the read and the screenshot.
+// spend launchTab's own recovery (up to 3 tabs, each on a browser that may take 2 starts: 60 s for a first answer and a
+// close each, then the tab's answer within OVH_PAGE_TIMEOUT or 30 s) before the page's own steps: the load, the settle, a
+// selector's wait, then the read and the screenshot.
 const tabAnswer = Math.max(30, Number(process.env.OVH_PAGE_TIMEOUT) || 0);
-const budget = opt.budget ?? 2 * (3 * (70 + tabAnswer) + 3 * opt.timeout + (opt.wait ?? 1) + (opt.selector ? opt.wait ?? 5 : 0) + 10) + 10;
+const budget = opt.budget ?? 2 * (3 * (2 * 70 + tabAnswer) + 3 * opt.timeout + (opt.wait ?? 1) + (opt.selector ? opt.wait ?? 5 : 0) + 10) + 10;
 timer = setTimeout(() => fail(`Chrome did not finish within ${budget} s (${stage}, including startup/recovery)`), budget * 1000);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 class CommandTimeout extends Error {

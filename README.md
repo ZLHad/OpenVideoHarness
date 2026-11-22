@@ -418,7 +418,7 @@ Where there is no such store, put the key in the file your terminal reads each t
 echo 'export GEMINI_API_KEY=paste-your-key-here' >> ~/.zshrc
 ```
 
-The settings page lists the other services' names. A key set this way is used before one saved in Studio, name by name. An API Key isn't a budget: pictures and Lyria music are not made without a budget, while voices, word timing and auditions with these services are called directly and bill that account.
+The settings page lists the other services' names. A key set this way is used before one saved in Studio, name by name. An API Key isn't a budget: pictures, Lyria music and voices billed per use (MiniMax pay-as-you-go, ElevenLabs, Alibaba Cloud Model Studio) are not made without a budget, while this computer's own voices, Gemini (word timing and auditions too, its free tier first) and MiniMax's Token Plan key are used as before.
 
 ## Install options and updates
 
