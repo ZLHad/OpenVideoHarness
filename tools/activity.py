@@ -350,7 +350,7 @@ def event(project, kind, **fields):
 
 # ---------- reading ----------
 
-_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code", "kept", "project")
+_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code", "kept", "project", "need")
 _INT = ("pid", "exit", "decisions")
 _NUM = ("duration", "done", "total", "pass", "passes")
 
@@ -543,6 +543,8 @@ def runs(records, now=None, same_process=True):
                 run["summary"] = r["summary"]
         elif ev == "note" and r.get("level") == "error":
             run["error"] = {"code": r.get("code") or "failed", "message": r.get("summary") or ""}
+            if r.get("code") == "no_key":   # what the key was for (voice, timing, music, image) and its names (tools/keys.py)
+                run["error"].update(need=r.get("need"), keys=[k for k in r.get("keys") or [] if isinstance(k, str)] if isinstance(r.get("keys"), list) else [])
         elif ev == "note":
             if r.get("summary"):
                 run["summary"] = r["summary"]

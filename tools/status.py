@@ -969,7 +969,7 @@ def collect(project, now=None, light=False):
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
-           "activity": {"running": working, "listening": listening, "recent": recent},
+           "activity": {"running": working, "listening": listening, "recent": recent, "key_stop": standing.key_stop(runs)},   # (the whole log: a stop for an API Key nothing settled)
            "media": None, "next_step": None, "now": None, "plan": None}
     try:   # what cannot be read is said, never a failure of status
         out["media"] = media(project)

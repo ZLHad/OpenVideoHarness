@@ -678,7 +678,7 @@ def main():
                      f" --resume first, or pass --align gemini|whisper here to transcribe the take")
         if (missing and not found) or (a.align != "map" and not a.dry_run):   # before anything is written
             if a.align == "gemini" and not tts.keys.get("GEMINI_API_KEY"):
-                sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key) for --align gemini; nothing was written")
+                sys.exit(tts.keys.stopping("GEMINI_API_KEY", "timing", "--align gemini needs it; nothing was written", align="--align whisper"))
             if a.align == "whisper" and importlib.util.find_spec("mlx_whisper") is None:
                 sys.exit("--align whisper needs mlx-whisper (Apple Silicon; bin/vh pace adds it with --align whisper); nothing was written")
         if missing:                                       # the take's own word times, transcribed once and kept beside it
@@ -759,7 +759,7 @@ def main():
         rc = 0
         if a.align != "map":
             if a.align == "gemini" and not tts.keys.get("GEMINI_API_KEY"):
-                sys.exit("set GEMINI_API_KEY for --align gemini: the paced take is written with mapped word times")
+                sys.exit(tts.keys.stopping("GEMINI_API_KEY", "timing", "--align gemini needs it; the paced take is written with mapped word times", align="--align whisper"))
             try:
                 fresh = align_take(new, wav, a.align, a.lang, tmp, out["duration"])
             except Exception as e:                        # quota, network: the mapped word times stay

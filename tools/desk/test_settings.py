@@ -526,6 +526,56 @@ def column_check():
     return None if r.returncode == 0 else "not found in the column's environment"
 
 
+def first_run_check():
+    """A film whose voice-over stopped for want of Gemini's API Key: the command says the one sentence (where to set it, where
+    to get one, what works without), its record has the code no_key, and bin/vh status says the film waits on the key, with
+    the way to Settings → Services; once the key is saved in Studio, it says so no more. (No call is made: the check comes
+    first, and the store is these checks' own.)"""
+    if not shutil.which("uv"):
+        return None
+    film = T / "first-run"
+    shutil.rmtree(film, ignore_errors=True)
+    shutil.copytree(HERE / "fixtures" / "demo", film)
+    (film / "audio" / "script.txt").write_text("你好，这是一句试音。\n", encoding="utf-8")
+    env = dict(ENV, OVH_ACTIVITY_AGENT="0")
+    vh = lambda *a: subprocess.run(["bash", str(ROOT / "bin" / "vh"), *a], env=env, capture_output=True, text=True, timeout=180)   # noqa: E731
+    rc, out = py("import keys as K\nK.clear('GEMINI_API_KEY')")
+    if rc:
+        return out[-300:]
+    r = vh("tts", str(film), "gemini")
+    if r.returncode != 1 or "Studio's Settings → Services" not in r.stderr or "GEMINI_API_KEY" not in r.stderr or "aistudio.google.com" not in r.stderr:
+        return f"bin/vh tts gemini with no key: exit {r.returncode}, {r.stderr[-300:]!r}"
+    if list((film / "audio").glob("voiceover*")):
+        return "something was voiced"
+    notes = [json.loads(x) for x in (film / ".ovh" / "activity.jsonl").read_text().splitlines() if '"note"' in x]
+    if not any(n.get("level") == "error" and n.get("code") == "no_key" for n in notes):
+        return f"the run's record: {notes[-1:]}"
+    now = json.loads(vh("status", str(film), "--json").stdout)["now"]
+    if now["code"] != "needs_key" or now["act"].get("kind") != "settings" or now["act"].get("sub") != "services" or now["facts"].get("keys") != ["GEMINI_API_KEY"]:
+        return f"bin/vh status while the film waits: {now['code']} {now['act']}"
+    if "now: The voice-over stopped: there's no Gemini API Key yet." not in vh("status", str(film)).stdout:
+        return "bin/vh status's now: line"
+    if now.get("facts", {}).get("need") != "voice":
+        return f"what the key was for: {now.get('facts')}"
+    r = vh("music", str(film), "--provider", "lyria", "--prompt", "a calm tide")   # bin/vh exec's into lyria.py: it ends its own run
+    runs = json.loads(vh("activity", str(film), "--json").stdout)["runs"]
+    mus = [x for x in runs if x.get("cmd") == "music"]
+    if r.returncode != 2 or "Studio's Settings → Services" not in r.stderr or not mus or mus[-1].get("state") != "failed" or mus[-1].get("exit") != 2:
+        return f"bin/vh music --provider lyria with no key: exit {r.returncode}, its run {mus[-1:] and {k: mus[-1].get(k) for k in ('state', 'exit')}}, {r.stderr[-200:]!r}"
+    now = json.loads(vh("status", str(film), "--json").stdout)["now"]
+    if now["code"] != "needs_key" or now["facts"].get("cmd") != "music" or now["facts"].get("need") != "music":
+        return f"bin/vh status after the music stop: {now['code']} {now['facts']}"
+    rc, out = py(f"import keys as K\nK.save('GEMINI_API_KEY', {FAKE!r})")
+    try:
+        if rc:
+            return out[-300:]
+        now = json.loads(vh("status", str(film), "--json").stdout)["now"]
+        if now["code"] == "needs_key":
+            return "the key saved in Studio, and the film is still said to wait on it"
+    finally:
+        py("import keys as K\nK.clear('GEMINI_API_KEY')")
+
+
 def words_check():
     src = (HERE / "static" / "settings.js").read_text(encoding="utf-8")
     zh = src[src.index("    zh: {"):src.index("    en: {")]
@@ -545,6 +595,7 @@ try:
     check("tools/keys.py on a store of these checks' own: saved, found, the environment first, taken out; what is not a key or a key's name refused; the store asked once per name (a missing key and a store with no answer too), a save or removal seen at once" + ("" if MAC else "; the key never an argument"), keys_module_check)
     check("bin/vh doctor finds a key saved in Studio, says so, and probes with it (a recording), with each of MiniMax's two when both are saved, never printing one", doctor_keys_check)
     check("a command run in the agent column's environment (no key in it) finds a key saved in Studio", column_check)
+    check("a voice-over, then Lyria's music, with no key: each command says where to set it and where to get one (code no_key and what the key was for on its record; the music run ends as failed, not cut off); bin/vh status says the film waits on the key, with the way to Settings → Services, and no more once it is saved", first_run_check)
     run()
 except Exception as e:
     say(False, "the console for the settings page", f"{type(e).__name__}: {e}")
