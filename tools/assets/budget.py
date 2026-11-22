@@ -25,7 +25,7 @@ A paid command (bin/vh image, genvideo, model3d …):
     ledger.add(project, file, id="hero", cost={"amount": total, "currency": "USD"}, …)   # adds only what the log lacks
 check() answers the same question without holding anything (an estimate shown before asking).
 """
-import contextlib, fcntl, json, os, re, sys, time
+import contextlib, fcntl, itertools, json, os, re, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -44,6 +44,7 @@ AMOUNT = re.compile(_PRE + rf"[ \t]*(?P<n>{_NUM})|(?P<n2>{_NUM})[ \t]*" + _POST,
 ZERO = re.compile(r"^[ \t]*(?:0+(?:\.0+)?|none|no|off|nothing|无|不花钱|零)[ \t]*[。.]?[ \t]*$", re.I)
 UNLIMITED = re.compile(r"^[ \t]*(?:不限|无上限|不设上限|unlimited|no limit|no cap)[ \t]*[。.]?[ \t]*$", re.I)
 EPS = 1e-9
+_SEQ = itertools.count(1)   # a hold's id: the time, the process and this count (two holds in one millisecond are two)
 BRIEF_LINE = r"^[ \t]*[-*][ \t]*(?:\*\*)?Budget(?:\*\*)?[ \t]*[:：][ \t]*(.*?)[ \t]*$"
 LOCAL_LINE = r"^[ \t]*[-*]?[ \t]*(?:\*\*)?(?:默认预算|预算|default[ \t]+budget|budget)(?:\*\*)?[ \t]*[:：][ \t]*(.*?)[ \t]*$"
 
@@ -259,7 +260,7 @@ def hold(project, amount, currency, what, tool=None, asset=None):
         c = check(project, amount, currency)
         if not c["ok"]:
             raise Refused(f"{what}: {c['message']}", c)
-        rec = _append(project, {"kind": "hold", "id": f"h{int(time.time() * 1000)}-{os.getpid()}", "amount": amount, "currency": currency,
+        rec = _append(project, {"kind": "hold", "id": f"h{int(time.time() * 1000)}-{os.getpid()}-{next(_SEQ)}", "amount": amount, "currency": currency,
                                 "what": str(what)[:300], "tool": tool or os.environ.get("OVH_ACTIVITY_CMD") or None, "asset": asset, "estimate": amount})
     h = Hold(project, rec)
     try:

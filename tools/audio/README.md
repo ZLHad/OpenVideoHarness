@@ -15,8 +15,8 @@
 | `qwen`（默认） | **本地开源** Qwen3-TTS（Apache-2.0），mlx-audio 运行在 Apple Silicon 上。中文音色：Serena（温暖女声）、Vivian、Uncle_Fu、Dylan（京腔）、Eric（川话）；英文音色：Aiden（默认）、Ryan（语速慢，0.6B 模型用它时经常拖出几秒到几十秒的含糊声） | 首次运行下载约 2GB；换 1.7B 模型（`QWEN_TTS_MODEL`）后可以用 `--instruct` 控制语气 | 句级 | ✅ 已实测中英 |
 | `say` | macOS 自带，离线，适合打草稿 | 无 | 句级 | ✅ 已实测 |
 | `edge` | 微软免费在线音色 | 联网；非官方接口 | 句级 | ✅ 已实测英文 |
-| `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端 | `DASHSCOPE_API_KEY` | 句级 | 接口已留，待实测 |
-| `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **词级**（接口给字符级，`bin/vh tts` 拼成词） | 接口已留，待实测 |
+| `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端，**按次计费** | `DASHSCOPE_API_KEY`；片子的预算 | 句级 | 接口已留，待实测 |
+| `elevenlabs` | 高质量多语种配音，**按次计费** | `ELEVENLABS_API_KEY`、voice_id；片子的预算 | **词级**（接口给字符级，`bin/vh tts` 拼成词） | 接口已留，待实测 |
 | `gemini` / `gemini-lite` | Google Gemini 3.8 Flash TTS（2026-09-23 发布）/ Flash-Lite TTS，云端。表演力强，适合讲解旁白和双人对话。Flash 支持 130 种语言，Lite 支持 101 种，都含中文，语言按文本自动识别。`--voice` 用 30 个 studio 音色之一（默认 Kore，每个都能说所有支持的语言）、音色库 id 或自己设计的 `voice_…`（见下文"音色"）；`bin/vh tts` 的第 5 个参数（`--instruct`）用一句话描述语气，例如"平静、笃定的纪录片旁白"；稿子里可以直接写 `<short pause>`、`<breath>`、`<laugh>` 这类标签，只有 gemini 会演出来，其他 provider 和字幕都会自动去掉 | `GEMINI_API_KEY`（Google AI Studio）。有免费档，但免费档的内容可能被 Google 用来改进产品；付费价格见下文"费用" | 句级；加 `--align gemini` 后为词级 | ✅ `gemini`：2026-09-30 实测中英（Kore / Charon），一次通过，逗号处有自然停顿；双人对话、整段合成、设计音色同日实测。`gemini-lite` 走同一条代码路径（只换模型 id），没有单独实测 |
 | `minimax` | MiniMax T2A v2（`speech-2.8-hd`），国际站 `api.minimax.io`，云端。中文系统音色是 `Chinese (Mandarin)_*`（默认 `Chinese (Mandarin)_Reliable_Executive`），英文默认 `English_expressive_narrator`。句子里可以写停顿标记 `<#0.4#>`，稿子里可以写发音词典 `@pronounce`；`--join all` 整份稿一个请求，音色不漂。见下文"MiniMax" | `MINIMAX_TOKEN_PLAN_KEY`（Token Plan，优先）或 `MINIMAX_API_KEY`（按量付费） | **词级**（请求自带逐字时间，不用转写） | ✅ 2026-10-07 实测中英：逐句、`--join block`、`--join all`、`--resume` |
 
@@ -169,7 +169,8 @@ bin/vh tts projects/<p> minimax "Chinese (Mandarin)_Reliable_Executive" zh --joi
 MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3          # 默认音色，语速 1.25，句间停 0.3 s
 ```
 
-- **key 和接口**：请求发到国际站 `https://api.minimax.io/v1/t2a_v2`。key 先从环境变量读，没有再用 Studio 设置页里存的（`tools/keys.py`），先找 `MINIMAX_TOKEN_PLAN_KEY`（Token Plan 的 Subscription Key，花的是买的 Credits），没有再用 `MINIMAX_API_KEY`（按量付费，账户没有余额时报 `1008 insufficient balance`）。买了 Credits 却只设了按量付费的 key，也是 1008。国际站的 key 发到国内站 `api.minimaxi.com` 会报 `2049 invalid api key`，所以默认走国际站；用国内站（platform.minimaxi.com）的 key 时，设 `MINIMAX_BASE_URL=https://api.minimaxi.com`。报错只写 key 来自哪个变量，不写 key 本身；
+- **key 和接口**：请求发到国际站 `https://api.minimax.io/v1/t2a_v2`。key 先从环境变量读，没有再用 Studio 设置页里存的（`tools/keys.py`），先找 `MINIMAX_TOKEN_PLAN_KEY`（Token Plan 的 Subscription Key，花的是买的 Credits），没有再用 `MINIMAX_API_KEY`（按量付费，账户没有余额时报 `1008 insufficient balance`；按次计费，要片子的预算，见下一条）。买了 Credits 却只设了按量付费的 key，也是 1008。国际站的 key 发到国内站 `api.minimaxi.com` 会报 `2049 invalid api key`，所以默认走国际站；用国内站（platform.minimaxi.com）的 key 时，设 `MINIMAX_BASE_URL=https://api.minimaxi.com`。报错只写 key 来自哪个变量，不写 key 本身；
+- **按次计费要预算**：只用 `MINIMAX_API_KEY` 时（Token Plan 的 key 先用，那时不要预算），和 `elevenlabs`、`dashscope` 一样，没有预算就不调，见"按次计费的配音"；
 - **音色**：`--voice` 写系统音色的 id。中文音色都以 `Chinese (Mandarin)_` 开头，例如 `Chinese (Mandarin)_Reliable_Executive`（沉稳的中年男声，默认）、`_News_Anchor`（女声新闻主播）、`_Male_Announcer`、`_Radio_Host`；英文默认 `English_expressive_narrator`。全部系统音色（2026-10-07 有 332 个）用 `POST /v1/get_voice`、body `{"voice_type": "system"}` 列出，`bin/vh voices` 只管 Gemini：
 
   ```bash
@@ -189,6 +190,19 @@ MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3
   - 三句中文 `--join all`：一个请求，整条命令约 9 s，出 10.3 s 音频，三句的起止和逐字时间都来自字幕；句中 `<#0.4#>` 处实际停了约 0.8 s（加上逗号自己的停顿）；
   - 逐句合成时，每句前后各有约 0.3 s 空白，会被自动裁掉；
   - 一支片子里 `Chinese (Mandarin)_Reliable_Executive` 在语速 1.25 下约 5.35 字/秒（说话时）。
+
+### 按次计费的配音（MiniMax 按量付费、ElevenLabs、阿里云百炼）
+
+和生图、Lyria 一样，这几家按字数计费，没有预算就不调：`bin/vh tts` 和 `bin/vh voices audition` 用 `elevenlabs`、`dashscope`，或者只有 `MINIMAX_API_KEY`（没有 Token Plan 的 key）的 `minimax` 时，先读片子的预算（BRIEF 的 `Budget:`，没有再看 `LOCAL.md` 的默认预算；预算的写法见 `tools/assets/budget.py`）。
+
+- **先 key，后预算**：两样都缺时先说缺 key，预算没 key 也用不上；
+- **整次先估**：在发出第一个请求、删掉旧配音之前，按这次要合成的句子（`--resume` 只算没做完的，`--candidates N` 算 N 份）估字数和价钱。没有预算、预算是 0，或者超出预算，就不调，说清要在 BRIEF 写什么、还差多少。预算的币种要和计费的币种一样：国际站按美元，国内站（`MINIMAX_BASE_URL` 在 minimaxi.com）和百炼北京（默认）按人民币；
+- **每个请求先占后结**：请求发出前按估价占住，回答回来按它报的计费字数结账（MiniMax 的 `extra_info.usage_characters`，百炼的 `usage.characters`）。ElevenLabs 的回答不报字数，按估价结，是上限：套餐里含的字数不按次扣，结尾那行和账上都写明。报错的回答（HTTP 错误、MiniMax 的错误码）和根本没发出去的请求记 0；超时或回答被截断的保留估价，因为可能已经扣了，并且说出来。MiniMax 自己重试的每一次都是一个请求；
+- **字数怎么算**：按各家价格页的说法，MiniMax 和百炼一个汉字算 2 个字符（MiniMax 国际站的页面没写，按国内站的算法，取大的），ElevenLabs 每个字符算 1 个；
+- **记在哪**：片子的 `assets/spend.jsonl`（`bin/vh assets list`、`bin/vh status` 和审阅页里的预算行都读它）。`bin/vh tts` 结束时多一行：这次几个请求、花了多少、预算还剩多少；
+- **价格表**：`python3 tools/audio/speechcost.py` 列出每家、每个接入点、每个模型的价格和出处页（2026-11-22 读）。表里没有的模型（`MINIMAX_TTS_MODEL`、`ELEVENLABS_MODEL`、`DASHSCOPE_TTS_MODEL` 设成别的）或接入点（`MINIMAX_BASE_URL`、`DASHSCOPE_BASE_URL` 指到别处）：价钱不知道，只要 BRIEF 有一个不为 0 的预算（一个数或 `不限`）就调，每个请求记成"价钱不知道，可能已扣费"；
+- **试音**：`bin/vh voices audition` 按文本文件所在的片子（往上找 BRIEF.md）读预算、记账；文本不在任何片子里时不调，说清要放进片子的文件夹。
+- **照旧用，不要预算**：本地的 `qwen`、`say`；不要 key 的 `edge`；`gemini`、`gemini-lite` 和 `--align gemini`（先用免费额度）；Token Plan 的 key（花套餐额度）。
 
 ### 旁白里的标签
 
