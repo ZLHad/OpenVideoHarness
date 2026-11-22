@@ -238,15 +238,16 @@ def run(exe, url, dump=None, shot=None, a=None):
 
 def chrome_budget(a):
     """The capture's last-resort deadline in seconds, which chrome.mjs computes the same way when run alone: two attempts,
-    each with launchTab's own recovery (up to 3 launches: 60 s for a first answer, OVH_PAGE_TIMEOUT or 30 s for the tab's, a
-    close), then the load, the settle, a selector's wait, the read and the screenshot."""
+    each with launchTab's own recovery (up to 3 tabs, each on a browser that may take 2 starts: 60 s for a first answer and
+    a close each, then OVH_PAGE_TIMEOUT or 30 s for the tab's answer), then the load, the settle, a selector's wait, the read
+    and the screenshot."""
     try:
         tab = max(30.0, float(os.environ.get("OVH_PAGE_TIMEOUT") or 0))
     except ValueError:
         tab = 30.0
     settle = a.wait if a.wait is not None else 1
     selector = (a.wait if a.wait is not None else 5) if getattr(a, "selector", None) else 0
-    return 2 * (3 * (70 + tab) + 3 * a.timeout + settle + selector + 10) + 10
+    return 2 * (3 * (2 * 70 + tab) + 3 * a.timeout + settle + selector + 10) + 10
 
 
 def run_chrome(exe, a, dump, shot):
