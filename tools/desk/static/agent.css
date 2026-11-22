@@ -25,7 +25,7 @@
 .ag-orb{width:9px;height:9px;border-radius:50%;background:var(--rule-2);flex:none}
 .ag-orb.agent{background:var(--agent);box-shadow:0 0 8px var(--agent)}
 .ag-orb.wait{background:var(--wait)}.ag-orb.live{background:var(--live)}
-.ag-top select{max-width:150px;min-width:0;flex:0 1 auto;border:1px solid var(--rule-2);background:var(--panel-2);color:var(--ink-hi);font:500 var(--fs-small) var(--sans);padding:3px 6px;border-radius:var(--r-ctl)}
+.ag-top select{flex:none;field-sizing:content;border:1px solid var(--rule-2);background:var(--panel-2);color:var(--ink-hi);font:500 var(--fs-small) var(--sans);padding:3px 6px;border-radius:var(--r-ctl)}
 .ag-state{flex:1 1 auto;font-size:var(--fs-small);color:var(--ink-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-state.agent{color:var(--agent)}.ag-state.wait{color:var(--wait)}.ag-state.live{color:var(--live)}
 .ag-state .mono{font-size:11px;color:var(--ink-3);margin-left:4px}

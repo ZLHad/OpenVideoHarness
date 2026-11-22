@@ -198,13 +198,48 @@ async function showHome(quiet) {
     ${sect("g_wait", wait, `<div class="heroes">${wait.map(heroCard).join("")}</div>`)}
     ${sect("g_doing", doing, `<div class="cards">${doing.map(card).join("")}</div>`)}
     ${sect("g_done", done, `<div class="cards">${done.map(card).join("")}</div>`)}
+    ${wallHtml(rows.length)}
     ${roots.length ? `<p class="roots" title="${esc(roots.map((x) => x.path || x).join("\n"))}">${esc(t("roots_n", { n: roots.length }))}</p>` : ""}</section>`;
   const area = $("#stage"), y = area.scrollTop;
   area.innerHTML = html;
   if (quiet) area.scrollTop = y;
-  midFrames(area); hoverClips(area); spaceRunning();
+  midFrames(area); hoverClips(area); spaceRunning(); wallWire(area);
   machine();
   clearTimeout(homeTimer); homeTimer = setTimeout(() => { if (parse().view === "home") showHome(true); }, 15000);
+}
+/* the sample wall: the repo's own showcase films, the four the homepage shows (docs/site/index.html), each with the homepage's
+   poster and "make one like this" sentence (core.js smp_*; tools/desk/test_wording.py holds the two to each other). Its one
+   button puts the sentence in the space's box for a new film and starts nothing. An empty space shows it open, as the page;
+   with films of your own it is folded under them, one click away (this viewer's choice is kept) */
+const SAMPLES = [   // the server gives each poster and film at /samples/<id>.jpg|.mp4 (server.py SAMPLES); the numbers are the films' own
+  { id: "short", secs: 24.8, w: 1080, h: 1920 },
+  { id: "math", secs: 25, w: 1920, h: 1080, style: "dark-math" },
+  { id: "handdrawn", secs: 12, w: 1920, h: 1080, style: "watercolor-pastoral" },
+  { id: "launch", secs: 20, w: 1920, h: 1080, style: "product-keynote" },
+];
+let wallOpen = (() => { try { return localStorage.getItem("desk:samples") === "open"; } catch (e) { return false; } })();
+function wallHtml(films) {
+  const here = new Set((LIST && LIST.samples) || []);
+  const cards = SAMPLES.map((x) => {
+    const tall = x.h > x.w, kind = t(`smp_${x.id}_type`);
+    return `<div class="pcard smp" data-smp="${esc(x.id)}">
+      <span class="well${tall ? " tall" : ""}"><span class="ph">${esc(kind.slice(0, 1))}</span><img src="/samples/${esc(x.id)}.jpg" alt="" loading="lazy">${here.has(x.id) ? `<video muted playsinline preload="none" data-src="/samples/${esc(x.id)}.mp4"></video>` : ""}</span>
+      <span class="pcard-name">${esc(kind)}</span>
+      <span class="pcard-meta"><span class="mono">${esc(t("smp_secs", { s: x.secs }))}</span><span>${esc(t(tall ? "smp_tall" : "smp_wide"))} <span class="mono">${x.w}×${x.h}</span></span></span>
+      <span class="smp-style">${esc(t("smp_style"))}${esc(COLON())}${esc(t(`smp_${x.id}_style`))}${x.style ? ` <code class="mono">${esc(x.style)}</code>` : ""}</span>
+      <span class="smp-act"><button type="button" class="btn" data-smp-go="${esc(x.id)}">${esc(t("smp_go"))}</button></span></div>`;
+  }).join("");
+  const body = `<p class="smp-b">${esc(t("smp_b"))}</p><div class="cards smp-cards">${cards}</div>`;
+  const head = `<h2>${esc(t("smp_h"))}<span class="n">${SAMPLES.length}</span></h2>`;
+  return films ? `<details class="sect smp-wall" id="smpWall"${wallOpen ? " open" : ""}><summary>${head}</summary>${body}</details>`
+    : `<section class="sect smp-wall">${head}${body}</section>`;
+}
+function wallWire(root) {
+  const d = $("#smpWall", root);
+  if (d) d.addEventListener("toggle", () => { wallOpen = d.open; try { localStorage.setItem("desk:samples", d.open ? "open" : ""); } catch (e) { /* private window */ } });
+  $$("[data-smp-go]", root).forEach((b) => b.addEventListener("click", async (e) => {
+    if (await AGENT.offer(e, b.dataset.smpGo)) toast(t("smp_filled"));
+  }));
 }
 /* what this machine still lacks (bin/vh doctor, asked once a run by the console): a quiet panel on the space, nothing when all is there */
 let MACHINE = null, machineAt = 0;

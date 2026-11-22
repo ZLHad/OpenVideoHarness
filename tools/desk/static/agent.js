@@ -546,7 +546,7 @@ const AGENT = (() => {
   function itemHtml(it) {
     const a = esc(label());
     if (it.kind === "user") return `<div class="ag-me">${it.scope && it.scope.label ? `<span class="chip">${esc(at("t_on", { x: cut(it.scope.label, 40) }))}</span>` : ""}<p>${esc(it.text)}</p></div>`;
-    if (it.kind === "msg" && /^\s*(Failed to authenticate|Authentication required|Not logged in)/i.test(it.text)) return `<details class="ag-thought"><summary>${esc(at("raw_said"))}</summary><div class="ag-md">${md(it.text)}</div></details>`;
+    if (it.kind === "msg" && /^\s*(Failed to authenticate|Authentication required|Not logged in|Invalid API key)/i.test(it.text)) return `<details class="ag-thought"><summary>${esc(at("raw_said"))}</summary><div class="ag-md">${md(it.text)}</div></details>`;
     if (it.kind === "msg") return `<div class="ag-say"><div class="ag-who"><i></i>${a}</div><div class="ag-md">${md(it.text)}</div></div>`;
     if (it.kind === "thought") return it.text.trim() ? `<details class="ag-thought"><summary>${esc(at("thought"))}</summary><div class="ag-md">${md(it.text)}</div></details>` : "";
     if (it.kind === "tool") {
@@ -565,13 +565,13 @@ const AGENT = (() => {
     if (it.kind === "plan") return `<div class="ag-plan"><div class="ag-who"><i></i>${esc(at("plan_h"))}</div><ol>${it.entries.map((p) => `<li class="ps-${esc(p.status || "")}">${esc(p.content || "")}</li>`).join("")}</ol></div>`;
     if (it.kind === "end") {
       if (it.stop === "cancelled") return `<p class="ag-sys">${esc(at(it.asked ? "turn_cancelled" : "turn_halted"))}${it.took ? " · " + esc(secs(it.took)) : ""}</p>`;   // Codex ends a turn so after a refusal
-      if (it.error && /auth/i.test(it.error)) return S.items.some((x) => x.kind === "notice" && x.code === "signed_out") ? `<p class="ag-sys bad">${esc(at("turn_signed_out"))}</p>`
+      if (it.error && /auth/i.test(it.error)) return !HINTS.has(it.key) ? `<p class="ag-sys bad">${esc(at("turn_signed_out"))}</p>`
         : `<p class="ag-note bad">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;   // "Authentication required"
       if (it.error === "agent_stuck") return "";   // the notice after it says what happened
       if (it.error) return `<p class="ag-sys bad">${esc(it.error === "agent_gone" ? at("turn_gone") : it.error === "desk_restart" ? at("turn_restart") : at("turn_error", { e: cut(it.error, 160) }))}</p>`;
       return it.took ? `<p class="ag-sys">${esc(at("turn_took", { s: secs(it.took) }))}</p>` : "";
     }
-    if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
+    if (it.kind === "notice" && it.code === "signed_out") return HINTS.has(it.key) ? `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>` : "";
     if (it.kind === "notice" && it.code === "place_busy") return `<p class="ag-note warn">${esc(at("n_place_busy", { x: it.name || "", w: it.who || "?" }))}</p>`;
     if (it.kind === "notice" && it.code === "placed") return `<p class="ag-note ok">${esc(at("n_placed", { x: it.name || "" }))}</p>`;
     if (it.kind === "notice" && /^own/.test(it.code || "")) return `<p class="ag-note${it.code === "own_busy" ? " warn" : " ok"}">${esc(at("n_" + it.code, { a: label() }))}</p>`;
@@ -579,6 +579,17 @@ const AGENT = (() => {
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
     if (it.kind === "unknown") return `<details class="ag-unknown"><summary>${esc(at("unknown", { a: label() }))}</summary><pre>${esc(cut(JSON.stringify(it.u, null, 1), 2000))}</pre></details>`;
     return "";
+  }
+  let HINTS = new Set();   // the lines that say how to sign in (loginHints): the others say it no more
+  function loginHints(items) {   // how to sign in, said once a stretch: the first of the "not signed in" notices and failed turns
+    // says it, the ones after it only that the sentence wasn't done (a turn), or nothing (a notice), until a turn ends well (signed in
+    // again). Decided in order, so a notice that comes after the failed turn (Claude Code's login check can) doesn't say it twice
+    const out = new Set(); let said = false;
+    for (const x of items || []) {
+      if (x.kind === "end" && !x.error) said = false;
+      else if ((x.kind === "notice" && x.code === "signed_out") || (x.kind === "end" && x.error && /auth/i.test(x.error))) { if (!said) out.add(x.key); said = true; }
+    }
+    return out;
   }
   function permOf(toolId) { let out = null; for (const p of Object.values(S.perms)) if (p.tool && p.tool.toolCallId === toolId) out = p; return out; }
   function askHead(pm) { return `<div class="ag-perm-h"><b>${esc(at("perm_h", { a: label(), v: verbWords(pm.tool || {}) }))}</b>${pm.answered ? "" : `<span class="chip warn">${esc(at("perm_wait"))}</span>`}</div>`; }
@@ -649,7 +660,7 @@ const AGENT = (() => {
       : at({ stop: "perm_by_stop", timeout: "perm_by_timeout", agent_gone: "perm_by_gone", desk_restart: "perm_by_restart", turn_end: "perm_by_turn", desk_stop: "perm_by_desk" }[ans.by] || "perm_by_turn", { m: Math.round(((INFO && INFO.approval_timeout) || 600) / 60) });
     return `<p class="ag-ans ${/^allow/.test(ans.kind || "") ? "ok" : "no"}">${esc(by)}</p>`;
   }
-  const DOM = new Map();   // an item's key → [its version, its element]: only what changed is drawn again
+  const DOM = new Map();   // an item's key → [its version, its element, whether it says how to sign in]: only what changed is drawn again
   function renderThread() {
     const th = $("#agThread"); if (!th) return;
     if (!S || !S.items.length || NEWBOX) {
@@ -662,15 +673,16 @@ const AGENT = (() => {
     const stick = th.scrollHeight - th.scrollTop - th.clientHeight < 40;
     if (th.querySelector(".ag-empty, .ag-new")) th.innerHTML = "";
     const wk = th.querySelector(".ag-working"); if (wk) wk.remove();
+    HINTS = loginHints(S.items);
     for (const it of S.items) {
-      const was = DOM.get(it.key);
-      if (was && was[0] === it.v && was[1].isConnected) continue;
+      const was = DOM.get(it.key), hint = HINTS.has(it.key);
+      if (was && was[0] === it.v && was[2] === hint && was[1].isConnected) continue;
       const box = document.createElement("div"); box.className = "ag-item"; box.dataset.k = it.key;
       const open = was ? [...was[1].querySelectorAll("details")].map((x) => x.open) : [];
       box.innerHTML = itemHtml(it);
       [...box.querySelectorAll("details")].forEach((x, i) => { if (open[i]) x.open = true; });
       if (was && was[1].isConnected) was[1].replaceWith(box); else th.appendChild(box);
-      DOM.set(it.key, [it.v, box]);
+      DOM.set(it.key, [it.v, box, hint]);
     }
     if (S.running) th.insertAdjacentHTML("beforeend", workingHtml());
     wireThread(th);
@@ -842,6 +854,24 @@ const AGENT = (() => {
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab, fresh,
+    async offer(e, id) {   // the space's sample wall (studio.js): the person's click puts that sample's sentence (Studio's own words,
+      // core.js smp_<id>_say, never a page's or a file's) in the box for a new film, and sends nothing. A conversation open on the
+      // space gives way to a new film's box first (it stays in the history and goes on); what the person had written is replaced
+      // as typing would (⌘Z brings it back); a ［…］ to fill in is selected
+      const sample = /^[a-z]+$/.test(String(id || "")) ? word(`smp_${id}_say`) : null;
+      if (!e || !e.isTrusted || KEYP !== SPACE || typeof sample !== "string") return false;
+      if (S && S.items.length) await fresh();
+      const ta = $("#agSay"); if (!ta) return false;
+      ta.focus(); ta.select();
+      let typed = false;
+      try { typed = !ta.disabled && document.execCommand("insertText", false, sample) && String(ta.value) === sample; } catch (x) { typed = false; }
+      if (!typed) ta.value = sample;
+      store_.set(`desk:agent:say:${KEYP}`, ta.value);
+      const m = /［[^］]*］|\[[^\]]*\]/.exec(sample);
+      if (m) ta.setSelectionRange(m.index, m.index + m[0].length); else ta.setSelectionRange(sample.length, sample.length);
+      ta.scrollIntoView({ block: "nearest" });
+      return true;
+    },
     listening(on) { if (LISTEN !== !!on) { LISTEN = !!on; if (KEYP && KEYP !== SPACE) renderHead(); } },
     async tell(e, text) {   // Studio's own button (the column's one action): its own words (bin/vh status's, Studio's word table and numbers), sent in this
       // film's conversation, the newest one, else a new one; the box keeps the person's draft (it is filled only by them)
@@ -853,6 +883,6 @@ const AGENT = (() => {
     },
     _again: (e) => again(e),   // for tools/desk/test_agents.py (node): the busy line's "anyway" after a refused carry-on
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
-    _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _defaultKind: defaultKind, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
+    _md: md, _diff: diffLines, _hints: (items) => [...loginHints(items)], _ask: (pm, d) => askHtml(pm, d), _defaultKind: defaultKind, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };
 })();

@@ -9,7 +9,8 @@ reuse its shape, which their recordings lack), 删/delete/rm → a command the p
 turn to stop, 计划/plan → a plan and an update kind no client knows, 想/think → codex's thoughts; anything else → reading
 BRIEF.md. A request to approve waits for the client's answer; a cancel ends the turn at once, as the real ones did. Like
 DeepSeek Harness, the dsh stand-in does not end when its stdin closes: only a signal stops it. --signed-out: as an agent
-whose login expired (auth/status_update unauthenticated; a prompt answers with the adapter's words and fails). 卡住/"hang":
+whose login expired (auth/status_update unauthenticated; a prompt answers with the adapter's words and fails); with
+--late-auth it says so only after the failed prompt, as Claude Code's own login check can. 卡住/"hang":
 never answers the prompt and ignores the cancel, as a broken adapter would. Requests a hostile agent might make: 长命令/long-ask
 (the dangerous part at the end), 超长/huge-ask (too long to show), 藏命令/hidden-ask (a second command on a line of its own in
 the middle of a long one), 绕沙箱/no-sandbox (a short command with dangerouslyDisableSandbox and other fields). --stubborn-child:
@@ -36,6 +37,7 @@ KIND = sys.argv[1] if len(sys.argv) > 1 else "claude"
 SPEED = float(sys.argv[sys.argv.index("--speed") + 1]) if "--speed" in sys.argv else float(os.environ.get("FAKE_ACP_SPEED") or 1.0)
 LOGIN_MARKER = Path(sys.argv[sys.argv.index("--login-marker") + 1]) if "--login-marker" in sys.argv else None
 SIGNED_OUT = "--signed-out" in sys.argv or (LOGIN_MARKER is not None and not LOGIN_MARKER.exists())
+LATE_AUTH = "--late-auth" in sys.argv   # with --signed-out: says it is signed out only after the failed prompt (Claude Code's login check can)
 NO_OPUS = "--no-opus" in sys.argv
 FX = json.loads((HERE / f"{KIND}.json").read_text(encoding="utf-8"))
 CLAUDE = json.loads((HERE / "claude.json").read_text(encoding="utf-8"))
@@ -329,7 +331,7 @@ def handle(msg):
         if m == "session/load":   # a load replays the conversation as updates first
             send({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": sid, "update": {
                 "sessionUpdate": "user_message_chunk", "content": {"type": "text", "text": "(replayed)"}}}})
-        if SIGNED_OUT:   # the real adapter says so before it answers session/new
+        if SIGNED_OUT and not LATE_AUTH:   # the real adapter says so before it answers session/new
             send({"jsonrpc": "2.0", "method": "auth/status_update", "params": {"state": "unauthenticated"}})
         return send({"jsonrpc": "2.0", "id": rid, "result": dict(cfg, **({"sessionId": sid} if m == "session/new" else {}))})
     if m == "session/set_mode":
@@ -354,7 +356,11 @@ def handle(msg):
         if SIGNED_OUT:
             send({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": sid, "update": {"sessionUpdate": "agent_message_chunk",
                   "messageId": "m-auth", "content": {"type": "text", "text": "Failed to authenticate: OAuth session expired and could not be refreshed"}}}})
-            return send({"jsonrpc": "2.0", "id": rid, "error": {"code": -32000, "message": "Authentication required"}})
+            send({"jsonrpc": "2.0", "id": rid, "error": {"code": -32000, "message": "Authentication required"}})
+            if LATE_AUTH:
+                time.sleep(0.3)
+                send({"jsonrpc": "2.0", "method": "auth/status_update", "params": {"state": "unauthenticated"}})
+            return
         Path(os.environ.get("FAKE_ACP_LOG") or os.devnull).open("a").write(json.dumps({"prompt": p.get("prompt")}, ensure_ascii=False) + "\n")
         threading.Thread(target=run_turn, args=(rid, sid, text), daemon=True).start()
         return

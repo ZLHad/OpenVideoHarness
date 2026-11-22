@@ -4123,6 +4123,15 @@ want(s == 200 and h.get("Content-Security-Policy", "").startswith("sandbox"), "a
 for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF.md", "/api/p/nope-x/data", f"/api/p/{K}/gate/9", "/api/data", "/p/BRIEF.md"):
     want(req("GET", p)[0] == 404, f"{p} answered")
 want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
+# the space's sample wall: the four showcase posters always, each film only when it is in the clone, and nothing else of the clone
+smp = json.loads(req("GET", "/api/projects")[2]).get("samples")
+s, h, img = req("GET", "/samples/short.jpg")
+want(isinstance(smp, list) and set(smp) <= {"short", "math", "handdrawn", "launch"} and s == 200 and h.get("Content-Type") == "image/jpeg" and img[:2] == b"\xff\xd8"
+     and all(req("GET", f"/samples/{x}.jpg")[0] == 200 for x in ("math", "handdrawn", "launch"))
+     and all(req("GET", f"/samples/{x}.mp4")[0] == (200 if x in smp else 404) for x in ("short", "math", "handdrawn", "launch")),
+     f"the sample wall's posters and films: {smp} {s} {h.get('Content-Type')}")
+for p in ("/samples/nope.jpg", "/samples/short.png", "/samples/..%2fserver.py", "/samples/", "/samples/short.jpg/x"):
+    want(req("GET", p)[0] == 404, f"{p} answered")
 fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
     "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
 H = {"Content-Type": "application/json", "X-Desk-Token": token}
