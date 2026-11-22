@@ -413,7 +413,7 @@ done
 ## 风险
 
 - **片段拼接**：单次上限按模型：Seedance 2.5 和 Wan 3.0 30 s，Veo 3.1 8 s（可延长），Kling 3.0 15 s，Runway Gen-4.5 10 s。拼接处跨镜头的一致性差，切点尽量放在动作中途或转场处。
-- **API key**：一律从环境变量读取（例如 `FAL_KEY`、`ELEVENLABS_API_KEY`），不写进文件。
+- **API key**：从环境变量读取（例如 `FAL_KEY`、`ELEVENLABS_API_KEY`）；`tools/modules.json` 里列的服务，也可以用 Studio 设置页存进系统钥匙串的那一份。都不写进文件。
 
 ## 数字人和口播
 
