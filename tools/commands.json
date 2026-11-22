@@ -2492,7 +2492,8 @@
           "synopsis": "mix <out.wav> [voice=…] [music=…] [sfx=…] [edit=…] [music_db=-6]",
           "text": [
             "3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS; edit=: the edit list's sounds, cut and placed",
-            "(role voice on the voice bus, the others on the SFX bus)"
+            "(role voice on the voice bus, the others on the SFX bus); a voice with no music gets room tone under it at -60 dBFS",
+            "RMS, so its pauses are not digital silence (room=off: none; room=<dB>: -66…-58); a film with music never does"
           ]
         },
         {

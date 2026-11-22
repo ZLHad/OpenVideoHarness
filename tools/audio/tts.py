@@ -43,7 +43,9 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
 Output <project>/audio/vo/<lang>/NN.wav, audio/voiceover.<lang>.wav (mono 48 kHz, joined with --gap s silence),
        audio/timeline.<lang>.json, and audio/timeline.json + audio/voiceover.wav as copies of the latest run:
        {"provider","voice","lang","duration","segments":[{"id","text","zh","en","start","end","file","words"?,
-        "speaker"?,"asr"?}]}
+        "speaker"?,"asr"?}], "joined":[{"silence": samples} | {"file","sha256"}]}
+       "joined" is what the voiceover was joined from, in order (the takes' sha256 as tts made them, in vo/<lang>/_takes.json):
+       bin/vh qa checks a voice heard alone against it, sample for sample, and judges a part that differs as any mix.
        start/end are exact (measured from each synthesized file). Captions: bin/vh captions <project>.
 
 Alignment check (--align gemini, any provider): every line is transcribed by gemini-3.5-transcribe with word
@@ -183,6 +185,34 @@ def sha256(p: Path) -> str:   # the take a cached transcription was made from (v
 
 def save_words(wav: Path, wfile: Path, words):   # a word-timed provider's word times, with the sha256 of the take they are of
     wfile.write_text(json.dumps({"sha256": sha256(wav), "words": words}, ensure_ascii=False), encoding="utf-8")
+
+def joined_parts(parts, vo: Path, proj: Path, fresh, said):
+    """What the voiceover was joined from, in order, for the timeline's "joined" (bin/vh qa checks the voice against it,
+    sample for sample): {"silence": samples} for a gap, {"file", "sha256"} for a take, its sha256 as tts recorded it when it
+    made it (vo/<lang>/_takes.json). A take made in this run is recorded now; one kept from a run before (--resume) keeps its
+    record, and when it is not as recorded (changed since), or has none (made before tts kept them), it is said once and its
+    sha256 is null: qa then judges its part as any mix."""
+    import wave
+    rec_f = vo / "_takes.json"
+    rec = json.loads(rec_f.read_text(encoding="utf-8")) if rec_f.exists() else {}
+    out = []
+    for f in parts:
+        if f.name.startswith("_gap"):
+            with wave.open(str(f), "rb") as w:
+                out.append({"silence": w.getnframes()})
+            continue
+        h = sha256(f)
+        if f in fresh:
+            rec[f.name] = h
+        elif rec.get(f.name) != h:
+            if f.name not in said:
+                said.add(f.name)
+                print(f"  {f.name}: kept from the run before (--resume), but " + ("not as tts made it (changed since)" if f.name in rec
+                      else "made before tts kept a record of its takes") + ": bin/vh qa judges its part of the voice as any mix", flush=True)
+            h = None
+        out.append({"file": str(f.relative_to(proj)), "sha256": h})
+    rec_f.write_text(json.dumps(rec, indent=1, sort_keys=True), encoding="utf-8")
+    return out
 
 def load_words(wfile: Path):   # → (sha256 or None, words): an older run wrote the list alone
     d = json.loads(wfile.read_text(encoding="utf-8"))
@@ -1362,6 +1392,7 @@ def main():
                                                      if a.provider == "minimax" else {}),
                                                   "lines": lines}, ensure_ascii=False, indent=1), encoding="utf-8")
     t, parts, asr_s, asr_n, trimmed = 0.0, [], 0.0, 0, 0.0
+    fresh, said_kept = set(), set()   # the takes made in this run; the kept ones already said (joined_parts)
     joined = audio / f"voiceover.{a.lang}.wav"
     def write_outputs():
         """voiceover.<lang>.wav, timeline.<lang>.json and the timeline.json / voiceover.wav copies: right after synthesis
@@ -1372,7 +1403,8 @@ def main():
               **({"grid": {"beats": a.beats, "snap": a.snap, "lead": a.lead}} if grid else {}),
               **({"speakers": speakers} if dialogue else {}), **({"join": join} if join != "none" else {}),
               **({"align": {"model": os.environ.get("GEMINI_ASR_MODEL", "gemini-3.5-transcribe"), "min_sim": a.min_sim}} if align else {}),
-              "segments": [{k: v for k, v in s.items() if not k.startswith("_")} for s in segs]}
+              "segments": [{k: v for k, v in s.items() if not k.startswith("_")} for s in segs],
+              "joined": joined_parts(parts, vo, proj, fresh, said_kept)}
         body = json.dumps(tl, ensure_ascii=False, indent=2)
         (audio / f"timeline.{a.lang}.json").write_text(body, encoding="utf-8")
         (audio / "timeline.json").write_text(body, encoding="utf-8")
@@ -1450,7 +1482,7 @@ def main():
                         h, tail = (0.0, 0.0) if a.keep_edges else trim_edges(part, tmp)   # the provider's own lead-in / tail silence
                         return shifted(w, h), h + tail
                     try:
-                        words, cut_s = into_place(out, take); trimmed += cut_s
+                        words, cut_s = into_place(out, take); trimmed += cut_s; fresh.add(out)
                         if timed:                                      # kept for --resume
                             save_words(out, wfile, words)
                     except Exception as e:
@@ -1513,7 +1545,7 @@ def main():
                         h, tail = trim_edges(part, tmp); cut_s = h + tail
                         w = shifted(w, h)
                     return w, cut_s
-                pw, cut_s = into_place(bout, take)
+                pw, cut_s = into_place(bout, take); fresh.add(bout)
                 if timed:                                              # kept for --resume
                     save_words(bout, bout.with_suffix(".words.json"), pw)
                 return pw, cut_s
@@ -1545,7 +1577,7 @@ def main():
                         print(f"  median voice of the {sum(len(v) for v in feats.values())} takes: pitch {med['pitch_hz']:.0f} Hz, centroid {med['centroid_hz']:.0f} Hz")
                     for bi, cps in takes.items():
                         k = choice[bi]; bout = vo / f"_block{bi+1:02d}.wav"
-                        into_place(bout, lambda part: shutil.copyfile(cps[k], part)); trimmed += cut_of.get(cps[k], 0.0)
+                        into_place(bout, lambda part: shutil.copyfile(cps[k], part)); trimmed += cut_of.get(cps[k], 0.0); fresh.add(bout)
                         if timed:
                             shutil.copyfile(cps[k].with_suffix(".words.json"), bout.with_suffix(".words.json"))
                         picked.add(bi)
