@@ -1068,7 +1068,7 @@ def show(o, now):
     if n["read"]:
         print("  read: " + " · ".join(n["read"]) + "  (with a #section: bin/vh know --show \"<file>#<section>\" prints it; without: the whole file)")
     nw = o.get("now") or {}
-    if nw.get("say") and nw.get("code") not in ("idle", "setup", "agent_open", "no_record", "unknown"):   # the person's words, as Studio says them
+    if nw.get("say") and nw.get("code") not in ("idle", "setup", "agent_open", "agent_outside", "no_record", "unknown"):   # the person's words, as Studio says them
         # (tools/standing.py), when they say more than next: does; the view stays short (plan: is in --json and in Studio)
         print(f"now: {nw['say']['en']}")
         if nw.get("more"):

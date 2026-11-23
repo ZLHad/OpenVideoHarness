@@ -416,7 +416,8 @@ def unread(project):
     late)]. late: a submission of the same round was handed over before it (the person wrote more after the round was
     taken). These are what the next wait hands over first, and what bin/vh status puts before any other work."""
     done, ans = consumed(project), answered(project)
-    recs = sorted(_records(project), key=lambda x: _order(*x))
+    recs = sorted(((f, j) for f, j in _records(project) if isinstance(j.get("round"), str) and ROUND.match(j["round"]) and isinstance(j.get("submitted_at"), str)),
+                  key=lambda x: _order(*x))   # (submissions as save() writes them: a stray or broken file is no note of the person's)
     out = []
     for i, (f, j) in enumerate(recs):
         if f.name in done or f.name in ans:

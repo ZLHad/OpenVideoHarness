@@ -210,7 +210,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-body .next .raw{color:var(--ink-3);font-size:var(--fs-label)}
 .col-body .quiet-line{color:var(--ink-2)}
 /* the notes and their state, pinned to the column's foot right above the note box: what was just kept is seen without scrolling */
-.col-body .c-mine{position:sticky;bottom:-14px;margin:0 -16px -14px;padding:10px 16px 12px;max-height:42vh;overflow:auto;background:var(--panel);border-top:1px solid var(--rule);box-shadow:0 -10px 14px -12px rgba(0,0,0,.35);z-index:1}
+.col-body .c-mine{position:sticky;bottom:-14px;margin:0 -16px -14px;padding:10px 16px 12px;max-height:42vh;overflow:auto;background:var(--panel);border-top:1px solid var(--rule-2);z-index:1}
 .col-body .c-mine .blk-h{position:sticky;top:-10px;margin:-10px 0 4px;padding:10px 0 4px;background:var(--panel);z-index:1}   /* the state line stays while the notes scroll */
 .col-body .c-mine .blk-h .tag{margin-left:auto;color:var(--wait)}
 .col-body .ho-batch{margin-top:8px}
