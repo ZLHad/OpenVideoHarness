@@ -56,6 +56,8 @@ const ASTR = {
     sp_own: "在开的新片子", sp_wait: "等你", sp_doing: "在做", stray: "从空间开的对话「{x}」可能就是做这支片子的，它还没跟过来。", stray_go: "把它带到这里", stray_fail: "没带过来：这支片子不像是那段对话建的",
     sp_h: "想做一支什么样的片子？", sp_b: "写一句发给 {a}：它照这个工作台的做法定类型、建好片子、先想立意。片子一建好，窗口就转过去，这段对话跟着过去。", sp_c: "它要停下来问你的，问题会出现在这里；它停在哪一站，那一站等你定的事也会摆出来。",
     sp_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次", sp_copy: "复制给别处的 agent", sp_copied: "复制好了，贴给你的 agent", sp_empty: "先写一句",
+    of_keep: "你选的「{x}」那一句先留着：装上以后，在下面点一下就写进框里。", of_ready: "你选的「{x}」那一句：", of_go: "写进框里", of_no: "不用了",
+    of_busy: "空间里这段对话还在做，或在等你批准；它停下以后，再把「{x}」那一句写进新片子的框里。", of_moved: "开了新片子的框，之前那段对话在「历史」里",
     n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事，回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一句在这里结束了，它也重新启动了（再说一句会接着这个对话）。",
     unknown: "{a} 发来一条这里还显示不了的更新（点开看原样）", working_dsh: "{a} 在做，回复会整段一起到", sec: "{n} 秒", min: "{m} 分 {s} 秒",
     m_default: "改动前都问", m_acceptEdits: "改文件不问", m_plan: "只出计划", m_auto: "危险的才问", m_bypassPermissions: "什么都不问",
@@ -109,6 +111,8 @@ const ASTR = {
     sp_own: "New films under way", sp_wait: "waiting for you", sp_doing: "working", stray: "The chat begun on the space, “{x}”, may be the one that made this film; it hasn't followed it here.", stray_go: "Bring it here", stray_fail: "Not brought: this film doesn't look like that chat's",
     sp_h: "What film do you want to make?", sp_b: "Write a sentence to {a}: it works the way this workbench does, picks the kind of film, makes it and starts on the idea. Once the film is made, the window goes there and this chat goes with it.", sp_c: "When it stops to ask you something, the questions show here; when it stops at a step, what that step needs from you is laid out too.",
     sp_ph: "e.g. a one-minute explainer on why the tide comes in twice a day", sp_copy: "Copy for an agent elsewhere", sp_copied: "Copied: paste it to your agent", sp_empty: "Write a sentence first",
+    of_keep: "The “{x}” sentence you picked is kept: once it is set up, one click below puts it in the box.", of_ready: "The “{x}” sentence you picked:", of_go: "Put it in the box", of_no: "Not now",
+    of_busy: "The space's chat is still working, or waiting for your approval; once it stops, put the “{x}” sentence in a new film's box.", of_moved: "A new film's box is open; the earlier chat is in History",
     n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet; it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).",
     unknown: "{a} sent an update this page can't show yet (open it to see it as sent)", working_dsh: "{a} is working; its reply comes in one piece", sec: "{n} s", min: "{m} min {s} s",
     m_default: "Ask before changes", m_acceptEdits: "Edit without asking", m_plan: "Plan only", m_auto: "Ask only if risky", m_bypassPermissions: "Never ask",
@@ -290,6 +294,11 @@ const AGENT = (() => {
   }
 
   /* ---------- what the person does ---------- */
+  let OFFER = null;   // the sample the person picked on the space's wall while the box could not take it (no agent set up, the
+  // space's chat working or waiting for approval): kept here and offered again with one click, never put in the box by itself
+  const busyNow = () => !!(S && (S.running || Object.values(S.perms).some((p) => !p.answered)));
+  const offerName = () => (OFFER ? t(`smp_${OFFER}_type`) : "");
+  function offerKept() { return OFFER && KEYP === SPACE ? `<p class="ag-offer-keep">${esc(at("of_keep", { x: offerName() }))}</p>` : ""; }
   let TELLING = "";   // the carry-on words a refused click was for: the busy line's "anyway" sends them, never the box's draft
   async function sayWords(text, despite) {
     const r = await post(`${S.id}/say`, { text, despite: !!despite });
@@ -523,12 +532,12 @@ const AGENT = (() => {
       const cmd = m.install || `bin/vh desk agents install ${KIND}`, j = m.installing || null, about = String(m.size || "").replace(/^≈\s*/, ""), h = `<h3>${esc(at("not_inst_h", { a: m.label }))}</h3>`;
       if (j && j.state === "running") {
         const s = Math.max(0, Math.round(Date.now() / 1000 - j.since)), took = s < 60 ? at("sec", { n: s }) : at("min", { m: Math.floor(s / 60), s: s % 60 });
-        return `<div class="ag-empty">${h}<div class="ag-working ag-inst" role="status"><span class="ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(at("inst_run", { a: m.label, s: about, t: took, m: Math.round((j.limit || 1800) / 60) }))}</span></div>${KEYOK ? `<div class="ag-opts"><button type="button" class="btn ghost" id="agInstallStop">${esc(at("inst_stop"))}</button></div>` : ""}</div>`;
+        return `<div class="ag-empty">${offerKept()}${h}<div class="ag-working ag-inst" role="status"><span class="ag-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(at("inst_run", { a: m.label, s: about, t: took, m: Math.round((j.limit || 1800) / 60) }))}</span></div>${KEYOK ? `<div class="ag-opts"><button type="button" class="btn ghost" id="agInstallStop">${esc(at("inst_stop"))}</button></div>` : ""}</div>`;
       }
       const SAY = { failed: "inst_fail", no_npm: "inst_no_npm", timeout: "inst_timeout", cancelled: "inst_cancelled", busy: "inst_busy" };   // a sentence each, never what it printed
       const failed = !!(j && SAY[j.state]);
       const fall = j && j.state === "failed" ? `<div class="ag-cmd"><code class="mono">${esc(cmd)}</code><button type="button" class="btn" data-copy="${esc(cmd)}">${esc(at("copy"))}</button></div>` : "";
-      return `<div class="ag-empty">${h}<p${failed ? ' class="ag-bad"' : ""}>${failed ? esc(at(SAY[j.state], { a: m.label, m: Math.round((j.limit || 1800) / 60) })) : at("not_inst_b", { s: esc(about), l })}</p>${fall}${KEYOK ? `<div class="ag-opts"><button type="button" class="btn btn-primary" id="agInstall">${esc(at(failed && j.state !== "cancelled" ? "inst_again" : "inst_go"))}</button></div>` : ""}</div>`;
+      return `<div class="ag-empty">${h}<p${failed ? ' class="ag-bad"' : ""}>${failed ? esc(at(SAY[j.state], { a: m.label, m: Math.round((j.limit || 1800) / 60) })) : at("not_inst_b", { s: esc(about), l })}</p>${fall}${KEYOK ? `<div class="ag-opts"><button type="button" class="btn btn-primary" id="agInstall">${esc(at(failed && j.state !== "cancelled" ? "inst_again" : "inst_go"))}</button></div>` : ""}${offerKept()}</div>`;
     }
     if (!KEYOK) return "";   // the note above the column says it once, with what to do
     const signedOut = KIND === "codex" && (ERR ? ERR.code === "signed_out" : !S && m.signed_in === false);
@@ -546,7 +555,7 @@ const AGENT = (() => {
   function itemHtml(it) {
     const a = esc(label());
     if (it.kind === "user") return `<div class="ag-me">${it.scope && it.scope.label ? `<span class="chip">${esc(at("t_on", { x: cut(it.scope.label, 40) }))}</span>` : ""}<p>${esc(it.text)}</p></div>`;
-    if (it.kind === "msg" && /^\s*(Failed to authenticate|Authentication required|Not logged in)/i.test(it.text)) return `<details class="ag-thought"><summary>${esc(at("raw_said"))}</summary><div class="ag-md">${md(it.text)}</div></details>`;
+    if (it.kind === "msg" && AUTH_MSG.test(it.text)) return `${HINTS.has(it.key) ? signInHint("warn") : ""}<details class="ag-thought"><summary>${esc(at("raw_said"))}</summary><div class="ag-md">${md(it.text)}</div></details>`;
     if (it.kind === "msg") return `<div class="ag-say"><div class="ag-who"><i></i>${a}</div><div class="ag-md">${md(it.text)}</div></div>`;
     if (it.kind === "thought") return it.text.trim() ? `<details class="ag-thought"><summary>${esc(at("thought"))}</summary><div class="ag-md">${md(it.text)}</div></details>` : "";
     if (it.kind === "tool") {
@@ -564,14 +573,13 @@ const AGENT = (() => {
     }
     if (it.kind === "plan") return `<div class="ag-plan"><div class="ag-who"><i></i>${esc(at("plan_h"))}</div><ol>${it.entries.map((p) => `<li class="ps-${esc(p.status || "")}">${esc(p.content || "")}</li>`).join("")}</ol></div>`;
     if (it.kind === "end") {
+      if (it.error && /auth/i.test(it.error)) return HINTS.has(it.key) ? signInHint("bad") : `<p class="ag-sys bad">${esc(at("turn_signed_out"))}</p>`;   // "Authentication required", a stopped turn too
       if (it.stop === "cancelled") return `<p class="ag-sys">${esc(at(it.asked ? "turn_cancelled" : "turn_halted"))}${it.took ? " · " + esc(secs(it.took)) : ""}</p>`;   // Codex ends a turn so after a refusal
-      if (it.error && /auth/i.test(it.error)) return S.items.some((x) => x.kind === "notice" && x.code === "signed_out") ? `<p class="ag-sys bad">${esc(at("turn_signed_out"))}</p>`
-        : `<p class="ag-note bad">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;   // "Authentication required"
       if (it.error === "agent_stuck") return "";   // the notice after it says what happened
       if (it.error) return `<p class="ag-sys bad">${esc(it.error === "agent_gone" ? at("turn_gone") : it.error === "desk_restart" ? at("turn_restart") : at("turn_error", { e: cut(it.error, 160) }))}</p>`;
       return it.took ? `<p class="ag-sys">${esc(at("turn_took", { s: secs(it.took) }))}</p>` : "";
     }
-    if (it.kind === "notice" && it.code === "signed_out") return `<p class="ag-note warn">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
+    if (it.kind === "notice" && it.code === "signed_out") return HINTS.has(it.key) ? signInHint("warn") : "";
     if (it.kind === "notice" && it.code === "place_busy") return `<p class="ag-note warn">${esc(at("n_place_busy", { x: it.name || "", w: it.who || "?" }))}</p>`;
     if (it.kind === "notice" && it.code === "placed") return `<p class="ag-note ok">${esc(at("n_placed", { x: it.name || "" }))}</p>`;
     if (it.kind === "notice" && /^own/.test(it.code || "")) return `<p class="ag-note${it.code === "own_busy" ? " warn" : " ok"}">${esc(at("n_" + it.code, { a: label() }))}</p>`;
@@ -579,6 +587,21 @@ const AGENT = (() => {
     if (it.kind === "notice") return `<p class="ag-sys">${esc(at({ fresh: "n_fresh", agent_gone: "n_gone", unsupported: "n_unsupported" }[it.code] || "n_gone", { m: it.method || "" }))}</p>`;
     if (it.kind === "unknown") return `<details class="ag-unknown"><summary>${esc(at("unknown", { a: label() }))}</summary><pre>${esc(cut(JSON.stringify(it.u, null, 1), 2000))}</pre></details>`;
     return "";
+  }
+  const AUTH_MSG = /^\s*(Failed to authenticate|Authentication required|Not logged in|Invalid API key)/i;   // the agent's own words for it
+  let HINTS = new Set();   // the lines that say how to sign in (loginHints): the others say it no more
+  const signInHint = (cls) => `<p class="ag-note ${cls}">${esc(at("n_signed_out", { a: label(), l: at("login_" + KIND) }))}</p>`;
+  function loginHints(items) {   // how to sign in, said once a stretch, and always once: the first sign of it (the agent's "not
+    // signed in" notice, its own words for it, a turn that failed for it, a stopped one too) says how; the ones after it only that the
+    // sentence wasn't done (a turn), or nothing (a notice; its words stay folded), until a turn ends well (signed in again; a stopped
+    // turn is not that). Decided in order, so a notice that comes after the failed turn (Claude Code's login check can) doesn't say it twice
+    const out = new Set(); let said = false;
+    for (const x of items || []) {
+      const auth = (x.kind === "notice" && x.code === "signed_out") || (x.kind === "end" && x.error && /auth/i.test(x.error)) || (x.kind === "msg" && AUTH_MSG.test(x.text || ""));
+      if (auth) { if (!said) out.add(x.key); said = true; }
+      else if (x.kind === "end" && !x.error && x.stop !== "cancelled") said = false;
+    }
+    return out;
   }
   function permOf(toolId) { let out = null; for (const p of Object.values(S.perms)) if (p.tool && p.tool.toolCallId === toolId) out = p; return out; }
   function askHead(pm) { return `<div class="ag-perm-h"><b>${esc(at("perm_h", { a: label(), v: verbWords(pm.tool || {}) }))}</b>${pm.answered ? "" : `<span class="chip warn">${esc(at("perm_wait"))}</span>`}</div>`; }
@@ -649,7 +672,7 @@ const AGENT = (() => {
       : at({ stop: "perm_by_stop", timeout: "perm_by_timeout", agent_gone: "perm_by_gone", desk_restart: "perm_by_restart", turn_end: "perm_by_turn", desk_stop: "perm_by_desk" }[ans.by] || "perm_by_turn", { m: Math.round(((INFO && INFO.approval_timeout) || 600) / 60) });
     return `<p class="ag-ans ${/^allow/.test(ans.kind || "") ? "ok" : "no"}">${esc(by)}</p>`;
   }
-  const DOM = new Map();   // an item's key → [its version, its element]: only what changed is drawn again
+  const DOM = new Map();   // an item's key → [its version, its element, whether it says how to sign in]: only what changed is drawn again
   function renderThread() {
     const th = $("#agThread"); if (!th) return;
     if (!S || !S.items.length || NEWBOX) {
@@ -662,15 +685,16 @@ const AGENT = (() => {
     const stick = th.scrollHeight - th.scrollTop - th.clientHeight < 40;
     if (th.querySelector(".ag-empty, .ag-new")) th.innerHTML = "";
     const wk = th.querySelector(".ag-working"); if (wk) wk.remove();
+    HINTS = loginHints(S.items);
     for (const it of S.items) {
-      const was = DOM.get(it.key);
-      if (was && was[0] === it.v && was[1].isConnected) continue;
+      const was = DOM.get(it.key), hint = HINTS.has(it.key);
+      if (was && was[0] === it.v && was[2] === hint && was[1].isConnected) continue;
       const box = document.createElement("div"); box.className = "ag-item"; box.dataset.k = it.key;
       const open = was ? [...was[1].querySelectorAll("details")].map((x) => x.open) : [];
       box.innerHTML = itemHtml(it);
       [...box.querySelectorAll("details")].forEach((x, i) => { if (open[i]) x.open = true; });
       if (was && was[1].isConnected) was[1].replaceWith(box); else th.appendChild(box);
-      DOM.set(it.key, [it.v, box]);
+      DOM.set(it.key, [it.v, box, hint]);
     }
     if (S.running) th.insertAdjacentHTML("beforeend", workingHtml());
     wireThread(th);
@@ -738,7 +762,7 @@ const AGENT = (() => {
     const ready = !!(f.dataset.ready);
     if (!ready) {
       f.dataset.ready = "1";
-      f.innerHTML = `<button type="button" class="ag-ask" id="agAsk" hidden></button><div class="ag-busy" id="agBusy" hidden></div><div class="crow"><span id="agAt">${esc(t("at"))}</span><span class="chip" id="agScope"></span><span class="kbd" aria-hidden="true">${esc(at("send_keys"))}</span><button type="button" class="btn ghost" id="agStop" hidden>${esc(at("stop"))}</button><button type="button" class="btn btn-primary" id="agSend">${esc(at("send"))}</button></div>
+      f.innerHTML = `<div class="ag-offer" id="agOffer" hidden></div><button type="button" class="ag-ask" id="agAsk" hidden></button><div class="ag-busy" id="agBusy" hidden></div><div class="crow"><span id="agAt">${esc(t("at"))}</span><span class="chip" id="agScope"></span><span class="kbd" aria-hidden="true">${esc(at("send_keys"))}</span><button type="button" class="btn ghost" id="agStop" hidden>${esc(at("stop"))}</button><button type="button" class="btn btn-primary" id="agSend">${esc(at("send"))}</button></div>
         <textarea id="agSay" rows="2" maxlength="20000"></textarea>`;
       const ta = $("#agSay");
       ta.value = store_.get(`desk:agent:say:${KEYP}`) || "";
@@ -752,6 +776,8 @@ const AGENT = (() => {
       f.addEventListener("click", (e) => {
         if (e.target.closest("#agAnyway")) again(e);
         else if (e.target.closest("#agNotNow")) { BUSY = null; TELLING = ""; renderFoot(); }
+        else if (e.target.closest("#agOfferGo")) offer(e, OFFER);
+        else if (e.target.closest("#agOfferNo")) { OFFER = null; render(); }
         else if (e.target.closest("#agAsk")) { const c = $("#agThread .ag-perm:not(.done)"); if (c) c.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" }); }
       });
     }
@@ -765,6 +791,10 @@ const AGENT = (() => {
     const waitp = S ? Object.values(S.perms).filter((p) => !p.answered) : [];
     const ask = $("#agAsk"); ask.hidden = !waitp.length;
     ask.textContent = waitp.length ? at("ask_bar", { a: label(), x: cut(toolTitle(Object.assign({}, (S.tools[(waitp[0].tool || {}).toolCallId] || {}).d || {}, waitp[0].tool || {})) || verbWords(waitp[0].tool || {}), 48) }) + " ↑" : "";
+    const of = $("#agOffer"), ofOn = !!(OFFER && sp && KEYOK && meta(KIND).installed);   // not set up: the install panel says it
+    of.hidden = !ofOn;
+    const ofHtml = ofOn ? `<span>${esc(at(busyNow() ? "of_busy" : "of_ready", { x: offerName() }))}</span><span class="ag-opts">${busyNow() ? "" : `<button type="button" class="btn btn-primary" id="agOfferGo">${esc(at("of_go"))}</button>`}<button type="button" class="btn ghost" id="agOfferNo">${esc(at("of_no"))}</button></span>` : "";
+    if (of.dataset.html !== ofHtml) { of.innerHTML = ofHtml; of.dataset.html = ofHtml; }
     const bz = $("#agBusy"); bz.hidden = !busy;
     bz.innerHTML = busy ? `<span>${esc(busy)}</span>${anyway ? `<span class="ag-opts"><button type="button" class="btn" id="agAnyway">${esc(at("busy_anyway"))}</button><button type="button" class="btn ghost" id="agNotNow">${esc(at("busy_not"))}</button></span>` : ""}` : "";
   }
@@ -782,9 +812,10 @@ const AGENT = (() => {
     clearInterval(SPACETICK);
     SPACETICK = setInterval(async () => {
       if (KEYP !== SPACE) return clearInterval(SPACETICK);
-      const sig = () => JSON.stringify(((INFO && INFO.sessions) || []).map((x) => [x.id, x.running, x.pending]));
+      const sig = () => JSON.stringify([((INFO && INFO.sessions) || []).map((x) => [x.id, x.running, x.pending]), kinds().map((k) => k.installed)]);
       const before = sig();
       if (!(await load()) || KEYP !== SPACE || sig() === before) return;
+      if (meta(KIND).installed && ERR && ERR.code === "not_installed") { ERR = null; renderFoot(); }   // set up from a terminal meanwhile
       renderHead(); if (!S || !S.items.length) renderThread();
     }, 4000);
   }
@@ -794,6 +825,35 @@ const AGENT = (() => {
     store_.set(`desk:agent:${SPACE}`, { kind: KIND });
     render();
     const ta = $("#agSay"); if (ta) ta.focus();
+  }
+
+  async function offer(e, id) {   // the space's sample wall (studio.js): the person's click puts that sample's sentence (Studio's own
+    // words, core.js smp_<id>_say, never a page's or a file's) in the box for a new film, and sends nothing. A box that can't be typed in
+    // is not filled: a page that can only look says so; with no agent set up the sample is kept, the install panel says it and comes
+    // into view; while the space's chat works or waits for approval, it stays (a line under the box offers the sentence once it stops).
+    // An idle chat open on the space gives way to a new film's box (it stays in the history: said so); what the person had written is
+    // replaced as typing would (⌘Z brings it back); a ［…］ to fill in is selected
+    const sample = /^[a-z]+$/.test(String(id || "")) ? word(`smp_${id}_say`) : null;
+    if (!e || !e.isTrusted || KEYP !== SPACE || typeof sample !== "string") return false;
+    if (!KEYOK) { toast(t("nokey")); return false; }
+    const keep = (where) => { OFFER = id; render(); const el = $(where); if (el) el.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); return false; };
+    if (!meta(KIND).installed) return keep("#agThread .ag-empty");
+    if (busyNow()) return keep("#agOffer");
+    const moved = !!(S && S.items.length);
+    if (moved) await fresh();
+    const ta = $("#agSay");
+    if (!ta || ta.disabled) return keep("#agOffer");
+    OFFER = null; renderFoot();
+    ta.focus(); ta.select();
+    let typed = false;
+    try { typed = document.execCommand("insertText", false, sample) && String(ta.value) === sample; } catch (x) { typed = false; }
+    if (!typed) ta.value = sample;
+    store_.set(`desk:agent:say:${KEYP}`, ta.value);
+    const m = /［[^］]*］|\[[^\]]*\]/.exec(sample);
+    if (m) ta.setSelectionRange(m.index, m.index + m[0].length); else ta.setSelectionRange(sample.length, sample.length);
+    ta.scrollIntoView({ block: "nearest" });
+    toast(moved ? at("of_moved") : t("smp_filled"));
+    return true;
   }
 
   /* ---------- the column's two tabs: this conversation, this round ---------- */
@@ -842,6 +902,7 @@ const AGENT = (() => {
     token(t) { TOKEN_ = t; },   // the token the page got after it loaded: its code traded, or another tab's of this run (studio.js)
     lang() { if (KEYP) { const f = $("#agFoot"); if (f) f.dataset.ready = ""; const h = $("#agHead"); if (h) h.dataset.ready = ""; const b = $("#colTabs"); if (b) b.dataset.html = ""; DOM.clear(); render(); } },
     tabs, setTab, fresh,
+    offer,
     listening(on) { if (LISTEN !== !!on) { LISTEN = !!on; if (KEYP && KEYP !== SPACE) renderHead(); } },
     async tell(e, text) {   // Studio's own button (the column's one action): its own words (bin/vh status's, Studio's word table and numbers), sent in this
       // film's conversation, the newest one, else a new one; the box keeps the person's draft (it is filled only by them)
@@ -853,6 +914,7 @@ const AGENT = (() => {
     },
     _again: (e) => again(e),   // for tools/desk/test_agents.py (node): the busy line's "anyway" after a refused carry-on
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
-    _md: md, _diff: diffLines, _ask: (pm, d) => askHtml(pm, d), _defaultKind: defaultKind, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
+    _md: md, _diff: diffLines, _hints: (items) => [...loginHints(items)],
+    _draw: (items) => { const keep = [S, KIND]; S = blank({ id: "t", kind: "claude" }); KIND = "claude"; items.forEach((x) => { x.v = 1; S.items.push(x); S.index[x.key] = x; }); HINTS = loginHints(S.items); const out = S.items.map(itemHtml); [S, KIND] = keep; return out; }, _ask: (pm, d) => askHtml(pm, d), _defaultKind: defaultKind, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };
 })();

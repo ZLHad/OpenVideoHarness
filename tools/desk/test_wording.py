@@ -21,6 +21,7 @@ RETIRED_ZH = re.compile(r"审阅台|控制台|关卡|检查点|这一轮|这一�
 RETIRED_EN = re.compile(r"(?i)\bdesk\b|\bconsole\b|\bgate\b|checkpoint|\bround\b|\bcomments?\b|feedback|submission|\bsubmit|\(s\)|untouched|"
                         r"to allow|\bcontext\b|\bproxy\b|hard rule|conversation|bin/vh|\.md\b|timing lock|sample chapter|first cut|" + CODE)
 WORDS_KEEP = {"proj_ph"}   # the film's folder inside a command, in that command's tooltip (<项目> / <project>)
+WORDS_OK = {"smp_launch_say": "我的开源项目"}   # a word a key may say: the homepage's sentence names the person's software, not a film
 TERMINAL_OK = re.compile(r"bin/vh|\.md\b|\bproxy\b")   # a terminal line may name the command to run, a file, the network's proxy
 CJK = re.compile(r"[一-鿿]")
 PROSE = re.compile(r"[A-Za-z]{2,}[,:;.!?]? [A-Za-z]{2,}")   # English words a space apart: not an identifier, a key or a file name
@@ -172,7 +173,7 @@ def wording_check():
                 bad.append(f"{name}.{key} only in {'/'.join(v)}")
             elif k not in WORDS_KEEP:
                 for lang, rx in (("zh", RETIRED_ZH), ("en", RETIRED_EN)):
-                    m = rx.search(str(v[lang]))
+                    m = rx.search(str(v[lang]).replace(WORDS_OK.get(k, "\0"), ""))
                     if m:
                         bad.append(f"{name}.{key} ({lang}) says {m.group(0)!r}")
     core = (HERE / "static" / "core.js").read_text(encoding="utf-8")
@@ -208,9 +209,57 @@ def wording_check():
     return "; ".join(bad[:20]) + (f" … ({len(bad)} in all)" if len(bad) > 20 else "") if bad else None
 
 
+def wall_check(tb_all):
+    """Studio's sample wall (studio.js SAMPLES, core.js smp_*, server.py SAMPLES) says what the homepage's showcase says
+    (docs/site/index.html #films): the same films in the same order, each length, and each "make one like this" sentence word
+    for word in both languages; every style and recipe a sentence names is in the repo; every poster is there."""
+    import ast
+    tree = ast.parse((HERE / "server.py").read_text(encoding="utf-8"))
+    SAMPLES = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SAMPLES")
+    bad, site = [], (ROOT / "docs/site/index.html").read_text(encoding="utf-8")
+    films = re.findall(r'<figure class="(film[^"]*)"(.*?)</figure>', site.split('id="films"', 1)[1].split("</section>", 1)[0], re.S)
+    js = (HERE / "static" / "studio.js").read_text(encoding="utf-8").split("const SAMPLES = [", 1)[1].split("];", 1)[0]
+    rows = re.findall(r'\{ id: "(\w+)", secs: ([\d.]+), w: (\d+), h: (\d+)(?:, style: "([\w-]+)")? \}', js)
+    if [r[0] for r in rows] != list(SAMPLES):
+        bad.append(f"studio.js SAMPLES {[r[0] for r in rows]} and server.py SAMPLES {list(SAMPLES)} name different films")
+    if len(rows) != len(films):
+        bad.append(f"the wall has {len(rows)} films, the homepage {len(films)}")
+    styles = {d.name for d in (ROOT / "styles").iterdir() if (d / "tokens.json").is_file()}
+    recipes = {m.group(1) for f in (ROOT / "recipes").rglob("*.md") for m in [re.search(r"^id: ([\w-]+)$", f.read_text(encoding="utf-8"), re.M)] if m}
+    for (sid, secs, w, h, style), (cls, fig) in zip(rows, films):
+        small = re.search(r'<small><span lang="en">[^<·]*· ([\d.]+) s', fig)
+        if not small or float(small.group(1)) != float(secs):
+            bad.append(f"{sid}: {secs} s here, {small and small.group(1)} s on the homepage")
+        if (int(h) > int(w)) != ("tall" in cls.split()):
+            bad.append(f"{sid}: vertical here and not on the homepage, or the other way round")
+        for lang in ("zh", "en"):
+            say = (tb_all.get("STR", {}).get(lang) or {}).get(f"smp_{sid}_say")
+            site_say = re.search(rf'<span data-copy-text lang="{lang}">(.*?)</span>', fig)
+            if say is None or not site_say or say != site_say.group(1):
+                bad.append(f"{sid} ({lang}): the sentence is not the homepage's: {str(say)[:50]!r} / {site_say and site_say.group(1)[:50]!r}")
+            for st in re.findall(r"styles/([\w-]+)", say or ""):
+                if st not in styles:
+                    bad.append(f"{sid} ({lang}) names a style that is not there: {st}")
+            if style and f"styles/{style}" not in (say or ""):
+                bad.append(f"{sid} ({lang}): the card's style {style} is not in its sentence")
+            named = re.search(r"(?:recipes|配方) (.+?)(?:，| for )", say or "")
+            for rc in re.findall(r"[a-z]+(?:-[a-z]+)+", named.group(1) if named else ""):
+                if rc not in recipes:
+                    bad.append(f"{sid} ({lang}) names a recipe that is not there: {rc}")
+    for sid, (poster, _film) in SAMPLES.items():
+        if not (ROOT / poster).is_file():
+            bad.append(f"{sid}: no poster at {poster}")
+    return bad
+
+
 if __name__ == "__main__":
     r = wording_check()
+    if shutil.which("node"):
+        tb = tables(shutil.which("node"))
+        w = wall_check(tb) if isinstance(tb, dict) else []
+        if w:
+            r = "; ".join(([r] if r else []) + w)
     if r:
         print(r)
         sys.exit(1)
-    print("every key in both languages, none of the retired names" + ("" if shutil.which("node") else " (no node: Studio's word tables not read)"))
+    print("every key in both languages, none of the retired names" + ("; the sample wall says what the homepage says" if shutil.which("node") else " (no node: Studio's word tables and the sample wall not read)"))

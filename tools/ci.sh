@@ -4123,6 +4123,25 @@ want(s == 200 and h.get("Content-Security-Policy", "").startswith("sandbox"), "a
 for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF.md", "/api/p/nope-x/data", f"/api/p/{K}/gate/9", "/api/data", "/p/BRIEF.md"):
     want(req("GET", p)[0] == 404, f"{p} answered")
 want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
+# the space's sample wall: the four showcase posters always, each film only when it is in the clone, and nothing else of the clone
+smp = json.loads(req("GET", "/api/projects")[2]).get("samples")
+s, h, img = req("GET", "/samples/short.jpg")
+want(isinstance(smp, list) and set(smp) <= {"short", "math", "handdrawn", "launch"} and s == 200 and h.get("Content-Type") == "image/jpeg" and img[:2] == b"\xff\xd8"
+     and all(req("GET", f"/samples/{x}.jpg")[0] == 200 for x in ("math", "handdrawn", "launch"))
+     and all(req("GET", f"/samples/{x}.mp4")[0] == (200 if x in smp else 404) for x in ("short", "math", "handdrawn", "launch")),
+     f"the sample wall's posters and films: {smp} {s} {h.get('Content-Type')}")
+for p in ("/samples/nope.jpg", "/samples/short.png", "/samples/..%2fserver.py", "/samples/", "/samples/short.jpg/x"):
+    want(req("GET", p)[0] == 404, f"{p} answered")
+film = "showcase/02-short-leo-doppler/media/final.mp4"   # a film linked in from outside the clone: neither listed nor served
+if not os.path.lexists(film) and os.path.isdir(os.path.dirname(film)):
+    outside = os.path.join(os.path.dirname(root), "outside.mp4")
+    open(outside, "wb").write(b"\x00" * 64)
+    os.symlink(outside, film)
+    try:
+        want("short" not in json.loads(req("GET", "/api/projects")[2]).get("samples", []) and req("GET", "/samples/short.mp4")[0] == 404,
+             "a film linked in from outside the clone is listed or served")
+    finally:
+        os.remove(film)
 fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
     "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
 H = {"Content-Type": "application/json", "X-Desk-Token": token}
@@ -4391,7 +4410,7 @@ for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss)):
     for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)):
         if re.search(r"text-transform:\s*(uppercase|var\(--label-case\))", rule):
             caps += [f"{f}: {s.strip()}" for s in sel.split(",")]
-allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2",
+allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2", "studio.css: .smp-wall>summary>h2",
            "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
 want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
 want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")

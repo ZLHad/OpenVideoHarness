@@ -21,6 +21,9 @@ keeps nothing of its own but the reviewer's draft (in the browser) until it is s
                                   studio.css and studio.js (the console's shell and the cut), modules.css and modules.js
                                   (the other modules), core.js (the words and helpers a static page shares)
   GET  /api/projects              every project: bin/vh projects' rows, each with its key, a picture, and what it waits for
+                                  (samples: which of the sample wall's films are in this clone)
+  GET  /samples/<id>.jpg|.mp4     the space's sample wall: a showcase film's poster (the homepage's), and the film itself once
+                                  tools/fetch_media.sh has put it in the clone; these and nothing else of the clone (SAMPLES)
   GET  /api/p/<key>/data          one project, read fresh: reader.read_project, plus bin/vh status (status), its key and
                                   what the cut module lays out (studio: the resolved timeline, thumbnails, peaks, findings),
                                   and what the other modules read besides (mods: loudness, voices, lifts, covers, the asset
@@ -95,6 +98,28 @@ STATIC = {"ui.css": "text/css; charset=utf-8", "ui.js": "text/javascript; charse
           "agent.css": "text/css; charset=utf-8", "agent.js": "text/javascript; charset=utf-8",
           "reader.css": "text/css; charset=utf-8", "reader.js": "text/javascript; charset=utf-8",
           "settings.css": "text/css; charset=utf-8", "settings.js": "text/javascript; charset=utf-8"}
+# GET /samples/<id>.jpg|.mp4: the space's sample wall (studio.js SAMPLES): the repo's own showcase films, the same four the
+# homepage shows, each with the homepage's poster, and the film itself once tools/fetch_media.sh has put it in this clone
+# (found where tools/media.txt says that release file goes). These files and nothing else of the clone: the films are in no
+# root, so /f/ cannot give them.
+SAMPLES = {"short": ("docs/site/img/02-doppler.jpg", "02-vertical-science-short.mp4"),   # the homepage's order
+           "math": ("docs/site/img/03-fourier.jpg", "03-math-explainer.mp4"),
+           "handdrawn": ("docs/site/img/01-clawd.jpg", "01-handdrawn-short.mp4"),
+           "launch": ("docs/site/img/00-launch.jpg", "00-launch-short.mp4")}
+
+
+def sample_file(sid, kind):
+    """The clone's path of a sample's poster ("jpg") or film ("mp4", from tools/media.txt), or None."""
+    if sid not in SAMPLES:
+        return None
+    poster, asset = SAMPLES[sid]
+    if kind == "jpg":
+        return poster
+    try:
+        rows = (WORKSPACE / "tools" / "media.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    return next((r.split()[0] for r in rows if len(r.split()) == 3 and r.split()[1] == asset), None)
 # GET /v/<key>/<path>: a project file on a page of its own (Studio's app opens the console's new-page links there)
 VIEW = {"image": {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif", ".bmp"}, "video": {".mp4", ".mov", ".m4v", ".webm"},
         "audio": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".flac", ".opus"}, "page": {".html", ".htm"}, "markdown": {".md", ".markdown"},
@@ -1063,6 +1088,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, (HERE / "static" / path[8:]).read_bytes(), STATIC[path[8:]])
         if path == "/api/projects":
             return self._projects()
+        m = re.fullmatch(r"/samples/([a-z]+)\.(jpg|mp4)", path)
+        if m and m.group(1) in SAMPLES:
+            f = sample_file(m.group(1), m.group(2))
+            return self._file(WORKSPACE, f) if f else self._error(404, "no such sample")
         if path == "/api/hello":   # does the page hold this run's token? (one from an earlier run does not count); if not, why, and the way out
             given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")
             ok = secrets.compare_digest(given, srv.token.encode("ascii"))
@@ -1277,7 +1306,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                           -float((r.get("last_activity") or {}).get("t") or 0), r.get("name") or "")
         rows.sort(key=rank)
         self._json({"version": 1, "home": self.server.own_key, "roots": rec["roots"], "count": len(rows),
-                    "waiting": sum(1 for r in rows if r.get("state") == "waiting_person"), "projects": rows})
+                    "waiting": sum(1 for r in rows if r.get("state") == "waiting_person"), "projects": rows,
+                    "samples": [k for k in SAMPLES if (f := sample_file(k, "mp4")) and self._resolve(WORKSPACE, f)]})   # what /samples/ serves
 
     def _data(self, project, key):
         try:

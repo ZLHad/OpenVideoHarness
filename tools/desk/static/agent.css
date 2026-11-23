@@ -25,7 +25,7 @@
 .ag-orb{width:9px;height:9px;border-radius:50%;background:var(--rule-2);flex:none}
 .ag-orb.agent{background:var(--agent);box-shadow:0 0 8px var(--agent)}
 .ag-orb.wait{background:var(--wait)}.ag-orb.live{background:var(--live)}
-.ag-top select{max-width:150px;min-width:0;flex:0 1 auto;border:1px solid var(--rule-2);background:var(--panel-2);color:var(--ink-hi);font:500 var(--fs-small) var(--sans);padding:3px 6px;border-radius:var(--r-ctl)}
+.ag-top select{flex:none;field-sizing:content;border:1px solid var(--rule-2);background:var(--panel-2);color:var(--ink-hi);font:500 var(--fs-small) var(--sans);padding:3px 6px;border-radius:var(--r-ctl)}
 .ag-state{flex:1 1 auto;font-size:var(--fs-small);color:var(--ink-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-state.agent{color:var(--agent)}.ag-state.wait{color:var(--wait)}.ag-state.live{color:var(--live)}
 .ag-state .mono{font-size:11px;color:var(--ink-3);margin-left:4px}
@@ -160,3 +160,8 @@
 .ag-ask[hidden]{display:none}
 .ag-busy .ag-opts{margin-left:auto}
 @media (max-width:900px){.col.chat .agent{min-height:70vh}.ag-thread{max-height:60vh}}
+/* the space's sample wall: the sentence the person picked, kept until the box can take it (an agent set up, the chat stopped) */
+.ag-offer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;border:1px solid var(--you-line);background:var(--panel-2);color:var(--ink);font-size:var(--fs-label);line-height:1.55;border-radius:var(--r-card)}
+.ag-offer[hidden]{display:none}
+.ag-offer .ag-opts{margin-left:auto}
+.ag-offer-keep{margin:10px 0 0;padding:8px 10px;border-left:2px solid var(--you-line);color:var(--ink);font-size:var(--fs-small);line-height:1.5}
