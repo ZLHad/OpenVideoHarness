@@ -96,7 +96,7 @@ try {
   want(pins.length === 67, `${pins.length} pins for the 67 marked places`);
   want(!over, `${over} pairs of the marked places' pins lie on each other`);
 
-  // 5. the note box: ↩ is a new line; one press of 记下 keeps the note (the button stays under the pointer); ⌘/Ctrl+↩ keeps too; the keys in words
+  // 5. the note box: ↩ is a new line; one press of 加一条 keeps the note (the button stays under the pointer); ⌘/Ctrl+↩ keeps too; the keys in words
   if (await ev(`!document.querySelector('#toWhole').hidden`)) await clickOn("#toWhole");
   await ev(`document.querySelector('#say').focus()`); await type("第一行"); await key("Enter", "Enter", 13, "\r"); await type("第二行");
   want((await ev(`document.querySelector('#say').value`)) === "第一行\n第二行", "↩ in the note box is not a new line");
@@ -105,17 +105,17 @@ try {
   await mouse("mouseMoved", b0.x + b0.w / 2, b0.y + b0.h / 2); await mouse("mousePressed", b0.x + b0.w / 2, b0.y + b0.h / 2); await sleep(250);
   const b1 = await rect("#sayAdd");
   await mouse("mouseReleased", b0.x + b0.w / 2, b0.y + b0.h / 2); await sleep(400);
-  want(Math.abs(b1.y - b0.y) < 1 && Math.abs(b1.x - b0.x) < 1, `记下 moved ${Math.round(b1.y - b0.y)} px while it was pressed`);
-  want((await ev(`document.querySelector('#say').value`)) === "" && (await ev(`document.querySelector('#cMine').textContent`)).includes("第二行"), "one press of 记下 did not keep the note");
+  want(Math.abs(b1.y - b0.y) < 1 && Math.abs(b1.x - b0.x) < 1, `加一条 moved ${Math.round(b1.y - b0.y)} px while it was pressed`);
+  want((await ev(`document.querySelector('#say').value`)) === "" && (await ev(`document.querySelector('#cMine').textContent`)).includes("第二行"), "one press of 加一条 did not keep the note");
   await ev(`document.querySelector('#say').focus()`); await type("第三行"); await key("Enter", "Enter", 13, "\r", 2);
   want((await ev(`document.querySelector('#say').value`)) === "", "Ctrl+↩ does not keep the note");
-  want(/↩.*记下.*↩.*换行/.test(await ev(`(document.querySelector('#sayKeys') || {}).textContent || ""`)), "the note box's keys are not said in words beside it");
+  want(/↩.*加一条.*↩.*换行/.test(await ev(`(document.querySelector('#sayKeys') || {}).textContent || ""`)), "the note box's keys are not said in words beside it");
 
   // 6. a note about no moment of the film: its own place, marked when it goes; a line in it that starts with 〔…〕 is still that one note, and × takes all of it
   if (await clickOn("#toNone")) {
     const n0 = await ev(`generalParts().length`);
     await type("给 Studio 的话"); await key("Enter", "Enter", 13, "\r"); await type("〔像个标签〕第二行"); await clickOn("#sayAdd");
-    want((await ev(`payload().general`)).includes("〔不对着片子〕给 Studio 的话\n〔像个标签〕第二行"), `a note not about the film goes unmarked or changed: ${await ev("payload().general")}`);
+    want((await ev(`payload().general`)).includes("〔跟片子无关的〕给 Studio 的话\n〔像个标签〕第二行"), `a note not about the film goes unmarked or changed: ${await ev("payload().general")}`);
     want((await ev(`generalParts().length`)) === n0 + 1, "a note with a line that starts with 〔…〕 shows as two notes");
     await ev(`Array.from(document.querySelectorAll('#cMine li.general')).find((li) => li.textContent.includes('像个标签')).querySelector('[data-del]').scrollIntoView()`);
     const x = await ev(`(() => { const b = Array.from(document.querySelectorAll('#cMine li.general')).find((li) => li.textContent.includes('像个标签')).querySelector('[data-del]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
@@ -133,11 +133,11 @@ try {
   // 8. the storyboard by shot: a tab a part with its shots, the sheets of one part together; ← → shot by shot
   const tabs = await ev(`Array.from(document.querySelectorAll('.pgtabs a')).map((a) => a.textContent.trim())`);
   want(tabs.length === opt.parts && opt.sheets > opt.parts, `${opt.sheets} sheets of ${opt.parts} parts made ${tabs.length} tabs`);
-  want(tabs.every((x) => !/页|Page/.test(x)) && /^S1–S\d+ /.test(tabs[0] || ""), `the tabs say pages, not shots: ${tabs.slice(0, 3).join(" | ")}`);
+  want(tabs.every((x) => !/页|Page/.test(x)) && /^(第 1–\d+ 镜|Shots 1–\d+) /.test(tabs[0] || ""), `the tabs say pages, not shots: ${tabs.slice(0, 3).join(" | ")}`);
   await ev(`document.activeElement && document.activeElement.blur()`);
   await key("ArrowRight", "ArrowRight", 39); await key("ArrowRight", "ArrowRight", 39); await sleep(300);
   const cur = await ev(`({ id: (document.querySelector('.shotc.cur') || {}).id || "", scope: document.querySelector('#scope').textContent })`);
-  want(cur.id === "shot-S2" && /S2\b/.test(cur.scope), `→ → on the storyboard: ${JSON.stringify(cur)}`);
+  want(cur.id === "shot-S2" && /^(第 2 镜|Shot 2)(\s|$)/.test(cur.scope) && !/镜.*第 2 镜|Shot 2.*Shot 2/.test(cur.scope), `→ → on the storyboard: ${JSON.stringify(cur)}`);
 
   // 9. an edit list's long part: a shot inside it is there to point at; a film rendered from an earlier edit list says why there are none
   await go(`${base}#/p/${EDIT}/cut`);

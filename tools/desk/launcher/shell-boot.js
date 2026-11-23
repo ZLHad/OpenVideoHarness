@@ -23,8 +23,8 @@ if (fs.existsSync(main)) {
     const t = (a, b) => (zh() ? a : b);
     const r = dialog.showMessageBoxSync({ type: "warning", buttons: [t("找到它…", "Find it…"), t("好", "OK")], defaultId: 0, cancelId: 1,
       message: t("找不到 OpenVideoHarness 了", "OpenVideoHarness is no longer where it was"),
-      detail: t("它原来在 " + REPO + "。点“找到它”，选它现在所在的文件夹；或者让 agent 把 Studio 图标重新装一次。",
-        "It was at " + REPO + ". Click “Find it” and pick the folder it is in now, or ask your agent to put the Studio icon back.") });
+      detail: t("它原来在 " + REPO + "。点“找到它”，选它现在所在的文件夹；或者让 AI 把 Studio 图标重新装一次。",
+        "It was at " + REPO + ". Click “Find it” and pick the folder it is in now, or ask the AI you use to put the Studio icon back.") });
     const dir = r === 0 && dialog.showOpenDialogSync({ properties: ["openDirectory"], message: t("OpenVideoHarness 现在所在的文件夹", "The folder OpenVideoHarness is in now") });
     const repo = dir && dir[0];
     if (repo) {
@@ -39,8 +39,8 @@ if (fs.existsSync(main)) {
         spawn(vh, ["studio", "--icon", "open"], { cwd: repo, env, stdio: "ignore", detached: true }).unref();
       } else {
         dialog.showMessageBoxSync({ type: "warning", buttons: [t("好", "OK")], message: t("没能从那个文件夹装回 Studio", "Studio could not be set up again from that folder"),
-          detail: t("那个文件夹不是 OpenVideoHarness，或者装的时候出了错。让 agent 把 Studio 图标重新装一次。",
-            "That folder is not OpenVideoHarness, or the install did not finish. Ask your agent to put the Studio icon back.") });
+          detail: t("那个文件夹不是 OpenVideoHarness，或者装的时候出了错。让 AI 把 Studio 图标重新装一次。",
+            "That folder is not OpenVideoHarness, or the install did not finish. Ask the AI you use to put the Studio icon back.") });
       }
     }
     app.exit(repo ? 0 : 1);

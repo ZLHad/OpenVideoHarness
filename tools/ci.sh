@@ -2747,7 +2747,7 @@ PY
   a=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1); rec "$q" "Budget=\$5"; b=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1)
   rec "$q" "Budget=default" "Review language=en"; c=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1)
   rm -rf "$q/out/review"; rec "$q" g1; python3 tools/gatecheck.py "$q" >/dev/null 2>&1; rc=$?; d=$(plan "$q")
-  if [ "$a" = "这支片子我打算停两次：这一次（立意）和初版；分镜随初版那一页给你，不单独停。想多看一步或少看一步，回我一句就行。" ] \
+  if [ "$a" = "这支片子我打算停两次：这一次（立意）和初版；分镜不单独停，跟初版放在同一页给你看。想多看一步或少看一步，回我一句就行。" ] \
     && [ "$b" = "这支片子我打算停三次：这一次（立意）、分镜、初版；分镜单独停，因为有付费调用。想多看一步或少看一步，回我一句就行。" ] \
     && case "$c" in "I plan to stop twice on this film: now (the concept) and at the first draft;"*"Tell me in a sentence if you want to see more, or less.") true ;; *) false ;; esac \
     && [ "$rc" = 0 ] && [ "$d" = "1:done 3:in_progress deliver:not_started | 1,3 | " ]
@@ -3865,12 +3865,12 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"在 Studio 里打开了"*"然后回到这里跟我说一声"*"我交了"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"在 Studio 里打开了"*"然后回到这里跟我说一声"*"我发了"*) true ;; *) false ;; esac \
     && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
     && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
     && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
-    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在等，你一交我就接着做' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
+    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在等，你一发我就接着做' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
@@ -4194,9 +4194,9 @@ const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
 for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
 want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes(run("esc(D.ideas.same_topic)")) && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
 want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
-want(h.board.includes("开场 · S1–S2") && h.board.includes(">S3–S4 两个鼓包<") && !/第 \d+ 页/.test(h.board) && (h.board.match(/class="shotc/g) || []).length === 2, "board: the first part, two shots, its tabs named by their shots, no pages");
+want(h.board.includes("开场 · 第 1–2 镜") && h.board.includes(">第 3–4 镜 两个鼓包<") && !/第 \d+ 页/.test(h.board) && (h.board.match(/class="shotc/g) || []).length === 2, "board: the first part, two shots, its tabs named by their shots, no pages");
 run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
-want(b2.includes("两个鼓包 · S3–S4") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
+want(b2.includes("两个鼓包 · 第 3–4 镜") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
   "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
 want(h.sound.includes("-14.2") && /<article class="vcard on"[^>]*>\s*<h3><b>Charon<\/b>/.test(h.sound) && (h.sound.match(/<tr\b[\s\S]*?<\/tr>/g) || []).filter((r) => r.includes("chip wait")).length === 1
   && ["0:09.0", "0:21.3"].every((x) => h.sound.includes(x)), "sound: loudness, the voice in use, one fast line flagged, the lifts at their seconds");
@@ -4348,7 +4348,7 @@ try {
   { const w = run(`statusWords("fill BRIEF.md (7 {…} left); render the final")`);
     want(w.known && w.text.includes("7") && w.text.includes("；") && !/\.md|\{…\}/.test(w.text), "a next step of two of status's lines, as older projects get it, said without the file or the placeholder: " + w.text); }
   run(`LANG = "en"; L = STR.en;`);
-  want(run(`t("sent_n", { n: 5, d: 1, at: "x" })`).startsWith("Sent 5 notes and 1 decision (x)") && run(`t("sent_n", { n: 1, d: 2, at: "x" })`).startsWith("Sent 1 note and 2 decisions (x)"), "English counts: " + run(`t("sent_n", { n: 5, d: 1, at: "x" })`));
+  want(run(`t("sent_n", { n: 5, d: 1, at: "x" })`).startsWith("Sent 5 notes and 1 choice (x)") && run(`t("sent_n", { n: 1, d: 2, at: "x" })`).startsWith("Sent 1 note and 2 choices (x)"), "English counts: " + run(`t("sent_n", { n: 5, d: 1, at: "x" })`));
   { const w = run(`statusWords("fill BRIEF.md (7 {…} left); record the decision for gate 2 in REVIEW.md")`).text;
     want(w.includes("7 blanks") && !/\.md|\{…\}|gate 2/.test(w), "status's lines in an English page still name files and stops by code: " + w); }
   run(`LANG = "zh"; L = STR.zh;`);

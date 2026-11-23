@@ -184,8 +184,8 @@ function askClone() {   // a click: ask the clone to show Studio; it starts this
   vh(["studio", "--icon", "open"], (code, out) => {
     if (code !== 0 && !windows.size) {
       dialog.showMessageBoxSync({ type: "warning", buttons: [T("好", "OK")], message: T("Studio 没有打开", "Studio did not open"),
-        detail: T("再点一次 OVH Studio 图标；还是不行，就让 agent 打开 Studio，它会说是哪里出了问题。",
-          "Click the OVH Studio icon again; if it still does not open, ask your agent to open Studio, and it will say what went wrong.") });
+        detail: T("再点一次 OVH Studio 图标；还是不行，就让 AI 打开 Studio，它会说是哪里出了问题。",
+          "Click the OVH Studio icon again; if it still does not open, ask the AI you use to open Studio, and it will say what went wrong.") });
       quitting = true;
       app.exit(1);
     }
@@ -245,7 +245,7 @@ function start(given) {
       session.defaultSession.setPermissionRequestHandler((wc, perm, cb, d) => cb(R.permission(perm, (d && d.requestingUrl) || wc.getURL(), wc.getURL())));
       guard(session.defaultSession);
       app.setAboutPanelOptions({ applicationName: "OVH Studio", applicationVersion: "Electron " + process.versions.electron,
-        copyright: "OpenVideoHarness", credits: T("Studio：看你的每支片子，在每一站拍板，和这台电脑上的 agent 说话。", "Studio: see each film, decide at each stop, and talk to the agents on this computer.") });
+        copyright: "OpenVideoHarness", credits: T("Studio：看你的每支片子，在每一步拍板，和这台电脑上的 AI 说话。", "Studio: see each film, decide at each step, and talk to the AIs on this computer.") });
       menu();
       if (msg) handle(msg); else askClone();
     });
@@ -266,7 +266,7 @@ function start(given) {
     vh(["studio", "--icon", "quit"], (code, out) => {
       if (code === 3) {
         const r = dialog.showMessageBoxSync({ type: "warning", buttons: [T("继续开着", "Keep it open"), T("退出", "Quit")], defaultId: 0, cancelId: 0,
-          message: T("Studio 里的 agent 正在做事", "An agent in Studio is at work"), detail: T("退出会让它停下。", "Quitting stops it.") });
+          message: T("Studio 里的 AI 正在做事", "An AI in Studio is at work"), detail: T("退出会让它停下。", "Quitting stops it.") });
         if (r === 0) return;
         return vh(["studio", "--icon", "quit", "--force"], () => { quitting = true; app.exit(0); });
       }

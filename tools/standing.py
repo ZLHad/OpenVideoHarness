@@ -25,7 +25,7 @@ run recorded. It starts, asks and writes nothing else.
   main thing to do, said as a quiet second line)
   facts.paths: the project's files the words name (Studio opens them; the terminal prints them as they are)
 
-plan_line(): the film in one line from its BRIEF and its stops ("30 秒竖屏，有旁白，先看方向和初版"), or None.
+plan_line(): the film in one line from its BRIEF and its stops ("30 秒竖屏，有旁白，中间停两次给你看：立意和初版"), or None.
 """
 import json, os, re, sys, time
 from pathlib import Path
@@ -42,7 +42,7 @@ OPEN_FOR = 6 * 3600  # s: an agent program still running counts as open on a fil
 WORDS = {
     # what the person sees at a stop, and how they take it in
     "seen.1": ("立意卡", "the concept cards"), "seen.2": ("分镜", "the storyboard"), "seen.3": ("初版", "the first draft"),
-    "seen.E0": ("画风样张", "the style frames"), "seen.E1": ("脚本", "the script"), "seen.E2": ("配乐安排", "the sound plan"),
+    "seen.E0": ("画风样张", "the style frames"), "seen.E1": ("文案", "the script"), "seen.E2": ("配乐安排", "the sound plan"),
     "seen.E3": ("最终的声音", "the final sound"), "seen.E4": ("第一章样片", "the first chapter"), "seen.E5": ("定画面的版本", "the picture lock"),
     "seen.deliver": ("交付", "the delivery"),
     "take.look": ("看", "look at"), "take.listen": ("听", "listen to"),
@@ -82,9 +82,9 @@ WORDS = {
     "sign.talk_error": ("Studio 里的对话出错停了", "the Studio chat ended with an error"),
     "sign.talk_cut": ("Studio 里的对话做到一半断了", "the Studio chat was cut off mid-turn"),
     "sign.talk": ("Studio 里的对话有新内容", "the Studio chat moved on"),
-    "sign.file": ("改了 {f}", "{f} changed"),
-    "last": ("上一次动静：{a}前，{x}。", "Last activity: {a} ago, {x}."),
-    "last.partial": ("看到的最近一次动静：{a}前，{x}（文件很多，没有一一看过）。", "The latest activity seen: {a} ago, {x} (too many files to look through them all)."),
+    "sign.file": ("改了{f}", "{f} changed"),
+    "last": ("{a}前，{x}。", "{A} ago, {x}."),
+    "last.partial": ("{a}前，{x}（文件太多，没有一一看过）。", "{A} ago, {x} (too many files to look through them all)."),
     "ago.now": ("不到 1 分钟", "under a minute"), "ago.min": ("{n} 分钟", "{n} min"), "ago.hour": ("{n} 小时", "{n} hour"),
     "ago.hours": ("{n} 小时", "{n} hours"), "ago.days": ("{n} 天", "{n} days"),
     # the sentences, a code each: its short sentence, the card's few words (.short)
@@ -93,32 +93,33 @@ WORDS = {
     "revision_ready.more": ("改前改后两版放在一起，在这里对照着看、听。", "The versions before and after are side by side here, to watch and listen to together."),
     "revision_ready.short": ("改好了，等你复审", "changed, for you to review"),
     "waiting_you": ("{s}出来了，等你{v}。", "{S} {be} out and {wait} for you."),
-    "waiting_you.listening": ("你交了，agent 就接着做。", "Once you send your notes, the agent carries on by itself."),
-    "waiting_you.alone": ("交了以后，要跟 agent 说一声。", "After you send your notes, tell the agent."),
+    "waiting_you.listening": ("{a} 在等着，你一发，它就接着做。", "{A} is waiting: send your notes and it carries on."),
+    "waiting_you.alone": ("发出去以后，回到{a}那边说一句“我发了”。", "Once sent, tell {a} \u201cI've sent it\u201d over there."),
+    "who.film": ("做这支片子的 AI ", "the AI making the film"),
     "waiting_you.short": ("{s} · 等你{v}", "{s} · for you"),
-    "notes_unheard": ("你的意见存好了，还没有 agent 来取。", "Your notes are saved; no agent has picked them up yet."),
-    "notes_unheard.more": ("跟 agent 说一声，它就来取。", "Tell the agent and it will fetch them."),
-    "notes_unheard.busy": ("{x}还在跑（{p}），但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running ({p}), but nobody has picked up the notes you sent at {t}. Tell the agent."),
-    "notes_unheard.busy0": ("{x}还在跑，但你 {t} 交的这一份还没人取。跟 agent 说一声。", "{X} is still running, but nobody has picked up the notes you sent at {t}. Tell the agent."),
+    "notes_unheard": ("你的意见存好了，还没有 AI 来取。", "Your notes are saved; no AI has picked them up yet."),
+    "notes_unheard.more": ("跟做这支片子的 AI 说一声，它就来取。", "Tell the AI making the film and it will fetch them."),
+    "notes_unheard.busy": ("{x}还在跑（{p}），但你 {t} 发的这一份还没人取。跟做这支片子的 AI 说一声。", "{X} is still running ({p}), but nobody has picked up the notes you sent at {t}. Tell the AI making the film."),
+    "notes_unheard.busy0": ("{x}还在跑，但你 {t} 发的这一份还没人取。跟做这支片子的 AI 说一声。", "{X} is still running, but nobody has picked up the notes you sent at {t}. Tell the AI making the film."),
     "notes_unheard.short": ("意见还没人取", "notes not picked up yet"),
-    "notes_sent": ("你的意见交出去了，等着的 agent 正在取。", "Your notes went to the agent that was waiting; it is picking them up."),
-    "notes_sent.short": ("意见交出去了", "notes sent"),
-    "notes_taken": ("agent 拿到了你的意见，正在改。", "The agent has your notes and is working on them."),
+    "notes_sent": ("你的意见发出去了，等着的 {a} 正在取。", "{A} was waiting and is picking up your notes."),
+    "notes_sent.short": ("意见发出去了", "notes sent"),
+    "notes_taken": ("AI 拿到了你的意见，正在改。", "The AI has your notes and is working on them."),
     "notes_taken.short": ("在照你的意见改", "working on your notes"),
     "now_doing": ("正在{x}。", "{X}."), "in_studio": ("在 Studio 的对话里。", "In the Studio chat."),
     "running": ("正在{x}。", "{X}."), "running.short": ("正在{x}", "{x}"),
-    "working": ("agent 正在做。", "The agent is working."), "working.short": ("agent 在做", "the agent is working"),
+    "working": ("AI 正在做。", "The AI is working."), "working.short": ("AI 在做", "the AI is working"),
     "delivered": ("已交付{d}。", "Delivered{d}."), "delivered.short": ("已交付{d}", "delivered{d}"),
     "delivered.film": ("成片：{f}", "The film: {f}"), "delivered.gone": ("（不在这台电脑上了）", " (no longer on this computer)"),
     "delivered.subs": ("字幕：{f}", "subtitles: {f}"), "delivered.version": ("交付的是 {v}", "version {v}"),
     "no_record": ("这支片子没有审阅记录。", "This film keeps no review record."),
-    "no_record.more": ("看不出它停在哪一站。", "Where it stopped cannot be told."), "no_record.short": ("没有审阅记录", "no review record"),
-    "stopped": ("agent 停下了：{x}。", "The agent stopped: {x}."), "stopped.short": ("停下了", "stopped"),
-    "stopped.since": ("{a}前，{x}，之后没有别的动静。", "{X} {a} ago, and nothing has happened since."),
+    "no_record.more": ("看不出它停在哪一步。", "Where it stopped cannot be told."), "no_record.short": ("没有审阅记录", "no review record"),
+    "stopped": ("AI 停下了：{x}。", "The AI stopped: {x}."), "stopped.short": ("停下了", "stopped"),
+    "stopped.since": ("{a}前，{x}，之后再没有变化。", "{X} {a} ago, and nothing has happened since."),
     "stopped.at": ("{a}前，{x}。", "{X} {a} ago."),
-    "agent_away": ("做过它的 agent 程序还开着，可能在忙别的片子。", "The agent program that worked on it is still open, and may be busy with another film."),
-    "agent_open": ("现在没有命令在跑；上次做这支片子的 agent 还开着。", "No command runs now; the agent that last worked on this film is still open."),
-    "agent_open.short": ("agent 开着", "an agent is open"),
+    "agent_away": ("做过它的 AI 程序还开着，可能在忙别的片子。", "The AI program that worked on it is still open, and may be busy with another film."),
+    "agent_open": ("现在没在做什么；上次做这支片子的 {a} 还开着。", "Nothing is running now; {a}, which last worked on this film, is still open."),
+    "agent_open.short": ("AI 开着", "an AI is open"),
     "idle": ("现在没有命令在跑。", "No command runs right now."), "idle.short": ("没有命令在跑", "nothing running"),
     "ship_missing": ("还没交付：{x}。", "Not delivered yet: {x}."), "ship_missing.short": ("还没交付", "not delivered yet"),
     "gap.cut": ("初版还没定", "the first draft is not decided yet"), "gap.check": ("成片没过检查", "the film has not passed its check"),
@@ -126,49 +127,49 @@ WORDS = {
     "setup": ("引擎还没装好。", "The engine is not set up yet."),
     # a command stopped because a service's API Key is not set, and it still is not (tools/keys.py)
     "needs_key": ("{x}停下了：还没有 {s} 的 API Key。", "{T} stopped: there's no {s} API Key yet."),
-    "needs_key.more": ("在设置 → 服务里填上，再让 agent 接着做。", "Set it up in Settings → Services, then ask the agent to carry on."),
-    "needs_key.voice": ("不想用在线服务，也可以让 agent 换成这台电脑上的声音。", "Or ask the agent to use this computer's own voice, with no service."),
-    "needs_key.voice_say": ("不想用在线服务，也可以让 agent 换成 macOS 自带的声音（够打草稿）。", "Or ask the agent to use macOS's own voice, with no service (good enough for a draft)."),
-    "needs_key.image_codex": ("也可以让 agent 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "Or ask the agent to make the pictures with Codex, on the ChatGPT plan, with no API Key."),
+    "needs_key.more": ("在设置 → 服务里填上，再让 AI 接着做。", "Set it up in Settings → Services, then ask the AI to carry on."),
+    "needs_key.voice": ("不想用在线服务，也可以让 AI 换成这台电脑上的声音。", "Or ask the AI to use this computer's own voice, with no service."),
+    "needs_key.voice_say": ("不想用在线服务，也可以让 AI 换成 macOS 自带的声音（够打草稿）。", "Or ask the AI to use macOS's own voice, with no service (good enough for a draft)."),
+    "needs_key.image_codex": ("也可以让 AI 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "Or ask the AI to make the pictures with Codex, on the ChatGPT plan, with no API Key."),
     "needs_key.only": ("这台电脑上没有不用 API Key 的办法。", "This computer has no way to do it without an API Key."),
-    "needs_key.timing": ("不想用在线服务，也可以让 agent 在这台电脑上对时间。", "Or ask the agent to time the words on this computer, with no service."),
-    "needs_key.music": ("不想用在线服务，也可以让 agent 在这台电脑上作曲。", "Or ask the agent to compose the music on this computer, with no service."),
+    "needs_key.timing": ("不想用在线服务，也可以让 AI 在这台电脑上对时间。", "Or ask the AI to time the words on this computer, with no service."),
+    "needs_key.music": ("不想用在线服务，也可以让 AI 在这台电脑上作曲。", "Or ask the AI to compose the music on this computer, with no service."),
     "needs_key.short": ("等 API Key", "waiting for an API Key"),
     "svc.gemini": ("Gemini", "Gemini"), "svc.minimax": ("MiniMax", "MiniMax"), "svc.elevenlabs": ("ElevenLabs", "ElevenLabs"),
     "svc.dashscope": ("阿里云百炼", "Alibaba Cloud Model Studio"),
-    "setup.more": ("agent 接着做时会先装它（要联网）。", "The agent sets it up first when it carries on (it needs the network)."),
+    "setup.more": ("AI 接着做时会先装它（要联网）。", "The AI sets it up first when it carries on (it needs the network)."),
     "setup.short": ("引擎还没装好", "engine not set up"),
     "unknown": ("读不出这支片子现在到哪了。", "Where this film stands could not be worked out."), "unknown.short": ("读不出", "unreadable"),
     # the facts in the line under a sentence
-    "read_at": ("你 {t} 交的意见它读过了。", "It has read the notes you sent at {t}."),
+    "read_at": ("你 {t} 发的意见它读过了。", "It has read the notes you sent at {t}."),
     "made": ("已经做好：{f}。", "Made so far: {f}."),
     "next": ("下一步是{s}。", "Next: {s}."), "next.notes": ("下一步：照你的意见改{s}。", "Next: {s}, changed as your notes say."),
     # the buttons, and the words a tell button sends (only these words, numbers and times: nothing else from the project)
     "act.look": ("去{v}{s}", "{V} {s}"), "act.revision": ("去复审", "Review the change"), "act.ship": ("打开交付", "Open the delivery"),
     "act.settings": ("去设置 → 服务", "Open Settings → Services"),
     "act.go_cut": ("去看初版", "Go to the first draft"), "act.go_ship": ("去看交付", "Go to the delivery"),
-    "act.carry": ("让 agent 接着做", "Ask the agent to carry on"), "act.fetch": ("让 agent 来看意见", "Ask the agent to read your notes"),
-    "act.carry_open": ("它要是没反应，在这里叫一个 agent 接着做", "If it does not answer, ask an agent here to carry on"),
+    "act.carry": ("让 AI 接着做", "Ask the AI to carry on"), "act.fetch": ("让 AI 来取意见", "Ask the AI to fetch your notes"),
+    "act.carry_open": ("它没反应的话，在这里另开一个 AI 接着做", "If it doesn't answer, start another AI here to carry on"),
     "say.carry": ("接着做这支片子。先跑 bin/vh status 看下一步。", "Carry on with this film. Run bin/vh status first for the next step."),
     "say.stopped": ("接着做这支片子。上次{x}。先跑 bin/vh status 看下一步。", "Carry on with this film. Last time {x}. Run bin/vh status first for the next step."),
-    "say.fetch": ("我在 Studio 交了这一站的意见。去取来看（bin/vh status 会说怎么取），然后接着做。",
-                  "I sent my notes for this stop in Studio. Fetch and read them (bin/vh status says how), then carry on."),
+    "say.fetch": ("我在 Studio 发了这一步的意见。去取来看（bin/vh status 会说怎么取），然后接着做。",
+                  "I sent my notes for this step in Studio. Fetch and read them (bin/vh status says how), then carry on."),
     "say.resume": ("接着做这支片子：REVIEW.md 里写着暂停，现在恢复，在那里记一节恢复。先跑 bin/vh status 看下一步。",
                    "Carry on with this film: REVIEW.md says paused; it resumes now, so note that there. Run bin/vh status first for the next step."),
     # the person's notes nobody has taken, and who holds the film outside Studio's window (new words: the agent by its name
     # when known, else "AI"; the step by name; never a file name)
-    "seen.outline": ("大纲", "the outline"), "seen.script": ("旁白稿", "the script"),
+    "seen.outline": ("大纲", "the outline"), "seen.script": ("文案", "the script"),
     "step.1": ("立意", "the concept"), "step.outline": ("大纲", "the outline"), "step.E0": ("画风样张", "the style frames"),
-    "step.E1": ("旁白稿", "the script"), "step.2": ("分镜", "the storyboard"), "step.E2": ("配乐安排", "the sound plan"),
+    "step.E1": ("文案", "the script"), "step.2": ("分镜", "the storyboard"), "step.E2": ("配乐安排", "the sound plan"),
     "step.E3": ("最终的声音", "the final sound"), "step.3": ("初版", "the first draft"), "step.E4": ("第一章样片", "the first chapter"),
     "step.E5": ("定画面的版本", "the picture lock"), "step.notes": ("随手写的意见", "your loose notes"), "step.other": ("这一页", "this page"),
-    "prog.claude": ("Claude Code", "Claude Code"), "prog.codex": ("Codex", "Codex"), "prog.ai": ("AI", "the AI"),
-    "notes_late": ("你在{s}那一轮被取走以后又交了 {n} 条，还没有 AI 来取。", "After {s} was picked up you sent {n} more {n_notes}; no AI has picked them up yet."),
-    "notes_late.short": ("补交的意见还没人取", "later notes not picked up"),
-    "notes_left": ("你交的 {n} 份意见还没有 AI 来取（{s}）。", "{N} {n_subs} you sent {are} not picked up by any AI yet ({s})."),
+    "prog.claude": ("Claude Code", "Claude Code"), "prog.codex": ("Codex", "Codex"), "prog.dsh": ("DeepSeek Harness", "DeepSeek Harness"), "prog.ai": ("AI", "the AI"),
+    "notes_late": ("{s}那一轮被取走以后，你又发了 {n} 条，还没有 AI 来取。", "After {s} was picked up you sent {n} more {n_notes}; no AI has picked them up yet."),
+    "notes_late.short": ("补发的意见还没人取", "later notes not picked up"),
+    "notes_left": ("你发的 {n} 份意见还没有 AI 来取（{s}）。", "{N} {n_subs} you sent {are} not picked up by any AI yet ({s})."),
     "notes_left.short": ("意见还没人取", "notes not picked up yet"),
     "notes_left.live": ("正在等的 {a} 马上会取。", "The {a} that is waiting picks them up at once."),
-    "notes_left.outside": ("这支片子开在这个窗口外面的 {a} 里：回到它那边说一声“我交了”，它就会来取。", "This film is open in {A} outside this window: tell it \u201cI've sent it\u201d over there and it picks them up."),
+    "notes_left.outside": ("这支片子开在这个窗口外面的 {a} 里：回到它那边说一声“我发了”，它就会来取。", "This film is open in {A} outside this window: tell it \u201cI've sent it\u201d over there and it picks them up."),
     "notes_left.next": ("现在没有 AI 在等。下次有 AI 接着做这支片子，会先拿到它们。", "No AI is waiting right now. The next AI to carry on with this film gets them first."),
     "notes_left.also": ("{s}也出来了，等你{v}。", "{S} {be} out for you too."),
     "agent_outside": ("这支片子开在这个窗口外面的 {a} 里；在这里打的字，它收不到。", "This film is open in {A} outside this window; what you type here does not reach it."),
@@ -182,13 +183,17 @@ WORDS = {
     "plan.vertical": ("竖屏", "vertical"), "plan.landscape": ("横屏", "landscape"), "plan.square": ("方屏", "square"),
     "plan.narrated": ("有旁白", "narrated"), "plan.silent": ("没有旁白", "no narration"), "plan.song": ("配一首歌", "set to a song"),
     "plan.none": ("中间不停，做完给你看", "no stops on the way: you see it finished"),
-    "plan.13": ("先看方向和初版", "you see the direction and the first draft"),
-    "plan.123": ("立意、分镜、初版都给你看", "you see the concept, the storyboard and the first draft"),
-    "plan.at": ("停在{x}", "it stops at {x}"), "plan.sep": ("，", ", "), "plan.list": ("、", ", "),
+    "plan.13": ("中间停两次给你看：立意和初版", "it stops twice for you: the concept and the first draft"),
+    "plan.123": ("中间停三次给你看：立意、分镜、初版", "it stops three times for you: the concept, the storyboard and the first draft"),
+    "plan.at": ("中间停下给你看：{x}", "it stops for you at {x}"), "plan.sep": ("，", ", "), "plan.list": ("、", ", "),
     "stop.1": ("立意", "the concept"), "stop.2": ("分镜", "the storyboard"), "stop.3": ("初版", "the first draft"), "stop.E0": ("画风样张", "the style frames"),
-    "stop.E1": ("脚本", "the script"), "stop.E2": ("配乐安排", "the sound plan"), "stop.E3": ("定声音", "the final sound"), "stop.E4": ("第一章样片", "the first chapter"),
+    "stop.E1": ("文案", "the script"), "stop.E2": ("配乐安排", "the sound plan"), "stop.E3": ("定声音", "the final sound"), "stop.E4": ("第一章样片", "the first chapter"),
     "stop.E5": ("定画面", "the picture lock"),
 }
+# a film's own documents by what they are, in what the person reads (core.js FILE_WORDS says the same)
+FILE_WORDS = {"REVIEW.md": ("审阅记录", "the review record"), "BRIEF.md": ("简报", "the brief"), "DECISIONS.md": ("决定记录", "the decision record"),
+              "LESSONS.md": ("经验记录", "the lessons"), "NOTES.md": ("笔记", "the notes"), "SCRIPT.md": ("文案", "the script"), "STORYBOARD.md": ("分镜表", "the storyboard"),
+              "PACKAGING.md": ("标题和封面", "the titles and covers"), "STYLE.md": ("风格说明", "the style notes"), "shots.json": ("镜头表", "the shot table")}
 MOD = {"1": "idea", "E0": "idea", "E1": "outline", "2": "board", "E2": "sound", "E3": "sound", "3": "cut", "E4": "cut", "E5": "cut", "deliver": "ship"}   # core.js's GATE_MOD
 PLURAL = {"1", "E0"}     # the concept cards, the style frames
 LISTEN = {"E3"}          # the final sound: listened to (the sound plan, E2, is a cue sheet: looked at)
@@ -526,7 +531,8 @@ def signs(project, o, talk, took):
         out.append((talk["t"], [w(k, 0), w(k, 1)], f"talk_{talk['ended']}" if last_is_turn else "talk", None, None))
     f = newest_file(project)
     if f:
-        out.append((f[0], [w("sign.file", 0, f=f[1]), w("sign.file", 1, f=f[1])], "file", f[1], None))
+        fw = FILE_WORDS.get(Path(f[1]).name) if "/" not in f[1] else None   # a film's own document by its name (简报), any other file as it is
+        out.append((f[0], [w("sign.file", 0, f=fw[0] if fw else " " + f[1]), w("sign.file", 1, f=fw[1] if fw else f[1])], "file", f[1], None))
     return sorted(out, key=lambda x: x[0]), bool(f is None or f[2])
 
 
@@ -700,9 +706,14 @@ def of(project, o, now=None):
         return say(code, "agent", "none" if live else "nudge", head, [who_line, also], both(code + ".short"), act,
                    tone="busy" if live else "you", unread=len(un), late=len(late), live=live, outside=outside, program=prog)
     if wait:
+        h0 = open_agent(o, project, None, now)
+        p0 = program_of(h0[1]) if h0 and h0[0] == "here" else None
+        wa = prog_words(p0)   # the agent by its name where it is known: Claude Code, Codex, else AI
+        wb = [" " + wa[0] + " ", wa[1]] if p0 and f"prog.{p0}" in WORDS else [w("who.film", 0), w("who.film", 1)]
         return say("waiting_you", who, "decide",
                    two(w("waiting_you", 0, s=n["zh"], v=v[0]), w("waiting_you", 1, S=cap(n["en"]), be="are" if many else "is", wait="wait" if many else "waits")),
-                   [both("waiting_you.listening" if listening else "waiting_you.alone")],
+                   [two(w("waiting_you.listening", 0, a=wa[0]), w("waiting_you.listening", 1, A=cap(wa[1]))) if listening else
+                    two(w("waiting_you.alone", 0, a=wb[0]), w("waiting_you.alone", 1, a=wb[1]))],
                    two(w("waiting_you.short", 0, s=n["zh"], v=v[0]), w("waiting_you.short", 1, s=n["en"])),
                    act_open(mod, two(w("act.look", 0, v=v[0], s=n["zh"]), w("act.look", 1, V=cap(v[1]), s=n["en"])), tab),
                    stop=wait["id"], listening=listening)
@@ -714,7 +725,9 @@ def of(project, o, now=None):
             took = None
     if fb.get("pending"):   # the newest submission: nobody has it yet, whatever else runs
         if live:   # a live listener on this very round (and its agent) takes it within the second
-            return say("notes_sent", who, "none", both("notes_sent"), stop=nxt["id"])
+            h0 = open_agent(o, project, None, now)
+            a = prog_words(program_of(h0[1]) if h0 and h0[0] == "here" else None)
+            return say("notes_sent", who, "none", two(w("notes_sent", 0, a=a[0]), w("notes_sent", 1, A=cap(a[1]))), stop=nxt["id"])
         try:
             tl = clock((project / fb["last"]).stat().st_mtime, now)
         except (OSError, KeyError, TypeError):
@@ -788,7 +801,7 @@ def of(project, o, now=None):
     if last:
         a = ago(now - last[0])
         k = "last" if whole else "last.partial"   # a look cut short says only what it saw
-        lastw = two(w(k, 0, a=a[0], x=last[1][0]), w(k, 1, a=a[1], x=last[1][1]))
+        lastw = two(w(k, 0, a=a[0], x=last[1][0]), w(k, 1, A=cap(a[1]), x=last[1][1]))
     paths = [made] + [s[3] for s in seen_all[-1:] if s[3]]
     held = open_agent(o, project, last[0] if last else None, now)
     agent = held if held and held[0] == "here" else None
@@ -808,7 +821,8 @@ def of(project, o, now=None):
         return say("agent_outside", who, "offer", two(w("agent_outside", 0, a=a[0]), w("agent_outside", 1, A=cap(a[1]))),
                    [both("agent_outside.more"), lastw, read, later], act=sec, paths=paths, program=program_of(agent[1]))
     if agent:
-        return say("agent_open", who, "offer", both("agent_open"), [lastw, read, later],
+        a = prog_words(program_of(agent[1]))
+        return say("agent_open", who, "offer", two(w("agent_open", 0, a=a[0]), w("agent_open", 1, a=a[1])), [lastw, read, later],
                    act=act_tell(both("act.carry_open"), both("say.carry"), confirm=True, secondary=True), paths=paths)
     if nxt is not None and nxt["id"] == "deliver" and nxt["state"] == "in_progress":
         chk = o.get("check") or {}

@@ -506,7 +506,7 @@ def plan_words(plan, lang, title=lambda g: g):
             ("I plan to stop three times on this film: now (the concept), at the storyboard, and at the first draft"
              + (f"; the storyboard is a stop of its own because {' and '.join(why)}" if why else "") + ".")
     else:
-        s = "这支片子我打算停两次：这一次（立意）和初版；分镜随初版那一页给你，不单独停。" if zh else \
+        s = "这支片子我打算停两次：这一次（立意）和初版；分镜不单独停，跟初版放在同一页给你看。" if zh else \
             "I plan to stop twice on this film: now (the concept) and at the first draft; the storyboard comes on the draft's page, not as a stop of its own."
     if extra:
         s += (f"另外在{'、'.join(extra)}也停。" if zh else f" Also at {', '.join(extra)}.")

@@ -182,7 +182,7 @@ echo
 case $st in 0) echo "✓ OpenVideoHarness is ready at $DIR. Two ways to start:" ;;
   3) echo "OpenVideoHarness is installed at $DIR; one thing above could not be checked here. Two ways to start:" ;;
   *) echo "✗ OpenVideoHarness is installed at $DIR; a first film still needs what is listed above. Then, two ways to start:" ;; esac
-if [ -n "$ICON_DONE" ]; then echo "  1. Click OVH Studio in your applications: your films, their stops and the agent, in one window."
+if [ -n "$ICON_DONE" ]; then echo "  1. Click OVH Studio in your applications: your films, each step, and the AI, in one window."
 elif [ -n "$ICON_HEADLESS" ]; then echo "  1. Studio, in a browser on another computer: cd \"$DIR\" && bin/vh studio --print-address (this machine has no desktop)"
 else echo "  1. Studio, your films in one window: cd \"$DIR\" && bin/vh studio$([ -z "$ICON_LATER" ] || printf ' (bin/vh studio --install-icon puts it in your applications)')"; fi
 echo "  2. Open Claude Code or Codex in that folder (cd \"$DIR\" && claude) and say what film you want, e.g."

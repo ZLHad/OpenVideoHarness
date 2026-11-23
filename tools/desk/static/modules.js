@@ -15,16 +15,16 @@ const MODVIEW = {};   // module → { main(): html, wire(), sync(decision, optio
 const readOnly = () => typeof STATIC_PAGE !== "undefined";   // a static page (bin/vh review): nothing to note, nothing to send
 
 /* ---------- shared pieces ---------- */
-moduleWords({ page_rest: "审阅页上还有这些", file_gone: "找不到文件", part_err: "这一块读不出来",
+moduleWords({ page_rest: "这一页还有这些", file_gone: "找不到文件", part_err: "这一块读不出来",
   more_n: "还有 {n} 条",
   pic_gone: "找不到图（挪走或改了名）",
   means: "也就是：{x}",
-  made_by: "agent 生成（{x}）",
+  made_by: "AI 生成（{x}）",
 }, { page_rest: "Also on the review page", file_gone: "file not found", part_err: "This part couldn't be read",
   more_n: "{n} more",
   pic_gone: "Picture not found (moved or renamed)",
   means: "That is: {x}",
-  made_by: "made by the agent ({x})",
+  made_by: "made by the AI ({x})",
 });
 const partErr = (k) => { const e = ((D.mods || {}).errors || {})[k]; return e ? `<p class="void warn">${esc(t("part_err", { x: e }))}</p>` : ""; };   // a part whose file did not read: which, and why
 const dattr = (o) => {   // data-* attributes, escaped; a mark feedback.py would refuse becomes a place with no target, named
@@ -83,14 +83,14 @@ moduleWords({
   rec: "推荐", picked: "你选的", pick_this: "选这张", picked_btn: "已选", like_this: "照这个方向再出一张", like_say: "照 {x} 的方向再出一张：",
   pro: "好处", con: "代价", l_card: "立意卡 {x}",
   cards_none: "立意卡还没出来。下面是写下的立意：",
-  bar_idea_wait: "等你选一张。选好在右边交给 agent。", bar_idea_wait_s: "等你选一张。选好把下面那行回复发给 agent。", bar_idea_done: "立意已定。现在改，大纲和分镜都得重来。", bar_idea_todo: "立意还没定。agent 想好几个方向，会停在这里给你挑。",
+  bar_idea_wait: "等你挑一张。挑好了就发出去。", bar_idea_wait_s: "等你挑一张。挑好了，把下面那行回复发给做这支片子的 AI。", bar_idea_done: "立意已经定了。要是现在改，大纲和分镜都得重来。", bar_idea_todo: "立意还没定。AI 会先想几个方向，停在这里给你挑。",
   idea_none: "立意卡还没出来，立意也还没写。", to_outline: "看大纲",
   idea_done: "你选了 {x}",
-  idea_done_d: "{d} 定的。只能看；要改就写一条意见。", idea_done_d_s: "{d} 定的。要改，在对话里说。", idea_done_d0_s: "已定。要改，在对话里说。", skip_sub_s: "这一站没停下来给你看（你说了不用停）。要改，在对话里说。",
-  idea_done0: "立意已定",
+  idea_done_d: "{d} 定下的。要改，写一条意见。", idea_done_d_s: "{d} 定下的。要改，跟做这支片子的 AI 说。", idea_done_d0_s: "已经定了。要改，跟做这支片子的 AI 说。", skip_sub_s: "这一步没单独停下来给你看。要改，跟做这支片子的 AI 说。",
+  idea_done0: "立意已经定了",
   cards_none_done: "这支片子没出立意卡，立意是这样定的：",
   no_screen: "不上屏",
-  idea_done_d0: "只能看；要改就写一条意见。",
+  idea_done_d0: "要改，写一条意见。",
 }, {
   idea_title: "Pick a concept card", idea_sub: "Pick a card, and that decides how this film tells it.",
   mat_h: "This subject's material", k_number: "Numbers", k_object: "Objects", k_quote: "Quotes", k_conflict: "Contradictions", k_surprise: "Surprises", k_other: "Other",
@@ -99,14 +99,14 @@ moduleWords({
   rec: "recommended", picked: "your pick", pick_this: "Pick this", picked_btn: "Picked", like_this: "Another in this direction", like_say: "Another card in the direction of {x}: ",
   pro: "Pro", con: "Cost", l_card: "Concept card {x}",
   cards_none: "No concept cards yet. Here is the concept as written:",
-  bar_idea_wait: "Waiting for your pick. Then send it to the agent on the right.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the agent.", bar_idea_done: "The concept is decided. Changing it now redoes the outline and the storyboard.", bar_idea_todo: "The concept isn't decided yet. The agent stops here with a few directions for you to pick from.",
+  bar_idea_wait: "Waiting for your pick. Once you have picked, send it.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the AI making the film.", bar_idea_done: "The concept is decided. Changing it now means redoing the outline and the storyboard.", bar_idea_todo: "The concept isn't decided yet. The AI thinks of a few directions first and stops here for you to pick.",
   idea_none: "No concept cards yet, and no concept written.", to_outline: "See the outline",
   idea_done: "You picked {x}",
-  idea_done_d: "Decided {d}. To look at only; to change it, write a note.", idea_done_d_s: "Decided {d}. To change it, say so in the chat.", idea_done_d0_s: "Decided. To change it, say so in the chat.", skip_sub_s: "This stop was skipped (you said not to stop). To change it, say so in the chat.",
+  idea_done_d: "Decided on {d}. To change it, write a note.", idea_done_d_s: "Decided on {d}. To change it, tell the AI making the film.", idea_done_d0_s: "Decided. To change it, tell the AI making the film.", skip_sub_s: "This step wasn't shown on its own. To change it, tell the AI making the film.",
   idea_done0: "The concept is decided",
   cards_none_done: "This film had no concept cards; the concept was decided as:",
   no_screen: "off screen",
-  idea_done_d0: "To look at only; to change it, write a note.",
+  idea_done_d0: "To change it, write a note.",
 });
 const KINDS = [["number", /数字|数据|number/i], ["object", /物件|实物|object|thing/i], ["quote", /原话|引文|引语|quote|words/i], ["conflict", /矛盾|冲突|contradict|conflict/i], ["surprise", /意外|反常|surpris/i]];
 const kindOf = (k) => (KINDS.find(([, re]) => re.test(k || "")) || ["other"])[0];
@@ -186,11 +186,11 @@ MODVIEW.idea = { main: mIdea2, wire: wireIdea, sync: syncIdea,   // drawn: what 
 
 /* ---------- 大纲: the parts in proportion, the BRIEF, the engine and the cost ---------- */
 moduleWords({
-  outline_title: "{n} 段大纲", outline_sub: "点一段，意见就只对着这一段。", outline_sub_s: "每段要让人看到什么、用什么画面。", seg_know: "要看到", seg_pic: "画面", unsure_n: "{n} 处没把握",
+  outline_title: "{n} 段大纲", outline_sub: "点一段，意见就写给这一段。没点的都算可以。", outline_sub_s: "每段讲什么、用什么画面。", seg_know: "看完知道", seg_pic: "画面", unsure_n: "{n} 处没把握",
   brief_h: "这支片子", engine_cost: "用什么做、花多少", engine: "用什么做", voice: "配音", budget: "预算", spent: "已花", stops: "停下来给你看", free: "不花钱",
-  b_concept: "立意", b_spine: "主线", b_end: "看完能记住", b_hook: "钩子", b_audience: "观众", b_watch: "在哪看", b_output: "画面", b_pace: "节奏", b_effort: "打磨程度", b_director: "谁来定",
-  outline_none: "大纲还没写成表格。", outline_blank: "大纲还没写。", bar_outline: "大纲已定。现在改，分镜得重做。", bar_redo: "片子已经交付了；现在改，就是整支重做。", to_board: "去分镜",
-  bar_outline_open: "大纲和立意一起定。",
+  b_concept: "立意", b_spine: "主线", b_end: "看完能记住", b_hook: "钩子", b_audience: "观众", b_watch: "在哪看", b_output: "画面", b_pace: "节奏", b_effort: "打磨程度", b_director: "谁拍板",
+  outline_none: "大纲还没写成表格。", outline_blank: "大纲还没写。", bar_outline: "大纲已经定了。要是现在改，分镜也得跟着重做。", bar_redo: "片子已经交付了；现在改，就是整支重做。", to_board: "去分镜",
+  bar_outline_open: "大纲跟着立意走：立意定下来，大纲就照它写。",
   eff_quick: "快出",
   eff_standard: "标准",
   eff_studio: "精品",
@@ -199,17 +199,17 @@ moduleWords({
   watch_tv: "电视上",
   pace_brisk: "明快",
   pace_calm: "从容",
-  pace_default: "按默认",
+  pace_default: "按默认", pace_normal: "正常",
   dir_own: "你定",
   dir_review: "给你过目",
-  dir_delegate: "agent 定",
+  dir_delegate: "AI 定",
   about_s: "约 {s} 秒",
 }, {
-  outline_title: "An outline in {n} {n|part|parts}", outline_sub: "Click a part to write a note on that part alone.", outline_sub_s: "What each part should land, and with what picture.", seg_know: "Should land", seg_pic: "Picture", unsure_n: "{n} unsure",
+  outline_title: "An outline in {n} {n|part|parts}", outline_sub: "Click a part to write a note on that part alone. Anything you leave counts as fine.", outline_sub_s: "What each part says, and with what picture.", seg_know: "Takeaway", seg_pic: "Picture", unsure_n: "{n} unsure",
   brief_h: "This film", engine_cost: "How it's made, and what it costs", engine: "Made with", voice: "Voice", budget: "Budget", spent: "Spent", stops: "Stops for you", free: "nothing paid",
   b_concept: "Concept", b_spine: "Spine", b_end: "Remembered after", b_hook: "Hook", b_audience: "Audience", b_watch: "Watch on", b_output: "Picture", b_pace: "Pace", b_effort: "Polish", b_director: "Who decides",
-  outline_none: "The outline isn't a table yet.", outline_blank: "The outline isn't written yet.", bar_outline: "The outline is decided. Changing it now redoes the storyboard.", bar_redo: "The film has gone out; changing this now means remaking the whole film.", to_board: "To the storyboard",
-  bar_outline_open: "The outline is decided with the concept.",
+  outline_none: "The outline isn't a table yet.", outline_blank: "The outline isn't written yet.", bar_outline: "The outline is decided. Changing it now means redoing the storyboard too.", bar_redo: "The film has gone out; changing this now means remaking the whole film.", to_board: "To the storyboard",
+  bar_outline_open: "The outline follows the concept: once the concept is settled, the outline is written to it.",
   eff_quick: "quick",
   eff_standard: "standard",
   eff_studio: "studio",
@@ -218,21 +218,21 @@ moduleWords({
   watch_tv: "on a TV",
   pace_brisk: "brisk",
   pace_calm: "calm",
-  pace_default: "default",
+  pace_default: "default", pace_normal: "normal",
   dir_own: "you",
   dir_review: "shown to you",
-  dir_delegate: "the agent",
+  dir_delegate: "the AI",
   about_s: "about {s} s",
 });
 const BRIEF_ROWS = [["b_concept", /^concept/i], ["b_spine", /^spine/i], ["b_end", /^what the viewer/i], ["b_hook", /^hook/i], ["b_audience", /^audience/i],
   ["b_watch", /^watch on/i], ["b_output", /^output/i], ["b_pace", /^pace/i], ["b_effort", /^effort/i], ["b_director", /^director/i]];
-const DIR_WHAT = { fact: "事实", facts: "事实", sound: "声音", sfx: "音效", captions: "字幕", subtitles: "字幕", font: "字体", palette: "配色", camera: "镜头运动", edit: "剪辑", budget: "预算", license: "许可", assets: "素材", research: "资料", concept: "立意", spec: "规格", outline: "大纲", style: "风格", character: "主角", theme: "主旋律", voice: "配音", script: "旁白稿", hook: "钩子", storyboard: "分镜", rhythm: "节奏", packaging: "标题和封面", engine: "用什么做", process: "流程", delivery: "交付", music: "配乐", cover: "封面", title: "标题", font: "字体", lighting: "布光", model: "模型", camera: "镜头运动", color: "颜色", ending: "结尾", opening: "开场" };
+const DIR_WHAT = { fact: "事实", facts: "事实", sound: "声音", sfx: "音效", captions: "字幕", subtitles: "字幕", font: "字体", palette: "配色", camera: "镜头运动", edit: "剪辑", budget: "预算", license: "许可", assets: "素材", research: "资料", concept: "立意", spec: "规格", outline: "大纲", style: "风格", character: "主角", theme: "主旋律", voice: "配音", script: "文案", hook: "钩子", storyboard: "分镜", rhythm: "节奏", packaging: "标题和封面", engine: "用什么做", process: "流程", delivery: "交付", music: "配乐", cover: "封面", title: "标题", font: "字体", lighting: "布光", model: "模型", camera: "镜头运动", color: "颜色", ending: "结尾", opening: "开场" };
 function plainValue(k, v) {   // a BRIEF line as words: desktop → 电脑上, brisk → 明快, standard → 标准, concept=own … → 你定：立意; a {…} left in it unsaid
   v = String(v || "").replace(/\s*\{[^}]*\}\s*[a-zA-Z]*/g, "").replace(/[,，;；\s]+$/, "").trim();
   const low = v.toLowerCase();
   if (k === "b_effort" && ["quick", "standard", "studio"].includes(low)) return t("eff_" + low);
   if (k === "b_watch" && ["desktop", "phone", "tv"].includes(low)) return t("watch_" + low);
-  if (k === "b_pace" && ["brisk", "calm", "default"].includes(low)) return t("pace_" + low);
+  if (k === "b_pace" && ["brisk", "calm", "default", "normal"].includes(low)) return t("pace_" + low);
   if (k === "b_director") {
     if (/^default$/i.test(v)) return t("pace_default");
     const by = {};
@@ -285,19 +285,19 @@ MODVIEW.outline = { main: mOutline2, wire: wireOutline2 };
 
 /* ---------- 分镜: a page a part, the grey box, each shot with what it should get across ---------- */
 moduleWords({
-  board_title2: "{x} · {r}", board_keys: "← → 一镜一镜看", this_part: "这一段", part_seconds: "这一段的 {a}–{b}", board_sub2: "标黄的是 agent 没把握的镜头。其余的没写意见就算通过。",
+  board_title2: "{x} · {r}", board_keys: "← → 一镜一镜看", this_part: "这一段", part_seconds: "这一段的 {a}–{b}", board_sub2: "标黄的镜头 AI 没把握。其余的，没写意见就算过了。",
   shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "粗样", grey_note: "先看节奏和构图，颜色后面再上",
-  no_anim: "还没有粗样视频。", anim_gone: "粗样视频找不到了，可能被挪走了。", default_pass: "没写意见就通过", you_said: "你说了", trans_k: "转场",
+  no_anim: "还没有粗样视频。", anim_gone: "粗样视频找不到了，可能被挪走了。", default_pass: "没写意见就算过", you_said: "你说了", trans_k: "转场",
   board_none: "还没有镜头表。", avg_s: "平均一镜 {s} 秒", plan_k: "打算改", bar_board: "分镜 · {s}", bar_said: "分镜 · {s}。你当时说：「{q}」", to_sound: "去声音",
   pass_done: "已通过",
-  skip_sub: "这一站没停下来给你看（你说了不用停）。只能看；要改就写一条意见。",
+  skip_sub: "这一步没单独停下来给你看。要改，写一条意见。",
 }, {
-  board_title2: "{x} · {r}", board_keys: "← → shot by shot", this_part: "This part", part_seconds: "this part, {a}–{b}", board_sub2: "Amber shots are the ones the agent is unsure about. The rest pass if you write no note.",
+  board_title2: "{x} · {r}", board_keys: "← → shot by shot", this_part: "This part", part_seconds: "this part, {a}–{b}", board_sub2: "The AI is unsure about the amber shots. The rest pass unless you write a note.",
   shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Rough cut", grey_note: "Rhythm and framing first; colour comes later",
   no_anim: "No rough cut video yet.", anim_gone: "The rough cut video can't be found; it may have been moved.", default_pass: "passes without a note", you_said: "you said", trans_k: "Transition",
   board_none: "No shot list yet.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Storyboard · {s}", bar_said: "Storyboard · {s}. You said: “{q}”", to_sound: "To the sound",
   pass_done: "approved",
-  skip_sub: "This stop was skipped (you said not to stop). To look at only; to change it, write a note.",
+  skip_sub: "This step wasn't shown on its own. To change it, write a note.",
 });
 const shotName = (id) => String(id || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1");   // one way to write a shot: S4, never S04 or S004
 const sameId = (a, b) => String(a || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase() === String(b || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase();   // S04 is S4
@@ -342,7 +342,7 @@ function joinSheets(pages) {   // one part's sheets in a row, one page again, wi
 }
 function shotRange(S) {   // "S1–S9", or the one shot
   const a = S[0], b = S[S.length - 1];
-  return !a ? "" : a === b ? shotName(a.id) : `${shotName(a.id)}–${shotName(b.id)}`;
+  return !a ? "" : shotSpan(a.id, b.id);
 }
 function unsureShot(s) { return !!s.unsure || gateMarks().some((m) => m.kind === "least" && sameId(m.id, s.id)); }
 function mBoard2() {
@@ -376,8 +376,8 @@ function mBoard2() {
     const gate = s.see != null;   // a shot of the gate page: what it shows, its line, what will change by default
     const reads = (s.reads || []).length > 1 ? `<ol>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ol>` : (s.reads || []).length ? `<p class="see">${esc(s.reads[0])}</p>` : s.caption ? `<p class="capline">${esc(s.caption)}</p>` : "";
     const well = pics ? `<div class="well"${s.start != null && vid ? dattr({ play: s.start, stop: s.end }) : ""}>${s.frame ? `<img src="${esc(src(s.frame))}" alt="${esc(shotName(s.id))}" loading="lazy">` : s.frame_missing ? `<span class="miss" title="${esc(s.frame_missing)}">${esc(t("pic_gone"))}</span>` : ""}</div>` : "";
-    return `<article class="shotc${u ? " unsure" : ""}${pics ? "" : " row"}" id="shot-${esc(s.id)}"${dattr({ mark: "shot:" + s.id, label: t("l_shot", { x: shotName(s.id) }) + (s.label ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
-      ${well}<div class="sc-b"><h3><b>${esc(shotName(s.id))}</b>${gate ? "" : `<span class="lab">${esc(String(s.label || "").replace(/^\d+[.、]\s*/, ""))}</span>`}${chip}</h3>${s.start != null && s.end != null ? `<p class="mono tc">${esc(fmt(s.start) + "–" + fmt(s.end))}</p>` : ""}
+    return `<article class="shotc${u ? " unsure" : ""}${pics ? "" : " row"}" id="shot-${esc(s.id)}"${dattr({ mark: "shot:" + s.id, label: shotNo(s.id) + (s.label && s.label.trim() !== shotNo(s.id) ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
+      ${well}<div class="sc-b"><h3><b title="${esc(shotName(s.id))}">${esc(shotNo(s.id))}</b>${gate ? "" : `<span class="lab">${esc(String(s.label || "").replace(/^\d+[.、]\s*/, ""))}</span>`}${chip}</h3>${s.start != null && s.end != null ? `<p class="mono tc">${esc(fmt(s.start) + "–" + fmt(s.end))}</p>` : ""}
       ${gate ? `${s.see ? `<p class="see">${esc(s.see)}</p>` : ""}${s.vo ? `<p class="capline">${esc(s.vo)}</p>` : ""}` : reads}
       ${s.transition ? `<p class="meta">${esc(t("trans_k"))}${esc(COLON())}${esc(s.transition)}</p>` : ""}${u && why ? `<p class="unsure-note">${esc(why)}</p>` : ""}
       ${s.plan ? `<p class="plan">→ ${esc(t("plan_k"))}${esc(COLON())}${esc(s.plan)}</p>` : ""}</div></article>`;
@@ -455,7 +455,7 @@ MODVIEW.board = { main: mBoard2, wire: wireBoard2,   // the gate view's storyboa
 
 /* ---------- 声音: the readouts, the voices, the lines, the music ---------- */
 moduleWords({
-  sound_title: "声音", sound_sub2: "agent 听不到声音，只看得到这些数。哪里不对，写一句就行。", sound_sub_s: "agent 听不到声音。请你听的地方在下面。",
+  sound_title: "声音", sound_sub2: "AI 听不到声音，只看得到这些数。哪里听着不对，写一句就行。", sound_sub_s: "AI 听不到声音。请你听的地方在下面。",
   u_loud: "目标 {x}", u_peak: "上限 −1 dBTP", u_speech: "{u}，不算停顿", u_speech2: "{u}，算停顿",
   audition: "试听别的声音", audition_cmd: "同一句话，几个声音各念一遍", in_use: "在用", use_this: "换成它", use_say: "换成 {x}：",
   pitch: "音高", rate: "语速", misread: "读错", no_misread: "没读错", audition_none: "没试过别的声音。",
@@ -480,7 +480,7 @@ moduleWords({
   misread_as: "「{a}」读成了「{b}」",
   music_track: "下面是配乐的整条音轨，「从 x 播」从它的那一秒放。", music_track_vs: "下面是配乐的整条音轨（{m}），不是成片（{f}）；「从 x 播」从它的那一秒放。", take_gone: "录音不在本机", takes_gone: "这几段试听的录音都不在本机，只剩下面的数字。",
 }, {
-  sound_title: "Sound", sound_sub2: "The agent can't hear; it only sees these numbers. Anything off? Write a line.", sound_sub_s: "The agent can't hear. The places to listen to are below.",
+  sound_title: "Sound", sound_sub2: "The AI can't hear; it only sees these numbers. Where something sounds off, write a line.", sound_sub_s: "The AI can't hear. The places to listen to are below.",
   u_loud: "target {x}", u_peak: "limit −1 dBTP", u_speech: "{u}, pauses left out", u_speech2: "{u}, pauses in",
   audition: "Try other voices", audition_cmd: "One line, read by each voice", in_use: "in use", use_this: "Use this", use_say: "Use {x}: ",
   pitch: "Pitch", rate: "Rate", misread: "Misread", no_misread: "none", audition_none: "No other voices tried.",
@@ -555,7 +555,7 @@ function mSound2() {
   const lines = nl.rows.length ? `<div class="tscroll"><table class="t lines"><thead><tr>${film ? "<th></th>" : ""}<th>${esc(t("line_k"))}</th><th>${esc(t("text_k"))}</th><th>${esc(nl.unit)}</th><th>${esc(t("pause_k"))}</th><th></th></tr></thead><tbody>${nl.rows.map((r) => {
       const f = nl.med && r.rate ? r.rate / nl.med : 1, flag = f < 0.8 ? t("slower") : f > 1.25 ? t("faster") : "";
       const mark = r.t1 - r.t0 >= 0.01 ? `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}` : `atime:${r.t0.toFixed(1)}`;   // a range must run forward (feedback.py)
-      return `<tr${dattr({ mark, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}>${film ? `<td><button type="button" class="pl" data-seek-film="${r.t0}" aria-label="${esc(t("play_at", { t: fmt(r.t0) }))}">▶</button></td>` : ""}<td class="mono">${esc(String(r.id).replace(/^L(?=\d)/i, ""))}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
+      return `<tr${dattr({ mark, label: lineNo(r.id), t: r.t0, t1: r.t1 })}>${film ? `<td><button type="button" class="pl" data-seek-film="${r.t0}" aria-label="${esc(t("play_at", { t: fmt(r.t0) }))}">▶</button></td>` : ""}<td class="mono">${esc(String(r.id).replace(/^L(?=\d)/i, ""))}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
   // two clocks, never mixed: the film's (its loudness, the places to listen to, what the check found in the sound), played from the
   // film; the music's (its sections, the beats to cut on, the planned sounds), played from the music
   const W = 600, H = 90, M = D.music || {}, env = envelope(W, H);
@@ -597,11 +597,11 @@ MODVIEW.sound = { main: mSound2, wire: wireSound2 };
 
 /* ---------- 交付: the covers, each platform's copy, what comes out, the check before delivery ---------- */
 moduleWords({
-  sub_deliver: "交付", ship_title: "交付", ship_sub: "点一张封面或一条文案，意见就对着它写。",
+  sub_deliver: "交付", ship_title: "交付", ship_sub: "点一张封面或一条文案，意见就写给它。",
   covers: "封面", covers_sub: "竖版和横版", vertical: "竖", horizontal: "横", square: "方", covers_none: "还没有封面。",
   copy: "文案", titles: "标题候选", t_title: "标题", t_desc: "简介", t_tags: "标签", t_chapters: "章节", copy_none: "还没写标题和文案。",
   plat_none: "还没写各平台的发布文案。",
-  outputs: "要交的东西", o_master: "成片", o_upload: "上传用的版本", o_srt: "字幕文件", o_covers: "封面 {n} 张", o_copy: "各平台文案 {n} 个", pending: "还没出", made: "有了",
+  outputs: "要交付的东西", o_master: "成片", o_upload: "上传用的版本", o_srt: "字幕文件", o_covers: "封面 {n} 张", o_copy: "各平台文案 {n} 个", pending: "还没出", made: "有了",
   precheck: "出片前检查", to_fix: "有 {n} 处要修", to_mind: "{n} 处注意", passed: "通过", stale2: "检查过后片子又改了，结果可能不准。",
   precheck_none: "没做过出片前检查。", bar_ship: "初版定了以后才交付。", to_cut: "去成片",
   g_safe: "字幕位置、字号、读得过来", g_text: "字幕看得清", g_loud: "响度和峰值", g_av: "静音、闪白、黑场、卡住的画面", g_assets: "素材许可", g_pack: "标题和文案", g_other: "其他",
@@ -734,7 +734,7 @@ MODVIEW.ship = { main: mShip2, wire: wireShip2 };
 moduleWords({
   assets_title: "素材", assets_sub2: "每一件从哪来、什么许可、用在哪一镜。",
   f_image: "图片", f_video: "视频", f_audio: "声音", f_font: "字体", f_ref: "参考", k_file: "文件",
-  drop_note: "要加素材，在对话里发给 agent。",
+  drop_note: "要加素材，发给做这支片子的 AI。",
   l_cc0: "CC0", l_pd: "公有领域", l_own: "自己做的", l_generated: "AI 生成", l_unknown: "许可不明", l_free: "免费可用", l_managed: "平台授权", l_ref: "只做参考",
   used_in: "用在 {x}", from: "来自 {x}", not_used: "还没用上", gone_file: "找不到文件", read_transcript: "读文稿", open_src: "原始链接", digest: "长视频的文字稿", none_kind: "这一类还没有。",
   licenses_ok: "{n} 件许可清楚", licenses_todo: "{n} 件许可不明，出片前会提醒你", licenses_rec: "{n} 件许可不明，出片前会提醒你", outside: "不在片子的文件夹里", assets_none: "还没有登记过素材。",
@@ -744,7 +744,7 @@ moduleWords({
 }, {
   assets_title: "Assets", assets_sub2: "Where each came from, its licence, and the shot it is in.",
   f_image: "Images", f_video: "Video", f_audio: "Sound", f_font: "Fonts", f_ref: "References", k_file: "File",
-  drop_note: "To add one, send it to the agent in the chat.",
+  drop_note: "To add one, send it to the AI making the film.",
   l_cc0: "CC0", l_pd: "public domain", l_own: "made here", l_generated: "AI-generated", l_unknown: "licence unclear", l_free: "free to use", l_managed: "licensed", l_ref: "reference only",
   used_in: "in {x}", from: "from {x}", not_used: "not used yet", gone_file: "file not found", read_transcript: "Read the transcript", open_src: "The source", digest: "Transcripts of long videos", none_kind: "None of these yet.",
   licenses_ok: "{n} {n|licence|licences} clear", licenses_todo: "{n} unclear: you'll be reminded before delivery", licenses_rec: "{n} unclear: you'll be reminded before delivery", outside: "outside the film's folder", assets_none: "No assets on record yet.",
@@ -803,16 +803,16 @@ MODVIEW.assets = { main: mAssets2, wire: wireAssets2 };
 
 /* ---------- 账本: the decisions, your words, the versions ---------- */
 moduleWords({
-  ledger_title: "决定记录", ledger_sub2: "agent 替你定的事都在这儿。不同意，点那一条的「改」。",
-  decisions: "决定", what: "什么事", decided: "定成什么", who: "谁定的", when: "日期", reason: "理由", you_decide: "你定", show_you: "给你过目", agent_decides: "agent 定", waits: "等你",
-  overturn_say: "我不同意：", your_words: "你的原话", your_words_sub: "一字不改记下的", versions: "版本", ver_cmd: "每一版改了什么", v_n: "第 {n} 版",
-  changed_n: "改了 {n} 段", changed_s: "改了 {x}", whole_film2: "整片", words_none: "还没有记下你的原话。", versions_none: "还没出过版本。",
+  ledger_title: "决定记录", ledger_sub2: "AI 替你定的事都在这儿。不同意，点那一条的「改」。",
+  decisions: "决定", what: "什么事", decided: "定成什么", who: "谁定的", when: "日期", reason: "理由", you_decide: "你定", show_you: "给你过目", agent_decides: "AI 定", waits: "等你",
+  overturn_say: "我不同意：", your_words: "你的原话", your_words_sub: "一字不改记的", versions: "版本", ver_cmd: "每一版改了什么", v_n: "第 {n} 版",
+  changed_n: "改了 {n} 段", changed_s: "改了 {x}", whole_film2: "整片", words_none: "还没记过你的原话。", versions_none: "还没出过版本。",
   dec_none: "还没有决定记录。",
   who_grid: "谁来定",
   log_h: "定下的事",
 }, {
-  ledger_title: "Decisions", ledger_sub2: "What the agent decided for you is here. To disagree, click “Change” on that row.",
-  decisions: "Decisions", what: "What", decided: "Decided", who: "By", when: "When", reason: "Why", you_decide: "you", show_you: "shown to you", agent_decides: "the agent", waits: "waiting for you",
+  ledger_title: "Decisions", ledger_sub2: "What the AI decided for you is here. To disagree, click “Change” on that row.",
+  decisions: "Decisions", what: "What", decided: "Decided", who: "By", when: "When", reason: "Why", you_decide: "you", show_you: "shown to you", agent_decides: "the AI", waits: "waiting for you",
   overturn_say: "I disagree: ", your_words: "Your words", your_words_sub: "word for word", versions: "Versions", ver_cmd: "what each changed", v_n: "v{n}",
   changed_n: "{n} {n|stretch|stretches} changed", changed_s: "changed {x}", whole_film2: "the whole film", words_none: "No words of yours recorded yet.", versions_none: "No versions yet.",
   dec_none: "No decisions recorded yet.",

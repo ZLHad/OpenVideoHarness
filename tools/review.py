@@ -52,13 +52,13 @@ GATES = {"1": ("关卡 ① 立意和大纲", "Gate ① concept and outline"), "2
          "E5": ("检查点 E5 锁画面", "Checkpoint E5 picture lock")}
 
 T = {
-    "zh": dict(html_lang="zh-CN", settled_done="已定", settled_skipped="跳过了（你说了不用停）", settled_delivered="已交付", settled_note="这一页已经定了，现在只是记录。要改，在对话里说。", asked_then="当时问的：", for_dec="关于第 {n} 件", for_dec_s="第 {n} 件", n_decide="等你定 {n} 件", look="这一页只给你看", wait="等你看",
+    "zh": dict(html_lang="zh-CN", settled_done="定了", settled_skipped="没单独停", settled_delivered="已交付", settled_note="这一页已经定了，现在只是记录。要改，跟做这支片子的 AI 说。", asked_then="当时问的：", for_dec="关于第 {n} 件", for_dec_s="第 {n} 件", n_decide="等你定 {n} 件", look="这一页只给你看", wait="等你看",
                nothing="这一页没有等你定的事。看完回“通过”，或写要改的。",
                rec="推荐", why_rec="为什么推荐：{w}", reply="回", take_all="照推荐回复", yours="你的回复", copy="复制", copied="已复制",
                rest="没写意见的就算通过；要改哪一镜，写“{shot} 改：……”。", rest_plain="没写意见的就算通过，只写要改的。",
-               unanswered="不选就按推荐；", submit="交给 agent", live_note="不选就按推荐；没写意见就算通过。",
-               changed="改了：{x}", least="agent 没把握的", listen="请你听这几处", decided="已经定了", delegated="agent 替你定了",
-               not_reviewed="<b>agent 没看、没听的</b> {x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
+               unanswered="不选就按推荐；", submit="发出去", live_note="不选就按推荐；没写意见就算通过。",
+               changed="改了：{x}", least="AI 没把握的", listen="请你听这几处", decided="已经定了", delegated="AI 替你定了",
+               not_reviewed="<b>AI 没看、没听的</b> {x}", material="材料", appendix="附录", board="分镜", film="成片", pictures="画面",
                pro="好处", con="代价", titles="标题", cover="封面", seg="{i} / {n}", shots="{n} 镜", avg="平均一镜 {s} 秒", unsure="没把握", n_unsure="{n} 镜没把握",
                plan="打算改", pass_all="没写意见的镜头就算通过；要改的，写“{shot} 改：……”。", no_frame="没有关键帧",
                gone="找不到这个文件（挪走或改了名）", gone_n="这一页发出以后，有 {n} 个文件找不到了（挪走或改了名）",
@@ -69,16 +69,16 @@ T = {
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。不选的就按推荐，没写意见的就算通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
-    "en": dict(html_lang="en", settled_done="Decided", settled_skipped="Skipped (you said not to stop)", settled_delivered="Delivered", settled_note="This page is settled; it is a record now. To change something, say it in the chat.", asked_then="Asked then: ", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
+    "en": dict(html_lang="en", settled_done="Decided", settled_skipped="Not shown on its own", settled_delivered="Delivered", settled_note="This page is settled; it is a record now. To change something, tell the AI making the film.", asked_then="Asked then: ", for_dec="for decision {n}", for_dec_s="#{n}", n_decide="{n} to decide", look="Just for a look", wait="waiting for you",
                nothing="Nothing to decide on this page. Take a look, then reply “ok” or say what to change.",
                rec="recommended", why_rec="Why: {w}", reply="Reply", take_all="Take every recommendation", yours="Your reply",
                copy="Copy", copied="Copied",
                rest="No note means it passes; to change a shot, write “{shot} change: …”.",
                rest_plain="No note means it passes; write only what to change.",
-               unanswered="If you don't pick, the recommended one goes. ", submit="Send to agent",
+               unanswered="If you don't pick, the recommended one goes. ", submit="Send",
                live_note="If you don't pick, the recommended one goes; no note means it passes.",
-               changed="changed: {x}", least="Where the agent is unsure", listen="Please listen to these", decided="Already decided",
-               delegated="Decided for you", not_reviewed="<b>What the agent didn't see or hear</b> {x}", material="Material", appendix="Appendix",
+               changed="changed: {x}", least="Where the AI is unsure", listen="Please listen to these", decided="Already decided",
+               delegated="Decided for you", not_reviewed="<b>What the AI didn't see or hear</b> {x}", material="Material", appendix="Appendix",
                board="Storyboard", film="The film", pictures="Pictures", pro="Pro", con="Cost", titles="Titles", cover="Cover", seg="{i} / {n}", shots="{n} shots",
                avg="{s} s a shot", unsure="unsure", n_unsure="{n} unsure", plan="will change",
                pass_all="A shot with no note passes; to change one, write “{shot} change: …”.", no_frame="no key frame",
@@ -295,7 +295,7 @@ def stop_settled(project, gate):
 
 
 # a checkpoint's name for a person, where the records' name (GATES) is a film-maker's shorthand: 锁时 → 定声音 (core.js's stn)
-PERSON_NAMES = {"E0": ("画风样张", "style frames"), "E2": ("配乐安排", "sound plan"), "E3": ("定声音", "final sound"),
+PERSON_NAMES = {"E0": ("画风样张", "style frames"), "E1": ("文案", "script"), "E2": ("配乐安排", "sound plan"), "E3": ("定声音", "final sound"),
                 "E4": ("第一章样片", "first chapter"), "E5": ("定画面", "picture lock")}
 
 

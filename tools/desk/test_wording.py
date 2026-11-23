@@ -13,13 +13,16 @@ sys.path.insert(0, str(HERE.parent))
 import gate as G, review as RV, standing as SD   # noqa: E402
 
 # the words a person reads in Studio, the review pages and gate's lines, retired for plainer ones (tools/desk/README.md, 页面上的字):
-# a stop is 一站 by its name, a note 意见, Studio is Studio; codes (①, E3), files and commands stay out of the words
+# a step by its own name (审文案, 看初版), never 站; a note 意见, sent with 发 (发出去), added with 加一条; the AI by its name or "AI",
+# never "agent"; the script 文案; codes (①, E3), files and commands stay out of the words
 CODE = r"[①②③④⑤⑥⑦⑧⑨]|(?<![A-Za-z0-9_])E[0-5](?![A-Za-z0-9_])"
 CIRCLED = re.compile(r"[①②③④⑤⑥⑦⑧⑨]")   # a stop's code that is never code: searched in every string
 RETIRED_ZH = re.compile(r"审阅台|控制台|关卡|检查点|这一轮|这一关|点评|反馈|评论|要你定|待你定|点头|待批准|等你点|默认通过|上下文|推理|代理|"
-                        r"硬规则|写成意见|记成点评|提交|锁时|样板章|样帧|锁画面|项目|BRIEF|\.md\b|bin/vh|" + CODE)
+                        r"硬规则|写成意见|记成点评|提交|锁时|样板章|样帧|锁画面|项目|BRIEF|\.md\b|bin/vh|"
+                        r"(?i:agent)|站|交给|(?<!提)交(?!付)|记下|对着|脚本|旁白稿|字幕 / 旁白|要看到|动静|随初版|不点就算|" + CODE)
 RETIRED_EN = re.compile(r"(?i)\bdesk\b|\bconsole\b|\bgate\b|checkpoint|\bround\b|\bcomments?\b|feedback|submission|\bsubmit|\(s\)|untouched|"
-                        r"to allow|\bcontext\b|\bproxy\b|hard rule|conversation|bin/vh|\.md\b|timing lock|sample chapter|first cut|" + CODE)
+                        r"to allow|\bcontext\b|\bproxy\b|hard rule|conversation|bin/vh|\.md\b|timing lock|sample chapter|first cut|"
+                        r"\bagents?\b|\b(?:this|that|each|every|a) stop\b|add note|should (?:see|land)|last activity|captions / narration|" + CODE)
 WORDS_KEEP = {"proj_ph"}   # the film's folder inside a command, in that command's tooltip (<项目> / <project>)
 WORDS_OK = {"smp_launch_say": "我的开源项目"}   # a word a key may say: the homepage's sentence names the person's software, not a film
 TERMINAL_OK = re.compile(r"bin/vh|\.md\b|\bproxy\b")   # a terminal line may name the command to run, a file, the network's proxy
@@ -103,7 +106,7 @@ def page_strings(path):
         return js_strings(text)
     scripts = re.findall(r"<script\b[^>]*>(.*?)</script>", text, re.S)
     body = re.sub(r"<(script|style)\b[^>]*>.*?</\1>|<!--.*?-->", " ", text, flags=re.S)
-    attrs = re.findall(r'\b(?:title|aria-label|placeholder|alt)="([^"]*)"', body)
+    attrs = [f'aria-label="{v}"' for v in re.findall(r'\b(?:title|aria-label|placeholder|alt)="([^"]*)"', body)]   # (searched as a tag's words)
     return [x for x in re.split(r"<[^>]+>", body) if x.strip()] + attrs + [s for x in scripts for s in js_strings(x)]
 
 
@@ -118,10 +121,18 @@ def terminal_lines(path):
     return out
 
 
+ATTR = re.compile(r'\b(?:title|aria-label|placeholder|alt)="([^"]*)"')   # the words inside a tag a person reads (or hears read out)
+
+
 def searched(where, strings, terminal=False):
-    """The retired names in strings a person reads: Chinese ones in a string with Chinese in it, English ones in English prose."""
+    """The retired names in strings a person reads: Chinese ones in a string with Chinese in it, English ones in English prose;
+    a tag's title, aria-label, placeholder or alt is read too, a single English word included."""
     bad = []
     for x in strings:
+        for v in ATTR.findall(x):
+            m = (RETIRED_ZH if CJK.search(v) else RETIRED_EN).search(v)
+            if m:
+                bad.append(f"{where} says {m.group(0)!r} in a tag: {v.strip()[:60]}")
         x = re.sub(r"<[^>]+>", " ", x)
         for rx in ((RETIRED_ZH,) if CJK.search(x) else (RETIRED_EN,) if PROSE.search(x) else (CIRCLED,)):
             for m in rx.finditer(x):

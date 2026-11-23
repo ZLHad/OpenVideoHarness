@@ -2059,33 +2059,33 @@ def handoff_checks():
             "key_intel": intel, "key_linux": linux, "key_linux_words": [w.split(" (")[0] for w in words.values()],
         }
         want = {"paused": "paused", "revision": "revision_ready", "setup": "setup", "idle": "idle", "running": "正在配音，12 / 30 句。",
-                "gone": ["stopped", "agent 停下了：渲染中断了。", "nudge", False],
+                "gone": ["stopped", "AI 停下了：渲染中断了。", "nudge", False],
                 "recent_offer": [True, True],
                 "cancel_is_no_stop": ["idle", True], "found_is_no_stop": ["idle", "agent", "现在没有命令在跑。", True], "later_ok": ["idle", True],
-                "desk_is_no_work": ["stopped", "The agent stopped: the render was cut off."],
+                "desk_is_no_work": ["stopped", "The AI stopped: the render was cut off."],
                 "pending_first": ["notes_unheard", "nudge", True], "taken": ["notes_taken", "正在渲染，340 / 900 帧。", "busy"],
                 "unknown": ["正在跑一条命令。", "正在跑一条命令"], "never_nobody": True, "who": ["agent", "agent", "agent", "agent"],
                 "missing": "Not delivered yet: the film has not passed its check.",
                 "sound": [{"zh": "配乐安排出来了，等你看。", "en": "The sound plan is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去看配乐安排", "en": "Look at the sound plan"}}],
                 "final_sound": [{"zh": "最终的声音出来了，等你听。", "en": "The final sound is out and waits for you."}, {"kind": "open", "mod": "sound", "sub": None, "label": {"zh": "去听最终的声音", "en": "Listen to the final sound"}}],
                 "frames": "The style frames are out and wait for you.",
-                "plan": {"zh": "30 秒竖屏，有旁白，先看方向和初版", "en": "30 s vertical, narrated, you see the direction and the first draft"},
-                "plan_blank": {"zh": "先看方向和初版", "en": "You see the direction and the first draft"},
-                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，停在立意、定声音、初版", "en": "2 min 30 s landscape, no narration, it stops at the concept, the final sound, the first draft"},
+                "plan": {"zh": "30 秒竖屏，有旁白，中间停两次给你看：立意和初版", "en": "30 s vertical, narrated, it stops twice for you: the concept and the first draft"},
+                "plan_blank": {"zh": "中间停两次给你看：立意和初版", "en": "It stops twice for you: the concept and the first draft"},
+                "plan_music": {"zh": "2 分 30 秒横屏，没有旁白，中间停下给你看：立意、定声音、初版", "en": "2 min 30 s landscape, no narration, it stops for you at the concept, the final sound, the first draft"},
                 "plan_cn": {"zh": "没有旁白，中间不停，做完给你看", "en": "No narration, no stops on the way: you see it finished"},
-                "plan_odd": {"zh": "立意、分镜、初版都给你看", "en": "You see the concept, the storyboard and the first draft"}, "short": True,
+                "plan_odd": {"zh": "中间停三次给你看：立意、分镜、初版", "en": "It stops three times for you: the concept, the storyboard and the first draft"}, "short": True,
                 "plan_voice": ["有旁白", "有旁白", "没有旁白"], "ago": [standing.ago(2.99 * 86400)[0], standing.ago(100 * 60)[0]],
                 "key_tts": ["needs_key", "decide", "you", {"zh": "配音停下了：还没有 Gemini 的 API Key。", "en": "The voice-over stopped: there's no Gemini API Key yet."},
-                            "在设置 → 服务里填上，再让 agent 接着做。不想用在线服务，也可以让 agent 换成这台电脑上的声音。", "等 API Key",
+                            "在设置 → 服务里填上，再让 AI 接着做。不想用在线服务，也可以让 AI 换成这台电脑上的声音。", "等 API Key",
                             {"kind": "settings", "mod": None, "sub": "services", "label": {"zh": "去设置 → 服务", "en": "Open Settings → Services"}}, ["GEMINI_API_KEY"], "gemini"],
                 "key_mm": ["The voice-over stopped: there's no MiniMax API Key yet.", ["MINIMAX_TOKEN_PLAN_KEY", "MINIMAX_API_KEY"]],
-                "key_image": ["出图停下了：还没有 Gemini 的 API Key。", "Set it up in Settings → Services, then ask the agent to carry on. This computer has no way to do it without an API Key."],
-                "key_timing": "Set it up in Settings → Services, then ask the agent to carry on. Or ask the agent to time the words on this computer, with no service.",
-                "key_codex": "在设置 → 服务里填上，再让 agent 接着做。也可以让 agent 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "key_set": "idle",
+                "key_image": ["出图停下了：还没有 Gemini 的 API Key。", "Set it up in Settings → Services, then ask the AI to carry on. This computer has no way to do it without an API Key."],
+                "key_timing": "Set it up in Settings → Services, then ask the AI to carry on. Or ask the AI to time the words on this computer, with no service.",
+                "key_codex": "在设置 → 服务里填上，再让 AI 接着做。也可以让 AI 用 Codex 出图，走 ChatGPT 的订阅，不用 API Key。", "key_set": "idle",
                 "settled": {"tts_again": "idle", "voices_then_tts": "idle", "pace_then_tts": "idle", "pace_then_render": "needs_key", "image_then_failed_check": "idle",
                             "image_then_stopped": "needs_key", "image_then_image": "idle", "old_way": "idle", "whole_log": "needs_key", "whole_log_none": "idle"},
-                "key_intel": [["needs_key", "不想用在线服务，也可以让 agent 换成 macOS 自带的声音（够打草稿）。"], ["needs_key", "这台电脑上没有不用 API Key 的办法。"]],
-                "key_linux": [["needs_key", "这台电脑上没有不用 API Key 的办法。"], ["needs_key", "这台电脑上没有不用 API Key 的办法。"], ["needs_key", "不想用在线服务，也可以让 agent 在这台电脑上作曲。"]],
+                "key_intel": [["needs_key", "不想用在线服务，也可以让 AI 换成 macOS 自带的声音（够打草稿）。"], ["needs_key", "这台电脑上没有不用 API Key 的办法。"]],
+                "key_linux": [["needs_key", "这台电脑上没有不用 API Key 的办法。"], ["needs_key", "这台电脑上没有不用 API Key 的办法。"], ["needs_key", "不想用在线服务，也可以让 AI 在这台电脑上作曲。"]],
                 "key_linux_words": ["this computer has no voice of its own that needs no key", "this computer has no way of its own to time the words"]}
         return None if got == want else {k: v for k, v in got.items() if want.get(k) != v}
     check("what each state never says falsely: a run cut off with nothing after it is the only command that stops the agent (a finished run with "
@@ -2261,7 +2261,7 @@ def handoff_checks():
         while flag.exists() and time.time() - t0 < 12:
             time.sleep(0.2)
         after = status(o)["now"]
-        if not before or flag.exists() or after["facts"].get("listening") or "你交了，agent 就接着做" in json.dumps(after, ensure_ascii=False):
+        if not before or flag.exists() or after["facts"].get("listening") or "你一发，它就接着做" in json.dumps(after, ensure_ascii=False):
             return f"before {before}, flag left {flag.exists()}, after {after['facts']}"
     check("a wait whose agent was killed: the promise goes with the agent, and the wait ends by itself", orphaned_wait)
 
@@ -2368,7 +2368,7 @@ def handoff_checks():
             return f"unread after a later batch: {[(f.name, late) for f, _, late in un]}"
         o = status(p)
         n = o["now"]
-        if n["code"] != "notes_late" or "被取走以后又交了 2 条" not in n["say"]["zh"] or "正在取" in json.dumps(n, ensure_ascii=False) \
+        if n["code"] != "notes_late" or "被取走以后，你又发了 2 条" not in n["say"]["zh"] or "正在取" in json.dumps(n, ensure_ascii=False) \
                 or "现在没有 AI 在等" not in (n["more"] or {}).get("zh", "") or "desk wait" not in " ".join(o["next_step"]["commands"]):
             return f"status with a later batch nobody waits for: {n['code']} {n['say']} {n['more']} next {o['next_step']}"
         answer(p, f1.name)
@@ -2682,11 +2682,11 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
         finally:
             w.terminate(); w.wait(10)
         text = status(g, js=False)
-        if a["code"] != "waiting_you" or a["facts"].get("listening") or a["more"]["en"] != "After you send your notes, tell the agent." or a["act"].get("mod") != "cut":
+        if a["code"] != "waiting_you" or a["facts"].get("listening") or not (a["more"]["en"].startswith("Once sent, tell ") and a["more"]["en"].endswith("\u201cI've sent it\u201d over there.")) or a["act"].get("mod") != "cut":
             return f"no listener: {a}"
-        if b["code"] != "waiting_you" or not b["facts"].get("listening") or b["more"]["zh"] != "你交了，agent 就接着做。":
+        if b["code"] != "waiting_you" or not b["facts"].get("listening") or not b["more"]["zh"].endswith(" 在等着，你一发，它就接着做。"):
             return f"a listener: {b}"
-        if "now: The first draft is out and waits for you.\n  After you send your notes, tell the agent.\n" not in text:
+        if "now: The first draft is out and waits for you.\n  Once sent, tell " not in text:
             return "bin/vh status: " + text[:300]
     check("a stop that waits: Studio's sentence and bin/vh status's now lines say it, and whether the agent carries on by itself (desk wait listening) or needs telling", stop_waits)
 
@@ -2723,7 +2723,7 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             return f"while it renders: {during}"
         if o["code"] != "stopped" or o["act"]["kind"] != "tell" or "340 of 900 frames" not in o["act"]["text"]["en"]:
             return f"after: {o}"
-        if "now: The agent stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first draft.\n" not in text \
+        if "now: The AI stopped: the render was cut off.\n  The render was cut off at 340 of 900 frames under a minute ago, and nothing has happened since. Next: the first draft.\n" not in text \
                 or "say:" in text:
             return "bin/vh status: " + text[:500]
     check("an agent killed mid-render: while it ran, 正在渲染，340 / 900 帧; after, from a terminal, bin/vh status says where it stopped and the words that carry on", killed_terminal)
@@ -2767,7 +2767,7 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
             now = d.get(f"/api/p/{K}/status")[1].get("now") or {}
             if fb[0] != 200 or fb[1].get("listening") or now.get("code") != "notes_unheard" or now["act"]["kind"] != "tell":
                 return f"{fb} {now}"
-            if now["say"]["zh"] != "你的意见存好了，还没有 agent 来取。" or "bin/vh desk" in now["say"]["en"] + now["more"]["en"]:
+            if now["say"]["zh"] != "你的意见存好了，还没有 AI 来取。" or "bin/vh desk" in now["say"]["en"] + now["more"]["en"]:
                 return f"the words: {now['say']} {now['more']}"
         check("a submit with no agent listening: saved here, said so, and the one button tells the agent", no_listener)
 
@@ -2880,8 +2880,8 @@ def column_wait_checks():
             except subprocess.TimeoutExpired:
                 w.kill()
                 so, se = w.communicate()
-            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在等，你一交我就接着做" in so
-                                     and "可以" in so.split("我在等，你一交我就接着做")[-1] and "out/review/feedback/3-" in so):   # 0: a submission came, printed after the message
+            if flag.exists() or not (fb[0] == 200 and w.returncode == 0 and "and Studio is open" in se and "初版在 Studio 里打开了" in so and "我在等，你一发我就接着做" in so
+                                     and "可以" in so.split("我在等，你一发我就接着做")[-1] and "out/review/feedback/3-" in so):   # 0: a submission came, printed after the message
                 out.append(f"Studio open: key {key}, submit {fb[0]}, gate {w.returncode}, {se[-300:]} | {so[-300:]}")
             r = subprocess.run(["bash", str(vh), "gate", str(p), "3", "--wait", "--timeout", "2"], capture_output=True, text=True, env=e, timeout=60)
             if r.returncode != 3 or flag.exists():   # Studio open, nobody submits: it times out (3), never 0

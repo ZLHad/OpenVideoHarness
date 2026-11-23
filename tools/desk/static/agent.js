@@ -13,8 +13,8 @@
    - Every text from the agent or a project is escaped before it is drawn; links are not made clickable. */
 const ASTR = {
   zh: {
-    tab_chat: "对话", tab_round: "这一站", tab_ask: "等你批准 {n}", tab_dec: "等你定 {n}", ask_bar: "{a} 在等你批准：{x}", ag_pick: "用哪个 agent", ag_new: "新对话", ag_hist: "历史",
-    ag_atstop: "片子等你拍板", n_own: "你交了意见，{a} 自己接着做了。", n_own_plain: "{a} 自己接着做下去了。", n_own_busy: "{a} 自己接着做了，但这支片子正被别的 agent 占着。",
+    tab_chat: "在这里聊", tab_round: "这一步", tab_ask: "等你批准 {n}", tab_dec: "等你定 {n}", ask_bar: "{a} 在等你批准：{x}", ag_pick: "用哪个 AI", ag_new: "新对话", ag_hist: "历史",
+    ag_atstop: "片子等你拍板", n_own: "你发了意见，{a} 自己接着做了。", n_own_plain: "{a} 自己接着做下去了。", n_own_busy: "{a} 自己接着做了，但这支片子正被另一个 AI 占着。",
     ag_idle: "空闲", ag_lookonly: "只能看", ag_ready: "可以说了", ag_fresh: "还没开始", ag_thinking: "在想", ag_working: "在做", ag_writing: "在写回复", ag_waiting: "等你批准",
     ag_stopping: "正在停", ag_gone: "已停止", ag_starting: "在启动", ag_doing: "在{v}：{x}",
     set_mode: "模式", set_model: "模型", set_effort: "思考深度", set_more: "更多设置", set_personal_off: "不带个人设置",
@@ -23,25 +23,25 @@ const ASTR = {
     u_ctx: "对话记忆 {u} / {s}", u_cost: "这个对话约花 {c}", u_rate: "{who}：这 {w}的额度用了 {p}{r}", u_rate_out: "{who}：额度用完了，{at} 恢复",
     w_seven_day: "7 天", u_reset: "，{at} 恢复", w_five_hour: "5 小时", w_daily: "今天的", w_weekly: "这周的",
     ph_say: "对{x}说点什么，发送后马上到它那里…", ph_say0: "跟 {a} 说点什么，发送后马上到它那里…", send: "发送", stop: "停止", send_keys: "↩ 发送 · ⇧↩ 换行",
-    you: "你", t_on: "对着 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你批准。", empty_c: "这里说的话会直接发给它；“这一站”页上记的意见，要点“交给 agent”才一起交出去。可以先问一句，比如：读一下简报，告诉我还缺什么。",
+    you: "你", t_on: "关于 {x}", empty_h: "和 {a} 说话", empty_b: "它在这支片子的文件夹里干活，用的是你在终端里的登录和设置。它每读一个文件、跑一条命令、改一处，下面都会出一张卡；要动手之前问你的，会停下来等你批准。", empty_c: "这里说的话马上发给它。旁边那一页写的意见是另一回事，要在那里点“发出去”才会发。可以先问一句，比如：读一下简报，告诉我还缺什么。",
     empty_dsh: "DeepSeek Harness 的回复是整段一起到的：它在做的时候，这里只显示它正在用的工具。",
     not_inst_h: "{a} 还没装到 Studio 里", not_inst_b: "点「装上」，Studio 自己把它装好（会下载约 {s}，不放进片子的文件夹）。它用你自己的登录，不用另外设置；没登录的话，{l}。",
     inst_go: "装上", inst_again: "再试一次", inst_stop: "停下", inst_run: "正在装 {a}（约 {s}），已经 {t}，最多等 {m} 分钟。装好以前可以先做别的。", inst_done: "{a} 装好了",
-    inst_no_npm: "这台电脑上还没有 Node（装 {a} 要用它带的 npm）：跟你的 agent 说“帮我装上 Node 22”，装好以后再点一次「装上」。",
-    inst_fail: "没装上，多半是网络断了。再点一次试试；还不行，把下面这一行交给你在终端里用的 agent，或者自己在终端里运行，看它说什么。",
+    inst_no_npm: "这台电脑上还没有 Node（装 {a} 要用它带的 npm）：跟你用的 AI 说“帮我装上 Node 22”，装好以后再点一次「装上」。",
+    inst_fail: "没装上，多半是网络断了。再点一次试试；还不行，把下面这一行发给你在终端里用的 AI，或者自己在终端里运行，看它说什么。",
     inst_timeout: "装了 {m} 分钟还没装好，停下了，多半是网络太慢。网络好的时候再点一次「装上」。", inst_cancelled: "停下了。想装的时候再点一次「装上」。",
     inst_busy: "另一处（别的 Studio 窗口或终端）正在装 {a}。等它装完，再回来看这一页。",
     login_claude: "在终端里运行 claude，输入 /login", login_codex: "在终端里运行 codex login", login_dsh: "在 DeepSeek Harness 桌面版里登录一次",
     copy: "复制", copied: "复制好了", no_start_h: "{a} 没有启动起来", no_start_b: "常见的原因是还没登录：{l}。它说的是：",
     busy_turn: "{a} 还在做上一句。等它做完，或者点停止。",
     busy_console: "{a} 正在这支片子上干活（另一个对话，或另一个页面）。等它做完，或者去那边停下它。",
-    busy_command: "终端里正在跑 {x}。等它跑完再让 agent 动手。",
+    busy_command: "终端里正在跑 {x}。等它跑完再让 AI 动手。",
     busy_process: "终端里有 {x} 开在这支片子的文件夹里，它可能正在改东西。现在让 {a} 动手，两边可能改到同一处。",
-    busy_waiting: "终端里有个 agent 在等你交这一站。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
+    busy_waiting: "终端里有个 AI 在等你发这一步的意见。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
     busy_outside: "这支片子开在这个窗口外面的 {x} 里，在这里说的话它收不到。在这里发出去，会另起一个 AI 做同一支片子，两个可能改到同一处。", busy_outside_go: "另起一个 AI",
     empty_outside: "这支片子开在这个窗口外面的 {x} 里，在这里说的话它收不到。在这里发第一句，会另起一个 AI；要那边接着做，回到那边说。", ai_any: "AI",
     perm_h: "{a} 想{v}", perm_toast: "{a} 想{v}，等你批准", perm_wait: "等你批准", perm_by_person: "你选了：{o}", perm_by_stop: "你点了停止，取消了", perm_by_timeout: "没有页面开着，{m} 分钟后按“不行”处理了",
-    perm_by_gone: "agent 停了，这一问不算了", perm_by_restart: "Studio 重启过，这一问不算了", perm_by_turn: "它这一句做完了，这一问不算了", perm_by_desk: "Studio 关了，这一问不算了",
+    perm_by_gone: "它停了，这一问不算了", perm_by_restart: "Studio 重启过，这一问不算了", perm_by_turn: "它这一句做完了，这一问不算了", perm_by_desk: "Studio 关了，这一问不算了",
     o_allow_once: "允许这一次", o_allow_always: "这个对话里同类的都允许", o_reject_once: "不允许", o_reject_always: "一直不允许",
     v_read: "读", v_edit: "改", v_delete: "删", v_move: "挪", v_search: "找", v_execute: "跑", v_think: "想", v_fetch: "上网取", v_switch_mode: "换模式", v_other: "用",
     v_read_w: "读文件", v_edit_w: "改文件", v_delete_w: "删文件", v_move_w: "挪文件", v_search_w: "找文件", v_execute_w: "跑命令", v_fetch_w: "上网取东西", v_other_w: "用工具",
@@ -52,15 +52,15 @@ const ASTR = {
     f_old: "改之前", f_new: "改之后", f_all: "文件里每一处都换", f_cwd: "在哪个文件夹里跑", f_url: "要打开的网址", f_pattern: "要找的", f_where: "涉及的位置",
     f_said: "它附的话", f_other: "它请求里的内容", f_in_diff: "（就是下面改动里的那一段，一字不差）",
     too_long: "这条请求太长，这里显示不全，所以只能拒绝。", set_open: "设置", set_close: "收起", diff_cut: "太长了，只显示前面一段", thought: "它的想法", raw_said: "它的原话", plan_h: "它的计划",
-    turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "agent 中途停了",
-    turn_restart: "Studio 重启过，这一句没说完", n_fresh: "接着上次的话说：这个 agent 记不得前面说过什么，从这里重新开始。",
+    turn_cancelled: "停下了", turn_halted: "它停在这里了", turn_signed_out: "没登录，这一句没做", turn_error: "出错了：{e}", turn_took: "用了 {s}", turn_gone: "它中途停了",
+    turn_restart: "Studio 重启过，这一句没说完", n_fresh: "接着上次说：它记不得前面说过什么，从这里重新开始。",
     n_placed: "建好了这支片子：{x}。这段对话跟着它，接下来都在它里面。", n_place_busy: "建好了 {x}，但它正被{w}占着，这段对话先留在空间里。",
     sp_own: "在开的新片子", sp_wait: "等你", sp_doing: "在做", stray: "从空间开的对话「{x}」可能就是做这支片子的，它还没跟过来。", stray_go: "把它带到这里", stray_fail: "没带过来：这支片子不像是那段对话建的",
-    sp_h: "想做一支什么样的片子？", sp_b: "写一句发给 {a}：它照这个工作台的做法定类型、建好片子、先想立意。片子一建好，窗口就转过去，这段对话跟着过去。", sp_c: "它要停下来问你的，问题会出现在这里；它停在哪一站，那一站等你定的事也会摆出来。",
-    sp_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次", sp_copy: "复制给别处的 agent", sp_copied: "复制好了，贴给你的 agent", sp_empty: "先写一句",
+    sp_h: "想做一支什么样的片子？", sp_b: "写一句发给 {a}，它会定类型、建好片子，先想几个讲法给你挑。片子建好后，窗口转到那支片子，这段对话也跟过去。", sp_c: "它有事要问你，问题会出现在这里；轮到你看哪一步，那一步等你定的事也摆在这里。",
+    sp_ph: "比如：做一支一分钟的科普，讲海水为什么一天涨两次", sp_copy: "复制这句，去别处用", sp_copied: "复制好了，贴给你用的 AI", sp_empty: "先写一句",
     of_keep: "你选的「{x}」那一句先留着：装上以后，在下面点一下就写进框里。", of_ready: "你选的「{x}」那一句：", of_go: "写进框里", of_no: "不用了",
     of_busy: "空间里这段对话还在做，或在等你批准；它停下以后，再把「{x}」那一句写进新片子的框里。", of_moved: "开了新片子的框，之前那段对话在「历史」里",
-    n_gone: "agent 的进程停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "agent 问了一件这一页还答不了的事，回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一句在这里结束了，它也重新启动了（再说一句会接着这个对话）。",
+    n_gone: "它停了。再说一句会重新启动它。", n_signed_out: "{a} 还没登录，或者登录过期了：{l}，再回来说一句就行。", n_unsupported: "它问了一件这一页还答不了的事，回了“不支持”。", n_restarted: "{a} 收到停止以后没有停下来：这一句在这里结束了，它也重新启动了（再说一句会接着这个对话）。",
     unknown: "{a} 发来一条这里还显示不了的更新（点开看原样）", working_dsh: "{a} 在做，回复会整段一起到", sec: "{n} 秒", min: "{m} 分 {s} 秒",
     m_default: "改动前都问", m_acceptEdits: "改文件不问", m_plan: "只出计划", m_auto: "危险的才问", m_bypassPermissions: "什么都不问",
     "m_read-only": "只读", "m_workspace-write": "只改它所在文件夹里的", m_agent: "危险的才问", "m_agent-full-access": "不设限",
@@ -70,8 +70,8 @@ const ASTR = {
     err_send: "没发出去：{e}", sent_fail: "没发出去",
   },
   en: {
-    tab_chat: "Chat", tab_round: "This stop", tab_ask: "{n} for your OK", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which agent", ag_new: "New chat", ag_hist: "History",
-    ag_atstop: "Your call", n_own: "You sent your notes; {a} carried on by itself.", n_own_plain: "{a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another agent holds this film.",
+    tab_chat: "Chat here", tab_round: "This step", tab_ask: "{n} for your OK", tab_dec: "{n} to decide", ask_bar: "{a} is waiting for your OK: {x}", ag_pick: "Which AI", ag_new: "New chat", ag_hist: "History",
+    ag_atstop: "Your call", n_own: "You sent your notes; {a} carried on by itself.", n_own_plain: "{a} carried on by itself.", n_own_busy: "{a} carried on by itself, but another AI holds this film.",
     ag_idle: "Idle", ag_lookonly: "Look only", ag_ready: "Ready", ag_fresh: "Not started", ag_thinking: "Thinking", ag_working: "Working", ag_writing: "Writing", ag_waiting: "Needs OK",
     ag_stopping: "Stopping", ag_gone: "Stopped", ag_starting: "Starting", ag_doing: "{v}: {x}",
     set_mode: "Mode", set_model: "Model", set_effort: "Effort", set_more: "More settings", set_personal_off: "Without personal settings",
@@ -80,25 +80,25 @@ const ASTR = {
     u_ctx: "Chat memory {u} / {s}", u_cost: "this chat: about {c}", u_rate: "{who}: {p} of the {w} limit used{r}", u_rate_out: "{who}: limit reached, back at {at}",
     w_seven_day: "7-day", u_reset: "; it resets {at}", w_five_hour: "5-hour", w_daily: "daily", w_weekly: "weekly",
     ph_say: "Say something about {x}; it goes as soon as you send…", ph_say0: "Say something to {a}; it goes as soon as you send…", send: "Send", stop: "Stop", send_keys: "↩ send · ⇧↩ new line",
-    you: "You", t_on: "on {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here goes to it at once; the notes on “This stop” go only when you press “Send to agent”. Try: read the brief and tell me what is missing.",
+    you: "You", t_on: "about {x}", empty_h: "Talk to {a}", empty_b: "It works in this film's folder with your own login and settings from the terminal. Every file it reads, command it runs and change it makes shows up below as a card; when it asks before doing something, it waits for your click.", empty_c: "What you say here reaches it at once. Notes on the page next door are separate: they go when you press “Send” there. Try: read the brief and tell me what is missing.",
     empty_dsh: "DeepSeek Harness sends its reply in one piece: while it works, only the tool it is using shows here.",
     not_inst_h: "{a} isn't set up in Studio yet", not_inst_b: "Press “Set it up” and Studio installs it (it downloads about {s}, kept out of the film's folder). It uses your own login, nothing else to set up; if it isn't signed in, {l}.",
     inst_go: "Set it up", inst_again: "Try again", inst_stop: "Stop", inst_run: "Setting up {a} (about {s}): {t} so far, {m} minutes at most. You can do other things meanwhile.", inst_done: "{a} is set up",
-    inst_no_npm: "This computer has no Node yet ({a} installs with the npm that comes with it): tell your agent “install Node 22 for me”, then press “Set it up” again.",
-    inst_fail: "It didn't install; most often the network dropped. Try again; if it still fails, give the line below to the agent you use in a terminal, or run it in a terminal yourself to see what it says.",
+    inst_no_npm: "This computer has no Node yet ({a} installs with the npm that comes with it): tell the AI you use “install Node 22 for me”, then press “Set it up” again.",
+    inst_fail: "It didn't install; most often the network dropped. Try again; if it still fails, give the line below to the AI you use in a terminal, or run it in a terminal yourself to see what it says.",
     inst_timeout: "After {m} minutes it still wasn't set up, so it was stopped; most likely the network is too slow. Press “Set it up” again when it's better.", inst_cancelled: "Stopped. Press “Set it up” again when you want it.",
     inst_busy: "{a} is being set up somewhere else (another Studio window or a terminal). Wait for that, then come back to this page.",
     login_claude: "run claude in a terminal and type /login", login_codex: "run codex login in a terminal", login_dsh: "sign in once in the DeepSeek Harness desktop app",
     copy: "Copy", copied: "Copied", no_start_h: "{a} did not start", no_start_b: "Usually it isn't signed in yet: {l}. What it said:",
     busy_turn: "{a} is still on your last message. Wait for it, or press Stop.",
     busy_console: "{a} is working on this film (in another chat or page). Wait for it, or stop it there.",
-    busy_command: "{x} is running in a terminal. Let it finish before the agent starts.",
+    busy_command: "{x} is running in a terminal. Let it finish before the AI starts.",
     busy_process: "{x} is open in this film's folder in a terminal and may be editing. If {a} starts now, both may edit the same thing.",
-    busy_waiting: "An agent in a terminal is waiting for you to send this stop. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
+    busy_waiting: "An AI in a terminal is waiting for your notes on this step. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
     busy_outside: "This film is open in {x} outside this window, and what you say here does not reach it. Sending here starts a second AI on the same film; the two may change the same thing.", busy_outside_go: "Start a second AI",
     empty_outside: "This film is open in {x} outside this window, and what you say here does not reach it. Your first message here starts a second AI; to have that one carry on, say so over there.", ai_any: "An AI",
     perm_h: "{a} wants to {v}", perm_toast: "{a} wants to {v}: waiting for your OK", perm_wait: "Waiting for your OK", perm_by_person: "You chose: {o}", perm_by_stop: "Cancelled when you pressed Stop", perm_by_timeout: "No page was open; after {m} minutes it was refused",
-    perm_by_gone: "The agent stopped, so this request no longer counts", perm_by_restart: "Studio restarted, so this request no longer counts", perm_by_turn: "Its reply ended, so this request no longer counts", perm_by_desk: "Studio closed, so this request no longer counts",
+    perm_by_gone: "It stopped, so this request no longer counts", perm_by_restart: "Studio restarted, so this request no longer counts", perm_by_turn: "Its reply ended, so this request no longer counts", perm_by_desk: "Studio closed, so this request no longer counts",
     o_allow_once: "Allow this once", o_allow_always: "Allow the same kind in this chat", o_reject_once: "Don't allow", o_reject_always: "Never allow",
     v_read: "read", v_edit: "edit", v_delete: "delete", v_move: "move", v_search: "search", v_execute: "run", v_think: "think", v_fetch: "fetch", v_switch_mode: "switch mode", v_other: "use",
     v_read_w: "read a file", v_edit_w: "edit a file", v_delete_w: "delete a file", v_move_w: "move a file", v_search_w: "search", v_execute_w: "run a command", v_fetch_w: "fetch from the web", v_other_w: "use a tool",
@@ -109,15 +109,15 @@ const ASTR = {
     f_old: "Before", f_new: "After", f_all: "Every match in the file", f_cwd: "The folder it runs in", f_url: "The address it opens", f_pattern: "What it looks for", f_where: "Places it touches",
     f_said: "What it added", f_other: "What it asks", f_in_diff: "(the very text of the change below)",
     too_long: "This request is too long to show whole here, so it can only be refused.", set_open: "Settings", set_close: "Hide", diff_cut: "Too long: only the start is shown", thought: "Its thinking", raw_said: "What it said", plan_h: "Its plan",
-    turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "The agent stopped midway",
-    turn_restart: "Studio restarted before this finished", n_fresh: "Picking up an earlier chat: this agent can't recall what was said, so it starts over from here.",
+    turn_cancelled: "Stopped", turn_halted: "It stopped here", turn_signed_out: "Not signed in: this one wasn't done", turn_error: "Something went wrong: {e}", turn_took: "took {s}", turn_gone: "It stopped midway",
+    turn_restart: "Studio restarted before this finished", n_fresh: "Picking up an earlier chat: it can't recall what was said, so it starts over from here.",
     n_placed: "Made the film {x}. This chat goes with it from here.", n_place_busy: "Made {x}, but {w} is working on it, so this chat stays on the space for now.",
     sp_own: "New films under way", sp_wait: "waiting for you", sp_doing: "working", stray: "The chat begun on the space, “{x}”, may be the one that made this film; it hasn't followed it here.", stray_go: "Bring it here", stray_fail: "Not brought: this film doesn't look like that chat's",
-    sp_h: "What film do you want to make?", sp_b: "Write a sentence to {a}: it works the way this workbench does, picks the kind of film, makes it and starts on the idea. Once the film is made, the window goes there and this chat goes with it.", sp_c: "When it stops to ask you something, the questions show here; when it stops at a step, what that step needs from you is laid out too.",
-    sp_ph: "e.g. a one-minute explainer on why the tide comes in twice a day", sp_copy: "Copy for an agent elsewhere", sp_copied: "Copied: paste it to your agent", sp_empty: "Write a sentence first",
+    sp_h: "What film do you want to make?", sp_b: "Write a sentence to {a}: it picks the kind of film, makes it, and thinks of a few ways to tell it for you to pick from. Once the film is made, the window moves to it, and this chat goes along.", sp_c: "When it needs to ask you something, the question shows here; when it is your turn at a step, what that step asks of you shows here too.",
+    sp_ph: "e.g. a one-minute explainer on why the tide comes in twice a day", sp_copy: "Copy it to use elsewhere", sp_copied: "Copied: paste it to the AI you use", sp_empty: "Write a sentence first",
     of_keep: "The “{x}” sentence you picked is kept: once it is set up, one click below puts it in the box.", of_ready: "The “{x}” sentence you picked:", of_go: "Put it in the box", of_no: "Not now",
     of_busy: "The space's chat is still working, or waiting for your approval; once it stops, put the “{x}” sentence in a new film's box.", of_moved: "A new film's box is open; the earlier chat is in History",
-    n_gone: "The agent's process stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "The agent asked for something this page can't do yet; it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and the agent restarted (say something to carry on in this chat).",
+    n_gone: "It stopped. Say something and it starts again.", n_signed_out: "{a} isn't signed in, or its login expired: {l}, then say something again.", n_unsupported: "It asked for something this page can't do yet; it was told no.", n_restarted: "{a} did not stop when asked: the turn was ended here and it restarted (say something to carry on in this chat).",
     unknown: "{a} sent an update this page can't show yet (open it to see it as sent)", working_dsh: "{a} is working; its reply comes in one piece", sec: "{n} s", min: "{m} min {s} s",
     m_default: "Ask before changes", m_acceptEdits: "Edit without asking", m_plan: "Plan only", m_auto: "Ask only if risky", m_bypassPermissions: "Never ask",
     "m_read-only": "Read only", "m_workspace-write": "Edit its own folder only", m_agent: "Ask only if risky", "m_agent-full-access": "No limits",
@@ -304,7 +304,7 @@ const AGENT = (() => {
   function outsider() {   // an agent outside this window holds this film, and no conversation here has begun on it: its name, else null
     if (KEYP === SPACE || (S && S.sum && S.sum.turns)) return null;
     const h = typeof D !== "undefined" && D && D.status && D.status.holder;
-    return h && h.outside ? ({ claude: "Claude Code", codex: "Codex" }[h.program] || at("ai_any")) : null;
+    return h && h.outside ? ({ claude: "Claude Code", codex: "Codex", dsh: "DeepSeek Harness" }[h.program] || at("ai_any")) : null;
   }
   const offerName = () => (OFFER ? t(`smp_${OFFER}_type`) : "");
   function offerKept() { return OFFER && KEYP === SPACE ? `<p class="ag-offer-keep">${esc(at("of_keep", { x: offerName() }))}</p>` : ""; }
@@ -569,7 +569,7 @@ const AGENT = (() => {
   }
   function itemHtml(it) {
     const a = esc(label());
-    if (it.kind === "user") return `<div class="ag-me">${it.scope && it.scope.label ? `<span class="chip">${esc(at("t_on", { x: cut(it.scope.label, 40) }))}</span>` : ""}<p>${esc(it.text)}</p></div>`;
+    if (it.kind === "user") return `<div class="ag-me">${it.scope && it.scope.label ? `<span class="chip">${esc(at("t_on", { x: inLine(cut(it.scope.label, 40)) }))}</span>` : ""}<p>${esc(it.text)}</p></div>`;
     if (it.kind === "msg" && AUTH_MSG.test(it.text)) return `${HINTS.has(it.key) ? signInHint("warn") : ""}<details class="ag-thought"><summary>${esc(at("raw_said"))}</summary><div class="ag-md">${md(it.text)}</div></details>`;
     if (it.kind === "msg") return `<div class="ag-say"><div class="ag-who"><i></i>${a}</div><div class="ag-md">${md(it.text)}</div></div>`;
     if (it.kind === "thought") return it.text.trim() ? `<details class="ag-thought"><summary>${esc(at("thought"))}</summary><div class="ag-md">${md(it.text)}</div></details>` : "";
@@ -799,7 +799,7 @@ const AGENT = (() => {
     }
     const sp = KEYP === SPACE, first = sp && !(S && S.items.length);   // the space: nothing selected to be on
     $("#agScope").textContent = sp ? "" : x; $("#agScope").className = "chip" + (sc ? "" : " quiet"); $("#agScope").hidden = sp; $("#agAt").hidden = sp;
-    $("#agSay").placeholder = first ? at("sp_ph") : sc ? at("ph_say", { x: sc.label }) : at("ph_say0", { a: label() });
+    $("#agSay").placeholder = first ? at("sp_ph") : sc ? at("ph_say", { x: inLine(sc.label) }) : at("ph_say0", { a: label() });
     $("#agSay").disabled = !meta(KIND).installed || !KEYOK;
     $("#agStop").hidden = !running; $("#agStop").disabled = !!(S && S.stopping);
     $("#agSend").disabled = !meta(KIND).installed || !KEYOK || !!(ERR && ERR.code === "starting");
@@ -877,10 +877,10 @@ const AGENT = (() => {
     const bar = $("#colTabs"); if (!bar) return;
     const waiting = S ? Object.values(S.perms).filter((p) => !p.answered).length : 0;
     const handed = typeof handedNow === "function" && handedNow() && !(typeof REHAND !== "undefined" && REHAND[KEY]);   // handed over: nothing left to decide here
-    const decs = !handed && typeof GV !== "undefined" && GV && GV.current && typeof roundOpen === "function" && roundOpen() ? ((ROUND && ROUND.data && ROUND.data.decisions) || []).length : 0;
+    const decs = !handed && typeof GV !== "undefined" && GV && GV.current && typeof roundOpen === "function" && roundOpen() && !(typeof aiTurn === "function" && aiTurn()) ? ((ROUND && ROUND.data && ROUND.data.decisions) || []).length : 0;
     const mine = typeof myItems === "function" && FB ? myItems().length : 0;
     bar.hidden = !KEYP || KEYP === SPACE;
-    const html = `<button type="button" role="tab" data-tab="chat" aria-selected="${TAB === "chat"}">${esc(at("tab_chat"))}${waiting ? `<span class="badge wait">${esc(at("tab_ask", { n: waiting }))}</span>` : S && S.running ? `<span class="dot agent" title="${esc(at("ag_working"))}"></span>` : ""}</button><button type="button" role="tab" data-tab="round" aria-selected="${TAB === "round"}">${esc(at("tab_round"))}${decs ? `<span class="badge wait">${esc(at("tab_dec", { n: decs }))}</span>` : mine ? `<span class="n mono">${mine}</span>` : ""}</button>`;
+    const html = `<button type="button" role="tab" data-tab="chat" aria-selected="${TAB === "chat"}">${esc(at("tab_chat"))}${waiting ? `<span class="badge wait">${esc(at("tab_ask", { n: waiting }))}</span>` : S && S.running ? `<span class="dot agent" title="${esc(at("ag_working"))}"></span>` : ""}</button><button type="button" role="tab" data-tab="round" aria-selected="${TAB === "round"}">${esc(typeof roundVerb === "function" && typeof ROUND !== "undefined" && ROUND ? (typeof filmDelivered === "function" && filmDelivered() ? t("col_film") : roundVerb()) : at("tab_round"))}${decs ? `<span class="badge wait">${esc(at("tab_dec", { n: decs }))}</span>` : mine ? `<span class="n mono">${mine}</span>` : ""}</button>`;
     if (bar.dataset.html !== html) { bar.innerHTML = html; bar.dataset.html = html; }
   }
   function setTab(x) {
@@ -933,6 +933,7 @@ const AGENT = (() => {
     },
     _again: (e) => again(e),   // for tools/desk/test_agents.py (node): the busy line's "anyway" after a refused carry-on
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)
+    name: () => (KIND ? meta(KIND).label : ""),   // that column's AI by its name (Claude Code), for the top row's "在做"
     _md: md, _diff: diffLines, _hints: (items) => [...loginHints(items)],
     _draw: (items) => { const keep = [S, KIND]; S = blank({ id: "t", kind: "claude" }); KIND = "claude"; items.forEach((x) => { x.v = 1; S.items.push(x); S.index[x.key] = x; }); HINTS = loginHints(S.items); const out = S.items.map(itemHtml); [S, KIND] = keep; return out; }, _ask: (pm, d) => askHtml(pm, d), _defaultKind: defaultKind, _state: () => (S ? { id: S.id, items: S.items.length, seq: S.seq, es: ES ? ES.readyState : null, url: ES ? ES.url.replace(/token=[^&]*/, "token=…") : null } : null),   // for tools/desk/test_agents.py (node): the escaping and the diff, without a page
   };

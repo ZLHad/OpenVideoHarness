@@ -121,7 +121,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 用哪个模型、想多深，都在对话栏里选，Studio 记得你上次的选择。Codex 那一栏点 **选模型和思考深度**，它先开一个空对话，读出你的账号能用的模型，选好再发送需求。
 
-点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，提交即可唤醒它；其余情况提交后回原对话说一声"我交了"。标准档在 Studio 开着时也在 Studio 审，没开时发静态审阅页；也可以指定用哪个。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
+点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，点"发出去"就能叫醒它；其余情况发出去以后回原对话说一声"我发了"。标准档在 Studio 开着时也在 Studio 审，没开时发静态审阅页；也可以指定用哪个。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
 
 <table>
 <tr>
