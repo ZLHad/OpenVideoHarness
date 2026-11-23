@@ -285,20 +285,18 @@ MODVIEW.outline = { main: mOutline2, wire: wireOutline2 };
 
 /* ---------- 分镜: a page a part, the grey box, each shot with what it should get across ---------- */
 moduleWords({
-  board_title: "第 {i} 页 · {x}", board_title2: "{x} · {r}", board_keys: "← → 一镜一镜看", this_part: "这一段", part_seconds: "这一段的 {a}–{b}", board_sub2: "标黄的是 agent 没把握的镜头。其余的没写意见就算通过。",
-  page_n: "第 {i} 页", this_page: "这一页", shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "粗样", grey_note: "先看节奏和构图，颜色后面再上",
+  board_title2: "{x} · {r}", board_keys: "← → 一镜一镜看", this_part: "这一段", part_seconds: "这一段的 {a}–{b}", board_sub2: "标黄的是 agent 没把握的镜头。其余的没写意见就算通过。",
+  shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "粗样", grey_note: "先看节奏和构图，颜色后面再上",
   no_anim: "还没有粗样视频。", anim_gone: "粗样视频找不到了，可能被挪走了。", default_pass: "没写意见就通过", you_said: "你说了", trans_k: "转场",
   board_none: "还没有镜头表。", avg_s: "平均一镜 {s} 秒", plan_k: "打算改", bar_board: "分镜 · {s}", bar_said: "分镜 · {s}。你当时说：「{q}」", to_sound: "去声音",
   pass_done: "已通过",
-  page_seconds: "这一页的 {a}–{b}",
   skip_sub: "这一站没停下来给你看（你说了不用停）。只能看；要改就写一条意见。",
 }, {
-  board_title: "Page {i} · {x}", board_title2: "{x} · {r}", board_keys: "← → shot by shot", this_part: "This part", part_seconds: "this part, {a}–{b}", board_sub2: "Amber shots are the ones the agent is unsure about. The rest pass if you write no note.",
-  page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Rough cut", grey_note: "Rhythm and framing first; colour comes later",
+  board_title2: "{x} · {r}", board_keys: "← → shot by shot", this_part: "This part", part_seconds: "this part, {a}–{b}", board_sub2: "Amber shots are the ones the agent is unsure about. The rest pass if you write no note.",
+  shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Rough cut", grey_note: "Rhythm and framing first; colour comes later",
   no_anim: "No rough cut video yet.", anim_gone: "The rough cut video can't be found; it may have been moved.", default_pass: "passes without a note", you_said: "you said", trans_k: "Transition",
   board_none: "No shot list yet.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Storyboard · {s}", bar_said: "Storyboard · {s}. You said: “{q}”", to_sound: "To the sound",
   pass_done: "approved",
-  page_seconds: "this page, {a}–{b}",
   skip_sub: "This stop was skipped (you said not to stop). To look at only; to change it, write a note.",
 });
 const shotName = (id) => String(id || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1");   // one way to write a shot: S4, never S04 or S004

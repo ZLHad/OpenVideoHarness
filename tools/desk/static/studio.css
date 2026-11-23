@@ -646,3 +646,5 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .note-list.mine .nt,.lists .lrow .tx{white-space:pre-line}
 .composer #sayAdd{margin-left:auto}   /* on a row of its own when the place's name is long: still at the right, where it was */
 .composer .say-keys{margin:-4px 0 0;font-size:var(--fs-label);color:var(--ink-3);text-align:right}   /* the keys in words, under the box they are for */
+.box-keys{margin:2px 0 0;font-size:var(--fs-label);color:var(--ink-3);text-align:right}   /* a note box's keys, in words, under it */
+.lane.why .trk{height:20px}

@@ -5,10 +5,10 @@ usage: python3 tools/desk/test_cut_page.py [<chrome>]
 A made-up 12:20 film is built in a temp folder from tools/desk/fixtures/demo: 60 shots in nine parts, about 180 lines, gate ③
 with 67 marked places (30 the agent is unsure of, 30 to listen to, 7 the check found), gate ② cut into sheets of six as an
 agent writes it ("开场（1/2）"), and the same film again cut from an edit list whose render kept the shots inside each part.
-The picture is ffmpeg's test pattern, 64×36 at 5 frames a second (a few hundred KB). A desk of its own serves them (a temp
+The picture is ffmpeg's test pattern, 64×36 at 5 frames a second, VP8 and Opus in WebM (every Chromium plays it; about 2.5 MB). A desk of its own serves them (a temp
 HOME and every Studio folder in the temp folder, no window, no browser, no keychain), and test_cut_page.mjs drives the
 pages through the DevTools protocol with real mouse and key events. Prints nothing and exits 0 when every check holds;
-else one line a failure, exit 1. Exit 3: no ffmpeg; 4: no Chrome (CHROME_PATH, the usual installs, Playwright's Chromium, as bin/vh's
+else one line a failure, exit 1. Exit 3: no ffmpeg with VP8 and Opus; 4: no Chrome, or one that cannot play the film (CHROME_PATH, the usual installs, Playwright's Chromium, as bin/vh's
 chrome_path looks; the caller skips, or on CI fails).
 """
 import json, os, random, re, shutil, subprocess, sys, tempfile, time
@@ -23,13 +23,12 @@ NAMES = ["PROLOGUE", "BULGES", "TURN", "SPRING", "BAY", "TABLE", "HISTORY", "POR
 
 def film(path):
     r = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", f"testsrc=s=64x36:r=5:d={D:g}", "-f", "lavfi",
-                        "-i", f"sine=f=330:sample_rate=8000:d={D:g}", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "40", "-g", "5",
-                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "16k", "-shortest", str(path)], capture_output=True, text=True)
-    if r.returncode:
-        raise SystemExit(f"ffmpeg: {r.stderr.strip()[:300]}")
+                        "-i", f"sine=f=330:sample_rate=48000:d={D:g}", "-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8", "-b:v", "40k", "-g", "25",
+                        "-c:a", "libopus", "-b:a", "12k", "-shortest", str(path)], capture_output=True, text=True)
+    return r.returncode == 0
 
 
-def long_film(root, mp4):
+def long_film(root, webm):
     p = root / "2026-11-20-long-tide"
     shutil.copytree(HERE / "fixtures/demo", p)
     R = random.Random(7)
@@ -53,7 +52,7 @@ def long_film(root, mp4):
         t += d + R.uniform(0.3, 0.9)
     (p / "audio/timeline.zh.json").write_text(json.dumps({"version": 1, "lang": "zh", "provider": "fixture", "segments": segs}, ensure_ascii=False), encoding="utf-8")
     g = json.loads((p / "out/review/gate-3.json").read_text(encoding="utf-8"))
-    g.update(film="out/draft.mp4", least_sure=[{"id": shots[k]["id"], "t": round(shots[k]["start"] + 0.5, 1), "note": f"没把握 {k}"} for k in range(0, 60, 2)],
+    g.update(film="out/draft.webm", least_sure=[{"id": shots[k]["id"], "t": round(shots[k]["start"] + 0.5, 1), "note": f"没把握 {k}"} for k in range(0, 60, 2)],
              listen=[{"t": round(10 + j * 24.1, 1), "note": f"请听 {j}"} for j in range(30)])
     (p / "out/review/gate-3.json").write_text(json.dumps(g, ensure_ascii=False), encoding="utf-8")
     c = json.loads((p / "out/check/draft.check.json").read_text(encoding="utf-8"))
@@ -68,7 +67,8 @@ def long_film(root, mp4):
                     "shots": [{"id": x["id"], "t0": x["start"], "t1": x["end"], "frame": x["frame"], "see": x["label"]} for x in c0]} for j, c0 in enumerate(ch)]
     g2["segments"] = sheets
     (p / "out/review/gate-2.json").write_text(json.dumps(g2, ensure_ascii=False), encoding="utf-8")
-    shutil.copy(mp4, p / "out/draft.mp4")
+    (p / "out/draft.mp4").unlink(missing_ok=True)
+    shutil.copy(webm, p / "out/draft.webm")
     return p, shots, len(sheets)
 
 
@@ -87,7 +87,7 @@ def edit_film(root, src, shots):
     sha = hashlib.sha256((p / "edit.json").read_bytes()).hexdigest()
     rec = [{"id": NAMES[k], "start": ss[0]["start"], "end": ss[-1]["end"], "kind": "color"} for k, ss in enumerate(parts)]
     rec += [{"id": f"{NAMES[k]}.S{k + 1}_{j + 1}", "start": x["start"], "end": x["end"], "kind": "shot"} for k, ss in enumerate(parts) for j, x in enumerate(ss)]
-    (p / "out/draft.mp4.render.json").write_text(json.dumps({"fps": 30, "frames": int(D * 30), "first_frame": 0, "edit": {"path": "edit.json", "sha256": sha}, "shots": rec}), encoding="utf-8")
+    (p / "out/draft.webm.render.json").write_text(json.dumps({"fps": 30, "frames": int(D * 30), "first_frame": 0, "edit": {"path": "edit.json", "sha256": sha}, "shots": rec}), encoding="utf-8")
     return p
 
 
@@ -126,14 +126,20 @@ def main(argv):
         root.mkdir()
         env.update(OVH_PROJECTS=str(root), OVH_LOCAL_MD="/dev/null/LOCAL.md", OVH_STUDIO_SHELL="none", OVH_STUDIO_BROWSER="none", OVH_GATE_STUDIO="0",
                    OVH_KEYSTORE="none", BROWSER="/usr/bin/true")
-        film(t / "film.mp4")
-        p, shots, sheets = long_film(root, t / "film.mp4")
+        if not film(t / "film.webm"):
+            return 3
+        p, shots, sheets = long_film(root, t / "film.webm")
         for g in ("1", "2", "3"):
             r = subprocess.run([str(ROOT / "bin/vh"), "gate", str(p), g], env=env, capture_output=True, text=True)
             if r.returncode:
                 print(f"bin/vh gate {g}: {r.stderr.strip()[:300]}")
                 return 1
-        edit_film(root, p, shots)
+        e = edit_film(root, p, shots)
+        stale = root / "2026-11-22-long-tide-stale"   # the same, its film rendered from an earlier edit list
+        shutil.copytree(e, stale)
+        rec = json.loads((stale / "out/draft.webm.render.json").read_text())
+        rec["edit"]["sha256"] = "0" * 64
+        (stale / "out/draft.webm.render.json").write_text(json.dumps(rec))
         log = t / "desk.log"
         desk = subprocess.Popen([sys.executable, str(HERE / "fixtures/with_tty.py"), str(ROOT / "bin/vh"), "desk", "--root", str(root), "--port", "0", "--idle", "0",
                                  "--no-open", "--print-address"], env=env, stdout=open(log, "w"), stderr=subprocess.STDOUT)
@@ -152,6 +158,8 @@ def main(argv):
         r = subprocess.run(["node", str(HERE / "test_cut_page.mjs")], input=json.dumps({"chrome": chrome, "url": url, "sheets": sheets, "parts": len(PARTS)}),
                            capture_output=True, text=True, timeout=600)
         out = (r.stdout + r.stderr).strip()
+        if r.returncode == 4:   # the browser found plays no WebM: no usable browser, as the other page checks say it
+            return 4
         if out:
             print(out)
         return 0 if r.returncode == 0 and not r.stdout.strip() else 1

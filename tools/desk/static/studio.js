@@ -483,9 +483,14 @@ function renderMarks() {   // the round's places in the film: on the round's own
 }
 const COLOPEN = { least: false, listen: false };
 function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.status); }
-function generalParts() {   // the overall words as written, a note each: "〔不对着片子〕…" its label and its words (a note keeps its own lines)
-  return String(FB.general || "").split(/\n(?=〔)/).filter((x) => x.trim()).map((x) => { const m = x.match(/^〔([^〕]*)〕([\s\S]*)$/); return m ? { label: m[1], text: m[2] } : { label: "", text: x }; });
+const joinGeneral = (L) => L.map((g) => (g.label ? `〔${g.label}〕` : "") + g.text).join("\n");   // what goes: the notes, each "〔its place〕its words", a line apart, as before
+function generalParts() {   // the overall notes, each with its label ("不对着片子", "整片", a module) and its words, its own lines kept
+  const L = Array.isArray(FB.generalItems) ? FB.generalItems.filter((g) => g && typeof g.text === "string") : [];
+  if (L.length && joinGeneral(L) === (FB.general || "")) return L;
+  const g = String(FB.general || ""); if (!g.trim()) return [];   // an older draft, or what a submission left: its text is one note
+  const m = g.match(/^〔([^〕]*)〕([\s\S]*)$/); return [m ? { label: m[1], text: m[2] } : { label: "", text: g }];
 }
+function setGeneral(L) { FB.generalItems = L; FB.general = joinGeneral(L); }
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
@@ -556,7 +561,7 @@ $("#colBody").addEventListener("scroll", fadeMore); window.addEventListener("res
 $("#colBody").addEventListener("click", (e) => {
   const x = e.target.closest("[data-del]");
   if (x) { e.stopPropagation(); const g = x.dataset.del.match(/^#general(?::(\d+))?$/);
-    if (g) FB.general = g[1] == null ? "" : String(FB.general || "").split(/\n(?=〔)/).filter((y) => y.trim()).filter((y, i) => i !== +g[1]).join("\n"); else delete FB.items[x.dataset.del]; save(); return; }
+    if (g) setGeneral(g[1] == null ? [] : generalParts().filter((y, i) => i !== +g[1])); else delete FB.items[x.dataset.del]; save(); return; }
   const li = e.target.closest("[data-goto]");
   if (li && !e.target.closest("button:not([data-goto]),a,input,textarea")) {
     const tg = li.dataset.goto, k = tg.split(":")[0], words = cut(((li.querySelector("span:last-of-type") || li).textContent || "").trim(), 28);
@@ -600,10 +605,10 @@ function buildComposer() {
   $("#toNone").addEventListener("click", () => { if (CUT) CUT.clear(); setScope({ label: t("not_film"), none: true }); $("#say").focus(); });   // a note about no moment of the film: the overall words, named
   $("#sayAdd").addEventListener("mousedown", (e) => e.preventDefault());   // the box keeps its focus and its size while the button is pressed: the button does not move away from the click
   $("#sayAdd").addEventListener("click", addNote);
-  $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.isComposing) { e.preventDefault(); addNote(); } });
+  $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); addNote(); } });
 }
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
-function scopeLabel() { return SCOPE ? SCOPE.label : MOD === "cut" ? t("whole_film") : t("whole", { m: t("m_" + (MOD || "cut")) }); }
+function scopeLabel() { return SCOPE ? SCOPE.label : MOD === "cut" ? t("whole_film") : MOD === "board" ? t("this_part") : t("whole", { m: t("m_" + (MOD || "cut")) }); }
 function updateComposer() {
   if (!$("#composer").dataset.ready) return;
   const x = scopeLabel();
@@ -621,9 +626,8 @@ function setScope(s) {
 function addNote() {
   const ta = $("#say"), text = ta.value.trim();
   if (!text) { ta.focus(); return; }
-  if (!SCOPE || !SCOPE.target) {   // the whole module, or a place with no target of its own: the round's overall words, named
-    const pre = SCOPE ? `〔${SCOPE.label}〕` : MOD && MOD !== "cut" ? `〔${t("m_" + MOD)}〕` : `〔${t("whole_film")}〕`;   // named, so each note stays a note of its own in the list
-    FB.general = (FB.general ? FB.general + "\n" : "") + pre + text;
+  if (!SCOPE || !SCOPE.target) {   // the whole module, or a place with no target of its own: the round's overall words, a note of their own, named
+    setGeneral(generalParts().concat([{ label: SCOPE ? SCOPE.label : MOD && MOD !== "cut" ? t("m_" + MOD) : t("whole_film"), text }]));
   } else {
     const cur = FB.items[SCOPE.target];
     FB.items[SCOPE.target] = Object.assign({}, cur || {}, { status: cur && cur.status === "ask" ? "ask" : "change", label: SCOPE.label, text: cur && cur.text ? cur.text + "\n" + text : text },
@@ -685,7 +689,7 @@ function openConfirm() {
     + (p.dropped.length ? `<h4 class="dropped">${esc(t("d_dropped", { n: p.dropped.length }))}</h4>${p.dropped.map((i) => `<li class="dropped"><span class="q">${esc(cut(i.label, 60))}</span><span>${esc(cut(i.text, 120))}</span></li>`).join("")}` : "");
   const c = $("#confirm");
   c.innerHTML = `<div class="c-body"><h3>${esc(t("d_title"))}</h3><ul class="sum">${decs ? `<h4>${esc(t("d_decisions"))}</h4>${decs}` : ""}${leastHtml}<h4>${esc(t("d_items"))}</h4>${items || `<li class="meta">${esc(t("d_none"))}</li>`}${FB.general ? `<li><span class="q">${esc(t("overall"))}</span><span>${esc(FB.general)}</span></li>` : ""}</ul>
-      <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" maxlength="4000" placeholder="${esc(t("general_ph"))}"></textarea>
+      <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" maxlength="4000" placeholder="${esc(t("general_ph"))}"></textarea><p class="meta box-keys">${esc(t("keys_nl"))}</p>
       <p class="meta" id="submitHint">${esc(t("submit_hint"))}</p>
       <details class="fold"><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
     <div class="c-act"><button type="button" class="btn btn-primary" id="doSubmit">${esc(t("submit"))}</button><button type="button" class="btn" id="noSubmit">${esc(t("cancel"))}</button></div>`;
@@ -825,7 +829,7 @@ function fbCtl(target, label, opt = {}) {
     <span class="seg3"><button type="button" data-st="ok" class="${st === "ok" ? "on" : ""}">${esc(lab[0])}</button><button type="button" data-st="change" class="${st === "change" ? "on" : ""}">${esc(lab[1])}</button><button type="button" data-st="ask" class="${st === "ask" ? "on" : ""}">${esc(lab[2])}</button></span>
     ${st ? "" : `<span class="def">${esc(opt.def || t("fb_def"))}</span>`}
     <div class="fb-more" ${st === "change" || st === "ask" ? "" : "hidden"}>
-      <textarea rows="2" data-k="text" maxlength="4000" placeholder="${esc(st === "ask" ? t("ph_ask") : t("ph_change"))}">${esc(v.text || "")}</textarea>
+      <textarea rows="2" data-k="text" maxlength="4000" placeholder="${esc(st === "ask" ? t("ph_ask") : t("ph_change"))}">${esc(v.text || "")}</textarea><p class="meta box-keys">${esc(t("fb_keys"))}</p>
       ${opt.suggest != null && st === "change" ? `<input data-k="suggest" maxlength="2000" placeholder="${esc(t("ph_suggest"))}" value="${esc(v.suggest != null ? v.suggest : opt.suggest)}">` : ""}
     </div></div>`;
 }
@@ -1097,7 +1101,7 @@ function openRevision(r) {
       <input type="range" step="0.01" min="${r.span[0]}" max="${r.span[1]}" aria-label="${esc(t("revision_seek"))}" disabled></div>
     ${r.state === "pending" && !readOnly() ? `<div class="revision-reply">
       <label for="revision-say" class="meta">${esc(t("revision_reply"))}</label>
-      <textarea id="revision-say" rows="2" maxlength="4000"></textarea><div class="revision-actions">
+      <textarea id="revision-say" rows="2" maxlength="4000"></textarea><p class="meta box-keys">${esc(t("keys_nl"))}</p><div class="revision-actions">
       <button type="button" class="btn" data-revision-reply="change" disabled>${esc(t("revision_change"))}</button>
       <button type="button" class="btn" data-revision-reply="ok" disabled>${esc(t("revision_approved"))}</button></div></div>` : ""}
     <p class="small notice" role="status" hidden></p>`;
@@ -1187,6 +1191,13 @@ function openRevision(r) {
 function CutModule(area) {
   const T = TL(), ST = D.studio || {}, fps = +T.fps || 30;
   const film = filmPath(), shots = cutShots(), chapters = cutChapters(shots), parts = cutParts();
+  const whyWhole = (() => {   // an edit list's entry shown whole: the film was rendered from an earlier edit list, or the entry is a video made beforehand
+    if (T.shots_from !== "edit.json") return "";
+    if ((T.missing || []).some((m) => /another edit\.json/.test((m && m.why) || ""))) return t("why_stale");
+    const flat = cutRows().filter((r) => !(Array.isArray(r.inner) && r.inner.length) && /^(clip|film)$/.test(r.kind || "")).map((r) => String(r.id));
+    if (!flat.length) return "";
+    return t("why_clip", { x: flat.slice(0, 3).join(LANG === "zh" ? "、" : ", ") + (flat.length > 3 ? t("why_more", { n: flat.length - 3 }) : "") });
+  })();
   const lines = (T.narration && T.narration.length ? T.narration : T.captions || []).filter((x) => x.start != null && x.end != null).map((x, i) => ({ id: String(x.id || i + 1), t0: +x.start, t1: +x.end, text: x.text || "" }));
   const linesAreCaptions = !(T.narration && T.narration.length) && lines.length > 0;
   const M = D.music || {}, sections = (M.sections || []).filter((s) => s.end > s.start), hitsL = M.hits || [], beats = T.beats || [];
@@ -1210,7 +1221,11 @@ function CutModule(area) {
   let zoom = 1, snapOn = store.get("desk:cut-snap") !== false, safe = false, cmp = false, wipe = 0.5;
   let closeRevision = null;
   let SEL = null, inPt = null, stopAt = null, clockT = 0, raf = 0, simPlaying = false, simLast = 0;
-  let follow = true, autoAt = -1, focusAt = 0, freshClick = false;   // the timeline pages along with the playhead until the person scrolls it; a click that brings the window up plays nothing
+  let follow = true, autoAt = -1, focusAt = 0, freshClick = false, trusted = false, dead = false;
+  // trusted: true from the capture of a trusted click, press or key until that event's handling is over (a timer, not a microtask,
+  // which would run between its listeners); an element's click() from code is an untrusted click and sets it false
+  const gesture = (e) => { trusted = e.isTrusted; setTimeout(() => { trusted = false; }, 0); };
+  ["click", "dblclick", "pointerup", "keydown"].forEach((k) => document.addEventListener(k, gesture, true));   // the timeline pages along with the playhead until the person scrolls it; a click that brings the window up plays nothing
   const notesOf = () => myItems().filter(([, v]) => v.t != null).map(([k, v]) => ({ kind: "mine", t: +v.t, t1: v.t1 != null ? +v.t1 : null, target: k, label: v.label || k, note: v.text || "" }));
   const agentMarks = () => gateMarks().filter((m) => m.t != null).map((m) => ({ kind: m.kind, t: +m.t, t1: m.t1 != null ? +m.t1 : null, target: m.target, label: m.id || "", note: m.note }));
   const checkMarks = () => findings.map((f, i) => ({ kind: "check", t: +f.t, t1: f.t1 != null ? +f.t1 : null, target: "time:" + (+f.t).toFixed(1), label: f.kind || "", note: shotText(f.message || ""), sev: f.severity, i }));
@@ -1290,16 +1305,17 @@ function CutModule(area) {
     tick();
     if (play) start();
   }
-  function start() {   // only ever from the person's own click or key: never from opening a stop, a time in the address, or code
-    if (video && navigator.userActivation && !navigator.userActivation.isActive) return;
+  function start() {   // only while a person's own click, key or press is being handled: never from opening a stop, a time in the address, or code
+    if (video && !trusted) return;
     if (stopAt != null && now() >= stopAt - 0.04) stopAt = null;
     follow = true;
     if (video) { video.play().catch(() => {}); if (vb && cmp) vb.play().catch(() => {}); }
     else if (dur) { if (clockT >= dur - 0.01) clockT = 0; simPlaying = true; simLast = performance.now(); }
     loop();
   }
-  function stop() { const was = simPlaying; if (video) { video.pause(); if (vb) vb.pause(); } simPlaying = false; tick(); if (!video && was) settle(); }
+  function stop() { if (dead) return; const was = simPlaying; if (video) { video.pause(); if (vb) vb.pause(); } simPlaying = false; tick(); if (!video && was) settle(); }
   function settle() {   // stopped: a selected second (what the note box is on) moves to where the picture stopped, as an editor's marker goes where you pause
+    if (dead) return;
     const x = now();
     if (drag) return;   // a scrub ends by its own rule
     if (SEL && SEL.kind === "time" && Math.abs(SEL.t - x) > 0.05 && SCOPE && String(SCOPE.target || "").startsWith("time:")) select({ kind: "time", t: x, label: fmt(x) });
@@ -1310,22 +1326,23 @@ function CutModule(area) {
     if (SEL && SEL.t1 != null && (now() < SEL.t - 0.01 || now() >= SEL.t1 - 0.04)) { seek(SEL.t); stopAt = SEL.t1; }   // a span selected: play it
     start();
   }
+  function atEnd() { if (stopAt != null && now() >= stopAt) { const x = stopAt; stopAt = null; stop(); seek(x); } }   // a span played to its end stops there
   function loop() {
     cancelAnimationFrame(raf);
     const step = (ts) => {
       if (!video && simPlaying) { clockT += (ts - simLast) / 1000; simLast = ts; if (clockT >= dur) { clockT = dur; simPlaying = false; settle(); } }
-      if (stopAt != null && now() >= stopAt) { stop(); seek(stopAt); stopAt = null; }
+      atEnd();
       tick();
       if (playing()) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
   }
   if (video) {
-    video.addEventListener("loadedmetadata", () => { if (isFinite(video.duration) && video.duration > 0) dur = video.duration; lastShot = undefined; fit(); draw(); tick(); });
-    video.addEventListener("play", loop);
-    video.addEventListener("pause", () => { if (vb) vb.pause(); tick(); settle(); });
-    video.addEventListener("seeked", tick);
-    video.addEventListener("timeupdate", () => { if (!video.paused) tick(); });   // a window in the background gets no animation frames: the time still moves
+    video.addEventListener("loadedmetadata", () => { if (dead) return; if (isFinite(video.duration) && video.duration > 0) dur = video.duration; lastShot = undefined; fit(); draw(); tick(); });
+    video.addEventListener("play", () => { if (!dead) loop(); });
+    video.addEventListener("pause", () => { if (dead) return; if (vb) vb.pause(); tick(); settle(); });
+    video.addEventListener("seeked", () => { if (!dead) tick(); });
+    video.addEventListener("timeupdate", () => { if (dead || video.paused) return; atEnd(); tick(); });   // a window in the background gets no animation frames: the time and a span's end still hold
     video.addEventListener("error", () => { frame.insertAdjacentHTML("beforeend", `<p class="none">${esc(film)}</p>`); });
   }
 
@@ -1477,7 +1494,7 @@ function CutModule(area) {
     const grp = (k, name) => { const shut = layout !== "review" && closed.has(k); return `<div class="grp${shut ? " closed" : ""}" data-grp="${k}"><button type="button" class="grp-t" aria-expanded="${!shut}" title="${esc(t(shut ? "g_unfold" : "g_fold"))}">${esc(name)}</button>${shut ? `<span class="grp-n">${esc(t("g_folded"))}</span>` : ""}</div>`; };
     tl.style.width = zoom * 100 + "%";
     tl.innerHTML = `<div class="lane ruler-l"><span class="lab"></span><div class="trk" data-ruler>${rulerTicks()}</div></div>`
-      + grp("pic", t("g_pic")) + lane("chap", t("ln_chap"), chapH, "pic", t("e_chap")) + (parts.length ? lane("parts", t("ln_parts"), partH, "pic") : "") + lane("shots", t("ln_shots"), shotH, "pic", t("e_shots"))
+      + grp("pic", t("g_pic")) + lane("chap", t("ln_chap"), chapH, "pic", t("e_chap")) + (parts.length ? lane("parts", t("ln_parts"), partH, "pic") : "") + lane("shots", t("ln_shots"), shotH, "pic", t("e_shots")) + (whyWhole ? lane("thin why", "", `<span class="lane-empty">${esc(whyWhole)}</span>`, "pic") : "")
       + grp("sound", t("g_sound")) + lane("voice extra", t("ln_voice"), lineH, "sound", t("e_voice")) + lane("music extra", t("ln_music"), beatH + secH, "sound", t("e_music"))
       + (hitsL.length ? lane("thin extra", t("ln_hits"), hitH, "sound") : "") + lane("wave extra", t("ln_wave"), wave(), "sound", t("e_wave"))
       + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + (diffH ? lane("thin extra", t("ln_diff"), diffH, "review") : "")   // what changed: a lane only when it is on record
@@ -1503,6 +1520,7 @@ function CutModule(area) {
   /* the playhead, the readout, the picture when there is no film */
   let lastShot = null, lastPlaying = null;
   function tick() {
+    if (dead) return;
     const x = now(), ph = $(".tl-ph", tl);
     if (playing() !== lastPlaying) { lastPlaying = playing(); $("#cPlay", area).innerHTML = svg(lastPlaying ? "pause" : "play"); paintSel(); }
     if (ph) ph.style.left = pct(x) + "%";
@@ -1744,7 +1762,7 @@ function CutModule(area) {
       if (target.startsWith("chapter:") || target.startsWith("seg:")) return pickThing(target);
       if (tt != null) select(t1 != null ? { kind: "range", t: tt, t1, label: `${fmt(tt)}–${fmt(t1)}` } : { kind: "time", t: tt, label: fmt(tt) });
     },
-    destroy() { if (closeRevision) closeRevision(); window.removeEventListener("focus", onFocus); document.removeEventListener("focusin", onNote); document.removeEventListener("keydown", keys); document.removeEventListener("keyup", spaceUp); area.removeEventListener("click", eatClick, true); cancelAnimationFrame(raf); if (video) video.pause(); if (vb) vb.pause(); if (ro) ro.disconnect(); else window.removeEventListener("resize", fit); },
+    destroy() { dead = true; ["click", "dblclick", "pointerup", "keydown"].forEach((k) => document.removeEventListener(k, gesture, true)); if (closeRevision) closeRevision(); window.removeEventListener("focus", onFocus); document.removeEventListener("focusin", onNote); document.removeEventListener("keydown", keys); document.removeEventListener("keyup", spaceUp); area.removeEventListener("click", eatClick, true); cancelAnimationFrame(raf); if (video) video.pause(); if (vb) vb.pause(); if (ro) ro.disconnect(); else window.removeEventListener("resize", fit); },
   };
 }
 

@@ -16,7 +16,9 @@
   "frames": {"type": "integer"},
   "size": {"type": ["array", "null"]},
   "shots_from": {"type": ["string", "null"]},
-  "shots": {"type": "array", "items": {"type": "object", "required": ["id", "start", "end", "start_frame", "end_frame"]}},
+  "shots": {"type": "array", "items": {"type": "object", "required": ["id", "start", "end", "start_frame", "end_frame"], "properties": {
+   "inner": {"description": "An edit list's row only: the shots inside it as the current film's .render.json kept them (window.film.shots of its page, named <entry>.<shot>), in the film's seconds, cut to the row; only when that film was rendered from this edit.json. A row with none has no inner.",
+    "type": "array", "items": {"type": "object", "required": ["id", "start", "end", "start_frame", "end_frame"]}}}}},
   "chapters": {
    "type": "array",
    "items": {
