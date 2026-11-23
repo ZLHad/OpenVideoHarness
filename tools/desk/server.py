@@ -675,6 +675,22 @@ def project_data(project, parts=("studio", "mods")):
         data["warnings"].append(f"bin/vh status: {type(e).__name__}: {e}")
     data["pid"] = pid_of(project)
     data["revision_stamp"] = revision_stamp
+    # each submission's state: unread (nobody took it; late: after its round was taken) or taken (when, by which agent program)
+    try:
+        took, un = F.taken(project), {f.name: late for f, _, late in F.unread(project)}
+    except Exception as e:   # the page says it cannot tell, rather than say something false
+        took, un = None, None
+        data["warnings"].append(f"the notes' states: {type(e).__name__}: {e}")
+    for fb in data.get("feedback") or []:
+        n = os.path.basename(fb.get("file") or "")
+        if took is None:
+            fb["state"] = None
+            continue
+        t = took.get(n)
+        fb["state"] = "taken" if t is not None else "unread" if n in un else "answered"
+        fb["taken"] = {"t": t.get("t"), "program": t.get("program"), "by": t.get("by")} if t is not None else None
+        fb["late"] = bool(un.get(n))
+    data["notes_stamp"] = F.notes_stamp(project)
     _drop_missing(project, data.get("shots"), "video")   # the storyboard's animatic, and the pictures the gate pages name
     for r in data.get("rounds") or []:
         g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
@@ -1119,8 +1135,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     now, plan = o.get("now"), o.get("plan")
                 except (Exception, SystemExit):   # the page keeps what it has
                     now = plan = None
-                return self._json(dict(F.listening(project), project=project.name, key=key, round=pages[-1].stem[5:] if pages else None,
-                                       revision_stamp=RV.stamp(project), now=now, plan=plan))
+                lis = F.listening(project)
+                cur = pages[-1].stem[5:] if pages else None
+                return self._json(dict(lis, project=project.name, key=key, round=cur, revision_stamp=RV.stamp(project), now=now, plan=plan,
+                                       live=bool(lis.get("listening")) and lis.get("round") is not None and lis.get("round") == F.current_round(project),
+                                       notes_stamp=F.notes_stamp(project)))
             if what == "stage":
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]
@@ -1503,7 +1522,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         saved = F.save(project, fb)
         sys.stderr.write(f"desk: feedback saved → {saved} (also in REVIEW.md)\n")
         sys.stderr.flush()
-        self._json(dict(F.listening(project), saved=os.path.relpath(saved, project)))
+        lis = F.listening(project)   # live: a wait on the round that is out takes it within the second
+        try:
+            late = next((lt for f, _, lt in F.unread(project) if f.name == saved.name), False)
+        except Exception:
+            late = False
+        self._json(dict(lis, saved=os.path.relpath(saved, project), late=late,
+                        live=bool(lis.get("listening")) and lis.get("round") is not None and lis.get("round") == F.current_round(project)))
 
     def _claim(self):
         """POST /api/claim {c}: a one-time code → this run's token, once."""

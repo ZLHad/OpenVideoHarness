@@ -3,6 +3,11 @@
 A submission is saved as out/review/feedback/<round>-<YYYYMMDD-HHMMSS>.json plus a .md copy an agent or a human
 reads; the same .md text goes into REVIEW.md verbatim, as a dated section (CLAUDE.md: the human's words are recorded
 word for word). The .json is written last, atomically: it is what the watcher (wait) waits for.
+
+A submission is in exactly one of three states, and Studio, bin/vh status and a waiting agent all read them from here:
+saved and not handed to any agent yet (unread); handed over (feedback/.consumed: which file, when, by which run and agent
+program); answered (its REVIEW.md section has a 定了). A submission saved after another one of the same round was handed
+over is a later batch (late): it is handed over like any other, said apart, and never merged into another round.
 """
 import datetime, fcntl, json, os, re, signal, sys, tempfile, threading, time
 from pathlib import Path
@@ -19,6 +24,9 @@ TARGET = re.compile(r"(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|
 RANGE = re.compile(r"range:([0-9]+(?:\.[0-9]+)?)-([0-9]+(?:\.[0-9]+)?)")   # fullmatch: range:<a>-<b>, seconds of the film, a < b
 ROUND = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
 NO_ROUND = "notes"           # comments sent while no gate page is out
+WAIT = 43200                 # s: how long bin/vh desk wait and gate --wait wait by default (12 h, the gate desk's own idle stop)
+MOVED_ON = 7                 # wait's exit when this round's page is no longer the one out: nothing came for it
+NOT_DELIVERED = 74           # wait's exit when the notes could not be written (its output closed): they stay unread
 REFERENCE = re.compile(r"^## (授权跳过怎么记|给人看的提示|How to record a waived gate|Notes for the reviewer)", re.M)
 WORDS = {
     "zh": dict(title="# 审阅反馈 · {round} · {at}", decision="决定 {id}：{v}", default="（按推荐，没改）",
@@ -272,7 +280,19 @@ def listening(project):
         return {"listening": False}
     if not activity._alive(info["pid"], info.get("since")) or (info.get("agent") is not None and not activity.agent_alive(info.get("agent"))):
         return {"listening": False}
-    return {"listening": True, "since": info.get("since"), "until": info.get("until")}
+    return {"listening": True, "since": info.get("since"), "until": info.get("until"), "round": info.get("round")}
+
+
+def notes_stamp(project):
+    """A stamp that changes when a submission is saved or handed over (the feedback folder's files and .consumed): a page
+    that shows the notes' states reads them again when it moves."""
+    fdir = Path(project) / "out" / "review" / "feedback"
+    try:
+        names = sorted(p.name for p in fdir.glob("*.json"))
+        c = (fdir / ".consumed").stat().st_mtime_ns if (fdir / ".consumed").exists() else 0
+        return f"{len(names)}:{names[-1] if names else ''}:{c}"
+    except OSError:
+        return ""
 
 
 def _order(f, j):
@@ -298,27 +318,145 @@ def latest(project, rid=None):
     return best if best else (None, None)
 
 
+def _consumed_record(project):
+    try:
+        d = json.loads((Path(project) / "out" / "review" / "feedback" / ".consumed").read_text())
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def consumed(project):
     """Names of the submissions an agent has already been handed (feedback/.consumed)."""
+    names = _consumed_record(project).get("files", [])
+    return {n for n in names if isinstance(n, str)} if isinstance(names, list) else set()
+
+
+def taken(project):
+    """{name: {t, run, program, by}}: when each handed-over submission was taken, by which bin/vh run (its activity run id,
+    when it ran under bin/vh), the agent program it ran under (claude, codex …, when one was found) and how (wait |
+    feedback). Older .consumed files have the names only: those are taken with nothing more known."""
+    d = _consumed_record(project)
+    info = d.get("taken") if isinstance(d.get("taken"), dict) else {}
+    return {n: (info.get(n) if isinstance(info.get(n), dict) else {}) for n in consumed(project)}
+
+
+def _program():
+    """The agent program this process runs under, by name (claude, codex …), or None."""
     try:
-        names = json.loads((Path(project) / "out" / "review" / "feedback" / ".consumed").read_text()).get("files", [])
-        return {n for n in names if isinstance(n, str)}
-    except (OSError, ValueError, AttributeError):
-        return set()
+        a = activity.agent_of(os.getpid())
+        if not a:
+            return None
+        name = os.path.basename(activity._ps(a["pid"], "comm=") or "")
+        if name in activity.RUNTIMES:
+            name = next((os.path.basename(w) for w in activity._ps(a["pid"], "command=").split() if activity.AGENT_PROGRAMS.match(os.path.basename(w))), name)
+        return name if activity.AGENT_PROGRAMS.match(name) else None
+    except Exception:
+        return None
 
 
-def mark_consumed(project, paths):
-    """Add these submissions to feedback/.consumed. The read-modify-write holds an flock on feedback/.consumed.lock,
-    so two bin/vh desk processes doing it at once both get their names in."""
+def _who(by):
+    return {"t": round(time.time(), 3), "run": os.environ.get("OVH_ACTIVITY_RUN") or None, "program": _program(), "by": by}
+
+
+def _locked(project, change):
+    """change(record) → (new record or None, result), under feedback/.consumed.lock (flock: other processes) and _lock (this
+    one's threads); the new record is written atomically. → result."""
     fdir = Path(project) / "out" / "review" / "feedback"
     fdir.mkdir(parents=True, exist_ok=True)
     with _lock, open(fdir / ".consumed.lock", "a") as lk:
         fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
         try:
-            names = consumed(project) | {Path(p).name for p in paths}
-            _write(fdir / ".consumed", json.dumps({"files": sorted(names)}, ensure_ascii=False) + "\n")
+            d = _consumed_record(project)
+            files = d.get("files") if isinstance(d.get("files"), list) else []
+            rec = {"files": sorted({n for n in files if isinstance(n, str)}),
+                   "taken": {k: v for k, v in d.get("taken").items() if k in files} if isinstance(d.get("taken"), dict) else {},
+                   "claims": {k: v for k, v in d.get("claims").items() if isinstance(v, dict)} if isinstance(d.get("claims"), dict) else {}}
+            new, result = change(rec)
+            if new is not None:
+                _write(fdir / ".consumed", json.dumps(new, ensure_ascii=False) + "\n")
+            return result
         finally:
             fcntl.flock(lk.fileno(), fcntl.LOCK_UN)
+
+
+def _claim_alive(c):
+    """A claim's process is still the one that made it (not gone, its pid not taken by a later one)."""
+    try:
+        return activity._alive(int(c.get("pid")), c.get("since"))
+    except (TypeError, ValueError):
+        return False
+
+
+def mark_consumed(project, paths, by="feedback"):
+    """These submissions were handed over (printed and flushed): add the ones not on record yet to feedback/.consumed as taken,
+    with when, by which run and agent program, and drop any claim on them; → the names this call added (oldest first, as
+    given). The read-modify-write holds an flock on feedback/.consumed.lock, so two bin/vh desk processes doing it at once
+    both get their names in."""
+    who, names = _who(by), list(dict.fromkeys(Path(p).name for p in paths))
+
+    def change(rec):
+        mine = [n for n in names if n not in rec["files"]]
+        for n in mine:
+            rec["taken"][n] = who
+        for n in names:
+            rec["claims"].pop(n, None)
+        rec["files"] = sorted(set(rec["files"]) | set(mine))
+        return rec, mine
+    return _locked(project, change)
+
+
+def claim(project, paths):
+    """The first of a hand-over's two steps: claim these submissions for this process, unconfirmed, with its pid and when; →
+    the names it claimed (none another live process holds, none already taken). A claim is only a claim: unread() still
+    counts the submission, nothing says it was picked up, and once the claiming process is gone (a crash, a kill) it is no
+    claim at all. confirm() makes it taken once the note was written and flushed; release() undoes it."""
+    names = list(dict.fromkeys(Path(p).name for p in paths))
+    me = {"pid": os.getpid(), "since": round(time.time(), 3)}
+
+    def change(rec):
+        live = {k: v for k, v in rec["claims"].items() if _claim_alive(v)}
+        mine = [n for n in names if n not in rec["files"] and n not in live]
+        for n in mine:
+            live[n] = me
+        rec["claims"] = live
+        return rec, mine
+    return _locked(project, change)
+
+
+def confirm(project, name, by="wait"):
+    """The second step: this process's claim on the submission becomes taken (when, which run, which agent program)."""
+    who = _who(by)
+
+    def change(rec):
+        c = rec["claims"].get(name)
+        if c is not None and c.get("pid") != os.getpid():
+            return None, False   # (another process's claim: not ours to confirm)
+        rec["claims"].pop(name, None)
+        if name not in rec["files"]:
+            rec["files"] = sorted(set(rec["files"]) | {name})
+            rec["taken"][name] = who
+        return rec, True
+    return _locked(project, change)
+
+
+def release(project, names):
+    """Undo this process's unconfirmed claims on these submissions: they are unread again, for the next wait."""
+    names = set(names)
+
+    def change(rec):
+        gone = [n for n, c in rec["claims"].items() if n in names and c.get("pid") == os.getpid()]
+        for n in gone:
+            rec["claims"].pop(n)
+        return (rec if gone else None), gone
+    return _locked(project, change) if names else []
+
+
+def current_round(project):
+    """This round's page id (the one the desk shows as this round: reader.gate_pages' last readable page), or NO_ROUND."""
+    import reader
+    pages = [p for p in reader.gate_pages(project) if gate_options(project, p.stem[5:]) is not None]
+    return pages[-1].stem[5:] if pages else NO_ROUND
 
 
 def pending(project):
@@ -332,7 +470,45 @@ def pending(project):
     return sorted(out, key=lambda x: _order(*x))
 
 
-def show(path, record, out=sys.stdout):
+def answered(project):
+    """Names of the submissions whose REVIEW.md section (the one save() wrote, naming the .json) has a 定了: an agent read it
+    and wrote what was decided, however it read it."""
+    try:
+        import gatecheck as G
+        text = G.read(Path(project) / "REVIEW.md")
+    except (OSError, ImportError):
+        return set()
+    out = set()
+    for _title, lines in G.sections(text)[1:]:
+        names = re.findall(r"out/review/feedback/([^`\s)]+\.json)", "\n".join(x for x, c in lines if not c))
+        if names and G.record(lines)[0]:
+            out.update(names)
+    return out
+
+
+def unread(project):
+    """Every submission no agent has been handed and no agent has answered, of any round, oldest first: [(path, record,
+    late)]. late: a submission of the same round was handed over before it (the person wrote more after the round was
+    taken). These are what the next wait hands over first, and what bin/vh status puts before any other work."""
+    done, ans, took = consumed(project), answered(project), taken(project)
+    recs = sorted(((f, j) for f, j in _records(project) if isinstance(j.get("round"), str) and ROUND.match(j["round"]) and isinstance(j.get("submitted_at"), str)),
+                  key=lambda x: _order(*x))   # (submissions as save() writes them: a stray or broken file is no note of the person's)
+    out = []
+    for i, (f, j) in enumerate(recs):
+        if f.name in done or f.name in ans:
+            continue
+        late = any(g.name in done and (took.get(g.name) or {}).get("t") and k.get("round") == j.get("round") for g, k in recs[:i])   # (a hand-over recorded with its time: an older record's names say nothing of when)
+        out.append((f, j, late))
+    return out
+
+
+LATE = ("(a later batch: the person wrote these after round {r} had been handed over; they are notes on round {r}, "
+        "not on any other page)\n")
+
+
+def show(path, record, out=sys.stdout, late=False):
+    if late:
+        out.write(LATE.format(r=record.get("round", "?")))
     md = path.with_suffix(".md")
     try:
         text = md.read_text(encoding="utf-8")
@@ -360,17 +536,58 @@ def _handed(subs):
                   [f for f, _ in subs])
 
 
-def wait(project, timeout, poll=1.0, out=sys.stdout, desk=None):
-    """Hand the agent the reviewer's submission: print it, mark it consumed, return 0; 3 on timeout.
-    A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
-    timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
-    feedback/.listening ({pid, since, until, project, agent}) so the desk can say an agent is waiting. agent: the agent
-    program it runs under (activity.agent_of), when there is one; once that agent is gone, or the wait's own parent is (it
-    was re-parented: whatever program started it ended), the wait ends (4): nobody would read what it hands over. desk:
-    (pid, since) of the review desk (or Studio) the person submits on (bin/vh gate --wait); once it closes nothing more can
-    come, and the wait ends (6), saying so."""
+CLAIMED = set()   # this process's claims not confirmed yet: a signal on the way out releases them
+
+
+class NotDelivered(Exception):
+    """The notes could not be written to the agent (its output closed or broken): their claims were released."""
+
+
+def _hand(project, subs, rid, out):
+    """Hand these [(path, record, late)] over, each in two steps: claim them (unconfirmed), then for each one write it, flush,
+    and only then confirm it as taken. A write or flush that fails releases what is not confirmed and raises NotDelivered;
+    a signal releases it too (wait's handler). → how many this process handed over (another wait may hold some)."""
+    mine = set(claim(project, [f for f, _, _ in subs]))
+    got = [(f, j, late) for f, j, late in subs if f.name in mine]
+    CLAIMED.update(mine)
+    try:
+        for f, j, late in got:
+            show(f, j, out, late=late)   # (it flushes)
+            confirm(project, f.name, by="wait")
+            CLAIMED.discard(f.name)
+    except (OSError, ValueError) as e:   # a closed or broken output: not delivered
+        release(project, list(CLAIMED))
+        CLAIMED.clear()
+        raise NotDelivered(str(e)) from e
+    if got:
+        try:
+            out.write(HANDED)
+            if rid is not None and not any(j.get("round") == rid for _, j, _ in got):
+                out.write(f"Nothing has come for round {rid} yet: once these are dealt with, wait for it again (bin/vh desk wait {project}).\n")
+            out.flush()
+        except (OSError, ValueError):
+            pass   # (the notes themselves went out and were confirmed)
+        _handed([(f, j) for f, j, _ in got])
+    return len(got)
+
+
+def wait(project, timeout, poll=1.0, out=sys.stdout, desk=None, round=None):
+    """Hand the agent the reviewer's submission: print it, mark it handed over (taken), return 0; 3 on timeout.
+    The wait is for one round: round (bin/vh gate --wait's page), else this round's page as the desk shows it. First it hands
+    over every submission nobody has taken or answered yet, of any round (unread: a later batch on a round that was already
+    taken says so); then it waits for a new submission, keeping feedback/.listening ({pid, since, until, project, agent,
+    round}) so the desk can say an agent is waiting for that round. A new submission of another round (a page the person's
+    window still showed) is handed over too, said for what it is: notes are never left behind. Each submission is claimed
+    under .consumed's lock, so two waits never both take one. When this round's page is no longer the one out (the agent sent
+    another page), the wait ends (7) and says nothing came for it. agent: the agent program it runs under
+    (activity.agent_of), when there is one; once that agent is gone, or the wait's own parent is (it was re-parented: whatever
+    program started it ended), the wait ends (4): nobody would read what it hands over. desk: (pid, since) of the review desk
+    (or Studio) the person submits on (bin/vh gate --wait); once it closes nothing more can come, and the wait ends (6),
+    saying so. Whatever ends a wait but a submission (3, 4, 6, 7, a signal) leaves every note unread, for the next wait and
+    bin/vh status."""
     fdir = Path(project) / "out" / "review" / "feedback"
     flag = fdir / ".listening"
+    rid = round or current_round(project)
 
     def done(code):
         try:
@@ -381,26 +598,45 @@ def wait(project, timeout, poll=1.0, out=sys.stdout, desk=None):
         return code
 
     def stop(signum, _frame):
+        if CLAIMED:   # claimed and not written: unread again for the next wait
+            try:
+                release(project, list(CLAIMED))
+            finally:
+                CLAIMED.clear()
         raise SystemExit(done(128 + signum))
+
+    def undelivered(e):
+        try:
+            sys.stderr.write(f"the notes could not be written ({e}): they stay unread for the next wait and bin/vh status\n")
+        except (OSError, ValueError):
+            pass
+        if out is sys.stdout:   # its output is gone: Python's own last flush would fail too, and turn this exit status into 120
+            try:
+                os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+            except (OSError, ValueError):
+                pass
+        return done(NOT_DELIVERED)
     # the handlers before the flag: a signal from the moment the flag is there (a client sees it) ends the wait with its
     # status in the activity log and takes the flag away
     for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(s, stop)
     fdir.mkdir(parents=True, exist_ok=True)
-    seen = {p.name for p in fdir.glob("*.json")}   # first: a submission landing after this is either pending or new
-    early = pending(project)
-    if early:
-        for f, j in early:
-            show(f, j, out)
-        mark_consumed(project, [f for f, _ in early])
-        out.write(HANDED)
+    parent = os.getppid()   # whatever program started it: a wait re-parented (its parent gone) has nobody to hand over to
+    if parent == 1:   # started orphaned (or its starter already gone): nothing is handed to nobody
+        out.write("the program that started this wait is gone; nothing is handed over (the notes stay unread)\n")
         out.flush()
-        _handed(early)
-        return 0
+        return done(4)
+    seen = {p.name for p in fdir.glob("*.json")}   # first: a submission landing after this is either unread now or new
+    early = unread(project)
+    try:
+        if early and _hand(project, early, rid, out):
+            return 0
+    except NotDelivered as e:
+        return undelivered(e)
     start = time.time()
     agent = activity.agent_of(os.getpid())
-    parent = os.getppid()   # whatever program started it: a wait re-parented (its parent gone) has nobody to hand over to
-    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project)), "agent": agent}))
+    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project)),
+                             "agent": agent, "round": rid}))
     looked = start
     while time.time() - start < timeout:
         gone = os.getppid() != parent
@@ -415,16 +651,23 @@ def wait(project, timeout, poll=1.0, out=sys.stdout, desk=None):
             out.write("the agent this wait was for is gone; the wait ends (the notes stay in Studio)\n")
             out.flush()
             return done(4)
-        new = sorted(((f, j) for f, j in _records(project) if f.name not in seen), key=lambda x: _order(*x))
-        if new:
-            for f, j in new:
-                show(f, j, out)
-            mark_consumed(project, [f for f, _ in new])
-            out.write(HANDED)
+        now = current_round(project)
+        new = [(f, j) for f, j in _records(project) if f.name not in seen]
+        if new:   # first what came: its own round's, and any other but the new page's (that one is its own wait's)
+            seen |= {f.name for f, _ in new}
+            ids = {f.name for f, _ in new}
+            fresh = [(f, j, late) for f, j, late in unread(project) if f.name in ids and (now == rid or j.get("round") != now)]
+            try:
+                if fresh and _hand(project, fresh, rid, out):
+                    return done(0)
+            except NotDelivered as e:
+                return undelivered(e)
+        if now != rid:   # another page went out: this round is over, nothing came for it, and the new page's notes are its own wait's
+            out.write(f"the page for round {rid} is no longer the one out (round {now} is): nothing was submitted for {rid}, "
+                      "and this wait ends. Run bin/vh status, and wait on the round that is open now\n")
             out.flush()
-            _handed(new)
-            return done(0)
+            return done(MOVED_ON)
         time.sleep(poll)
-    out.write(f"no feedback within {timeout:.0f} s; arm it again: bin/vh desk wait {project}\n")
+    out.write(f"no feedback within {timeout:.0f} s; the notes stay unread for the next wait or bin/vh status. Arm it again: bin/vh desk wait {project}\n")
     out.flush()
     return done(3)

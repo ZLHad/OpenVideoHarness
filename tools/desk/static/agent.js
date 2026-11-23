@@ -38,6 +38,8 @@ const ASTR = {
     busy_command: "终端里正在跑 {x}。等它跑完再让 agent 动手。",
     busy_process: "终端里有 {x} 开在这支片子的文件夹里，它可能正在改东西。现在让 {a} 动手，两边可能改到同一处。",
     busy_waiting: "终端里有个 agent 在等你交这一站。现在让 {a} 动手，两边可能改到同一处。", busy_anyway: "仍然发这一句", busy_not: "先不发",
+    busy_outside: "这支片子开在这个窗口外面的 {x} 里，在这里说的话它收不到。在这里发出去，会另起一个 AI 做同一支片子，两个可能改到同一处。", busy_outside_go: "另起一个 AI",
+    empty_outside: "这支片子开在这个窗口外面的 {x} 里，在这里说的话它收不到。在这里发第一句，会另起一个 AI；要那边接着做，回到那边说。", ai_any: "AI",
     perm_h: "{a} 想{v}", perm_toast: "{a} 想{v}，等你批准", perm_wait: "等你批准", perm_by_person: "你选了：{o}", perm_by_stop: "你点了停止，取消了", perm_by_timeout: "没有页面开着，{m} 分钟后按“不行”处理了",
     perm_by_gone: "agent 停了，这一问不算了", perm_by_restart: "Studio 重启过，这一问不算了", perm_by_turn: "它这一句做完了，这一问不算了", perm_by_desk: "Studio 关了，这一问不算了",
     o_allow_once: "允许这一次", o_allow_always: "这个对话里同类的都允许", o_reject_once: "不允许", o_reject_always: "一直不允许",
@@ -93,6 +95,8 @@ const ASTR = {
     busy_command: "{x} is running in a terminal. Let it finish before the agent starts.",
     busy_process: "{x} is open in this film's folder in a terminal and may be editing. If {a} starts now, both may edit the same thing.",
     busy_waiting: "An agent in a terminal is waiting for you to send this stop. If {a} starts now, both may edit the same thing.", busy_anyway: "Send this one anyway", busy_not: "Not now",
+    busy_outside: "This film is open in {x} outside this window, and what you say here does not reach it. Sending here starts a second AI on the same film; the two may change the same thing.", busy_outside_go: "Start a second AI",
+    empty_outside: "This film is open in {x} outside this window, and what you say here does not reach it. Your first message here starts a second AI; to have that one carry on, say so over there.", ai_any: "An AI",
     perm_h: "{a} wants to {v}", perm_toast: "{a} wants to {v}: waiting for your OK", perm_wait: "Waiting for your OK", perm_by_person: "You chose: {o}", perm_by_stop: "Cancelled when you pressed Stop", perm_by_timeout: "No page was open; after {m} minutes it was refused",
     perm_by_gone: "The agent stopped, so this request no longer counts", perm_by_restart: "Studio restarted, so this request no longer counts", perm_by_turn: "Its reply ended, so this request no longer counts", perm_by_desk: "Studio closed, so this request no longer counts",
     o_allow_once: "Allow this once", o_allow_always: "Allow the same kind in this chat", o_reject_once: "Don't allow", o_reject_always: "Never allow",
@@ -297,10 +301,17 @@ const AGENT = (() => {
   let OFFER = null;   // the sample the person picked on the space's wall while the box could not take it (no agent set up, the
   // space's chat working or waiting for approval): kept here and offered again with one click, never put in the box by itself
   const busyNow = () => !!(S && (S.running || Object.values(S.perms).some((p) => !p.answered)));
+  function outsider() {   // an agent outside this window holds this film, and no conversation here has begun on it: its name, else null
+    if (KEYP === SPACE || (S && S.sum && S.sum.turns)) return null;
+    const h = typeof D !== "undefined" && D && D.status && D.status.holder;
+    return h && h.outside ? ({ claude: "Claude Code", codex: "Codex" }[h.program] || at("ai_any")) : null;
+  }
   const offerName = () => (OFFER ? t(`smp_${OFFER}_type`) : "");
   function offerKept() { return OFFER && KEYP === SPACE ? `<p class="ag-offer-keep">${esc(at("of_keep", { x: offerName() }))}</p>` : ""; }
   let TELLING = "";   // the carry-on words a refused click was for: the busy line's "anyway" sends them, never the box's draft
   async function sayWords(text, despite) {
+    const o = !despite && outsider();
+    if (o) { BUSY = [{ why: "outside", label: o }]; TELLING = text; render(); return; }   // a second AI on this film: asked for in those words first
     const r = await post(`${S.id}/say`, { text, despite: !!despite });
     if (r.ok) { BUSY = null; TELLING = ""; S.sum.turns = (S.sum.turns || 0) + 1; }
     else if (r.status === 409 && r.data && r.data.who) { BUSY = r.data.who; TELLING = text; }
@@ -309,6 +320,7 @@ const AGENT = (() => {
   }
   async function again(e) {   // "send it anyway" on the busy line: what was refused, the carry-on words or the box
     if (!e || !e.isTrusted) return;
+    if (TELLING && !S && !(await start(KIND, true))) return;   // (a second AI asked for: it starts now)
     if (TELLING && S) return sayWords(TELLING, true);
     return send(e, true);
   }
@@ -316,6 +328,8 @@ const AGENT = (() => {
     if (!e || !e.isTrusted) return;   // only a real key press or click sends, and only what is in the box
     const ta = $("#agSay"), text = ta ? ta.value.trim() : "";
     if (!text) { if (ta) ta.focus(); return; }
+    const o = !despite && outsider();
+    if (o) { BUSY = [{ why: "outside", label: o }]; render(); return; }   // nothing starts before the person says to start a second AI
     if (!S && !(await start(KIND, true))) return;
     const sc = typeof SCOPE !== "undefined" && SCOPE && SCOPE.target ? SCOPE : null;
     const scope = sc ? { kind: sc.target.split(":")[0], id: sc.target.split(":").slice(1).join(":"), t: sc.t, t1: sc.t1, module: typeof MOD !== "undefined" ? MOD : "", label: sc.label } : null;
@@ -550,7 +564,8 @@ const AGENT = (() => {
     if (KEYP === SPACE) return `<div class="ag-empty ag-space"><h3>${esc(at("sp_h"))}</h3>${S ? "" : startPicks()}<p>${esc(at("sp_b", { a: m.label }))}</p><p class="ag-mute">${esc(at("sp_c"))}</p><div class="ag-opts">${prepare}<button type="button" class="btn ghost xs" id="agCopyAsk">${esc(at("sp_copy"))}</button></div></div>${ownHtml()}<section id="spaceRun"></section>`;
     const st = !S && INFO && (INFO.strays || [])[0];
     if (st) return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3><p>${esc(at("stray", { x: cut(st.first || "—", 40) }))}</p><div class="ag-opts"><button type="button" class="btn btn-primary" id="agBring" data-sid="${esc(st.id)}">${esc(at("stray_go"))}</button></div></div>`;
-    return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3>${S ? "" : startPicks()}<p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${prepare}${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
+    const ox = outsider();
+    return `<div class="ag-empty"><h3>${esc(at("empty_h", { a: m.label }))}</h3>${ox ? `<p class="ag-note warn">${esc(at("empty_outside", { x: ox }))}</p>` : ""}${S ? "" : startPicks()}<p>${esc(at("empty_b"))}</p><p class="ag-mute">${esc(at("empty_c"))}</p>${prepare}${KIND === "dsh" ? `<p class="ag-mute">${esc(at("empty_dsh"))}</p>` : ""}</div>`;
   }
   function itemHtml(it) {
     const a = esc(label());
@@ -758,7 +773,8 @@ const AGENT = (() => {
     const sc = typeof SCOPE !== "undefined" && SCOPE ? SCOPE : null;
     const x = sc ? sc.label : typeof scopeLabel === "function" ? scopeLabel() : "";
     const busy = BUSY ? BUSY.map((w) => at("busy_" + (w.why || "console"), { a: label(), x: w.label || "", p: w.pid || "" })).join(" ") : "";
-    const anyway = BUSY && BUSY.length && BUSY.every((w) => w.why === "waiting" || w.why === "process");
+    const anyway = BUSY && BUSY.length && BUSY.every((w) => w.why === "waiting" || w.why === "process" || w.why === "outside");
+    const goWord = BUSY && BUSY.some((w) => w.why === "outside") ? at("busy_outside_go") : at("busy_anyway");
     const ready = !!(f.dataset.ready);
     if (!ready) {
       f.dataset.ready = "1";
@@ -796,7 +812,7 @@ const AGENT = (() => {
     const ofHtml = ofOn ? `<span>${esc(at(busyNow() ? "of_busy" : "of_ready", { x: offerName() }))}</span><span class="ag-opts">${busyNow() ? "" : `<button type="button" class="btn btn-primary" id="agOfferGo">${esc(at("of_go"))}</button>`}<button type="button" class="btn ghost" id="agOfferNo">${esc(at("of_no"))}</button></span>` : "";
     if (of.dataset.html !== ofHtml) { of.innerHTML = ofHtml; of.dataset.html = ofHtml; }
     const bz = $("#agBusy"); bz.hidden = !busy;
-    bz.innerHTML = busy ? `<span>${esc(busy)}</span>${anyway ? `<span class="ag-opts"><button type="button" class="btn" id="agAnyway">${esc(at("busy_anyway"))}</button><button type="button" class="btn ghost" id="agNotNow">${esc(at("busy_not"))}</button></span>` : ""}` : "";
+    bz.innerHTML = busy ? `<span>${esc(busy)}</span>${anyway ? `<span class="ag-opts"><button type="button" class="btn" id="agAnyway">${esc(goWord)}</button><button type="button" class="btn ghost" id="agNotNow">${esc(at("busy_not"))}</button></span>` : ""}` : "";
   }
   function render() { renderHead(); renderThread(); renderFoot(); }
   async function bring(sid) {   // the person's click on a new film's empty column: that conversation from the space comes here
@@ -904,13 +920,16 @@ const AGENT = (() => {
     tabs, setTab, fresh,
     offer,
     listening(on) { if (LISTEN !== !!on) { LISTEN = !!on; if (KEYP && KEYP !== SPACE) renderHead(); } },
-    async tell(e, text) {   // Studio's own button (the column's one action): its own words (bin/vh status's, Studio's word table and numbers), sent in this
-      // film's conversation, the newest one, else a new one; the box keeps the person's draft (it is filled only by them)
+    async tell(e, text, sure) {   // Studio's own button (the column's one action): its own words (bin/vh status's, Studio's word table and numbers), sent in this
+      // film's conversation, the newest one, else a new one; the box keeps the person's draft (it is filled only by them). sure: the
+      // person already said, in so many words, to start a second AI on a film an agent outside this window holds
       if (!e || !e.isTrusted || !KEYP || KEYP === SPACE || !text || !KEYOK) return;
       setTab("chat");
       if (!S && meta(KIND).installed) { const last = sessionsOf(KIND)[0]; if (last) open(last); }
+      const o = !sure && outsider();
+      if (o) { BUSY = [{ why: "outside", label: o }]; TELLING = text; render(); return; }   // asked first, nothing started
       if (!S && !(await start(KIND, true))) return;
-      await sayWords(text, false);
+      await sayWords(text, !!sure);
     },
     _again: (e) => again(e),   // for tools/desk/test_agents.py (node): the busy line's "anyway" after a refused carry-on
     busy: () => !!(S && S.running && KEYP !== SPACE),   // a turn in this film's column now (the flow strip's agent lamp)

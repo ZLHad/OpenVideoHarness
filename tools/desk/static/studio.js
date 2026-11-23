@@ -407,13 +407,15 @@ function renderColumn() {
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
   const home = GATE_MOD[gateBase(ROUND.id)] || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
-  const hd = handedNow(), H = hd && !REHAND[KEY];   // this stop's notes were handed over: what went, not the cards as if nothing had
+  const hd = handedNow(), H = hd && !REHAND[KEY];   // this stop's notes went (taken, or sent and not picked up yet): what went, not the cards as if nothing had
   const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t(earOf(ROUND.id) ? "away_listen" : "away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
     : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
-  const sent = H ? "" : FB.sent ? t("sent_n", { n: FB.sent.n, d: FB.sent.d, at: FB.sent.at }) : FB.submittedAt ? t("submitted", { at: FB.submittedAt }) : "";   // what went, and that it does not go again
-  $("#colBody").innerHTML = `${sent ? `<p class="notice">${esc(sent)}</p>` : ""}${decs}<section id="cMarks"></section><section id="cMine"></section><section id="colNext"></section>`;
+  // what went is said in the notes block below, with its state (sent and not picked up, or picked up: when, by whom)
+  // two parts: what to decide and look at scrolls above; the notes and their state below it, never squeezed out by the cards
+  $("#colBody").classList.add("split");
+  $("#colBody").innerHTML = `<div class="col-scroll" id="colScroll">${decs}<section id="cMarks"></section><section id="colNext"></section></div><section id="cMine" class="c-mine"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
@@ -423,26 +425,79 @@ function renderColumn() {
   AGENT.enter(PKEY);   // the column's other tab: the conversation with the agent on this film (agent.js)
 }
 const REHAND = {};   // a stop whose handed-over notes the person chose to change: its cards again
-function handedNow() {   // the newest submission for this round's stop, once it went to the agent's side (the stop waits for the agent)
+function handedNow() {   // the newest submission for this round's stop, once it went (the stop waits for the agent): picked up or not yet
   if (!D || !ROUND || ROUND.id === "notes" || roundState() !== "waiting_agent") return null;
-  const L2 = (D.feedback || []).filter((f) => f.round === ROUND.id);
+  const L2 = (D.feedback || []).filter((f) => f.round === ROUND.id && !f.late);
   return L2.length ? L2[L2.length - 1] : null;
 }
-function handedHtml(f) {   // each decision as it went, the notes, when; and the way to change them and hand over again
+const PROG = { claude: "Claude Code", codex: "Codex" };
+function progName(p) { return PROG[p] || t("ho_ai"); }   // the agent by its name when it is known, else AI
+function holderName() { const h = D && D.status && D.status.holder; return progName(h && h.program); }
+function stepName(rid) {   // a round by its step's name (旁白稿, 大纲 …): a gate ① page without concept cards is the outline
+  const b = gateBase(rid), r = (D.rounds || []).find((x) => x.id === rid);
+  const cards = r && ((r.data || {}).decisions || []).some((d) => (d.options || []).some((o) => o && o.frame));
+  const k = rid === "notes" ? "ho_s_notes" : b === "1" && r && !cards ? "ho_s_outline" : b ? "ho_s_" + b : "ho_s_other";
+  return STR[LANG][k] ? t(k) : t("ho_s_other");
+}
+function subCount(f) { return (f.items || []).length + (f.general ? 1 : 0) + Object.keys(f.decisions || {}).length; }
+function lastOf(rid) { const L2 = (D.feedback || []).filter((f) => f.round === rid); return L2.length ? L2[L2.length - 1] : null; }
+function roundTaken() { const f = (D.feedback || []).filter((x) => x.round === ROUND.id && x.state === "taken").pop(); return f || null; }
+function whoTakes(kind) {   // who picks notes up now, in a line: the wait on this round, the agent outside this window, else nobody yet
+  const h = D.status && D.status.holder, a = holderName();
+  return LIVE ? t(kind + "_live", { a }) : h && h.outside ? t(kind + "_out", { a }) : t(kind === "ho_who" ? "ho_who_next" : "ho_d_nobody");
+}
+function takenAt(f) {
+  const x = f.taken && f.taken.t ? new Date(f.taken.t * 1000) : null;
+  return x ? x.toLocaleString(LANG === "zh" ? "zh-CN" : "en", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+}
+function handedHtml(f) {   // each decision as it went, when; and the way to change them and send again (the notes are in the notes block, with their state)
   const D2 = ROUND.data.decisions || [];
   const dec = Object.entries(f.decisions || {}).map(([k, v]) => { const q = D2.find((x) => x.id === k) || {}, o = (q.options || []).find((x) => (x.id || x) === v);
     const said = o ? (typeof o === "string" ? o : o.label || o.title || t("handed_opt")) : t("handed_gone");   // an option by its words, never its code
     return `<li><span class="mono tc">·</span><span><b>${esc(cut(q.question || t("handed_q"), 40))}</b> ${esc(said)}</span></li>`; });
-  const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const notes = (f.items || []).map((i) => `<li><span class="mono tc">·</span><span><b>${esc(cut(i.label || i.target || "", 40))}</b> ${esc(i.text || st[i.status] || "")}</span></li>`);
-  const gen = f.general ? [`<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(f.general)}</span></li>`] : [];
+  if (!dec.length) return "";
   const at = f.submitted_at ? new Date(f.submitted_at).toLocaleString(LANG === "zh" ? "zh-CN" : "en", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-  const all = dec.concat(notes, gen);
-  return `<section class="c-handed"><h3 class="blk-h"><b>${esc(t("c_handed"))}</b>${at && at !== "Invalid Date" ? `<span class="tag">${esc(at)}</span>` : ""}</h3>`
-    + (all.length ? `<ul class="note-list">${all.join("")}</ul>` : `<p class="next quiet-line">${esc(t("handed_none"))}</p>`)
-    + `<button type="button" class="btn xs" id="reHand">${esc(t("rehand"))}</button></section>`;
+  const head = f.state === "taken" ? t("c_handed") : t("ho_sent_h");   // never "handed over" before a run took it
+  return `<section class="c-handed"><h3 class="blk-h"><b>${esc(head)}</b>${at && at !== "Invalid Date" ? `<span class="tag">${esc(at)}</span>` : ""}</h3>`
+    + `<ul class="note-list">${dec.join("")}</ul><button type="button" class="btn xs" id="reHand">${esc(t("rehand"))}</button></section>`;
 }
 $("#colBody").addEventListener("click", (e) => { if (e.target.closest("#reHand")) { REHAND[KEY] = true; renderColumn(); } });
+function leftOver() {   // drafts this browser keeps for an earlier page of this film (the agent sent a new page since): [{rid, fb, n, rows}]
+  if (!D || !PKEY) return [];
+  const out = [], pre = `desk:${PKEY}:`;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i); if (!k || !k.startsWith(pre) || k === KEY) continue;
+      const rid = k.slice(pre.length), fb = store.get(k) || {};
+      if (!/^[A-Za-z0-9_-]{1,24}$/.test(rid) || rid !== "notes" && !(D.rounds || []).some((r) => r.id === rid)) continue;   // (a page still on file: one gone has no round to send to)
+      const rows = Object.entries(fb.items || {}).filter(([, v]) => v && v.status).map(([tg, v]) => ({ target: tg, label: v.label || tg, text: v.text || "", v }));
+      const gens = Array.isArray(fb.generalItems) && fb.generalItems.length ? fb.generalItems.filter((g) => g && typeof g.text === "string" && g.text.trim())
+        : fb.general && String(fb.general).trim() ? [{ label: "", text: String(fb.general) }] : [];
+      gens.forEach((g) => rows.push({ target: "", label: g.label || t("c_whole_note"), text: g.text }));
+      if (rows.length) out.push({ rid, fb, n: rows.length, rows });
+    }
+  } catch (e) { /* no storage: nothing kept */ }
+  return out;
+}
+$("#colBody").addEventListener("click", async (e) => {   // drafts of an earlier page: sent to that page's own round, or dropped, as the person says
+  const send = e.target.closest("[data-left-send]"), drop = e.target.closest("[data-left-drop]");
+  if (!send && !drop) return;
+  const rid = (send || drop).dataset.leftSend || (send || drop).dataset.leftDrop, k = `desk:${PKEY}:${rid}`, x = leftOver().find((y) => y.rid === rid);
+  if (!x) return;
+  if (drop) { try { localStorage.removeItem(k); } catch (err) { /* no storage */ } renderMine(); return; }
+  const items = x.rows.filter((r) => r.target).map((r) => Object.assign({ target: r.target, status: r.v.status, label: fitLabel(r.label), text: r.text },
+    r.v.suggest && r.v.suggest !== r.v.orig ? { suggest: r.v.suggest } : {}, r.v.orig && r.target.startsWith("cap:") ? { orig: r.v.orig } : {}, r.v.t != null ? { t: r.v.t } : {}, r.v.t1 != null ? { t1: r.v.t1 } : {}));
+  const p = { round: rid, lang: LANG, decisions: {}, defaulted: [], items, general: String(x.fb.general || "").trim(), pid: D.pid };
+  let r = null;
+  try { r = await fetch(`/api/p/${enc(PKEY)}/feedback`, { method: "POST", headers: { "Content-Type": "application/json", "X-Desk-Token": TOKEN }, body: JSON.stringify(p) }); } catch (err) { r = null; }
+  if (r && r.ok) {
+    const j = await r.json();
+    try { localStorage.removeItem(k); } catch (err) { /* no storage */ }
+    const h = D.status && D.status.holder;
+    toast(j.live ? t("ho_sent_live", { a: holderName() }) : h && h.outside ? t("ho_sent_out", { a: holderName() }) : t("ho_sent_kept"));
+    await reloadProject(false);
+  } else toast(t("ho_left_fail"));   // (kept here: nothing is lost)
+});
 function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then the column: a bar above the picture goes to the decisions
   const pd = $("#phoneDec"); if (!pd || !D) return;
   const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = GATE_MOD[gateBase(ROUND.id)] || "cut";
@@ -482,6 +537,9 @@ function renderMarks() {   // the round's places in the film: on the round's own
   $$("#cMarks details").forEach((d) => d.addEventListener("toggle", () => { COLOPEN[d.dataset.k] = d.open; }));
 }
 const COLOPEN = { least: false, listen: false };
+function notesCount() {   // the notes the person sees listed, the bar's count and the block's alike: each whole-film note its own (generalParts)
+  return myItems().length + generalParts().length;
+}
 function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.status); }
 const joinGeneral = (L) => L.map((g) => (g.label ? `〔${g.label}〕` : "") + g.text).join("\n");   // what goes: the notes, each "〔its place〕its words", a line apart, as before
 function generalParts() {   // the overall notes, each with its label ("不对着片子", "整片", a module) and its words, its own lines kept
@@ -497,9 +555,27 @@ function renderMine() {
   const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span class="nt"><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = generalParts().map((g, i) => `<li class="general"><span class="mono tc">·</span><span class="nt"><b>${esc(g.label || t("c_whole_note"))}</b> ${esc(g.text)}</span><button type="button" class="x" data-del="#general:${i}" aria-label="${esc(t("del"))}">×</button></li>`).join("");
   const none = !items.length && !gen;   // none yet: the heading and how to start, on one line
-  $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + generalParts().length}</span>${none ? `<span class="hint-inline">${esc(t(MOD === "cut" ? "c_mine_how" : "c_mine_how_m"))}</span>` : ""}</h3>`
-    + (none ? "" : `<ul class="note-list mine">${gen}${items.map(row).join("")}</ul>`);
+  const n = notesCount(), subs = D ? (D.feedback || []) : [];
+  const unread = subs.filter((f) => f.state === "unread"), took = roundTaken();
+  const st2 = (cls, words, more) => `<p class="ho-st ${cls}"><i aria-hidden="true"></i><span>${esc(words)}</span></p>${more ? `<p class="ho-more">${esc(more)}</p>` : ""}`;
+  const sentList = (f) => `<ul class="note-list sent">${(f.items || []).map((i) => `<li><span class="mono tc">·</span><span><b>${esc(cut(i.label || i.target || "", 40))}</b> ${esc(i.text || st[i.status] || "")}</span></li>`).join("")}${f.general ? `<li><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(f.general)}</span></li>` : ""}</ul>`;
+  const groups = {};   // what was sent and nobody picked up, by round (a later batch said apart)
+  unread.forEach((f) => { const k = f.round + (f.late ? ":late" : ""); (groups[k] = groups[k] || []).push(f); });
+  const unreadHtml = Object.values(groups).map((G) => { const c = G.reduce((a, f) => a + subCount(f), 0), late = G[0].late;
+    return `<div class="ho-batch unread">${st2("unread", `${t(late ? "ho_unread_late" : "ho_unread", { n: c })} · ${stepName(G[0].round)}`, whoTakes("ho_who"))}${G.map(sentList).join("")}</div>`; }).join("");
+  const leftHtml = leftOver().map((x) => `<div class="ho-batch left">${st2("left", t("ho_left", { n: x.n, s: stepName(x.rid) }), t("ho_left_b"))}<ul class="note-list sent">${x.rows.map((r) => `<li><span class="mono tc">·</span><span><b>${esc(cut(r.label, 40))}</b> ${esc(r.text)}</span></li>`).join("")}</ul>`
+    + `<div class="ho-acts"><button type="button" class="btn xs" data-left-send="${esc(x.rid)}">${esc(t("ho_left_send", { s: stepName(x.rid) }))}</button><button type="button" class="btn btn-quiet xs" data-left-drop="${esc(x.rid)}">${esc(t("ho_left_drop"))}</button></div></div>`).join("");
+  const takenHtml = took && !unread.some((f) => f.round === ROUND.id) ? `<details class="ho-batch taken"><summary>${st2("taken", t("ho_taken", { at: takenAt(took), a: progName(took.taken && took.taken.program) }) + " · " + t("ho_taken_n", { n: subCount(took) }))}</summary>${sentList(took)}</details>` : "";
+  $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("ho_mine"))}</b>${n ? `<span class="tag">${esc(t("ho_draft", { n }))}</span>` : ""}${none && !unreadHtml && !takenHtml ? `<span class="hint-inline">${esc(t(MOD === "cut" ? "c_mine_how" : "c_mine_how_m"))}</span>` : ""}</h3>`
+    + (none ? "" : `<ul class="note-list mine">${gen}${items.map(row).join("")}</ul>`) + leftHtml + unreadHtml + takenHtml;
+  requestAnimationFrame(keepNewest);
 }
+function keepNewest() {   // the note kept last is the one in view, however many there are (also once the column's tab shows the block)
+  const box = $("#cMine"), keys = FB ? Object.keys(FB.items) : [];
+  const newest = box && keys.length ? $(`li[data-goto="${CSS.escape(keys[keys.length - 1])}"]`, box) : null;
+  if (newest && box.scrollHeight > box.clientHeight) box.scrollTop = Math.max(0, newest.offsetTop - box.clientHeight + newest.offsetHeight + 8);
+}
+if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => keepNewest()).observe($("#colBody"));
 function renderNext() {   // what happens next, in a line: who, and what (status's words in this page's language; its commands only in a tooltip)
   const st = (D && D.status) || {}, ns = st.next_step || {}, run = ((st.activity || {}).running || []);
   const who = ns.who === "person" ? "person" : ns.who === "nobody" ? "nobody" : "agent";
@@ -523,11 +599,11 @@ function renderNow() {   // where this film stands, in bin/vh status's own sente
   const a = n.act || {}, mod = a.kind === "open" ? (a.mod || "cut") : "";
   const armed = a.kind === "tell" && a.confirm && NOWARM === PKEY;   // an offer that asks once more: the first click arms it
   const quiet = a.secondary && !armed, cls = quiet ? "btn btn-quiet xs now-second" : a.secondary ? "btn" : "btn btn-primary";   // a second line, or the one thing to do
-  const btn = a.kind === "tell" ? `<button type="button" class="${cls}" id="nowTell">${esc(armed ? t("now_sure") : a.label[L])}</button>${armed ? `<button type="button" class="btn btn-quiet xs" id="nowNot">${esc(t("cancel"))}</button>` : ""}`
+  const btn = a.kind === "tell" ? `<button type="button" class="${cls}" id="nowTell">${esc(armed ? (a.sure ? a.sure[L] : t("now_sure")) : a.label[L])}</button>${armed ? `<button type="button" class="btn btn-quiet xs" id="nowNot">${esc(t("cancel"))}</button>` : ""}`
     : a.kind === "settings" ? `<a class="btn btn-primary" href="#/settings/${enc(a.sub || "")}">${esc(a.label[L])}</a>`   // only the person can give it (an API Key): the settings page's section
     : mod && mod !== MOD ? `<a class="btn" href="${projHash(PKEY, mod + (a.sub ? "/" + a.sub : ""))}">${esc(a.label[L])} →</a>` : "";   // already on that page: no button to it
   const opens = (txt) => ((n.facts || {}).paths || []).reduce((h, p) => h.split(esc(p)).join(`<a href="/v/${enc(PKEY)}/${String(p).split("/").map(enc).join("/")}" target="_blank" rel="noopener">${esc(p)}</a>`), esc(txt));   // a file the words name opens
-  const html = `<p class="now-say"><i aria-hidden="true"></i><span>${esc(n.say[L])}</span></p>${n.more ? `<p class="now-more">${opens(n.more[L])}</p>` : ""}${armed ? `<p class="now-more">${esc(t("now_sure_note"))}</p>` : ""}${btn ? `<div class="now-act">${btn}</div>` : ""}${plan ? `<p class="now-plan">${esc(plan[L])}</p>` : ""}`;
+  const html = `<p class="now-say"><i aria-hidden="true"></i><span>${esc(n.say[L])}</span></p>${n.more ? `<p class="now-more">${opens(n.more[L])}</p>` : ""}${armed ? `<p class="now-more">${esc(a.sure_note ? a.sure_note[L] : t("now_sure_note"))}</p>` : ""}${btn ? `<div class="now-act">${btn}</div>` : ""}${plan ? `<p class="now-plan">${esc(plan[L])}</p>` : ""}`;
   el.className = "col-now" + (n.tone === "you" ? " you" : n.tone === "busy" ? " agent" : "");   // amber: the person's to do; violet: something works now
   if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
   el.hidden = false;
@@ -539,25 +615,29 @@ $("#colNow").addEventListener("click", (e) => {   // the one action that carries
   if (!e.target.closest("#nowTell") || !a || a.kind !== "tell") return;
   if (a.confirm && NOWARM !== PKEY) { NOWARM = PKEY; renderNow(); return; }
   NOWARM = ""; renderNow();
-  AGENT.tell(e, a.text[LANG === "zh" ? "zh" : "en"]);
+  AGENT.tell(e, a.text[LANG === "zh" ? "zh" : "en"], !!a.sure);   // a second AI the person confirmed in those words: not asked again
 });
 function roundCounts() {   // {n, d, r}: notes to send, decisions the person picked and not sent yet, decisions left to the recommendation
   const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
   const d = Object.keys(ts.decisions).filter((k) => !ts.defaulted.includes(k)).length;
-  return { n: myItems().length + (FB.general ? 1 : 0), d, r: ts.defaulted.length };
+  return { n: notesCount(), d, r: D && roundTaken() ? 0 : ts.defaulted.length };   // (a later batch sends no recommendation again)
 }
 function renderRound() {   // what the next submission would send, said plainly ("还没写意见 · 2 件按推荐"); nothing to send: the button rests
   const { n, d, r } = roundCounts();
-  const handed = handedNow() && !REHAND[KEY] && !n && !d;   // handed over and nothing new written: the bar says so, and rests
-  const words = handed ? t("rs_handed") : [n ? t("rs_notes", { n }) : t("rs_none")].concat(d ? [t("rs_picked", { d })] : [], r ? [t("rs_rec", { r })] : []).join(" · ");
-  const idle = handed || (!n && !d && !r);
+  const last = D ? lastOf(ROUND.id) : null, took = D ? roundTaken() : null;
+  const sentNow = !REHAND[KEY] && !n && !d && last && (last.state === "unread" || last.state === "taken") && (handedNow() || last.late);   // it went, and nothing new is written
+  const late = !!took && (n || d) > 0;   // the round was picked up: what is written now goes on its own, as a later batch
+  const words = sentNow ? (last.state === "taken" ? t("ho_bar_taken", { a: progName(last.taken && last.taken.program) }) : t("ho_bar_unread"))
+    : late ? t("ho_bar_late", { n: n + d, s: stepName(ROUND.id) })
+    : [n ? t("rs_notes", { n }) : t("rs_none")].concat(d ? [t("rs_picked", { d })] : [], r ? [t("rs_rec", { r })] : []).join(" · ");
+  const idle = sentNow || (!n && !d && !r);
   $("#colRound").hidden = false;
-  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(t("submit_round"))}</button>`;
+  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(t(late ? "ho_submit_late" : "submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
   requestAnimationFrame(fadeMore);
 }
-function fadeMore() { const b = $("#colBody"); if (b) b.classList.toggle("more", b.scrollHeight - b.scrollTop - b.clientHeight > 6); }   // more below: say so
-$("#colBody").addEventListener("scroll", fadeMore); window.addEventListener("resize", fadeMore);
+function fadeMore() { const b = $("#colScroll") || $("#colBody"); if (b) b.classList.toggle("more", b.scrollHeight - b.scrollTop - b.clientHeight > 6); }   // more below: say so
+$("#colBody").addEventListener("scroll", fadeMore, true); window.addEventListener("resize", fadeMore);   // (capture: the part above the notes scrolls on its own)
 $("#colBody").addEventListener("click", (e) => {
   const x = e.target.closest("[data-del]");
   if (x) { e.stopPropagation(); const g = x.dataset.del.match(/^#general(?::(\d+))?$/);
@@ -658,7 +738,9 @@ $("#stage").addEventListener("click", (e) => {   // a place in a module: the not
 /* submitting: everything this round holds, then one button (the desk's channel; bin/vh desk wait wakes on it) */
 function payload() {
   // a stop already settled is not decided again by a later note; a decision sent before goes again only when picked differently
-  const { decisions, defaulted } = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
+  const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
+  if (D && roundTaken()) { ts.defaulted.forEach((k) => delete ts.decisions[k]); ts.defaulted = []; }   // a later batch: only what the person picked, never the recommendations again
+  const { decisions, defaulted } = ts;
   const all = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: fitLabel(v.label || k), text: v.text || "" },
     v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}, v.t1 != null ? { t1: v.t1 } : {}));
   // an item feedback.py would refuse costs only itself, said before sending, never the round (its limits: tools/desk/feedback.py)
@@ -690,14 +772,42 @@ function openConfirm() {
   const c = $("#confirm");
   c.innerHTML = `<div class="c-body"><h3>${esc(t("d_title"))}</h3><ul class="sum">${decs ? `<h4>${esc(t("d_decisions"))}</h4>${decs}` : ""}${leastHtml}<h4>${esc(t("d_items"))}</h4>${items || `<li class="meta">${esc(t("d_none"))}</li>`}${FB.general ? `<li><span class="q">${esc(t("overall"))}</span><span>${esc(FB.general)}</span></li>` : ""}</ul>
       <label class="meta" for="cGeneral">${esc(t("general"))}</label><textarea id="cGeneral" rows="2" maxlength="4000" placeholder="${esc(t("general_ph"))}"></textarea><p class="meta box-keys">${esc(t("keys_nl"))}</p>
-      <p class="meta" id="submitHint">${esc(t("submit_hint"))}</p>
+      <p class="meta" id="submitHint">${esc(sheetWho())}</p>
+      <div id="fixAsk"></div>
       <details class="fold"><summary>${esc(t("preview"))}</summary><pre id="preview"></pre></details></div>
     <div class="c-act"><button type="button" class="btn btn-primary" id="doSubmit">${esc(t("submit"))}</button><button type="button" class="btn" id="noSubmit">${esc(t("cancel"))}</button></div>`;
   c.hidden = false;
-  const pv = () => { $("#preview").textContent = summaryText(payload()); };
+  const pv = () => { $("#preview").textContent = summaryText(payload()); fixAsk(); };
   pv(); $("#cGeneral").addEventListener("input", pv);
   $("#doSubmit").addEventListener("click", submit); $("#noSubmit").addEventListener("click", closeConfirm);
-  setTimeout(() => $("#doSubmit").focus(), 30);
+  setTimeout(() => ($("#fixBack") || $("#doSubmit")).focus(), 30);
+}
+function sheetWho() {   // before sending: this round already picked up (these go on their own), and who picks them up now
+  const took = roundTaken(), pre = took ? t("ho_d_late", { s: stepName(ROUND.id), a: progName(took.taken && took.taken.program) }) + " " : "";
+  return pre + whoTakes("ho_d");
+}
+function fixPick(p) {   // a picked option that says it needs a note (the gate JSON's needs_note: "fix first"), sent with no note saying what:
+  // {label}, else null. Nothing is guessed from an option's words: a page without the field never asks
+  if ((p.items || []).length || p.general) return null;
+  for (const d of ROUND.data.decisions || []) {
+    const v = p.decisions[d.id]; if (!v || p.defaulted.includes(d.id)) continue;
+    const o = (d.options || []).find((x) => x && typeof x === "object" && x.id === v);
+    if (o && o.needs_note === true) return { label: cut(String(o.label || v).replace(/\*\*|`/g, ""), 30) };
+  }
+  return null;
+}
+function fixAsk() {   // asks once: what to change; going back keeps everything, sending as it is stays one click away
+  const box = $("#fixAsk"); if (!box) return;
+  const f = fixPick(payload());
+  box.innerHTML = f ? `<div class="fix-ask"><p class="fix-q">${esc(t("ho_fix_q", { x: f.label }))}</p><p class="meta">${esc(t("ho_fix_b"))}</p></div>` : "";
+  const go = $("#doSubmit"), act = go && go.parentElement; if (!act) return;
+  const back = $("#fixBack");
+  if (f && !back) { act.insertAdjacentHTML("afterbegin", `<button type="button" class="btn btn-primary" id="fixBack">${esc(t("ho_fix_back"))}</button>`); go.textContent = t("ho_fix_go"); go.classList.remove("btn-primary"); $("#fixBack").addEventListener("click", fixBackTo); }
+  if (!f && back) { back.remove(); go.textContent = t("submit"); go.classList.add("btn-primary"); }
+}
+function fixBackTo() {   // back to the page with nothing lost: the sheet closes, the note box takes the keys
+  $("#confirm").hidden = true;
+  const box = $("#composer textarea"); if (box) box.focus();
 }
 function closeConfirm() { $("#confirm").hidden = true; const b = $("#openConfirm"); if (b) b.focus(); }
 async function submit() {
@@ -708,8 +818,9 @@ async function submit() {
     const j = await r.json();
     const box = $("#cGeneral"); if (box) box.value = "";
     FB = afterSent(FB, p, new Date().toLocaleString()); store.set(KEY, FB);   // what went leaves the draft: it is not sent twice
-    toast(j.listening ? t("sent_live") : t("sent", { f: j.saved }));
-    $("#submitHint").textContent = t(j.listening ? "hint_live" : "hint_idle", { f: j.saved });
+    const h = D.status && D.status.holder, a = holderName();   // said as it is: picked up only by a wait on this round
+    const said = j.live ? t("ho_sent_live", { a }) : h && h.outside ? t("ho_sent_out", { a }) : t("ho_sent_kept");
+    toast(said); $("#submitHint").textContent = said;
     renderMine(); renderRound();
     setTimeout(async () => { $("#confirm").hidden = true; await reloadProject(); }, 1400);
     return;
@@ -729,10 +840,16 @@ function save() {
   if (CUT) CUT.refresh();
   $$("#stage [data-mark]").forEach(markHost);
 }
+let LIVE = false;   // a wait alive on the round that is out now (the status poll): it picks a submission up within the second
 async function pollLive() {
   if (!PKEY || RELOADING) return;
   const r = await getJSON(`/api/p/${enc(PKEY)}/status`);
   const on = !!(r.ok && r.data && r.data.listening), el = $("#colHead .state");
+  const live = !!(r.ok && r.data && r.data.live && r.data.key === PKEY);
+  if (live !== LIVE) { LIVE = live; renderMine(); }   // who picks the notes up: said in the notes block
+  if (r.ok && r.data && D && r.data.key === PKEY && r.data.notes_stamp !== undefined && r.data.notes_stamp !== D.notes_stamp && !RELOADING) {   // a note was saved or picked up: its state on screen follows
+    await reloadProject(false); return;
+  }
   if (el) { el.classList.toggle("agent", on); el.hidden = !on; }
   AGENT.listening(on);   // the conversation that waits for this stop in the background says so
   const mine = r.ok && r.data && r.data.key === PKEY, got = mine ? r.data.now || null : null;   // not answered, or its state unreadable: said as unknown

@@ -801,13 +801,21 @@ def server_checks():
         d.a(sid7, "say", {"text": "写个文件"})
         L7.wait(lambda e: e["type"] == "permission")
         L7.close()
+        # this desk's own adapters, by process tree (never by name: another run of these checks on the machine has stand-ins too)
+        rows = [x.split(None, 2) for x in subprocess.run(["ps", "-A", "-o", "pid=,ppid=,command="], capture_output=True, text=True).stdout.splitlines()]
+        tree, grew = {d.proc.pid}, True
+        while grew:
+            more = {int(x[0]) for x in rows if len(x) == 3 and x[1].isdigit() and int(x[1]) in tree} - tree
+            tree, grew = tree | more, bool(more)
+        mine = [int(x[0]) for x in rows if len(x) == 3 and int(x[0]) in tree and "fake_acp.py" in x[2]]
         code = d.stop()
 
         def reaped():
+            if not mine:
+                return "no stand-in adapter was found under the desk before it stopped"
             t0 = time.time()
             while time.time() - t0 < 12:
-                ps = subprocess.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, text=True).stdout
-                left = [l for l in ps.splitlines() if "fake_acp.py" in l and str(agents) in l or ("fake_acp.py" in l and " --speed 0.02" in l)]
+                left = [x for x in mine if "fake_acp.py" in subprocess.run(["ps", "-o", "command=", "-p", str(x)], capture_output=True, text=True).stdout]   # (alive, and still that program: a pid taken since is not it)
                 if not left:
                     break
                 time.sleep(0.3)
@@ -1382,7 +1390,10 @@ def attack_checks():
         if any(set(x) - {"ok", "opened", "how", "why", "code", "status"} or tok in json.dumps(x) for x in got.get("open") or [{}]):
             return f"/api/open answered {got.get('open')}"
         d.a(sid, "answer", {"request": got["rid"], "option": "reject"})
-        lock = (proj / ".ovh" / "agent.lock").read_text() if (proj / ".ovh" / "agent.lock").exists() else ""
+        try:   # (the turn may end and take its lock away between a look and the read: a lock that is gone names nothing)
+            lock = (proj / ".ovh" / "agent.lock").read_text()
+        except FileNotFoundError:
+            lock = ""
         if str(d.port) in lock or "http" in lock:
             return "the lock names the desk"
         leaked = [str(f) for f in proj.rglob("*") if f.is_file() and tok.encode() in f.read_bytes()]
@@ -2203,7 +2214,7 @@ def handoff_checks():
                 os.utime(f, (old3, old3))
         n1, n2 = status(f1)["now"], status(f2)["now"]
         a.kill(); a.wait()
-        if n2["code"] != "agent_open":
+        if n2["code"] != "agent_outside":   # (a terminal's agent: outside Studio's window)
             return f"the film it worked on last: {n2['code']}"
         if n1["code"] != "stopped" or "可能在忙别的片子" not in (n1["more"] or {}).get("zh", ""):
             return f"the film it left three days ago: {n1['code']} {n1['more']}"
@@ -2254,7 +2265,260 @@ def handoff_checks():
             return f"before {before}, flag left {flag.exists()}, after {after['facts']}"
     check("a wait whose agent was killed: the promise goes with the agent, and the wait ends by itself", orphaned_wait)
 
-    def open_agent():   # an agent that ran a command on the film and is still open: no "stopped", the offer second and asking once more
+    # ---- the hand-over between Studio and the agent waiting outside it (the first real film's lost notes) ----
+    import feedback as F
+
+    def film_at_script(name):   # gate ① decided, the script's page (E1) out: the stop where the notes went missing
+        p = stage(name)
+        g = p / "out" / "review"
+        for x in ("gate-2.json", "gate-3.json"):
+            (g / x).unlink()
+        r = (p / "REVIEW.md").read_text(encoding="utf-8")
+        (p / "REVIEW.md").write_text(r[:r.index("## 关卡 ② 分镜")], encoding="utf-8")
+        page(p, "E1", {"summary": "旁白稿第一版，逐句看", "decisions": [{"id": "names", "question": "英文名念不念？", "options": [{"id": "N1", "label": "不念"}, {"id": "N2", "label": "念"}], "recommend": "N1"}]})
+        return p
+
+    def page(p, rid, d):   # the agent sends a page (bin/vh review makes it this round)
+        (p / "out" / "review" / f"gate-{rid}.json").write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        r = subprocess.run(["bash", str(vh), "review", str(p), rid], capture_output=True, text=True, env=env, timeout=60)
+        if r.returncode:
+            raise RuntimeError(f"review {rid}: {r.stderr[-300:]}")
+
+    def submit(p, rid, *texts):   # the person submits in Studio (what the server does once the post is checked)
+        items = [{"target": f"seg:{i + 1}", "status": "change", "text": x} for i, x in enumerate(texts)]
+        return F.save(p, F.validate(p, {"round": rid, "lang": "zh", "decisions": {}, "items": items}))
+
+    def waiter(p, *extra, timeout=60):   # an agent's background wait
+        w = subprocess.Popen(["bash", str(vh), "desk", "wait", str(p), "--timeout", str(timeout), *extra], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+        BG.add(w.pid)
+        return w
+
+    def armed(p, n=1, secs=10):   # n waits have written their flag (the newest one's is on disk)
+        t0 = time.time()
+        while time.time() - t0 < secs:
+            try:
+                if json.loads((p / "out" / "review" / "feedback" / ".listening").read_text()).get("pid"):
+                    time.sleep(0.3 * n)
+                    return True
+            except (OSError, ValueError):
+                pass
+            time.sleep(0.1)
+        return False
+
+    def answer(p, name, said="照改"):   # the agent writes 定了 under a submission's REVIEW.md section
+        r = (p / "REVIEW.md").read_text(encoding="utf-8")
+        i = r.index(name)
+        j = r.index("- 定了：　改了：", i)
+        (p / "REVIEW.md").write_text(r[:j] + f"- 定了：{said}　改了：大纲" + r[j + len("- 定了：　改了："):], encoding="utf-8")
+
+    def one_submission_two_waits():   # 9.16: the outline's second page waits, then the storyboard's; one storyboard submission
+        p = film_at_script("two-waits")
+        page(p, "1b", {"summary": "大纲改成 3 段，再看一遍", "decisions": [{"id": "go", "question": "大纲能做分镜了吗？", "options": [{"id": "OK", "label": "可以"}, {"id": "FIX", "label": "先改"}], "recommend": "OK"}]})
+        w1 = waiter(p)
+        if not armed(p):
+            return "the 1b wait did not start"
+        shutil.copy(ROOT / "tools" / "desk" / "fixtures" / "demo" / "out" / "review" / "gate-2.json", p / "out" / "review" / "gate-2.json")
+        subprocess.run(["bash", str(vh), "review", str(p), "2"], capture_output=True, text=True, env=env, timeout=60)
+        try:
+            o1, _ = w1.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            w1.kill()
+            return "the 1b wait went on after page 2 went out"
+        w2 = waiter(p)
+        if not armed(p):
+            return "the storyboard's wait did not start"
+        f = submit(p, "2", "第二镜再慢一点")
+        o2, _ = w2.communicate(timeout=20)
+        took = F.taken(p).get(f.name) or {}
+        if w1.returncode != F.MOVED_ON or "nothing was submitted for 1b" not in o1 or "第二镜" in o1:
+            return f"the 1b wait: exit {w1.returncode}: {o1[-300:]}"
+        if w2.returncode != 0 or "第二镜再慢一点" not in o2 or took.get("by") != "wait":
+            return f"the storyboard's wait: exit {w2.returncode}, taken {took}: {o2[-300:]}"
+    check("one submission is one round's: a wait for a page that is no longer out ends (exit 7) saying nothing came for it, and the next "
+          "page's submission goes to that page's wait alone, recorded as taken by it", one_submission_two_waits)
+
+    def two_waits_one_note():   # two waits on one round, one submission: exactly one of them hands it over
+        p = film_at_script("race")
+        ws = [waiter(p), waiter(p)]
+        if not armed(p, 2):
+            return "the waits did not start"
+        submit(p, "E1", "只交一次")
+        time.sleep(4)
+        outs = []
+        for w in ws:
+            if w.poll() is None:
+                w.kill()
+            outs.append((w.wait(), (w.stdout.read() or "")))
+        got = [o for rc, o in outs if "只交一次" in o]
+        if len(got) != 1:
+            return f"{len(got)} waits handed it over: {[rc for rc, _ in outs]}"
+    check("two waits on one round and one submission: exactly one hands it over", two_waits_one_note)
+
+    def later_batch():   # 5.4 / 9.5: E1 taken, the person writes more on E1, the agent sends the outline's second page
+        p = film_at_script("late")
+        w = waiter(p)
+        if not armed(p):
+            return "the wait did not start"
+        f1 = submit(p, "E1", "开头再短点")
+        w.communicate(timeout=20)
+        time.sleep(1.1)
+        f2 = submit(p, "E1", "补交一条", "补交两条")
+        un = F.unread(p)
+        if [(f.name, late) for f, _, late in un] != [(f2.name, True)]:
+            return f"unread after a later batch: {[(f.name, late) for f, _, late in un]}"
+        o = status(p)
+        n = o["now"]
+        if n["code"] != "notes_late" or "被取走以后又交了 2 条" not in n["say"]["zh"] or "正在取" in json.dumps(n, ensure_ascii=False) \
+                or "现在没有 AI 在等" not in (n["more"] or {}).get("zh", "") or "desk wait" not in " ".join(o["next_step"]["commands"]):
+            return f"status with a later batch nobody waits for: {n['code']} {n['say']} {n['more']} next {o['next_step']}"
+        answer(p, f1.name)
+        page(p, "1b", {"summary": "大纲改成 3 段，再看一遍", "decisions": [{"id": "go", "question": "大纲能做分镜了吗？", "options": [{"id": "OK", "label": "可以"}, {"id": "FIX", "label": "先改"}], "recommend": "OK"}]})
+        o = status(p)
+        st1 = next(x for x in o["stations"] if x["id"] == "1")
+        n = o["now"]
+        if st1["state"] != "waiting_person" or n["code"] != "notes_late" or "大纲也出来了" not in (n["more"] or {}).get("zh", "") \
+                or (n["act"] or {}).get("mod") != "outline" or not any(x["late"] and x["round"] == "E1" for x in o["review"]["unread"]):
+            return f"with the outline's second page out: stop ① {st1['state']}, {n['code']} {n['more']} {n['act']}"
+        w = waiter(p)
+        out, _ = w.communicate(timeout=20)
+        if w.returncode != 0 or "补交两条" not in out or "a later batch" not in out or "Nothing has come for round 1b" not in out:
+            return f"the next wait: exit {w.returncode}: {out[-400:]}"
+        w = waiter(p)
+        if not armed(p):
+            return "the 1b wait did not start"
+        o = status(p)
+        n = o["now"]
+        w.kill(); w.wait()
+        if n["code"] != "waiting_you" or "大纲出来了，等你看" not in n["say"]["zh"] or (n["act"] or {}).get("mod") != "outline":
+            return f"the outline's second page, a wait on it: {n['code']} {n['say']} {n['act']}"
+    check("notes written after their round was taken are a later batch: bin/vh status says so first (nobody has them, nobody waits) and names the "
+          "command, the outline's second page waits for the person on the outline, and the next wait hands the batch over at once, said for what it is",
+          later_batch)
+
+    def nothing_left_behind():   # a wait that times out, then a submission: unread for status and the next wait; "正在取" only for a live wait on this round
+        p = film_at_script("left")
+        w = waiter(p, timeout=2)
+        w.communicate(timeout=20)
+        submit(p, "E1", "超时以后才交的")
+        o = status(p)
+        if w.returncode != 3 or [x["round"] for x in o["review"]["unread"]] != ["E1"] or o["now"]["code"] != "notes_unheard":
+            return f"after a timeout: exit {w.returncode}, unread {o['review']['unread']}, {o['now']['code']}"
+        stale = p / "out" / "review" / "feedback" / ".listening"   # a live wait that waits for another round (a page no longer out) takes nothing
+        sleeper = subprocess.Popen(["sleep", "30"])
+        BG.add(sleeper.pid)
+        stale.write_text(json.dumps({"pid": sleeper.pid, "since": time.time() - 1, "until": time.time() + 60, "project": os.path.realpath(str(p)), "agent": None, "round": "1"}))
+        n = status(p)["now"]
+        sleeper.kill(); sleeper.wait(); stale.unlink()
+        if n["code"] == "notes_sent" or "正在取" in json.dumps(n, ensure_ascii=False):
+            return f"a wait on another round counted as taking these notes: {n['code']} {n['say']}"
+        w = waiter(p)
+        out, _ = w.communicate(timeout=20)
+        if w.returncode != 0 or "超时以后才交的" not in out:
+            return f"the next wait: exit {w.returncode} {out[-300:]}"
+    check("a wait that ends without a submission leaves every note for bin/vh status and the next wait, and \"正在取\" is said only for a live wait on "
+          "the round that is out", nothing_left_behind)
+
+    # a wait driven from Python with hooks in its own copy of the hand-over: held in the gap between a claim and the note's
+    # line, or held at the claim itself; what the hooks do is in the driver below, nothing of it is in feedback.py
+    driver = T / "wait_driver.py"
+    driver.write_text("\n".join([
+        "import os, sys, time",
+        f"sys.path.insert(0, {str(HERE)!r})",
+        "import feedback as F",
+        "project, mode, mark = sys.argv[1], sys.argv[2], sys.argv[3]",
+        "if mode == 'gap':   # claimed, then held before the note is written",
+        "    show = F.show",
+        "    def slow(*a, **k):",
+        "        open(mark, 'w').close(); time.sleep(60); return show(*a, **k)",
+        "    F.show = slow",
+        "if mode == 'race':   # both waits held at the claim, released together; the read-modify-write made slow",
+        "    claim, write = F.claim, F._write",
+        "    def held(*a, **k):",
+        "        open(mark, 'w').close()",
+        "        while not os.path.exists(mark + '.go'): time.sleep(0.02)",
+        "        return claim(*a, **k)",
+        "    def slow_write(path, text):",
+        "        if path.name == '.consumed': time.sleep(0.6)",
+        "        return write(path, text)",
+        "    F.claim, F._write = held, slow_write",
+        "sys.exit(F.wait(project, 60, poll=0.2))",
+    ]) + "\n")
+
+    def driven(p, mode, mark):
+        w = subprocess.Popen([sys.executable, str(driver), str(p), mode, str(mark)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+        BG.add(w.pid)
+        return w
+
+    def until(f, secs=15):
+        t0 = time.time()
+        while time.time() - t0 < secs and not f():
+            time.sleep(0.05)
+        return f()
+
+    def gap_kills():   # a wait killed between its claim and the note's line (each signal), or whose output is closed: the note stays unread
+        import server
+        bad = []
+        for sig in (signal.SIGKILL, signal.SIGTERM, signal.SIGINT):
+            p = film_at_script(f"gap-{sig.name}")
+            mark = T / f"gap-{sig.name}.mark"
+            w = driven(p, "gap", mark)
+            if not armed(p):
+                bad.append(f"{sig.name}: the wait did not start"); w.kill(); continue
+            f = submit(p, "E1", "在缝里被杀")
+            if not until(mark.exists):
+                bad.append(f"{sig.name}: the wait never reached the gap"); w.kill(); continue
+            os.kill(w.pid, sig)
+            w.wait(timeout=10)
+            un, took = [x.name for x, _, _ in F.unread(p)], list(F.taken(p))
+            state = next((x.get("state") for x in server.project_data(p, ())["feedback"] if x["file"].endswith(f.name)), None)
+            o = status(p)
+            nxt = subprocess.run(["bash", str(vh), "desk", "wait", str(p), "--timeout", "10"], capture_output=True, text=True, env=env, timeout=60)
+            if f.name not in un or f.name in took or state != "unread" or not [x for x in o["review"]["unread"] if x["file"].endswith(f.name)] \
+                    or o["now"]["code"] not in ("notes_unheard", "notes_left", "notes_late") or nxt.returncode != 0 or "在缝里被杀" not in nxt.stdout:
+                bad.append(f"{sig.name}: unread {un}, page {state}, now {o['now']['code']}, next wait {nxt.returncode} {nxt.stdout[:300]!r}")
+        p = film_at_script("gap-closed")   # a real bin/vh desk wait whose output is closed before anything comes
+        w = subprocess.Popen(["bash", str(vh), "desk", "wait", str(p), "--timeout", "60"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        BG.add(w.pid)
+        if not armed(p):
+            bad.append("closed: the wait did not start")
+        else:
+            w.stdout.close()
+            f = submit(p, "E1", "没人读得到")
+            w.wait(timeout=20)
+            un = [x.name for x, _, _ in F.unread(p)]
+            if w.returncode != F.NOT_DELIVERED or f.name not in un or f.name in F.taken(p):
+                bad.append(f"closed output: exit {w.returncode}, unread {un}, taken {list(F.taken(p))}")
+        return "; ".join(bad) or None
+    check("a wait killed between claiming a note and writing it (KILL, TERM, INT), or whose output is closed: the note stays unread (status says so, "
+          "the page never says it was picked up) and the next wait hands it over", gap_kills)
+
+    def two_waits_held():   # two waits held at the claim and released together: exactly one hands the note over, and it is taken once
+        p = film_at_script("race-held")
+        m1, m2 = T / "race-1.mark", T / "race-2.mark"
+        ws = [driven(p, "race", m1), driven(p, "race", m2)]
+        if not armed(p, 2):
+            return "the waits did not start"
+        f = submit(p, "E1", "只交一次（同时放开）")
+        if not until(lambda: m1.exists() and m2.exists()):
+            for w in ws:
+                w.kill()
+            return "the waits never both reached the claim"
+        for m in (m1, m2):
+            Path(str(m) + ".go").touch()
+        time.sleep(4)
+        outs = []
+        for w in ws:
+            if w.poll() is None:
+                w.kill()
+            outs.append((w.wait(), w.stdout.read() or ""))
+        got = [o for _, o in outs if "只交一次（同时放开）" in o]
+        if len(got) != 1 or f.name not in F.taken(p):
+            return f"{len(got)} waits handed it over; taken {list(F.taken(p))}; {[rc for rc, _ in outs]}"
+    check("two waits held at the claim and released together on one note: exactly one hands it over (the claim is under the lock, and written "
+          "before the note is)", two_waits_held)
+
+    def open_agent():   # an agent outside Studio's window that ran a command on the film and is still open: no "stopped"; said where it is,
+        # that words typed in Studio do not reach it, and a second AI here only as a second line that asks once more in those words
         o = stage("open")
         a = fake_agent("bash", str(vh), "peaks", str(o))
         if a is None:
@@ -2263,11 +2527,40 @@ def handoff_checks():
         n = status(o)["now"]
         a.kill(); a.wait()
         m = status(o)["now"]
-        if n["code"] != "agent_open" or not n["act"].get("secondary") or not n["act"].get("confirm") or "没有 agent" in n["say"]["zh"]:
+        act = n["act"]
+        if n["code"] != "agent_outside" or not act.get("secondary") or not act.get("confirm") or "没有 agent" in n["say"]["zh"] \
+                or "窗口外面的 Claude Code" not in n["say"]["zh"] or "收不到" not in n["say"]["zh"] or "另起一个 AI" not in act["label"]["zh"] \
+                or "两个一起做" not in (act.get("sure_note") or {}).get("zh", "") or "outside this window" not in n["say"]["en"] or "在做" in n["say"]["zh"]:
             return f"while it is open: {n}"
-        if m["code"] == "agent_open":
+        if m["code"] in ("agent_open", "agent_outside"):
             return f"after it went: {m['code']}"
-    check("an agent that ran a command on the film and is still open: said so, and the offer to carry on is a second line that asks once more", open_agent)
+    check("an agent outside Studio's window that ran a command on the film and is still open: said so by name, that what is typed in Studio does "
+          "not reach it, and a second AI here only as a second line that asks once more, saying two would work at once", open_agent)
+
+    def studio_agent():   # an agent Studio's own column started (under tools/desk/desk.py): the old offer, no "outside"
+        o = stage("own")
+        cc = shutil.which("cc")
+        made = fake_agent("true") if cc else None   # (builds the stand-in program; this one ends at once, not left open)
+        if made is None:
+            return None
+        made.kill(); made.wait()
+        shim = T / "studio-shim" / "tools" / "desk" / "desk.py"   # a stand-in desk server: its command line names tools/desk/desk.py
+        shim.parent.mkdir(parents=True, exist_ok=True)
+        shim.write_text("import subprocess, sys, time\np = subprocess.Popen(sys.argv[1:])\np.wait()\ntime.sleep(600)\n")
+        e = {k: v for k, v in env.items() if k != "OVH_ACTIVITY_AGENT"}
+        d = subprocess.Popen([sys.executable, str(shim), str(T / "agentbin" / "claude"), "bash", str(vh), "peaks", str(o)],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=e, start_new_session=True)
+        BG.add(d.pid)
+        time.sleep(3)
+        n = status(o)["now"]
+        try:
+            os.killpg(d.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        d.wait()
+        if n["code"] != "agent_open":
+            return f"Studio's own agent: {n['code']} {n['say']}"
+    check("an agent Studio's own column started is not said to be outside the window", studio_agent)
 
     def reused_pid():   # a pid a later process took is not the run's, nor the lock holder's
         o = stage("reused")
@@ -2338,6 +2631,46 @@ for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process
         return None if said == want else said
     check("the carry-on click through agent.js: its own words go to the film's conversation; refused, \"anyway\" sends those words again, not the box's draft; "
           "a click that is not the person's sends nothing", click_path)
+
+    def outside_ask():   # an agent outside Studio's window holds the film: nothing starts in the column until the person says, in those words
+        node = shutil.which("node")
+        if not node:
+            return None
+        prog = r"""
+const vm = require("vm"), fs = require("fs");
+const el = () => new Proxy(function () {}, { get: (t, k) => k === "classList" ? { toggle() {}, add() {}, remove() {}, contains: () => false } : k === "dataset" ? {} :
+  k === "value" ? "" : k === "hidden" ? false : k === "querySelector" ? () => null : k === "querySelectorAll" ? () => [] : k === Symbol.toPrimitive ? () => "" : el(),
+  set: () => true, apply: () => el() });
+const shown = [];
+const doc = { querySelector: (q) => (q === "#agBusy" ? new Proxy(el(), { set: (t, k, v) => { if (k === "innerHTML") shown.push(String(v)); return true; } }) : el()), querySelectorAll: () => [],
+  documentElement: { lang: "" }, getElementById: () => el(), addEventListener() {} };
+const posts = [];
+const g = vm.createContext({ console, document: doc, window: {}, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, clearInterval, setInterval,
+  requestAnimationFrame: () => 0, toast() {}, EventSource: class { constructor() {} addEventListener() {} close() {} }, LANG: "zh",
+  D: { status: { holder: { program: "codex", outside: true } } },
+  getJSON: async () => ({ ok: true, data: { agents: [{ kind: "claude", label: "Claude Code", installed: true }], sessions: [], pid: "p" } }),
+  fetch: async (u, o) => { const b = JSON.parse(o.body); posts.push([u, b]); return { ok: true, status: 200, json: async () => (u.endsWith("/new") ? { id: "n1", kind: "claude" } : { ok: true }) }; } });
+for (const f of ["core.js", "agent.js"]) vm.runInContext(fs.readFileSync(process.argv[1] + "/" + f, "utf8") + (f === "agent.js" ? "\nthis.AGENT = AGENT;" : ""), g);
+(async () => {
+  await g.AGENT.enter("film~1");
+  await g.AGENT.tell({ isTrusted: true }, "接着做这支片子。");
+  const before = posts.length, asked = shown.filter((h) => h.includes("窗口外面的 Codex") && h.includes("另起一个 AI")).length;
+  await g.AGENT._again({ isTrusted: true });
+  console.log(JSON.stringify({ before, asked, after: posts.map(([u, b]) => [u.split("/").slice(-2).join("/"), b.text || "", !!b.despite]) })); process.exit(0);
+})().catch((e) => { console.log(JSON.stringify({ error: String(e && e.stack || e) })); process.exit(0); });
+"""
+        out = subprocess.run([node, "-e", prog, str(HERE / "static")], capture_output=True, text=True, timeout=30)
+        try:
+            r = json.loads(out.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return (out.stdout + out.stderr)[-400:]
+        if r.get("error"):
+            return r["error"][:400]
+        said = [x for x in r["after"] if x[0].endswith("/say") or x[0].endswith("/new")]
+        if r["before"] != 0 or not r["asked"] or [x[0].split("/")[-1] for x in said] != ["new", "say"] or said[-1][1] != "接着做这支片子。" or not said[-1][2]:
+            return r
+    check("an agent outside Studio's window holds the film: the column starts nothing and asks, naming it and saying a second AI would work on the same "
+          "film; only \"另起一个 AI\" starts one and sends the words", outside_ask)
 
     g = stage("wait", "3")
 

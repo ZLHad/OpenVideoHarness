@@ -20,8 +20,9 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
             page, once, within ten minutes, to your terminal alone (the message says only where it is). Refused with no
             terminal (an agent's shell has none) and while this film's desk runs (bin/vh desk link --print-address)
   --wait    the desk channel: then wait like bin/vh desk wait (exit 0 only when a submission was received, and it is
-            printed; 3 after --timeout, default 7100 s; 4 when the agent it waits for is gone; 6 when the desk it waits on
-            closed). Hosts with background wakeup can run this in the background: the message is printed first. A standard
+            printed; 3 after --timeout, default 43200 s (12 h); 4 when the agent it waits for is gone; 6 when the desk it
+            waits on closed; 7 when another page went out before anything came for this one: run bin/vh status and wait on
+            the round open now). Notes nobody has taken yet, of any round, are printed first. Hosts with background wakeup can run this in the background: the message is printed first. A standard
             film's stop that went out as the static page by default (Studio not open): the page goes out as usual, exit 5:
             nothing was answered; end the turn and wait for the person's reply in the chat
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
@@ -38,7 +39,8 @@ no desk, and bin/vh status counts it as not sent until a run of it goes through 
 Stops line: REVIEW.md lacks the person's words and "定了：…" for it, or the user's own words waiving it) · 3 --wait timed out ·
 4 --wait: the agent it waited for is gone · 5 --wait, and a standard film's stop went out as the static page by default
 (Studio not open): the page goes out as usual; nothing was answered; end the turn and wait for the person's reply in the chat
-(stdout is the message to pass on, as without --wait) · 6 --wait: the desk it waited on closed.
+(stdout is the message to pass on, as without --wait) · 6 --wait: the desk it waited on closed · 7 --wait: another page went out
+before anything came for this one: run bin/vh status, and wait on the round open now.
 """
 import argparse, contextlib, json, os, re, sys
 from pathlib import Path
@@ -135,7 +137,7 @@ def skeleton(gate, lang, plan=None, kind=None):
                            "options": [{"id": "OK", "label": "放行，出正式画质" if zh else "It passes: render the final",
                                         "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")},
                                        {"id": "FIX", "label": "改完下面几处再看" if zh else "Fix the places below, then look again",
-                                        "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")}],
+                                        "pro": f("好处", "what it gains"), "con": f("代价", "what it costs"), "needs_note": True}],   # (picked with no note, Studio asks what to fix)
                            "recommend": f("OK 或 FIX", "OK or FIX"), "why": f("一句理由", "why, in one line"),
                            "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high"}]
         d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
@@ -307,7 +309,8 @@ def main(argv):
     for c in ("desk", "page", "chat"):
         how.add_argument(f"--{c}", dest="channel", action="store_const", const=c, help=f"review in the {c} this time")
     ap.add_argument("--wait", action="store_true", help="the desk only: then wait for the submission, like bin/vh desk wait")
-    ap.add_argument("--timeout", type=float, default=7100, help="with --wait: seconds (default 7100)")
+    import feedback as F0
+    ap.add_argument("--timeout", type=float, default=F0.WAIT, help=f"with --wait: seconds (default {F0.WAIT:.0f}: {F0.WAIT / 3600:g} h)")
     ap.add_argument("--port", type=int, help="the desk's port when it has to start (default: the first free of 8780–8799)")
     ap.add_argument("--print-address", action="store_true", help="the desk only, for a browser on another machine: open none, write an "
                                                                  "address that opens one page to your terminal alone (refused with no terminal, "
@@ -420,7 +423,7 @@ def main(argv):
         watch = desk_since(info) if info else None
     except Exception:
         watch = None
-    return feedback.wait(project, a.timeout, desk=watch)
+    return feedback.wait(project, a.timeout, desk=watch, round=page.gate)
 
 
 if __name__ == "__main__":

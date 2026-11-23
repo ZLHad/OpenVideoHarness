@@ -3345,6 +3345,14 @@ desk_checks() {
   # the words a person reads (Studio's tables, where a film stands, the review page, gate's lines): both languages, no retired names
   if a=$(python3 tools/desk/test_wording.py 2>&1); then ok "the words a person reads: $a"
   else bad "the words a person reads: $a"; fi
+  # Studio's page in a headless Chrome (tools/desk/test_page.py, page_driver.mjs): what the person sees of their notes' hand-over
+  local pt k m; pt=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  python3 tools/desk/test_page.py "$pt" > "$pt/out" 2>&1
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "Studio's page: $m" ;; bad) bad "Studio's page: $m" ;; skip) case $m in *"no node"*) skip "Studio's page" "no node" ;; *) no_chrome "Studio's page (${m%%:*})" ;; esac ;; esac
+  done < "$pt/out"
+  grep -qx end "$pt/out" || bad "Studio's page: the test stopped: $(tail -n 3 "$pt/out" | tr '\n' ' ')"
+  rm -rf "$pt"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh desk data tools/desk/fixtures/zh > "$t/zh.json" && vh desk data tools/desk/fixtures/en > "$t/en.json"
   if python3 - "$t/zh.json" "$t/en.json" <<'PY'
@@ -8505,7 +8513,7 @@ feedback.save(p, feedback.validate(p, {"round": "1", "lang": "zh", "decisions": 
                                        "items": [{"target": "range:3-4.5", "status": "change", "text": "这里太快"}, {"target": "card:B", "status": "ok"}]}))
 PY
   b=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["pending"] == 1' \
-    'd["next_step"]["commands"][0].endswith(" --round 1")' \
+    'd["next_step"]["commands"][0].startswith("bin/vh desk wait ")' \
     '[(i["target"], i["label"]) for i in d["open"]["review_items"]] == [("range:3-4.5", "片段 0:03.0–0:04.5")]')
   vh desk feedback "$p" >/dev/null
   c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')

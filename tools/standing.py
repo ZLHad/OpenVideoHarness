@@ -155,6 +155,28 @@ WORDS = {
                   "I sent my notes for this stop in Studio. Fetch and read them (bin/vh status says how), then carry on."),
     "say.resume": ("接着做这支片子：REVIEW.md 里写着暂停，现在恢复，在那里记一节恢复。先跑 bin/vh status 看下一步。",
                    "Carry on with this film: REVIEW.md says paused; it resumes now, so note that there. Run bin/vh status first for the next step."),
+    # the person's notes nobody has taken, and who holds the film outside Studio's window (new words: the agent by its name
+    # when known, else "AI"; the step by name; never a file name)
+    "seen.outline": ("大纲", "the outline"), "seen.script": ("旁白稿", "the script"),
+    "step.1": ("立意", "the concept"), "step.outline": ("大纲", "the outline"), "step.E0": ("画风样张", "the style frames"),
+    "step.E1": ("旁白稿", "the script"), "step.2": ("分镜", "the storyboard"), "step.E2": ("配乐安排", "the sound plan"),
+    "step.E3": ("最终的声音", "the final sound"), "step.3": ("初版", "the first draft"), "step.E4": ("第一章样片", "the first chapter"),
+    "step.E5": ("定画面的版本", "the picture lock"), "step.notes": ("随手写的意见", "your loose notes"), "step.other": ("这一页", "this page"),
+    "prog.claude": ("Claude Code", "Claude Code"), "prog.codex": ("Codex", "Codex"), "prog.ai": ("AI", "the AI"),
+    "notes_late": ("你在{s}那一轮被取走以后又交了 {n} 条，还没有 AI 来取。", "After {s} was picked up you sent {n} more {n_notes}; no AI has picked them up yet."),
+    "notes_late.short": ("补交的意见还没人取", "later notes not picked up"),
+    "notes_left": ("你交的 {n} 份意见还没有 AI 来取（{s}）。", "{N} {n_subs} you sent {are} not picked up by any AI yet ({s})."),
+    "notes_left.short": ("意见还没人取", "notes not picked up yet"),
+    "notes_left.live": ("正在等的 {a} 马上会取。", "The {a} that is waiting picks them up at once."),
+    "notes_left.outside": ("这支片子开在这个窗口外面的 {a} 里：回到它那边说一声“我交了”，它就会来取。", "This film is open in {A} outside this window: tell it \u201cI've sent it\u201d over there and it picks them up."),
+    "notes_left.next": ("现在没有 AI 在等。下次有 AI 接着做这支片子，会先拿到它们。", "No AI is waiting right now. The next AI to carry on with this film gets them first."),
+    "notes_left.also": ("{s}也出来了，等你{v}。", "{S} {be} out for you too."),
+    "agent_outside": ("这支片子开在这个窗口外面的 {a} 里；在这里打的字，它收不到。", "This film is open in {A} outside this window; what you type here does not reach it."),
+    "agent_outside.more": ("要它接着做，回到它那边说一句。", "To have it carry on, say so over there."),
+    "agent_outside.short": ("开在窗口外面", "open outside this window"),
+    "act.second": ("在这里另起一个 AI 做这支片子", "Start a second AI on this film here"),
+    "act.second_sure": ("确定，另起一个", "Yes, start a second one"),
+    "act.second_note": ("外面那个 {a} 还开着。两个一起做，可能改到同一处。", "{A} outside is still open. Two working at once may change the same thing."),
     # the film's plan
     "plan.secs": ("{n} 秒", "{n} s"), "plan.span": ("{a}–{b} 秒", "{a}–{b} s"), "plan.min": ("{m} 分钟", "{m} min"), "plan.min_s": ("{m} 分 {s} 秒", "{m} min {s} s"),
     "plan.vertical": ("竖屏", "vertical"), "plan.landscape": ("横屏", "landscape"), "plan.square": ("方屏", "square"),
@@ -297,6 +319,100 @@ def listener(project):
         return False
 
 
+def taker(project):
+    """A live wait that takes a new submission within the second: one alive (listener) that waits for the round that is out
+    now. A wait for a page that is no longer out ends by itself and takes nothing; an older wait that names no round is not
+    counted on."""
+    try:
+        _desk()
+        import feedback as F
+        info = F.listening(project)
+        return bool(info.get("listening")) and info.get("round") is not None and info.get("round") == F.current_round(project)
+    except Exception:
+        return False
+
+
+def unread(project):
+    """The person's notes no agent has taken yet: [(path, record, late)] (tools/desk/feedback.py)."""
+    try:
+        _desk()
+        import feedback as F
+        return F.unread(project)
+    except Exception:
+        return []
+
+
+def program_of(agent):
+    """The agent program's name (claude, codex …) of a run's agent record, or None."""
+    try:
+        import activity
+        name = os.path.basename(activity._ps(int(agent["pid"]), "comm=") or "")
+        if name in activity.RUNTIMES:
+            name = next((os.path.basename(x) for x in activity._ps(int(agent["pid"]), "command=").split() if activity.AGENT_PROGRAMS.match(os.path.basename(x))), name)
+        return name if activity.AGENT_PROGRAMS.match(name) else None
+    except Exception:
+        return None
+
+
+def in_studio(agent):
+    """Is this agent program one Studio's own column started (it runs under a desk server: tools/desk/desk.py among its
+    parents)? None when that cannot be told."""
+    try:
+        import activity
+        p = int(agent["pid"])
+        for _ in range(16):
+            if p <= 1:
+                return False
+            line = activity._ps(p, "ppid=,command=").split(None, 1)
+            if len(line) < 2 or not line[0].isdigit():
+                return None
+            if re.search(r"tools/desk/desk\.py\b", line[1]):
+                return True
+            p = int(line[0])
+        return False
+    except Exception:
+        return None
+
+
+def prog_words(name):
+    """[zh, en] of an agent program for the person: Claude Code, Codex, else AI."""
+    k = f"prog.{name}" if f"prog.{name}" in WORDS else "prog.ai"
+    return [w(k, 0), w(k, 1)]
+
+
+def has_cards(project, pid):
+    """Does this review page hold concept cards (an option with a picture: its frame)? A gate ① page without them is about
+    the outline."""
+    try:
+        d = json.loads((Path(project) / "out" / "review" / f"gate-{pid}.json").read_text(encoding="utf-8-sig"))
+        return any(isinstance(o, dict) and o.get("frame") for x in d.get("decisions") or [] if isinstance(x, dict) for o in x.get("options") or [])
+    except (OSError, ValueError, AttributeError, TypeError):
+        return True
+
+
+def page_of(s):
+    """The page id a station is at (its latest page), else its own id."""
+    return Path(s["page"]).stem[5:] if s.get("page") else s["id"]
+
+
+def stop_place(project, s):
+    """(module, tab, seen-words key) of what a stop's page asks the person about: a gate ① page with concept cards is the
+    concept, one without is the outline; E1 is the script, on the outline's script tab; the rest as MOD says."""
+    pid = page_of(s)
+    if s["id"] == "1" and not has_cards(project, pid):
+        return "outline", None, "seen.outline"
+    if s["id"] == "E1":
+        return "outline", "script", f"seen.{s['id']}"
+    return MOD.get(s["id"], "cut"), None, f"seen.{s['id']}"
+
+
+def step_words(round_id):
+    """[zh, en] of a round's step by name (旁白稿, 大纲 …), from its page id (1b → gate ①: the concept or outline)."""
+    m = re.match(r"^(E\d|\d)", str(round_id or ""))
+    k = "step.notes" if round_id == "notes" else f"step.{m.group(1)}" if m and f"step.{m.group(1)}" in WORDS else "step.other"
+    return [w(k, 0), w(k, 1)]
+
+
 def newest_file(project, limit=4000):
     """(mtime, path from the project, whole) of the newest change among the film's own files, or None. Where source lives is
     looked at first (the film's folder, then its folders breadth first, four deep); out/, media/, renders/ … are not its
@@ -434,6 +550,16 @@ def open_agent(o, project, newest, now):
         return None
 
 
+def holder(project, o, now=None):
+    """The agent program open on this film now (the one its newest recorded run was started under, alive, and this film its
+    latest work): {program: claude | codex | … | None, outside: it is not one Studio's own column started}, or None. Studio
+    names it when it says who picks the person's notes up."""
+    held = open_agent(o, project, None, time.time() if now is None else now)
+    if not held or held[0] != "here":
+        return None
+    return {"program": program_of(held[1]), "outside": in_studio(held[1]) is False}
+
+
 def say(code, who, you, s, more=None, short=None, act=None, paths=(), tone=None, **facts):
     """s, short: {zh, en}; more: a list of {zh, en} (None skipped), joined into the line under the sentence."""
     parts = [m for m in more or [] if m]
@@ -536,14 +662,49 @@ def of(project, o, now=None):
         return say("revision_ready", who, "decide", both("revision_ready"), [both("revision_ready.more")],
                    act=act_open("cut", both("act.revision"), "revisions"), revisions=len(revs))
     wait = next((s for s in st if s["state"] == "waiting_person"), None)
-    if wait:
-        n, many, ear = seen(wait), wait["id"] in PLURAL, wait["id"] in LISTEN
+    live = taker(project)   # a wait alive on the round that is out now: it takes a new submission within the second
+    un = unread(project)
+    cur_pid = page_of(nxt) if nxt else None
+    covered = not un or (wait is None and nxt is not None and fb.get("pending") and all(j.get("round") == cur_pid and not late for _, j, late in un))
+    if wait:   # what the waiting page asks about: a gate ① page without cards is the outline, E1 is the script (its tab)
+        mod, tab, seen_key = stop_place(project, wait)
+        n, many, ear = (both(seen_key) if seen_key in WORDS else seen(wait)), wait["id"] in PLURAL and seen_key != "seen.outline", wait["id"] in LISTEN
         v = [w("take.listen" if ear else "take.look", i) for i in (0, 1)]
+    if not covered:   # notes the person sent that nobody took: said first, with who takes them; never "received" until a run took them
+        held0 = open_agent(o, project, None, now)
+        prog = program_of(held0[1]) if held0 and held0[0] == "here" else None
+        outside = bool(held0 and held0[0] == "here" and in_studio(held0[1]) is False)
+        late = [(f, j) for f, j, lt in un if lt]
+        if late:
+            r = late[-1][1].get("round")
+            sw = step_words(r)
+            if str(r).startswith("1") and not has_cards(project, r):
+                sw = [w("step.outline", 0), w("step.outline", 1)]
+            nl = sum(len(j.get("items") or []) + (1 if j.get("general") else 0) + len(j.get("decisions") or {}) for _, j in late if isinstance(j, dict))
+            nl = nl or len(late)
+            head = two(w("notes_late", 0, s=sw[0], n=nl), w("notes_late", 1, s=sw[1], n=nl, n_notes="note" if nl == 1 else "notes"))
+            code = "notes_late"
+        else:
+            rounds = list(dict.fromkeys(str(j.get("round")) for _, j, _ in un))
+            sws = [step_words(r) if not (r.startswith("1") and not has_cards(project, r)) else [w("step.outline", 0), w("step.outline", 1)] for r in rounds]
+            k = len(un)
+            head = two(w("notes_left", 0, n=k, s=w("plan.list", 0).join(x[0] for x in sws)),
+                       w("notes_left", 1, N=k, n_subs="submission" if k == 1 else "submissions", are="is" if k == 1 else "are", s=w("plan.list", 1).join(x[1] for x in sws)))
+            code = "notes_left"
+        a = prog_words(prog)
+        who_line = (two(w("notes_left.live", 0, a=a[0]), w("notes_left.live", 1, a=a[1])) if live else
+                    two(w("notes_left.outside", 0, a=a[0]), w("notes_left.outside", 1, A=cap(a[1]))) if outside else both("notes_left.next"))
+        also = two(w("notes_left.also", 0, s=n["zh"], v=v[0]), w("notes_left.also", 1, S=cap(n["en"]), be="are" if many else "is")) if wait else None
+        act = act_open(mod, two(w("act.look", 0, v=v[0], s=n["zh"]), w("act.look", 1, V=cap(v[1]), s=n["en"])), tab) if wait else \
+            (None if (live or outside) else act_tell(both("act.fetch"), both("say.fetch")))
+        return say(code, "agent", "none" if live else "nudge", head, [who_line, also], both(code + ".short"), act,
+                   tone="busy" if live else "you", unread=len(un), late=len(late), live=live, outside=outside, program=prog)
+    if wait:
         return say("waiting_you", who, "decide",
                    two(w("waiting_you", 0, s=n["zh"], v=v[0]), w("waiting_you", 1, S=cap(n["en"]), be="are" if many else "is", wait="wait" if many else "waits")),
                    [both("waiting_you.listening" if listening else "waiting_you.alone")],
                    two(w("waiting_you.short", 0, s=n["zh"], v=v[0]), w("waiting_you.short", 1, s=n["en"])),
-                   act_open(MOD.get(wait["id"], "cut"), two(w("act.look", 0, v=v[0], s=n["zh"]), w("act.look", 1, V=cap(v[1]), s=n["en"]))),
+                   act_open(mod, two(w("act.look", 0, v=v[0], s=n["zh"]), w("act.look", 1, V=cap(v[1]), s=n["en"])), tab),
                    stop=wait["id"], listening=listening)
     took = None   # when an agent was handed the person's submissions for this stop
     if fb.get("handed"):
@@ -552,13 +713,19 @@ def of(project, o, now=None):
         except OSError:
             took = None
     if fb.get("pending"):   # the newest submission: nobody has it yet, whatever else runs
-        if listening:   # a live listener (and its agent) takes it within the second
+        if live:   # a live listener on this very round (and its agent) takes it within the second
             return say("notes_sent", who, "none", both("notes_sent"), stop=nxt["id"])
         try:
             tl = clock((project / fb["last"]).stat().st_mtime, now)
         except (OSError, KeyError, TypeError):
             tl = clock(now, now)
         c, pr = (cmd_words(working[0]), progress(working[0])) if working else (None, None)
+        held0 = open_agent(o, project, None, now)
+        outside = bool(held0 and held0[0] == "here" and in_studio(held0[1]) is False)
+        if outside and not c:   # the agent that would fetch them is outside this window: what to say there, no button that starts another
+            a = prog_words(program_of(held0[1]))
+            return say("notes_unheard", who, "nudge", both("notes_unheard"), [two(w("notes_left.outside", 0, a=a[0]), w("notes_left.outside", 1, A=cap(a[1])))],
+                       stop=nxt["id"], pending=fb["pending"], outside=True)
         more = [two(w("notes_unheard.busy", 0, x=c[0], p=pr[0], t=tl), w("notes_unheard.busy", 1, X=cap(c[2]), p=pr[1], t=tl)) if pr else
                 two(w("notes_unheard.busy0", 0, x=c[0], t=tl), w("notes_unheard.busy0", 1, X=cap(c[2]), t=tl))] if c else [both("notes_unheard.more")]
         return say("notes_unheard", who, "nudge", both("notes_unheard"), more, act=act_tell(both("act.fetch"), both("say.fetch")),
@@ -634,6 +801,12 @@ def of(project, o, now=None):
         return say("stopped", who, "nudge", two(w("stopped", 0, x=short[0]), w("stopped", 1, x=short[1])),
                    [two(w(k, 0, a=a[0], x=why[0]), w(k, 1, a=a[1], X=cap(why[1]))), read, has, later, away],
                    act=act_tell(both("act.carry"), two(w("say.stopped", 0, x=why[0]), w("say.stopped", 1, x=why[1]))), paths=paths)   # (it broke: nothing to ask twice)
+    if agent and in_studio(agent[1]) is False:   # an agent outside this window: Studio cannot reach that conversation, and says so
+        a = prog_words(program_of(agent[1]))
+        sec = act_tell(both("act.second"), both("say.carry"), confirm=True, secondary=True)
+        sec.update(sure=both("act.second_sure"), sure_note=two(w("act.second_note", 0, a=a[0]), w("act.second_note", 1, A=cap(a[1]))))
+        return say("agent_outside", who, "offer", two(w("agent_outside", 0, a=a[0]), w("agent_outside", 1, A=cap(a[1]))),
+                   [both("agent_outside.more"), lastw, read, later], act=sec, paths=paths, program=program_of(agent[1]))
     if agent:
         return say("agent_open", who, "offer", both("agent_open"), [lastw, read, later],
                    act=act_tell(both("act.carry_open"), both("say.carry"), confirm=True, secondary=True), paths=paths)

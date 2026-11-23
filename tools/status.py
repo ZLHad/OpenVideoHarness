@@ -248,13 +248,23 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
             st["note"] = "bin/vh gate refused this page, so that run sent the person nothing: fix it and send it again"
         elif latest is not None and pid == cur:
             if pend:
-                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk feedback)"
+                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk wait hands them over)"
             elif handed:
                 st["state"], st["note"] = "waiting_agent", "the submission was handed over; REVIEW.md has no decision for it yet"
             else:
                 st["state"] = "waiting_person"
         elif latest is not None:
             st["state"], st["note"] = "waiting_agent", f"this round moved on to {cur}; REVIEW.md has no decision for {pid}"
+        # a later page of gate ① (1b: the outline again, after the concept was decided) that is out now and that nothing
+        # answers yet: gate ①'s record stays as bin/vh render and check read it, but the page waits for its own answer
+        if key == "1" and st["state"] == "done" and latest is not None and pid == cur and len(plist) > 1 and pid != plist[0].stem[5:] \
+                and latest.with_suffix(".html").exists() and R.refusal(project, pid) is None and not (page_secs and G.record(page_secs[-1][1])[0]):
+            if pend:
+                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) for page {pid} not handed to the agent yet (bin/vh desk wait hands them over)"
+            elif handed:
+                st["state"], st["note"] = "waiting_agent", f"the submission for page {pid} was handed over; REVIEW.md has no decision for it yet"
+            else:
+                st["state"], st["note"] = "waiting_person", f"page {pid} is out and waits for its own answer (gate ① itself is on record)"
         if how == "stop_older" and st["state"] not in ("done", "skipped", "no_record"):
             st["note"] = ((st["note"] + "; ") if st["note"] else "") + \
                 f"its REVIEW.md section has a decision, but names no page and is older than the page: not counted (its 页面 line: {stub})"
@@ -596,8 +606,29 @@ def film_state(project, by_video):
 is_final = G.is_final   # a film that counts as the delivery (tools/gatecheck.py)
 
 
-def next_step(project, proj, st, paused, no_record, working, desk, by_video):
-    """{who, do, commands, read, unfilled}: who has the next move at the stop the project is at, and how to take it."""
+def unread_line(unread):
+    """The rounds of the notes no agent has taken, in words: "E1 (a later batch, written after it was taken)", "1b"."""
+    by = {}
+    for x in unread:
+        by.setdefault(x["round"], []).append(x)
+    return ", ".join(f"{r} ({len(xs)} submission(s)" + (", a later batch written after that round was taken" if any(x["late"] for x in xs) else "") + ")"
+                     for r, xs in by.items())
+
+
+def unread_covered(st, unread):
+    """The notes no agent has taken are all the stop-at-hand's own new submission, which its waiting_agent line already
+    says how to read: nothing more to say about them."""
+    s = next((x for x in st if x["state"] in ("waiting_agent", "in_progress")), None)
+    if not unread or any(x["state"] == "waiting_person" for x in st) or s is None or not (s.get("feedback") or {}).get("pending"):
+        return not unread
+    pid = Path(s["page"]).stem[5:] if s["page"] else s["id"]
+    return all(x["round"] == pid and not x["late"] for x in unread)
+
+
+def next_step(project, proj, st, paused, no_record, working, desk, by_video, unread=()):
+    """{who, do, commands, read, unfilled}: who has the next move at the stop the project is at, and how to take it.
+    unread: the person's notes no agent has taken yet (feedback.unread): unless they are just the stop's own new submission,
+    reading them comes before anything else, a stop that waits for the person included."""
     p = shown(project)
     left = unfilled(project)
     state = {x["id"]: x["state"] for x in st}
@@ -618,6 +649,10 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     busy = f"{working[0]['cmd']} is running (bin/vh activity {p}); when it ends: " if working else ""
     if paused:
         return out("person", "paused (REVIEW.md): the person resumes it")
+    if not unread_covered(st, unread):   # notes the person sent that nobody took: before anything else, and never left behind
+        return out("agent", busy + f"read the notes the person sent in Studio that no agent has taken yet: round {unread_line(unread)}. "
+                   "bin/vh desk wait hands every one over at once (exit 0 straight away); write what you decide under each one's section "
+                   "in REVIEW.md, then go on", [f"bin/vh desk wait {p}"], [R_DESK])
     wait = next((s for s in st if s["state"] == "waiting_person"), None)
     if wait:
         where = f"the desk {desk['url']}" if desk else wait["page"] or "the chat"
@@ -646,8 +681,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
-            return out("agent", busy + f"read the person's submission for {s['name']}, then write what was decided into REVIEW.md",
-                       [f"bin/vh desk feedback {p} --round {pid}"], [R_DESK])
+            return out("agent", busy + f"read the person's submission for {s['name']} (bin/vh desk wait hands every note nobody took over at once, exit 0 "
+                       "straight away), then write what was decided into REVIEW.md", [f"bin/vh desk wait {p}"], [R_DESK])
         if fb.get("handed"):
             return out("agent", busy + f"write what was decided and changed under the desk's section for {s['name']} in REVIEW.md (定了 / 改了)", [], [R_DESK])
         return out("agent", busy + (s["note"] or f"record the decision for {s['name']} in REVIEW.md"), [], [R_RECORD])
@@ -895,11 +930,21 @@ def collect(project, now=None, light=False):
     warnings = []
     _, todo = reader._facts(reader.strip_comments(reader._read(project / "NOTES.md", warnings)), warnings)
     facts = [x["text"] for x in todo if not x["done"] and not x["text"].startswith("{")]   # not the template's {claim} line
+    # the person's notes no agent has taken yet, of any round (tools/desk/feedback.py's unread): never left behind
+    try:
+        took = F.taken(project)
+        unread = [{"round": text(j.get("round")), "file": rel(project, f), "late": late, "submitted_at": text(j.get("submitted_at")),
+                   "items": len(j.get("items") or []) if isinstance(j.get("items"), list) else 0, "decisions": len(j.get("decisions") or {}) if isinstance(j.get("decisions"), dict) else 0}
+                  for f, j, late in F.unread(project)]
+    except Exception:
+        took, unread = {}, []
     # who is waited on, and the next step in one line
     waiting = [s for s in st if s["state"] == "waiting_person"]
     agent = [s for s in st if s["state"] in ("waiting_agent", "in_progress")]
     if paused:
         waiting_on, nxt = "person", "paused (REVIEW.md): the person resumes it"
+    elif not unread_covered(st, unread):
+        waiting_on, nxt = "agent", f"the agent: read the person's notes no agent has taken yet (round {unread_line(unread)})"
     elif waiting:
         s = waiting[0]
         waiting_on, nxt = "person", f"the person: review {s['name']} on " + (f"the desk {desk['url']}" if desk else s["page"] or "the chat")
@@ -964,19 +1009,20 @@ def collect(project, now=None, light=False):
     out = {"version": 1, "project": proj, "paused": paused, "waiting_on": waiting_on, "next": nxt, "stations": st,
            "stops": {"gates": plan["gates"], "checkpoints": plan["checkpoints"], "line": plan["line"], "costly": [c["say"] for c in plan["costly"]],
                      "kept": plan["kept"], "note": G.plan_note(plan)},
-           "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk,
+           "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk, "unread": unread,
+                      "taken": {k: {"t": v.get("t"), "program": v.get("program"), "by": v.get("by")} for k, v in took.items()},
                       "revisions": RV.listing(project)},   # a few small records: the space's card says when a change waits for review
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent, "key_stop": standing.key_stop(runs)},   # (the whole log: a stop for an API Key nothing settled)
-           "media": None, "next_step": None, "now": None, "plan": None}
+           "media": None, "next_step": None, "now": None, "plan": None, "holder": None}
     try:   # what cannot be read is said, never a failure of status
         out["media"] = media(project)
     except Exception as e:
         out["media"] = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": [], "error": f"{type(e).__name__}: {e}"}
     try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
-        out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
+        out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video, unread)
     except Exception as e:
         out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
     try:   # where it stands for the person, in a sentence (tools/standing.py): what Studio says too
@@ -988,6 +1034,10 @@ def collect(project, now=None, light=False):
         out["plan"] = standing.plan_line(out)
     except Exception:
         out["plan"] = None
+    try:   # who is open on the film, by name, and whether outside Studio's window: who picks the person's notes up
+        out["holder"] = standing.holder(project, out, now)
+    except Exception:
+        out["holder"] = None
     return out
 
 
@@ -1018,7 +1068,7 @@ def show(o, now):
     if n["read"]:
         print("  read: " + " · ".join(n["read"]) + "  (with a #section: bin/vh know --show \"<file>#<section>\" prints it; without: the whole file)")
     nw = o.get("now") or {}
-    if nw.get("say") and nw.get("code") not in ("idle", "setup", "agent_open", "no_record", "unknown"):   # the person's words, as Studio says them
+    if nw.get("say") and nw.get("code") not in ("idle", "setup", "agent_open", "agent_outside", "no_record", "unknown"):   # the person's words, as Studio says them
         # (tools/standing.py), when they say more than next: does; the view stays short (plan: is in --json and in Studio)
         print(f"now: {nw['say']['en']}")
         if nw.get("more"):
@@ -1026,6 +1076,10 @@ def show(o, now):
         a = nw.get("act") or {}
         if a.get("kind") == "open":   # (no command here: an agent reads this too, and a window nobody asked for is no help)
             print(f"  the person does this in Studio: {a['label']['en']}")
+    un = (o.get("review") or {}).get("unread") or []
+    if un:   # the person's notes nobody took: said on a line of their own, whatever the next step is
+        print(f"unread: {len(un)} submission(s) from Studio no agent has taken yet: round {unread_line(un)} "
+              f"(bin/vh desk wait {shown(Path(p['path']))} hands them over)")
     ri, fv = o["open"]["review_items"], o["open"]["facts_to_verify"]
     if ri or fv:
         print("open: " + " · ".join(x for x in (f"{len(ri)} review item(s) (round {', '.join(dict.fromkeys(str(i['round']) for i in ri))})" if ri else "",

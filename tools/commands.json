@@ -1188,7 +1188,8 @@
             "(LOCAL.md's 审阅方式; else studio: desk; standard: Studio while it is open, else the page; quick: page), prints the chat message;",
             "--wait (desk): then waits like desk wait, exit 0 only when a submission was received; a standard film's stop that went out",
             "as the static page by default (Studio not open): the page goes out as usual, exit 5: nothing was answered; end the turn",
-            "and wait for the person's reply in the chat (tools/gate.py)"
+            "and wait for the person's reply in the chat; exit 7: another page went out before anything came for this one: run",
+            "bin/vh status and wait on the round open now (tools/gate.py)"
           ]
         },
         {
@@ -1229,7 +1230,8 @@
             "every project bin/vh projects finds (--root: more folders), a card a film, waiting ones first. A project: the page",
             "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
             "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
-            "(an agent runs it in the background); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
+            "(an agent runs it in the background; notes no agent took yet, of any round, come first; 3 after 12 h; 7 this round's",
+            "page is no longer the one out: run bin/vh status, wait on the round open now); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
             "revision: put one saved comment and the original and revised cuts in the Cut module's review list.",
             "The desk shows Studio's window itself: started in a terminal it does (--no-open: not); bin/vh studio does any other",
             "time, and a page that can only look has a button for it. Nothing it prints opens a page; --print-address writes an",
