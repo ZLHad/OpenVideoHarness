@@ -803,14 +803,14 @@ function buildComposer() {
   $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); addNote(); } });
 }
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
-function scopeLabel() { return SCOPE ? SCOPE.label : MOD === "cut" ? t("whole_film") : MOD === "board" ? t("this_part") : t("whole", { m: t("m_" + (MOD || "cut")) }); }
+function scopeLabel() { return SCOPE ? SCOPE.label : MOD === "cut" ? t("whole_film") : MOD === "board" ? inLine(t("this_part")) : t("whole", { m: t("m_" + (MOD || "cut")) }); }   // (the chip says it as the sentences do: this page, this part)
 function updateComposer() {
   if (!$("#composer").dataset.ready) return;
   const x = scopeLabel();
   $("#scope").textContent = x; $("#scope").className = "chip" + (SCOPE ? "" : " quiet");
   $("#toWhole").hidden = !SCOPE;
   $("#toNone").hidden = !!(SCOPE && SCOPE.none);
-  $("#say").placeholder = SCOPE && SCOPE.none ? t("ph_not_film") : t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : x });
+  $("#say").placeholder = SCOPE && SCOPE.none ? t("ph_not_film") : t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : inLine(x) });
   AGENT.scope();   // the conversation's box writes against the same selection
 }
 function setScope(s) {
@@ -828,7 +828,7 @@ function addNote() {
     FB.items[SCOPE.target] = Object.assign({}, cur || {}, { status: cur && cur.status === "ask" ? "ask" : "change", label: SCOPE.label, text: cur && cur.text ? cur.text + "\n" + text : text },
       SCOPE.t != null ? { t: SCOPE.t } : {}, SCOPE.t1 != null ? { t1: SCOPE.t1 } : {});
   }
-  ta.value = ""; save(); toast(t("noted", { x: scopeLabel() }));
+  ta.value = ""; save(); toast(t("noted", { x: inLine(scopeLabel()) }));
   const li = $(`#cMine li[data-goto="${CSS.escape(SCOPE && SCOPE.target ? SCOPE.target : "")}"]`) || $$("#cMine li.general").pop();   // the note in the column, in view and lit for a moment
   if (li) { li.scrollIntoView({ block: "nearest", behavior: "smooth" }); li.classList.add("just"); setTimeout(() => li.classList.remove("just"), 1600); }
   ta.blur();   // noted: the next key (N, ← →, Space) goes to the film, not into the box

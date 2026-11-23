@@ -52,7 +52,6 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .flow{flex:1 1 auto;display:flex;align-items:center;justify-content:safe center;gap:0;list-style:none;margin:0;padding:0;min-width:0;overflow-x:auto;scrollbar-width:none}
 .flow li{display:flex;align-items:center;flex:0 0 auto}
 .flow li+li::before{content:"";width:12px;height:1px;margin:0 6px;background:var(--rule-2)}
-@media (max-width:1400px){.flow li+li::before{width:6px;margin:0 3px}.flow .stn{padding:4px 6px}}   /* seven steps and their words fit a 1280 window, in English too */
 .stn{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;cursor:pointer;font-size:var(--fs-small);line-height:1.25;color:var(--ink-3);padding:4px 10px;border-radius:var(--r-card);white-space:nowrap}
 .stn .nm{display:inline-flex;align-items:center;gap:6px}
 .stn i{width:7px;height:7px;border-radius:50%;background:var(--rule-2);flex:0 0 auto}
@@ -72,6 +71,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 :root[data-theme=bridge] .stn{border-radius:0;background:var(--panel-2)}
 :root[data-theme=bridge] .stn.wait{background:var(--wait);color:var(--on-wait)}:root[data-theme=bridge] .stn.wait em,:root[data-theme=bridge] .stn.wait small{color:var(--on-wait)}
 :root[data-theme=bridge] .flow li+li::before{width:8px}
+@media (max-width:1400px){.flow li+li::before,:root[data-theme=bridge] .flow li+li::before{width:0;margin:0 2px}.flow .stn{padding:4px 6px}}   /* seven steps and their words fit a 1280 window, in English too */   /* (after the themes' own) */
 .topbar .tools{display:flex;align-items:center;gap:10px;flex:0 0 auto}
 .topbar select{background:var(--panel-2);border:1px solid var(--rule);color:var(--ink-2);font-size:var(--fs-label);padding:3px 6px;border-radius:var(--r-ctl)}
 
@@ -643,7 +643,8 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .wav path{fill:var(--ink-3);opacity:.3;stroke:var(--ink-2);stroke-width:1;vector-effect:non-scaling-stroke}   /* the sound's outline, not a block */
 .transport .p-btn[disabled]{opacity:.35;cursor:default}
 
-.col-round>span:first-child{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* the count in one line, whatever the language */
+.col-round>span:first-child{flex:1 1 auto;min-width:0;line-height:1.35}   /* the words beside the button wrap rather than cut; the button says what goes, in one line */
+.col-round .btn-primary{flex:0 0 auto;white-space:nowrap}
 .col-body .blk-h{text-transform:none;letter-spacing:normal}   /* a label with "agent" in it is not set in capitals (舰桥) */
 @media (max-width:900px){.rail .mod{width:36px;min-height:40px}.rail .mod span{display:none}.rail{justify-content:space-between}}   /* a phone: the modules as icons, all in one row */
 

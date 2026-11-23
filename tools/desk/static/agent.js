@@ -569,7 +569,7 @@ const AGENT = (() => {
   }
   function itemHtml(it) {
     const a = esc(label());
-    if (it.kind === "user") return `<div class="ag-me">${it.scope && it.scope.label ? `<span class="chip">${esc(at("t_on", { x: cut(it.scope.label, 40) }))}</span>` : ""}<p>${esc(it.text)}</p></div>`;
+    if (it.kind === "user") return `<div class="ag-me">${it.scope && it.scope.label ? `<span class="chip">${esc(at("t_on", { x: inLine(cut(it.scope.label, 40)) }))}</span>` : ""}<p>${esc(it.text)}</p></div>`;
     if (it.kind === "msg" && AUTH_MSG.test(it.text)) return `${HINTS.has(it.key) ? signInHint("warn") : ""}<details class="ag-thought"><summary>${esc(at("raw_said"))}</summary><div class="ag-md">${md(it.text)}</div></details>`;
     if (it.kind === "msg") return `<div class="ag-say"><div class="ag-who"><i></i>${a}</div><div class="ag-md">${md(it.text)}</div></div>`;
     if (it.kind === "thought") return it.text.trim() ? `<details class="ag-thought"><summary>${esc(at("thought"))}</summary><div class="ag-md">${md(it.text)}</div></details>` : "";
@@ -799,7 +799,7 @@ const AGENT = (() => {
     }
     const sp = KEYP === SPACE, first = sp && !(S && S.items.length);   // the space: nothing selected to be on
     $("#agScope").textContent = sp ? "" : x; $("#agScope").className = "chip" + (sc ? "" : " quiet"); $("#agScope").hidden = sp; $("#agAt").hidden = sp;
-    $("#agSay").placeholder = first ? at("sp_ph") : sc ? at("ph_say", { x: sc.label }) : at("ph_say0", { a: label() });
+    $("#agSay").placeholder = first ? at("sp_ph") : sc ? at("ph_say", { x: inLine(sc.label) }) : at("ph_say0", { a: label() });
     $("#agSay").disabled = !meta(KIND).installed || !KEYOK;
     $("#agStop").hidden = !running; $("#agStop").disabled = !!(S && S.stopping);
     $("#agSend").disabled = !meta(KIND).installed || !KEYOK || !!(ERR && ERR.code === "starting");

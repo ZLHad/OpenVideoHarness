@@ -384,6 +384,7 @@ const tcode = (x, fps) => { const f = Math.floor(Math.max(0, x || 0) * fps + 0.0
 const enc = encodeURIComponent;
 const isVideo = (p) => /\.(mp4|webm|mov|m4v)$/i.test(p || ""), isImage = (p) => /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(p || "");
 const cut = (s, n) => (String(s).length > n ? String(s).slice(0, n) + "…" : String(s));
+const inLine = (x) => { const s = String(x == null ? "" : x); return LANG === "en" && /^[A-Z][a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s; };   // a label inside an English sentence: "a note about this part", "added: shot 4"; an id (S4, PROLOGUE) as it is
 const COLON = () => (LANG === "zh" ? "：" : ": ");
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
