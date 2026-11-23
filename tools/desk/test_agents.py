@@ -1390,7 +1390,10 @@ def attack_checks():
         if any(set(x) - {"ok", "opened", "how", "why", "code", "status"} or tok in json.dumps(x) for x in got.get("open") or [{}]):
             return f"/api/open answered {got.get('open')}"
         d.a(sid, "answer", {"request": got["rid"], "option": "reject"})
-        lock = (proj / ".ovh" / "agent.lock").read_text() if (proj / ".ovh" / "agent.lock").exists() else ""
+        try:   # (the turn may end and take its lock away between a look and the read: a lock that is gone names nothing)
+            lock = (proj / ".ovh" / "agent.lock").read_text()
+        except FileNotFoundError:
+            lock = ""
         if str(d.port) in lock or "http" in lock:
             return "the lock names the desk"
         leaked = [str(f) for f in proj.rglob("*") if f.is_file() and tok.encode() in f.read_bytes()]
