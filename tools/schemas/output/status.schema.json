@@ -91,6 +91,16 @@
     "current": {"type": ["string", "null"]},
     "page": {"type": ["string", "null"]},
     "desk": {},
+    "unread": {
+     "type": "array",
+     "description": "The person's submissions no agent has taken yet, of any round (tools/desk/feedback.py's unread), oldest first; late: written after that round had been handed over.",
+     "items": {"type": "object", "required": ["round", "file", "late"], "properties": {"round": {"type": "string"}, "file": {"type": "string"}, "late": {"type": "boolean"}, "items": {"type": "integer"}, "decisions": {"type": "integer"}}}
+    },
+    "taken": {
+     "type": "object",
+     "description": "Each handed-over submission by file name: when (t, epoch seconds), under which agent program and how (wait | feedback); null where an older record does not say.",
+     "additionalProperties": {"type": "object", "properties": {"t": {"type": ["number", "null"]}, "program": {"type": ["string", "null"]}, "by": {"type": ["string", "null"]}}}
+    },
     "revisions": {
      "type": "array",
      "description": "Published comparisons as in review-revision.schema.json, with the reviewer's reply and availability.",
@@ -251,7 +261,8 @@
    }
   },
   "now": {"$ref": "#/$defs/now"},
-  "plan": {"$ref": "#/$defs/plan"}
+  "plan": {"$ref": "#/$defs/plan"},
+  "holder": {"description": "The agent program open on this film now, by name, and whether outside Studio's window (tools/standing.py's holder); null when none is", "type": ["object", "null"], "properties": {"program": {"type": ["string", "null"]}, "outside": {"type": "boolean"}}}
  },
  "$defs": {
   "words": {"type": "object", "required": ["zh", "en"], "properties": {"zh": {"type": "string"}, "en": {"type": "string"}}},
