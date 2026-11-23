@@ -3349,7 +3349,7 @@ desk_checks() {
   local pt k m; pt=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   python3 tools/desk/test_page.py "$pt" > "$pt/out" 2>&1
   while IFS=$'\t' read -r k m; do
-    case $k in ok) ok "Studio's page: $m" ;; bad) bad "Studio's page: $m" ;; skip) no_chrome "Studio's page (${m%%:*})" ;; esac
+    case $k in ok) ok "Studio's page: $m" ;; bad) bad "Studio's page: $m" ;; skip) case $m in *"no node"*) skip "Studio's page" "no node" ;; *) no_chrome "Studio's page (${m%%:*})" ;; esac ;; esac
   done < "$pt/out"
   grep -qx end "$pt/out" || bad "Studio's page: the test stopped: $(tail -n 3 "$pt/out" | tr '\n' ' ')"
   rm -rf "$pt"
@@ -8503,7 +8503,7 @@ feedback.save(p, feedback.validate(p, {"round": "1", "lang": "zh", "decisions": 
                                        "items": [{"target": "range:3-4.5", "status": "change", "text": "这里太快"}, {"target": "card:B", "status": "ok"}]}))
 PY
   b=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["pending"] == 1' \
-    'd["next_step"]["commands"][0].endswith(" --round 1")' \
+    'd["next_step"]["commands"][0].startswith("bin/vh desk wait ")' \
     '[(i["target"], i["label"]) for i in d["open"]["review_items"]] == [("range:3-4.5", "片段 0:03.0–0:04.5")]')
   vh desk feedback "$p" >/dev/null
   c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')

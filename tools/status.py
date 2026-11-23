@@ -248,7 +248,7 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
             st["note"] = "bin/vh gate refused this page, so that run sent the person nothing: fix it and send it again"
         elif latest is not None and pid == cur:
             if pend:
-                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk feedback)"
+                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk wait hands them over)"
             elif handed:
                 st["state"], st["note"] = "waiting_agent", "the submission was handed over; REVIEW.md has no decision for it yet"
             else:
@@ -260,7 +260,7 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
         if key == "1" and st["state"] == "done" and latest is not None and pid == cur and len(plist) > 1 and pid != plist[0].stem[5:] \
                 and latest.with_suffix(".html").exists() and R.refusal(project, pid) is None and not (page_secs and G.record(page_secs[-1][1])[0]):
             if pend:
-                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) for page {pid} not handed to the agent yet (bin/vh desk feedback)"
+                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) for page {pid} not handed to the agent yet (bin/vh desk wait hands them over)"
             elif handed:
                 st["state"], st["note"] = "waiting_agent", f"the submission for page {pid} was handed over; REVIEW.md has no decision for it yet"
             else:
@@ -681,8 +681,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
-            return out("agent", busy + f"read the person's submission for {s['name']}, then write what was decided into REVIEW.md",
-                       [f"bin/vh desk feedback {p} --round {pid}"], [R_DESK])
+            return out("agent", busy + f"read the person's submission for {s['name']} (bin/vh desk wait hands every note nobody took over at once, exit 0 "
+                       "straight away), then write what was decided into REVIEW.md", [f"bin/vh desk wait {p}"], [R_DESK])
         if fb.get("handed"):
             return out("agent", busy + f"write what was decided and changed under the desk's section for {s['name']} in REVIEW.md (定了 / 改了)", [], [R_DESK])
         return out("agent", busy + (s["note"] or f"record the decision for {s['name']} in REVIEW.md"), [], [R_RECORD])

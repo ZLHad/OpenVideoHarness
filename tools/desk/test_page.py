@@ -83,13 +83,16 @@ if not BROWSER or not shutil.which("node"):
     sys.exit(0)
 
 E1 = {"summary": "旁白稿第一版，逐句看", "decisions": [{"id": "names", "question": "英文名念不念？", "options": [{"id": "N1", "label": "不念"}, {"id": "N2", "label": "念"}], "recommend": "N1"},
-                                                    {"id": "go", "question": "旁白稿能定吗？", "options": [{"id": "OK", "label": "可以，往下做"}, {"id": "FIX", "label": "先改"}], "recommend": "OK"}],
+                                                    {"id": "go", "question": "旁白稿能定吗？", "options": [{"id": "OK", "label": "可以，往下做"}, {"id": "FIX", "label": "先改", "needs_note": True}], "recommend": "OK"}],
       "appendix": [{"title": "大纲", "text": "| 段落 | 时间 |\n|---|---|\n| 开场 | 0–9 s |"}, {"title": "事实清单", "text": "- 一天两次"}, {"title": "引用", "text": "- 某教材"}],
       "decided": ["立意：从海边讲起"], "delegated": ["配音用男声"]}
 late = film("late", E1)   # the script's round was submitted and an agent took it; the person writes more
 first = F.save(late, F.validate(late, {"round": "E1", "lang": "zh", "decisions": {"names": "N1", "go": "OK"}, "items": [{"target": "seg:1", "status": "change", "text": "开头再短点"}]}))
 F.mark_consumed(late, [first])   # (as an agent's wait or desk feedback leaves it)
-fix = film("fix", E1)     # nothing submitted yet: "先改" picked with no note
+KEEP_AS_IS = {"id": "keep", "question": "开头那句保留吗？", "options": [{"id": "K1", "label": "保留"}, {"id": "K2", "label": "不要改，保持不变，不用重做"}], "recommend": "K1"}
+fix = film("fix", dict(E1, decisions=E1["decisions"] + [KEEP_AS_IS]))   # nothing submitted yet: "先改" picked with no note; a "no change" option picked
+moved = film("moved", E1)   # notes kept on the script, never sent, then the agent sends the outline again
+AGAIN = {"summary": "大纲改成 3 段，再看一遍", "decisions": [{"id": "go", "question": "大纲能做分镜了吗？", "options": [{"id": "OK", "label": "可以"}, {"id": "FIX", "label": "先改", "needs_note": True}], "recommend": "OK"}]}
 busy = film("busy", dict(E1, least_sure=[{"id": f"c0{i}", "note": f"第 {i} 句会不会太书面，念出来像在读稿"} for i in range(1, 5)]))   # eight notes kept beside a full column: the newest and the state line on screen at 1440 x 900
 
 proc = subprocess.Popen([sys.executable, str(HERE / "fixtures" / "with_tty.py"), "bash", str(VH), "desk", "--root", str(T / "root"), "--port", "0", "--no-open", "--print-address"],
@@ -116,6 +119,10 @@ try:
         {"click": "#doSubmit", "after": 3000},
         {"until": "$('#cMine') && /补交的 1 条，还没人取/.test($('#cMine').innerText) && $('#colRound').innerText", "name": "late_after", "ms": 10000},
         {"go": f"#/p/{key(fix)}/outline/script", "after": 2500}, tab,
+        {"eval": "(pick('keep', 'K2'), true)", "name": "pick_keep"},
+        {"click": "#openConfirm"},
+        {"eval": "JSON.stringify({ ask: ($('#fixAsk') || {}).innerText || '', back: !!$('#fixBack') })", "name": "keep_sheet"},
+        {"click": "#noSubmit"},
         {"eval": "(pick('go', 'FIX'), true)", "name": "pick"},
         {"click": "#openConfirm"},
         {"eval": "JSON.stringify({ ask: ($('#fixAsk') || {}).innerText || '', back: !!$('#fixBack'), go: ($('#doSubmit') || {}).innerText })", "name": "fix_sheet"},
@@ -130,17 +137,46 @@ try:
         {"go": f"#/p/{key(busy)}/outline/script", "after": 2500}, tab,
         {"eval": "(" + ", ".join(KEEP.format(t=f"cap:c0{i}", x=f"第 {i} 句再口语一点", lb=f"字幕 c0{i}") for i in range(1, 9)) + ")", "name": "eight"},
         {"wait": 800},
-        {"eval": "JSON.stringify((() => { const m = $('#cMine'), h = $('#cMine .blk-h'), n = $('#cMine li[data-goto=\"cap:c08\"]'), r = (e) => e && e.getBoundingClientRect(); "
-                 "const H = r(h), N = r(n), M = r(m), B = r($('#colBody')); return { h: H && [H.top, H.bottom], n: N && [N.top, N.bottom], m: M && [M.top, M.bottom], "
-                 "body: [B.top, B.bottom], text: h && h.innerText }; })())",
-         "name": "busy_view"},
     ]
+    steps += [   # drafts on a page the agent replaced: shown as not sent, sent to their own round on the person's word
+        {"go": f"#/p/{key(moved)}/outline/script", "after": 2500}, tab,
+        {"eval": KEEP.format(t="cap:c03", x="第三句别念英文", lb="字幕 c03"), "name": "moved_keep"},
+        {"write": str(moved / "out" / "review" / "gate-1b.json"), "text": json.dumps(AGAIN, ensure_ascii=False)},
+        {"write": str(moved / "out" / "review" / "gate-1b.html"), "text": "<!doctype html><title>1b</title>"},
+        {"write": str(moved / "out" / "review" / ".current"), "text": "1b\n"},
+        {"until": "/在旁白稿那一页写的 1 条，还没交/.test(($('#cMine') || {}).innerText || '')", "name": "moved_shown", "ms": 15000},
+        {"click": "[data-left-send]", "after": 3000},
+        {"until": "!/还没交/.test(($('#cMine') || {}).innerText || '') || /补交|还没人取/.test(($('#cMine') || {}).innerText || '')", "name": "moved_sent", "ms": 10000},
+        {"go": f"#/p/{key(busy)}/outline/script", "after": 2500}, tab, {"wait": 800},   # (back to the film with eight notes kept, for the layout below)
+    ]
+    VIEW = ("JSON.stringify((() => { const m = $('#cMine'), h = $('#cMine .blk-h'), n = $('#cMine li[data-goto=\"cap:c08\"]'), r = (e) => e && e.getBoundingClientRect(); "
+            "const H = r(h), N = r(n), M = r(m), B = r($('#colBody')); return { h: H && [H.top, H.bottom], n: N && [N.top, N.bottom], m: M && [M.top, M.bottom], "
+            "body: [B.top, B.bottom], text: h && h.innerText, theme: document.documentElement.dataset.theme }; })())")
+    for size in ((1280, 720), (1440, 900)):
+        steps.append({"viewport": list(size)})
+        for theme in ("darkfield", "prism", "bridge"):
+            steps += [{"eval": f"(document.documentElement.dataset.theme = {theme!r}, true)", "name": "theme"}, {"wait": 500},
+                      {"eval": VIEW, "name": f"busy_view {size[0]}x{size[1]} {theme}"}]
+    steps += [{"eval": "(document.documentElement.dataset.theme = 'darkfield', true)", "name": "theme"}, {"click": "#lang", "after": 1500}, tab]
+    for size in ((1280, 720), (1440, 900)):
+        steps += [{"viewport": list(size)}, {"eval": VIEW, "name": f"busy_view {size[0]}x{size[1]} en"}]
+    steps += [{"click": "#lang", "after": 1500}]
     res = drive(url, steps)
-finally:
-    try:
-        os.killpg(proc.pid, signal.SIGTERM)
-    except OSError:
-        pass
+finally:   # the desk this check started, and everything under it (bin/vh desk runs on in its own session): by process tree, never by name
+    rows = [x.split() for x in subprocess.run(["ps", "-A", "-o", "pid=,ppid="], capture_output=True, text=True).stdout.splitlines()]
+    tree, grew = {proc.pid}, True
+    while grew:
+        more = {int(a) for a, b in (r for r in rows if len(r) == 2) if int(b) in tree} - tree
+        tree, grew = tree | more, bool(more)
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        for x in tree:
+            try:
+                os.kill(x, sig)
+            except OSError:
+                pass
+        t1 = time.time()
+        while time.time() - t1 < 5 and any(subprocess.run(["kill", "-0", str(x)], capture_output=True).returncode == 0 for x in tree):
+            time.sleep(0.2)
     proc.wait(timeout=10)
 
 
@@ -160,8 +196,13 @@ try:
     ok = "先改" in fs["ask"] and "还没写改哪里" in fs["ask"] and fs["back"] and fs["go"] == "就这样交" and fb["hidden"] and fb["focus"] == "say" and not fn["back"] and not fn["ask"]
 except (TypeError, ValueError, KeyError):
     ok = False
-check("\"先改\" picked with no note: the sheet asks what to change, \"回去写\" closes it with the note box ready, \"就这样交\" still sends; with a note it does not ask",
-      ok, [fs, fb, fn])
+try:
+    ks = json.loads(v(res, "keep_sheet"))
+    ok = ok and not ks["ask"] and not ks["back"]
+except (TypeError, ValueError, KeyError):
+    ks, ok = v(res, "keep_sheet"), False
+check("\"先改\" (an option whose gate JSON says needs_note) picked with no note: the sheet asks what to change, \"回去写\" closes it with the note box "
+      "ready, \"就这样交\" still sends; with a note it does not ask, nor for an option that means \"no change\" (\"不要改，保持不变，不用重做\")", ok, [fs, fb, fn, ks])
 cn = v(res, "counts")
 try:
     c = json.loads(cn)
@@ -169,13 +210,24 @@ try:
 except (TypeError, ValueError, KeyError):
     ok = False
 check("the bar's count, the notes block's count and the notes listed agree (two notes on lines and the overall words)", ok, cn)
-bv = v(res, "busy_view")
-try:
-    b = json.loads(bv)
-    def seen(x):   # inside the column's visible part, and inside the block's own
-        return x[0] >= b["body"][0] - 1 and x[1] <= min(b["body"][1], b["m"][1]) + 1
-    ok = b["h"] and b["n"] and seen(b["h"]) and seen(b["n"]) and b["n"][0] >= b["h"][1] - 2 and "还没交 8 条" in b["text"]
-except (TypeError, ValueError, KeyError):
-    ok = False
-check("eight notes kept beside two decisions, four unsure places and three appendices at 1440 x 900: the notes' state line and the note kept last are on screen, no scrolling", ok, bv)
+sent = [json.loads(f.read_text(encoding="utf-8")) for f in (moved / "out" / "review" / "feedback").glob("*.json")] if (moved / "out" / "review" / "feedback").is_dir() else []
+check("notes kept on a page the agent then replaced (never sent): the notes block lists them as not sent, on that page; sent on the person's click "
+      "to that page's own round, never to the new page", (res.get("moved_shown") or {}).get("ok") and (res.get("moved_sent") or {}).get("ok")
+      and [(x.get("round"), [i.get("text") for i in x.get("items") or []]) for x in sent] == [("E1", ["第三句别念英文"])], [res.get("moved_shown"), res.get("moved_sent"), sent])
+bad_views = []
+for name in [k for k in res if k and k.startswith("busy_view")]:
+    try:
+        b = json.loads(v(res, name))
+
+        def seen(x):   # inside the column's visible part, and inside the block's own
+            return x[0] >= max(b["body"][0], b["m"][0]) - 1 and x[1] <= min(b["body"][1], b["m"][1]) + 1
+        ok = b["h"] and b["n"] and seen(b["h"]) and seen(b["n"]) and b["n"][0] >= b["h"][1] - 2 and b["m"][1] <= b["body"][1] + 1 \
+            and b["m"][1] - b["m"][0] >= 3 * (b["h"][1] - b["h"][0]) and ("还没交 8 条" in b["text"] or "8 not sent yet" in b["text"])
+    except (TypeError, ValueError, KeyError):
+        ok = False
+    if not ok:
+        bad_views.append([name, v(res, name)])
+ok = not bad_views and len([k for k in res if k and k.startswith("busy_view")]) == 8
+check("eight notes kept beside two decisions, four unsure places and three appendices, at 1280 x 720 and 1440 x 900, in the three themes and in English: "
+      "the notes' state line and the note kept last are on screen, apart, inside the column, the block never squeezed under three lines", ok, bad_views)
 print("end", flush=True)

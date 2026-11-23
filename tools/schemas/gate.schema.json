@@ -49,7 +49,8 @@
   "option": {
    "type": "object",
    "required": ["id"],
-   "properties": {"id": {"$ref": "#/$defs/text"}, "label": {"$ref": "#/$defs/text"}, "pro": {"$ref": "#/$defs/text"}, "con": {"$ref": "#/$defs/text"}}
+   "properties": {"id": {"$ref": "#/$defs/text"}, "label": {"$ref": "#/$defs/text"}, "pro": {"$ref": "#/$defs/text"}, "con": {"$ref": "#/$defs/text"},
+                  "needs_note": {"type": "boolean", "description": "true: an option that means \"change it\": picked with no note, Studio asks what to change before it is sent"}}
   },
   "asset": {
    "type": "object",

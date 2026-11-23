@@ -137,7 +137,7 @@ def skeleton(gate, lang, plan=None, kind=None):
                            "options": [{"id": "OK", "label": "放行，出正式画质" if zh else "It passes: render the final",
                                         "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")},
                                        {"id": "FIX", "label": "改完下面几处再看" if zh else "Fix the places below, then look again",
-                                        "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")}],
+                                        "pro": f("好处", "what it gains"), "con": f("代价", "what it costs"), "needs_note": True}],   # (picked with no note, Studio asks what to fix)
                            "recommend": f("OK 或 FIX", "OK or FIX"), "why": f("一句理由", "why, in one line"),
                            "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high"}]
         d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
@@ -309,7 +309,8 @@ def main(argv):
     for c in ("desk", "page", "chat"):
         how.add_argument(f"--{c}", dest="channel", action="store_const", const=c, help=f"review in the {c} this time")
     ap.add_argument("--wait", action="store_true", help="the desk only: then wait for the submission, like bin/vh desk wait")
-    ap.add_argument("--timeout", type=float, default=43200, help="with --wait: seconds (default 43200: 12 h)")
+    import feedback as F0
+    ap.add_argument("--timeout", type=float, default=F0.WAIT, help=f"with --wait: seconds (default {F0.WAIT:.0f}: {F0.WAIT / 3600:g} h)")
     ap.add_argument("--port", type=int, help="the desk's port when it has to start (default: the first free of 8780–8799)")
     ap.add_argument("--print-address", action="store_true", help="the desk only, for a browser on another machine: open none, write an "
                                                                  "address that opens one page to your terminal alone (refused with no terminal, "

@@ -6,6 +6,7 @@
 //   step: {"go": "#/p/<key>/outline"}            set the address's hash (the page routes on it)
 //         {"reload": true}                       reload the page and wait for it
 //         {"wait": 500}                          milliseconds
+//         {"viewport": [1280, 720]}              the window's size from now on
 //         {"until": "<js expression>", "ms": 8000, "name": "…"}   wait until it is truthy: {name, ok, value}
 //         {"eval": "<js expression>", "name": "…"}               evaluate in the page: {name, value} (awaited, as JSON)
 //         {"write": "<path>", "text": "…"}       write a file (a project file the agent changes while the page is open)
@@ -38,6 +39,7 @@ try {
   for (const st of input.steps) {
     try {
       if (st.go != null) { await evaluate(`location.hash = ${JSON.stringify(st.go)}`); await sleep(st.after || 1500); }
+      else if (st.viewport) { await send("Emulation.setDeviceMetricsOverride", { width: st.viewport[0], height: st.viewport[1], deviceScaleFactor: 1, mobile: false }); await sleep(st.after || 800); }
       else if (st.reload) await loaded(() => send("Page.reload", {}));
       else if (st.wait) await sleep(st.wait);
       else if (st.write) writeFileSync(st.write, st.text);
