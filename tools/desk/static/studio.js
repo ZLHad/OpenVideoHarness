@@ -483,14 +483,17 @@ function renderMarks() {   // the round's places in the film: on the round's own
 }
 const COLOPEN = { least: false, listen: false };
 function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.status); }
+function generalParts() {   // the overall words as written, a note each: "〔不对着片子〕…" its label and its words (a note keeps its own lines)
+  return String(FB.general || "").split(/\n(?=〔)/).filter((x) => x.trim()).map((x) => { const m = x.match(/^〔([^〕]*)〕([\s\S]*)$/); return m ? { label: m[1], text: m[2] } : { label: "", text: x }; });
+}
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
-  const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
+  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span class="nt"><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
+  const gen = generalParts().map((g, i) => `<li class="general"><span class="mono tc">·</span><span class="nt"><b>${esc(g.label || t("c_whole_note"))}</b> ${esc(g.text)}</span><button type="button" class="x" data-del="#general:${i}" aria-label="${esc(t("del"))}">×</button></li>`).join("");
   const none = !items.length && !gen;   // none yet: the heading and how to start, on one line
-  $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + (FB.general ? 1 : 0)}</span>${none ? `<span class="hint-inline">${esc(t(MOD === "cut" ? "c_mine_how" : "c_mine_how_m"))}</span>` : ""}</h3>`
-    + (none ? "" : `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>`);
+  $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("c_mine"))}</b><span class="n mono">${items.length + generalParts().length}</span>${none ? `<span class="hint-inline">${esc(t(MOD === "cut" ? "c_mine_how" : "c_mine_how_m"))}</span>` : ""}</h3>`
+    + (none ? "" : `<ul class="note-list mine">${gen}${items.map(row).join("")}</ul>`);
 }
 function renderNext() {   // what happens next, in a line: who, and what (status's words in this page's language; its commands only in a tooltip)
   const st = (D && D.status) || {}, ns = st.next_step || {}, run = ((st.activity || {}).running || []);
@@ -552,7 +555,8 @@ function fadeMore() { const b = $("#colBody"); if (b) b.classList.toggle("more",
 $("#colBody").addEventListener("scroll", fadeMore); window.addEventListener("resize", fadeMore);
 $("#colBody").addEventListener("click", (e) => {
   const x = e.target.closest("[data-del]");
-  if (x) { e.stopPropagation(); if (x.dataset.del === "#general") FB.general = ""; else delete FB.items[x.dataset.del]; save(); return; }
+  if (x) { e.stopPropagation(); const g = x.dataset.del.match(/^#general(?::(\d+))?$/);
+    if (g) FB.general = g[1] == null ? "" : String(FB.general || "").split(/\n(?=〔)/).filter((y) => y.trim()).filter((y, i) => i !== +g[1]).join("\n"); else delete FB.items[x.dataset.del]; save(); return; }
   const li = e.target.closest("[data-goto]");
   if (li && !e.target.closest("button:not([data-goto]),a,input,textarea")) {
     const tg = li.dataset.goto, k = tg.split(":")[0], words = cut(((li.querySelector("span:last-of-type") || li).textContent || "").trim(), 28);
@@ -587,21 +591,26 @@ function buildComposer() {
   const c = $("#composer"), draft = $("#say") ? $("#say").value : "";   // rebuilt in another language: the words written so far stay
   c.dataset.ready = LANG;   // the language it was built in: a film in the other one builds it again
   // one row: what the note is on, and the button that notes it; the box under it (saying it to the agent is the column's other tab, agent.js)
-  c.innerHTML = `<div class="crow send"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button><span class="meta" id="sayHint"></span><span class="kbd" aria-hidden="true">${esc(t("note_keys"))}</span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>
+  // the keys said in words beside the box: Enter is a new line here, ⌘↩ (Ctrl+↩) or the button keeps the note (the conversation's box sends on ↩ and says so)
+  c.innerHTML = `<div class="crow send"><span>${esc(t("at"))}</span><span class="chip" id="scope"></span><button type="button" class="xs" id="toWhole" hidden>${esc(t("to_whole"))}</button><button type="button" class="xs" id="toNone" title="${esc(t("not_film_tip"))}">${esc(t("not_film"))}</button><span class="meta" id="sayHint"></span><button type="button" class="btn" id="sayAdd">${esc(t("note_add"))}</button></div>
 
-    <textarea id="say" rows="2" maxlength="4000"></textarea>`;
+    <textarea id="say" rows="2" maxlength="4000" aria-describedby="sayKeys"></textarea><p class="meta say-keys" id="sayKeys">${esc(t("note_keys_w", { m: MAC ? "⌘" : "Ctrl+" }))}</p>`;
   $("#say").value = draft;
-  $("#toWhole").addEventListener("click", () => setScope(null));
+  $("#toWhole").addEventListener("click", () => { if (CUT) CUT.clear(); setScope(null); });
+  $("#toNone").addEventListener("click", () => { if (CUT) CUT.clear(); setScope({ label: t("not_film"), none: true }); $("#say").focus(); });   // a note about no moment of the film: the overall words, named
+  $("#sayAdd").addEventListener("mousedown", (e) => e.preventDefault());   // the box keeps its focus and its size while the button is pressed: the button does not move away from the click
   $("#sayAdd").addEventListener("click", addNote);
-  $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } });
+  $("#say").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.isComposing) { e.preventDefault(); addNote(); } });
 }
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
 function scopeLabel() { return SCOPE ? SCOPE.label : MOD === "cut" ? t("whole_film") : t("whole", { m: t("m_" + (MOD || "cut")) }); }
 function updateComposer() {
   if (!$("#composer").dataset.ready) return;
   const x = scopeLabel();
   $("#scope").textContent = x; $("#scope").className = "chip" + (SCOPE ? "" : " quiet");
   $("#toWhole").hidden = !SCOPE;
-  $("#say").placeholder = t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : x });
+  $("#toNone").hidden = !!(SCOPE && SCOPE.none);
+  $("#say").placeholder = SCOPE && SCOPE.none ? t("ph_not_film") : t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : x });
   AGENT.scope();   // the conversation's box writes against the same selection
 }
 function setScope(s) {
@@ -613,7 +622,7 @@ function addNote() {
   const ta = $("#say"), text = ta.value.trim();
   if (!text) { ta.focus(); return; }
   if (!SCOPE || !SCOPE.target) {   // the whole module, or a place with no target of its own: the round's overall words, named
-    const pre = SCOPE ? `〔${SCOPE.label}〕` : MOD && MOD !== "cut" ? `〔${t("m_" + MOD)}〕` : "";
+    const pre = SCOPE ? `〔${SCOPE.label}〕` : MOD && MOD !== "cut" ? `〔${t("m_" + MOD)}〕` : `〔${t("whole_film")}〕`;   // named, so each note stays a note of its own in the list
     FB.general = (FB.general ? FB.general + "\n" : "") + pre + text;
   } else {
     const cur = FB.items[SCOPE.target];
@@ -621,7 +630,7 @@ function addNote() {
       SCOPE.t != null ? { t: SCOPE.t } : {}, SCOPE.t1 != null ? { t1: SCOPE.t1 } : {});
   }
   ta.value = ""; save(); toast(t("noted", { x: scopeLabel() }));
-  const li = $(`#cMine li[data-goto="${CSS.escape(SCOPE && SCOPE.target ? SCOPE.target : "")}"]`) || $("#cMine li.general");   // the note in the column, in view and lit for a moment
+  const li = $(`#cMine li[data-goto="${CSS.escape(SCOPE && SCOPE.target ? SCOPE.target : "")}"]`) || $$("#cMine li.general").pop();   // the note in the column, in view and lit for a moment
   if (li) { li.scrollIntoView({ block: "nearest", behavior: "smooth" }); li.classList.add("just"); setTimeout(() => li.classList.remove("just"), 1600); }
   ta.blur();   // noted: the next key (N, ← →, Space) goes to the film, not into the box
 }
@@ -1025,11 +1034,25 @@ function vDocs() {
 function filmPath() {   // the server's pick, only a file that is there: this round's film at the cut's stop, else bin/vh status's, else its proxy
   return (D && D.studio && D.studio.film) || "";
 }
-function cutShots() {
+function cutRows() {   // the shot table's rows (an edit list's entries, else shots.json's shots)
   const T = TL(), raw = T.shots && T.shots.length ? T.shots : (D.shots.items || []);
-  return raw.filter((s) => s && s.start != null && s.end != null && +s.end > +s.start).map((s) => ({ id: String(s.id), t0: +s.start, t1: +s.end, label: s.label || "", seg: s.segment || "",
-    frame: s.frame || "", unsure: s.unsure || null, reads: s.reads || [], caption: s.caption || "" })).sort((a, b) => a.t0 - b.t0);
+  return raw.filter((s) => s && s.start != null && s.end != null && +s.end > +s.start);
 }
+function cutShots() {   // what the shots lane shows: an edit list's entry by the shots inside it when the film's render kept them (tools/resolved.py)
+  const out = [];
+  cutRows().forEach((s) => {
+    const inner = (Array.isArray(s.inner) ? s.inner : []).filter((x) => x && x.id != null && +x.end > +x.start);
+    if (!inner.length) { out.push({ id: String(s.id), t0: +s.start, t1: +s.end, label: s.label || "", seg: s.segment || "", frame: s.frame || "", unsure: s.unsure || null, reads: s.reads || [], caption: s.caption || "" }); return; }
+    const part = String(s.id);
+    inner.forEach((x) => { const id = String(x.id), short = id.startsWith(part + ".") ? id.slice(part.length + 1) : id;
+      out.push({ id, short, part, t0: +x.start, t1: +x.end, label: "", seg: s.segment || "", frame: "", unsure: null, reads: [], caption: "" }); });
+  });
+  return out.sort((a, b) => a.t0 - b.t0);
+}
+function cutParts() {   // the entries that hold shots of their own: a band above the shots, a note on one is on the whole entry
+  return cutRows().filter((s) => Array.isArray(s.inner) && s.inner.length).map((s) => ({ id: String(s.id), t0: +s.start, t1: +s.end, title: s.label || s.segment || String(s.id) }));
+}
+const shotWord = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotName(s.id));   // S1_3（PROLOGUE 里）
 function cutChapters(shots) {
   const T = TL();
   const ch = (T.chapters || []).map((c) => ({ id: String(c.id != null ? c.id : c.title), title: c.title || c.name || String(c.id), t0: +(c.start != null ? c.start : c.t0), t1: +(c.end != null ? c.end : c.t1), kind: "chapter" }))
@@ -1163,7 +1186,7 @@ function openRevision(r) {
 
 function CutModule(area) {
   const T = TL(), ST = D.studio || {}, fps = +T.fps || 30;
-  const film = filmPath(), shots = cutShots(), chapters = cutChapters(shots);
+  const film = filmPath(), shots = cutShots(), chapters = cutChapters(shots), parts = cutParts();
   const lines = (T.narration && T.narration.length ? T.narration : T.captions || []).filter((x) => x.start != null && x.end != null).map((x, i) => ({ id: String(x.id || i + 1), t0: +x.start, t1: +x.end, text: x.text || "" }));
   const linesAreCaptions = !(T.narration && T.narration.length) && lines.length > 0;
   const M = D.music || {}, sections = (M.sections || []).filter((s) => s.end > s.start), hitsL = M.hits || [], beats = T.beats || [];
@@ -1187,6 +1210,7 @@ function CutModule(area) {
   let zoom = 1, snapOn = store.get("desk:cut-snap") !== false, safe = false, cmp = false, wipe = 0.5;
   let closeRevision = null;
   let SEL = null, inPt = null, stopAt = null, clockT = 0, raf = 0, simPlaying = false, simLast = 0;
+  let follow = true, autoAt = -1, focusAt = 0, freshClick = false;   // the timeline pages along with the playhead until the person scrolls it; a click that brings the window up plays nothing
   const notesOf = () => myItems().filter(([, v]) => v.t != null).map(([k, v]) => ({ kind: "mine", t: +v.t, t1: v.t1 != null ? +v.t1 : null, target: k, label: v.label || k, note: v.text || "" }));
   const agentMarks = () => gateMarks().filter((m) => m.t != null).map((m) => ({ kind: m.kind, t: +m.t, t1: m.t1 != null ? +m.t1 : null, target: m.target, label: m.id || "", note: m.note }));
   const checkMarks = () => findings.map((f, i) => ({ kind: "check", t: +f.t, t1: f.t1 != null ? +f.t1 : null, target: "time:" + (+f.t).toFixed(1), label: f.kind || "", note: shotText(f.message || ""), sev: f.severity, i }));
@@ -1266,13 +1290,21 @@ function CutModule(area) {
     tick();
     if (play) start();
   }
-  function start() {
+  function start() {   // only ever from the person's own click or key: never from opening a stop, a time in the address, or code
+    if (video && navigator.userActivation && !navigator.userActivation.isActive) return;
     if (stopAt != null && now() >= stopAt - 0.04) stopAt = null;
+    follow = true;
     if (video) { video.play().catch(() => {}); if (vb && cmp) vb.play().catch(() => {}); }
     else if (dur) { if (clockT >= dur - 0.01) clockT = 0; simPlaying = true; simLast = performance.now(); }
     loop();
   }
-  function stop() { if (video) { video.pause(); if (vb) vb.pause(); } simPlaying = false; tick(); }
+  function stop() { const was = simPlaying; if (video) { video.pause(); if (vb) vb.pause(); } simPlaying = false; tick(); if (!video && was) settle(); }
+  function settle() {   // stopped: a selected second (what the note box is on) moves to where the picture stopped, as an editor's marker goes where you pause
+    const x = now();
+    if (drag) return;   // a scrub ends by its own rule
+    if (SEL && SEL.kind === "time" && Math.abs(SEL.t - x) > 0.05 && SCOPE && String(SCOPE.target || "").startsWith("time:")) select({ kind: "time", t: x, label: fmt(x) });
+    else paintSel();
+  }
   function toggle() {
     if (playing()) return stop();
     if (SEL && SEL.t1 != null && (now() < SEL.t - 0.01 || now() >= SEL.t1 - 0.04)) { seek(SEL.t); stopAt = SEL.t1; }   // a span selected: play it
@@ -1281,7 +1313,7 @@ function CutModule(area) {
   function loop() {
     cancelAnimationFrame(raf);
     const step = (ts) => {
-      if (!video && simPlaying) { clockT += (ts - simLast) / 1000; simLast = ts; if (clockT >= dur) { clockT = dur; simPlaying = false; } }
+      if (!video && simPlaying) { clockT += (ts - simLast) / 1000; simLast = ts; if (clockT >= dur) { clockT = dur; simPlaying = false; settle(); } }
       if (stopAt != null && now() >= stopAt) { stop(); seek(stopAt); stopAt = null; }
       tick();
       if (playing()) raf = requestAnimationFrame(step);
@@ -1291,8 +1323,9 @@ function CutModule(area) {
   if (video) {
     video.addEventListener("loadedmetadata", () => { if (isFinite(video.duration) && video.duration > 0) dur = video.duration; lastShot = undefined; fit(); draw(); tick(); });
     video.addEventListener("play", loop);
-    video.addEventListener("pause", () => { if (vb) vb.pause(); tick(); });
+    video.addEventListener("pause", () => { if (vb) vb.pause(); tick(); settle(); });
     video.addEventListener("seeked", tick);
+    video.addEventListener("timeupdate", () => { if (!video.paused) tick(); });   // a window in the background gets no animation frames: the time still moves
     video.addEventListener("error", () => { frame.insertAdjacentHTML("beforeend", `<p class="none">${esc(film)}</p>`); });
   }
 
@@ -1326,7 +1359,7 @@ function CutModule(area) {
   /* the lists on the left */
   function renderTabs() {
     const nl = allMarks().filter((m) => m.kind === "listen").length;
-    const n = { shots: shots.length, notes: allMarks().filter((m) => m.kind !== "check" && m.kind !== "listen").length + (FB.general ? 1 : 0), checks: findings.length };
+    const n = { shots: shots.length, notes: allMarks().filter((m) => m.kind !== "check" && m.kind !== "listen").length + generalParts().length, checks: findings.length };
     const T2 = [["shots", t("l_shots"), n.shots], ["script", linesAreCaptions ? t("l_captions") : t("l_script"), lines.length || ""]].concat(nl ? [["listen", t("c_listen"), nl]] : [], [["notes", t("l_notes"), n.notes], ["checks", t("l_checks"), n.checks]]);
     const revisions = revisionRows();
     const pending = revisions.filter((r) => r.state === "pending" && r.available).length;
@@ -1355,7 +1388,7 @@ function CutModule(area) {
           const c = chapterAt(s.t0 + 0.01);
           if (c && c !== last) { h += `<div class="lgroup">${esc(c.title)}</div>`; last = c; }
           const pic = shotPic(s), on = SEL && SEL.kind === "shot" && SEL.id === s.id;
-          h += `<button type="button" class="lrow${on ? " sel" : ""}" data-pick="shot:${esc(s.id)}"><span class="lthumb">${pic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}</span><span class="lt"><b>${esc(shotName(s.id))} ${esc(s.label)}</b><span>${esc(fmt(s.t0))}–${esc(fmt(s.t1))}</span>${shotStatus(s) ? `<span>${shotStatus(s)}</span>` : ""}</span></button>`;
+          h += `<button type="button" class="lrow${on ? " sel" : ""}" data-pick="shot:${esc(s.id)}"><span class="lthumb">${pic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}</span><span class="lt"><b>${esc(shotWord(s))} ${esc(s.label)}</b><span>${esc(fmt(s.t0))}–${esc(fmt(s.t1))}</span>${shotStatus(s) ? `<span>${shotStatus(s)}</span>` : ""}</span></button>`;
         });
       }
     } else if (tab === "script") {
@@ -1366,7 +1399,7 @@ function CutModule(area) {
       const R = allMarks().filter((m) => m.kind !== "check" && m.kind !== "listen");
       const who = (m) => (m.kind === "mine" ? `<em style="color:var(--you)">${esc(t("k_mine"))}</em>` : m.kind === "least" ? `<em style="color:var(--wait)">${esc(t("k_least"))}</em>` : `<em style="color:var(--wait)">${esc(t("k_listen"))}</em>`);
       h = R.map((m) => `<button type="button" class="lrow text" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="tc">${esc(fmt(m.t))}</span><span class="tx">${who(m)} ${esc(m.kind === "mine" ? (m.note || m.label) : m.note)}</span></button>`).join("")
-        + (FB.general ? `<div class="lrow text"><span class="tc">·</span><span class="tx"><em style="color:var(--you)">${esc(t("c_whole_note"))}</em> ${esc(FB.general)}</span></div>` : "");
+        + generalParts().map((g) => `<div class="lrow text"><span class="tc">·</span><span class="tx"><em style="color:var(--you)">${esc(g.label || t("c_whole_note"))}</em> ${esc(g.text)}</span></div>`).join("");
       if (!h) h = `<p class="void">${esc(t("c_none_mine"))}</p>`;
     } else if (tab === "revisions") {
       h = revisionCards(revisionRows());
@@ -1398,6 +1431,7 @@ function CutModule(area) {
     return `<div class="lane ${cls}" data-g="${group || ""}"><span class="lab">${esc(label)}</span><div class="trk">${inner || (empty ? `<span class="lane-empty">${esc(empty)}</span>` : "")}</div></div>`;
   }
   const trackW = () => Math.max(200, (scroll.clientWidth || 800) * zoom - 92);   // less the lanes' label column and the right padding
+  const zMax = () => Math.max(16, ((dur || 1) * 100) / Math.max(200, (scroll.clientWidth || 800) - 92));   // zoomed all the way in: about 100 px a second, however long the film
   function rulerTicks() {
     const w = trackW(), steps = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
     const step = steps.find((s) => (w / (dur || 1)) * s >= 64) || 600;
@@ -1425,20 +1459,25 @@ function CutModule(area) {
     const AM = allMarks(), pxPerS = trackW() / dur;
     const shotH = shots.map((s) => { const pic = shotPic(s), st = s.unsure || AM.some((m) => m.kind === "least" && m.t >= s.t0 && m.t < s.t1) ? "flag" : AM.some((m) => m.kind === "mine" && m.t >= s.t0 && m.t < s.t1) ? "note" : "";
       const w = (s.t1 - s.t0) * pxPerS, showPic = pic && w >= 20, showId = w >= 28, showName = w >= 150;   // narrow: its picture and number; narrower: the picture alone, the number in its tooltip
-      return blk("shot" + (showId ? "" : " thin") + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showId ? `<b class="sid${st ? " " + st : ""}">${esc(shotName(s.id))}</b>` : ""}${showName && s.label ? `<span class="slab">${esc(s.label)}</span>` : ""}`, "shot:" + s.id, `${shotName(s.id)} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
+      return blk("shot" + (showId ? "" : " thin") + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showId ? `<b class="sid${st ? " " + st : ""}">${esc(shotName(s.part ? s.short : s.id))}</b>` : ""}${showName && s.label ? `<span class="slab">${esc(s.label)}</span>` : ""}`, "shot:" + s.id, `${shotWord(s)} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
+    const partH = parts.map((c) => blk("chap entry" + (SEL && SEL.kind === "shot" && SEL.id === c.id ? " sel" : ""), c.t0, c.t1, esc(c.title), "entry:" + c.id, `${c.title} · ${fmt(c.t0)}–${fmt(c.t1)}`)).join("");
     // a line of the narration: ▶ plays just that line
     const lineH = lines.map((l, i) => blk("line" + (SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""), l.t0, l.t1, `<i class="pl" data-pick="play:${i}" role="button" aria-label="${esc(t("play_line"))}">▶</i>${esc(l.text)}`, "line:" + i, `${l.id} · ${l.text}`)).join("");
     const beatH = beats.filter((b) => b.downbeat || pxPerS * (60 / (+T.bpm || 120)) > 10).map((b) => `<i class="bl${b.downbeat ? " down" : ""}" style="left:${pct(+b.t)}%"></i>`).join("");
     const secH = sections.map((s) => `<span class="sec" style="left:${pct(s.start)}%;width:${pct(s.end) - pct(s.start)}%" title="${esc(s.name)}">${esc(s.label || s.name)}</span>`).join("");
     const hitH = hitsL.map((h) => `<i class="hit" style="left:${pct(+h.t)}%" title="${esc((h.part || "") + " " + fmt(h.t))}"></i>`).join("");
-    const markH = AM.map((m) => `${m.t1 != null ? `<span class="span-mark ${m.kind}" style="left:${pct(m.t)}%;width:${pct(m.t1) - pct(m.t)}%"></span>` : ""}<button type="button" class="pin ${m.kind === "mine" ? "note" : m.kind}" style="left:${pct(m.t)}%" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""} title="${esc(fmt(m.t) + " · " + (m.note || m.label))}" aria-label="${esc(fmt(m.t) + " " + (m.note || m.label))}"></button>`).join("");
+    // the marks a row a kind (agent unsure, listen, check, yours), each kind on two rows at most where its pins would touch: 67 of them stay apart
+    let markRows = 0; const placed = [];
+    ["least", "listen", "check", "mine"].forEach((k) => { const L = AM.filter((m) => m.kind === k); if (!L.length) return; const R = packPins(L.map((m) => m.t * pxPerS), 14, 2);
+      L.forEach((m, i) => placed.push([m, markRows + R[i]])); markRows += Math.max(...R) + 1; });
+    const markH = placed.map(([m, r]) => { const y = `top:${3 + r * 14 + 7}px`; return `${m.t1 != null ? `<span class="span-mark ${m.kind}" style="left:${pct(m.t)}%;width:${pct(m.t1) - pct(m.t)}%;${y}"></span>` : ""}<button type="button" class="pin ${m.kind === "mine" ? "note" : m.kind}" style="left:${pct(m.t)}%;${y}" data-pick="mark:${esc(m.target)}" data-t="${+(m.t)}"${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""} title="${esc(fmt(m.t) + " · " + (m.note || m.label))}" aria-label="${esc(fmt(m.t) + " " + (m.note || m.label))}"></button>`; }).join("");
     const diffH = changed.map((s) => `<span class="diff" style="left:${pct(s[0])}%;width:${Math.max(0.3, pct(s[1]) - pct(s[0]))}%">${esc(t("diff_label", { v: vnum(curV.id) }))}</span>`).join("")
       || (curV && curV.changed && curV.changed.whole ? `<span class="diff" style="left:0;width:100%">${esc(vnum(curV.id))} · ${esc(t("whole_render"))}</span>` : "");
     // a group folds from its name only (a button): the row around it is inert, so a click a little off a lane never folds one
     const grp = (k, name) => { const shut = layout !== "review" && closed.has(k); return `<div class="grp${shut ? " closed" : ""}" data-grp="${k}"><button type="button" class="grp-t" aria-expanded="${!shut}" title="${esc(t(shut ? "g_unfold" : "g_fold"))}">${esc(name)}</button>${shut ? `<span class="grp-n">${esc(t("g_folded"))}</span>` : ""}</div>`; };
     tl.style.width = zoom * 100 + "%";
     tl.innerHTML = `<div class="lane ruler-l"><span class="lab"></span><div class="trk" data-ruler>${rulerTicks()}</div></div>`
-      + grp("pic", t("g_pic")) + lane("chap", t("ln_chap"), chapH, "pic", t("e_chap")) + lane("shots", t("ln_shots"), shotH, "pic", t("e_shots"))
+      + grp("pic", t("g_pic")) + lane("chap", t("ln_chap"), chapH, "pic", t("e_chap")) + (parts.length ? lane("parts", t("ln_parts"), partH, "pic") : "") + lane("shots", t("ln_shots"), shotH, "pic", t("e_shots"))
       + grp("sound", t("g_sound")) + lane("voice extra", t("ln_voice"), lineH, "sound", t("e_voice")) + lane("music extra", t("ln_music"), beatH + secH, "sound", t("e_music"))
       + (hitsL.length ? lane("thin extra", t("ln_hits"), hitH, "sound") : "") + lane("wave extra", t("ln_wave"), wave(), "sound", t("e_wave"))
       + grp("review", t("g_review")) + lane("marks", t("ln_marks"), markH, "review", t("e_marks")) + (diffH ? lane("thin extra", t("ln_diff"), diffH, "review") : "")   // what changed: a lane only when it is on record
@@ -1447,6 +1486,7 @@ function CutModule(area) {
     const kinds = [["mine", "note", "k_mine"], ["least", "least", "k_least"], ["listen", "listen", "k_listen"], ["check", "check", "k_check"]].filter(([k]) => k === "mine" || AM.some((m) => m.kind === k) || (k === "least" && shots.some((s) => s.unsure)));   // a shot flagged unsure carries the ○ too
     $("#tlLegend", area).innerHTML = kinds.map(([, cls, w]) => `<span class="lg"><i class="pin ${cls}" aria-hidden="true"></i>${esc(t(w))}</span>`).join("");
     if (layout !== "review") closed.forEach((g) => { $$(`.lane[data-g="${g}"]`, tl).forEach((x) => { x.hidden = true; }); });
+    const mk = $(".lane.marks .trk", tl); if (mk && markRows) mk.style.height = Math.max(24, markRows * 14 + 6) + "px";
     paintSel(); tick();
   }
   const closed = new Set(store.get("desk:cut-folded") || []);   // a new key: what the old full-width row folded by a stray click opens again
@@ -1464,8 +1504,13 @@ function CutModule(area) {
   let lastShot = null, lastPlaying = null;
   function tick() {
     const x = now(), ph = $(".tl-ph", tl);
-    if (playing() !== lastPlaying) { lastPlaying = playing(); $("#cPlay", area).innerHTML = svg(lastPlaying ? "pause" : "play"); }
+    if (playing() !== lastPlaying) { lastPlaying = playing(); $("#cPlay", area).innerHTML = svg(lastPlaying ? "pause" : "play"); paintSel(); }
     if (ph) ph.style.left = pct(x) + "%";
+    if (ph && playing() && follow && zoom > 1.01 && !drag) {   // an editor's page-turn: past the right edge (or before the left), the next page starts just before the playhead
+      const lab = labW(), at = lab + (pct(x) / 100) * (tl.clientWidth - lab - 12) - scroll.scrollLeft;
+      if (at > scroll.clientWidth - 16 || at < lab) setScroll(at + scroll.scrollLeft - lab - 24);
+    }
+    if (SEL && SEL.kind === "time" && !playing()) paintSel();
     $("#cTc", area).innerHTML = `${esc(fmt(x))} <i>/ ${esc(fmt(dur))}</i>`;
     placeLabel();
     const s = shotAt(x);
@@ -1474,7 +1519,7 @@ function CutModule(area) {
       const size = video && video.videoWidth ? `${video.videoWidth}×${video.videoHeight}` : (String(specGet("output")).match(/\d{3,5}\s*[x×]\s*\d{3,5}/) || [""])[0].replace(/\s/g, "").replace("x", "×");
       const ver = ST.film_instead ? "" : curV ? vnum(curV.id) : (D.status && D.status.media && D.status.media.version) ? vnum(D.status.media.version) : "";   // (another cut plays: its version is not status's)
       const isProxy = film && D.status && D.status.media && film === D.status.media.proxy && film !== D.status.media.film;
-      $("#readout", area).innerHTML = (s ? `<span><b>${esc(shotName(s.id))}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
+      $("#readout", area).innerHTML = (s ? `<span><b>${esc(shotWord(s))}</b> ${esc(s.label)}</span>${s.reads && s.reads.length ? `<span>${esc(t("reads"))}${COLON()}${esc(s.reads.join(" → "))}</span>` : s.caption ? `<span>${esc(cut(s.caption, 60))}</span>` : ""}` : "<span>·</span>")
         + `<span class="ver">${video && ST.film_instead ? `<b class="nosound" title="${esc(film)}">${esc(t("playing_instead", { f: film.split("/").pop(), g: String(ST.film_instead).split("/").pop() }))}</b> · ` : ""}${video && ST.film_sound === false ? `<b class="nosound">${esc(t("no_sound"))}</b> · ` : ""}${esc([size, t("fps_n", { n: fps }), ver, isProxy ? t("proxy") : ""].filter(Boolean).join(" · "))}</span>`;
       if (!video) { const img = $("#cimg", frame); const pic = s ? shotPic(s) : ""; if (img && shots.some(shotPic)) { if (pic) { if (img.getAttribute("src") !== pic) img.src = pic; img.hidden = false; } else img.hidden = true; } }
       if (tab === "shots") $$("#lbody .lrow", area).forEach((r) => r.classList.toggle("now", !!s && r.dataset.pick === "shot:" + s.id));
@@ -1485,7 +1530,8 @@ function CutModule(area) {
   function paintSel() {
     const r = $(".selr", tl); if (!r) return;
     if (!SEL || SEL.t1 == null) {
-      if (SEL && SEL.kind === "time") { r.hidden = false; r.style.left = pct(SEL.t) + "%"; r.style.width = "1px"; $(".cap", r).textContent = ""; }   // the second is in the note box's line already
+      // one cursor: a selected second gets its own line only while the picture is stopped somewhere else (the note is still on that second)
+      if (SEL && SEL.kind === "time" && !playing() && Math.abs(SEL.t - now()) > 0.05) { r.hidden = false; r.style.left = pct(SEL.t) + "%"; r.style.width = "1px"; $(".cap", r).textContent = ""; }
       else r.hidden = true;
       return;
     }
@@ -1500,7 +1546,7 @@ function CutModule(area) {
       seek(at != null && !play && at >= s.t && (s.t1 == null || at <= s.t1) ? at : s.t);
       const kind = s.kind, a = +(+s.t).toFixed(1), b = s.t1 != null ? +(+s.t1).toFixed(1) : null;
       let scope;
-      if (kind === "shot") scope = { target: "shot:" + s.id, label: t("l_shot", { x: s.id + (s.name ? " " + s.name : "") }), t: a, t1: b };
+      if (kind === "shot") scope = { target: "shot:" + s.id, label: t(s.part ? "l_part" : "l_shot", { x: (s.word || s.id) + (s.name ? " " + s.name : "") }), t: a, t1: b };
       else if (kind === "seg") scope = { target: "seg:" + s.id, label: t("l_seg", { i: s.id, x: s.name }), t: a, t1: b };
       else if (kind === "chapter") scope = { target: "chapter:" + s.id, label: t("chapter_label", { x: s.name }), t: a, t1: b };
       else if (kind === "mark") scope = { target: s.target, label: s.name, t: a, t1: b };
@@ -1515,7 +1561,8 @@ function CutModule(area) {
   }
   function pickThing(p, el, at) {   // at: the second a click on it was at; a mark always takes its own second
     const [kind, ...rest] = p.split(":"), id = rest.join(":");
-    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, name: s.label, t: s.t0, t1: s.t1, label: `${s.id} ${s.label}` }, false, at); }
+    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, word: shotWord(s), name: s.label, t: s.t0, t1: s.t1, label: `${shotWord(s)} ${s.label}` }, false, at); else if (parts.some((c) => c.id === id)) pickThing("entry:" + id, el, at); }
+    else if (kind === "entry") { const c = parts.find((x) => x.id === id); if (c) select({ kind: "shot", part: true, id: c.id, word: c.id, name: c.title !== c.id ? c.title : "", t: c.t0, t1: c.t1, label: c.title }, false, at); }
     else if (kind === "chapter" || kind === "seg" || kind === "part") { const c = chapters.find((x) => x.id === id); if (c) select({ kind: c.kind === "part" ? "range" : c.kind, id: c.id, name: c.title, t: c.t0, t1: c.t1, label: c.title }, false, at); }
     else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }, kind === "play", kind === "play" ? null : at); }
     else if (kind === "check") { const f = findings[+id]; if (f) select({ kind: f.t1 != null ? "range" : "time", t: +f.t, t1: f.t1 != null ? +f.t1 : null, name: `${t("k_check")} ${f.kind || ""}`.trim(), label: fmt(f.t) }); }
@@ -1561,7 +1608,7 @@ function CutModule(area) {
     if (d.span) { const a = Math.min(now(), x), b = Math.max(now(), x); if (b - a >= 0.1) return select({ kind: "range", t: a, t1: b, label: `${fmt(a)}–${fmt(b)}` }); }
     const twice = !!p && !!lastClick && lastClick.p === p && e.timeStamp - lastClick.at < 400;
     lastClick = p ? { p, at: e.timeStamp } : null;
-    if (twice && /^(shot|line|chapter|seg|part):/.test(p)) { lastClick = null; const [k, ...r] = p.split(":"); return playPiece(k, r.join(":")); }
+    if (twice && /^(shot|line|chapter|seg|part|entry):/.test(p)) { lastClick = null; const [k, ...r] = p.split(":"); return playPiece(k, r.join(":")); }
     if (p) return pickThing(p, d.pick, x);
     select({ kind: "time", t: x, label: fmt(x) });
   };
@@ -1569,7 +1616,7 @@ function CutModule(area) {
   tl.addEventListener("dragstart", (e) => e.preventDefault());   // a shot's picture is an image: pressed and moved, the browser would drag it away and end the scrub
   function playPiece(kind, id) {   // a double click: that shot, line or chapter, once, from its start to its end
     if (kind === "line") return pickThing("play:" + id);
-    const it = kind === "shot" ? shots.find((x) => x.id === id) : chapters.find((x) => x.id === id);
+    const it = kind === "shot" ? shots.find((x) => x.id === id) : kind === "entry" ? parts.find((x) => x.id === id) : chapters.find((x) => x.id === id);
     if (!it) return;
     pickThing(kind + ":" + id);
     stopAt = it.t1; start();
@@ -1585,7 +1632,7 @@ function CutModule(area) {
       if (sh) Object.assign(fr.style, { backgroundImage: `url(${JSON.stringify(src(sh.file))})`, backgroundSize: `${sh.size[0] * sc}px ${sh.size[1] * sc}px`,
         backgroundPosition: `-${best.x * sc}px -${best.y * sc}px`, height: `${Math.round(thumbs.tile[1] * sc)}px` });
     } else if (s && shotPic(s)) Object.assign(fr.style, { backgroundImage: `url(${JSON.stringify(shotPic(s))})`, backgroundSize: "cover", backgroundPosition: "center" });
-    tip.replaceChildren(...(fr.style.backgroundImage ? [fr] : []), document.createTextNode(fmt(x) + (s ? " · " + s.id : "")));
+    tip.replaceChildren(...(fr.style.backgroundImage ? [fr] : []), document.createTextNode(fmt(x) + (s ? " · " + shotWord(s) : "")));
     tip.hidden = false;
     tip.style.left = Math.min(Math.max(e.clientX, 100), window.innerWidth - 100) + "px"; tip.style.top = (ru.getBoundingClientRect().top - 4) + "px";
   }
@@ -1628,18 +1675,21 @@ function CutModule(area) {
   $("#tlHelp", area).addEventListener("click", (e) => { const box = $("#tlHelpBox", area), open = box.hidden; box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); });
   $("#cSnap", area).addEventListener("click", (e) => { snapOn = !snapOn; store.set("desk:cut-snap", snapOn); e.currentTarget.setAttribute("aria-pressed", String(snapOn)); });
   $("#cSafe", area).addEventListener("click", (e) => { safe = !safe; e.currentTarget.setAttribute("aria-pressed", String(safe)); $(".safe", frame).hidden = !safe; });
-  $("#zIn", area).addEventListener("click", () => { zoom = Math.min(16, zoom * 1.6); draw(); centerOn(now()); });
+  $("#zIn", area).addEventListener("click", () => { zoom = Math.min(zMax(), zoom * 1.6); draw(); centerOn(now()); });
   $("#zOut", area).addEventListener("click", () => { zoom = Math.max(1, zoom / 1.6); draw(); centerOn(now()); });
+  scroll.addEventListener("scroll", () => { if (Math.abs(scroll.scrollLeft - autoAt) > 2) follow = false; }, { passive: true });   // the person scrolled: the view stays where they put it until Play
   $$("[data-lay]", area).forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.lay)));
   scroll.addEventListener("wheel", (e) => {   // ⌘ or Ctrl + wheel, and a trackpad's pinch: zoom, the second under the pointer staying under it
     if (!(e.ctrlKey || e.metaKey) || !dur) return;
     e.preventDefault();
-    const at = tAt(e.clientX, false), z = Math.max(1, Math.min(16, zoom * Math.exp(-e.deltaY * 0.003)));
+    const at = tAt(e.clientX, false), z = Math.max(1, Math.min(zMax(), zoom * Math.exp(-e.deltaY * 0.003)));
     if (Math.abs(z - zoom) < 1e-3) return;
     zoom = z; draw();
-    const o = overRect(); scroll.scrollLeft += o.left + (at / dur) * o.width - e.clientX;
+    const o = overRect(); setScroll(scroll.scrollLeft + o.left + (at / dur) * o.width - e.clientX);
   }, { passive: false });
-  function centerOn(x) { const w = tl.scrollWidth; scroll.scrollLeft = Math.max(0, (x / (dur || 1)) * w - scroll.clientWidth / 2); }
+  function labW() { return overRect().left - tl.getBoundingClientRect().left; }   // the lane names' column, which stays put when the lanes scroll
+  function setScroll(v) { scroll.scrollLeft = Math.max(0, v); autoAt = scroll.scrollLeft; }   // a scroll of the page's own (the person's own stops the paging)
+  function centerOn(x) { const lab = labW(); setScroll((x / (dur || 1)) * (tl.clientWidth - lab - 12) - (scroll.clientWidth - lab) / 2); }   // the playhead in the middle of the lanes you can see
   if (prevV && vb) {   // a read-only wipe between this version and the one kept before it
     const wl = $("#wl", frame), labs = $$(".wipe-l,.wipe-r", frame);
     const place = () => { vb.style.clipPath = `inset(0 0 0 ${wipe * 100}%)`; wl.style.left = wipe * 100 + "%"; };
@@ -1653,7 +1703,12 @@ function CutModule(area) {
     wl.addEventListener("pointermove", (e) => { if (!wd) return; const r = frame.getBoundingClientRect(); wipe = Math.max(0.02, Math.min(0.98, (e.clientX - r.left) / r.width)); place(); });
     wl.addEventListener("pointerup", () => { wd = false; });
   }
-  screen.addEventListener("click", (e) => { if (!e.target.closest(".wipe-line")) toggle(); });
+  const onFocus = () => { focusAt = performance.now(); };
+  window.addEventListener("focus", onFocus);
+  screen.addEventListener("pointerdown", () => { freshClick = !document.hasFocus() || performance.now() - focusAt < 400; });
+  screen.addEventListener("click", (e) => { if (freshClick) { freshClick = false; return; } if (!e.target.closest(".wipe-line")) toggle(); });
+  const onNote = (e) => { if (e.target && e.target.id === "say" && playing()) stop(); };   // writing a note: the picture stops where it is, and a selected second goes there
+  document.addEventListener("focusin", onNote);
 
   const keys = (e) => {
     if (e.defaultPrevented || MOD !== "cut" || typing() || e.metaKey || e.ctrlKey || e.altKey || !$("#search").hidden || !$("#confirm").hidden || $(".revision-compare[open]")) return;
@@ -1681,6 +1736,7 @@ function CutModule(area) {
     refresh() { renderTabs(); renderList(); draw(); },
     time: () => now(),
     seekTo(x) { seek(x); },
+    clear() { if (SEL) select(null); },   // the note box chose the whole film, or no place in it: nothing stays selected on the timeline
     goto(target, tt, t1) {
       const m = allMarks().find((x) => x.target === target);
       if (m) return pickThing("mark:" + target, { dataset: { t: String(m.t) } });
@@ -1688,7 +1744,7 @@ function CutModule(area) {
       if (target.startsWith("chapter:") || target.startsWith("seg:")) return pickThing(target);
       if (tt != null) select(t1 != null ? { kind: "range", t: tt, t1, label: `${fmt(tt)}–${fmt(t1)}` } : { kind: "time", t: tt, label: fmt(tt) });
     },
-    destroy() { if (closeRevision) closeRevision(); document.removeEventListener("keydown", keys); document.removeEventListener("keyup", spaceUp); area.removeEventListener("click", eatClick, true); cancelAnimationFrame(raf); if (video) video.pause(); if (vb) vb.pause(); if (ro) ro.disconnect(); else window.removeEventListener("resize", fit); },
+    destroy() { if (closeRevision) closeRevision(); window.removeEventListener("focus", onFocus); document.removeEventListener("focusin", onNote); document.removeEventListener("keydown", keys); document.removeEventListener("keyup", spaceUp); area.removeEventListener("click", eatClick, true); cancelAnimationFrame(raf); if (video) video.pause(); if (vb) vb.pause(); if (ro) ro.disconnect(); else window.removeEventListener("resize", fit); },
   };
 }
 

@@ -37,6 +37,10 @@ const dattr = (o) => {   // data-* attributes, escaped; a mark feedback.py would
 const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");   // a gate page's own marks
 const panel = (title, sub, body, cls) => `<section class="pn${cls ? " " + cls : ""}">${title ? `<h2 class="pn-h"><span>${esc(title)}</span>${sub ? `<span class="pn-sub">${esc(sub)}</span>` : ""}</h2>` : ""}${body}</section>`;
 const voidLine = (s) => `<p class="void">${esc(s)}</p>`;
+function packPins(xs, gap, max) {   // xs in order (px): each its row, the first where it keeps gap from the one before; past max rows the one with the most room
+  const last = [];
+  return xs.map((x) => { let r = last.findIndex((l) => x - l >= gap); if (r < 0) r = last.length < max ? last.length : last.indexOf(Math.min(...last)); last[r] = x; return r; });
+}
 const budgetLen = (s) => {   // tools/review.py's budget_len: a CJK character 1, any other visible one ½; text without CJK its characters
   const x = String(s || "").replace(/[`*]/g, "").replace(/\s+/g, " ").trim(), cjk = (x.match(/[　-鿿豈-﫿＀-￯]/g) || []).length;
   return cjk ? { n: cjk + 0.5 * x.replace(/[\s　-鿿豈-﫿＀-￯]/g, "").length, lim: 40 } : { n: x.length, lim: 100 };
@@ -281,7 +285,7 @@ MODVIEW.outline = { main: mOutline2, wire: wireOutline2 };
 
 /* ---------- 分镜: a page a part, the grey box, each shot with what it should get across ---------- */
 moduleWords({
-  board_title: "第 {i} 页 · {x}", board_sub2: "标黄的是 agent 没把握的镜头。其余的没写意见就算通过。",
+  board_title: "第 {i} 页 · {x}", board_title2: "{x} · {r}", board_keys: "← → 一镜一镜看", this_part: "这一段", part_seconds: "这一段的 {a}–{b}", board_sub2: "标黄的是 agent 没把握的镜头。其余的没写意见就算通过。",
   page_n: "第 {i} 页", this_page: "这一页", shots_k: "镜头", shots_n: "{n} 镜", unsure_k: "没把握", none: "没有", span_k: "时长", grey_k: "粗样", grey_note: "先看节奏和构图，颜色后面再上",
   no_anim: "还没有粗样视频。", anim_gone: "粗样视频找不到了，可能被挪走了。", default_pass: "没写意见就通过", you_said: "你说了", trans_k: "转场",
   board_none: "还没有镜头表。", avg_s: "平均一镜 {s} 秒", plan_k: "打算改", bar_board: "分镜 · {s}", bar_said: "分镜 · {s}。你当时说：「{q}」", to_sound: "去声音",
@@ -289,7 +293,7 @@ moduleWords({
   page_seconds: "这一页的 {a}–{b}",
   skip_sub: "这一站没停下来给你看（你说了不用停）。只能看；要改就写一条意见。",
 }, {
-  board_title: "Page {i} · {x}", board_sub2: "Amber shots are the ones the agent is unsure about. The rest pass if you write no note.",
+  board_title: "Page {i} · {x}", board_title2: "{x} · {r}", board_keys: "← → shot by shot", this_part: "This part", part_seconds: "this part, {a}–{b}", board_sub2: "Amber shots are the ones the agent is unsure about. The rest pass if you write no note.",
   page_n: "Page {i}", this_page: "This page", shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Rough cut", grey_note: "Rhythm and framing first; colour comes later",
   no_anim: "No rough cut video yet.", anim_gone: "The rough cut video can't be found; it may have been moved.", default_pass: "passes without a note", you_said: "you said", trans_k: "Transition",
   board_none: "No shot list yet.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Storyboard · {s}", bar_said: "Storyboard · {s}. You said: “{q}”", to_sound: "To the sound",
@@ -311,11 +315,11 @@ function boardPages() {   // { round, pages }: the gate ② page's parts and sho
     const least = (Array.isArray(gr.data.least_sure) ? gr.data.least_sure : []).filter((x) => x && x.id);
     const flag = (id) => { const m = least.find((x) => sameId(x.id, id)); return m ? m.note || true : null; };
     const extra = (Array.isArray(gr.data.assets) ? gr.data.assets : []).filter((a) => a && a.path && a.for);
-    return { round: gr.id, pages: segs.map((g, i) => ({ key: String(g.id || i + 1), title: String(g.title || g.id || ""), note: String(g.note || ""), n: i + 1, of: segs.length,
+    return { round: gr.id, pages: joinSheets(segs.map((g, i) => ({ key: String(g.id || i + 1), title: String(g.title || g.id || ""), note: String(g.note || ""), n: i + 1, of: segs.length,
       t0: sec(g.t0), t1: sec(g.t1), assets: extra.filter((a) => a.for === g.id),
       shots: g.shots.filter((x) => x && x.id).map((x) => { const j = S.find((s) => sameId(s.id, x.id)) || {};
         return { id: String(x.id), label: String(x.see || ""), see: String(x.see || ""), vo: String(x.vo || ""), plan: String(x.note || ""), start: sec(x.t0, j.start), end: sec(x.t1, j.end),
-          frame: x.frame || j.frame || "", frame_missing: x.frame || j.frame ? "" : x.frame_missing || "", reads: [], transition: "", unsure: flag(x.id) }; }) })) };
+          frame: x.frame || j.frame || "", frame_missing: x.frame || j.frame ? "" : x.frame_missing || "", reads: [], transition: "", unsure: flag(x.id) }; }) }))) };
   }
   const pages = [];
   S.forEach((s) => {
@@ -325,6 +329,23 @@ function boardPages() {   // { round, pages }: the gate ② page's parts and sho
   });
   return { round: null, pages };
 }
+const sheetOf = (x) => String(x || "").match(/^(.*?)\s*[（(]\s*(\d+)\s*\/\s*(\d+)\s*[）)]\s*$/);   // "开场（2/2）" → 开场, 2, 2
+function joinSheets(pages) {   // one part's sheets in a row, one page again, with all its shots
+  const out = [];
+  pages.forEach((p) => {
+    const m = sheetOf(p.title), last = out[out.length - 1], stem = m ? m[1].trim() : p.title;
+    if (m && last && last.sheets && last.title === stem && +m[2] === last.sheets + 1) {
+      last.shots = last.shots.concat(p.shots); last.sheets += 1; last.t1 = p.t1 != null ? p.t1 : last.t1;
+      last.note = [last.note, p.note].filter(Boolean).join(" "); last.assets = (last.assets || []).concat(p.assets || []); return;
+    }
+    out.push(Object.assign({}, p, { title: stem || p.title, sheets: m ? +m[2] : 0 }));
+  });
+  return out.map((p, i) => Object.assign(p, { n: i + 1, of: out.length }));
+}
+function shotRange(S) {   // "S1–S9", or the one shot
+  const a = S[0], b = S[S.length - 1];
+  return !a ? "" : a === b ? shotName(a.id) : `${shotName(a.id)}–${shotName(b.id)}`;
+}
 function unsureShot(s) { return !!s.unsure || gateMarks().some((m) => m.kind === "least" && sameId(m.id, s.id)); }
 function mBoard2() {
   const { pages } = boardPages();
@@ -333,16 +354,18 @@ function mBoard2() {
   const T0 = S.map((s) => s.start).filter((x) => x != null), T1 = S.map((s) => s.end).filter((x) => x != null);
   const t0 = pg.t0 != null ? pg.t0 : T0.length ? Math.min(...T0) : null, t1 = pg.t1 != null ? pg.t1 : T1.length ? Math.max(...T1) : null, unsure = S.filter(unsureShot), vid = D.shots.video;
   const durs = S.filter((s) => s.start != null && s.end != null).map((s) => s.end - s.start);
-  const tabs = pages.length > 1 ? `<nav class="pgtabs" aria-label="${esc(t("m_board"))}">${pages.map((p, j) => readOnly() ? `<button type="button" data-page="${j + 1}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</button>`
-    : `<a href="${projHash(PKEY, "board/" + (j + 1))}" aria-current="${j === i}">${esc(t("page_n", { i: j + 1 }))}</a>`).join("")}</nav>` : "";
+  // a tab a part, named by its shots and its name ("S1–S9 开场"); ← → go shot by shot, on into the next part
+  const tabName = (p) => [shotRange(p.shots), p.title].filter(Boolean).join(" ");
+  const tabs = pages.length > 1 ? `<div class="pgnav"><nav class="pgtabs" aria-label="${esc(t("m_board"))}">${pages.map((p, j) => readOnly() ? `<button type="button" data-page="${j + 1}" aria-current="${j === i}">${esc(tabName(p))}</button>`
+    : `<a href="${projHash(PKEY, "board/" + (j + 1))}" aria-current="${j === i}">${esc(tabName(p))}</a>`).join("")}</nav><span class="meta pgkeys">${esc(t("board_keys"))}</span></div>` : "";
   const first = S.find((s) => s.frame), rough = vid && !/draft|final|film/i.test(vid);   // the film itself is no rough cut: no rough-cut note for it
-  const gone = D.shots.video_missing, pageT = t0 != null && t1 != null ? t("page_seconds", { a: fmt(t0), b: fmt(t1) }) : "";
+  const gone = D.shots.video_missing, pageT = t0 != null && t1 != null ? t("part_seconds", { a: fmt(t0), b: fmt(t1) }) : "";
   // this page's seconds only, with the console's own small transport (a browser's controls would offer the whole film)
   const player = vid ? `<div class="bplay"><div class="well"><video id="bv2" src="${esc(src(vid))}" preload="metadata" playsinline${t0 != null ? ` data-t0="${t0}"` : ""}${t1 != null ? ` data-t1="${t1}"` : ""}></video></div>
       <div class="bctl"><button type="button" class="p-btn play" id="bvPlay" aria-label="${esc(t("play"))}"><span class="i-play">${ICO.play}</span><span class="i-pause" hidden>${ICO.pause}</span></button><div class="bbar" id="bvBar"><i></i></div><span class="mono" id="bvT">${esc(pageT)}</span></div></div>`
     : first ? `<div class="bplay"><div class="well"><img src="${esc(src(first.frame))}" alt=""></div><p class="note-line">${esc(t(gone ? "anim_gone" : "no_anim"))}${gone && !readOnly() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : ""}</p></div>`
     : `<p class="note-line wide" title="${esc(gone || "")}">${esc(t(gone ? "anim_gone" : "no_anim"))}${gone && !readOnly() ? ` <button type="button" class="xs" data-tell="${esc(gone)}">${esc(t("tell_where"))}</button>` : ""}</p>`;
-  const info = panel(t("this_page"), "", `<dl class="kv2"><div><dt>${esc(t("shots_k"))}</dt><dd>${esc(t("shots_n", { n: S.length }))}</dd></div>
+  const info = panel(t("this_part"), "", `<dl class="kv2"><div><dt>${esc(t("shots_k"))}</dt><dd>${esc(t("shots_n", { n: S.length }))}</dd></div>
     <div><dt>${esc(t("unsure_k"))}</dt><dd>${unsure.length ? unsure.map((s) => `<span class="chip wait">${esc(shotName(s.id))}</span>`).join(" ") : esc(t("none"))}</dd></div>
     ${t0 != null && t1 != null ? `<div><dt>${esc(t("span_k"))}</dt><dd><span class="mono nw">${esc(fmt(t0) + "–" + fmt(t1))}</span>${durs.length ? `<br><span class="nw">${esc(t("avg_s", { s: (durs.reduce((a, b) => a + b, 0) / durs.length).toFixed(1) }))}</span>` : ""}</dd></div>` : ""}${rough ? `<div><dt>${esc(t("grey_k"))}</dt><dd class="muted">${esc(t("grey_note"))}</dd></div>` : ""}</dl>`);
   const extra = (pg.assets || []).map((a) => /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(a.path) ? `<figure class="segpic"${dattr({ mark: "asset:" + a.path, label: a.caption || a.path })}><span class="well"><img src="${esc(src(a.path))}" alt="" loading="lazy"></span>${a.caption ? `<figcaption class="meta">${esc(a.caption)}</figcaption>` : ""}</figure>`
@@ -364,7 +387,7 @@ function mBoard2() {
   const st = stationState("2"), q = D.history.filter((h) => gateKey(h.title) === "2").flatMap((h) => h.quotes || []).map((x) => x.text).pop();
   const of = "";   // the page tabs say which page
   const settled = ["done", "skipped"].includes(stationState("2")) || filmDelivered(), day = shortDate(stopDate(stations().filter((x) => x.id === "2")));
-  return headM("board", t("board_title", { i: i + 1, x: pg.title || t("m_board") }), stationState("2") === "skipped" ? tRO("skip_sub") : settled ? (day ? tRO("idea_done_d", { d: day }) : tRO("idea_done_d0")) : t("board_sub2"), tabs)   // decided: said as such, nothing asked
+  return headM("board", t("board_title2", { x: pg.title || t("m_board"), r: shotRange(S) }), stationState("2") === "skipped" ? tRO("skip_sub") : settled ? (day ? tRO("idea_done_d", { d: day }) : tRO("idea_done_d0")) : t("board_sub2"), tabs)   // decided: said as such, nothing asked
     + (pg.note || of ? `<p class="segnote">${of}${pg.note ? `<span>${esc(pg.note)}</span>` : ""}</p>` : "")
     + `<div class="mgrid board${vid || first ? "" : " nopic"}">${player}${info}</div><div class="shots3${pics ? "" : " rows"}">${cards}</div>${extra ? `<div class="segpics">${extra}</div>` : ""}`
     + barM((() => { const s = flowWord(flowState(FLOW.find((f) => f.mod === "board"))) || t("st_" + (st || "not_started"));   // the stop in the top bar's words
@@ -377,8 +400,33 @@ function tellWhere(path) {   // a file that moved: the person says where it went
   const say = $("#say"); if (!say) return;
   say.value = t("tell_where_say"); say.focus(); say.setSelectionRange(say.value.length, say.value.length);
 }
+let BOARD_NEXT = "";   // "first" or "last": the shot to land on when ← → went on into another part
+function boardStep(dir) {
+  const cards = $$(".shotc"), cur = cards.findIndex((c) => c.classList.contains("cur"));
+  const k = cur < 0 ? (dir > 0 ? 0 : cards.length - 1) : cur + dir;
+  if (k >= 0 && k < cards.length) return boardPick(cards[k]);
+  const { pages } = boardPages(), i = Math.max(0, Math.min(pages.length - 1, (parseInt(SUB, 10) || 1) - 1)), j = i + dir;
+  if (j < 0 || j >= pages.length) return;
+  BOARD_NEXT = dir > 0 ? "first" : "last";
+  if (readOnly()) { SUB = String(j + 1); redraw(); } else go(projHash(PKEY, "board/" + (j + 1)));
+}
+function boardPick(card) {   // the card lit, in view, the note box on it, the small player at its start
+  $$(".shotc.cur").forEach((c) => c.classList.remove("cur"));
+  card.classList.add("cur"); card.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" });
+  const v = $("#bv2"), d = card.dataset;
+  if (v && d.t != null) { v.pause(); try { v.currentTime = +d.t + 0.01; } catch (e) { /* not loaded */ } }
+  if (!readOnly() && typeof setScope === "function") setScope({ target: d.mark, label: fitLabel(d.label || d.mark), el: card, t: d.t != null ? +d.t : null, t1: d.t1 != null ? +d.t1 : null });
+}
+if (typeof document !== "undefined") document.addEventListener("keydown", (e) => {   // the storyboard's own keys (the cut has its own): before the page's other listeners, so a page view under it does not jump too
+  if (MOD !== "board" || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented || !(e.key === "ArrowLeft" || e.key === "ArrowRight")) return;
+  const a = document.activeElement; if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  if (!$(".shotc")) return;
+  e.preventDefault(); e.stopImmediatePropagation(); boardStep(e.key === "ArrowRight" ? 1 : -1);
+}, true);
 function wireBoard2() {
   $$(".pgtabs button[data-page]").forEach((b) => b.addEventListener("click", () => { SUB = b.dataset.page; redraw(); }));   // a static page has no routes
+  if (BOARD_NEXT) { const cards = $$(".shotc"), c = BOARD_NEXT === "first" ? cards[0] : cards[cards.length - 1]; BOARD_NEXT = ""; if (c) boardPick(c); }
+  $$(".shotc[data-mark]").forEach((c) => c.addEventListener("click", () => { $$(".shotc.cur").forEach((x) => x.classList.remove("cur")); c.classList.add("cur"); }));   // a click on a card: ← → go on from it
   $$("[data-tell]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); tellWhere(b.dataset.tell); }));
   const v = $("#bv2"); if (!v) return;
   const t0 = v.dataset.t0 != null ? +v.dataset.t0 : 0, t1 = v.dataset.t1 != null ? +v.dataset.t1 : null, btn = $("#bvPlay"), bar = $("#bvBar"), tt = $("#bvT");

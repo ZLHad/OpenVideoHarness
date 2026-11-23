@@ -75,6 +75,7 @@ const STR = {
     e_diff: "这一版没记下改了哪里（只有局部重新渲染的版本会记）", e_marks: "还没有标记", whole_render: "整支重渲",
     diff_label: "{v} 改了这里", next_q: "下一处 · {x}", no_next: "后面没有要看的了", k_least: "agent 没把握", k_listen: "请你听", k_check: "检查发现的", k_mine: "我的意见",
     sev_fail: "没过", sev_warn: "注意", no_thumbs: "还没做缩略图：拖动时看不到每一秒的画面",
+    note_keys_w: "{m}↩ 记下 · ↩ 换行", not_film: "不对着片子", not_film_tip: "写一句不对着片子哪一处的话，比如对 Studio 的意见；交出去时会标明", shot_in: "{s}（{p} 里）", ln_parts: "段落", l_part: "段落 {x}", ph_not_film: "不对着片子哪一处的话写在这里（比如对 Studio 的意见），点“交给 agent”时一起交出去",
     // the other modules (the desk's views, moved in)
     sub_outline: "大纲", sub_script: "字幕 / 旁白", sub_facts: "事实", sub_check: "检查", sub_versions: "版本", sub_decisions: "决定", sub_history: "历史", sub_docs: "文档",
     concept: "立意", spine: "故事线", motif: "贯穿全片的", end: "看完能记住", spec: "规格", outline_tip: "点色块跳到那一段",
@@ -231,6 +232,7 @@ const STR = {
     e_diff: "This version doesn't record what changed (only a partial re-render records it)", e_marks: "No marks yet", whole_render: "re-rendered whole",
     diff_label: "{v} changed this", next_q: "Next · {x}", no_next: "Nothing more after here", k_least: "agent unsure", k_listen: "listen", k_check: "found by the check", k_mine: "my note",
     sev_fail: "failed", sev_warn: "warning", no_thumbs: "No thumbnails yet: dragging won't show each second",
+    note_keys_w: "{m}↩ adds the note · ↩ new line", not_film: "Not about the film", not_film_tip: "A note about no moment of the film, such as one about Studio itself; it goes marked as such", shot_in: "{s} (in {p})", ln_parts: "Parts", l_part: "Part {x}", ph_not_film: "A note about no moment of the film (Studio itself, say): it goes when you press “Send to agent”",
     sub_outline: "Outline", sub_script: "Captions / narration", sub_facts: "Facts", sub_check: "Check", sub_versions: "Versions", sub_decisions: "Decisions", sub_history: "History", sub_docs: "Documents",
     concept: "Concept", spine: "Spine", motif: "Recurring motif", end: "Remembered after", spec: "Spec", outline_tip: "click a block to jump to it",
     seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} {n|line|lines} in this part", to_script: "go through them →", bars: "bars {b}",
