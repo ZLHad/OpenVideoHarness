@@ -437,7 +437,9 @@ function renderColumn() {
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
   // what went is said in the notes block below, with its state (sent and not picked up, or picked up: when, by whom)
-  $("#colBody").innerHTML = `${decs}<section id="cMarks"></section><section id="colNext"></section><section id="cMine" class="c-mine"></section>`;
+  // two parts: what to decide and look at scrolls above; the notes and their state below it, never squeezed out by the cards
+  $("#colBody").classList.add("split");
+  $("#colBody").innerHTML = `<div class="col-scroll" id="colScroll">${decs}<section id="cMarks"></section><section id="colNext"></section></div><section id="cMine" class="c-mine"></section>`;
   if (COLCTL) { COLCTL.destroy(); COLCTL = null; }
   const cards = $(".c-cards", $("#colBody"));
   if (cards) COLCTL = OVH.mount(cards, { initial: FB.decisions, onPick: pick, advance: true });
@@ -484,6 +486,40 @@ function handedHtml(f) {   // each decision as it went, when; and the way to cha
     + `<ul class="note-list">${dec.join("")}</ul><button type="button" class="btn xs" id="reHand">${esc(t("rehand"))}</button></section>`;
 }
 $("#colBody").addEventListener("click", (e) => { if (e.target.closest("#reHand")) { REHAND[KEY] = true; renderColumn(); } });
+function leftOver() {   // drafts this browser keeps for an earlier page of this film (the agent sent a new page since): [{rid, fb, n, rows}]
+  if (!D || !PKEY) return [];
+  const out = [], pre = `desk:${PKEY}:`;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i); if (!k || !k.startsWith(pre) || k === KEY) continue;
+      const rid = k.slice(pre.length), fb = store.get(k) || {};
+      if (!/^[A-Za-z0-9_-]{1,24}$/.test(rid) || rid !== "notes" && !(D.rounds || []).some((r) => r.id === rid)) continue;   // (a page still on file: one gone has no round to send to)
+      const rows = Object.entries(fb.items || {}).filter(([, v]) => v && v.status).map(([tg, v]) => ({ target: tg, label: v.label || tg, text: v.text || "", v }));
+      if (fb.general && String(fb.general).trim()) rows.push({ target: "", label: t("c_whole_note"), text: String(fb.general) });
+      if (rows.length) out.push({ rid, fb, n: rows.length, rows });
+    }
+  } catch (e) { /* no storage: nothing kept */ }
+  return out;
+}
+$("#colBody").addEventListener("click", async (e) => {   // drafts of an earlier page: sent to that page's own round, or dropped, as the person says
+  const send = e.target.closest("[data-left-send]"), drop = e.target.closest("[data-left-drop]");
+  if (!send && !drop) return;
+  const rid = (send || drop).dataset.leftSend || (send || drop).dataset.leftDrop, k = `desk:${PKEY}:${rid}`, x = leftOver().find((y) => y.rid === rid);
+  if (!x) return;
+  if (drop) { try { localStorage.removeItem(k); } catch (err) { /* no storage */ } renderMine(); return; }
+  const items = x.rows.filter((r) => r.target).map((r) => Object.assign({ target: r.target, status: r.v.status, label: fitLabel(r.label), text: r.text },
+    r.v.suggest && r.v.suggest !== r.v.orig ? { suggest: r.v.suggest } : {}, r.v.orig && r.target.startsWith("cap:") ? { orig: r.v.orig } : {}, r.v.t != null ? { t: r.v.t } : {}, r.v.t1 != null ? { t1: r.v.t1 } : {}));
+  const p = { round: rid, lang: LANG, decisions: {}, defaulted: [], items, general: String(x.fb.general || "").trim(), pid: D.pid };
+  let r = null;
+  try { r = await fetch(`/api/p/${enc(PKEY)}/feedback`, { method: "POST", headers: { "Content-Type": "application/json", "X-Desk-Token": TOKEN }, body: JSON.stringify(p) }); } catch (err) { r = null; }
+  if (r && r.ok) {
+    const j = await r.json();
+    try { localStorage.removeItem(k); } catch (err) { /* no storage */ }
+    const h = D.status && D.status.holder;
+    toast(j.live ? t("ho_sent_live", { a: holderName() }) : h && h.outside ? t("ho_sent_out", { a: holderName() }) : t("ho_sent_kept"));
+    await reloadProject(false);
+  } else toast(t("ho_left_fail"));   // (kept here: nothing is lost)
+});
 function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then the column: a bar above the picture goes to the decisions
   const pd = $("#phoneDec"); if (!pd || !D) return;
   const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = stopMod(ROUND.id) || "cut";
@@ -549,9 +585,11 @@ function renderMine() {
   unread.forEach((f) => { const k = f.round + (f.late ? ":late" : ""); (groups[k] = groups[k] || []).push(f); });
   const unreadHtml = Object.values(groups).map((G) => { const c = G.reduce((a, f) => a + subCount(f), 0), late = G[0].late;
     return `<div class="ho-batch unread">${st2("unread", `${t(late ? "ho_unread_late" : "ho_unread", { n: c })} · ${stepName(G[0].round)}`, whoTakes("ho_who"))}${G.map(sentList).join("")}</div>`; }).join("");
+  const leftHtml = leftOver().map((x) => `<div class="ho-batch left">${st2("left", t("ho_left", { n: x.n, s: stepName(x.rid) }), t("ho_left_b"))}<ul class="note-list sent">${x.rows.map((r) => `<li><span class="mono tc">·</span><span><b>${esc(cut(r.label, 40))}</b> ${esc(r.text)}</span></li>`).join("")}</ul>`
+    + `<div class="ho-acts"><button type="button" class="btn xs" data-left-send="${esc(x.rid)}">${esc(t("ho_left_send", { s: stepName(x.rid) }))}</button><button type="button" class="btn btn-quiet xs" data-left-drop="${esc(x.rid)}">${esc(t("ho_left_drop"))}</button></div></div>`).join("");
   const takenHtml = took && !unread.some((f) => f.round === ROUND.id) ? `<details class="ho-batch taken"><summary>${st2("taken", t("ho_taken", { at: takenAt(took), a: progName(took.taken && took.taken.program) }) + " · " + t("ho_taken_n", { n: subCount(took) }))}</summary>${sentList(took)}</details>` : "";
   $("#cMine").innerHTML = `<h3 class="blk-h"><b>${esc(t("ho_mine"))}</b>${n ? `<span class="tag">${esc(t("ho_draft", { n }))}</span>` : ""}${none && !unreadHtml && !takenHtml ? `<span class="hint-inline">${esc(t(MOD === "cut" ? "c_mine_how" : "c_mine_how_m"))}</span>` : ""}</h3>`
-    + (none ? "" : `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>`) + unreadHtml + takenHtml;
+    + (none ? "" : `<ul class="note-list mine">${items.map(row).join("")}${gen}</ul>`) + leftHtml + unreadHtml + takenHtml;
   requestAnimationFrame(keepNewest);
 }
 function keepNewest() {   // the note kept last is the one in view, however many there are (also once the column's tab shows the block)
@@ -620,8 +658,8 @@ function renderRound() {   // what the next submission would send, said plainly 
   $("#openConfirm").addEventListener("click", openConfirm);
   requestAnimationFrame(fadeMore);
 }
-function fadeMore() { const b = $("#colBody"); if (b) b.classList.toggle("more", b.scrollHeight - b.scrollTop - b.clientHeight > 6); }   // more below: say so
-$("#colBody").addEventListener("scroll", fadeMore); window.addEventListener("resize", fadeMore);
+function fadeMore() { const b = $("#colScroll") || $("#colBody"); if (b) b.classList.toggle("more", b.scrollHeight - b.scrollTop - b.clientHeight > 6); }   // more below: say so
+$("#colBody").addEventListener("scroll", fadeMore, true); window.addEventListener("resize", fadeMore);   // (capture: the part above the notes scrolls on its own)
 $("#colBody").addEventListener("click", (e) => {
   const x = e.target.closest("[data-del]");
   if (x) { e.stopPropagation(); if (x.dataset.del === "#general") FB.general = ""; else delete FB.items[x.dataset.del]; save(); return; }
@@ -765,13 +803,13 @@ function sheetWho() {   // before sending: this round already picked up (these g
   const took = roundTaken(), pre = took ? t("ho_d_late", { s: stepName(ROUND.id), a: progName(took.taken && took.taken.program) }) + " " : "";
   return pre + whoTakes("ho_d");
 }
-const CHANGE_ID = /^(fix|change|changes|redo|revise|rework|edit|改)/i, CHANGE_WORDS = /(先改|要改|改一下|重做|重写|修改|fix|change|redo|revise|rework)/i;
-function fixPick(p) {   // a picked option that asks for changes, sent with no note saying what: {label} (A10), else null
+function fixPick(p) {   // a picked option that says it needs a note (the gate JSON's needs_note: "fix first"), sent with no note saying what:
+  // {label}, else null. Nothing is guessed from an option's words: a page without the field never asks
   if ((p.items || []).length || p.general) return null;
   for (const d of ROUND.data.decisions || []) {
     const v = p.decisions[d.id]; if (!v || p.defaulted.includes(d.id)) continue;
-    const o = (d.options || []).find((x) => (x && x.id != null ? x.id : x) === v) || {}, label = typeof o === "string" ? o : String(o.label || v);
-    if (CHANGE_ID.test(String(v)) || CHANGE_WORDS.test(label)) return { label: cut(label.replace(/\*\*|`/g, ""), 30) };
+    const o = (d.options || []).find((x) => x && typeof x === "object" && x.id === v);
+    if (o && o.needs_note === true) return { label: cut(String(o.label || v).replace(/\*\*|`/g, ""), 30) };
   }
   return null;
 }

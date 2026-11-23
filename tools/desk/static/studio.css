@@ -210,11 +210,15 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-body .next .raw{color:var(--ink-3);font-size:var(--fs-label)}
 .col-body .quiet-line{color:var(--ink-2)}
 /* the notes and their state, pinned to the column's foot right above the note box: what was just kept is seen without scrolling */
-.col-body .c-mine{position:sticky;bottom:-14px;margin:0 -16px -14px;padding:10px 16px 12px;max-height:42vh;overflow:auto;background:var(--panel);border-top:1px solid var(--rule-2);z-index:1}
+.col-body.split{display:flex;flex-direction:column;overflow:hidden;padding:0;gap:0}   /* a film's column: two parts, each scrolling on its own */
+.col-body.split>.col-scroll{flex:1 1 auto;min-height:6rem;overflow:auto;padding:14px 16px 10px;display:grid;gap:10px;align-content:start}
+.col-body.split>.c-mine{flex:0 1 auto;min-height:0;max-height:50%;overflow:auto;padding:10px 16px 12px;background:var(--panel);border-top:1px solid var(--rule-2)}   /* at most half the column; below 1280×720 the part above keeps 6rem */
 .col-body .c-mine .blk-h{position:sticky;top:-10px;margin:-10px 0 4px;padding:10px 0 4px;background:var(--panel);z-index:1}   /* the state line stays while the notes scroll */
 .col-body .c-mine .blk-h .tag{margin-left:auto;color:var(--wait)}
 .col-body .ho-batch{margin-top:8px}
 .col-body .note-list em.gone{font-style:normal;color:var(--wait);margin-left:4px}
+.col-body .ho-st.left i{background:var(--you)}
+.col-body .ho-acts{display:flex;gap:8px;margin:4px 0 0 14px}
 .col-body .ho-st{margin:0;display:flex;gap:8px;align-items:baseline;font-size:var(--fs-small);color:var(--ink-hi)}
 .col-body .ho-st i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--wait);transform:translateY(-1px)}
 .col-body .ho-st.taken{color:var(--ink-2)}.col-body .ho-st.taken i{background:var(--rule-2)}
@@ -223,6 +227,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-body details.ho-batch>summary{list-style:none;cursor:pointer}.col-body details.ho-batch>summary::-webkit-details-marker{display:none}
 .confirm .fix-ask{margin:8px 0 0;padding:8px 12px;border-left:2px solid var(--wait);background:var(--wait-soft)}
 .confirm .fix-ask .fix-q{margin:0 0 2px;font-size:var(--fs-small);color:var(--ink-hi)}
+.col-scroll.more{-webkit-mask-image:linear-gradient(var(--ink) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--ink) calc(100% - 36px),transparent)}
 .col-body.more{-webkit-mask-image:linear-gradient(var(--ink) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--ink) calc(100% - 36px),transparent)}   /* more below: the column fades out instead of ending under the bar */
 .app .g-opt .id{display:none}   /* the console says an option by its words; the static page keeps the codes its reply line uses */
 .col-body .next code{display:inline;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11.5px;color:var(--ink-2);background:none;padding:0}
@@ -559,6 +564,7 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
   .module{padding:16px}
   .col{border-left:0;border-top:1px solid var(--rule);border-radius:0!important}
   .col-body{overflow:visible}
+  .col-body.split{display:block;overflow:visible;padding:14px 16px}.col-body.split>.col-scroll,.col-body.split>.c-mine{overflow:visible;max-height:none;padding:0}   /* a phone: the page scrolls, the notes after the rest */
   .cut{display:block;height:auto}
   .lists{border-right:0;max-height:none}
   .screen{min-height:0;aspect-ratio:16/9;margin:0}

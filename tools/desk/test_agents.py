@@ -2415,6 +2415,105 @@ def handoff_checks():
     check("a wait that ends without a submission leaves every note for bin/vh status and the next wait, and \"正在取\" is said only for a live wait on "
           "the round that is out", nothing_left_behind)
 
+    # a wait driven from Python with hooks in its own copy of the hand-over: held in the gap between a claim and the note's
+    # line, or held at the claim itself; what the hooks do is in the driver below, nothing of it is in feedback.py
+    driver = T / "wait_driver.py"
+    driver.write_text("\n".join([
+        "import os, sys, time",
+        f"sys.path.insert(0, {str(HERE)!r})",
+        "import feedback as F",
+        "project, mode, mark = sys.argv[1], sys.argv[2], sys.argv[3]",
+        "if mode == 'gap':   # claimed, then held before the note is written",
+        "    show = F.show",
+        "    def slow(*a, **k):",
+        "        open(mark, 'w').close(); time.sleep(60); return show(*a, **k)",
+        "    F.show = slow",
+        "if mode == 'race':   # both waits held at the claim, released together; the read-modify-write made slow",
+        "    claim, write = F.claim, F._write",
+        "    def held(*a, **k):",
+        "        open(mark, 'w').close()",
+        "        while not os.path.exists(mark + '.go'): time.sleep(0.02)",
+        "        return claim(*a, **k)",
+        "    def slow_write(path, text):",
+        "        if path.name == '.consumed': time.sleep(0.6)",
+        "        return write(path, text)",
+        "    F.claim, F._write = held, slow_write",
+        "sys.exit(F.wait(project, 60, poll=0.2))",
+    ]) + "\n")
+
+    def driven(p, mode, mark):
+        w = subprocess.Popen([sys.executable, str(driver), str(p), mode, str(mark)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+        BG.add(w.pid)
+        return w
+
+    def until(f, secs=15):
+        t0 = time.time()
+        while time.time() - t0 < secs and not f():
+            time.sleep(0.05)
+        return f()
+
+    def gap_kills():   # a wait killed between its claim and the note's line (each signal), or whose output is closed: the note stays unread
+        import server
+        bad = []
+        for sig in (signal.SIGKILL, signal.SIGTERM, signal.SIGINT):
+            p = film_at_script(f"gap-{sig.name}")
+            mark = T / f"gap-{sig.name}.mark"
+            w = driven(p, "gap", mark)
+            if not armed(p):
+                bad.append(f"{sig.name}: the wait did not start"); w.kill(); continue
+            f = submit(p, "E1", "在缝里被杀")
+            if not until(mark.exists):
+                bad.append(f"{sig.name}: the wait never reached the gap"); w.kill(); continue
+            os.kill(w.pid, sig)
+            w.wait(timeout=10)
+            un, took = [x.name for x, _, _ in F.unread(p)], list(F.taken(p))
+            state = next((x.get("state") for x in server.project_data(p, ())["feedback"] if x["file"].endswith(f.name)), None)
+            o = status(p)
+            nxt = subprocess.run(["bash", str(vh), "desk", "wait", str(p), "--timeout", "10"], capture_output=True, text=True, env=env, timeout=60)
+            if f.name not in un or f.name in took or state != "unread" or not [x for x in o["review"]["unread"] if x["file"].endswith(f.name)] \
+                    or o["now"]["code"] not in ("notes_unheard", "notes_left", "notes_late") or nxt.returncode != 0 or "在缝里被杀" not in nxt.stdout:
+                bad.append(f"{sig.name}: unread {un}, page {state}, now {o['now']['code']}, next wait {nxt.returncode} {nxt.stdout[:300]!r}")
+        p = film_at_script("gap-closed")   # a real bin/vh desk wait whose output is closed before anything comes
+        w = subprocess.Popen(["bash", str(vh), "desk", "wait", str(p), "--timeout", "60"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        BG.add(w.pid)
+        if not armed(p):
+            bad.append("closed: the wait did not start")
+        else:
+            w.stdout.close()
+            f = submit(p, "E1", "没人读得到")
+            w.wait(timeout=20)
+            un = [x.name for x, _, _ in F.unread(p)]
+            if w.returncode != F.NOT_DELIVERED or f.name not in un or f.name in F.taken(p):
+                bad.append(f"closed output: exit {w.returncode}, unread {un}, taken {list(F.taken(p))}")
+        return "; ".join(bad) or None
+    check("a wait killed between claiming a note and writing it (KILL, TERM, INT), or whose output is closed: the note stays unread (status says so, "
+          "the page never says it was picked up) and the next wait hands it over", gap_kills)
+
+    def two_waits_held():   # two waits held at the claim and released together: exactly one hands the note over, and it is taken once
+        p = film_at_script("race-held")
+        m1, m2 = T / "race-1.mark", T / "race-2.mark"
+        ws = [driven(p, "race", m1), driven(p, "race", m2)]
+        if not armed(p, 2):
+            return "the waits did not start"
+        f = submit(p, "E1", "只交一次（同时放开）")
+        if not until(lambda: m1.exists() and m2.exists()):
+            for w in ws:
+                w.kill()
+            return "the waits never both reached the claim"
+        for m in (m1, m2):
+            Path(str(m) + ".go").touch()
+        time.sleep(4)
+        outs = []
+        for w in ws:
+            if w.poll() is None:
+                w.kill()
+            outs.append((w.wait(), w.stdout.read() or ""))
+        got = [o for _, o in outs if "只交一次（同时放开）" in o]
+        if len(got) != 1 or f.name not in F.taken(p):
+            return f"{len(got)} waits handed it over; taken {list(F.taken(p))}; {[rc for rc, _ in outs]}"
+    check("two waits held at the claim and released together on one note: exactly one hands it over (the claim is under the lock, and written "
+          "before the note is)", two_waits_held)
+
     def open_agent():   # an agent outside Studio's window that ran a command on the film and is still open: no "stopped"; said where it is,
         # that words typed in Studio do not reach it, and a second AI here only as a second line that asks once more in those words
         o = stage("open")
@@ -2428,7 +2527,7 @@ def handoff_checks():
         act = n["act"]
         if n["code"] != "agent_outside" or not act.get("secondary") or not act.get("confirm") or "没有 agent" in n["say"]["zh"] \
                 or "窗口外面的 Claude Code" not in n["say"]["zh"] or "收不到" not in n["say"]["zh"] or "另起一个 AI" not in act["label"]["zh"] \
-                or "两个一起做" not in (act.get("sure_note") or {}).get("zh", "") or "outside this window" not in n["say"]["en"]:
+                or "两个一起做" not in (act.get("sure_note") or {}).get("zh", "") or "outside this window" not in n["say"]["en"] or "在做" in n["say"]["zh"]:
             return f"while it is open: {n}"
         if m["code"] in ("agent_open", "agent_outside"):
             return f"after it went: {m['code']}"
@@ -2438,8 +2537,10 @@ def handoff_checks():
     def studio_agent():   # an agent Studio's own column started (under tools/desk/desk.py): the old offer, no "outside"
         o = stage("own")
         cc = shutil.which("cc")
-        if not cc or fake_agent("true") is None:
+        made = fake_agent("true") if cc else None   # (builds the stand-in program; this one ends at once, not left open)
+        if made is None:
             return None
+        made.kill(); made.wait()
         shim = T / "studio-shim" / "tools" / "desk" / "desk.py"   # a stand-in desk server: its command line names tools/desk/desk.py
         shim.parent.mkdir(parents=True, exist_ok=True)
         shim.write_text("import subprocess, sys, time\np = subprocess.Popen(sys.argv[1:])\np.wait()\ntime.sleep(600)\n")

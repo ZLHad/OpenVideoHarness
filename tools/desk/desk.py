@@ -19,7 +19,8 @@ comments and submits.
   bin/vh desk wait <project> [--timeout s]      block until the reviewer submits, print the feedback, exit 0 (3 on
                                                 timeout, default 43200 s: 12 h; 4 the agent it waits for is gone; 7 this
                                                 round's page is no longer the one out: nothing came for it, run bin/vh
-                                                status and wait on the round open now). It waits for this round's page.
+                                                status and wait on the round open now; 74 its output is closed: the
+                                                notes stay unread). It waits for this round's page.
                                                 An agent runs it in the background after each stop: its exit is the
                                                 wake-up call. Every submission no agent has taken yet, of any round (a
                                                 later batch on a round already taken says so), is printed at once; a
@@ -95,7 +96,8 @@ def main(argv):
         ap.add_argument("--no-open", action="store_true", help="started in a terminal it shows Studio's window; this leaves it to "
                                                                "bin/vh studio (started otherwise it never shows one)")
     elif sub == "wait":
-        ap.add_argument("--timeout", type=float, default=43200, help="seconds to wait (default 43200: 12 h)")
+        import feedback as F0
+        ap.add_argument("--timeout", type=float, default=F0.WAIT, help=f"seconds to wait (default {F0.WAIT:.0f}: {F0.WAIT / 3600:g} h)")
     elif sub == "feedback":
         ap.add_argument("--round", help="only this gate page (1, 2b, E3 …)")
         ap.add_argument("--json", action="store_true", help="print the JSON record instead of the text")
