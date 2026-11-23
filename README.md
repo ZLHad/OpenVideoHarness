@@ -49,7 +49,7 @@ The agent keeps the source and exports together in the film's project folder. Wi
 
 <p align="center"><a href="#studio"><img src="docs/assets/studio/hero.en.webp" width="960" alt="The OVH Studio window on a film's cut stop: the galaxy picture in the middle, under it a timeline with thumbnails and seconds 5 to 8 selected; on the right a card waiting for your decision and two notes written on shots, with the Send to agent button below"></a></p>
 
-<p align="center"><sub>Making a film in Studio. Along the top, where the film has got to. Point at a few seconds of the timeline, or at a shot, and write a note. On the right, what waits for your decision; hand it all to the agent together. The film on screen is this repo's own intro film.</sub></p>
+<p align="center"><sub>Making a film in Studio. Along the top, where the film has got to. Point at a few seconds of the timeline, or at a shot, and write a note. On the right, what waits for your decision; send it all together. The film on screen is this repo's own intro film.</sub></p>
 
 ## What makes it different
 
@@ -101,25 +101,25 @@ On top of the skills and the command line, we built Studio, a visual window that
 <table>
 <tr>
 <td width="56%" valign="top"><img src="docs/assets/studio/space.en.webp" width="100%" alt="Studio's space: a card for every film, the three waiting for you first, each saying what you have to decide"></td>
-<td valign="top"><b>Where each film has got to, at a glance.</b><br>The column on the left is the stops of making a film: concept, outline, storyboard, sound, cut, delivery, plus a record of assets and decisions. A line across the top marks the stop this film is at: amber is waiting for you, violet is the agent at work, green is done. Studio opens on every film, the ones waiting for you first, each card saying what you have to decide.</td>
+<td valign="top"><b>Where each film has got to, at a glance.</b><br>The row along the top is this film's steps: concept, outline, script, storyboard, sound, first draft, delivery, only the steps this film has, each saying who is doing what: you decided, waiting for you, Claude Code working, not started yet. The column on the left is what to look at: each step's content, plus a record of assets and decisions. Studio opens on every film, the ones waiting for you first, each card saying what you have to decide.</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/assets/studio/board.en.webp" width="100%" alt="The storyboard stop: a page per segment, a keyframe per shot saying what is seen, the shot the agent is unsure of marked"></td>
-<td valign="top"><b>Reviewing is pointing and saying.</b><br>The storyboard is a page per segment and a keyframe per shot; the cut's timeline carries the shots, the sound, what the checks found and where the agent is unsure. Select a shot, a second or a span, write a line, and it becomes a note.</td>
+<td valign="top"><b>Reviewing is pointing and saying.</b><br>The storyboard is a page per segment and a keyframe per shot; the cut's timeline carries the shots, the sound, what the checks found and where the AI is unsure. Select a shot, a second or a span, write a line, press “Add”, and it is a note.</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/assets/studio/note.en.webp" width="100%" alt="The cut stop: a few seconds selected on the timeline, and on the right a note written about those seconds"></td>
-<td valign="top"><b>Collect a few, hand them over at once.</b><br>Each note faces what you pointed at, and they gather in the right-hand column. Before anything goes, a summary lists what you chose for each decision and what each note says. Your words are copied into the project's <code>REVIEW.md</code>, and the agent carries on from them.</td>
+<td valign="top"><b>Collect a few, send them at once.</b><br>Each note is about what you pointed at, and they gather in the right-hand column, each marked not sent, sent and not picked up, or picked up. Before anything goes, a summary lists what you chose for each decision and what each note says. Your words are copied into the project's <code>REVIEW.md</code>, and the agent carries on from them.</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/assets/studio/decide.en.webp" width="100%" alt="The concept stop: on the left the numbers and objects that belong to this topic alone, on the right three concept cards with a frame each, the recommended one already chosen"></td>
-<td valign="top"><b>A stop is decided right here.</b><br>At the concept, the storyboard and the draft, the right-hand column holds what this round needs from you, a few cards each, with the recommended one already chosen. Leave it and the recommendation stands; click to change it; submit once.</td>
+<td valign="top"><b>What you decide, you decide right here.</b><br>At the concept, the storyboard and the first draft, the right-hand column holds what this step needs from you, a few cards each, with the recommended one already chosen. Leave it and the recommendation stands; click to change it; send once.</td>
 </tr>
 </table>
 
 The right-hand column also talks straight to the agents on this machine (Claude Code, Codex, and DeepSeek Harness). Select a shot before you speak and it knows what you mean; what it read, what it ran and what it asks you to allow are laid out one by one. On the space, the same column starts a new film: write what you want and send it, and the conversation moves into the film as soon as the agent has made it. Before you first talk to an agent there, it needs an adapter: press “Set it up” in the column, and Studio installs it.
 
-Which model to use and how hard it thinks are picked in the column, and Studio remembers your last choice. In the Codex column, **Choose model and effort** opens an empty chat and reads out the models your account offers before you send your request.
+Which model to use and how hard it thinks are picked under “Chat here” in the column, and Studio remembers your last choice. In the Codex column, **Choose model and effort** opens an empty chat and reads out the models your account offers before you send your request.
 
 Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` to open the same window. The `studio` level uses Studio for reviews by default. When Studio shows the agent is waiting, submission wakes it. Otherwise, return to the chat after submitting and say “I've sent it”. The `standard` level uses Studio while Studio is open, and a review page otherwise. You can also ask for either. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. [Open Studio](#open-studio) · [Studio file reference](tools/desk/README.md)
 

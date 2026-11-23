@@ -2,6 +2,70 @@
 
 What changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.
 
+## v0.9.0 — 2026-11-24
+
+A minor release: reviewing a film in Studio can be trusted. It follows the first real twelve-minute film made with Studio, where a batch of notes was lost, the window showed an outline that no longer existed, and the words on the page were hard to follow. A note you send is no longer lost and the page says who has it; the window shows what the files say now; the timeline keeps up with a long film; and every page's words were rewritten.
+
+### What's new
+
+- **Notes are never lost:** each note says where it stands: not sent, sent and not picked up, or picked up (when, and by which program). Notes written after a round was picked up are a later batch of their own, handed over first the next time, and `bin/vh status` lists them. A wait is for one round and ends honestly when its page is no longer the one out; the default wait is 12 hours.
+- **True status lines:** "being picked up" is said only for a live wait on the round that is out. When the film is being made by a program outside Studio's window, the chat tab says that words typed there do not reach it, and a second one starts only when you ask for it.
+- **The window follows the files:** when the outline, the script or the storyboard changes on disk, the page shows the new version and stays on your module, tab, scroll position and playhead, waiting while you type. A note stays with what it was written on: it moves with a part that moved, and is marked as written on something that changed, or that is gone, never drawn on what took its place.
+- **A step opens on what is to be reviewed:** an outline re-review on the outline, the script step on the script tab; the step's explanation sits below the content, not above the tabs.
+- **Reviewing a cut:** zoomed in, the timeline follows the playhead; a note pins where you stopped; one click adds a note; Enter is a new line in every note box; the storyboard pages by shot; a long span lists the shots inside it; a note can be about something other than the film; the film plays only when you press play.
+- **Plain words, and one map:** no "agent" on the page (the program's name where it is known, "AI" where it is not); "Add" and "Send" say what they do; a step is called by what you do in it (pick a concept, review the outline, the script, the storyboard, the first draft). The row along the top is the one place that says where the film is: the steps this film has, each with who is doing what.
+- **A sample wall on the space page:** the repo's own films, each with a "Make one like this" sentence that fills the new-film box and starts nothing by itself.
+
+Not verified in this release: all of it was checked in Chrome on made-up films, not in OVH Studio's own window and not on a real long film taken through a full round. The READMEs' and the homepage's Studio screenshots and the 17-second Studio film still show the old words; new ones follow.
+
+The full entries follow, newest first.
+
+**Studio 的字像人写的，一眼看得出片子走到了哪一步、谁在做**
+- Why: 用户用 Studio 做第一支 12 分钟的片子时说"完全不知道我现在进入到了哪一阶段……所有的文字都特别 AI 味"，点名"对话""这一站""交给 agent"。
+- 页面上不再有"agent"：知道是谁写它的名字（Claude Code、Codex），不知道写"AI"。右栏的两页叫"在这里聊"和这一步要你做的事（挑立意、审大纲、审文案、审分镜、看初版），不再叫"对话""这一站"；脚本、旁白稿、字幕 / 旁白统一叫"文案"。
+- 写意见的两个按钮说清各做什么："记下"改成"加一条"（放进清单），"交给 agent"改成"发出去（2 条意见 · 1 个选择）"，按钮上写着要发的；没有要发的时它歇着，旁边一句说为什么。动作统一说"发"，说给外面那个会话的是"我发了"（agent 照样认"我交了"）。
+- 顶上一排是唯一说片子走到哪的地方：按这支片子真有的步骤排（有文案这一站就有"文案"），每步下面一句说谁在做（你定了 11-14、等你看、Claude Code 在做、等 AI 接着做、还没开始、初版时一起看），只框片子现在在的那一步；左边一列只管看什么，宽屏上不再带等你的点。关卡 ① 的第二页只审大纲时，亮的是大纲，不是立意；右栏也叫"审大纲"。
+- 电报体改成整句："上一次动静：……改了 BRIEF.md"改成"不到 1 分钟前，改了简报。"，"大纲已定。现在改，分镜得重做。"改成"大纲已经定了。要是现在改，分镜也得跟着重做。"；"不点就算通过"只在列表上面说一次。
+- 设置页的思考深度在中文页上写"很高"，不再是程序自己的"xhigh"；"这台电脑上还缺"那一块不再说"右边"（窄窗口时那一列在下面）。
+- `bin/vh gate --init` 的骨架和 `playbook/01` 的"审阅页"一节教 agent 怎么写给人看的字：像当面问人那样问，段名说这一段讲了什么，没把握的地方用片子里的时间和画面说，不写镜头号和文件名。`tools/desk/test_wording.py` 把旧词列进退下来的词。
+
+**Studio 的窗口跟着文件走：agent 改了大纲、文案，窗口自己换成新的一版；一站开在它要审的东西上**
+- Why: 第一支真片子里，人对着已经不存在的 9 段大纲写意见，文案改到第四版窗口还是第一版，要按"显示 → 重新载入"，重新载入又跳回别的页；六次开站有四次停错页（大纲复审停在立意，文案停在大纲页签）；点下面的"字幕 / 旁白"，内容却在上面展开，要审的旁白被挤到很下面。
+- agent 改了片子的文件（BRIEF、SCRIPT、NOTES、DECISIONS、REVIEW、镜头表、剪辑表、审阅页、旁白的时间），开着的 Studio 几秒内自己换成新的，停在原来的模块、页签和位置，说一句"文件改了，这里换成了新的一版"；人正在打字（30 秒内敲过键）、交之前的那一页开着、片子在放时先不换，选了一个选项不算在打字。
+- 写了还没交的意见记着它写在什么上（大纲一段的名字和话、旁白的那一句、镜头的话）。agent 改了大纲：同样的那一段挪了位置，意见跟着走、换成新的段号和时间，说一次"原来是第 3 段"；那一段改了名或改了话，意见不再画在占了原处的新段上，写明它写的时候对着什么、"这一处后来改了"，交给 agent 时也这样写；删掉了，写明"这一处已经不在了"。
+- 一站开在它要问的东西上：立意定了以后再发的大纲（1b）、没有立意卡的关卡 ① 开在大纲上，要定的事在右栏；文案（E1）开在大纲的"字幕 / 旁白"页签上。
+- 窗口自己挑的模块写进地址：左边点同一个模块不再没反应，重新载入也停在原处。agent 发来新的一页：人自己走到别处的，留在那里，说一句"大纲那一页出来了"，右栏顶上有去那一页的按钮；Studio 自己开着的，跟过去，后退能回来。写到一半、读不出来的审阅页不算新的一页，页面不再来回跳。
+- 关卡页的说明（已经定了的、替你定的、附录、没看没听的）放到页签内容的下面，页签上面只留摘要（最多两行，长的整句在下面）：点哪个页签，要审的东西都在页签下面紧挨着。
+
+**Studio 里交的意见不会再没人收：每份意见都看得到是还没交、交了还没人取，还是被谁取走了**
+- Why: 第一支真片子里，人在一轮已经被取走以后又在 Studio 里交了一整批意见，外面等着的 agent 早已不在等，界面却写"已经交给 agent 了"；另一回人什么都没交，右栏写"你的意见交出去了，等着的 agent 正在取"；分镜那一页交了一次，却让更早开着的大纲复审那一轮也当成交了。
+- 每份提交只在三种状态里的一种，Studio、`bin/vh status` 和等着的 agent 说的一样：还没人取；取走了（什么时候、被哪个 agent 程序，记在 `out/review/feedback/.consumed`）；答过了（REVIEW.md 里它那一节写了定了）。一轮被取走以后再写的意见是这一轮的补交，单独交、单独显示，不并进别的哪一页。
+- `bin/vh desk wait` 和 `bin/vh gate --wait` 等的是一轮：一开始先把所有还没人取的意见交出来，哪一轮的都算（补交的写明）；两个同时在等，同一份只有一个拿到；等的时候这一页换成了别的页，就说这一轮没人交、退出 7，不再把下一页的提交当成自己这一页的。超时、agent 没了、被停下，都不碰没人取的意见。默认等 12 小时（原来是 7100 秒，人睡一觉 agent 要醒好几次）。
+- `bin/vh status`：有没人取的意见时，下一步先说它们（`unread:` 一行，`--json` 的 `review.unread`），一条 `bin/vh desk wait` 就全交出来；已经定了的关卡 ① 又发出一页（比如大纲复审 1b），这一页等人回，不再算成已定；`holder` 说开着这支片子的 agent 是哪个程序、在不在 Studio 窗口外面。
+- 这个版本以前的片子：agent 当时自己读了文件、在这一站自己的那一节里写了定了的提交，升级以后会被当成没人取的意见列一次（再跑一次 `bin/vh desk wait` 就交出去了）；没有这个版本取走记录的轮次，不会被说成"补交"。什么都不会丢。
+- 右栏的状态话只说真的："正在取"只在有一个活着的等待、等的正是现在这一轮时说；页面在等人时右栏照样摆出这一页要定的事。
+- Studio 右栏："你的意见"一块写清每份意见的状态（还没交几条；交了几条、还没人取，谁会来取；几点被谁取走），就在写意见的框上面。右栏分成上下两块：要定的事在上面自己滚，"你的意见"在下面，最多占右栏一半、自己滚；从 1280×720 起，决定卡片再多也不用滚就看得到刚记下的那一条（比这更矮时，上面那块至少留 6 行高）。一轮被取走以后，按钮是"补交"，交之前和交之后都说清这几条没人在等、什么时候会被取；有 AI 在等这一轮才说"马上会取"。
+- 交一份意见分两步：先认领，写出去、flush 成功才算取走。等待在中间被停下、被杀，或者它的输出已经关掉（退出 74），这份意见照样算还没人取，页面不会说它被取走了，下一个等待把它交出去。
+- 人写了却没交的意见，agent 换了新的一页以后不再看不见："你的意见"里列着"在旁白稿那一页写的 n 条，还没交"，人点"交到旁白稿那一轮"才交出去，或者点"不要了"。
+- 选了"先改"却一条意见都没写，交之前问一句改哪里："回去写"或"就这样交"。只有审阅页的 JSON 里这个选项写了 `needs_note: true` 才问（`bin/vh gate --init` 给关卡 ③ 的 FIX 写上了），不从选项的字面去猜；以前的页没有这一项，从来不问。
+- 片子开在 Studio 窗口外面的 agent（终端或桌面版里的 Claude Code、Codex）里时，右栏直说它在窗口外面、在这里打的字它收不到（只说它开着，不说它在做）；"在这里另起一个 AI 做这支片子"放到第二行，点了还要再确认一次；对话页第一句话发出之前也先问，点"另起一个 AI"才开始。
+
+**Studio 审片顺手了：意见钉在你停下的地方，放大时时间轴跟着播放头走，"记下"点一次就成，分镜按镜头翻，长段落里点得到具体一镜**
+- Why: 用一支 12 分钟的片子在 Studio 里审初版时，时间轴的时间跟不上播放，放大以后播放头跑出画面，"记下"要点两次，分镜按"第 n 页"翻，成片里一点就是 80 多秒的一整段。
+- 成片的时间轴：点过某一秒再播放、暂停，意见框跟着落到停下的那一秒（以前还钉在点过的那一秒）；时间轴上只留一根播放头的线。放大后播放时，播放头走到边上，时间轴就往后翻一页，自己横着滚过就不再跟，直到再按播放；最大能放到一秒约 100 像素，12 分钟的片子也看得清一镜、一句；横着滚时左边的轨名不动。标记分行放：没把握、请你听、检查发现的、我的意见各占一行，挨得太近的再错开一行，67 个点不再叠成一串。窗口在后台时，播放的时间照样往前走。
+- 片子只在人自己点播放、按空格、点镜头或旁白的播放时才放（页面只在处理人自己的那一下点击、按键时开始播放）：打开一站、点窗口把它提到前面的那一下、地址里的时间、页面自己的代码，都不会让它出声。选一段播放时，窗口在后台也停在这一段的结尾。离开成片页时片子还在放，也不再报错、不再去改下一页的意见框。（报告里"开站自己带声音放"那次没能复现，上面这些是把能放起来的路都堵上。）
+- 意见框：按下"记下"时框不再缩回去，按钮不会从鼠标底下跑开，点一次就记下。框里 ↩ 换行，⌘↩（别处 Ctrl+↩）或按钮记下，这条规矩用字写在框下面（对话那一栏照旧是 ↩ 发送）；逐条的意见框、交出去之前的整体意见框和改片对比里的回复框，也都在框下写着"↩ 换行"。用输入法上屏的那一下回车不算。多行的意见在列表里照原样分行。
+- 不对着片子的话：意见框"对着"那一行多了"不对着片子"，写下的话进整体意见，交出去时标着〔不对着片子〕，列表里没有时间、排在前面。对整片说的话也各占一条，交出去时前面多了〔整片〕这个标签（交出去的格式不变，还是整体意见那一段文字，只是内容里多了标签）。一条意见里哪怕有一行以〔…〕开头，也还是一条，× 删掉的是整条。
+- 分镜：agent 按 6 镜一页切开的同一段（"开场（1/2）""开场（2/2）"）合回一页；页签写镜号和段名（"S1–S13 开场"），不再是"第 n 页"；← → 一镜一镜走，选中的那一镜亮起来，意见框对着它，小播放器跳到它，走到头进下一段。以前存下的 `board/<n>` 地址，现在按合并以后的段数算，打开的可能是另一段。
+- 成片里点得到长段落里的一镜：用剪辑表做的片子，成片的渲染记录里本来记着每一段页面里的镜头；`bin/vh timeline --resolved` 给剪辑表的每一条加上 `inner`（里面的镜头，片子里的秒，切到这一条里面；渲染时用的不是这份剪辑表就不给，并说一声）。成片模块多一行"段落"（英文 Sections）放这些条目，镜头那一行画里面的镜头，点一下意见框写"镜头 S1_3（PROLOGUE 里）"。点不到的照实说一句：成片是按改动以前的剪辑表渲的，或者那一段是先渲好的一整段视频。`inner` 写进了 `tools/schemas/output/timeline.schema.json`。
+- 新检查 `tools/desk/test_cut_page.py`：在真的无头 Chrome 里（像 Studio 的窗口那样允许自动播放），用一支 12 分 20 秒、67 个标记点的编造片子（WebM，哪个 Chromium 都放得了），真鼠标、真按键把上面这些走一遍，时间靠跳转和视频自己的事件推进（`tools/ci.sh` 的 console 组；找不到能放这支片子的浏览器时，和别的网页检查一样本机跳过、CI 上算失败）；`timeline --resolved` 的那组加了剪辑表条目里镜头的用例。
+
+**Studio 的空间有了样片墙：照着工作台自己的片子开一支；对话列的下拉框不再截字，没登录的提示只说一次**
+- Why: 刚装好打开 Studio，空间是空的，除了右边一列没东西可看，也不知道第一句该说什么。
+- 样片墙：官网放的那四支片子（竖屏科普、数学讲解、手绘短片、发布短片），每张卡写类型、时长、竖屏还是横屏、风格（库里有的带上风格的 id）。按钮"照这个做一支"只把一句话写进开新片子的框里，不发送、不开始任何事：这句话和官网那张卡复制的一样，点名库里的风格（`styles/dark-math`、`watercolor-pastoral`、`product-keynote`）和取自发布短片的三张配方；有要填的空就选中它，框里原来写的 ⌘Z 拿得回来。框写不进去时不写：还没装 agent，就先留着这一句、在"装上"那里说一声，装好以后点一下"写进框里"；空间里那段对话还在做或在等你批准，不把它换走，等它停下再写。还没有片子时样片墙展开着；有了自己的片子，或在窄屏上，它先收着，点开再看。画面是官网的封面图；用 `tools/fetch_media.sh` 下载过片子的，鼠标停在卡上放 4 秒。
+- 官网那三句（数学讲解、手绘短片、发布短片）也带上了同样的风格和配方，两处一字不差；`tools/desk/test_wording.py` 对着官网查，句子里点名的风格和配方都要在仓库里。
+- 对话列：选 agent 的下拉框把名字写全（以前在 1440×900 下是"Claude Code（没装"）；没登录时发一句，怎么登录在屏幕上正好说一次，不管 agent 先报"没登录"、先用自己的话说，还是先说这一句没做成，停下的那一句也算。
+
 ## v0.8.0 — 2026-11-22
 
 A minor release: the first film gets easier, and Studio gets a settings page. The install is lighter and finds its way around sources that do not answer, the keys of online services are set in Studio, and a voice billed per use waits for a budget.
