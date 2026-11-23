@@ -71,7 +71,7 @@ const STR = {
     n_notes: "{n} 条意见", unsure: "没把握", n_checks: "{n} 处检查", reads: "这一镜要看清", ver_n: "第 {n} 版", proxy: "预览版",
     no_film_frames: "还没出成片，先看分镜的关键帧。", no_film_sheet: "还没出成片，先看联系表。", no_film0: "还没出成片。", film_gone_frames: "成片不在本机（可能挪到了别的盘），先看分镜的关键帧。", film_gone_sheet: "成片不在本机（可能挪到了别的盘），先看联系表。", film_gone0: "成片不在本机（可能挪到了别的盘）。",
     safe: "安全框", compare: "和{v}对比", ver_now: "{v} · 现在", lay_review: "审片", lay_fine: "精修", lay_sound: "听声音", layout: "布局",
-    tl_hint: "点哪，播放头就到哪；点在镜头、旁白或标记上，右边的意见就写给它。", h_mouse: "鼠标", h_keys: "键盘", tl_more: "旁白、音乐和波形在这两个布局里：",
+    tl_hint: "点哪，播放头就到哪；点在镜头、旁白或标记上，你写的意见就关于它。", h_mouse: "鼠标", h_keys: "键盘", tl_more: "旁白、音乐和波形在这两个布局里：",
     snap: "对齐镜头", snap_tip: "Shift + 拖选一段时，贴到镜头边、旁白和标记上", g_fold: "收起这一组", g_unfold: "展开这一组", g_folded: "已收起", zoom_in: "放大", zoom_out: "缩小", play: "播放 / 暂停（空格）", prev_shot: "上一个镜头（←）", next_shot: "下一个镜头（→）",
     g_pic: "画面", g_sound: "声音", g_review: "审阅", ln_chap: "章节", ln_shots: "镜头", ln_voice: "旁白", ln_music: "音乐", ln_hits: "卡点", ln_wave: "波形", ln_marks: "标记", ln_diff: "这一版改了",
     e_chap: "没有章节", e_shots: "没有镜头表", e_voice: "没有旁白", e_music: "没有配乐", e_wave: "还没有波形",
