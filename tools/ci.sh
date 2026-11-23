@@ -4186,9 +4186,9 @@ const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
 for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
 want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes(run("esc(D.ideas.same_topic)")) && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
 want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
-want(h.board.includes("第 1 页 · 开场") && (h.board.match(/class="shotc/g) || []).length === 2, "board: page 1, two shots");
+want(h.board.includes("开场 · S1–S2") && h.board.includes(">S3–S4 两个鼓包<") && !/第 \d+ 页/.test(h.board) && (h.board.match(/class="shotc/g) || []).length === 2, "board: the first part, two shots, its tabs named by their shots, no pages");
 run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
-want(b2.includes("第 2 页 · 两个鼓包") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
+want(b2.includes("两个鼓包 · S3–S4") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
   "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
 want(h.sound.includes("-14.2") && /<article class="vcard on"[^>]*>\s*<h3><b>Charon<\/b>/.test(h.sound) && (h.sound.match(/<tr\b[\s\S]*?<\/tr>/g) || []).filter((r) => r.includes("chip wait")).length === 1
   && ["0:09.0", "0:21.3"].every((x) => h.sound.includes(x)), "sound: loudness, the voice in use, one fast line flagged, the lifts at their seconds");
@@ -4470,6 +4470,16 @@ PY
     kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
   fi
   rm -rf "$t"
+  # the cut page and the note box on a 12-minute made-up film with 67 marked places, in a real headless Chrome that may play
+  # unasked as Studio's window may (tools/desk/test_cut_page.py builds the films and their desk; real mouse presses and keys)
+  local rc
+  a=$(python3 tools/desk/test_cut_page.py 2>&1); rc=$?
+    case $rc in
+      0) ok "the cut page in a browser, on a 12-minute film: opening a stop or a click from code plays nothing; a second picked and played on, the note goes where the picture stopped, one line; zoomed in, about 100 px a second, the playhead in sight while it plays and the lanes' names kept; 67 marked places, no pin on another; ↩ a new line, one press of 记下 keeps the note (the button stays put), Ctrl+↩ too, the keys in words; a note not about the film goes marked; the storyboard a tab a part (its sheets joined) named by its shots, ← → shot by shot; an edit list's part shows the shots inside it to point at" ;;
+      3) skip "the cut page in a browser" "no ffmpeg" ;;
+      4) no_chrome "the cut page in a browser" ;;
+      *) bad "the cut page in a browser: $(printf '%s' "$a" | tr '\n' ';' | head -c 1500)" ;;
+    esac
 }
 studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its launcher icon, as a person meets them: in a temp
   # HOME and TMPDIR (no console or window of this machine's is found or touched), the stand-in window, no screen needed.
@@ -9167,6 +9177,31 @@ sys.exit(0 if ok else 1)
 PY
   then ok "timeline --resolved on an edit list: shots, narration, captions and beats in seconds and frames, with each source's sha256; it takes bin/vh edit build's record while that is of this edit.json, the same code in memory with none; it writes nothing"
   else bad "timeline --resolved on an edit list (exit $rc, $c): $(printf '%s' "$a" | tail -c 500)"; fi
+  # the shots inside an edit list's entries, as the film's render kept them (<entry>.<shot>, film seconds): each entry carries its own,
+  # cut to it; a render of another edit.json gives none, and says so
+  mkdir -p "$p/out"; printf 'x' > "$p/out/final.mp4"
+  python3 - "$p" <<'PY'
+import hashlib, json, sys
+p = sys.argv[1]; sha = hashlib.sha256(open(f"{p}/edit.json", "rb").read()).hexdigest()
+shots = [{"id": "S01", "start": 0, "end": 1.0333, "kind": "color"}, {"id": "S01.A", "start": 0, "end": 0.4, "kind": "shot"}, {"id": "S01.B", "start": 0.4, "end": 1.5, "kind": "shot"},
+         {"id": "S02", "start": 1.0333, "end": 2.5333, "kind": "color"}]
+json.dump({"fps": 30, "frames": 91, "edit": {"path": "edit.json", "sha256": sha}, "shots": shots}, open(f"{p}/out/final.mp4.render.json", "w"))
+PY
+  a=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["edit"]["sha256"] = "0" * 64; json.dump(d, open(f, "w"))' "$p/out/final.mp4.render.json"
+  b=$(vh timeline "$p" --resolved --json 2>&1); c=$?
+  rm -f "$p/out/final.mp4" "$p/out/final.mp4.render.json"
+  if [ "$rc:$c" = 0:0 ] && python3 - "$a" "$b" <<'PY'
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+s = a["shots"]
+ok = [x["id"] for x in s] == ["S01", "S02", "S03"] and "inner" not in s[1] and "inner" not in s[2]
+ok = ok and [(x["id"], x["start"], x["start_frame"], x["end_frame"]) for x in s[0]["inner"]] == [("S01.A", 0, 0, 12), ("S01.B", 0.4, 12, 31)] and s[0]["inner"][1]["end"] == s[0]["end"]
+ok = ok and not any("inner" in x for x in b["shots"]) and any("another edit.json" in m["why"] for m in b["missing"]) and not a["missing"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on an edit list: each entry carries the shots inside it as its film's render kept them, cut to the entry; a render of another edit.json gives none, said"
+  else bad "timeline --resolved, the shots inside an edit list's entries (exit $rc, $c): $(printf '%s' "$a" | tail -c 600)"; fi
   # a record of another edit.json is not taken; one that does not resolve is said, and the rest is there
   python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["fps"] = 30; d["tracks"][0]["entries"][1]["dur"] = 2; json.dump(d, open(f, "w"))' "$p/edit.json"
   a=$(vh timeline "$p" --resolved --json 2>&1 | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["shots"][1]["end_frame"], d["shots"][0].get("label"))' 2>&1)
