@@ -91,6 +91,17 @@ first = F.save(late, F.validate(late, {"round": "E1", "lang": "zh", "decisions":
 F.mark_consumed(late, [first])   # (as an agent's wait or desk feedback leaves it)
 fix = film("fix", E1)     # nothing submitted yet: "先改" picked with no note
 busy = film("busy", dict(E1, least_sure=[{"id": f"c0{i}", "note": f"第 {i} 句会不会太书面，念出来像在读稿"} for i in range(1, 5)]))   # eight notes kept beside a full column: the newest and the state line on screen at 1440 x 900
+# the window shows what the files say, and a stop opens on what it asks about
+OUTLINE_AGAIN = {"summary": "大纲改成 3 段，再看一遍", "decisions": [{"id": "go", "question": "大纲能做分镜了吗？", "options": [{"id": "OK", "label": "可以"}, {"id": "FIX", "label": "先改"}], "recommend": "OK"}]}
+reopen = film("reopen", E1)   # gate ① decided, then the outline sent again (1b, no concept cards)
+(reopen / "out" / "review" / "gate-1b.json").write_text(json.dumps(OUTLINE_AGAIN, ensure_ascii=False), encoding="utf-8")
+subprocess.run(["bash", str(VH), "review", str(reopen), "1b"], capture_output=True, text=True, env=ENV, timeout=60, check=True)
+script = film("script", E1)   # the script's stop
+follow = film("follow", E1)   # open on the script; the agent sends the outline again meanwhile
+files = film("files", E1)     # open on the outline; the agent cuts it from 3 parts to 2 meanwhile
+brief = (files / "BRIEF.md").read_text(encoding="utf-8")
+two = re.sub(r"\n\| 3 \|[^\n]*", "", brief.replace("| 2 | 两个鼓包 | 9–21 s |", "| 2 | 两面都鼓 | 9–32 s |"))
+tabs = film("tabs", E1)       # the stop's page on the outline module: a tab clicked opens where the tabs are
 
 proc = subprocess.Popen([sys.executable, str(HERE / "fixtures" / "with_tty.py"), "bash", str(VH), "desk", "--root", str(T / "root"), "--port", "0", "--no-open", "--print-address"],
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=ENV, start_new_session=True)
@@ -135,6 +146,34 @@ try:
                  "body: [B.top, B.bottom], text: h && h.innerText }; })())",
          "name": "busy_view"},
     ]
+    WHERE = "JSON.stringify({ mod: ($('#stage [data-mod]') || {}).dataset && $('#stage [data-mod]').dataset.mod, hash: decodeURIComponent(location.hash), " \
+            "tab: (($('nav.subtabs [aria-selected=true]') || { getAttribute: () => '' }).getAttribute('href')) || '', cards: !!$('.c-cards') })"
+    steps += [
+        # bin/vh gate opens a stop at #/p/<key>/gate/<page>: the outline's second page on the outline, its question in the column
+        {"go": f"#/p/{key(reopen)}/gate/1b", "after": 3000}, tab, {"eval": WHERE, "name": "reopen_at"},
+        {"go": f"#/p/{key(script)}/gate/E1", "after": 3000}, {"eval": WHERE, "name": "script_at"},
+        # the agent sends another page while the person is on the script: the page follows, and the address names what is shown
+        {"go": f"#/p/{key(follow)}/outline/script", "after": 2500},
+        {"write": str(follow / "out" / "review" / "gate-1b.json"), "text": json.dumps(OUTLINE_AGAIN, ensure_ascii=False)},
+        {"write": str(follow / "out" / "review" / "gate-1b.html"), "text": "<!doctype html><title>1b</title>"},   # (bin/vh gate writes the page with it)
+        {"write": str(follow / "out" / "review" / ".current"), "text": "1b\n"},
+        {"until": f"location.hash === '#/p/{key(follow)}/outline' && $('#stage [data-mod=outline]') && !$('nav.subtabs [aria-selected=true][href$=\"/script\"]')", "name": "follow_at", "ms": 15000},
+        {"reload": True}, {"eval": WHERE, "name": "follow_reload"},
+        # the agent rewrites the outline while it is open, a note kept on its third part: the page shows two parts, says the note's place is gone
+        {"go": f"#/p/{key(files)}/outline", "after": 2500}, tab,
+        {"eval": "document.querySelectorAll('#stage [data-mark^=\"seg:\"]').length", "name": "files_before"},
+        {"eval": KEEP.format(t="seg:3", x="第三段太长", lb="大纲 第 3 段"), "name": "keep3"},
+        {"eval": "(document.activeElement && document.activeElement.blur(), true)", "name": "blur"},
+        {"write": str(files / "BRIEF.md"), "text": two},
+        {"until": "document.querySelectorAll('#stage [data-mark^=\"seg:\"]').length === 2 && /两面都鼓/.test($('#stage').innerText)", "name": "files_after", "ms": 15000},
+        {"eval": "JSON.stringify({ hash: decodeURIComponent(location.hash), gone: /不在了/.test($('#cMine').innerText) })", "name": "files_where"},
+        # the stop's page on the outline: clicking the script tab leaves the tab row where it was, and the page's rest comes after
+        {"go": f"#/p/{key(tabs)}/outline", "after": 2500},
+        {"eval": "$('nav.subtabs').getBoundingClientRect().top", "name": "tabs_before"},
+        {"click": "nav.subtabs a[href$='/outline/script']", "after": 2000},
+        {"eval": "JSON.stringify({ top: $('nav.subtabs').getBoundingClientRect().top, body: $('#modBody') && $('#modBody').getBoundingClientRect().top, "
+                 "rest: $('#gatePart') && $('#gatePart').getBoundingClientRect().top, script: !!$('nav.subtabs [aria-selected=true][href$=\"/script\"]') })", "name": "tabs_after"},
+    ]
     res = drive(url, steps)
 finally:
     try:
@@ -178,4 +217,28 @@ try:
 except (TypeError, ValueError, KeyError):
     ok = False
 check("eight notes kept beside two decisions, four unsure places and three appendices at 1440 x 900: the notes' state line and the note kept last are on screen, no scrolling", ok, bv)
+
+
+def js(name):
+    try:
+        return json.loads(v(res, name))
+    except (TypeError, ValueError):
+        return {"raw": v(res, name)}
+
+
+ra, sa, fr = js("reopen_at"), js("script_at"), js("follow_reload")
+check("a stop opens on what it asks about: the outline sent again (no concept cards) on the outline with its question in the column, the script on the "
+      "outline's script tab; the address then names that module",
+      ra.get("mod") == "outline" and ra.get("hash", "").endswith("/outline") and ra.get("cards") and sa.get("mod") == "outline"
+      and sa.get("hash", "").endswith("/outline/script") and sa.get("tab", "").endswith("/script"), [ra, sa])
+check("a page the agent sends while the person is elsewhere: the window follows to it, the address names what is shown, and a reload stays there",
+      (res.get("follow_at") or {}).get("ok") and fr.get("mod") == "outline" and fr.get("hash", "").endswith("/outline"), [res.get("follow_at"), fr])
+fa, fw = res.get("files_after") or {}, js("files_where")
+check("the agent rewrites the outline while it is open: within seconds the page shows the new parts, stays where it was, and a note kept on a part that "
+      "is gone says so", v(res, "files_before") == 3 and fa.get("ok") and fw.get("hash", "").endswith("/outline") and fw.get("gone"), [v(res, "files_before"), fa, fw])
+tb, ta = v(res, "tabs_before"), js("tabs_after")
+check("the script tab clicked on a stop's page: the tab row is not pushed down, the tab's content starts right under it, and the page's decided, "
+      "delegated and appendices come after that content",
+      isinstance(tb, (int, float)) and ta.get("script") and ta.get("top", 1e9) <= tb + 4 and ta.get("body") and ta["body"] - ta["top"] < 80
+      and ta.get("rest") and ta["rest"] > ta["body"], [tb, ta])
 print("end", flush=True)

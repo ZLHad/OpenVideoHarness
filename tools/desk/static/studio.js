@@ -68,7 +68,7 @@ function parse() {
   const m = h.match(/^\/p\/([^/]+)(?:\/(.*))?$/);
   if (m) {
     const rest = m[2] || "", g = rest.match(/^gate\/([A-Za-z0-9_-]{1,24})$/);
-    if (g) return { view: "project", key: m[1], gate: g[1], mod: gateMod(g[1]) };
+    if (g) return { view: "project", key: m[1], gate: g[1], mod: "" };   // its module and tab: from what the page asks about (stopMod), once the film is read
     let [mod, sub, ...more] = rest.split("/");
     if (LEGACY[mod] != null && !MODS.includes(mod)) { const x = LEGACY[mod].split("/"); return { view: "project", key: m[1], mod: x[0], sub: x[1] || "", doc: x[1] === "docs" ? [sub].concat(more).filter(Boolean).join("/") : "" }; }
     return { view: "project", key: m[1], mod: MODS.includes(mod) ? mod : "", sub: sub || "", doc: sub === "docs" ? more.join("/") : "" };
@@ -361,7 +361,9 @@ async function reloadProject(follow) {   // the same film read again (a submissi
   const at = CUT && !follow ? CUT.time() : null, y = window.scrollY, s = $("#stage").scrollTop;
   leaveProject(); applyProject(key, x);
   const r = follow ? { view: "project", key } : Object.assign(parse(), { key });   // follow: a new page opens on its own stop's module
-  MOD = r.mod || defaultMod(); SUB = r.sub || ""; DOC = r.doc || DOC; GATE = r.gate || "";
+  const pl = placeOf(r);
+  MOD = pl.mod; SUB = pl.sub; DOC = r.doc || DOC; GATE = r.gate || "";
+  keepAddress(r);
   crumbs([{ text: t("m_space"), href: "#/" }, { text: D.project.title }]);
   renderFlow(); renderRail(); renderColumn(); renderModule(); updateComposer();
   liveTimer = setInterval(pollLive, 4000);
@@ -374,11 +376,31 @@ function waitingGate() {   // this round's page, when its stop waits for the per
   if (st) return st.state === "waiting_person" ? D.current : null;
   return D.feedback.some((f) => f.round === D.current) ? null : D.current;   // no status: a page nobody answered
 }
+function hasCards(r) { return ((r && r.data) || {}).decisions ? r.data.decisions.some((d) => (d.options || []).some((o) => o && o.frame)) : false; }
+function stopMod(g) {   // the module a stop's page opens on, from what it asks about: a gate ① page with no concept cards (1b, an outline-only
+  // gate ①) is the outline; E1 is the script (stopSub); the rest by its stop (GATE_MOD)
+  const b = gateBase(g), r = D && (D.rounds || []).find((x) => x.id === g);
+  if (b === "1" && r && !hasCards(r)) return "outline";
+  return gateMod(g);
+}
+function stopSub(g) { return gateBase(g) === "E1" ? "script" : ""; }
+function placeOf(r) {   // {mod, sub} the page shows: the address's, else a page's own (gate/<id>), else where the film waits
+  if (r.mod) return { mod: r.mod, sub: r.sub || "" };
+  if (r.gate) return { mod: stopMod(r.gate), sub: stopSub(r.gate) };
+  const g = waitingGate();
+  return { mod: defaultMod(), sub: g ? stopSub(g) : "" };
+}
+function keepAddress(r) {   // the address names what is on screen: a module the page picked itself is written into it (no new history entry),
+  // so a click on that module in the rail is no change of address, and a reload stays on this page
+  if (r.mod || (r.gate && D && r.gate !== D.current)) return;   // (an earlier page asked for by name keeps its own address)
+  const h = projHash(PKEY, MOD + (SUB ? "/" + SUB : ""));
+  if (location.hash !== h) history.replaceState(null, "", h);
+}
 function defaultMod() {
   const g = waitingGate();
-  if (g) return gateMod(g);
+  if (g) return stopMod(g);
   const cur = stations().find((s) => s.current && s.state !== "done" && s.state !== "skipped");
-  if (cur && GATE_MOD[cur.id] && GATE_MOD[cur.id] !== "ship") return GATE_MOD[cur.id];
+  if (cur && GATE_MOD[cur.id] && GATE_MOD[cur.id] !== "ship") return cur.id === "1" && cur.page ? stopMod(cur.page.replace(/^.*gate-|\.(html|json)$/g, "")) : GATE_MOD[cur.id];
   if (filmDelivered()) return "ship";
   if (filmPath() || cutShots().length) return "cut";
   return "idea";
@@ -387,7 +409,9 @@ async function showProject(r) {
   clearTimeout(homeTimer);
   const switching = PKEY !== r.key || !D, was = MOD;
   if (switching) { leaveProject(); D = null; renderShellLoading(); if (!(await loadProject(r.key))) return; }
-  MOD = r.mod || defaultMod(); SUB = r.sub || ""; DOC = r.doc || DOC; GATE = r.gate || "";
+  const pl = placeOf(r);
+  MOD = pl.mod; SUB = pl.sub; DOC = r.doc || DOC; GATE = r.gate || "";
+  keepAddress(r);
   crumbs([{ text: t("m_space"), href: "#/" }, { text: D.project.title }]);
   renderFlow(); renderRail();
   if (switching) { renderColumn(); clearInterval(liveTimer); pollLive(); liveTimer = setInterval(pollLive, 4000); }
@@ -405,10 +429,10 @@ function renderColumn() {
   // the agent's being there is said when it waits (a desk wait); its absence is not news, so nothing is shown then
   $("#colHead").innerHTML = `<b>${esc(t(dl ? "col_film" : "col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on"))}</span></span>`;
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
-  const home = GATE_MOD[gateBase(ROUND.id)] || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
+  const home = stopMod(ROUND.id) || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
   const hd = handedNow(), H = hd && !REHAND[KEY];   // this stop's notes went (taken, or sent and not picked up yet): what went, not the cards as if nothing had
-  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home)}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t(earOf(ROUND.id) ? "away_listen" : "away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
+  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home + (stopSub(ROUND.id) ? "/" + stopSub(ROUND.id) : ""))}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t(earOf(ROUND.id) ? "away_listen" : "away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
     : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
@@ -462,7 +486,7 @@ function handedHtml(f) {   // each decision as it went, when; and the way to cha
 $("#colBody").addEventListener("click", (e) => { if (e.target.closest("#reHand")) { REHAND[KEY] = true; renderColumn(); } });
 function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then the column: a bar above the picture goes to the decisions
   const pd = $("#phoneDec"); if (!pd || !D) return;
-  const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = GATE_MOD[gateBase(ROUND.id)] || "cut";
+  const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = stopMod(ROUND.id) || "cut";
   pd.hidden = !(g && n && MOD === home);
   pd.textContent = pd.hidden ? "" : `${t("away_decide", { s: gateName(ROUND.id), n })} ↓`;
 }
@@ -491,7 +515,7 @@ function recentHtml() {   // what was decided last, when nothing is open: REVIEW
   return R.length ? `<h3 class="blk-h" style="margin-top:14px"><b>${esc(t("recent"))}</b></h3><ul class="note-list recent">${R.map((x) => `<li><span class="mono tc">·</span><span class="fold" tabindex="0"><b>${esc(cut(x.k, 40))}</b> ${esc(x.v)}</span></li>`).join("")}</ul>` : "";   // two lines each; a click opens one
 }
 function renderMarks() {   // the round's places in the film: on the round's own module (elsewhere its one line goes there)
-  const home = GATE_MOD[gateBase(ROUND.id)] || "cut", M = MOD === home ? gateMarks() : [], least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
+  const home = stopMod(ROUND.id) || "cut", M = MOD === home ? gateMarks() : [], least = M.filter((m) => m.kind === "least"), listen = M.filter((m) => m.kind === "listen");
   const li = (m) => `<li tabindex="0" data-goto="${esc(m.target)}"${m.t != null ? ` data-t="${+(m.t)}"` : ""}${m.t1 != null ? ` data-t1="${+(m.t1)}"` : ""}><span class="mono tc">${m.t != null ? esc(fmt(m.t) + (m.t1 != null ? "–" + fmt(m.t1) : "")) : ""}</span><span>${m.id && !/^\s*\d/.test(m.id) ? `<b>${esc(shotName(m.id))}</b> ` : ""}${esc(m.note)}</span></li>`;
   // folded to their headings and counts: the decisions above take the room (their pros and costs whole); a click opens one, and it stays open
   const fold = (k, title, list) => `<details class="cfold" data-k="${k}"${COLOPEN[k] ? " open" : ""}><summary class="blk-h"><b>${esc(title)}</b><span class="n mono">${list.length}</span></summary><ul class="note-list marks">${list.map(li).join("")}</ul></details>`;
@@ -499,6 +523,13 @@ function renderMarks() {   // the round's places in the film: on the round's own
   $$("#cMarks details").forEach((d) => d.addEventListener("toggle", () => { COLOPEN[d.dataset.k] = d.open; }));
 }
 const COLOPEN = { least: false, listen: false };
+function goneNow(k) {   // a draft's place no longer in the files (the agent rewrote the outline or the script since it was written)
+  if (!D) return false;
+  const [kind, id] = [k.split(":")[0], k.split(":").slice(1).join(":")];
+  if (kind === "seg") return Array.isArray(D.outline) && D.outline.length > 0 && !D.outline.some((o) => String(o.id) === id);
+  if (kind === "cap") { const rows = (D.captions && D.captions.rows) || []; return rows.length > 0 && !rows.some((c) => String(c.id) === id); }
+  return false;
+}
 function notesCount() {   // the notes the person sees listed, the bar's count and the block's alike: each whole-film note its own (generalParts,
   // where the note box keeps several), else the overall words as one
   return myItems().length + (typeof generalParts === "function" ? generalParts().length : FB.general ? 1 : 0);
@@ -507,7 +538,7 @@ function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.st
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
+  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b>${goneNow(k) ? `<em class="gone">${esc(t("ho_gone"))}</em>` : ""} ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
   const none = !items.length && !gen;   // none yet: the heading and how to start, on one line
   const n = notesCount(), subs = D ? (D.feedback || []) : [];
@@ -611,7 +642,7 @@ function gotoTarget(target, tt, t1, label) {   // a note or a mark in the column
   const kind = target.split(":")[0];
   let mod = KIND_MOD[kind];
   if (kind === "shot") mod = filmPath() || cutShots().length ? "cut" : "board";
-  if (kind === "least" || kind === "dec") mod = ROUND.gate ? gateMod(ROUND.id) : MOD;
+  if (kind === "least" || kind === "dec") mod = ROUND.gate ? stopMod(ROUND.id) : MOD;
   if (tt != null && kind !== "cap" && (filmPath() || cutShots().length)) mod = "cut";   // a place with a time is on the cut's timeline
   const after = () => {
     if (mod === "cut" && CUT) { CUT.goto(target, tt, t1); return; }
@@ -789,14 +820,22 @@ function save() {
   $$("#stage [data-mark]").forEach(markHost);
 }
 let LIVE = false;   // a wait alive on the round that is out now (the status poll): it picks a submission up within the second
+function busyHere() {   // the person is in the middle of something a reload would cut short: typing, the sheet open, the film playing
+  const a = document.activeElement, v = $("#stage video");
+  return !!(a && (/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName) || a.isContentEditable)) || !$("#confirm").hidden || !!(v && !v.paused);
+}
 async function pollLive() {
   if (!PKEY || RELOADING) return;
   const r = await getJSON(`/api/p/${enc(PKEY)}/status`);
   const on = !!(r.ok && r.data && r.data.listening), el = $("#colHead .state");
   const live = !!(r.ok && r.data && r.data.live && r.data.key === PKEY);
   if (live !== LIVE) { LIVE = live; renderMine(); }   // who picks the notes up: said in the notes block
-  if (r.ok && r.data && D && r.data.key === PKEY && r.data.notes_stamp !== undefined && r.data.notes_stamp !== D.notes_stamp && !RELOADING) {   // a note was saved or picked up: its state on screen follows
+  const mineNow = r.ok && r.data && D && r.data.key === PKEY && !RELOADING;
+  if (mineNow && !busyHere() && r.data.notes_stamp !== undefined && r.data.notes_stamp !== D.notes_stamp && r.data.round === (D.current || null)) {   // a note was saved or picked up: its state on screen follows
     await reloadProject(false); return;
+  }
+  if (mineNow && !busyHere() && r.data.files_stamp && D.files_stamp && r.data.files_stamp !== D.files_stamp && r.data.round === (D.current || null)) {   // the agent changed the film's files: the page shows them, where it was
+    await reloadProject(false); toast(t("ho_files")); return;
   }
   if (el) { el.classList.toggle("agent", on); el.hidden = !on; }
   AGENT.listening(on);   // the conversation that waits for this stop in the background says so
@@ -842,17 +881,19 @@ function renderModule() {
   const fn = { idea: mIdea, outline: () => ({ outline: vOutline, script: vScript, facts: vFacts }[cur] || vOutline)(), board: mBoard, sound: vSound,
     ship: () => (cur === "versions" ? vVersions() : vCheck()), assets: vAssets,
     ledger: () => ({ decisions: vLedger, history: vHistory, docs: vDocs }[cur] || vLedger)(), cut: () => "" }[MOD] || mIdea;
-  const page = stopPage(MOD);
-  area.innerHTML = `<section class="module" data-mod="${MOD}">${moduleHead(kickOf(MOD), "", "")}${page ? '<div id="gatePart"></div>' : ""}${subtabs(MOD)}<div id="modBody">${fn()}</div></section>`;
-  if (page) loadGatePart(page);
+  // the stop's page: its one-line summary above the tabs, the rest (decided, delegated, appendices, not looked at) after the tab's
+  // content, so a tab clicked opens where the tabs are and what is reviewed stays at the top
+  const page = stopPage(MOD), pr = page && (D.rounds || []).find((x) => x.id === page), sum = pr && pr.data && pr.data.summary;
+  area.innerHTML = `<section class="module" data-mod="${MOD}">${moduleHead(kickOf(MOD), "", "")}${sum ? `<p class="round-h page-sum">${esc(sum)}</p>` : ""}${subtabs(MOD)}<div id="modBody">${fn()}</div>${page ? '<div id="gatePart" class="after"></div>' : ""}</section>`;
+  if (page) loadGatePart(page, {});
   else { const link = pastPageLink(MOD); if (link) $(".mh", area).insertAdjacentHTML("beforeend", link); }
   $$("[data-mark]", area).forEach(markHost);
   ({ outline: cur === "script" ? wireScript : wireOutline, board: wireBoard, sound: wireSound }[MOD] || (() => {}))();
   area.scrollTop = 0;
 }
 function stopPage(mod) {   // the stop's page this module shows on top: the one asked for, else this round's while it is open here
-  if (GATE && gateMod(GATE) === mod) return GATE;
-  return D.current && roundOpen() && gateMod(D.current) === mod ? D.current : null;
+  if (GATE && stopMod(GATE) === mod) return GATE;
+  return D.current && roundOpen() && stopMod(D.current) === mod ? D.current : null;
 }
 function pastPageLink(mod) {
   const f = FLOW.find((x) => x.mod === mod); if (!f) return "";
@@ -866,7 +907,7 @@ async function loadGatePart(gid, V) {   // V: the module draws the page's pictur
   const host = $("#gatePart"); if (!host) return;
   if (!r.ok || !r.data) { host.innerHTML = `<p class="void">${esc((r.data && r.data.error) || "")}</p>`; return; }
   const g = r.data, past = !g.current;
-  host.innerHTML = (past ? `<p class="notice">${esc(t("past", { g: gateName(g.gate, true) }))}${D.current ? ` <a href="${projHash(PKEY, gateMod(D.current))}">${esc(t("to_round"))}</a>` : ""}</p>` : "") + g.html;
+  host.innerHTML = (past ? `<p class="notice">${esc(t("past", { g: gateName(g.gate, true) }))}${D.current ? ` <a href="${projHash(PKEY, stopMod(D.current))}">${esc(t("to_round"))}</a>` : ""}</p>` : "") + g.html;
   const root = $(".gate", host);
   if (V) {   // its heading is the module's; a missing file's warning stays
     const head = $(".g-head", root);

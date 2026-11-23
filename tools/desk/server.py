@@ -660,6 +660,26 @@ def _drop_missing(project, d, key):
         d[key], d[key + "_missing"] = "", v
 
 
+def files_stamp(project):
+    """A stamp of the files the page is drawn from: the project's documents (reader.DOCS), its shot list and edit list, its
+    review pages and which one is this round. It changes when the agent writes one of them, and an open page then reads the
+    film again (renders, frames and other media do not change it)."""
+    project = Path(project)
+    paths = [project / n for n in list(reader.DOCS) + ["shots.json", "edit.json"]] + [project / "out" / "review" / ".current"]
+    try:
+        paths += sorted((project / "out" / "review").glob("gate-*.json"))
+    except OSError:
+        pass
+    h = hashlib.sha1()
+    for p in paths:
+        try:
+            st = p.stat()
+            h.update(f"{p.name}:{st.st_mtime_ns}:{st.st_size};".encode())
+        except OSError:
+            h.update(f"{p.name}:-;".encode())
+    return h.hexdigest()[:16]
+
+
 def project_data(project, parts=("studio", "mods")):
     """A project's data as the console reads it (GET /api/p/<key>/data, less the key): reader.read_project, bin/vh status,
     the folder's identity, this round and whether it is open, and the parts asked for, what the cut module lays out (studio)
@@ -691,6 +711,7 @@ def project_data(project, parts=("studio", "mods")):
         fb["taken"] = {"t": t.get("t"), "program": t.get("program"), "by": t.get("by")} if t is not None else None
         fb["late"] = bool(un.get(n))
     data["notes_stamp"] = F.notes_stamp(project)
+    data["files_stamp"] = files_stamp(project)
     _drop_missing(project, data.get("shots"), "video")   # the storyboard's animatic, and the pictures the gate pages name
     for r in data.get("rounds") or []:
         g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
@@ -1139,7 +1160,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 cur = pages[-1].stem[5:] if pages else None
                 return self._json(dict(lis, project=project.name, key=key, round=cur, revision_stamp=RV.stamp(project), now=now, plan=plan,
                                        live=bool(lis.get("listening")) and lis.get("round") is not None and lis.get("round") == F.current_round(project),
-                                       notes_stamp=F.notes_stamp(project)))
+                                       notes_stamp=F.notes_stamp(project), files_stamp=files_stamp(project)))
             if what == "stage":
                 return self._stage(project, key)
             lang = (parse_qs(urlsplit(self.path).query).get("lang") or [None])[0]

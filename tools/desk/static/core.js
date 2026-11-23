@@ -173,6 +173,7 @@ const STR = {
     ho_fix_q: "你选了“{x}”，还没写改哪里。", ho_fix_b: "在页面上点要改的地方写一句，或者在上面的整体意见里写。", ho_fix_back: "回去写", ho_fix_go: "就这样交",
     ho_s_1: "立意", ho_s_outline: "大纲", ho_s_E0: "画风样张", ho_s_E1: "旁白稿", ho_s_2: "分镜", ho_s_E2: "配乐安排", ho_s_E3: "最终的声音",
     ho_s_3: "初版", ho_s_E4: "第一章样片", ho_s_E5: "定画面的版本", ho_s_notes: "随手写的意见", ho_s_other: "这一页",
+    ho_files: "文件改了，这里换成了新的一版", ho_gone: "（这一处已经不在了）",
   },
   en: {
     revisions: "Revisions", revision_pending: "Ready for review", revision_approved: "Accepted", revision_changes_requested: "Changes requested",
@@ -341,6 +342,7 @@ const STR = {
     ho_fix_q: "You picked “{x}” but haven't said what to change.", ho_fix_b: "Click the place to change on the page and write a line, or write it in the overall box above.", ho_fix_back: "Go back and write it", ho_fix_go: "Send as it is",
     ho_s_1: "the concept", ho_s_outline: "the outline", ho_s_E0: "the style frames", ho_s_E1: "the script", ho_s_2: "the storyboard", ho_s_E2: "the sound plan", ho_s_E3: "the final sound",
     ho_s_3: "the first draft", ho_s_E4: "the first chapter", ho_s_E5: "the picture lock", ho_s_notes: "your loose notes", ho_s_other: "this page",
+    ho_files: "The files changed; this shows the new version", ho_gone: " (no longer there)",
   },
 };
 

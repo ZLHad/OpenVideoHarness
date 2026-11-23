@@ -214,6 +214,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-body .c-mine .blk-h{position:sticky;top:-10px;margin:-10px 0 4px;padding:10px 0 4px;background:var(--panel);z-index:1}   /* the state line stays while the notes scroll */
 .col-body .c-mine .blk-h .tag{margin-left:auto;color:var(--wait)}
 .col-body .ho-batch{margin-top:8px}
+.col-body .note-list em.gone{font-style:normal;color:var(--wait);margin-left:4px}
 .col-body .ho-st{margin:0;display:flex;gap:8px;align-items:baseline;font-size:var(--fs-small);color:var(--ink-hi)}
 .col-body .ho-st i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--wait);transform:translateY(-1px)}
 .col-body .ho-st.taken{color:var(--ink-2)}.col-body .ho-st.taken i{background:var(--rule-2)}
