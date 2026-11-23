@@ -2028,6 +2028,7 @@ function CutModule(area) {
 
 $("#lang").addEventListener("click", () => {
   const n = LANG === "zh" ? "en" : "zh"; try { localStorage.setItem("desk:lang", n); } catch (e) { /* no storage */ }
+  const ml = document.querySelector('meta[name="desk-lang"]'); if (ml) ml.content = n;   // the language this machine keeps, as the page loaded it: now this one (pickLang reads it first when a film is drawn again)
   setLang(n); AGENT.lang();
   if (D) { const key = PKEY; leaveProject(); D = null; PKEY = ""; $("#composer").dataset.ready = ""; showProject(Object.assign(parse(), { key })); }
   else route();
