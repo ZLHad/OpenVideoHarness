@@ -50,7 +50,7 @@ function setLang(l) {
   document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
   $("#lang").textContent = t("lang"); $("#lang").title = t("lang_tip");
   $("#searchLabel").textContent = t("search"); $("#q").placeholder = t("search_ph"); $("#skip").textContent = t("skip");
-  $("#rail").setAttribute("aria-label", t("rail")); $("#flow").setAttribute("aria-label", t("flow")); $("#themes").setAttribute("aria-label", t("themes")); $("#themeBtn").textContent = t("themes");
+  $("#rail").setAttribute("aria-label", t("rail")); $("#agentPane").setAttribute("aria-label", t("chat_pane")); $("#flow").setAttribute("aria-label", t("flow")); $("#themes").setAttribute("aria-label", t("themes")); $("#themeBtn").textContent = t("themes");
   $$("#themes [data-theme-set]").forEach((b) => { b.textContent = t("th_" + b.dataset.themeSet); });
 }
 function pickLang(fallback) {
@@ -434,13 +434,13 @@ function renderColumn() {
   const dl = filmDelivered(), day = dl ? shortDate(stopDate(stations().filter((x) => x.id === "deliver"))) : "";
   const roundName = dl ? (day ? t("f_delivered_d", { d: day }) : t("f_delivered")) : ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);   // the stop, not its page
   // the agent's being there is said when it waits (a desk wait); its absence is not news, so nothing is shown then
-  $("#colHead").innerHTML = `<b>${esc(dl ? t("col_film") : roundVerb())}</b>${dl ? `<span class="who">${esc(roundName)}</span>` : ""}<span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on", { a: holderName() }))}</span></span>`;
+  $("#colHead").innerHTML = `<b>${esc(dl ? t("col_film") : roundVerb())}</b>${dl ? `<span class="who">${esc(roundName)}</span>` : aiTurn() ? `<span class="who">${esc(roundStepWord())}</span>` : ""}<span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on", { a: holderName() }))}</span></span>`;
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
   const home = stopMod(ROUND.id) || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
   const hd = handedNow(), H = hd && !REHAND[KEY];   // this stop's notes went (taken, or sent and not picked up yet): what went, not the cards as if nothing had
-  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home + (stopSub(ROUND.id) ? "/" + stopSub(ROUND.id) : ""))}">${esc(n ? t("away_decide", { s: gateName(ROUND.id), n }) : t(earOf(ROUND.id) ? "away_listen" : "away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
-    : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t("c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
+  const decs = H ? handedHtml(hd) : g && !here ? `<section><a class="away" href="${projHash(PKEY, home + (stopSub(ROUND.id) ? "/" + stopSub(ROUND.id) : ""))}">${esc(aiTurn() ? t("away_ai", { s: gateName(ROUND.id), w: roundStepWord() }) : n ? t("away_decide", { s: gateName(ROUND.id), n }) : t(earOf(ROUND.id) ? "away_listen" : "away_look", { s: gateName(ROUND.id) }))} →</a></section>`   // another module: one line to the stop's own
+    : g && n ? `<section class="c-decs"><h3 class="blk-h"><b>${esc(t(aiTurn() ? "c_decide_open" : "c_decide"))}</b><span class="n mono">${n}</span><span class="tag">${esc(t("c_rec"))}</span></h3>${g.summary ? `<p class="round-h">${esc(g.summary)}${page}</p>` : ""}<div class="c-cards">${g.cards}</div></section>`
     : g && g.summary ? `<section><p class="round-h">${esc(g.summary)}${page}</p></section>`
     : `<section><p class="next quiet-line">${esc(t(filmDelivered() ? "col_done" : "round_quiet"))}</p></section>`;   // nothing to decide: one line ("最近定下的" is the ledger's)
   // what went is said in the notes block below, with its state (sent and not picked up, or picked up: when, by whom)
@@ -461,7 +461,7 @@ function handedNow() {   // the newest submission for this round's stop, once it
   const L2 = (D.feedback || []).filter((f) => f.round === ROUND.id && !f.late);
   return L2.length ? L2[L2.length - 1] : null;
 }
-const PROG = { claude: "Claude Code", codex: "Codex" };
+const PROG = { claude: "Claude Code", codex: "Codex", dsh: "DeepSeek Harness" };   // (tools/standing.py prog.*; another program: AI)
 function progName(p) { return PROG[p] || t("ho_ai"); }   // the agent by its name when it is known, else AI
 function holderName() { const h = D && D.status && D.status.holder; return progName(h && h.program); }
 function roundVerb() {   // the step under review, as what you do there (审文案, 看初版); a gate ① page without concept cards is the outline's
@@ -540,7 +540,7 @@ function syncPhoneDec() {   // a phone lays the cut out picture, timeline, then 
   const pd = $("#phoneDec"); if (!pd || !D) return;
   const g = GV && GV.current && roundOpen() ? GV : null, n = (ROUND.data.decisions || []).length, home = stopMod(ROUND.id) || "cut";
   pd.hidden = !(g && n && MOD === home);
-  pd.textContent = pd.hidden ? "" : `${t("away_decide", { s: gateName(ROUND.id), n })} ↓`;
+  pd.textContent = pd.hidden ? "" : `${aiTurn() ? t("away_ai", { s: gateName(ROUND.id), w: roundStepWord() }) : t("away_decide", { s: gateName(ROUND.id), n })} ↓`;
 }
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#phoneDec")) return;
@@ -557,6 +557,13 @@ function roundOpen() {   // this round's stop is not settled yet (the server rea
   if (!D || !D.current || ROUND.id !== D.current) return false;
   if (typeof D.round_open === "boolean") return D.round_open;
   return !["done", "skipped"].includes(roundState());
+}
+function aiTurn() {   // this round's page is out, but the AI is to move now (status: in progress, or waiting for the agent with nothing handed over): the column says so, as the top row does
+  return !!D && !!ROUND && ROUND.id !== "notes" && ["in_progress", "waiting_agent"].includes(roundState()) && !handedNow();
+}
+function roundStepWord() {   // the top row's words for the step this round belongs to (等 AI 接着做, Claude Code 在做 …)
+  const st = stations().find((x) => (x.pages || []).includes(ROUND.id)); if (!st) return "";
+  const f = flowSteps().find((x) => x.st.includes(st.id)); return f ? flowWord(flowState(f)) : "";
 }
 function roundState() { const s = stations().find((x) => (x.pages || []).includes(ROUND.id)); return s ? s.state : ""; }
 function gateMarks() { return (GV && GV.current && roundOpen() && GV.marks) || []; }
@@ -743,11 +750,12 @@ function renderRound() {   // what the next submission would send, said plainly 
   const late = !!took && (n || d) > 0;   // the round was picked up: what is written now goes on its own, as a later batch
   const words = sentNow ? (last.state === "taken" ? t("ho_bar_taken", { a: progName(last.taken && last.taken.program) }) : t("ho_bar_unread"))
     : late ? t("ho_bar_late", { n: n + d, s: stepName(ROUND.id) })
-    : !n && !d && !r ? t("nothing_to_send") : r ? t("rs_rec", { r }) : "";   // what goes is on the button; beside it, only what the person may not see there
+    : !n && !d && !r ? t("nothing_to_send") : aiTurn() ? t("nobody_waits") : r && (n || d) ? t("rs_rec", { r }) : "";   // what goes is on the button; beside it, only what the person may not see there
   const idle = sentNow || (!n && !d && !r);
-  const what = [n ? t("sub_notes", { n }) : "", d + r ? t("sub_choices", { n: d + r }) : ""].filter(Boolean).join(" · ");
+  const what = [n ? t("sub_notes", { n }) : "", d ? t("sub_choices", { n: d }) : ""].filter(Boolean).join(" · ") || (r ? t("sub_all_rec") : "");   // what the person did; only defaults: said so
+  const go = aiTurn() ? "submit_keep" : "submit_n";   // nothing waits for these now: they are kept, not taken up
   $("#colRound").hidden = false;
-  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(late ? t("ho_submit_late") : !idle && what ? t("submit_n", { x: what }) : t("submit_round"))}</button>`;
+  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(late ? t("ho_submit_late") : !idle && what ? t(go, { x: what }) : t("submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
   requestAnimationFrame(fadeMore);
 }
@@ -845,7 +853,7 @@ $("#stage").addEventListener("click", (e) => {   // a place in a module: the not
   if (!/^[a-z]+:/.test(target) || target.startsWith("dec:")) return;
   const fb = $(".fb", el), kind = target.split(":")[0], x = target.slice(kind.length + 1);
   let label = el.dataset.label || (fb ? fb.dataset.label : "");
-  if (!label) label = kind === "least" ? t("l_least", { x: x || cut(el.textContent.trim(), 24) }) : kind === "shot" ? t("l_shot", { x }) : kind === "deleg" ? t("l_deleg", { x: cut(el.textContent.trim(), 28) }) : kind === "atime" ? t("sound_label", { t: fmt(+x) }) : target;
+  if (!label) label = kind === "least" ? t("l_least", { x: x || cut(el.textContent.trim(), 24) }) : kind === "shot" ? shotNo(x) : kind === "deleg" ? t("l_deleg", { x: cut(el.textContent.trim(), 28) }) : kind === "atime" ? t("sound_label", { t: fmt(+x) }) : target;
   if (!targetOk(target)) { setScope({ label: fitLabel(label), el }); return; }   // a target feedback.py would refuse: the overall words, named
   setScope({ target, label: fitLabel(label), el, t: el.dataset.t != null ? +el.dataset.t : null, t1: el.dataset.t1 != null ? +el.dataset.t1 : null });
 });
@@ -1158,13 +1166,12 @@ function vScript() {
   const C = D.captions;
   if (!C.rows.length) return docOf("SCRIPT.md") ? fallback(t("no_script"), "SCRIPT.md") : `<div class="void">${esc(t("no_script_file"))}</div>`;
   const keep = (x) => capFilter === "all" || (capFilter === "mine" && FB.items["cap:" + x.id]) || (capFilter === "terms" && x.term) || (capFilter === "facts" && x.facts.length) || (capFilter === "fast" && speed(x).r > speed(x).lim[0]);
-  const lab = C.kind === "narration" ? "l_vo" : "l_cap";
   const row = (x) => {
     const sp = speed(x), col = sp.r == null ? "var(--ink-3)" : sp.r <= sp.lim[0] ? "var(--ok)" : sp.r <= sp.lim[1] ? "var(--wait)" : "var(--live)";
-    return `<div class="capr" id="cap-${esc(x.id)}" data-mark="cap:${esc(x.id)}"><div><div class="id" title="${esc(x.id)}">${esc(t("line_n", { n: C.rows.indexOf(x) + 1 }))}</div><div class="tm">${x.t0 != null ? fmt(x.t0) : esc(x.bars)}</div></div>
+    return `<div class="capr" id="cap-${esc(x.id)}" data-mark="cap:${esc(x.id)}"><div><div class="id" title="${esc(x.id)}">${esc(lineNo(x.id, C.rows.indexOf(x)))}</div><div class="tm">${x.t0 != null ? fmt(x.t0) : esc(x.bars)}</div></div>
       <div>${x.term ? `<div class="term" title="${esc(t("term"))}">${esc(x.term)}</div><br>` : ""}<div class="txt">${esc(x.text)}</div>${x.visual ? `<div class="vis">${esc(t("visual"))}${COLON()}${esc(x.visual)}</div>` : ""}
         <div class="meter">${sp.r != null ? `<span>${esc(t("chars", { n: sp.n, s: sp.s.toFixed(1) }))}</span><span class="bar"><i style="width:${Math.min(100, (sp.r / (sp.lim[1] * 1.2)) * 100)}%;background:${col}"></i></span><span style="color:${col}">${sp.r.toFixed(1)}${esc(t("per_s"))}</span>` : ""}${x.facts.map((f) => `<a class="chip" href="${projHash(PKEY, "outline/facts")}">${esc(f)}</a>`).join("")}</div></div>
-      <div>${fbCtl("cap:" + x.id, t(lab, { x: x.id }), { suggest: x.text })}</div></div>`;
+      <div>${fbCtl("cap:" + x.id, lineNo(x.id, C.rows.indexOf(x)), { suggest: x.text })}</div></div>`;
   };
   const groups = D.outline.map((o) => ({ o, rows: C.rows.filter((x) => x.seg === o.id && keep(x)) })).concat([{ o: null, rows: C.rows.filter((x) => !D.outline.some((o) => o.id === x.seg) && keep(x)) }]);
   const html = groups.filter((g) => g.rows.length).map(({ o, rows }) => `<div class="capgroup"><div class="gh">${o ? `<span>${esc(t("seg_n", { i: o.id }))} · ${esc(o.title)}</span>${o.t0 != null ? `<span class="meta mono">${fmt(o.t0)}–${fmt(o.t1)}</span>` : ""}` : `<span>${esc(t("other_seg"))}</span>`}</div>${rows.map(row).join("")}</div>`).join("");
@@ -1185,7 +1192,7 @@ function mBoard() {
         ${s.reads.length ? `<ul>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
         ${s.transition ? `<div class="meta" style="margin-top:6px">${esc(t("transition"))}${esc(s.transition)}</div>` : ""}
         ${s.unsure ? `<div class="unsure-note">${esc(t("unsure_x"))}${esc(typeof s.unsure === "string" ? s.unsure : "")}</div>` : ""}
-        ${fbCtl("shot:" + s.id, t("l_shot", { x: s.id }))}</div></div>`).join("");
+        ${fbCtl("shot:" + s.id, shotNo(s.id))}</div></div>`).join("");
   const player = D.shots.video ? `<div class="bplayer"><video id="bv" src="${esc(src(D.shots.video))}" controls preload="metadata"></video>${track ? `<div class="strack">${track}<div class="playhead" id="bph"></div></div>` : ""}</div>` : `<p class="small muted">${esc(t("no_video"))}</p>`;
   return `<p class="sub">${esc(D.shots.note ? D.shots.note + " · " : "")}${esc(t("board_sub"))}</p>${player}<div class="grid g3" style="margin-top:14px">${cards}</div>`;
 }
@@ -1315,8 +1322,7 @@ function cutShots() {   // what the shots lane shows: an edit list's entry by th
 function cutParts() {   // the entries that hold shots of their own: a band above the shots, a note on one is on the whole entry
   return cutRows().filter((s) => Array.isArray(s.inner) && s.inner.length).map((s) => ({ id: String(s.id), t0: +s.start, t1: +s.end, title: s.label || s.segment || String(s.id) }));
 }
-const shotWord = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotNo(s.id));   // as the page says it: 第 4 镜, S1_3（PROLOGUE 里）
-const shotTag = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotName(s.id));   // as the note carries it to the agent: S4   // S1_3（PROLOGUE 里）
+const shotWord = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotNo(s.id));   // as the page says it: 第 4 镜, S1_3（PROLOGUE 里）; the note carries the id in its target   // S1_3（PROLOGUE 里）
 function cutChapters(shots) {
   const T = TL();
   const ch = (T.chapters || []).map((c) => ({ id: String(c.id != null ? c.id : c.title), title: c.title || c.name || String(c.id), t0: +(c.start != null ? c.start : c.t0), t1: +(c.end != null ? c.end : c.t1), kind: "chapter" }))
@@ -1736,7 +1742,7 @@ function CutModule(area) {
     const AM = allMarks(), pxPerS = trackW() / dur;
     const shotH = shots.map((s) => { const pic = shotPic(s), st = s.unsure || AM.some((m) => m.kind === "least" && m.t >= s.t0 && m.t < s.t1) ? "flag" : AM.some((m) => m.kind === "mine" && m.t >= s.t0 && m.t < s.t1) ? "note" : "";
       const w = (s.t1 - s.t0) * pxPerS, showPic = pic && w >= 20, showId = w >= 28, showName = w >= 150;   // narrow: its picture and number; narrower: the picture alone, the number in its tooltip
-      return blk("shot" + (showId ? "" : " thin") + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showId ? `<b class="sid${st ? " " + st : ""}">${esc(shotName(s.part ? s.short : s.id))}</b>` : ""}${showName && s.label ? `<span class="slab">${esc(s.label)}</span>` : ""}`, "shot:" + s.id, `${shotWord(s)} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
+      return blk("shot" + (showId ? "" : " thin") + (SEL && SEL.kind === "shot" && SEL.id === s.id ? " sel" : ""), s.t0, s.t1, `${showPic ? `<img src="${esc(pic)}" alt="" loading="lazy">` : ""}${showId ? `<b class="sid${st ? " " + st : ""}">${esc(s.part ? shotName(s.short) : laneNo(s.id))}</b>` : ""}${showName && s.label ? `<span class="slab">${esc(s.label)}</span>` : ""}`, "shot:" + s.id, `${shotWord(s)} ${s.label} · ${fmt(s.t0)}–${fmt(s.t1)}`); }).join("");
     const partH = parts.map((c) => blk("chap entry" + (SEL && SEL.kind === "shot" && SEL.id === c.id ? " sel" : ""), c.t0, c.t1, esc(c.title), "entry:" + c.id, `${c.title} · ${fmt(c.t0)}–${fmt(c.t1)}`)).join("");
     // a line of the narration: ▶ plays just that line
     const lineH = lines.map((l, i) => blk("line" + (SEL && SEL.kind === "line" && SEL.i === i ? " sel" : ""), l.t0, l.t1, `<i class="pl" data-pick="play:${i}" role="button" aria-label="${esc(t("play_line"))}">▶</i>${esc(l.text)}`, "line:" + i, `${l.id} · ${l.text}`)).join("");
@@ -1824,7 +1830,7 @@ function CutModule(area) {
       seek(at != null && !play && at >= s.t && (s.t1 == null || at <= s.t1) ? at : s.t);
       const kind = s.kind, a = +(+s.t).toFixed(1), b = s.t1 != null ? +(+s.t1).toFixed(1) : null;
       let scope;
-      if (kind === "shot") scope = { target: "shot:" + s.id, label: t(s.part ? "l_part" : "l_shot", { x: (s.word || s.id) + (s.name ? " " + s.name : "") }), t: a, t1: b };
+      if (kind === "shot") scope = { target: "shot:" + s.id, label: (s.word || shotNo(s.id)) + (s.name && s.name.trim() !== (s.word || shotNo(s.id)) ? " " + s.name : ""), t: a, t1: b };   // the shot once, as the page says it (第 4 镜); its id goes with the note in its target
       else if (kind === "seg") scope = { target: "seg:" + s.id, label: t("l_seg", { i: s.id, x: s.name }), t: a, t1: b };
       else if (kind === "chapter") scope = { target: "chapter:" + s.id, label: t("chapter_label", { x: s.name }), t: a, t1: b };
       else if (kind === "mark") scope = { target: s.target, label: s.name, t: a, t1: b };
@@ -1839,10 +1845,10 @@ function CutModule(area) {
   }
   function pickThing(p, el, at) {   // at: the second a click on it was at; a mark always takes its own second
     const [kind, ...rest] = p.split(":"), id = rest.join(":");
-    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, word: shotWord(s), name: s.label, t: s.t0, t1: s.t1, label: `${shotTag(s)} ${s.label}` }, false, at); else if (parts.some((c) => c.id === id)) pickThing("entry:" + id, el, at); }
+    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, word: shotWord(s), name: s.label, t: s.t0, t1: s.t1, label: `${shotWord(s)} ${s.label}` }, false, at); else if (parts.some((c) => c.id === id)) pickThing("entry:" + id, el, at); }
     else if (kind === "entry") { const c = parts.find((x) => x.id === id); if (c) select({ kind: "shot", part: true, id: c.id, word: c.id, name: c.title !== c.id ? c.title : "", t: c.t0, t1: c.t1, label: c.title }, false, at); }
     else if (kind === "chapter" || kind === "seg" || kind === "part") { const c = chapters.find((x) => x.id === id); if (c) select({ kind: c.kind === "part" ? "range" : c.kind, id: c.id, name: c.title, t: c.t0, t1: c.t1, label: c.title }, false, at); }
-    else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }, kind === "play", kind === "play" ? null : at); }
+    else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: lineNo(l.id, i), t: l.t0, t1: l.t1, label: lineNo(l.id, i) }, kind === "play", kind === "play" ? null : at); }
     else if (kind === "check") { const f = findings[+id]; if (f) select({ kind: f.t1 != null ? "range" : "time", t: +f.t, t1: f.t1 != null ? +f.t1 : null, name: `${t("k_check")} ${f.kind || ""}`.trim(), label: fmt(f.t) }); }
     else if (kind === "mark") {
       const m = allMarks().find((x) => x.target === id && (!el || el.dataset.t == null || Math.abs(x.t - +el.dataset.t) < 0.01)) || allMarks().find((x) => x.target === id);

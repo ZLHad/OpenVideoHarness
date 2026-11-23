@@ -304,7 +304,7 @@ const AGENT = (() => {
   function outsider() {   // an agent outside this window holds this film, and no conversation here has begun on it: its name, else null
     if (KEYP === SPACE || (S && S.sum && S.sum.turns)) return null;
     const h = typeof D !== "undefined" && D && D.status && D.status.holder;
-    return h && h.outside ? ({ claude: "Claude Code", codex: "Codex" }[h.program] || at("ai_any")) : null;
+    return h && h.outside ? ({ claude: "Claude Code", codex: "Codex", dsh: "DeepSeek Harness" }[h.program] || at("ai_any")) : null;
   }
   const offerName = () => (OFFER ? t(`smp_${OFFER}_type`) : "");
   function offerKept() { return OFFER && KEYP === SPACE ? `<p class="ag-offer-keep">${esc(at("of_keep", { x: offerName() }))}</p>` : ""; }
@@ -877,10 +877,10 @@ const AGENT = (() => {
     const bar = $("#colTabs"); if (!bar) return;
     const waiting = S ? Object.values(S.perms).filter((p) => !p.answered).length : 0;
     const handed = typeof handedNow === "function" && handedNow() && !(typeof REHAND !== "undefined" && REHAND[KEY]);   // handed over: nothing left to decide here
-    const decs = !handed && typeof GV !== "undefined" && GV && GV.current && typeof roundOpen === "function" && roundOpen() ? ((ROUND && ROUND.data && ROUND.data.decisions) || []).length : 0;
+    const decs = !handed && typeof GV !== "undefined" && GV && GV.current && typeof roundOpen === "function" && roundOpen() && !(typeof aiTurn === "function" && aiTurn()) ? ((ROUND && ROUND.data && ROUND.data.decisions) || []).length : 0;
     const mine = typeof myItems === "function" && FB ? myItems().length : 0;
     bar.hidden = !KEYP || KEYP === SPACE;
-    const html = `<button type="button" role="tab" data-tab="chat" aria-selected="${TAB === "chat"}">${esc(at("tab_chat"))}${waiting ? `<span class="badge wait">${esc(at("tab_ask", { n: waiting }))}</span>` : S && S.running ? `<span class="dot agent" title="${esc(at("ag_working"))}"></span>` : ""}</button><button type="button" role="tab" data-tab="round" aria-selected="${TAB === "round"}">${esc(typeof roundVerb === "function" && typeof ROUND !== "undefined" && ROUND ? roundVerb() : at("tab_round"))}${decs ? `<span class="badge wait">${esc(at("tab_dec", { n: decs }))}</span>` : mine ? `<span class="n mono">${mine}</span>` : ""}</button>`;
+    const html = `<button type="button" role="tab" data-tab="chat" aria-selected="${TAB === "chat"}">${esc(at("tab_chat"))}${waiting ? `<span class="badge wait">${esc(at("tab_ask", { n: waiting }))}</span>` : S && S.running ? `<span class="dot agent" title="${esc(at("ag_working"))}"></span>` : ""}</button><button type="button" role="tab" data-tab="round" aria-selected="${TAB === "round"}">${esc(typeof roundVerb === "function" && typeof ROUND !== "undefined" && ROUND ? (typeof filmDelivered === "function" && filmDelivered() ? t("col_film") : roundVerb()) : at("tab_round"))}${decs ? `<span class="badge wait">${esc(at("tab_dec", { n: decs }))}</span>` : mine ? `<span class="n mono">${mine}</span>` : ""}</button>`;
     if (bar.dataset.html !== html) { bar.innerHTML = html; bar.dataset.html = html; }
   }
   function setTab(x) {

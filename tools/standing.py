@@ -163,7 +163,7 @@ WORDS = {
     "step.E1": ("文案", "the script"), "step.2": ("分镜", "the storyboard"), "step.E2": ("配乐安排", "the sound plan"),
     "step.E3": ("最终的声音", "the final sound"), "step.3": ("初版", "the first draft"), "step.E4": ("第一章样片", "the first chapter"),
     "step.E5": ("定画面的版本", "the picture lock"), "step.notes": ("随手写的意见", "your loose notes"), "step.other": ("这一页", "this page"),
-    "prog.claude": ("Claude Code", "Claude Code"), "prog.codex": ("Codex", "Codex"), "prog.ai": ("AI", "the AI"),
+    "prog.claude": ("Claude Code", "Claude Code"), "prog.codex": ("Codex", "Codex"), "prog.dsh": ("DeepSeek Harness", "DeepSeek Harness"), "prog.ai": ("AI", "the AI"),
     "notes_late": ("{s}那一轮被取走以后，你又发了 {n} 条，还没有 AI 来取。", "After {s} was picked up you sent {n} more {n_notes}; no AI has picked them up yet."),
     "notes_late.short": ("补发的意见还没人取", "later notes not picked up"),
     "notes_left": ("你发的 {n} 份意见还没有 AI 来取（{s}）。", "{N} {n_subs} you sent {are} not picked up by any AI yet ({s})."),

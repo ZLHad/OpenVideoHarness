@@ -106,7 +106,7 @@ def page_strings(path):
         return js_strings(text)
     scripts = re.findall(r"<script\b[^>]*>(.*?)</script>", text, re.S)
     body = re.sub(r"<(script|style)\b[^>]*>.*?</\1>|<!--.*?-->", " ", text, flags=re.S)
-    attrs = re.findall(r'\b(?:title|aria-label|placeholder|alt)="([^"]*)"', body)
+    attrs = [f'aria-label="{v}"' for v in re.findall(r'\b(?:title|aria-label|placeholder|alt)="([^"]*)"', body)]   # (searched as a tag's words)
     return [x for x in re.split(r"<[^>]+>", body) if x.strip()] + attrs + [s for x in scripts for s in js_strings(x)]
 
 
@@ -121,10 +121,18 @@ def terminal_lines(path):
     return out
 
 
+ATTR = re.compile(r'\b(?:title|aria-label|placeholder|alt)="([^"]*)"')   # the words inside a tag a person reads (or hears read out)
+
+
 def searched(where, strings, terminal=False):
-    """The retired names in strings a person reads: Chinese ones in a string with Chinese in it, English ones in English prose."""
+    """The retired names in strings a person reads: Chinese ones in a string with Chinese in it, English ones in English prose;
+    a tag's title, aria-label, placeholder or alt is read too, a single English word included."""
     bad = []
     for x in strings:
+        for v in ATTR.findall(x):
+            m = (RETIRED_ZH if CJK.search(v) else RETIRED_EN).search(v)
+            if m:
+                bad.append(f"{where} says {m.group(0)!r} in a tag: {v.strip()[:60]}")
         x = re.sub(r"<[^>]+>", " ", x)
         for rx in ((RETIRED_ZH,) if CJK.search(x) else (RETIRED_EN,) if PROSE.search(x) else (CIRCLED,)):
             for m in rx.finditer(x):

@@ -16,12 +16,12 @@ const STR = {
     taken: "这台电脑上有别的程序抢在这个窗口前面连上了 Studio，已经换过两次窗口。让 AI 重启 Studio 再试。", noServer: "读不到这支片子。这一页要在这台电脑的 Studio 里打开。", loading: "…",
     m_new: "新建", new_tip: "写一句想做什么，AI 就开一支新片子",
     m_space: "空间", m_idea: "立意", m_outline: "大纲", m_board: "分镜", m_sound: "声音", m_cut: "成片", m_ship: "交付", m_assets: "素材", m_ledger: "决定",
-    f_done: "你定了", f_wait: "等你看", wait_ear: "等你听", f_agent: "{a} 在做", f_todo: "还没开始", f_open: "等 AI 接着做", f_skip: "你说不用看", f_off: "初版时一起看", f_norec: "没有记录",
+    f_done: "你定了", f_wait: "等你看", wait_ear: "等你听", f_agent: "{a} 在做", f_todo: "还没开始", f_open: "等 AI 接着做", f_skip: "你说不用看", f_nostop: "不单独停", f_with_idea: "跟立意一起看", f_with_outline: "跟大纲一起看", f_settled: "定了", f_settled_d: "定了 {d}", f_off: "初版时一起看", f_norec: "没有记录",
     s_idea: "立意", s_outline: "大纲", s_script: "文案", s_board: "分镜", s_sound: "声音", s_cut: "初版", s_ship: "交付",   // the steps in the top row
     shot_n: "第 {n} 镜", shot_span: "第 {a}–{b} 镜", line_n: "第 {n} 句",   // the page's own numbering (an id an agent wrote stays in what it wrote)
     v_1: "挑立意", v_outline: "审大纲", v_E0: "看画风样张", v_E1: "审文案", v_2: "审分镜", v_E2: "看配乐安排", v_E3: "听声音", v_3: "看初版", v_E4: "看第一章样片", v_E5: "定画面", v_notes: "写意见",   // a step as what you do there
     search: "搜片子", search_ph: "片名、文件夹或类型，回车打开", no_match: "没有对上的片子", lang: "EN", lang_tip: "Switch to English", themes: "主题",
-    th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥", skip: "跳到内容", rail: "模块", flow: "这支片子走到哪一步",
+    th_darkfield: "暗场", th_prism: "棱镜", th_bridge: "舰桥", skip: "跳到内容", rail: "模块", chat_pane: "在这里聊", flow: "这支片子走到哪一步",
     ask_prefix: "用 OpenVideoHarness 做一支片子：",
     films: "片子", home_meta: "{n} 支 · {w} 支等你", home_meta0: "{n} 支", g_wait: "等你看",
     no_projects: "这里还没有片子。写一句想做什么，AI 就开一支。",
@@ -38,13 +38,13 @@ const STR = {
     smp_launch_type: "发布短片", smp_launch_style: "产品发布片",
     smp_launch_say: "快速出一版 20 秒的发布短片，用「产品发布片」风格（styles/product-keynote），镜头参考配方 zoom-through、cut-the-curve、oversized-cursor，介绍我的开源项目：［在这里贴上它的链接］。",
     st_waiting_person: "等你看", st_waiting_agent: "AI 在做", st_in_progress: "在做", st_delivered: "已交付", st_paused: "暂停",
-    st_no_record: "没有审阅记录", st_not_started: "还没开始", st_skipped: "你说不用看", st_done: "你定了",
+    st_no_record: "没有审阅记录", st_not_started: "还没开始", st_skipped: "不单独停", st_done: "定了",
     agent_list: "AI 在做",
     col_round: "这一步", col_notes: "随手记的意见", live_on: "{a} 在等你发",
     live_on_tip: "你一发，它就接着做",
     c_decide: "等你定", c_rec: "不选就按推荐", c_least: "AI 没把握的", c_listen: "请你听", c_mine: "我的意见", c_next: "下一步", c_running: "正在做", c_spend: "花费",
     c_spent: "已花 {s}", c_of: "预算 {l}", c_none_mine: "还没写。点一下时间轴或一个镜头，在下面写一句。", who_agent: "AI", who_person: "你", who_nobody: "已交付",
-    submit_round: "发出去", submit_n: "发出去（{x}）", sub_notes: "{n} 条意见", sub_choices: "{n} 个选择", nothing_to_send: "还没有要发的：没写意见，也没有要选的", c_whole_note: "整体", round_quiet: "这一步没有要你选的。", static_page: "在浏览器里单独打开", recent: "最近定下的", agent_decided_k: "AI 定的 · {x}",
+    submit_round: "发出去", submit_n: "发出去（{x}）", submit_keep: "发出去存着（{x}）", sub_notes: "{n} 条意见", sub_choices: "{n} 个选择", sub_all_rec: "都按推荐", nobody_waits: "现在没有 AI 在等你的意见", c_decide_open: "这一页的选择，还能改", nothing_to_send: "还没有要发的：没写意见，也没有要选的", c_whole_note: "整体", round_quiet: "这一步没有要你选的。", static_page: "在浏览器里单独打开", recent: "最近定下的", agent_decided_k: "AI 定的 · {x}",
     at: "关于", whole: "这一页", whole_film: "整片", to_whole: "取消选中",
     c_ph: "写一条关于{x}的意见，点“加一条”放进上面的清单", note_add: "加一条", noted: "加上了：{x}", del: "删",
     d_dropped: "这 {n} 条发不出去：它们关于的那一处找不到了，或者字太长",
@@ -62,7 +62,7 @@ const STR = {
     fb_ok: "✓ 可以", fb_change: "✎ 要改", fb_ask: "? 疑问", ph_change: "哪里要改、为什么", ph_ask: "哪里没看懂？",
     ph_suggest: "直接改成……（可选）", agree: "✓ 同意", overturn: "改", def_agree: "不点也算同意",
     fact_ok: "✓ 对", fact_bad: "✎ 有问题", fact_unsure: "? 拿不准", fact_def: "不点就是还没核对",
-    l_least: "没把握：{x}", l_deleg: "AI 替你定的：{x}", l_shot: "镜头 {x}", l_seg: "大纲 第 {i} 段 {x}", l_line: "旁白 {x}",
+    l_least: "没把握：{x}", l_deleg: "AI 替你定的：{x}", l_seg: "大纲 第 {i} 段 {x}",
     film_label: "成片 {t}", range_label: "成片 {a}–{b}", sound_label: "声音 {t}", chapter_label: "章节 {x}",
     // the cut module
     l_shots: "镜头", l_script: "文案", l_captions: "字幕", l_notes: "标记", l_checks: "检查",
@@ -78,7 +78,7 @@ const STR = {
     e_diff: "这一版没记录改了哪里（只有局部重新渲染的版本会记）", e_marks: "还没有标记", whole_render: "整支重渲",
     diff_label: "{v} 改了这里", next_q: "下一处 · {x}", no_next: "后面没有要看的了", k_least: "AI 没把握", k_listen: "请你听", k_check: "检查发现的", k_mine: "我的意见",
     sev_fail: "没过", sev_warn: "注意", no_thumbs: "还没做缩略图：拖动时看不到每一秒的画面",
-    note_keys_w: "{m}↩ 加一条 · ↩ 换行", not_film: "跟片子无关的", not_film_tip: "写一句跟片子哪一处都无关的话，比如对 Studio 的意见；发出去时会标明", shot_in: "{s}（{p} 里）", ln_parts: "段落", l_part: "段落 {x}", why_clip: "{x} 是先渲好的一整段视频，里面的镜头点不到", why_more: " 和另外 {n} 段", why_stale: "成片是按改动以前的剪辑表渲的：段落里的镜头，重新渲染以后才点得到", fb_keys: "↩ 换行 · 写下就记着了", keys_nl: "↩ 换行", ph_not_film: "跟片子无关的话写在这里（比如对 Studio 的意见），点“加一条”放进上面的清单",
+    note_keys_w: "{m}↩ 加一条 · ↩ 换行", not_film: "跟片子无关的", not_film_tip: "写一句跟片子哪一处都无关的话，比如对 Studio 的意见；发出去时会标明", shot_in: "{s}（{p} 里）", ln_parts: "段落", why_clip: "{x} 是先渲好的一整段视频，里面的镜头点不到", why_more: " 和另外 {n} 段", why_stale: "成片是按改动以前的剪辑表渲的：段落里的镜头，重新渲染以后才点得到", fb_keys: "↩ 换行 · 写下就记着了", keys_nl: "↩ 换行", ph_not_film: "跟片子无关的话写在这里（比如对 Studio 的意见），点“加一条”放进上面的清单",
     // the other modules (the desk's views, moved in)
     sub_outline: "大纲", sub_script: "文案", sub_facts: "事实", sub_check: "检查", sub_versions: "版本", sub_decisions: "决定", sub_history: "历史", sub_docs: "文档",
     concept: "立意", spine: "故事线", motif: "贯穿全片的", end: "看完能记住", spec: "规格", outline_tip: "点色块跳到那一段",
@@ -87,7 +87,7 @@ const STR = {
     script_sub: "{n} 句，按大纲分段。标黄、标红的念得偏快，可能读不完。没点的都算可以。",
     f_all: "全部", f_mine: "我标过的", f_terms: "带术语的", f_facts: "带出处编号的", f_fast: "可能读不完的",
     no_script: "文案还没写成表格，下面是原文。", no_script_file: "还没有文案。",
-    other_seg: "没对上大纲的", per_s: "/秒", chars: "{n} 字 · {s} s", none_match: "没有符合的条目。", l_cap: "字幕 {x}", l_vo: "旁白 {x}", term: "术语",
+    other_seg: "没对上大纲的", per_s: "/秒", chars: "{n} 字 · {s} s", none_match: "没有符合的条目。", term: "术语",
     board_sub: "点画面播这一镜。标黄的镜头 AI 没把握。没点的都算可以。", no_shot_caption: "（这一镜没有字幕）", transition: "转场：", unsure_x: "我没把握：",
     no_board: "还没有镜头表，下面是分镜稿原文。", no_board_file: "还没有分镜。", no_video: "（没有可播放的视频，只看关键帧）",
     sound_sub: "AI 听不见，只能看谱面和响度；这一页请你用耳朵。{bpm} BPM，{d} s。", comment_at: "在 {t} 写意见",
@@ -142,7 +142,7 @@ const STR = {
     f_off_sound: "初版时一起听",
     f_nosound: "没有声音",
     away_decide: "{s}等你定 {n} 件",
-    away_look: "{s}等你看", away_listen: "{s}等你听",
+    away_look: "{s}等你看", away_listen: "{s}等你听", away_ai: "{s}：{w}",
     next_you: "看{s}，定好以后发出去。",
     next_you0: "看一眼，定好以后发出去。",
     next_agent: "接着做。",
@@ -193,12 +193,12 @@ const STR = {
     brand: "Studio", noServer: "Can't read this film. Open this page in Studio on this computer.", loading: "…",
     m_new: "New", new_tip: "Write what you want to make, and the AI starts a film",
     m_space: "Space", m_idea: "Concept", m_outline: "Outline", m_board: "Storyboard", m_sound: "Sound", m_cut: "Cut", m_ship: "Delivery", m_assets: "Assets", m_ledger: "Decisions",
-    f_done: "approved", f_wait: "waiting for you", wait_ear: "waiting for you", f_agent: "{a} at work", f_todo: "not started", f_open: "waiting for the AI", f_skip: "you skipped it", f_off: "with the draft", f_norec: "no record",
+    f_done: "approved", f_wait: "waiting for you", wait_ear: "waiting for you", f_agent: "{a} at work", f_todo: "not started", f_open: "waiting for the AI", f_skip: "you skipped it", f_nostop: "no separate stop", f_with_idea: "seen with the concept", f_with_outline: "seen with the outline", f_settled: "decided", f_settled_d: "decided {d}", f_off: "with the draft", f_norec: "no record",
     s_idea: "Concept", s_outline: "Outline", s_script: "Script", s_board: "Storyboard", s_sound: "Sound", s_cut: "First draft", s_ship: "Delivery",
     shot_n: "Shot {n}", shot_span: "Shots {a}–{b}", line_n: "Line {n}",
     v_1: "Pick a concept", v_outline: "Outline review", v_E0: "Style frames", v_E1: "Script review", v_2: "Storyboard review", v_E2: "Sound plan", v_E3: "Final sound", v_3: "First-draft review", v_E4: "First chapter", v_E5: "Picture lock", v_notes: "Notes",
     search: "Find a film", search_ph: "Title, folder or type; Enter opens it", no_match: "No film matches", lang: "中", lang_tip: "切换到中文", themes: "Theme",
-    th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge", skip: "Skip to content", rail: "Modules", flow: "Where this film is", ask_prefix: "Make a film with OpenVideoHarness: ",
+    th_darkfield: "Darkfield", th_prism: "Prism", th_bridge: "Bridge", skip: "Skip to content", rail: "Modules", chat_pane: "Chat here", flow: "Where this film is", ask_prefix: "Make a film with OpenVideoHarness: ",
     films: "Films", home_meta: "{n} · {w} waiting for you", home_meta0: "{n}", g_wait: "Waiting for you",
     no_projects: "No films here yet. Write what you want to make, and the AI starts one.",
     smp_h: "Start from a sample",
@@ -214,13 +214,13 @@ const STR = {
     smp_launch_type: "Launch short", smp_launch_style: "Product Keynote",
     smp_launch_say: "Quick draft: a 20-second launch short in the Product Keynote style (styles/product-keynote), with the recipes zoom-through, cut-the-curve and oversized-cursor, for my open-source project, [paste its link here].",
     st_waiting_person: "waiting for you", st_waiting_agent: "the AI at work", st_in_progress: "in progress", st_delivered: "delivered",
-    st_paused: "paused", st_no_record: "no review record", st_not_started: "not started", st_skipped: "you skipped it", st_done: "approved",
+    st_paused: "paused", st_no_record: "no review record", st_not_started: "not started", st_skipped: "no separate stop", st_done: "decided",
     agent_list: "The AI is on",
     col_round: "This step", col_notes: "Notes", live_on: "{a} is waiting for you",
     live_on_tip: "Once you send, it carries on",
     c_decide: "To decide", c_rec: "If you don't pick: recommended", c_least: "Where the AI is unsure", c_listen: "Listen to", c_mine: "My notes", c_next: "Next", c_running: "Working on", c_spend: "Spent",
     c_spent: "{s} spent", c_of: "of {l}", c_none_mine: "None yet. Click the timeline or a shot, then write a line below.", who_agent: "the AI", who_person: "you", who_nobody: "delivered",
-    submit_round: "Send", submit_n: "Send ({x})", sub_notes: "{n} {n|note|notes}", sub_choices: "{n} {n|choice|choices}", nothing_to_send: "Nothing to send yet: no notes, nothing to pick", c_whole_note: "Overall", round_quiet: "Nothing to pick at this step.", static_page: "Open as a web page", recent: "Recently decided", agent_decided_k: "the AI decided · {x}",
+    submit_round: "Send", submit_n: "Send ({x})", submit_keep: "Send to keep ({x})", sub_notes: "{n} {n|note|notes}", sub_choices: "{n} {n|choice|choices}", sub_all_rec: "all as recommended", nobody_waits: "No AI is waiting for your notes now", c_decide_open: "This page's choices, still open", nothing_to_send: "Nothing to send yet: no notes, nothing to pick", c_whole_note: "Overall", round_quiet: "Nothing to pick at this step.", static_page: "Open as a web page", recent: "Recently decided", agent_decided_k: "the AI decided · {x}",
     at: "About", whole: "this page", whole_film: "the whole film", to_whole: "Deselect",
     c_ph: "A note about {x}: “Add” puts it in the list above", note_add: "Add", noted: "Added: {x}", del: "Delete",
     d_dropped: "{n} can't be sent: what they are about can't be found, or they are too long",
@@ -238,7 +238,7 @@ const STR = {
     fb_ok: "✓ OK", fb_change: "✎ Change", fb_ask: "? Question", ph_change: "What to change, and why", ph_ask: "What's unclear?",
     ph_suggest: "Change it to… (optional)", agree: "✓ Agree", overturn: "Change", def_agree: "Leave it and you agree",
     fact_ok: "✓ Right", fact_bad: "✎ Wrong", fact_unsure: "? Not sure", fact_def: "Leave it and it stays unchecked",
-    l_least: "Unsure: {x}", l_deleg: "Decided for you: {x}", l_shot: "Shot {x}", l_seg: "Outline part {i} {x}", l_line: "Narration {x}",
+    l_least: "Unsure: {x}", l_deleg: "Decided for you: {x}", l_seg: "Outline part {i} {x}",
     film_label: "Film {t}", range_label: "Film {a}–{b}", sound_label: "Sound {t}", chapter_label: "Chapter {x}",
     l_shots: "Shots", l_script: "Script", l_captions: "Captions", l_notes: "Marks", l_checks: "Checks",
     no_shots: "No shot list yet.", no_narr: "No narration yet.",
@@ -253,7 +253,7 @@ const STR = {
     e_diff: "This version doesn't record what changed (only a partial re-render records it)", e_marks: "No marks yet", whole_render: "re-rendered whole",
     diff_label: "{v} changed this", next_q: "Next · {x}", no_next: "Nothing more after here", k_least: "AI unsure", k_listen: "listen", k_check: "found by the check", k_mine: "my note",
     sev_fail: "failed", sev_warn: "warning", no_thumbs: "No thumbnails yet: dragging won't show each second",
-    note_keys_w: "{m}↩ adds the note · ↩ new line", not_film: "Not about the film", not_film_tip: "A note about no moment of the film, such as one about Studio itself; it goes marked as such", shot_in: "{s} (in {p})", ln_parts: "Sections", l_part: "Section {x}", why_clip: "{x}: a video made beforehand, in one piece, so the shots inside it can't be picked", why_more: " and {n} more", why_stale: "The film was rendered from an earlier edit list: the shots inside its sections can be picked once it is rendered again", fb_keys: "↩ new line · kept as you type", keys_nl: "↩ new line", ph_not_film: "A note about no moment of the film (Studio itself, say): “Add” puts it in the list above",
+    note_keys_w: "{m}↩ adds the note · ↩ new line", not_film: "Not about the film", not_film_tip: "A note about no moment of the film, such as one about Studio itself; it goes marked as such", shot_in: "{s} (in {p})", ln_parts: "Sections", why_clip: "{x}: a video made beforehand, in one piece, so the shots inside it can't be picked", why_more: " and {n} more", why_stale: "The film was rendered from an earlier edit list: the shots inside its sections can be picked once it is rendered again", fb_keys: "↩ new line · kept as you type", keys_nl: "↩ new line", ph_not_film: "A note about no moment of the film (Studio itself, say): “Add” puts it in the list above",
     sub_outline: "Outline", sub_script: "Script", sub_facts: "Facts", sub_check: "Check", sub_versions: "Versions", sub_decisions: "Decisions", sub_history: "History", sub_docs: "Documents",
     concept: "Concept", spine: "Spine", motif: "Recurring motif", end: "Remembered after", spec: "Spec", outline_tip: "click a block to jump to it",
     seg_n: "Part {i}", know: "The viewer knows / feels", visual: "Key visual", seg_caps: "{n} {n|line|lines} in this part", to_script: "go through them →", bars: "bars {b}",
@@ -261,7 +261,7 @@ const STR = {
     script_sub: "{n} {n|line|lines} by outline part. Amber and red ones are spoken fast and may not be read in time. Anything you leave counts as fine.",
     f_all: "All", f_mine: "Marked by me", f_terms: "With a term", f_facts: "With a source #", f_fast: "Maybe too fast",
     no_script: "The script isn't a table yet; here it is as written.", no_script_file: "No script yet.",
-    other_seg: "Not matched to the outline", per_s: "/s", chars: "{n} {n|char|chars} · {s} s", none_match: "Nothing matches.", l_cap: "Caption {x}", l_vo: "Narration {x}", term: "Term",
+    other_seg: "Not matched to the outline", per_s: "/s", chars: "{n} {n|char|chars} · {s} s", none_match: "Nothing matches.", term: "Term",
     board_sub: "Click a frame to play that shot. The AI is unsure about the amber ones. Anything you leave counts as fine.", no_shot_caption: "(no caption in this shot)",
     transition: "Transition: ", unsure_x: "Unsure: ", no_board: "No shot list yet; here is the storyboard as written.", no_board_file: "No storyboard yet.",
     no_video: "(no video to play; keyframes only)",
@@ -317,7 +317,7 @@ const STR = {
     f_off_sound: "with the draft",
     f_nosound: "no sound",
     away_decide: "{s}: {n} to decide",
-    away_look: "{s} is waiting for you", away_listen: "{s} is waiting for you",
+    away_look: "{s} is waiting for you", away_listen: "{s} is waiting for you", away_ai: "{s}: {w}",
     next_you: "look at the {s}, decide, and send it.",
     next_you0: "take a look, decide, and send it.",
     next_agent: "carries on.",
@@ -524,13 +524,13 @@ function flowSteps() {   // the top row: the film's steps in order, each with it
     .concat(has("E1") ? [{ mod: "outline", go: "outline/script", st: ["E1"], nm: "s_script" }] : [])
     .concat([{ mod: "board", st: ["2"], nm: "s_board" }, { mod: "sound", st: ["E2", "E3"], nm: "s_sound" }, { mod: "cut", st: ["3", "E4", "E5"], nm: "s_cut" }, { mod: "ship", st: ["deliver"], nm: "s_ship" }]);
 }
-function outlineOnly(s) {   // gate ①'s station waiting on a later page with no concept cards (1b): that page asks about the outline alone
-  if (!s || s.id !== "1" || s.state !== "waiting_person") return false;
-  const pg = String(((s.pages || []).slice(-1)[0]) || "");
-  if (!/^1[b-z]$/.test(pg)) return false;
+function gate1Page(s) {   // gate ①'s station waiting for the person: {pg, cards} of the page out now, else null
+  if (!s || s.id !== "1" || s.state !== "waiting_person") return null;
+  const pg = String(((s.pages || []).slice(-1)[0]) || "1");
   const r = ((typeof D !== "undefined" && D && D.rounds) || []).find((x) => x.id === pg);
-  return !!r && !((r.data || {}).decisions || []).some((d) => (d.options || []).some((o) => o && o.frame));
+  return { pg, cards: !!r && ((r.data || {}).decisions || []).some((d) => (d.options || []).some((o) => o && o.frame)) };
 }
+function outlineOnly(s) { const g = gate1Page(s); return !!g && !g.cards && /^1[b-z]$/.test(g.pg); }   // a later gate ① page with no concept cards (1b): the outline alone
 function workerName() {   // who works on the film now: the Studio column's AI while it has a turn, else the one that holds the film, by name; else AI
   if (typeof AGENT !== "undefined" && AGENT.busy && AGENT.busy() && AGENT.name && AGENT.name()) return AGENT.name();
   return typeof holderName === "function" ? holderName() : t("ho_ai");
@@ -552,6 +552,8 @@ function filmSilent() {   // a film with no sound at all: its cut has no sound t
 }
 function flowLamp(f) {   // a flow item's lamp: from the film's own stops; none of them in the plan: not a stop
   const S = stations().filter((s) => f.st.includes(s.id)).map((s) => (f.mod === "idea" && outlineOnly(s) ? Object.assign({}, s, { state: "done" }) : s));   // an outline-only page: the concept is behind it
+  const g1 = S.map(gate1Page).find(Boolean);   // gate ① asks about both: one cell lit, the one its page is about (cards: the concept; none: the outline)
+  if (g1 && !outlineOnly(S.find((s) => s.id === "1")) && (f.mod === "outline" ? g1.cards : !g1.cards) && !S.some((s) => s.id !== "1" && s.state === "waiting_person")) return { state: "with", S };
   const gone = filmDelivered() && !f.st.includes("deliver");   // it went out: a stop it skipped, never had, or left open waits for no one (no word, not 跳过)
   if (!S.length) return { state: gone ? "past" : "off", S };
   if (S.some((s) => s.state === "waiting_person")) return { state: "wait", S };
@@ -587,6 +589,9 @@ function shotSpan(a, b) {   // S1 … S2 → 第 1–2 镜
   const x = String(a || "").match(SHOT_NO), y = String(b || "").match(SHOT_NO);
   return a === b ? shotNo(a) : x && y ? t("shot_span", { a: x[1], b: y[1] }) : `${shotNo(a)}–${shotNo(b)}`;
 }
+const LINE_NO = /^[A-Za-z]*0*(\d+)$/;   // c03, 3: a line numbered
+function lineNo(id, i) { const m = String(id == null ? "" : id).match(LINE_NO); return t("line_n", { n: m ? m[1] : i != null ? i + 1 : id }); }   // c03 → 第 3 句
+const laneNo = (id) => { const m = String(id || "").match(SHOT_NO); return m ? m[1] : shotName(id); };   // a shot on the timeline's lane, under the lane's own name (镜头): its number
 const shotText = (s) => String(s || "").replace(/(^|[^A-Za-z0-9])S0+(?=\d)/g, "$1S");   // a shot inside a tool's sentence, written one way: S06 → S6
 function shortDate(d) {   // one way to write a day: "11-14" this year, "2025-11-14" another year
   const m = String(d || "").match(/^(\d{4})-(\d\d)-(\d\d)/); if (!m) return "";
@@ -602,9 +607,12 @@ function flowWord(fs) {   // a flow item's state in words, saying who: 你定了
   if (fs.mod === "sound" && (fs.state === "off" || fs.state === "past") && filmSilent()) return t("f_nosound");   // not 随初版听: there is nothing to hear
   if (fs.mod === "sound" && fs.state === "off") return t("f_off_sound");   // sound is no stop of its own: it is heard on the first draft's page
   if (fs.state === "wait" && fs.S.some((s) => s.state === "waiting_person" && earOf(s.id))) return t("wait_ear");
+  if (fs.state === "with") return t(fs.mod === "outline" ? "f_with_idea" : "f_with_outline");   // shown on the other cell's page
+  if (fs.state === "skip") return t(fs.S.some((s) => /^waived in the user's words/.test(s.note || "")) ? "f_skip" : "f_nostop");   // 你说不用看 only with the person's words on record (a quick film skips without any)
   if (fs.state !== "done") return t(STATE_WORD[fs.state], { a: workerName() });
   const d = shortDate(stopDate(fs.S)), ship = fs.S.some((s) => s.id === "deliver");
-  return t(ship ? (d ? "f_delivered_d" : "f_delivered") : (d ? "f_done_d" : "f_done"), { d });
+  const yours = !fs.S.some((s) => /^decided, but the person's words are not in REVIEW\.md/.test(s.note || ""));   // 你定了 only when the person's words are on record
+  return t(ship ? (d ? "f_delivered_d" : "f_delivered") : yours ? (d ? "f_done_d" : "f_done") : (d ? "f_settled_d" : "f_settled"), { d });
 }
 function kickOf(mod) {   // the module's head: its step and the step's state; the script tab is the script's step where the film has one
   const S = flowSteps(), sub = typeof SUB !== "undefined" ? SUB : "";

@@ -137,7 +137,7 @@ try {
   await ev(`document.activeElement && document.activeElement.blur()`);
   await key("ArrowRight", "ArrowRight", 39); await key("ArrowRight", "ArrowRight", 39); await sleep(300);
   const cur = await ev(`({ id: (document.querySelector('.shotc.cur') || {}).id || "", scope: document.querySelector('#scope').textContent })`);
-  want(cur.id === "shot-S2" && /S2\b/.test(cur.scope), `→ → on the storyboard: ${JSON.stringify(cur)}`);
+  want(cur.id === "shot-S2" && /^(第 2 镜|Shot 2)(\s|$)/.test(cur.scope) && !/镜.*第 2 镜|Shot 2.*Shot 2/.test(cur.scope), `→ → on the storyboard: ${JSON.stringify(cur)}`);
 
   // 9. an edit list's long part: a shot inside it is there to point at; a film rendered from an earlier edit list says why there are none
   await go(`${base}#/p/${EDIT}/cut`);

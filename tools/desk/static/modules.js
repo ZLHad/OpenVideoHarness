@@ -86,7 +86,7 @@ moduleWords({
   bar_idea_wait: "等你挑一张。挑好了就发出去。", bar_idea_wait_s: "等你挑一张。挑好了，把下面那行回复发给做这支片子的 AI。", bar_idea_done: "立意已经定了。要是现在改，大纲和分镜都得重来。", bar_idea_todo: "立意还没定。AI 会先想几个方向，停在这里给你挑。",
   idea_none: "立意卡还没出来，立意也还没写。", to_outline: "看大纲",
   idea_done: "你选了 {x}",
-  idea_done_d: "{d} 你定的。要改，写一条意见。", idea_done_d_s: "{d} 你定的。要改，跟做这支片子的 AI 说。", idea_done_d0_s: "已经定了。要改，跟做这支片子的 AI 说。", skip_sub_s: "这一步你说了不用停，所以没单独给你看。要改，跟做这支片子的 AI 说。",
+  idea_done_d: "{d} 定下的。要改，写一条意见。", idea_done_d_s: "{d} 定下的。要改，跟做这支片子的 AI 说。", idea_done_d0_s: "已经定了。要改，跟做这支片子的 AI 说。", skip_sub_s: "这一步没单独停下来给你看。要改，跟做这支片子的 AI 说。",
   idea_done0: "立意已经定了",
   cards_none_done: "这支片子没出立意卡，立意是这样定的：",
   no_screen: "不上屏",
@@ -102,7 +102,7 @@ moduleWords({
   bar_idea_wait: "Waiting for your pick. Once you have picked, send it.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the AI making the film.", bar_idea_done: "The concept is decided. Changing it now means redoing the outline and the storyboard.", bar_idea_todo: "The concept isn't decided yet. The AI thinks of a few directions first and stops here for you to pick.",
   idea_none: "No concept cards yet, and no concept written.", to_outline: "See the outline",
   idea_done: "You picked {x}",
-  idea_done_d: "You decided it on {d}. To change it, write a note.", idea_done_d_s: "You decided it on {d}. To change it, tell the AI making the film.", idea_done_d0_s: "Decided. To change it, tell the AI making the film.", skip_sub_s: "You said to skip this step, so it wasn't shown on its own. To change it, tell the AI making the film.",
+  idea_done_d: "Decided on {d}. To change it, write a note.", idea_done_d_s: "Decided on {d}. To change it, tell the AI making the film.", idea_done_d0_s: "Decided. To change it, tell the AI making the film.", skip_sub_s: "This step wasn't shown on its own. To change it, tell the AI making the film.",
   idea_done0: "The concept is decided",
   cards_none_done: "This film had no concept cards; the concept was decided as:",
   no_screen: "off screen",
@@ -290,14 +290,14 @@ moduleWords({
   no_anim: "还没有粗样视频。", anim_gone: "粗样视频找不到了，可能被挪走了。", default_pass: "没写意见就算过", you_said: "你说了", trans_k: "转场",
   board_none: "还没有镜头表。", avg_s: "平均一镜 {s} 秒", plan_k: "打算改", bar_board: "分镜 · {s}", bar_said: "分镜 · {s}。你当时说：「{q}」", to_sound: "去声音",
   pass_done: "已通过",
-  skip_sub: "这一步你说了不用停，所以没单独给你看。要改，写一条意见。",
+  skip_sub: "这一步没单独停下来给你看。要改，写一条意见。",
 }, {
   board_title2: "{x} · {r}", board_keys: "← → shot by shot", this_part: "This part", part_seconds: "this part, {a}–{b}", board_sub2: "The AI is unsure about the amber shots. The rest pass unless you write a note.",
   shots_k: "Shots", shots_n: "{n} {n|shot|shots}", unsure_k: "Unsure", none: "none", span_k: "Span", grey_k: "Rough cut", grey_note: "Rhythm and framing first; colour comes later",
   no_anim: "No rough cut video yet.", anim_gone: "The rough cut video can't be found; it may have been moved.", default_pass: "passes without a note", you_said: "you said", trans_k: "Transition",
   board_none: "No shot list yet.", avg_s: "{s} s a shot", plan_k: "will change", bar_board: "Storyboard · {s}", bar_said: "Storyboard · {s}. You said: “{q}”", to_sound: "To the sound",
   pass_done: "approved",
-  skip_sub: "You said to skip this step, so it wasn't shown on its own. To change it, write a note.",
+  skip_sub: "This step wasn't shown on its own. To change it, write a note.",
 });
 const shotName = (id) => String(id || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1");   // one way to write a shot: S4, never S04 or S004
 const sameId = (a, b) => String(a || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase() === String(b || "").replace(/^([A-Za-z]+)0+(?=\d)/, "$1").toLowerCase();   // S04 is S4
@@ -376,7 +376,7 @@ function mBoard2() {
     const gate = s.see != null;   // a shot of the gate page: what it shows, its line, what will change by default
     const reads = (s.reads || []).length > 1 ? `<ol>${s.reads.map((r) => `<li>${esc(r)}</li>`).join("")}</ol>` : (s.reads || []).length ? `<p class="see">${esc(s.reads[0])}</p>` : s.caption ? `<p class="capline">${esc(s.caption)}</p>` : "";
     const well = pics ? `<div class="well"${s.start != null && vid ? dattr({ play: s.start, stop: s.end }) : ""}>${s.frame ? `<img src="${esc(src(s.frame))}" alt="${esc(shotName(s.id))}" loading="lazy">` : s.frame_missing ? `<span class="miss" title="${esc(s.frame_missing)}">${esc(t("pic_gone"))}</span>` : ""}</div>` : "";
-    return `<article class="shotc${u ? " unsure" : ""}${pics ? "" : " row"}" id="shot-${esc(s.id)}"${dattr({ mark: "shot:" + s.id, label: t("l_shot", { x: shotName(s.id) }) + (s.label ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
+    return `<article class="shotc${u ? " unsure" : ""}${pics ? "" : " row"}" id="shot-${esc(s.id)}"${dattr({ mark: "shot:" + s.id, label: shotNo(s.id) + (s.label && s.label.trim() !== shotNo(s.id) ? " · " + cut(s.label, 24) : ""), t: s.start, t1: s.end })}>
       ${well}<div class="sc-b"><h3><b title="${esc(shotName(s.id))}">${esc(shotNo(s.id))}</b>${gate ? "" : `<span class="lab">${esc(String(s.label || "").replace(/^\d+[.、]\s*/, ""))}</span>`}${chip}</h3>${s.start != null && s.end != null ? `<p class="mono tc">${esc(fmt(s.start) + "–" + fmt(s.end))}</p>` : ""}
       ${gate ? `${s.see ? `<p class="see">${esc(s.see)}</p>` : ""}${s.vo ? `<p class="capline">${esc(s.vo)}</p>` : ""}` : reads}
       ${s.transition ? `<p class="meta">${esc(t("trans_k"))}${esc(COLON())}${esc(s.transition)}</p>` : ""}${u && why ? `<p class="unsure-note">${esc(why)}</p>` : ""}
@@ -555,7 +555,7 @@ function mSound2() {
   const lines = nl.rows.length ? `<div class="tscroll"><table class="t lines"><thead><tr>${film ? "<th></th>" : ""}<th>${esc(t("line_k"))}</th><th>${esc(t("text_k"))}</th><th>${esc(nl.unit)}</th><th>${esc(t("pause_k"))}</th><th></th></tr></thead><tbody>${nl.rows.map((r) => {
       const f = nl.med && r.rate ? r.rate / nl.med : 1, flag = f < 0.8 ? t("slower") : f > 1.25 ? t("faster") : "";
       const mark = r.t1 - r.t0 >= 0.01 ? `range:${r.t0.toFixed(2)}-${r.t1.toFixed(2)}` : `atime:${r.t0.toFixed(1)}`;   // a range must run forward (feedback.py)
-      return `<tr${dattr({ mark, label: t("l_line", { x: r.id }), t: r.t0, t1: r.t1 })}>${film ? `<td><button type="button" class="pl" data-seek-film="${r.t0}" aria-label="${esc(t("play_at", { t: fmt(r.t0) }))}">▶</button></td>` : ""}<td class="mono">${esc(String(r.id).replace(/^L(?=\d)/i, ""))}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
+      return `<tr${dattr({ mark, label: lineNo(r.id), t: r.t0, t1: r.t1 })}>${film ? `<td><button type="button" class="pl" data-seek-film="${r.t0}" aria-label="${esc(t("play_at", { t: fmt(r.t0) }))}">▶</button></td>` : ""}<td class="mono">${esc(String(r.id).replace(/^L(?=\d)/i, ""))}</td><td>${esc(r.text)}</td><td class="mono">${r.rate != null ? esc(r.rate.toFixed(1)) : "—"}</td><td class="mono">${r.pause != null ? esc(r.pause.toFixed(2)) : "—"}</td><td>${flag ? `<span class="chip wait">${esc(flag)}</span>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
   // two clocks, never mixed: the film's (its loudness, the places to listen to, what the check found in the sound), played from the
   // film; the music's (its sections, the beats to cut on, the planned sounds), played from the music
   const W = 600, H = 90, M = D.music || {}, env = envelope(W, H);

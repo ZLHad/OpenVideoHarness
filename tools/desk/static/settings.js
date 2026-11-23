@@ -181,7 +181,7 @@ const SETTINGS = (() => {
       const ch = k.choices || {}, offered = ch.offered || {};
       const one = (role) => {
         const c = ch[role] || {}, opts = offered[role] || [];
-        if (opts.length) return `<select data-set="${role}:${esc(k.kind)}" aria-label="${esc(k.label)} · ${esc(w("ag_" + role))}">${opts.map((o) => `<option value="${esc(o.value)}"${o.value === c.value ? " selected" : ""}>${esc(o.name)}</option>`).join("")}</select>`;
+        if (opts.length) return `<select data-set="${role}:${esc(k.kind)}" aria-label="${esc(k.label)} · ${esc(w("ag_" + role))}">${opts.map((o) => `<option value="${esc(o.value)}"${o.value === c.value ? " selected" : ""}>${esc(role === "effort" && W.zh["e_" + o.value] ? w("e_" + o.value) : o.name)}</option>`).join("")}</select>`;
         const from = c.from === "default" ? w("ag_from_default") : c.from === "dsh" ? w("ag_from_dsh") : c.from === "agent" || !c.name ? w("ag_from_agent", { a: k.label }) : "";
         const nm = role === "effort" && c.name && W.zh["e_" + c.name] ? w("e_" + c.name) : c.name;   // an effort as words (很高), not the program's own value (xhigh)
         return `<p>${esc(nm || "")}${c.name && from ? " · " : ""}<span class="st-dim">${esc(from)}</span></p>`;
