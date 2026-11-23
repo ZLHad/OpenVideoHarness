@@ -662,12 +662,15 @@ def _drop_missing(project, d, key):
 
 def files_stamp(project):
     """A stamp of the files the page is drawn from: the project's documents (reader.DOCS), its shot list and edit list, its
-    review pages and which one is this round. It changes when the agent writes one of them, and an open page then reads the
-    film again (renders, frames and other media do not change it)."""
+    review pages and which one is this round, and the narration's timing (audio/timeline.<lang>.json, out/edit.timeline.<lang>.json).
+    It changes when the agent writes one of them, and an open page then reads the film again. Renders, frames and other media do
+    not change it, nor does what the cut module reads from a render (the shots inside a rendered film, thumbnails, peaks, the
+    latest check): a page open during a render shows those after its next reload."""
     project = Path(project)
     paths = [project / n for n in list(reader.DOCS) + ["shots.json", "edit.json"]] + [project / "out" / "review" / ".current"]
     try:
         paths += sorted((project / "out" / "review").glob("gate-*.json"))
+        paths += sorted((project / "audio").glob("timeline.*.json")) + sorted((project / "out").glob("edit.timeline.*.json"))   # the narration's timing (a voice-over done again)
     except OSError:
         pass
     h = hashlib.sha1()
@@ -686,6 +689,7 @@ def project_data(project, parts=("studio", "mods")):
     and what the other modules read (mods). A static review page asks for what its stop's modules need (tools/review.py).
     Raises what read_project raises; a part that cannot be read is null, the reason in warnings."""
     revision_stamp = RV.stamp(project)
+    stamps = F.notes_stamp(project), files_stamp(project)   # before the read: a file written during it leaves the page one reload behind, never stale for good
     data = reader.read_project(project)
     try:
         import status as S
@@ -710,8 +714,7 @@ def project_data(project, parts=("studio", "mods")):
         fb["state"] = "taken" if t is not None else "unread" if n in un else "answered"
         fb["taken"] = {"t": t.get("t"), "program": t.get("program"), "by": t.get("by")} if t is not None else None
         fb["late"] = bool(un.get(n))
-    data["notes_stamp"] = F.notes_stamp(project)
-    data["files_stamp"] = files_stamp(project)
+    data["notes_stamp"], data["files_stamp"] = stamps
     _drop_missing(project, data.get("shots"), "video")   # the storyboard's animatic, and the pictures the gate pages name
     for r in data.get("rounds") or []:
         g = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
@@ -1149,7 +1152,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if what == "data":
                 return self._data(project, key)
             if what == "status":   # with this round's page: the console notices a new page the agent sent; and where the film stands now
-                pages = review.gate_pages(project)
                 try:
                     import status as S
                     o = S.collect(project, light=True)
@@ -1157,7 +1159,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 except (Exception, SystemExit):   # the page keeps what it has
                     now = plan = None
                 lis = F.listening(project)
-                cur = pages[-1].stem[5:] if pages else None
+                cur = F.current_round(project)   # (the readable pages only, as the page's own rounds: a page half-written is not a new round)
+                cur = None if cur == F.NO_ROUND else cur
                 return self._json(dict(lis, project=project.name, key=key, round=cur, revision_stamp=RV.stamp(project), now=now, plan=plan,
                                        live=bool(lis.get("listening")) and lis.get("round") is not None and lis.get("round") == F.current_round(project),
                                        notes_stamp=F.notes_stamp(project), files_stamp=files_stamp(project)))

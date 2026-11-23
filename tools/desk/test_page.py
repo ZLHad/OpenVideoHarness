@@ -100,11 +100,53 @@ reopen = film("reopen", E1)   # gate ① decided, then the outline sent again (1
 (reopen / "out" / "review" / "gate-1b.json").write_text(json.dumps(OUTLINE_AGAIN, ensure_ascii=False), encoding="utf-8")
 subprocess.run(["bash", str(VH), "review", str(reopen), "1b"], capture_output=True, text=True, env=ENV, timeout=60, check=True)
 script = film("script", E1)   # the script's stop
-follow = film("follow", E1)   # open on the script; the agent sends the outline again meanwhile
-files = film("files", E1)     # open on the outline; the agent cuts it from 3 parts to 2 meanwhile
-brief = (files / "BRIEF.md").read_text(encoding="utf-8")
-two = re.sub(r"\n\| 3 \|[^\n]*", "", brief.replace("| 2 | 两个鼓包 | 9–21 s |", "| 2 | 两面都鼓 | 9–32 s |"))
+follow = film("follow", E1)   # opened by Studio on the script; the agent sends the outline again meanwhile: the page follows (Back returns)
+stay = film("stay", E1)       # the person went to 决定 themself; the agent sends the outline again: the page stays and says so
+half = film("half", E1)       # a page written halfway (not JSON yet): no new round, no reload, until it reads
+scroll = film("scroll", E1)   # scrolled down the script; an unrelated NOTES.md change: the page reads again and stays where it was
+(scroll / "SCRIPT.md").write_text("# SCRIPT\n\n## 旁白\n\n| # | 时间 | 旁白 |\n|---|---|---|\n"
+                                   + "".join(f"| c{i:02d} | {i * 1.3:.1f}–{i * 1.3 + 1.2:.1f} s | 第 {i} 句旁白，讲海水和月亮。 |\n" for i in range(1, 25)), encoding="utf-8")
+LONG = "这一页要定旁白稿能不能往下做。" + "每一句都对着画面再读一遍，看读不读得完，" * 12
+longp = film("longsum", dict(E1, summary=LONG))   # a 400-character summary: two lines above the tabs, whole below
 tabs = film("tabs", E1)       # the stop's page on the outline module: a tab clicked opens where the tabs are
+# an outline of nine parts rewritten to five: removed in the middle, two in another order, one renamed, one's words rewritten
+NINE = [("开场", "一天涨两次"), ("两个鼓包", "两面都鼓起来"), ("转一圈", "地球转一圈经过两次"), ("月亮", "月亮拉着近的一面"), ("太阳", "太阳也拉一点"),
+        ("大潮", "日月同向时最高"), ("小潮", "日月垂直时最低"), ("海岸", "海湾把潮差放大"), ("收尾", "回到刻度桩")]
+FIVE = [("开场", "一天涨两次"), ("转一圈", "地球转一圈经过两次"), ("月亮的拉力", "月亮拉着近的一面"), ("收尾", "回到刻度桩"), ("太阳", "太阳的拉力只有月亮的一半")]
+
+
+def outline(rows):
+    head = "| # | 段落 | 时间 | 观众看完知道 / 感到 | 关键画面 |\n|---|---|---|---|---|\n"
+    return head + "".join(f"| {i + 1} | {t} | {i * 4}–{i * 4 + 4} s | {k} | 画面{i + 1} |\n" for i, (t, k) in enumerate(rows))
+
+
+nine = film("nine", E1)
+nb = (nine / "BRIEF.md").read_text(encoding="utf-8")
+top, rest = nb.split("## Outline", 1)
+tail = rest[rest.index("\n## ", 1):] if "\n## " in rest[1:] else ""
+(nine / "BRIEF.md").write_text(top + "## Outline\n\n" + outline(NINE) + tail, encoding="utf-8")
+five = top + "## Outline\n\n" + outline(FIVE) + tail
+stamp = film("stamp", E1)   # the stamp is taken before the read: a file written during the read leaves the page one reload behind
+
+
+def stamp_before_read():   # (no browser: the server's own function, a write injected into its read)
+    import reader
+    real = reader.read_project
+
+    def writing(project, *a, **k):
+        out = real(project, *a, **k)
+        with open(Path(project) / "BRIEF.md", "a", encoding="utf-8") as f:
+            f.write("\n<!-- written while the page was being read -->\n")
+        return out
+    reader.read_project = writing
+    try:
+        d = server.project_data(stamp, ())
+    finally:
+        reader.read_project = real
+    return d["files_stamp"] != server.files_stamp(stamp)
+
+
+STAMP_OK = stamp_before_read()
 
 proc = subprocess.Popen([sys.executable, str(HERE / "fixtures" / "with_tty.py"), "bash", str(VH), "desk", "--root", str(T / "root"), "--port", "0", "--no-open", "--print-address"],
                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=ENV, start_new_session=True)
@@ -174,31 +216,71 @@ try:
     steps += [{"click": "#lang", "after": 1500}]
     WHERE = "JSON.stringify({ mod: ($('#stage [data-mod]') || {}).dataset && $('#stage [data-mod]').dataset.mod, hash: decodeURIComponent(location.hash), " \
             "tab: (($('nav.subtabs [aria-selected=true]') || { getAttribute: () => '' }).getAttribute('href')) || '', cards: !!$('.c-cards') })"
+
+    def opened(f, ms=12000):   # the film read and drawn, nothing reloading: a condition, never a fixed wait
+        return {"until": f"typeof D !== 'undefined' && D && PKEY === {key(f)!r} && !RELOADING && !!$('#stage [data-mod]')", "name": f"open {f.name}", "ms": ms}
+
+    def page(f, rid, d):   # the agent sends a page: its JSON, its HTML (bin/vh gate writes both), then it is this round
+        return [{"write": str(f / "out" / "review" / f"gate-{rid}.json"), "text": json.dumps(d, ensure_ascii=False)},
+                {"write": str(f / "out" / "review" / f"gate-{rid}.html"), "text": "<!doctype html><title>page</title>"},
+                {"write": str(f / "out" / "review" / ".current"), "text": f"{rid}\n"}]
+    COUNT = "(window.__reloads = 0, (() => { const o = reloadProject; reloadProject = async (...a) => { window.__reloads++; return o(...a); }; })(), true)"
     steps += [
         # bin/vh gate opens a stop at #/p/<key>/gate/<page>: the outline's second page on the outline, its question in the column
-        {"go": f"#/p/{key(reopen)}/gate/1b", "after": 3000}, tab, {"eval": WHERE, "name": "reopen_at"},
-        {"go": f"#/p/{key(script)}/gate/E1", "after": 3000}, {"eval": WHERE, "name": "script_at"},
-        # the agent sends another page while the person is on the script: the page follows, and the address names what is shown
-        {"go": f"#/p/{key(follow)}/outline/script", "after": 2500},
-        {"write": str(follow / "out" / "review" / "gate-1b.json"), "text": json.dumps(OUTLINE_AGAIN, ensure_ascii=False)},
-        {"write": str(follow / "out" / "review" / "gate-1b.html"), "text": "<!doctype html><title>1b</title>"},   # (bin/vh gate writes the page with it)
-        {"write": str(follow / "out" / "review" / ".current"), "text": "1b\n"},
-        {"until": f"location.hash === '#/p/{key(follow)}/outline' && $('#stage [data-mod=outline]') && !$('nav.subtabs [aria-selected=true][href$=\"/script\"]')", "name": "follow_at", "ms": 15000},
-        {"reload": True}, {"eval": WHERE, "name": "follow_reload"},
-        # the agent rewrites the outline while it is open, a note kept on its third part: the page shows two parts, says the note's place is gone
-        {"go": f"#/p/{key(files)}/outline", "after": 2500}, tab,
-        {"eval": "document.querySelectorAll('#stage [data-mark^=\"seg:\"]').length", "name": "files_before"},
-        {"eval": KEEP.format(t="seg:3", x="第三段太长", lb="大纲 第 3 段"), "name": "keep3"},
-        {"eval": "(document.activeElement && document.activeElement.blur(), true)", "name": "blur"},
-        {"write": str(files / "BRIEF.md"), "text": two},
-        {"until": "document.querySelectorAll('#stage [data-mark^=\"seg:\"]').length === 2 && /两面都鼓/.test($('#stage').innerText)", "name": "files_after", "ms": 15000},
-        {"eval": "JSON.stringify({ hash: decodeURIComponent(location.hash), gone: /不在了/.test($('#cMine').innerText) })", "name": "files_where"},
+        {"go": f"#/p/{key(reopen)}/gate/1b", "after": 200}, opened(reopen), tab, {"eval": WHERE, "name": "reopen_at"},
+        {"go": f"#/p/{key(script)}/gate/E1", "after": 200}, opened(script), {"eval": WHERE, "name": "script_at"},
+        # opened by Studio itself (not the person's choice), a new page: the page follows it, the address names it, Back returns
+        {"go": f"#/p/{key(follow)}/outline/script", "after": 200}, opened(follow), {"eval": "(CHOSE = false, window.__h = history.length, true)", "name": "as studio"},
+        *page(follow, "1b", OUTLINE_AGAIN),
+        {"until": f"location.hash === '#/p/{key(follow)}/outline' && D.current === '1b' && !RELOADING && !!$('#stage [data-mod=outline]')", "name": "follow_at", "ms": 15000},
+        {"eval": "JSON.stringify({ grew: history.length - window.__h })", "name": "follow_history"},
+        {"reload": True}, opened(follow), {"eval": WHERE, "name": "follow_reload"},
+        {"eval": "(history.back(), true)", "name": "back"},
+        {"until": f"location.hash === '#/p/{key(follow)}/outline/script'", "name": "follow_back", "ms": 8000},
+        # the person went to 决定 themself: a new page leaves them there, says it is out
+        {"go": f"#/p/{key(stay)}/ledger", "after": 200}, opened(stay), *page(stay, "1b", OUTLINE_AGAIN),
+        {"until": "D.current === '1b' && !RELOADING", "name": "stay_round", "ms": 15000},
+        {"eval": "JSON.stringify({ mod: MOD, hash: decodeURIComponent(location.hash), toast: $('#toast').innerText, now: ($('#colNow') || {}).innerText || '' })", "name": "stay_at"},
+        # a page half-written: no new round, no reload for 10 s; once it reads, one follow
+        {"go": f"#/p/{key(half)}/outline/script", "after": 200}, opened(half), {"eval": COUNT, "name": "count"},
+        {"write": str(half / "out" / "review" / "gate-E2.json"), "text": '{"summary": "配乐安排", "decisions": ['},
+        {"write": str(half / "out" / "review" / ".current"), "text": "E2\n"},
+        {"wait": 10000}, {"eval": "JSON.stringify({ reloads: window.__reloads, current: D.current, mod: MOD, toast: $('#toast').innerText })", "name": "half_wait"},
+        # scrolled down the script, an unrelated NOTES.md change: read again, the same place on the page
+        {"go": f"#/p/{key(scroll)}/outline/script", "after": 200}, opened(scroll), {"until": "$('#gatePart .gate') && $('#stage').scrollHeight > $('#stage').clientHeight + 450", "name": "scroll_ready", "ms": 8000},
+        {"eval": "($('#stage').scrollTop = $('#stage').scrollHeight, window.__st = D.files_stamp, $('#stage').scrollTop)", "name": "scroll_before"},   # (the very bottom: the stop's page part is there)
+        {"write": str(scroll / "NOTES.md"), "text": (scroll / "NOTES.md").read_text(encoding="utf-8") + "\n- 又查到一条\n"},
+        {"until": "D.files_stamp !== window.__st && !RELOADING", "name": "scroll_reloaded", "ms": 15000}, {"wait": 600},
+        {"eval": "$('#stage').scrollTop", "name": "scroll_after"},
+        # a radio button picked (focus stays on it) is no typing: the page still follows a change; a text box with a keystroke just now holds it
+        tab, {"eval": "(($('.c-cards input[type=radio]') || $('#say')).focus(), window.__st = D.files_stamp, true)", "name": "radio_focus"},
+        {"write": str(scroll / "NOTES.md"), "text": (scroll / "NOTES.md").read_text(encoding="utf-8") + "\n- 又查到两条\n"},
+        {"until": "D.files_stamp !== window.__st && !RELOADING", "name": "radio_followed", "ms": 15000},
+        {"eval": "($('#say').focus(), document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })), window.__st = D.files_stamp, true)", "name": "typing"},
+        {"write": str(scroll / "NOTES.md"), "text": (scroll / "NOTES.md").read_text(encoding="utf-8") + "\n- 又查到三条\n"},
+        {"wait": 6000}, {"eval": "D.files_stamp === window.__st", "name": "typing_held"},
+        {"eval": "(LASTKEY = Date.now() - 31000, true)", "name": "typing_idle"},
+        {"until": "D.files_stamp !== window.__st && !RELOADING", "name": "typing_released", "ms": 15000},
+        # a 400-character summary: two lines above the tabs, whole below
+        {"go": f"#/p/{key(longp)}/outline/script", "after": 200}, opened(longp), {"until": "$('#gatePart .round-h')", "name": "long_part", "ms": 8000},
+        {"eval": "JSON.stringify({ h: $('.page-sum').getBoundingClientRect().height, lh: parseFloat(getComputedStyle($('.page-sum')).lineHeight), "
+                 "tabs: $('nav.subtabs').getBoundingClientRect().top, whole: ($('#gatePart').innerText || '').includes($('.page-sum').getAttribute('title')) })", "name": "long_view"},
         # the stop's page on the outline: clicking the script tab leaves the tab row where it was, and the page's rest comes after
-        {"go": f"#/p/{key(tabs)}/outline", "after": 2500},
+        {"go": f"#/p/{key(tabs)}/outline", "after": 200}, opened(tabs),
         {"eval": "$('nav.subtabs').getBoundingClientRect().top", "name": "tabs_before"},
-        {"click": "nav.subtabs a[href$='/outline/script']", "after": 2000},
+        {"click": "nav.subtabs a[href$='/outline/script']", "after": 200}, {"until": "$('nav.subtabs [aria-selected=true][href$=\"/script\"]') && $('#gatePart .gate')", "name": "tabs_ready", "ms": 8000},
         {"eval": "JSON.stringify({ top: $('nav.subtabs').getBoundingClientRect().top, body: $('#modBody') && $('#modBody').getBoundingClientRect().top, "
                  "rest: $('#gatePart') && $('#gatePart').getBoundingClientRect().top, script: !!$('nav.subtabs [aria-selected=true][href$=\"/script\"]') })", "name": "tabs_after"},
+        # nine parts rewritten to five, notes kept on six of them: each stays, follows its content, or says its place changed or went
+        {"go": f"#/p/{key(nine)}/outline", "after": 200}, opened(nine), tab,
+        {"eval": "(" + ", ".join(KEEP.format(t=f"seg:{i}", x=f"第 {i} 段的意见", lb=f"大纲 第 {i} 段 {NINE[i - 1][0]}") for i in (1, 3, 4, 5, 7, 9)) + ")", "name": "nine_keep"},
+        {"eval": "(FB.items['seg:9'].t = 32, FB.items['seg:3'].t = 8, save(), document.activeElement && document.activeElement.blur(), window.__st = D.files_stamp, true)", "name": "nine_blur"},   # (the times the row gives as a note is kept)
+        {"write": str(nine / "BRIEF.md"), "text": five},
+        {"until": "D.files_stamp !== window.__st && !RELOADING && document.querySelectorAll('#stage [data-mark^=\"seg:\"]').length === 5", "name": "nine_reloaded", "ms": 15000},
+        {"eval": "JSON.stringify({ items: Object.fromEntries(Object.entries(FB.items).map(([k, v]) => [k, { drift: v.drift || '', moved: v.moved || '', label: v.label, t: v.t }])), "
+                 "marked: [...document.querySelectorAll('#stage [data-mark^=\"seg:\"].marked')].map((e) => e.dataset.mark), "
+                 "block: $('#cMine').innerText, drift_goto: [...document.querySelectorAll('#cMine li.drift')].filter((e) => e.dataset.goto).length, "
+                 "sent: payload().items.map((i) => [i.target, i.label]) })", "name": "nine_after"},
     ]
     res = drive(url, steps)
 finally:   # the desk this check started, and everything under it (bin/vh desk runs on in its own session): by process tree, never by name
@@ -278,19 +360,53 @@ def js(name):
         return {"raw": v(res, name)}
 
 
-ra, sa, fr = js("reopen_at"), js("script_at"), js("follow_reload")
+ra, sa = js("reopen_at"), js("script_at")
 check("a stop opens on what it asks about: the outline sent again (no concept cards) on the outline with its question in the column, the script on the "
       "outline's script tab; the address then names that module",
       ra.get("mod") == "outline" and ra.get("hash", "").endswith("/outline") and ra.get("cards") and sa.get("mod") == "outline"
       and sa.get("hash", "").endswith("/outline/script") and sa.get("tab", "").endswith("/script"), [ra, sa])
-check("a page the agent sends while the person is elsewhere: the window follows to it, the address names what is shown, and a reload stays there",
-      (res.get("follow_at") or {}).get("ok") and fr.get("mod") == "outline" and fr.get("hash", "").endswith("/outline"), [res.get("follow_at"), fr])
-fa, fw = res.get("files_after") or {}, js("files_where")
-check("the agent rewrites the outline while it is open: within seconds the page shows the new parts, stays where it was, and a note kept on a part that "
-      "is gone says so", v(res, "files_before") == 3 and fa.get("ok") and fw.get("hash", "").endswith("/outline") and fw.get("gone"), [v(res, "files_before"), fa, fw])
+fr, fh = js("follow_reload"), js("follow_history")
+check("a new page while Studio's own opening is on screen: the page follows it, the address names it (a history entry of its own: Back returns), and a "
+      "reload stays there", (res.get("follow_at") or {}).get("ok") and fh.get("grew") == 1 and fr.get("mod") == "outline" and fr.get("hash", "").endswith("/outline")
+      and (res.get("follow_back") or {}).get("ok"), [res.get("follow_at"), fh, fr, res.get("follow_back")])
+sa2 = js("stay_at")
+check("a new page while the person is where they went themself: the page stays there, says the page is out, and the line above the tabs has the way to it",
+      (res.get("stay_round") or {}).get("ok") and sa2.get("mod") == "ledger" and sa2.get("hash", "").endswith("/ledger") and "大纲那一页出来了" in sa2.get("toast", "")
+      and "去看大纲" in sa2.get("now", ""), [res.get("stay_round"), sa2])
+hw = js("half_wait")
+check("a page half-written: no new round and no word of a new page; at most the one quiet read a file change brings; the page as it was",
+      hw.get("reloads", 9) <= 1 and hw.get("current") == "E1" and hw.get("mod") == "outline" and "那一页出来了" not in hw.get("toast", "") and "E2" not in hw.get("toast", ""), hw)
+check("the stamp is taken before the film is read: a file written during the read leaves the page one reload behind, never stale for good", STAMP_OK, STAMP_OK)
+sb, sa3 = v(res, "scroll_before"), v(res, "scroll_after")
+check("an unrelated file change while scrolled to the bottom of the script (the stop's page part below it): the page reads again and stays where it was",
+      (res.get("scroll_reloaded") or {}).get("ok") and isinstance(sb, (int, float)) and sb >= 300 and isinstance(sa3, (int, float)) and abs(sa3 - sb) <= 2, [sb, sa3])
+check("busy is typing, not focus: a picked radio button does not hold the page back; a text box with a keystroke just now does, and lets go once idle 30 s",
+      (res.get("radio_followed") or {}).get("ok") and v(res, "typing_held") is True and (res.get("typing_released") or {}).get("ok"),
+      [res.get("radio_followed"), v(res, "typing_held"), res.get("typing_released")])
+lv = js("long_view")
+check("a 400-character summary keeps to two lines above the tabs, and is there whole below", lv.get("h", 1e9) <= 2 * lv.get("lh", 0) + 2 and lv.get("tabs", 1e9) < 260
+      and lv.get("whole"), lv)
 tb, ta = v(res, "tabs_before"), js("tabs_after")
 check("the script tab clicked on a stop's page: the tab row is not pushed down, the tab's content starts right under it, and the page's decided, "
       "delegated and appendices come after that content",
       isinstance(tb, (int, float)) and ta.get("script") and ta.get("top", 1e9) <= tb + 4 and ta.get("body") and ta["body"] - ta["top"] < 80
       and ta.get("rest") and ta["rest"] > ta["body"], [tb, ta])
+na = js("nine_after")
+it, sent = na.get("items") or {}, dict(tuple(x) for x in na.get("sent") or [])
+was = {k.split("~")[0]: x for k, x in it.items() if "~was" in k}
+ok = ((res.get("nine_reloaded") or {}).get("ok")
+      and "seg:1" in it and not it["seg:1"]["drift"]                                        # the same content at the same place: stays
+      and it.get("seg:2", {}).get("moved") == "2" and "第 2 段 转一圈" in it["seg:2"]["label"] and it["seg:2"].get("t") == 4   # moved up from 3: goes with it, takes its time, says so
+      and it.get("seg:4", {}).get("moved") == "4" and "第 4 段 收尾" in it["seg:4"]["label"] and it["seg:4"].get("t") == 12   # moved up from 9 (a reorder)
+      and was.get("seg:4", {}).get("drift") == "changed"                                     # renamed: never drawn on what took its place
+      and was.get("seg:5", {}).get("drift") == "changed"                                     # its words rewritten at the same place: changed
+      and was.get("seg:7", {}).get("drift") == "gone"                                        # removed
+      and "seg:3" not in na.get("marked", []) and "seg:5" not in na.get("marked", []) and set(na.get("marked", [])) == {"seg:1", "seg:2", "seg:4"}
+      and na.get("drift_goto") == 0
+      and "原来是第 3 段" in na.get("block", "") and "原来是第 9 段" in na.get("block", "") and "0:32" not in na.get("block", "") and "第 4 段 月亮（这一处后来改了）" in na.get("block", "") and "第 5 段 太阳（这一处后来改了）" in na.get("block", "")
+      and "不在了" in na.get("block", "")
+      and any("月亮" in lb and "这一处后来改了" in lb for lb in sent.values()))
+check("an outline of nine parts rewritten to five (one removed in the middle, two in another order, one renamed, one's words rewritten): a note on the "
+      "same part stays; one whose part moved goes with it, takes its number and time, and says once where it was; one whose part was renamed or rewritten is never drawn on what took its place, "
+      "quotes what it was written on, goes nowhere on a click, and is sent saying so; one on a removed part says it is gone", ok, na)
 print("end", flush=True)

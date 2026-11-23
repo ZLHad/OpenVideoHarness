@@ -85,7 +85,8 @@ async function route() {
   if (r.view === "settings") return SETTINGS.show(r.sec);
   return showProject(r);
 }
-window.addEventListener("hashchange", route);
+let CHOSE = false, PAGEGO = false;   // the module on screen is one the person went to (a link, the rail, Back), not one the page or bin/vh gate picked
+window.addEventListener("hashchange", () => { CHOSE = !PAGEGO; PAGEGO = false; route(); });
 
 /* ---------- the shell: crumbs, the flow bar, the rail ---------- */
 function crumbs(parts) {
@@ -342,6 +343,7 @@ function applyProject(key, x) {
   KEY = `desk:${PKEY}:${ROUND.id}`;   // the draft goes with the folder (its key), never with a folder of the same name
   FB = store.get(KEY) || { decisions: {}, items: {}, general: "" };
   FB.items = FB.items || {}; FB.decisions = FB.decisions || {};
+  if (D) reconcile();   // what the notes were written on, against the files as they are now
   setLang(pickLang(D.lang));
   GV = x.gv;
 }
@@ -363,12 +365,13 @@ async function reloadProject(follow) {   // the same film read again (a submissi
   const r = follow ? { view: "project", key } : Object.assign(parse(), { key });   // follow: a new page opens on its own stop's module
   const pl = placeOf(r);
   MOD = pl.mod; SUB = pl.sub; DOC = r.doc || DOC; GATE = r.gate || "";
-  keepAddress(r);
+  keepAddress(r, follow);
   crumbs([{ text: t("m_space"), href: "#/" }, { text: D.project.title }]);
   renderFlow(); renderRail(); renderColumn(); renderModule(); updateComposer();
   liveTimer = setInterval(pollLive, 4000);
   if (at != null && CUT) CUT.seekTo(at);   // the playhead where it was
-  $("#stage").scrollTop = s; window.scrollTo(0, y);
+  try { await GATELOAD; } catch (e) { /* the page part says its own error */ }   // the stop's page in place first: the page has its height
+  if (!follow) { $("#stage").scrollTop = s; window.scrollTo(0, y); }   // (a page followed to opens at its top)
 }
 function waitingGate() {   // this round's page, when its stop waits for the person
   if (!D.current) return null;
@@ -390,11 +393,13 @@ function placeOf(r) {   // {mod, sub} the page shows: the address's, else a page
   const g = waitingGate();
   return { mod: defaultMod(), sub: g ? stopSub(g) : "" };
 }
-function keepAddress(r) {   // the address names what is on screen: a module the page picked itself is written into it (no new history entry),
-  // so a click on that module in the rail is no change of address, and a reload stays on this page
+function keepAddress(r, moved) {   // the address names what is on screen: a module the page picked itself is written into it, so a click on that module in
+  // the rail is no change of address and a reload stays on this page. moved: the page took the person somewhere (a new page): a history entry
+  // of its own, so Back returns; else the entry is the one they opened
   if (r.mod || (r.gate && D && r.gate !== D.current)) return;   // (an earlier page asked for by name keeps its own address)
   const h = projHash(PKEY, MOD + (SUB ? "/" + SUB : ""));
-  if (location.hash !== h) history.replaceState(null, "", h);
+  if (location.hash !== h) history[moved ? "pushState" : "replaceState"](null, "", h);
+  if (moved) CHOSE = false;
 }
 function defaultMod() {
   const g = waitingGate();
@@ -563,10 +568,78 @@ function renderMarks() {   // the round's places in the film: on the round's own
 const COLOPEN = { least: false, listen: false };
 function goneNow(k) {   // a draft's place no longer in the files (the agent rewrote the outline or the script since it was written)
   if (!D) return false;
+  const v = FB.items[k];
+  if (v && v.drift) return v.drift === "gone";
   const [kind, id] = [k.split(":")[0], k.split(":").slice(1).join(":")];
   if (kind === "seg") return Array.isArray(D.outline) && D.outline.length > 0 && !D.outline.some((o) => String(o.id) === id);
   if (kind === "cap") { const rows = (D.captions && D.captions.rows) || []; return rows.length > 0 && !rows.some((c) => String(c.id) === id); }
   return false;
+}
+/* a note carries what it was written on: an outline part's title and words, a script line's words, a shot's id and words. Ids are
+   places (an outline part is its row's number), so after the files change a note follows its content to where it went, and a
+   place whose content changed is never taken for the note's own */
+const ANCHORED = /^(seg|cap|shot):/;
+function placeRows(kind) {
+  if (!D) return [];
+  if (kind === "seg") return (Array.isArray(D.outline) ? D.outline : []).map((o) => ({ id: String(o.id), title: String(o.title || ""), sig: `${o.title || ""}\n${o.know || ""}`, t0: o.t0, t1: o.t1 }));
+  if (kind === "cap") return ((D.captions && D.captions.rows) || []).map((c) => ({ id: String(c.id), title: cut(String(c.text || ""), 24), sig: String(c.text || ""), t0: c.t0, t1: c.t1 }));
+  if (kind === "shot") return ((D.shots && D.shots.items) || []).map((s) => ({ id: String(s.id), title: String(s.label || s.caption || ""), sig: `${s.label || ""}\n${s.caption || ""}`, t0: s.start, t1: s.end }));
+  return [];
+}
+function anchorOf(k) {   // what this place says now: {title, sig}, or null when the place is not in the files
+  const kind = k.split(":")[0], id = k.slice(kind.length + 1), r = placeRows(kind).find((x) => x.id === id);
+  return r ? { title: r.title, sig: r.sig } : null;
+}
+function anchorNotes() {   // a note kept without its anchor yet gets the one its place has now (save() runs as it is kept)
+  let n = 0;
+  for (const [k, v] of Object.entries(FB.items)) if (v && v.status && !v.at && !v.drift && ANCHORED.test(k)) { const a = anchorOf(k); if (a) { v.at = a; n++; } }
+  return n;
+}
+function relabel(kind, id, v) {   // the note's label at its new place: the part's number changes, the words it was written on stay
+  if (kind === "seg") return t("l_seg", { i: id, x: v.at.title });
+  const old = String(v.label || ""), from = String(v.from || "");   // (the id as a word of its own: "字幕 c03" → "字幕 c05")
+  if (!from) return old;
+  const re = new RegExp("(^|\\s)" + from.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&") + "(?=\\s|$)");
+  return old.replace(re, "$1" + id);
+}
+function changedWords(v) {   // a note whose place changed: what it was written on, unless its label already names it ("大纲 第 4 段 月亮")
+  const x = String((v.at && v.at.title) || "");
+  return x && !String(v.label || "").includes(x) ? t("ho_changed", { x: cut(x, 24) }) : t("ho_changed_here");
+}
+function reconcile() {   // after the files changed: each anchored note stays, follows its content, or says its place changed or went
+  if (!D || !FB) return;
+  let changed = false;
+  const rows = {}, R = (kind) => rows[kind] || (rows[kind] = placeRows(kind));
+  const free = (key) => !(FB.items[key] && FB.items[key].status);
+  for (const v of Object.values(FB.items)) if (v && v.moved) { delete v.moved; changed = true; }   // (a move is said once: from the reload that found it to the next)
+  // 1. a note whose place says something else now steps off it: the place is free for whatever the files put there
+  for (const [k, v] of Object.entries(Object.assign({}, FB.items))) {
+    if (!v || !v.at || v.was || !ANCHORED.test(k)) continue;
+    const kind = k.split(":")[0], id = k.slice(kind.length + 1), now = R(kind).find((x) => x.id === id);
+    if (now && now.sig === v.at.sig) continue;   // the same content at the same place
+    let nk = `${k}~was`, n = 2;
+    while (FB.items[nk]) nk = `${k}~was${n++}`;
+    FB.items[nk] = Object.assign({}, v, { was: id }); delete FB.items[k]; changed = true;
+  }
+  // 2. each note off its place: back to it, to where its content went (and it says so), or said changed or gone, never on what took its place
+  for (const [k, v] of Object.entries(Object.assign({}, FB.items))) {
+    if (!v || !v.at || !v.was) continue;
+    const kind = k.split(":")[0], id = v.was;
+    const to = R(kind).find((x) => x.id === id && x.sig === v.at.sig && free(`${kind}:${x.id}`)) || R(kind).find((x) => x.sig === v.at.sig && free(`${kind}:${x.id}`));
+    if (to) {
+      const nk = `${kind}:${to.id}`, n2 = Object.assign({}, v);
+      delete n2.drift; delete n2.was;
+      if (to.id !== id) {   // its label and time are the new place's; the line says once where it was
+        Object.assign(n2, { from: id, moved: to.id, label: relabel(kind, to.id, Object.assign({}, v, { from: id })) });
+        if (v.t != null && to.t0 != null) n2.t = +to.t0;
+        if (v.t1 != null && to.t1 != null) n2.t1 = +to.t1;
+      }
+      FB.items[nk] = n2; delete FB.items[k]; changed = true; continue;
+    }
+    const d = R(kind).some((x) => x.id === id) ? "changed" : "gone";
+    if (v.drift !== d) { v.drift = d; changed = true; }
+  }
+  if (changed) store.set(KEY, FB);
 }
 function notesCount() {   // the notes the person sees listed, the bar's count and the block's alike: each whole-film note its own (generalParts)
   return myItems().length + generalParts().length;
@@ -583,7 +656,8 @@ function setGeneral(L) { FB.generalItems = L; FB.general = joinGeneral(L); }
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
   const st = { ok: t("st_ok"), change: t("st_change"), ask: t("st_ask") };
-  const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span class="nt"><b>${esc(cut(v.label || k, 40))}</b>${goneNow(k) ? `<em class="gone">${esc(t("ho_gone"))}</em>` : ""} ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
+  const row = ([k, v]) => v.drift ? `<li class="drift"><span class="mono tc"></span><span class="nt"><b>${esc(cut(v.label || k, 40))}</b><em class="gone">${esc(v.drift === "changed" ? changedWords(v) : t("ho_gone"))}</em> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`
+    : `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span class="nt"><b>${esc(cut(v.label || k, 40))}</b>${goneNow(k) ? `<em class="gone">${esc(t("ho_gone"))}</em>` : v.moved ? `<em class="moved">${esc(t(k.startsWith("seg:") ? "ho_moved_seg" : "ho_moved", { i: v.from }))}</em>` : ""} ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = generalParts().map((g, i) => `<li class="general"><span class="mono tc">·</span><span class="nt"><b>${esc(g.label || t("c_whole_note"))}</b> ${esc(g.text)}</span><button type="button" class="x" data-del="#general:${i}" aria-label="${esc(t("del"))}">×</button></li>`).join("");
   const none = !items.length && !gen;   // none yet: the heading and how to start, on one line
   const n = notesCount(), subs = D ? (D.feedback || []) : [];
@@ -772,7 +846,7 @@ function payload() {
   const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
   if (D && roundTaken()) { ts.defaulted.forEach((k) => delete ts.decisions[k]); ts.defaulted = []; }   // a later batch: only what the person picked, never the recommendations again
   const { decisions, defaulted } = ts;
-  const all = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: fitLabel(v.label || k), text: v.text || "" },
+  const all = myItems().map(([k, v]) => Object.assign({ target: k, status: v.status, label: fitLabel((v.label || k) + (v.drift === "changed" ? changedWords(v) : v.drift === "gone" ? t("ho_gone") : "")), text: v.text || "" },
     v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}, v.t1 != null ? { t1: v.t1 } : {}));
   // an item feedback.py would refuse costs only itself, said before sending, never the round (its limits: tools/desk/feedback.py)
   const fits = (i) => targetOk(i.target) && cps(i.text).length <= 4000 && cps(i.suggest || "").length <= 2000 && cps(i.orig || "").length <= 2000;
@@ -865,6 +939,7 @@ async function submit() {
   $("#confirm details").open = true;
 }
 function save() {
+  if (D) anchorNotes();   // (a note just kept takes what its place says now)
   store.set(KEY, FB); AGENT.tabs();
   if (!D) return;
   renderMine(); renderRound();
@@ -872,9 +947,15 @@ function save() {
   $$("#stage [data-mark]").forEach(markHost);
 }
 let LIVE = false;   // a wait alive on the round that is out now (the status poll): it picks a submission up within the second
+let LASTKEY = 0, COMPOSING = false;   // the last keystroke or text input anywhere, and an input method composing now
+for (const ev of ["keydown", "input"]) document.addEventListener(ev, () => { LASTKEY = Date.now(); }, true);
+document.addEventListener("compositionstart", () => { COMPOSING = true; LASTKEY = Date.now(); }, true);
+document.addEventListener("compositionend", () => { COMPOSING = false; LASTKEY = Date.now(); }, true);
+const TYPING_IDLE = 30000;   // ms: a text box focused with no keystroke and no composition this long is not being typed in (a pause between two sentences is shorter)
 function busyHere() {   // the person is in the middle of something a reload would cut short: typing, the sheet open, the film playing
   const a = document.activeElement, v = $("#stage video");
-  return !!(a && (/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName) || a.isContentEditable)) || !$("#confirm").hidden || !!(v && !v.paused);
+  const texty = !!a && (a.tagName === "TEXTAREA" || a.isContentEditable || (a.tagName === "INPUT" && /^(text|search|url|email|tel|number|password)?$/i.test(a.getAttribute("type") || "")));
+  return (texty && (COMPOSING || Date.now() - LASTKEY < TYPING_IDLE)) || !$("#confirm").hidden || !!(v && !v.paused);
 }
 async function pollLive() {
   if (!PKEY || RELOADING) return;
@@ -895,8 +976,15 @@ async function pollLive() {
   if (D && D.status && (mine || !r.ok) && JSON.stringify([got, mine ? r.data.plan : D.status.plan]) !== JSON.stringify([D.status.now, D.status.plan])) {
     D.status.now = got; if (mine) D.status.plan = r.data.plan; renderNow();   // where it stands moved (a render's frames, the notes picked up)
   }
-  if (r.ok && r.data && D && r.data.round !== undefined && r.data.round !== (D.current || null) && r.data.key === PKEY) {   // the agent sent a new page
-    toast(t("new_round", { g: r.data.round || "" }));
+  if (r.ok && r.data && D && r.data.round !== undefined && r.data.round !== (D.current || null) && r.data.key === PKEY) {   // the agent sent a new page (a readable one: the server's round is)
+    if (busyHere()) return;   // (not mid-typing, not with the sheet open: the next poll follows)
+    const nr = r.data.round;
+    if (CHOSE && nr) {   // the person went where they are by their own choice: stay there and say so; the line at the top of the column has the way to the page
+      await reloadProject(false);
+      if (MOD !== stopMod(nr)) toast(t("ho_newpage", { s: stepName(nr) }));
+      return;
+    }
+    if (nr) toast(t("ho_newpage", { s: stepName(nr) }));
     await reloadProject(true);
   } else if (r.ok && r.data && D && r.data.key === PKEY && r.data.revision_stamp !== D.revision_stamp && !$(".revision-compare[open]")) {
     await reloadProject(false);
@@ -907,7 +995,9 @@ async function pollLive() {
 function moduleHead(kick, title, sub) {
   return `<div class="mh"><span class="kick">${esc(kick)}</span>${title ? `<h1>${esc(title)}</h1>` : ""}${sub ? `<p>${esc(sub)}</p>` : ""}</div>`;
 }
+let GATELOAD = null;   // the stop's page part loading into the module (reloadProject waits for it before it puts the scroll back)
 function renderModule() {
+  GATELOAD = null;
   if (PARTCTL) { PARTCTL.destroy(); PARTCTL = null; if (COLCTL && COLCTL.own) COLCTL.own(); }
   const bench = MOD === "cut" && !(GATE && GATE !== D.current);   // the cut's workbench; an earlier page of its stop is shown as a page
   if (CUT && !bench) { CUT.destroy(); CUT = null; }
@@ -922,7 +1012,7 @@ function renderModule() {
     if (page0) {   // the rest of the stop's page: after the module, above its bar
       const bar = $(".mbar", area), gp = '<div id="gatePart" class="after"></div>';
       if (bar) bar.insertAdjacentHTML("beforebegin", gp); else $(".m2", area).insertAdjacentHTML("beforeend", gp);
-      loadGatePart(page0, V);
+      GATELOAD = loadGatePart(page0, V);
     } else { const link = pastPageLink(MOD); if (link) $(".mh2", area).insertAdjacentHTML("beforeend", link); }
     $$("[data-mark]", area).forEach(markHost);
     if (V.wire) V.wire();
@@ -936,8 +1026,8 @@ function renderModule() {
   // the stop's page: its one-line summary above the tabs, the rest (decided, delegated, appendices, not looked at) after the tab's
   // content, so a tab clicked opens where the tabs are and what is reviewed stays at the top
   const page = stopPage(MOD), pr = page && (D.rounds || []).find((x) => x.id === page), sum = pr && pr.data && pr.data.summary;
-  area.innerHTML = `<section class="module" data-mod="${MOD}">${moduleHead(kickOf(MOD), "", "")}${sum ? `<p class="round-h page-sum">${esc(sum)}</p>` : ""}${subtabs(MOD)}<div id="modBody">${fn()}</div>${page ? '<div id="gatePart" class="after"></div>' : ""}</section>`;
-  if (page) loadGatePart(page, {});
+  area.innerHTML = `<section class="module" data-mod="${MOD}">${moduleHead(kickOf(MOD), "", "")}${sum ? `<p class="round-h page-sum" title="${esc(sum)}">${esc(sum)}</p>` : ""}${subtabs(MOD)}<div id="modBody">${fn()}</div>${page ? '<div id="gatePart" class="after"></div>' : ""}</section>`;
+  if (page) GATELOAD = loadGatePart(page, { drawn: (root) => { if (sum && sum.length > 120) root.insertAdjacentHTML("afterbegin", `<p class="round-h">${esc(sum)}</p>`); } });   // (a long summary, clamped above the tabs, whole here)
   else { const link = pastPageLink(MOD); if (link) $(".mh", area).insertAdjacentHTML("beforeend", link); }
   $$("[data-mark]", area).forEach(markHost);
   ({ outline: cur === "script" ? wireScript : wireOutline, board: wireBoard, sound: wireSound }[MOD] || (() => {}))();
@@ -981,7 +1071,7 @@ async function loadGatePart(gid, V) {   // V: the module draws the page's pictur
 
 /* ✓ / ✎ / ? on an item (the desk's views, moved into the modules) */
 function fbCtl(target, label, opt = {}) {
-  const v = FB.items[target] || {}, st = v.status || "";
+  const v0 = FB.items[target] || {}, v = v0.drift ? {} : v0, st = v.status || "";   // (a note whose place changed is not drawn on what took it)
   const lab = opt.labels || [t("fb_ok"), t("fb_change"), t("fb_ask")];
   return `<div class="fb" data-target="${esc(target)}" data-label="${esc(label)}"${opt.suggest != null ? ` data-orig="${esc(opt.suggest)}"` : ""}${opt.t != null ? ` data-t="${+(opt.t)}"` : ""}${opt.labels ? ` data-labels="${esc(JSON.stringify(opt.labels))}"` : ""}${opt.def ? ` data-def="${esc(opt.def)}"` : ""}>
     <span class="seg3"><button type="button" data-st="ok" class="${st === "ok" ? "on" : ""}">${esc(lab[0])}</button><button type="button" data-st="change" class="${st === "change" ? "on" : ""}">${esc(lab[1])}</button><button type="button" data-st="ask" class="${st === "ask" ? "on" : ""}">${esc(lab[2])}</button></span>
@@ -1013,7 +1103,8 @@ function refreshFb(box) {
   const host = nb.closest("[data-mark]"); if (host) markHost(host);
   const ta = nb.querySelector("textarea"); if (ta && !nb.querySelector(".fb-more").hidden) ta.focus();
 }
-function markHost(host) { const st = (FB.items[host.dataset.mark] || {}).status; host.classList.toggle("marked", !!st); host.classList.toggle("st-ok", st === "ok"); host.classList.toggle("st-ask", st === "ask"); }
+// (a note whose place changed is not this place's: not drawn on it)
+function markHost(host) { const v = FB.items[host.dataset.mark] || {}, st = v.drift ? "" : v.status; host.classList.toggle("marked", !!st); host.classList.toggle("st-ok", st === "ok"); host.classList.toggle("st-ask", st === "ask"); }
 
 function fallback(note, file, onlySection) {
   const doc = docOf(file); if (!doc) return "";
@@ -1960,7 +2051,7 @@ async function claimCode() {
 function presence() {
   if (PRES || !TOKEN) return;
   PRES = new EventSource(`/api/presence?token=${encodeURIComponent(TOKEN)}&w=${encodeURIComponent(WIN)}`);
-  PRES.onmessage = (e) => { let d = {}; try { d = JSON.parse(e.data); } catch (x) { return; } if (typeof d.go === "string" && d.go.startsWith("/")) location.hash = d.go; };
+  PRES.onmessage = (e) => { let d = {}; try { d = JSON.parse(e.data); } catch (x) { return; } if (typeof d.go === "string" && d.go.startsWith("/")) { PAGEGO = location.hash !== "#" + d.go; location.hash = d.go; } };   // (Studio sent to a stop: not the person's own move)
   PRES.onerror = () => { if (PRES && PRES.readyState === 2) { PRES = null; } };   // refused (no access any more): checkKey sees why
 }
 async function checkKey() {
