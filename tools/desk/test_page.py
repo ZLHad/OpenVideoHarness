@@ -125,6 +125,8 @@ try:
         {"click": "#openConfirm"},
         {"eval": "JSON.stringify({ ask: ($('#fixAsk') || {}).innerText || '', back: !!$('#fixBack') })", "name": "fix_with_note"},
         {"click": "#noSubmit"},
+        {"eval": "(" + ", ".join(KEEP.format(t=f"cap:c0{i}", x=f"第 {i} 句", lb=f"字幕 c0{i}") for i in (1, 2)) + ")", "name": "two"},
+        {"eval": "JSON.stringify({ bar: $('#colRound').innerText, block: $('#cMine .blk-h').innerText, rows: document.querySelectorAll('#cMine ul.mine li').length })", "name": "counts"},
         {"go": f"#/p/{key(busy)}/outline/script", "after": 2500}, tab,
         {"eval": "(" + ", ".join(KEEP.format(t=f"cap:c0{i}", x=f"第 {i} 句再口语一点", lb=f"字幕 c0{i}") for i in range(1, 9)) + ")", "name": "eight"},
         {"wait": 800},
@@ -160,6 +162,13 @@ except (TypeError, ValueError, KeyError):
     ok = False
 check("\"先改\" picked with no note: the sheet asks what to change, \"回去写\" closes it with the note box ready, \"就这样交\" still sends; with a note it does not ask",
       ok, [fs, fb, fn])
+cn = v(res, "counts")
+try:
+    c = json.loads(cn)
+    ok = c["rows"] == 3 and f"{c['rows']} 条意见" in c["bar"] and f"还没交 {c['rows']} 条" in c["block"]
+except (TypeError, ValueError, KeyError):
+    ok = False
+check("the bar's count, the notes block's count and the notes listed agree (two notes on lines and the overall words)", ok, cn)
 bv = v(res, "busy_view")
 try:
     b = json.loads(bv)

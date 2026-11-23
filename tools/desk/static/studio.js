@@ -499,6 +499,10 @@ function renderMarks() {   // the round's places in the film: on the round's own
   $$("#cMarks details").forEach((d) => d.addEventListener("toggle", () => { COLOPEN[d.dataset.k] = d.open; }));
 }
 const COLOPEN = { least: false, listen: false };
+function notesCount() {   // the notes the person sees listed, the bar's count and the block's alike: each whole-film note its own (generalParts,
+  // where the note box keeps several), else the overall words as one
+  return myItems().length + (typeof generalParts === "function" ? generalParts().length : FB.general ? 1 : 0);
+}
 function myItems() { return Object.entries(FB.items).filter(([, v]) => v && v.status); }
 function renderMine() {
   const items = myItems().sort((a, b) => (a[1].t != null ? a[1].t : 1e9) - (b[1].t != null ? b[1].t : 1e9));
@@ -506,7 +510,7 @@ function renderMine() {
   const row = ([k, v]) => `<li tabindex="0" data-goto="${esc(k)}"${v.t != null ? ` data-t="${+(v.t)}"` : ""}${v.t1 != null ? ` data-t1="${+(v.t1)}"` : ""}><span class="mono tc">${v.t != null ? esc(fmt(v.t) + (v.t1 != null ? "–" + fmt(v.t1) : "")) : ""}</span><span><b>${esc(cut(v.label || k, 40))}</b> ${esc(v.text || st[v.status] || "")}</span><button type="button" class="x" data-del="${esc(k)}" title="${esc(t("del"))}" aria-label="${esc(t("del"))} ${esc(v.label || k)}">×</button></li>`;
   const gen = FB.general ? `<li class="general"><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(FB.general)}</span><button type="button" class="x" data-del="#general" aria-label="${esc(t("del"))}">×</button></li>` : "";
   const none = !items.length && !gen;   // none yet: the heading and how to start, on one line
-  const n = items.length + (FB.general ? 1 : 0), subs = D ? (D.feedback || []) : [];
+  const n = notesCount(), subs = D ? (D.feedback || []) : [];
   const unread = subs.filter((f) => f.state === "unread"), took = roundTaken();
   const st2 = (cls, words, more) => `<p class="ho-st ${cls}"><i aria-hidden="true"></i><span>${esc(words)}</span></p>${more ? `<p class="ho-more">${esc(more)}</p>` : ""}`;
   const sentList = (f) => `<ul class="note-list sent">${(f.items || []).map((i) => `<li><span class="mono tc">·</span><span><b>${esc(cut(i.label || i.target || "", 40))}</b> ${esc(i.text || st[i.status] || "")}</span></li>`).join("")}${f.general ? `<li><span class="mono tc">·</span><span><b>${esc(t("c_whole_note"))}</b> ${esc(f.general)}</span></li>` : ""}</ul>`;
@@ -569,7 +573,7 @@ $("#colNow").addEventListener("click", (e) => {   // the one action that carries
 function roundCounts() {   // {n, d, r}: notes to send, decisions the person picked and not sent yet, decisions left to the recommendation
   const ts = toSend(ROUND.data.decisions, FB.decisions, FB.sentDec, roundOpen());
   const d = Object.keys(ts.decisions).filter((k) => !ts.defaulted.includes(k)).length;
-  return { n: myItems().length + (FB.general ? 1 : 0), d, r: D && roundTaken() ? 0 : ts.defaulted.length };   // (a later batch sends no recommendation again)
+  return { n: notesCount(), d, r: D && roundTaken() ? 0 : ts.defaulted.length };   // (a later batch sends no recommendation again)
 }
 function renderRound() {   // what the next submission would send, said plainly ("还没写意见 · 2 件按推荐"); nothing to send: the button rests
   const { n, d, r } = roundCounts();

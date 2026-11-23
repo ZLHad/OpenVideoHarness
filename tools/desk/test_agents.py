@@ -801,13 +801,21 @@ def server_checks():
         d.a(sid7, "say", {"text": "写个文件"})
         L7.wait(lambda e: e["type"] == "permission")
         L7.close()
+        # this desk's own adapters, by process tree (never by name: another run of these checks on the machine has stand-ins too)
+        rows = [x.split(None, 2) for x in subprocess.run(["ps", "-A", "-o", "pid=,ppid=,command="], capture_output=True, text=True).stdout.splitlines()]
+        tree, grew = {d.proc.pid}, True
+        while grew:
+            more = {int(x[0]) for x in rows if len(x) == 3 and x[1].isdigit() and int(x[1]) in tree} - tree
+            tree, grew = tree | more, bool(more)
+        mine = [int(x[0]) for x in rows if len(x) == 3 and int(x[0]) in tree and "fake_acp.py" in x[2]]
         code = d.stop()
 
         def reaped():
+            if not mine:
+                return "no stand-in adapter was found under the desk before it stopped"
             t0 = time.time()
             while time.time() - t0 < 12:
-                ps = subprocess.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, text=True).stdout
-                left = [l for l in ps.splitlines() if "fake_acp.py" in l and str(agents) in l or ("fake_acp.py" in l and " --speed 0.02" in l)]
+                left = [x for x in mine if "fake_acp.py" in subprocess.run(["ps", "-o", "command=", "-p", str(x)], capture_output=True, text=True).stdout]   # (alive, and still that program: a pid taken since is not it)
                 if not left:
                     break
                 time.sleep(0.3)
