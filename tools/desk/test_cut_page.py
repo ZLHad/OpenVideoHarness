@@ -1,6 +1,6 @@
 """The cut page and the note box on a long film, in a real headless Chrome (tools/ci.sh's console group; not a bin/vh command).
 
-usage: python3 tools/desk/test_cut_page.py <chrome>
+usage: python3 tools/desk/test_cut_page.py [<chrome>]
 
 A made-up 12:20 film is built in a temp folder from tools/desk/fixtures/demo: 60 shots in nine parts, about 180 lines, gate ③
 with 67 marked places (30 the agent is unsure of, 30 to listen to, 7 the check found), gate ② cut into sheets of six as an
@@ -8,7 +8,8 @@ agent writes it ("开场（1/2）"), and the same film again cut from an edit li
 The picture is ffmpeg's test pattern, 64×36 at 5 frames a second (a few hundred KB). A desk of its own serves them (a temp
 HOME and every Studio folder in the temp folder, no window, no browser, no keychain), and test_cut_page.mjs drives the
 pages through the DevTools protocol with real mouse and key events. Prints nothing and exits 0 when every check holds;
-else one line a failure, exit 1. Exit 3: no ffmpeg (the caller skips).
+else one line a failure, exit 1. Exit 3: no ffmpeg; 4: no Chrome (CHROME_PATH, the usual installs, Playwright's Chromium, as bin/vh's
+chrome_path looks; the caller skips, or on CI fails).
 """
 import json, os, random, re, shutil, subprocess, sys, tempfile, time
 from pathlib import Path
@@ -90,11 +91,28 @@ def edit_film(root, src, shots):
     return p
 
 
+def find_chrome():
+    """The Chrome bin/vh's chrome_path would take: CHROME_PATH, the system installs, then Playwright's Chromium builds, newest first."""
+    for p in (os.environ.get("CHROME_PATH", ""), "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome",
+              "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"):
+        if p and os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    for d in (os.environ.get("PLAYWRIGHT_BROWSERS_PATH", ""), str(Path.home() / ".cache/ms-playwright")):
+        if d and os.path.isdir(d):
+            for n in sorted((int(m.group(1)) for m in (re.fullmatch(r"chromium-(\d+)", x) for x in os.listdir(d)) if m), reverse=True):
+                for p in (f"{d}/chromium-{n}/chrome-linux64/chrome", f"{d}/chromium-{n}/chrome-linux/chrome"):
+                    if os.access(p, os.X_OK):
+                        return p
+    return None
+
+
 def main(argv):
-    if len(argv) != 1:
+    if len(argv) > 1:
         print(__doc__.strip(), file=sys.stderr)
         return 2
-    chrome = argv[0]
+    chrome = argv[0] if argv else find_chrome()
+    if not chrome:
+        return 4
     if not shutil.which("ffmpeg"):
         return 3
     t = Path(tempfile.mkdtemp(prefix="vh-cut-page."))
