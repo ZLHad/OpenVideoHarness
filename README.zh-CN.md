@@ -49,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 <p align="center"><a href="#studio"><img src="docs/assets/studio/hero.zh.webp" width="960" alt="OVH Studio 的窗口，开着一支片子的成片这一站：中间是星河的画面，下面是带缩略图的时间线，选中了 5 到 8 秒；右边是等你拍板的一张卡和两条对着镜头写下的意见，底下是“交给 agent”的按钮"></a></p>
 
-<p align="center"><sub>在 Studio 里做一支片子。顶上是片子走到了哪一站；指着时间线上的几秒或一个镜头写意见；右边是等你拍板的事，攒好一起交给 agent。画面里是本仓库自己的介绍片。</sub></p>
+<p align="center"><sub>在 Studio 里做一支片子。顶上是片子走到了哪一步；指着时间线上的几秒或一个镜头写意见；右边是等你拍板的事，攒好一起发出去。画面里是本仓库自己的介绍片。</sub></p>
 
 ## 它哪里不一样
 
@@ -101,25 +101,25 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 <table>
 <tr>
 <td width="56%" valign="top"><img src="docs/assets/studio/space.zh.webp" width="100%" alt="Studio 的空间：所有片子各一张卡，等你看的三支排在最前，卡上写着等你定什么"></td>
-<td valign="top"><b>片子走到哪，一眼看到。</b><br>左边一列就是做片子的几站：立意、大纲、分镜、声音、成片、交付，另有素材和决定的记录。顶上一条线标着这支片子在哪一站：琥珀色是等你，紫色是 agent 在做，绿色是过了。打开 Studio 先看到所有片子，等你的排在最前，卡上写着要你定什么。</td>
+<td valign="top"><b>片子走到哪，一眼看到。</b><br>顶上一排是这支片子的几步：立意、大纲、文案、分镜、声音、初版、交付，片子有哪几步就排哪几步，每一步下面写着谁在做：你定了、等你看、Claude Code 在做、还没开始。左边一列是看什么：每一步的内容，另有素材和决定的记录。打开 Studio 先看到所有片子，等你的排在最前，卡上写着要你定什么。</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/assets/studio/board.zh.webp" width="100%" alt="分镜这一站：一段一页，每一镜一张关键帧，写着看到什么，没把握的那一镜标出来"></td>
-<td valign="top"><b>审片，就是指着说。</b><br>分镜一段一页，每一镜一张关键帧；成片的时间线上排着镜头、声音、检查查出的问题和 agent 没把握的地方。选中一个镜头、一秒或一段，写一句，就记成一条点评。</td>
+<td valign="top"><b>审片，就是指着说。</b><br>分镜一段一页，每一镜一张关键帧；成片的时间线上排着镜头、声音、检查查出的问题和 AI 没把握的地方。选中一个镜头、一秒或一段，写一句，点“加一条”，就是一条意见。</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/assets/studio/note.zh.webp" width="100%" alt="成片这一站：时间线上选中了几秒，右边写了一条对着这几秒的点评"></td>
-<td valign="top"><b>攒几条，一次交给 agent。</b><br>点评都对着你指的那一处，攒在右边一列。交出去之前先列一遍：每件事选了什么、每条点评说了什么。你的原话抄进项目的 <code>REVIEW.md</code>，agent 照着往下做。</td>
+<td valign="top"><b>攒几条，一次发出去。</b><br>意见都写给你指的那一处，攒在右边一列，每条写着还没发、发了还没人取，还是已经被取走。发出去之前先列一遍：每件事选了什么、每条意见说了什么。你的原话抄进项目的 <code>REVIEW.md</code>，agent 照着往下做。</td>
 </tr>
 <tr>
 <td valign="top"><img src="docs/assets/studio/decide.zh.webp" width="100%" alt="立意这一站：左边是素材里只属于这个题目的数字和物件，右边三张立意卡各配一帧，推荐的已经选好"></td>
-<td valign="top"><b>停下来的那一站，就在这里定。</b><br>到了立意、分镜、初版，右边一列是这一轮要你定的几件事，每件几张卡，推荐的已经选好。不动就是照推荐，点一下就换，最后提交一次。</td>
+<td valign="top"><b>要你定的事，就在这里定。</b><br>到了立意、分镜、初版，右边一列是这一步要你定的几件事，每件几张卡，推荐的已经选好。不动就是照推荐，点一下就换，最后发一次。</td>
 </tr>
 </table>
 
 右边一列还能直接和这台机器上的 agent 说话（Claude Code、Codex，还有 DeepSeek Harness）。先选中一个镜头再开口，它就知道你指的是哪儿；它读了什么、跑了什么命令、要你批准什么，一条条摆在那里。在空间里，同一列就是开新片子的地方：写一句想做什么、发送，agent 一建好片子，这段对话就跟着进去。第一次和某个 agent 说话前要装一个适配器：在右边一列点「装上」，Studio 自己装好。
 
-用哪个模型、想多深，都在对话栏里选，Studio 记得你上次的选择。Codex 那一栏点 **选模型和思考深度**，它先开一个空对话，读出你的账号能用的模型，选好再发送需求。
+用哪个模型、想多深，都在“在这里聊”那一栏里选，Studio 记得你上次的选择。Codex 那一栏点 **选模型和思考深度**，它先开一个空对话，读出你的账号能用的模型，选好再发送需求。
 
 点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，点"发出去"就能叫醒它；其余情况发出去以后回原对话说一声"我发了"。标准档在 Studio 开着时也在 Studio 审，没开时发静态审阅页；也可以指定用哪个。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
 
