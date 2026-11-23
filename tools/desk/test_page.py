@@ -170,7 +170,7 @@ try:
         {"eval": "$('#cMine').innerText", "name": "late_block"},
         {"click": "#openConfirm"}, {"eval": "$('#submitHint').innerText", "name": "late_sheet"},
         {"click": "#doSubmit", "after": 3000},
-        {"until": "$('#cMine') && /补交的 1 条，还没人取/.test($('#cMine').innerText) && $('#colRound').innerText", "name": "late_after", "ms": 10000},
+        {"until": "$('#cMine') && /补发的 1 条，还没人取/.test($('#cMine').innerText) && $('#colRound').innerText", "name": "late_after", "ms": 10000},
         {"go": f"#/p/{key(fix)}/outline/script", "after": 2500}, tab,
         {"eval": "(pick('keep', 'K2'), true)", "name": "pick_keep"},
         {"click": "#openConfirm"},
@@ -197,9 +197,9 @@ try:
         {"write": str(moved / "out" / "review" / "gate-1b.json"), "text": json.dumps(AGAIN, ensure_ascii=False)},
         {"write": str(moved / "out" / "review" / "gate-1b.html"), "text": "<!doctype html><title>1b</title>"},
         {"write": str(moved / "out" / "review" / ".current"), "text": "1b\n"},
-        {"until": "/在旁白稿那一页写的 1 条，还没交/.test(($('#cMine') || {}).innerText || '')", "name": "moved_shown", "ms": 15000},
+        {"until": "/在文案那一页写的 1 条，还没发/.test(($('#cMine') || {}).innerText || '')", "name": "moved_shown", "ms": 15000},
         {"click": "[data-left-send]", "after": 3000},
-        {"until": "!/还没交/.test(($('#cMine') || {}).innerText || '') || /补交|还没人取/.test(($('#cMine') || {}).innerText || '')", "name": "moved_sent", "ms": 10000},
+        {"until": "!/还没发/.test(($('#cMine') || {}).innerText || '') || /补发|还没人取/.test(($('#cMine') || {}).innerText || '')", "name": "moved_sent", "ms": 10000},
         {"go": f"#/p/{key(busy)}/outline/script", "after": 2500}, tab, {"wait": 800},   # (back to the film with eight notes kept, for the layout below)
     ]
     VIEW = ("JSON.stringify((() => { const m = $('#cMine'), h = $('#cMine .blk-h'), n = $('#cMine li[data-goto=\"cap:c08\"]'), r = (e) => e && e.getBoundingClientRect(); "
@@ -306,15 +306,15 @@ def check(what, ok, why):
 
 
 bar, block, sheet, after = v(res, "late_bar") or "", v(res, "late_block") or "", v(res, "late_sheet") or "", res.get("late_after") or {}
-check("a round an agent already took: the bar says these notes go on their own as a later batch (补交), the notes block says the earlier ones were "
+check("a round an agent already took: the bar says these notes go on their own as a later batch (补发), the notes block says the earlier ones were "
       "picked up, the sheet says so before sending and who picks them up; after sending, the block says they are not picked up yet, never that they went to the agent",
-      "补充 1 条" in bar and "补交" in bar and "已经交给" not in bar and "还没交 1 条" in block and "取走" in block and "已经被 AI 取走了" in sheet
-      and "单独交" in sheet and "现在没有 AI 在等" in sheet and after.get("ok") and "交了，还没人取" in str(after.get("value")) and "已经交给 agent" not in str(after.get("value")),
+      "补充 1 条" in bar and "补发" in bar and "已经发出去" not in bar and "还没发 1 条" in block and "取走" in block and "已经被 AI 取走了" in sheet
+      and "单独发" in sheet and "现在没有 AI 在等" in sheet and after.get("ok") and "发了，还没人取" in str(after.get("value")) and "已经发出去" not in str(after.get("value")),
       [bar, block, sheet, after])
 fs, fb, fn = v(res, "fix_sheet"), v(res, "fix_back"), v(res, "fix_with_note")
 try:
     fs, fb, fn = json.loads(fs), json.loads(fb), json.loads(fn)
-    ok = "先改" in fs["ask"] and "还没写改哪里" in fs["ask"] and fs["back"] and fs["go"] == "就这样交" and fb["hidden"] and fb["focus"] == "say" and not fn["back"] and not fn["ask"]
+    ok = "先改" in fs["ask"] and "还没写改哪里" in fs["ask"] and fs["back"] and fs["go"] == "就这样发" and fb["hidden"] and fb["focus"] == "say" and not fn["back"] and not fn["ask"]
 except (TypeError, ValueError, KeyError):
     ok = False
 try:
@@ -323,11 +323,11 @@ try:
 except (TypeError, ValueError, KeyError):
     ks, ok = v(res, "keep_sheet"), False
 check("\"先改\" (an option whose gate JSON says needs_note) picked with no note: the sheet asks what to change, \"回去写\" closes it with the note box "
-      "ready, \"就这样交\" still sends; with a note it does not ask, nor for an option that means \"no change\" (\"不要改，保持不变，不用重做\")", ok, [fs, fb, fn, ks])
+      "ready, \"就这样发\" still sends; with a note it does not ask, nor for an option that means \"no change\" (\"不要改，保持不变，不用重做\")", ok, [fs, fb, fn, ks])
 cn = v(res, "counts")
 try:
     c = json.loads(cn)
-    ok = c["rows"] == 3 and f"{c['rows']} 条意见" in c["bar"] and f"还没交 {c['rows']} 条" in c["block"]
+    ok = c["rows"] == 3 and f"{c['rows']} 条意见" in c["bar"] and f"还没发 {c['rows']} 条" in c["block"]
 except (TypeError, ValueError, KeyError):
     ok = False
 check("the bar's count, the notes block's count and the notes listed agree (two notes on lines and the overall words)", ok, cn)
@@ -343,7 +343,7 @@ for name in [k for k in res if k and k.startswith("busy_view")]:
         def seen(x):   # inside the column's visible part, and inside the block's own
             return x[0] >= max(b["body"][0], b["m"][0]) - 1 and x[1] <= min(b["body"][1], b["m"][1]) + 1
         ok = b["h"] and b["n"] and seen(b["h"]) and seen(b["n"]) and b["n"][0] >= b["h"][1] - 2 and b["m"][1] <= b["body"][1] + 1 \
-            and b["m"][1] - b["m"][0] >= 3 * (b["h"][1] - b["h"][0]) and ("还没交 8 条" in b["text"] or "8 not sent yet" in b["text"])
+            and b["m"][1] - b["m"][0] >= 3 * (b["h"][1] - b["h"][0]) and ("还没发 8 条" in b["text"] or "8 not sent yet" in b["text"])
     except (TypeError, ValueError, KeyError):
         ok = False
     if not ok:

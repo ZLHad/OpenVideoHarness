@@ -31,7 +31,7 @@ LABELS = {
     "themes": ["主题", "Theme"],
     "theme": {"darkfield": ["暗场", "Darkfield"], "prism": ["棱镜", "Prism"], "bridge": ["舰桥", "Bridge"]},
     "layout": {"review": ["审片", "Review"], "fine": ["精修", "Fine cut"], "sound": ["听声音", "Listen"]},
-    "submit": ["交给 agent", "Send to agent", "提交这一轮"],
+    "submit": ["发出去", "Send"],   # the round's button, with what goes after it: 发出去（2 条意见 · 1 个选择）
     "cancel": ["再看看", "Keep looking"],
 }
 MODULE_NAMES = {"idea": "立意", "outline": "大纲", "board": "分镜", "sound": "声音", "cut": "成片", "ship": "交付",
@@ -87,7 +87,7 @@ class Shooter:
     def find(self, page, names, roles=("button", "tab", "radio", "link", "menuitem")):
         """The first visible element whose accessible name or title is one of names, by role, then by its text."""
         for n in names:
-            exact = re.compile(rf"^\s*{re.escape(n)}\s*$")
+            exact = re.compile(rf"^\s*{re.escape(n)}(?:（[^）]*）| \([^)]*\))?\s*$")   # a count after the name is the same button
             for role in roles:
                 loc = page.get_by_role(role, name=exact)
                 for i in range(min(loc.count(), 5)):

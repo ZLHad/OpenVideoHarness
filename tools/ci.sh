@@ -2747,7 +2747,7 @@ PY
   a=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1); rec "$q" "Budget=\$5"; b=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1)
   rec "$q" "Budget=default" "Review language=en"; c=$(vh gate "$q" 1 --page 2>/dev/null | tail -n 1)
   rm -rf "$q/out/review"; rec "$q" g1; python3 tools/gatecheck.py "$q" >/dev/null 2>&1; rc=$?; d=$(plan "$q")
-  if [ "$a" = "这支片子我打算停两次：这一次（立意）和初版；分镜随初版那一页给你，不单独停。想多看一步或少看一步，回我一句就行。" ] \
+  if [ "$a" = "这支片子我打算停两次：这一次（立意）和初版；分镜不单独停，跟初版放在同一页给你看。想多看一步或少看一步，回我一句就行。" ] \
     && [ "$b" = "这支片子我打算停三次：这一次（立意）、分镜、初版；分镜单独停，因为有付费调用。想多看一步或少看一步，回我一句就行。" ] \
     && case "$c" in "I plan to stop twice on this film: now (the concept) and at the first draft;"*"Tell me in a sentence if you want to see more, or less.") true ;; *) false ;; esac \
     && [ "$rc" = 0 ] && [ "$d" = "1:done 3:in_progress deliver:not_started | 1,3 | " ]
@@ -3865,12 +3865,12 @@ rows = get("/api/projects")["projects"]
 print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
 PY
 )
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"在 Studio 里打开了"*"然后回到这里跟我说一声"*"我交了"*) true ;; *) false ;; esac \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"在 Studio 里打开了"*"然后回到这里跟我说一声"*"我发了"*) true ;; *) false ;; esac \
     && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
     && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
     && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
     && [ "$only" = "1 True" ] \
-    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在等，你一交我就接着做' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
+    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在等，你一发我就接着做' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
     && python3 - "$g/.ovh/activity.jsonl" <<'PY'
 import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]

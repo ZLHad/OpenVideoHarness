@@ -331,8 +331,10 @@ def ask_of(row, gid, gate):
     q = next((d.get("question") for d in decs if isinstance(d.get("question"), str) and d.get("question").strip()), None)
     s = gate.get("summary") if isinstance(gate.get("summary"), str) else ""
     qs = [d["question"].strip()[:80] for d in decs if isinstance(d.get("question"), str) and d["question"].strip()][:4]
+    cards = any(isinstance(o, dict) and o.get("frame") for d in decs for o in d.get("options") or [])
     return {"gate": gid, "title": review.gate_title(gid, "zh"), "title_en": review.gate_title(gid, "en"),
-            "question": (q or s or "").strip()[:160], "questions": qs, "summary": s.strip()[:160], "decisions": len(decs)}
+            "question": (q or s or "").strip()[:160], "questions": qs, "summary": s.strip()[:160], "decisions": len(decs),
+            "outline": str(gid).startswith("1") and not cards}   # a gate ① page with no concept cards asks about the outline: the card says 大纲
 
 
 def _load(p):

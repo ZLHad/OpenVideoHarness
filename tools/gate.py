@@ -56,14 +56,14 @@ from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
-SAY = {"zh": {"desk_wait": "{s}在 Studio 里打开了：选好，写下意见，点“交给 agent”。我在等，你一交我就接着做。",
-              "desk": "{s}在 Studio 里打开了：选好，写下意见，点“交给 agent”，然后回到这里跟我说一声“我交了”。",
+SAY = {"zh": {"desk_wait": "{s}在 Studio 里打开了：挑好，写下意见，点“发出去”。我在等，你一发我就接着做。",
+              "desk": "{s}在 Studio 里打开了：挑好，写下意见，点“发出去”，然后回到这里跟我说一声“我发了”。",
               "tab": "（这台电脑上没有 Chrome、Edge 这类浏览器，所以它开在了浏览器的一个标签页里。）",
               "closed": "Studio 的窗口这次没能打开（{why}）。跟我说一声“打开 Studio”，我再试一次；页面在 {page}。",
               "no_browser": "这台电脑上找不到 Chrome、Edge 这类浏览器，浏览器的标签页也没有连上", "no_connect": "窗口开了，但里面的页面没有连上",
               "printed": "Studio 的地址（另一台电脑上的浏览器用）写在了运行这条命令的终端里：十分钟内能打开一页、只能打开一次，谁先打开谁就能在里面操作，别转给别人。"},
-       "en": {"desk_wait": "{s} {be} open in Studio: pick, add your notes, press “Send to agent”. I'm waiting, and carry on as soon as you send it.",
-              "desk": "{s} {be} open in Studio: pick, add your notes, press “Send to agent”, then tell me here: “I've sent it”.",
+       "en": {"desk_wait": "{s} {be} open in Studio: pick, add your notes, press “Send”. I'm waiting, and carry on as soon as you send it.",
+              "desk": "{s} {be} open in Studio: pick, add your notes, press “Send”, then tell me here: “I've sent it”.",
               "tab": "(No Chrome, Edge or the like on this computer, so it opened in a tab of your browser.)",
               "closed": "Studio's window did not open this time ({why}). Say \"open Studio\" and I will try again; the page is {page}.",
               "no_browser": "no Chrome, Edge or the like on this computer, and no browser tab connected", "no_connect": "the window opened, but its page did not connect",
@@ -101,27 +101,29 @@ def skeleton(gate, lang, plan=None, kind=None):
         return f"{{填：{a}}}" if zh else f"{{fill in: {b}}}"   # a shape no stylesheet can write (.bar {fill: #e33} is a page's own text)
 
     def card(k):
-        c = {"id": k, "label": f(f"立意卡 {k}：核心想法，不超过 20 个字", f"concept card {k}: the idea, in at most 50 characters"),
+        c = {"id": k, "label": f(f"立意卡 {k} 怎么讲，用这支片子自己的词，不超过 20 个字（「从海边的刻度桩讲起」，不写「方案 A：具象切入」）",
+                                f"how card {k} tells it, in this film's own words, at most 50 characters (“Start at the tide post on the shore”, not “Option A: concrete entry”)"),
              "frame": f(f"立意卡 {k} 那一帧画面的路径（卡上就放这一帧）", f"the path of card {k}'s frame (the card shows it)"),
-             "pro": f("推出的画面、钩子、首尾，各一句一行（JSON 里用 \\n 换行）",
-                      "the picture, the hook and the ending it leads to, a sentence a line (\\n in the JSON)"),
+             "pro": f("推出的画面、钩子、首尾，各一句一行（JSON 里用 \\n 换行）；写人看得见的东西（「人人见过涨潮，第一秒就有画面」），不写评语（「代入感强」）",
+                      "the picture, the hook and the ending it leads to, a sentence a line (\\n in the JSON); what the person will see, not a verdict"),
              "con": f("风险或代价，一句", "its risk or cost, in a sentence")}
         if kind in PACKAGED:   # what goes out with the film: two draft titles and a cover layout a card (playbook/10 §5, §6)
             c["titles"] = [f(f"立意卡 {k} 的标题 {n}（数字和断言在 NOTES.md 有出处）", f"card {k}'s title {n} (its numbers and claims sourced in NOTES.md)") for n in (1, 2)]
             c["cover"] = f(f"立意卡 {k} 的封面版式：playbook/10 第 6 节的 C1–C5 之一，加主文案", f"card {k}'s cover layout: one of playbook/10 §6's C1–C5, and its main words")
         return c
-    d = {"version": 1, "summary": f("这页要人定什么、看完要多久，不超过 40 个字：人第一眼读的就是这句",
-                                    "what this page asks the person and how long it takes, in at most 100 characters: the first thing they read")}
+    d = {"version": 1, "summary": f("这页要人定什么、看完要多久，不超过 40 个字，像跟人说话（「先挑一个讲法，大纲跟着它走，约 2 分钟」）：人第一眼读的就是这句",
+                                    "what this page asks the person and how long it takes, in at most 100 characters, said as to a person: the first thing they read")}
     stop = stop_of(gate)
     if stop == "1":
-        d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题，一行", "which concept card? In this film's own words, one line"),
+        d["decisions"] = [{"id": "concept", "question": f("像当面问人那样问，一行，用这支片子里的东西说（「开头从海边讲，还是从太空讲？」，不写「请确认立意方向」）",
+                                          "ask as you would across a table, one line, in this film's own things (“Start on the shore, or out in space?”)"),
                            # two cards to start from: as many as really differ, each with its frame (add a C, or keep to two)
                            "options": [card("A"), card("B")], "recommend": f("A 或 B", "A or B"),
                            "columns": ["这张卡讲什么", "风险或代价"] if zh else ["what the card is", "its risk or cost"],
                            "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high"}]
         d["delegated"] = [f("替人定了的事，一项一条：规格（画幅、分辨率、帧率、时长、在哪看）、引擎、费用",
                             "what you decided for the person, one an item: the spec (frame, resolution, rate, length, where it is watched), the engine, the cost")]
-        d["appendix"] = [{"title": "大纲" if zh else "Outline", "text": f("按推荐立意写的大纲，这支片子有几段写几段，竖线表：段落、时间、看完知道什么", "the outline for the recommended concept, as many segments as this film has, a pipe table: segment, time, what the viewer knows after it")},
+        d["appendix"] = [{"title": "大纲" if zh else "Outline", "text": f("按推荐立意写的大纲，这支片子有几段写几段，竖线表：段落、时间、看完知道什么；段名说这一段讲了什么（「背面也鼓起来」），不用「开场」「钩子」「原理」这类结构名", "the outline for the recommended concept, as many segments as this film has, a pipe table: segment, time, what the viewer knows after it; name each part by what it says, not Opening or Hook")},
                          {"title": "BRIEF", "path": "BRIEF.md"}]
     elif stop == "2":
         d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it: segments, key frames, least-sure shots, animatic
@@ -134,16 +136,17 @@ def skeleton(gate, lang, plan=None, kind=None):
                         "caption": f("这些后改一次就是整片重渲，这一关定", "changed later, these mean rendering the whole film again: settled here")}]
     elif stop == "3":
         d["decisions"] = [{"id": "draft", "question": f("这版初稿放行吗？写清差什么", "does this draft pass? Say what is missing"),
-                           "options": [{"id": "OK", "label": "放行，出正式画质" if zh else "It passes: render the final",
+                           "options": [{"id": "OK", "label": "可以，出正式版" if zh else "It passes: render the final",
                                         "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")},
-                                       {"id": "FIX", "label": "改完下面几处再看" if zh else "Fix the places below, then look again",
+                                       {"id": "FIX", "label": "先改下面几处，改完再给你看" if zh else "Fix the places below, then look again",
                                         "pro": f("好处", "what it gains"), "con": f("代价", "what it costs"), "needs_note": True}],   # (picked with no note, Studio asks what to fix)
                            "recommend": f("OK 或 FIX", "OK or FIX"), "why": f("一句理由", "why, in one line"),
                            "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high"}]
         d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
                        {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
         d["least_sure"] = [{"id": f("镜头号（S04）或片子里的时间（12.4 s、0–5 s）：有时间的落在标尺上", "a shot id (S04) or a time in the film (12.4 s, 0–5 s): a time lands on the ruler"),
-                            "note": f("自己最不满意的一处和默认的修法，一句；有几处写几处", "a place you like least and the fix it gets by default, a sentence; as many entries as there are such places")}]
+                            "note": f("自己最不满意的一处和默认的修法，一句；有几处写几处。用片子里的时间和画面说是哪儿（「1:23 月亮出来那一下可能太快，默认放慢一半」），不写镜头号和文件名",
+                                       "a place you like least and the fix it gets by default, a sentence; as many entries as there are such places. Say where by the film's time and picture, not by shot ids or file names")}]
         d["appendix"] = [{"title": "评审打的分" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
         if plan and not plan["quick"] and "2" not in plan["gates"]:   # no storyboard stop: the storyboard is shown here, each shot passed unless the person says otherwise
             d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it, from the draft's own frames
@@ -183,6 +186,8 @@ def init_page(project, gate_arg, shown, as_json=False):
     print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file", file=say)
     print("  keep it short: summary at most 40 CJK characters (100 letters), a question one line, a label 20 (50), pro, con and each "
           "least-sure note a sentence; reasons go into why, details into the appendix", file=say)
+    print("  the words on this page are for a person: ask as you would across a table, name parts by what they say, and keep shot ids, "
+          "file names and English states out of what the person reads", file=say)
     print("  an option's id is what the person types back (\"1 A\"): keep it short (A / B, H1 / H2, OK / FIX), and different "
           "between the page's decisions; the label beside it is what the person reads, so the label carries the meaning", file=say)
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}', file=say)

@@ -51,7 +51,8 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .topbar .crumbs{flex:0 1 auto;max-width:34%}
 .flow{flex:1 1 auto;display:flex;align-items:center;justify-content:safe center;gap:0;list-style:none;margin:0;padding:0;min-width:0;overflow-x:auto;scrollbar-width:none}
 .flow li{display:flex;align-items:center;flex:0 0 auto}
-.flow li+li::before{content:"";width:16px;height:1px;margin:0 8px;background:var(--rule-2)}
+.flow li+li::before{content:"";width:12px;height:1px;margin:0 6px;background:var(--rule-2)}
+@media (max-width:1400px){.flow li+li::before{width:6px;margin:0 3px}.flow .stn{padding:4px 6px}}   /* seven steps and their words fit a 1280 window, in English too */
 .stn{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;background:none;cursor:pointer;font-size:var(--fs-small);line-height:1.25;color:var(--ink-3);padding:4px 10px;border-radius:var(--r-card);white-space:nowrap}
 .stn .nm{display:inline-flex;align-items:center;gap:6px}
 .stn i{width:7px;height:7px;border-radius:50%;background:var(--rule-2);flex:0 0 auto}
@@ -64,8 +65,9 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .stn.past i{background:var(--ok);opacity:.45}.stn.past small{color:var(--ink-3)}   /* a film that went out: a stop it left open, past, with no word */
 .stn.wait small{color:var(--wait)}.stn.agent small{color:var(--agent)}
 .stn.wait{background:var(--wait-soft);box-shadow:inset 0 0 0 1px var(--wait-line)}   /* where it waits for you, at a glance (舰桥's solid block, softer) */
-.stn[aria-current=true]{color:var(--ink-hi);background:var(--panel-3)}
-:root[data-theme=darkfield] .stn[aria-current=true]{background:none;box-shadow:inset 0 -1px 0 var(--ink)}
+.stn.now{color:var(--ink-hi)}   /* the one step the film is at (where you look is the rail's): it waits for you (amber, above), or for the AI */
+.stn.now:not(.wait){box-shadow:inset 0 0 0 1px var(--rule-2)}
+.stn.now.agent{background:color-mix(in srgb,var(--agent) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--agent) 45%,transparent)}
 :root[data-theme=prism] .stn.wait{background:var(--wait-soft);box-shadow:inset 0 0 0 1px var(--wait-line)}
 :root[data-theme=bridge] .stn{border-radius:0;background:var(--panel-2)}
 :root[data-theme=bridge] .stn.wait{background:var(--wait);color:var(--on-wait)}:root[data-theme=bridge] .stn.wait em,:root[data-theme=bridge] .stn.wait small{color:var(--on-wait)}
@@ -87,6 +89,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 :root[data-theme=bridge] .mod[aria-current=page]{background:var(--panel-3)}
 :root[data-theme=bridge] .mod[aria-current=page]::before{content:"";position:absolute;left:-5px;top:10px;bottom:10px;width:2px;background:var(--ink)}
 .mod .dot{position:absolute;top:7px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--wait);box-shadow:0 0 8px var(--wait)}
+@media (min-width:901px){.mod .dot{display:none}}   /* where the film waits is the top row's to say; on a phone the top row is folded away and the dot says it */
 
 /* ---------- the module area ---------- */
 .stage-area{grid-row:2;min-width:0;min-height:0;overflow:auto;position:relative}

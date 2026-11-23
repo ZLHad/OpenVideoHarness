@@ -96,10 +96,12 @@ function crumbs(parts) {
 function renderFlow() {
   const el = $("#flow");
   if (!D) { el.innerHTML = ""; return; }
-  el.innerHTML = FLOW.map((f) => {   // each stop by its name, its state in words under it (已定 11-14, 等你, 跳过): no numbers, no strikes
-    const fs = flowState(f), word = flowWord(fs);
-    const tip = [t("m_" + f.mod), word].concat(fs.S.map((s) => s.note).filter(Boolean).map((n) => { const w = statusWords(n); return w.known ? w.text : `${t("ns_raw")}${COLON()}${w.text}`; })).join(" · ");
-    return `<li><button type="button" class="stn ${fs.state}" data-go-mod="${f.mod}" title="${esc(tip)}" aria-current="${MOD === f.mod}"><span class="nm"><i aria-hidden="true"></i>${esc(t("m_" + f.mod))}</span><small>${esc(word)}</small></button></li>`;
+  const steps = flowSteps(), states = steps.map((f) => flowState(f));
+  const now = states.findIndex((fs) => fs.state === "wait" || fs.state === "agent" || fs.open);   // the one step the film is at: it waits for you, or for the AI
+  el.innerHTML = steps.map((f, i) => {   // each step by its name, who is on it under it (你定了 11-14, 等你看, Claude Code 在做): no numbers, no strikes
+    const fs = states[i], word = flowWord(fs);
+    const tip = [t(f.nm), word].concat(fs.S.map((s) => s.note).filter(Boolean).map((n) => { const w = statusWords(n); return w.known ? w.text : `${t("ns_raw")}${COLON()}${w.text}`; })).join(" · ");
+    return `<li><button type="button" class="stn ${fs.state}${i === now ? " now" : ""}" data-go-mod="${f.go || f.mod}" title="${esc(tip)}" aria-current="${i === now ? "step" : "false"}"><span class="nm"><i aria-hidden="true"></i>${esc(t(f.nm))}</span><small>${esc(word)}</small></button></li>`;
   }).join("");
 }
 function waitsIn(mod) { const f = FLOW.find((x) => x.mod === mod); return !!f && flowState(f).state === "wait"; }
@@ -134,7 +136,7 @@ function lampOf(r) {   // violet only for what is running now (bin/vh status's a
   const you = (r.now || {}).you;   // amber: it waits for the person, or needs a word from them
   return r.state === "waiting_person" || ((you === "decide" || you === "nudge") && !(r.running || []).length) ? "wait" : (r.running || []).length ? "agent" : r.state === "delivered" ? "done" : "";
 }
-function stopOf(r) { return r.station ? (L.stn[r.station.id] || r.station.name || "") : ""; }
+function stopOf(r) { return r.ask && r.ask.outline ? t("s_outline") : r.station ? (L.stn[r.station.id] || r.station.name || "") : ""; }   // a gate ① page with no cards is the outline's
 function filmName(r) { return r.title && r.title !== r.name ? r.title : String(r.name || "").replace(/^\d{4}-\d{2}-\d{2}-/, ""); }   // a film with no title of its own: its folder, without the date in front
 function stateWords(r) {   // where a film is, in words: 初版 · 等你看, 正在渲染，340 / 900 帧, 停下了, 已交付 10-23 (bin/vh status's now, tools/standing.py)
   const sh = r.now && r.now.short && r.now.short[LANG === "zh" ? "zh" : "en"];
@@ -432,7 +434,7 @@ function renderColumn() {
   const dl = filmDelivered(), day = dl ? shortDate(stopDate(stations().filter((x) => x.id === "deliver"))) : "";
   const roundName = dl ? (day ? t("f_delivered_d", { d: day }) : t("f_delivered")) : ROUND.id === "notes" ? t("col_notes") : gateName(ROUND.id);   // the stop, not its page
   // the agent's being there is said when it waits (a desk wait); its absence is not news, so nothing is shown then
-  $("#colHead").innerHTML = `<b>${esc(t(dl ? "col_film" : "col_round"))}</b><span class="who">${esc(roundName)}</span><span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on"))}</span></span>`;
+  $("#colHead").innerHTML = `<b>${esc(dl ? t("col_film") : roundVerb())}</b>${dl ? `<span class="who">${esc(roundName)}</span>` : ""}<span class="state${on ? " agent" : ""}" title="${esc(t("live_on_tip"))}"${on ? "" : " hidden"}><i aria-hidden="true"></i><span>${esc(t("live_on", { a: holderName() }))}</span></span>`;
   const g = GV && GV.current && roundOpen() ? GV : null;   // the cards while this round's stop is open (not passed or skipped)
   const home = stopMod(ROUND.id) || "cut", here = !g || MOD === home, n = (ROUND.data.decisions || []).length;
   const page = ROUND.page ? ` <a class="meta" href="${esc(src(ROUND.page))}" target="_blank" rel="noopener" title="${esc(ROUND.page)}">${esc(t("static_page"))} ↗</a>` : "";
@@ -462,6 +464,13 @@ function handedNow() {   // the newest submission for this round's stop, once it
 const PROG = { claude: "Claude Code", codex: "Codex" };
 function progName(p) { return PROG[p] || t("ho_ai"); }   // the agent by its name when it is known, else AI
 function holderName() { const h = D && D.status && D.status.holder; return progName(h && h.program); }
+function roundVerb() {   // the step under review, as what you do there (审文案, 看初版); a gate ① page without concept cards is the outline's
+  if (!ROUND || ROUND.id === "notes") return t("v_notes");
+  const b = gateBase(ROUND.id), r = (D.rounds || []).find((x) => x.id === ROUND.id);
+  const cards = r && ((r.data || {}).decisions || []).some((d) => (d.options || []).some((o) => o && o.frame));
+  const k = b === "1" && !cards ? "v_outline" : "v_" + b;
+  return STR[LANG][k] ? t(k) : t("col_round");
+}
 function stepName(rid) {   // a round by its step's name (旁白稿, 大纲 …): a gate ① page without concept cards is the outline
   const b = gateBase(rid), r = (D.rounds || []).find((x) => x.id === rid);
   const cards = r && ((r.data || {}).decisions || []).some((d) => (d.options || []).some((o) => o && o.frame));
@@ -734,10 +743,11 @@ function renderRound() {   // what the next submission would send, said plainly 
   const late = !!took && (n || d) > 0;   // the round was picked up: what is written now goes on its own, as a later batch
   const words = sentNow ? (last.state === "taken" ? t("ho_bar_taken", { a: progName(last.taken && last.taken.program) }) : t("ho_bar_unread"))
     : late ? t("ho_bar_late", { n: n + d, s: stepName(ROUND.id) })
-    : [n ? t("rs_notes", { n }) : t("rs_none")].concat(d ? [t("rs_picked", { d })] : [], r ? [t("rs_rec", { r })] : []).join(" · ");
+    : !n && !d && !r ? t("nothing_to_send") : r ? t("rs_rec", { r }) : "";   // what goes is on the button; beside it, only what the person may not see there
   const idle = sentNow || (!n && !d && !r);
+  const what = [n ? t("sub_notes", { n }) : "", d + r ? t("sub_choices", { n: d + r }) : ""].filter(Boolean).join(" · ");
   $("#colRound").hidden = false;
-  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(t(late ? "ho_submit_late" : "submit_round"))}</button>`;
+  $("#colRound").innerHTML = `<span>${esc(words)}</span><button type="button" class="btn btn-primary" id="openConfirm"${idle ? " disabled" : ""}>${esc(late ? t("ho_submit_late") : !idle && what ? t("submit_n", { x: what }) : t("submit_round"))}</button>`;
   $("#openConfirm").addEventListener("click", openConfirm);
   requestAnimationFrame(fadeMore);
 }
@@ -812,7 +822,7 @@ function addNote() {
   const ta = $("#say"), text = ta.value.trim();
   if (!text) { ta.focus(); return; }
   if (!SCOPE || !SCOPE.target) {   // the whole module, or a place with no target of its own: the round's overall words, a note of their own, named
-    setGeneral(generalParts().concat([{ label: SCOPE ? SCOPE.label : MOD && MOD !== "cut" ? t("m_" + MOD) : t("whole_film"), text }]));
+    setGeneral(generalParts().concat([{ label: SCOPE ? SCOPE.label : MOD === "outline" && SUB === "script" ? t("s_script") : MOD && MOD !== "cut" ? t("m_" + MOD) : t("whole_film"), text }]));
   } else {
     const cur = FB.items[SCOPE.target];
     FB.items[SCOPE.target] = Object.assign({}, cur || {}, { status: cur && cur.status === "ask" ? "ask" : "change", label: SCOPE.label, text: cur && cur.text ? cur.text + "\n" + text : text },
@@ -1070,12 +1080,12 @@ async function loadGatePart(gid, V) {   // V: the module draws the page's pictur
 }
 
 /* ✓ / ✎ / ? on an item (the desk's views, moved into the modules) */
-function fbCtl(target, label, opt = {}) {
+function fbCtl(target, label, opt = {}) {   // opt.def: what leaving it means, beside it; the usual one (没点的都算可以) is said once, above the list
   const v0 = FB.items[target] || {}, v = v0.drift ? {} : v0, st = v.status || "";   // (a note whose place changed is not drawn on what took it)
   const lab = opt.labels || [t("fb_ok"), t("fb_change"), t("fb_ask")];
   return `<div class="fb" data-target="${esc(target)}" data-label="${esc(label)}"${opt.suggest != null ? ` data-orig="${esc(opt.suggest)}"` : ""}${opt.t != null ? ` data-t="${+(opt.t)}"` : ""}${opt.labels ? ` data-labels="${esc(JSON.stringify(opt.labels))}"` : ""}${opt.def ? ` data-def="${esc(opt.def)}"` : ""}>
     <span class="seg3"><button type="button" data-st="ok" class="${st === "ok" ? "on" : ""}">${esc(lab[0])}</button><button type="button" data-st="change" class="${st === "change" ? "on" : ""}">${esc(lab[1])}</button><button type="button" data-st="ask" class="${st === "ask" ? "on" : ""}">${esc(lab[2])}</button></span>
-    ${st ? "" : `<span class="def">${esc(opt.def || t("fb_def"))}</span>`}
+    ${st || !opt.def ? "" : `<span class="def">${esc(opt.def)}</span>`}
     <div class="fb-more" ${st === "change" || st === "ask" ? "" : "hidden"}>
       <textarea rows="2" data-k="text" maxlength="4000" placeholder="${esc(st === "ask" ? t("ph_ask") : t("ph_change"))}">${esc(v.text || "")}</textarea><p class="meta box-keys">${esc(t("fb_keys"))}</p>
       ${opt.suggest != null && st === "change" ? `<input data-k="suggest" maxlength="2000" placeholder="${esc(t("ph_suggest"))}" value="${esc(v.suggest != null ? v.suggest : opt.suggest)}">` : ""}
@@ -1151,7 +1161,7 @@ function vScript() {
   const lab = C.kind === "narration" ? "l_vo" : "l_cap";
   const row = (x) => {
     const sp = speed(x), col = sp.r == null ? "var(--ink-3)" : sp.r <= sp.lim[0] ? "var(--ok)" : sp.r <= sp.lim[1] ? "var(--wait)" : "var(--live)";
-    return `<div class="capr" id="cap-${esc(x.id)}" data-mark="cap:${esc(x.id)}"><div><div class="id">${esc(x.id)}</div><div class="tm">${x.t0 != null ? fmt(x.t0) : esc(x.bars)}</div></div>
+    return `<div class="capr" id="cap-${esc(x.id)}" data-mark="cap:${esc(x.id)}"><div><div class="id" title="${esc(x.id)}">${esc(t("line_n", { n: C.rows.indexOf(x) + 1 }))}</div><div class="tm">${x.t0 != null ? fmt(x.t0) : esc(x.bars)}</div></div>
       <div>${x.term ? `<div class="term" title="${esc(t("term"))}">${esc(x.term)}</div><br>` : ""}<div class="txt">${esc(x.text)}</div>${x.visual ? `<div class="vis">${esc(t("visual"))}${COLON()}${esc(x.visual)}</div>` : ""}
         <div class="meter">${sp.r != null ? `<span>${esc(t("chars", { n: sp.n, s: sp.s.toFixed(1) }))}</span><span class="bar"><i style="width:${Math.min(100, (sp.r / (sp.lim[1] * 1.2)) * 100)}%;background:${col}"></i></span><span style="color:${col}">${sp.r.toFixed(1)}${esc(t("per_s"))}</span>` : ""}${x.facts.map((f) => `<a class="chip" href="${projHash(PKEY, "outline/facts")}">${esc(f)}</a>`).join("")}</div></div>
       <div>${fbCtl("cap:" + x.id, t(lab, { x: x.id }), { suggest: x.text })}</div></div>`;
@@ -1305,7 +1315,8 @@ function cutShots() {   // what the shots lane shows: an edit list's entry by th
 function cutParts() {   // the entries that hold shots of their own: a band above the shots, a note on one is on the whole entry
   return cutRows().filter((s) => Array.isArray(s.inner) && s.inner.length).map((s) => ({ id: String(s.id), t0: +s.start, t1: +s.end, title: s.label || s.segment || String(s.id) }));
 }
-const shotWord = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotName(s.id));   // S1_3（PROLOGUE 里）
+const shotWord = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotNo(s.id));   // as the page says it: 第 4 镜, S1_3（PROLOGUE 里）
+const shotTag = (s) => (s.part ? t("shot_in", { s: shotName(s.short), p: s.part }) : shotName(s.id));   // as the note carries it to the agent: S4   // S1_3（PROLOGUE 里）
 function cutChapters(shots) {
   const T = TL();
   const ch = (T.chapters || []).map((c) => ({ id: String(c.id != null ? c.id : c.title), title: c.title || c.name || String(c.id), t0: +(c.start != null ? c.start : c.t0), t1: +(c.end != null ? c.end : c.t1), kind: "chapter" }))
@@ -1828,7 +1839,7 @@ function CutModule(area) {
   }
   function pickThing(p, el, at) {   // at: the second a click on it was at; a mark always takes its own second
     const [kind, ...rest] = p.split(":"), id = rest.join(":");
-    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, word: shotWord(s), name: s.label, t: s.t0, t1: s.t1, label: `${shotWord(s)} ${s.label}` }, false, at); else if (parts.some((c) => c.id === id)) pickThing("entry:" + id, el, at); }
+    if (kind === "shot") { const s = shots.find((x) => x.id === id); if (s) select({ kind: "shot", id: s.id, word: shotWord(s), name: s.label, t: s.t0, t1: s.t1, label: `${shotTag(s)} ${s.label}` }, false, at); else if (parts.some((c) => c.id === id)) pickThing("entry:" + id, el, at); }
     else if (kind === "entry") { const c = parts.find((x) => x.id === id); if (c) select({ kind: "shot", part: true, id: c.id, word: c.id, name: c.title !== c.id ? c.title : "", t: c.t0, t1: c.t1, label: c.title }, false, at); }
     else if (kind === "chapter" || kind === "seg" || kind === "part") { const c = chapters.find((x) => x.id === id); if (c) select({ kind: c.kind === "part" ? "range" : c.kind, id: c.id, name: c.title, t: c.t0, t1: c.t1, label: c.title }, false, at); }
     else if (kind === "line" || kind === "play") { const i = +id, l = lines[i]; if (l) select({ kind: "line", i, id: l.id, name: t("l_line", { x: l.id }), t: l.t0, t1: l.t1, label: t("l_line", { x: l.id }) }, kind === "play", kind === "play" ? null : at); }
