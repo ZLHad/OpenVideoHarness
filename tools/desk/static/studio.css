@@ -248,6 +248,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .composer textarea{width:100%;min-height:36px;resize:vertical;transition:min-height .16s var(--ease);border:1px solid var(--rule-2);background:var(--panel-2);padding:8px 10px;font:var(--fs-small)/1.5 var(--prose);border-radius:var(--r-card)}
 :root[data-theme=darkfield] .composer textarea{border:0;border-bottom:1px solid var(--rule-2);background:none;padding:6px 0;font-size:var(--fs-text);border-radius:0}
 .composer textarea:focus{outline:none;border-color:var(--you);min-height:96px}
+.composer textarea:not(:placeholder-shown){min-height:96px}   /* a box with words in it stays open: pressing 记下 does not shrink it and move the button away from the click */
 .composer .send{display:flex;align-items:center;gap:10px}
 .composer .send .btn-primary{margin-left:auto}
 .col-closed .col-body,.col-closed .col-round,.col-closed .composer,.col-closed .col-head>*:not(.col-fold){display:none}
@@ -270,7 +271,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .cut.layout-review:not(.revision-list){grid-template-columns:0 minmax(0,1fr)}
 .cut.layout-review:not(.revision-list) .lists{display:none}
 .lists{grid-row:1;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--rule)}
-.ltabs{display:flex;gap:2px 14px;padding:10px 12px 0;border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:none}
+.ltabs{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 12px 0;border-bottom:1px solid var(--rule)}   /* every tab in sight: a narrow list takes a second row, none is cut off */
 .ltabs button{border:0;background:none;cursor:pointer;padding:0 0 8px;font-size:var(--fs-small);color:var(--ink-3);white-space:nowrap;border-bottom:1px solid transparent;margin-bottom:-1px}
 .ltabs button b{font:400 11px var(--mono);margin-left:4px}
 .ltabs button[aria-selected=true]{color:var(--ink-hi);border-bottom-color:var(--ink)}
@@ -344,7 +345,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-body .note-list li.just{background:var(--panel-3);transition:background .6s var(--ease)}   /* the note just added, lit for a moment */
 .tl{--lab-w:80px}
 .lane{display:grid;grid-template-columns:var(--lab-w) minmax(0,1fr);align-items:center;min-height:24px}
-.lane .lab{font-size:11px;color:var(--ink-3);text-align:right;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane .lab{font-size:11px;color:var(--ink-3);text-align:right;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:5;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;background:var(--bg)}   /* zoomed in and scrolled, the lanes keep their names */
 .lane .trk{position:relative;height:24px}
 .lane.shots .trk{height:46px}
 :root[data-theme=darkfield] .lane.shots .trk{height:56px;background:repeating-linear-gradient(90deg,var(--sprocket) 0 5px,transparent 5px 11px) 0 3px/100% 4px no-repeat,repeating-linear-gradient(90deg,var(--sprocket) 0 5px,transparent 5px 11px) 0 calc(100% - 3px)/100% 4px no-repeat,var(--strip)}
@@ -384,7 +385,7 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 :root[data-theme=bridge] .pin{border-radius:0}
 .span-mark{position:absolute;top:50%;height:2px;margin-top:-1px;background:currentColor;opacity:.5}
 .diff{position:absolute;top:2px;bottom:2px;border-bottom:2px solid var(--agent);font-size:10.5px;color:var(--agent);padding:0 4px;overflow:hidden;white-space:nowrap}
-.tl>.over{position:absolute;top:0;bottom:0;left:var(--lab-w);right:12px;pointer-events:none}
+.tl>.over{position:absolute;top:0;bottom:0;left:var(--lab-w);right:12px;pointer-events:none;z-index:4}
 .selr{position:absolute;top:0;bottom:0;background:var(--you-soft);border-left:1px solid var(--you);border-right:1px solid var(--you)}
 .selr .cap{position:absolute;top:24px;left:4px;margin:0;font:10.5px/1.5 var(--mono);color:var(--you);background:var(--bg);padding:0 5px;white-space:nowrap;max-width:none}
 .tl-ph{position:absolute;top:0;bottom:0;width:1px;background:var(--live)}
@@ -651,3 +652,18 @@ blockquote{margin:8px 0;padding:4px 14px;border-left:2px solid var(--rule-2);col
 .col-body .cfold>summary{cursor:pointer;list-style:none;margin:0}.col-body .cfold>summary::-webkit-details-marker{display:none}
 .col-body .cfold>summary::before{content:"▸";flex:none;width:10px;font-size:10px;color:var(--ink-3)}.col-body .cfold[open]>summary::before{content:"▾"}
 .col-body .cfold[open]>summary{margin-bottom:8px}.col-body .cfold+.cfold{margin-top:10px}.col-body .cfold>summary:hover b{color:var(--ink)}   /* the unsure places and the places to listen, folded to a heading */
+
+/* the review feel (2026-11): the grouped lanes' names stay put too; the entries that hold shots of their own, as a band above them;
+   the marks a row a kind; a note keeps its own lines */
+.tl .grp-t{position:sticky;left:10px;z-index:5;background:var(--bg)}
+:root[data-theme=prism] .lane .lab,:root[data-theme=prism] .tl .grp-t{background:linear-gradient(var(--panel),var(--panel)),var(--bg)}   /* prism's lanes sit on a panel: the names' column the same colour */
+.lane.parts .trk{height:20px}
+.blk.chap.entry{top:2px;bottom:2px;font-size:10.5px;color:var(--ink-3)}
+.lane.marks .trk{min-height:24px}
+.lane.marks .pin{margin-top:-6px}
+.lane.marks .span-mark{margin-top:-1px}
+.note-list.mine .nt,.lists .lrow .tx{white-space:pre-line}
+.composer #sayAdd{margin-left:auto}   /* on a row of its own when the place's name is long: still at the right, where it was */
+.composer .say-keys{margin:-4px 0 0;font-size:var(--fs-label);color:var(--ink-3);text-align:right}   /* the keys in words, under the box they are for */
+.box-keys{margin:2px 0 0;font-size:var(--fs-label);color:var(--ink-3);text-align:right}   /* a note box's keys, in words, under it */
+.lane.why .trk{height:20px}

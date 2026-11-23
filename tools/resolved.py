@@ -11,7 +11,9 @@ Where each part comes from:
              with neither, the shots its current film's .render.json kept (window.film.shots when it was rendered: no browser is started
              here). Each row with the table's other fields, as written. A film rendered as a part (first_frame): its shots from its own first
              frame, what lies outside it left out and what crosses its ends cut there; with a table of the whole film, its frames and length are
-             not the film's, and the table's are taken
+             not the film's, and the table's are taken. An edit list's row also carries "inner": the shots inside it, as the current film's
+             .render.json kept them (window.film.shots of each page, named <entry>.<shot>, in the film's seconds, cut to the row), when that
+             film was rendered from this edit.json; a row with none has no "inner"
   chapters   edit.json's, else the current film's .render.json (the same way for a part); a page with neither is a row of missing
   narration  an edit list's merged timeline (out/edit.timeline.<lang>.json) when there is one, else audio/timeline.<lang>.json, else
              audio/timeline.json; the template's example is no take. zh or en picks the language
@@ -22,7 +24,7 @@ A part that is not there, or cannot be read (no permission, not UTF-8, not JSON,
 a row of missing; a value that is NaN elsewhere is null. Frames are bin/vh's own (tools/timegrid.py): start_frame
 is the first frame of a span (a chapter's too), end_frame the first after it; a beat's frame is the one on screen then.
 --json: {"version": 1, "tool", "project", "fps", "fps_from", "duration", "duration_from", "frames", "size", "shots_from", "shots": [{"id", "start", "end",
-"start_frame", "end_frame", the table's other fields}], "chapters": [{"t", "frame", "title"}], "narration": [{"id", "start", "end", "start_frame", "end_frame",
+"start_frame", "end_frame", the table's other fields, "inner" with an edit list: [{"id", "start", "end", "start_frame", "end_frame"}]}], "chapters": [{"t", "frame", "title"}], "narration": [{"id", "start", "end", "start_frame", "end_frame",
 "text", "word_count", "words" with --words: [{"w", "start", "end"}], "speaker", "from"}], "captions": [{"id", "start", "end", "start_frame", "end_frame", "zh", "en",
 "part"}], "beats": [{"t", "frame", "downbeat"}], "bpm", "sources": {"shots" | "narration" | "captions" | "beats": {"path", "sha256"}}, "missing": [{"part", "why"}]}.
 Exit: 0, with parts missing too · 2 usage, or no project.
@@ -113,6 +115,26 @@ class Doc:
             self.lack("film", f"{type(e).__name__}: {e}")
             return None, None
         return film, side if isinstance(side, dict) else None
+
+    def inner(self, rows, side, fps):
+        """An edit list's rows, each with the shots its current film's render kept inside it (render.mjs: edit.mjs shotsOf, kind "shot",
+        <entry>.<shot>, in the film's seconds), cut to the row. Only a film rendered from this very edit.json: another one's are left out, said."""
+        shots = [s for s in side.get("shots") or [] if isinstance(s, dict) and s.get("kind") == "shot" and isinstance(s.get("id"), str)
+                 and num(s.get("start")) is not None and num(s.get("end")) is not None]
+        if not shots or not rows:
+            return rows
+        made_of = (side.get("edit") or {}).get("sha256") if isinstance(side.get("edit"), dict) else None
+        now = (self.sources.get("shots") or {}).get("sha256")
+        if not made_of or made_of != now:
+            self.lack("shots", "the film's render was made from another edit.json: the shots inside its parts are left out until it is rendered again")
+            return rows
+        out = []
+        for r in rows:
+            pre, a, b = f"{r['id']}.", r["start"], r["end"]
+            mine = [(s["id"], max(a, float(s["start"])), min(b, float(s["end"]))) for s in shots if s["id"].startswith(pre)]
+            mine = [{"id": i, "start": round(x, 6), "end": round(y, 6), "start_frame": frame_from(x, fps), "end_frame": frame_from(y, fps)} for i, x, y in mine if y > x + 1e-6]
+            out.append(dict(r, inner=sorted(mine, key=lambda s: s["start"])) if mine else r)
+        return out
 
     def side_part(self, side):
         """(the film's own first frame in seconds, its length in seconds or None) of a .render.json."""
@@ -324,6 +346,8 @@ def document(project, lang=None, words=False):
         fps, fps_from = 30, "the default"
     if shots_from and shots_from != "edit.json":
         rows = [spanned(r, fps) for r in rows]
+    elif shots_from == "edit.json" and side:
+        rows = D.part("shots", rows, D.inner, rows, side, fps)
     if doc is None:
         chapters = D.part("chapters", [], D.side_chapters, film, side, fps)
     narration = D.part("narration", [], D.narration, lang, doc, fps, words)
