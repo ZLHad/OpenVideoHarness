@@ -216,6 +216,9 @@ html.shell-other .topbar{padding-right:calc(14px + 100vw - env(titlebar-area-x, 
 .col-body .c-mine .blk-h{position:sticky;top:-10px;margin:-10px 0 4px;padding:10px 0 4px;background:var(--panel);z-index:1}   /* the state line stays while the notes scroll */
 .col-body .c-mine .blk-h .tag{margin-left:auto;color:var(--wait)}
 .col-body .ho-batch{margin-top:8px}
+.col-body .note-list em.gone{font-style:normal;color:var(--wait);margin-left:4px}
+.col-body .note-list em.moved{font-style:normal;color:var(--ink-3);margin-left:4px}
+.module .page-sum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}   /* the stop's summary above the tabs: two lines at most, whole below */
 .col-body .ho-st.left i{background:var(--you)}
 .col-body .ho-acts{display:flex;gap:8px;margin:4px 0 0 14px}
 .col-body .ho-st{margin:0;display:flex;gap:8px;align-items:baseline;font-size:var(--fs-small);color:var(--ink-hi)}
