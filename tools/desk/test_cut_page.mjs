@@ -133,7 +133,7 @@ try {
   // 8. the storyboard by shot: a tab a part with its shots, the sheets of one part together; ← → shot by shot
   const tabs = await ev(`Array.from(document.querySelectorAll('.pgtabs a')).map((a) => a.textContent.trim())`);
   want(tabs.length === opt.parts && opt.sheets > opt.parts, `${opt.sheets} sheets of ${opt.parts} parts made ${tabs.length} tabs`);
-  want(tabs.every((x) => !/页|Page/.test(x)) && /^S1–S\d+ /.test(tabs[0] || ""), `the tabs say pages, not shots: ${tabs.slice(0, 3).join(" | ")}`);
+  want(tabs.every((x) => !/页|Page/.test(x)) && /^(第 1–\d+ 镜|Shots 1–\d+) /.test(tabs[0] || ""), `the tabs say pages, not shots: ${tabs.slice(0, 3).join(" | ")}`);
   await ev(`document.activeElement && document.activeElement.blur()`);
   await key("ArrowRight", "ArrowRight", 39); await key("ArrowRight", "ArrowRight", 39); await sleep(300);
   const cur = await ev(`({ id: (document.querySelector('.shotc.cur') || {}).id || "", scope: document.querySelector('#scope').textContent })`);

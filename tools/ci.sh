@@ -4194,9 +4194,9 @@ const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
 for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
 want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes(run("esc(D.ideas.same_topic)")) && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
 want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
-want(h.board.includes("开场 · S1–S2") && h.board.includes(">S3–S4 两个鼓包<") && !/第 \d+ 页/.test(h.board) && (h.board.match(/class="shotc/g) || []).length === 2, "board: the first part, two shots, its tabs named by their shots, no pages");
+want(h.board.includes("开场 · 第 1–2 镜") && h.board.includes(">第 3–4 镜 两个鼓包<") && !/第 \d+ 页/.test(h.board) && (h.board.match(/class="shotc/g) || []).length === 2, "board: the first part, two shots, its tabs named by their shots, no pages");
 run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
-want(b2.includes("两个鼓包 · S3–S4") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
+want(b2.includes("两个鼓包 · 第 3–4 镜") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
   "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
 want(h.sound.includes("-14.2") && /<article class="vcard on"[^>]*>\s*<h3><b>Charon<\/b>/.test(h.sound) && (h.sound.match(/<tr\b[\s\S]*?<\/tr>/g) || []).filter((r) => r.includes("chip wait")).length === 1
   && ["0:09.0", "0:21.3"].every((x) => h.sound.includes(x)), "sound: loudness, the voice in use, one fast line flagged, the lifts at their seconds");
@@ -4348,7 +4348,7 @@ try {
   { const w = run(`statusWords("fill BRIEF.md (7 {…} left); render the final")`);
     want(w.known && w.text.includes("7") && w.text.includes("；") && !/\.md|\{…\}/.test(w.text), "a next step of two of status's lines, as older projects get it, said without the file or the placeholder: " + w.text); }
   run(`LANG = "en"; L = STR.en;`);
-  want(run(`t("sent_n", { n: 5, d: 1, at: "x" })`).startsWith("Sent 5 notes and 1 decision (x)") && run(`t("sent_n", { n: 1, d: 2, at: "x" })`).startsWith("Sent 1 note and 2 decisions (x)"), "English counts: " + run(`t("sent_n", { n: 5, d: 1, at: "x" })`));
+  want(run(`t("sent_n", { n: 5, d: 1, at: "x" })`).startsWith("Sent 5 notes and 1 choice (x)") && run(`t("sent_n", { n: 1, d: 2, at: "x" })`).startsWith("Sent 1 note and 2 choices (x)"), "English counts: " + run(`t("sent_n", { n: 5, d: 1, at: "x" })`));
   { const w = run(`statusWords("fill BRIEF.md (7 {…} left); record the decision for gate 2 in REVIEW.md")`).text;
     want(w.includes("7 blanks") && !/\.md|\{…\}|gate 2/.test(w), "status's lines in an English page still name files and stops by code: " + w); }
   run(`LANG = "zh"; L = STR.zh;`);
