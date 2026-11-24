@@ -2,6 +2,30 @@
 
 What changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.
 
+## v0.9.1 — 2026-11-25
+
+A patch release: the pictures and two layout faults that v0.9.0 left behind.
+
+- **The Studio screenshots follow the new page:** the 18 pictures in the READMEs and on the homepage were shot again on v0.9.0's Studio, with their captions and alt texts in the new words.
+- **The note you just added stays in view:** with two decisions open, "Your notes" no longer shrinks to a line or two; it keeps its state line and the last three notes, and the decisions above scroll.
+- **A long shot name no longer pushes the right column wider:** nothing in the column is wider than the column in any theme; a long label ends in "…" with its whole text on hover, and the Send button stays whole.
+
+Known and not fixed: in English at 1280×720 on the first-draft page the right column is short, so "Your notes" shows about one and a half notes and the rest scroll. The 17-second Studio film still shows the old words.
+
+The full entries follow, newest first.
+
+**Studio 右栏：刚加的意见整条看得见，长的镜头名不再把右栏撑宽**
+- Why: 重拍 README 截图时看到两处：1440×900、1280×720 下右栏有两件待定的事时，"你的意见"被挤到一两行高，刚加的那条只露半截；英文里一个长的镜头名选中以后，"关于"那一格把右栏撑出去，"发送"按钮被切掉一半，三套主题都会，棱镜和舰桥的标签用等宽字，所以先出界。
+- "你的意见"至少放得下状态那一行和最后三条意见（不到三条就全放下），上面要定的事让出位置、自己滚动，最少留 4.5rem；一条很长的意见在格子里滚着读，不会半行截断。1280×720 下这一格从约 148 像素高、露两条，变成约 198 像素、露三条。
+- 右栏里任何东西都不比右栏宽：选中的那一处、对话里"关于"的标签写不下就以"…"结尾，鼠标停上去看全文；块标题、按钮的字换行；"发送"按钮总是整个在右栏里。
+- `tools/desk/test_page.py` 加了两项检查：两件待定的事和四条意见（一条很长）在 1440×900 和 1280×720 下；60 个字符的英文镜头名在三套主题的两个页签里。
+- README 和官网的 Studio 截图里，主图、初版写意见和三张英文主题图跟着重拍，样例意见和选项换回原来的长句。
+
+**README 和官网上的 Studio 截图跟着新页面重拍**
+- Why: v0.9.0 改了 Studio 页面上的每一个字，顶上一排成了片子走到哪的唯一地方，可 README 和官网用的 18 张图还是旧页面（"交给 agent""记下""这一站""对话"），图下的说明也还在说旧词。
+- 中英文各 9 张重拍：主图、空间、分镜、初版写意见、立意、复审对比和三套主题，片子和停的那一步跟原来一样，用的还是仓库自己的介绍片和样片；复审对比换成样片里的傅里叶讲解，弹窗多了一行"换行"提示，高 674 像素。
+- 两份 README 和官网里描述这些图的 alt 和图下的说明换成新页面上的说法：初版、加一条、发出去、AI，不再说"站""交给""对着"；官网四张卡的说明跟着改成顶上一排是几步、左边一列是看什么。
+
 ## v0.9.0 — 2026-11-24
 
 A minor release: reviewing a film in Studio can be trusted. It follows the first real twelve-minute film made with Studio, where a batch of notes was lost, the window showed an outline that no longer existed, and the words on the page were hard to follow. A note you send is no longer lost and the page says who has it; the window shows what the files say now; the timeline keeps up with a long film; and every page's words were rewritten.
