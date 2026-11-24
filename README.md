@@ -47,7 +47,7 @@ The agent keeps the source and exports together in the film's project folder. Wi
 
 [Step-by-step guide](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) · [Install options and updates](#install-options-and-updates)
 
-<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.en.webp" width="960" alt="The OVH Studio window on a film's cut stop: the galaxy picture in the middle, under it a timeline with thumbnails and seconds 5 to 8 selected; on the right a card waiting for your decision and two notes written on shots, with the Send to agent button below"></a></p>
+<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.en.webp" width="960" alt="The OVH Studio window on a film's first draft: the galaxy picture in the middle, under it a timeline with thumbnails and seconds 5 to 8 selected; along the top the film's steps, the first draft waiting for you; on the right the first-draft review with one choice made and two notes not sent yet, and the Send button below"></a></p>
 
 <p align="center"><sub>Making a film in Studio. Along the top, where the film has got to. Point at a few seconds of the timeline, or at a shot, and write a note. On the right, what waits for your decision; send it all together. The film on screen is this repo's own intro film.</sub></p>
 
@@ -100,19 +100,19 @@ On top of the skills and the command line, we built Studio, a visual window that
 
 <table>
 <tr>
-<td width="56%" valign="top"><img src="docs/assets/studio/space.en.webp" width="100%" alt="Studio's space: a card for every film, the three waiting for you first, each saying what you have to decide"></td>
+<td width="56%" valign="top"><img src="docs/assets/studio/space.en.webp" width="100%" alt="Studio's space: a card for every film, the three waiting for you first, each saying what you have to decide; on the right, the place to write the film you want to make"></td>
 <td valign="top"><b>Where each film has got to, at a glance.</b><br>The row along the top is this film's steps: concept, outline, script, storyboard, sound, first draft, delivery, only the steps this film has, each saying who is doing what: you decided, waiting for you, Claude Code working, not started yet. The column on the left is what to look at: each step's content, plus a record of assets and decisions. Studio opens on every film, the ones waiting for you first, each card saying what you have to decide.</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/assets/studio/board.en.webp" width="100%" alt="The storyboard stop: a page per segment, a keyframe per shot saying what is seen, the shot the agent is unsure of marked"></td>
+<td valign="top"><img src="docs/assets/studio/board.en.webp" width="100%" alt="A storyboard waiting for you: a page per segment, a keyframe per shot saying what is seen, the shot the AI is unsure of marked; on the right the storyboard review and its one decision"></td>
 <td valign="top"><b>Reviewing is pointing and saying.</b><br>The storyboard is a page per segment and a keyframe per shot; the cut's timeline carries the shots, the sound, what the checks found and where the AI is unsure. Select a shot, a second or a span, write a line, press “Add”, and it is a note.</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/assets/studio/note.en.webp" width="100%" alt="The cut stop: a few seconds selected on the timeline, and on the right a note written about those seconds"></td>
+<td valign="top"><img src="docs/assets/studio/note.en.webp" width="100%" alt="A first draft: a few seconds selected on the timeline, and on the right a note about those seconds added to your notes, not sent yet"></td>
 <td valign="top"><b>Collect a few, send them at once.</b><br>Each note is about what you pointed at, and they gather in the right-hand column, each marked not sent, sent and not picked up, or picked up. Before anything goes, a summary lists what you chose for each decision and what each note says. Your words are copied into the project's <code>REVIEW.md</code>, and the agent carries on from them.</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/assets/studio/decide.en.webp" width="100%" alt="The concept stop: on the left the numbers and objects that belong to this topic alone, on the right three concept cards with a frame each, the recommended one already chosen"></td>
+<td valign="top"><img src="docs/assets/studio/decide.en.webp" width="100%" alt="A concept waiting for you to pick: on the left the numbers and objects that belong to this topic alone, in the middle three concept cards with a frame each, the recommended one picked; on the right, ready to send"></td>
 <td valign="top"><b>What you decide, you decide right here.</b><br>At the concept, the storyboard and the first draft, the right-hand column holds what this step needs from you, a few cards each, with the recommended one already chosen. Leave it and the recommendation stands; click to change it; send once.</td>
 </tr>
 </table>

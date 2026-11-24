@@ -47,7 +47,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 [分步教程](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) · [安装选项和更新](#安装更新和国内网络)
 
-<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.zh.webp" width="960" alt="OVH Studio 的窗口，开着一支片子的成片这一站：中间是星河的画面，下面是带缩略图的时间线，选中了 5 到 8 秒；右边是等你拍板的一张卡和两条对着镜头写下的意见，底下是“交给 agent”的按钮"></a></p>
+<p align="center"><a href="#studio"><img src="docs/assets/studio/hero.zh.webp" width="960" alt="OVH Studio 的窗口，开着一支片子的初版：中间是星河的画面，下面是带缩略图的时间线，选中了 5 到 8 秒；顶上一排是这支片子的几步，初版在等你看；右边是看初版，定了一件事，两条意见还没发，底下是“发出去”的按钮"></a></p>
 
 <p align="center"><sub>在 Studio 里做一支片子。顶上是片子走到了哪一步；指着时间线上的几秒或一个镜头写意见；右边是等你拍板的事，攒好一起发出去。画面里是本仓库自己的介绍片。</sub></p>
 
@@ -100,19 +100,19 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 <table>
 <tr>
-<td width="56%" valign="top"><img src="docs/assets/studio/space.zh.webp" width="100%" alt="Studio 的空间：所有片子各一张卡，等你看的三支排在最前，卡上写着等你定什么"></td>
+<td width="56%" valign="top"><img src="docs/assets/studio/space.zh.webp" width="100%" alt="Studio 的空间：所有片子各一张卡，等你看的三支排在最前，卡上写着等你定什么；右边一列是写一句话开新片子的地方"></td>
 <td valign="top"><b>片子走到哪，一眼看到。</b><br>顶上一排是这支片子的几步：立意、大纲、文案、分镜、声音、初版、交付，片子有哪几步就排哪几步，每一步下面写着谁在做：你定了、等你看、Claude Code 在做、还没开始。左边一列是看什么：每一步的内容，另有素材和决定的记录。打开 Studio 先看到所有片子，等你的排在最前，卡上写着要你定什么。</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/assets/studio/board.zh.webp" width="100%" alt="分镜这一站：一段一页，每一镜一张关键帧，写着看到什么，没把握的那一镜标出来"></td>
+<td valign="top"><img src="docs/assets/studio/board.zh.webp" width="100%" alt="分镜在等你看：一段一页，每一镜一张关键帧，写着看到什么，AI 没把握的那一镜标出来；右边是审分镜，有一件事等你定"></td>
 <td valign="top"><b>审片，就是指着说。</b><br>分镜一段一页，每一镜一张关键帧；成片的时间线上排着镜头、声音、检查查出的问题和 AI 没把握的地方。选中一个镜头、一秒或一段，写一句，点“加一条”，就是一条意见。</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/assets/studio/note.zh.webp" width="100%" alt="成片这一站：时间线上选中了几秒，右边写了一条对着这几秒的点评"></td>
+<td valign="top"><img src="docs/assets/studio/note.zh.webp" width="100%" alt="初版：时间线上选中了几秒，右边“你的意见”里加了一条关于这几秒的意见，还没发"></td>
 <td valign="top"><b>攒几条，一次发出去。</b><br>意见都写给你指的那一处，攒在右边一列，每条写着还没发、发了还没人取，还是已经被取走。发出去之前先列一遍：每件事选了什么、每条意见说了什么。你的原话抄进项目的 <code>REVIEW.md</code>，agent 照着往下做。</td>
 </tr>
 <tr>
-<td valign="top"><img src="docs/assets/studio/decide.zh.webp" width="100%" alt="立意这一站：左边是素材里只属于这个题目的数字和物件，右边三张立意卡各配一帧，推荐的已经选好"></td>
+<td valign="top"><img src="docs/assets/studio/decide.zh.webp" width="100%" alt="立意在等你挑：左边是素材里只属于这个题目的数字和物件，中间三张立意卡各配一帧，推荐的那张已经选好；右边是要发出去的这个选择"></td>
 <td valign="top"><b>要你定的事，就在这里定。</b><br>到了立意、分镜、初版，右边一列是这一步要你定的几件事，每件几张卡，推荐的已经选好。不动就是照推荐，点一下就换，最后发一次。</td>
 </tr>
 </table>
