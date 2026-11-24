@@ -691,7 +691,21 @@ function renderMine() {
     + (none ? "" : `<ul class="note-list mine">${gen}${items.map(row).join("")}</ul>`) + leftHtml + unreadHtml + takenHtml;
   requestAnimationFrame(keepNewest);
 }
+function fitMine() {   // the block holds its state line and the last three notes whole (all of them when fewer); the decisions above give way down to their own minimum and scroll
+  const box = $("#cMine"), body = $("#colBody"), above = $("#colScroll");
+  if (!box || !body || !above || !body.classList.contains("split")) return;
+  box.style.minHeight = "";
+  const lis = $$("ul.mine > li", box).slice(-3), head = $(".blk-h", box);
+  if (!lis.length || !box.offsetParent) return;
+  const cs = getComputedStyle(box), first = lis[0].getBoundingClientRect(), last = lis[lis.length - 1].getBoundingClientRect();
+  const hs = head ? getComputedStyle(head) : null, stuck = hs ? head.getBoundingClientRect().height + Math.min(0, parseFloat(hs.top) || 0) + (parseFloat(hs.marginBottom) || 0) : 0;
+  const edge = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  const need = Math.ceil(Math.min(stuck + 4 + (last.bottom - first.top) + parseFloat(cs.paddingBottom), box.scrollHeight) + edge);   // the state line as it sticks, the three, the foot
+  const room = body.clientHeight - (parseFloat(getComputedStyle(above).minHeight) || 0);
+  if (need > box.clientHeight + 1) box.style.minHeight = Math.max(0, Math.min(need, room)) + "px";
+}
 function keepNewest() {   // the note kept last is the one in view, however many there are (also once the column's tab shows the block)
+  fitMine();
   const box = $("#cMine"), keys = FB ? Object.keys(FB.items) : [];
   const newest = box && keys.length ? $(`li[data-goto="${CSS.escape(keys[keys.length - 1])}"]`, box) : null;
   if (newest && box.scrollHeight > box.clientHeight) box.scrollTop = Math.max(0, newest.offsetTop - box.clientHeight + newest.offsetHeight + 8);
@@ -815,7 +829,7 @@ function scopeLabel() { return SCOPE ? SCOPE.label : MOD === "cut" ? t("whole_fi
 function updateComposer() {
   if (!$("#composer").dataset.ready) return;
   const x = scopeLabel();
-  $("#scope").textContent = x; $("#scope").className = "chip" + (SCOPE ? "" : " quiet");
+  $("#scope").textContent = x; $("#scope").title = x; $("#scope").className = "chip" + (SCOPE ? "" : " quiet");
   $("#toWhole").hidden = !SCOPE;
   $("#toNone").hidden = !!(SCOPE && SCOPE.none);
   $("#say").placeholder = SCOPE && SCOPE.none ? t("ph_not_film") : t("c_ph", { x: /[\x21-\x7e]$/.test(x) && LANG === "zh" ? x + " " : inLine(x) });

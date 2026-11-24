@@ -127,6 +127,18 @@ tail = rest[rest.index("\n## ", 1):] if "\n## " in rest[1:] else ""
 (nine / "BRIEF.md").write_text(top + "## Outline\n\n" + outline(NINE) + tail, encoding="utf-8")
 five = top + "## Outline\n\n" + outline(FIVE) + tail
 stamp = film("stamp", E1)   # the stamp is taken before the read: a file written during the read leaves the page one reload behind
+four = film("four", dict(E1, least_sure=[{"id": f"c0{i}", "note": f"第 {i} 句会不会太书面，念出来像在读稿"} for i in range(1, 5)]))   # two open decisions, four notes, one long
+LONG_NOTE = "这一句太长了，" + "念到一半就要换气，观众会跟不上画面上的字，最好拆成两句，前一句只说月亮，后一句再说太阳，" * 3
+wide = T / "root" / "wide"   # the cut with a 60-character English shot label selected
+shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "demo", wide)
+WIDE_LABEL = "Every scene is f(t), checked scene by scene against its plan"[:60]
+_shots = json.loads((wide / "shots.json").read_text(encoding="utf-8"))
+_shots["shots"][2]["label"] = WIDE_LABEL
+(wide / "shots.json").write_text(json.dumps(_shots, ensure_ascii=False), encoding="utf-8")
+WIDE_SHOT = _shots["shots"][2]["id"]
+sys.path.insert(0, str(HERE / "fixtures" / "agents"))
+import stage as agent_stage   # noqa: E402   (the stand-in agents, so the column's conversation tab has its note box)
+agent_stage.stage(ENV["OVH_AGENTS_DIR"])
 
 
 def stamp_before_read():   # (no browser: the server's own function, a write injected into its read)
@@ -214,6 +226,37 @@ try:
     for size in ((1280, 720), (1440, 900)):
         steps += [{"viewport": list(size)}, {"eval": VIEW, "name": f"busy_view {size[0]}x{size[1]} en"}]
     steps += [{"click": "#lang", "after": 1500}]
+    # two open decisions and four notes, one of them long: the state line and three notes inside the column, the long one readable
+    FOUR = ("JSON.stringify((() => { const m = $('#cMine'), b = $('#colBody'), M = m.getBoundingClientRect(), B = b.getBoundingClientRect(), "
+            "lo = Math.max(M.top, B.top), hi = Math.min(M.bottom, B.bottom), inside = (r) => r.top >= lo - 1 && r.bottom <= hi + 1, h = $('#cMine .blk-h').getBoundingClientRect(), "
+            "lis = [...m.querySelectorAll('ul.mine li')], long = lis.find((e) => e.innerText.length > 100); "
+            "return { head: inside(h), shown: lis.filter((e) => inside(e.getBoundingClientRect())).length, n: lis.length, block: [M.top, M.bottom], body: [B.top, B.bottom], "
+            "scrolls: m.scrollHeight > m.clientHeight + 1 && getComputedStyle(m).overflowY !== 'hidden', long_clipped: !!long && long.scrollHeight > long.clientHeight + 1 }; })())")
+    def drawn(f, ms=12000):   # (as opened() below: the film read and drawn, nothing reloading)
+        return {"until": f"typeof D !== 'undefined' && D && PKEY === {key(f)!r} && !RELOADING && !!$('#stage [data-mod]')", "name": f"open {f.name}", "ms": ms}
+    steps += [{"go": f"#/p/{key(four)}/outline/script", "after": 200}, drawn(four), tab,
+              {"eval": "(" + ", ".join(KEEP.format(t=f"cap:c0{i}", x=(LONG_NOTE if i == 1 else f"第 {i} 句再口语一点，念出来像在跟人说话，不像在读稿"), lb=f"字幕 c0{i}") for i in range(1, 5)) + ")", "name": "four_keep"},
+              {"until": "document.querySelectorAll('#cMine ul.mine li').length === 4", "name": "four_kept", "ms": 8000}]
+    for size in ((1440, 900), (1280, 720)):
+        steps += [{"viewport": list(size), "after": 200}, {"until": f"innerWidth === {size[0]} && innerHeight === {size[1]}", "name": "four_size", "ms": 5000},
+                  {"eval": FOUR, "name": f"four_view {size[0]}x{size[1]}"}]
+    steps += [{"viewport": [1440, 900], "after": 200}]
+    # a 60-character English shot label selected on the cut, in each theme, in the notes tab and the conversation tab: nothing wider than the column
+    WIDE = ("JSON.stringify((() => { const col = $('#colBody').closest('aside') || $('#colBody').parentElement, c = col.getBoundingClientRect(), out = []; "
+            "for (const e of col.querySelectorAll('*')) { const r = e.getBoundingClientRect(); if (r.width && r.height && (r.right > c.right + 1 || r.left < c.left - 1)) out.push((e.id || e.className || e.tagName) + ''); } "
+            "const s = [...col.querySelectorAll('button')].filter((x) => x.offsetParent && /^(Send|发送|发出去)/.test(x.innerText.trim())).map((x) => { const r = x.getBoundingClientRect(); "
+            "return { text: x.innerText.trim(), inside: r.left >= c.left - 1 && r.right <= c.right + 1 && r.width > 0 }; }); "
+            "return { col: [c.left, c.right], wide: out.slice(0, 8), n: out.length, send: s, scope: (($('#scope') || {}).title || '') + '|' + (($('#agScope') || {}).title || '') }; })())")
+    steps += [{"go": f"#/p/{key(wide)}/cut", "after": 200}, drawn(wide), {"click": "#lang", "after": 200},
+              {"until": "document.documentElement.lang === 'en' && !!$('#tl [data-pick=\"shot:" + WIDE_SHOT + "\"]')", "name": "wide_en", "ms": 8000},
+              {"click": f"#tl [data-pick=\"shot:{WIDE_SHOT}\"]"}, {"until": "/" + WIDE_LABEL[:20] + "/.test(($('#scope') || {}).textContent || '')", "name": "wide_picked", "ms": 8000}]
+    for theme in ("darkfield", "prism", "bridge"):
+        steps += [{"eval": f"(document.documentElement.dataset.theme = {theme!r}, true)", "name": "theme"},
+                  {"click": "#colTabs [data-tab=round]"}, {"until": "$('#colTabs [data-tab=round][aria-selected=true]') && $('#scope') && $('#scope').offsetParent", "name": "wide_round", "ms": 8000},
+                  {"eval": WIDE, "name": f"wide_view {theme} notes"},
+                  {"click": "#colTabs [data-tab=chat]"}, {"until": "$('#colTabs [data-tab=chat][aria-selected=true]') && $('#agScope') && $('#agScope').offsetParent", "name": "wide_chat", "ms": 8000},
+                  {"eval": WIDE, "name": f"wide_view {theme} chat"}]
+    steps += [{"eval": "(document.documentElement.dataset.theme = 'darkfield', true)", "name": "theme"}, {"click": "#lang", "after": 1500}]
     WHERE = "JSON.stringify({ mod: ($('#stage [data-mod]') || {}).dataset && $('#stage [data-mod]').dataset.mod, hash: decodeURIComponent(location.hash), " \
             "tab: (($('nav.subtabs [aria-selected=true]') || { getAttribute: () => '' }).getAttribute('href')) || '', cards: !!$('.c-cards') })"
 
@@ -409,4 +452,13 @@ ok = ((res.get("nine_reloaded") or {}).get("ok")
 check("an outline of nine parts rewritten to five (one removed in the middle, two in another order, one renamed, one's words rewritten): a note on the "
       "same part stays; one whose part moved goes with it, takes its number and time, and says once where it was; one whose part was renamed or rewritten is never drawn on what took its place, "
       "quotes what it was written on, goes nowhere on a click, and is sent saying so; one on a removed part says it is gone", ok, na)
+fv = {k: js(k) for k in res if k and k.startswith("four_view")}
+ok = len(fv) == 2 and all(x.get("head") and x.get("n") == 4 and x.get("shown", 0) >= 3 and not x.get("long_clipped")
+                          and (x.get("shown") == 4 or x.get("scrolls")) for x in fv.values())
+check("two open decisions and four notes kept, one of them long, at 1440 x 900 and 1280 x 720: the notes' state line and at least three notes are inside "
+      "the column, the decisions above give way; the long note is never cut inside its line, and what does not fit scrolls in the block", ok, fv)
+wv = {k: js(k) for k in res if k and k.startswith("wide_view")}
+ok = len(wv) == 6 and all(x.get("n") == 0 and x.get("send") and all(s.get("inside") for s in x["send"]) and WIDE_LABEL in x.get("scope", "") for x in wv.values())
+check("a 60-character English shot label selected on the cut, in the three themes, the notes tab and the conversation tab: nothing in the right column is "
+      "wider than the column, the label ends short with its whole text in the title, and the Send button is whole inside it", ok, wv)
 print("end", flush=True)
