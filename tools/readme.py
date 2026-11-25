@@ -169,6 +169,7 @@ PAGES = {   # page: the counts it must state somewhere (each is also checked whe
     "CITATION.cff": ["types", "styles"],   # its abstract (citation_problems checks its version and date)
     "docs/site/index.html": ["types", "styles", "commands", "engines", "recipes", "sequences", "grammar", "components",
                              "showcase", "cases", "playbook", "templates", "refs", "modules", "sfx", "checklist", "scores"],
+    "docs/site/reel/index.html": ["styles"],
 }
 SITE = "docs/site/index.html"
 READMES = ("README.md", "README.zh-CN.md")
@@ -324,6 +325,31 @@ def pair_problems():
 LOADS_WITH_PAGE = ("stylesheet", "preload", "modulepreload", "preconnect", "dns-prefetch", "prefetch", "icon")
 
 
+def reel_problems(base):
+    """The films' shots (docs/site/reel/shots.js): each one on the wall is described, has its still, and its clip is in
+    tools/media.txt under the name the page asks the release for; so are the two walls' mosaic videos."""
+    path = base / "reel" / "shots.js"
+    js, bad = path.read_text(encoding="utf-8"), []
+    where = path.relative_to(ROOT)
+    part = lambda a, b: (re.search(a + r"(.*?)" + b, js, re.S) or [None, ""])[1]
+    order = re.findall(r"'([a-z]+)'", part(r"const order = \[", r"\];"))
+    told = re.findall(r"^\s+\['([a-z]+)',", part(r"const dive = \[", r"\n  \];") + "\n" + part(r"const more = \[", r"\n  \];"), re.M)
+    release = dict(re.findall(r"'?([a-z-]+)'?: '([0-9a-f]{8})'", part(r"release: \{", r"\}")))
+    media = {f[0]: f for f in (line.split() for line in (ROOT / "tools/media.txt").read_text(encoding="utf-8").splitlines()) if len(f) == 3}
+    if not order or sorted(order) != sorted(told):
+        bad.append(f"{where}: order and the shots described (dive, more) differ: {', '.join(sorted(set(order) ^ set(told))) or 'one is there twice, or none was found'}")
+    for i in order:
+        if not (base / "reel" / "posters" / f"{i}.webp").is_file():
+            bad.append(f"{where}: the shot {i} has no posters/{i}.webp")
+    for key, file in [(i, f"reel/{i}.mp4") for i in order] + [(w, f"{w}.mp4") for w in ("reel-wall", "styles-wall")]:
+        h = release.get(key, "")
+        want = f"reel-{key}-{h}.mp4" if file.startswith("reel/") else f"{key}-{h}.mp4"
+        line = media.get(f"docs/site/media/{file}")
+        if not line or line[1] != want or not line[2].startswith(h):
+            bad.append(f"{where}: release gives {key} {h or 'no name'}, tools/media.txt {line[1] if line else 'no line'}")
+    return bad
+
+
 def site_problems(have):
     """The homepage: its data-n counts, links and anchors, style wall, languages, and nothing from elsewhere at load."""
     page = ROOT / SITE
@@ -369,6 +395,13 @@ def site_problems(have):
         for f in (base / "img" / "styles" / f"{slug}.jpg", ROOT / "styles" / slug / "media" / "swatch.mp4"):
             if not f.is_file() and str(f.relative_to(ROOT)) not in fetched:
                 bad.append(f"{SITE}: the style {slug} has no {f.relative_to(ROOT)}")
+    # the style wall's mosaic video: its tiles are STYLE_TILES in order, so the list holds every style once
+    block = re.search(r"const STYLE_TILES = \[(.*?)\];", html, re.S)
+    tiles = re.findall(r"'([a-z0-9-]+)'", block.group(1)) if block else []
+    if sorted(tiles) != sorted(repo):
+        off = sorted(set(repo) ^ set(tiles)) or sorted({t for t in tiles if tiles.count(t) > 1})
+        bad.append(f"{SITE}: STYLE_TILES is not the repo's styles, each once ({', '.join(off) or 'no list found'}): put a new one at the end and make the styles-wall mosaic again (docs/site/README.md)")
+    bad += reel_problems(base)
     # the "make one like this" sentence asks for a vertical short in the styles that come vertical too (tags.aspect "both")
     vert = re.search(r"const STYLE_VERTICAL = new Set\((\[.*?\])\);", html, re.S)
     want_v = sorted(q.parent.name for q in (ROOT / "styles").glob("*/tokens.json")

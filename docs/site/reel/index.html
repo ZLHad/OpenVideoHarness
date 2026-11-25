@@ -33,9 +33,11 @@
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --ease: cubic-bezier(.2, .7, .1, 1);
   --px: clamp(18px, 3.6vw, 64px);
+  --bars: 0px;   /* how much a phone's bars cover at most: the words stay above it */
   color-scheme: dark;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+@supports (height: 100lvh) { :root { --bars: calc(100lvh - 100svh); } }
 html { background: #000; }
 body { background: #000; color: #F4F6FF; font-family: var(--sans); line-height: 1.5; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
@@ -45,7 +47,7 @@ img, video, canvas { display: block; }
 html:not([data-lang]) [lang="zh"], html[data-lang="en"] [lang="zh"], html[data-lang="zh"] [lang="en"] { display: none !important; }
 
 #track { position: relative; }
-#stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: #000; contain: strict; }
+#stage { position: sticky; top: 0; height: 100vh; height: 100lvh; overflow: hidden; background: #000; contain: strict; }
 #world { position: absolute; inset: 0; transform-origin: 50% 50%; }
 .layer { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; will-change: transform, opacity; pointer-events: none; }
 .iris, .inner { position: absolute; inset: 0; transform-origin: 50% 50%; will-change: transform; }
@@ -79,7 +81,7 @@ html:not([data-lang]) [lang="zh"], html[data-lang="en"] [lang="zh"], html[data-l
 .chip .ic { width: 10px; height: 12px; position: relative; flex: none; }
 .chip .ic::before { content: ""; position: absolute; inset: 0; background: var(--ac); clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .running .chip .ic::before { clip-path: polygon(0 0, 34% 0, 34% 100%, 0 100%, 0 0, 66% 0, 100% 0, 100% 100%, 66% 100%, 66% 0); }
-.cap { position: absolute; z-index: 300; left: var(--px); bottom: calc(clamp(44px, 8vh, 84px) + env(safe-area-inset-bottom)); max-width: min(38em, calc(100vw - 2 * var(--px))); text-shadow: 0 1px 18px rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.6); transition: opacity .45s; }
+.cap { position: absolute; z-index: 300; left: var(--px); bottom: calc(var(--bars) + clamp(44px, 8vh, 84px) + env(safe-area-inset-bottom)); max-width: min(38em, calc(100vw - 2 * var(--px))); text-shadow: 0 1px 18px rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.6); transition: opacity .45s; }
 .cap .line { display: flex; align-items: baseline; gap: .5em; flex-wrap: wrap; }
 .cap .word { font-family: var(--serif); font-weight: 700; font-size: clamp(38px, min(6.4vw, 10vh), 104px); line-height: 1.02; letter-spacing: .01em; }
 html[data-lang="en"] .cap .word { font-family: var(--display); font-weight: 600; letter-spacing: -.035em; }
@@ -92,7 +94,7 @@ html[data-lang="en"] .cap .word { font-family: var(--display); font-weight: 600;
 .cap.swap > :nth-child(3) { animation-delay: .12s; }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); filter: blur(5px); } }
 #ruler { position: absolute; z-index: 300; right: calc(var(--px) - 6px); top: 50%; width: 92px; height: min(56vh, 520px); transform: translateY(-50%); pointer-events: none; transition: opacity .5s; }
-.ticks { position: absolute; z-index: 310; left: var(--px); right: var(--px); bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; gap: 3px; height: 26px; align-items: center; transition: opacity .5s; }
+.ticks { position: absolute; z-index: 310; left: var(--px); right: var(--px); bottom: calc(var(--bars) + 14px + env(safe-area-inset-bottom)); display: flex; gap: 3px; height: 26px; align-items: center; transition: opacity .5s; }
 .ticks button { flex: 1; height: 100%; position: relative; min-width: 0; }
 .ticks button::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; border-radius: 2px; background: rgba(255,255,255,.26); transition: background .3s, height .25s var(--ease), transform .25s var(--ease); transform: translateY(-50%); }
 .ticks button.past::after { background: rgba(255,255,255,.62); }
@@ -100,7 +102,7 @@ html[data-lang="en"] .cap .word { font-family: var(--display); font-weight: 600;
 .ticks button:hover::after { height: 8px; background: #fff; }
 
 /* ---------- the opening ---------- */
-#title { position: absolute; z-index: 290; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 var(--px); pointer-events: none; }
+#title { position: absolute; z-index: 290; inset: 0 0 var(--bars); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 var(--px); pointer-events: none; }
 #title h1 { font-family: var(--serif); font-weight: 900; font-size: clamp(72px, min(17vw, 34vh), 300px); line-height: .98; letter-spacing: .02em; color: #fff; text-shadow: 0 0 60px rgba(0,0,0,.55); }
 html[data-lang="en"] #title h1 { font-family: var(--display); font-weight: 600; letter-spacing: -.055em; }
 #title p { font-size: clamp(17px, 1.55vw, 24px); max-width: 30em; margin-top: clamp(14px, 2.4vh, 28px); text-wrap: balance; text-shadow: 0 1px 24px rgba(0,0,0,.9); }
@@ -109,7 +111,7 @@ html[data-lang="en"] #title h1 { font-family: var(--display); font-weight: 600; 
 html[data-lang="zh"] #title .hint { font-family: var(--sans); }
 
 /* ---------- the wall ---------- */
-#end { position: absolute; z-index: 320; inset: 0; pointer-events: none; opacity: 0; display: flex; flex-direction: column; justify-content: space-between; padding: calc(62px + env(safe-area-inset-top)) var(--px) calc(22px + env(safe-area-inset-bottom)); text-align: center; align-items: center; }
+#end { position: absolute; z-index: 320; inset: 0; pointer-events: none; opacity: 0; visibility: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: calc(62px + env(safe-area-inset-top)) var(--px) calc(var(--bars) + 22px + env(safe-area-inset-bottom)); text-align: center; align-items: center; }
 #end h2 { font-family: var(--serif); font-weight: 700; font-size: clamp(25px, min(3.1vw, 5.2vh), 54px); line-height: 1.16; text-wrap: balance; }
 html[data-lang="en"] #end h2 { font-family: var(--display); font-weight: 600; letter-spacing: -.03em; }
 #end .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -154,8 +156,8 @@ html[data-lang="en"] #end h2 { font-family: var(--display); font-weight: 600; le
 /* reduced motion: no push-in; the wall, still */
 .still #track { height: auto !important; }
 .still #stage { position: relative; }
-.still #title, .still .cap, .still #ruler, .still .ticks, .still #runbtn, .still #allbtn, .still #dust { display: none; }
-.still #end { opacity: 1; }
+.still #title, .still .cap, .still #ruler, .still .ticks, .still #runbtn, .still #allbtn, .still #dust, .still #vig { display: none; }
+.still #end { opacity: 1; visibility: visible; }
 noscript p { position: fixed; inset: auto 0 40% 0; text-align: center; z-index: 999; padding: 0 20px; }
 </style>
 </head>
@@ -164,13 +166,14 @@ noscript p { position: fixed; inset: auto 0 40% 0; text-align: center; z-index: 
 <div id="track">
   <main id="stage">
     <div id="vids" aria-hidden="true"></div>
+    <i id="svh" aria-hidden="true" style="position:absolute;top:0;height:100vh;height:100svh;visibility:hidden"></i>
     <div id="world"></div>
     <canvas id="wall" aria-hidden="true"></canvas>
     <canvas id="dust" aria-hidden="true"></canvas>
     <div class="vig" id="vig" aria-hidden="true"></div>
 
     <header class="bar">
-      <a class="home" href="../" data-home>OpenVideoHarness</a>
+      <a class="home" href="../index.html" data-home>OpenVideoHarness</a>
       <button type="button" class="chip" id="runbtn" aria-pressed="false"><i class="ic" aria-hidden="true"></i><span id="runlabel"></span></button>
       <button type="button" class="chip" id="allbtn"><span lang="en">All the shots</span><span lang="zh">全部镜头</span></button>
       <button type="button" class="chip" id="langbtn" aria-label="中文 / English"><span lang="en">中文</span><span lang="zh">EN</span></button>
@@ -189,10 +192,10 @@ noscript p { position: fixed; inset: auto 0 40% 0; text-align: center; z-index: 
 
     <div id="tiles"></div>
     <section id="end">
-      <h2><span lang="en"><b data-k="all"></b> shots from <b data-k="allfilms"></b> films, every one rendered by code.</span><span lang="zh"><b data-k="all"></b> 个镜头，<b data-k="allfilms"></b> 支片子，都是代码渲染出来的。</span></h2>
+      <h2><span lang="en"><b data-k="all"></b> shots from <b data-k="allfilms"></b> films, all made with OpenVideoHarness.</span><span lang="zh"><b data-k="all"></b> 个镜头，<b data-k="allfilms"></b> 支片子，都是用 OpenVideoHarness 做的。</span></h2>
       <div class="row">
-        <a class="btn" href="../#start" data-home><span lang="en">Make one of your own</span><span lang="zh">做一支你自己的</span></a>
-        <a class="btn ghost" href="../#styles" data-home><span lang="en">See the 43 styles</span><span lang="zh">看 43 种风格</span></a>
+        <a class="btn" href="../index.html#start" data-home><span lang="en">Make one of your own</span><span lang="zh">做一支你自己的</span></a>
+        <a class="btn ghost" href="../index.html#styles" data-home><span lang="en">See the 43 styles</span><span lang="zh">看 43 种风格</span></a>
         <button type="button" class="btn ghost" id="again"><span lang="en">From the top</span><span lang="zh">从头再看</span></button>
       </div>
     </section>
@@ -259,7 +262,7 @@ function where(y) {   // scroll → the camera's place p (a shot and how far int
 }
 const ease = s => .13 * s + .87 * smoother(s);   // a slow push while a shot is on, the dive in the middle
 
-/* ---------- layers: at most four shots are in the page at once ---------- */
+/* ---------- layers: at most six shots are in the page at once ---------- */
 const world = $('#world'), shade = document.createElement('div'); shade.className = 'shade'; world.appendChild(shade);
 const layers = new Map();
 function ensure(i) {
@@ -284,7 +287,8 @@ function film(L) {   // the clip itself, once the camera is slow enough to look 
 }
 function let_go(v) { v.pause(); v.replaceChildren(); v.load(); v.remove(); }   // an emptied video gives its memory back
 function drop(i) { const L = layers.get(i); if (!L) return; const v = L.v; L.v = null; if (v) let_go(v); L.el.remove(); layers.delete(i); }
-function running(L, on) { if (on) film(L); if (on === L.on) return; L.on = on; if (!L.v) return; if (on) play(L.v); else L.v.pause(); }
+function nudge(v) { if (v.paused && performance.now() - (v.asked || 0) > 1000) { v.asked = performance.now(); play(v); } }   // stopped from outside (a phone leaving the page): start it again
+function running(L, on) { if (on) film(L); if (on === L.on) { if (on && L.v) nudge(L.v); return; } L.on = on; if (!L.v) return; if (on) play(L.v); else L.v.pause(); }
 function place(L, x, y, scale, op) {
   L.el.style.width = `${bw}px`; L.el.style.height = `${bh}px`; L.el.style.marginLeft = `${-bw / 2}px`; L.el.style.marginTop = `${-bh / 2}px`;
   L.el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${scale.toFixed(5)})`;
@@ -396,7 +400,7 @@ function wakeMosaic() { if (!mosaic.src) mosaic.src = 'wall.webp'; if (!mosaicV 
 let cells = [], tileBtns = [];
 function layoutWall() {
   const n = R.order.length + 1, cols = W / H > 1.15 ? 8 : W / H > .68 ? 7 : 4, rows = Math.ceil(n / cols), gap = W > 760 ? 4 : 3;
-  const topPad = W > 760 ? 118 : 126, botPad = W > 760 ? 92 : 128, availH = H - topPad - botPad, availW = W - (W > 760 ? 28 : 12);
+  const topPad = W > 760 ? 118 : 126, botPad = (W > 760 ? 92 : 128) + Math.max(0, H - $('#svh').clientHeight), availH = H - topPad - botPad, availW = W - (W > 760 ? 28 : 12);
   const cw = Math.min((availW - gap * (cols - 1)) / cols, ((availH - gap * (rows - 1)) / rows) * 16 / 9), ch = cw * 9 / 16;
   const tw = cols * cw + gap * (cols - 1), th = rows * ch + gap * (rows - 1), x0 = (W - tw) / 2, y0 = topPad + Math.max(0, (availH - th) / 2);
   cells = Array.from({ length: n }, (_, k) => ({ x: x0 + (k % cols) * (cw + gap), y: y0 + Math.floor(k / cols) * (ch + gap), w: cw, h: ch }));
@@ -406,20 +410,20 @@ function buildTiles() {
   R.order.forEach(id => {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.id = id;
     b.addEventListener('click', () => openView(id));
-    b.addEventListener('pointerenter', () => kin(id)); b.addEventListener('focus', () => kin(id)); b.addEventListener('pointerleave', () => kin(null));
+    b.addEventListener('pointerenter', () => kin(id)); b.addEventListener('focus', () => kin(id)); b.addEventListener('pointerleave', () => kin(null)); b.addEventListener('blur', () => kin(null));
     tilesEl.appendChild(b); tileBtns.push(b);
   });
-  const y = document.createElement('a'); y.className = 'yours'; y.href = '../#start'; y.dataset.home = ''; y.innerHTML = '<span lang="en"><b>+ yours</b></span><span lang="zh"><b>+ 你的</b></span>';
+  const y = document.createElement('a'); y.className = 'yours'; y.href = '../index.html#start'; y.dataset.home = ''; y.innerHTML = '<span lang="en"><b>+ yours</b></span><span lang="zh"><b>+ 你的</b></span>';
   tilesEl.appendChild(y); tileBtns.push(y);
 }
 function kin(id) { const f = id && R.shots[id].film; tilesEl.classList.toggle('dim', !!id); tileBtns.forEach(b => b.classList.toggle('kin', !!id && b.dataset.id && R.shots[b.dataset.id].film === f)); }
 function drawWall(fin) {
   if (fin <= .001) { if (wallCv.style.visibility !== 'hidden') { wallCv.style.visibility = 'hidden'; if (mosaicV) mosaicV.pause(); } return; }
-  wallCv.style.visibility = 'visible'; wakeMosaic(); if (mosaicV && mosaicV.paused) play(mosaicV);
+  wallCv.style.visibility = 'visible'; wakeMosaic(); if (mosaicV) nudge(mosaicV);
   const d = Math.min(devicePixelRatio || 1, 2);
   if (wallCv.width !== Math.round(W * d) || wallCv.height !== Math.round(H * d)) { wallCv.width = Math.round(W * d); wallCv.height = Math.round(H * d); }
   wx.setTransform(d, 0, 0, d, 0, 0); wx.clearRect(0, 0, W, H);
-  const ready = mosaicV && mosaicV.readyState >= 2, src = ready ? mosaicV : mosaic; if (!ready && !mosaic.complete) return;
+  const ready = mosaicV && mosaicV.readyState >= 2, src = ready ? mosaicV : mosaic; if (!ready && !(mosaic.complete && mosaic.naturalWidth)) return;
   const { cols, w, h } = R.mosaic, cx = W / 2, cy = H / 2, far = Math.hypot(W, H) / 2;
   const glow = sstep(0, .16, fin) * (1 - sstep(.2, .46, fin));   // the point of light goes off
   if (glow > 0) { const g = wx.createRadialGradient(cx, cy, 0, cx, cy, far * (.12 + fin * 1.5)); g.addColorStop(0, `rgba(255,255,255,${glow})`); g.addColorStop(.25, `rgba(220,232,255,${glow * .4})`); g.addColorStop(1, 'rgba(0,0,0,0)'); wx.fillStyle = g; wx.fillRect(0, 0, W, H); }
@@ -439,14 +443,16 @@ function openView(id) { vlist = R.order.filter(k => R.shots[k].film === R.shots[
 function showView() {
   const s = R.shots[vlist[vat]], zh = lang === 'zh', pic = $('#vpic'); pic.replaceChildren();
   const img = new Image(); img.src = `posters/${s.id}.webp`; img.alt = zh ? s.zh : s.en; pic.appendChild(img);
-  const v = shotClip(s.id); pic.appendChild(v); play(v);
+  const v = shotClip(s.id); pic.appendChild(v);
+  if (still || thrift) { v.poster = img.src; v.controls = true; v.preload = 'none'; } else play(v);
   $('#vwhat').textContent = zh ? s.zh : s.en; $('#vfrom').textContent = R.films[s.film][zh ? 'zh' : 'en'];
   $('#vof').textContent = `${vat + 1} / ${vlist.length}`; const one = vlist.length < 2; $('#vprev').disabled = one; $('#vnext').disabled = one;
 }
-function closeView() { if (!view.classList.contains('show')) return; view.classList.remove('show'); $('#vpic').replaceChildren(); if (back) back.focus({ preventScroll: true }); }
+function closeView() { if (!view.classList.contains('show')) return; view.classList.remove('show'); $('#vpic').replaceChildren(); if (back) back.focus({ preventScroll: true }); kin(null); }
 const turn = n => { vat = (vat + n + vlist.length) % vlist.length; showView(); };
 $('#vx').addEventListener('click', closeView); $('#vprev').addEventListener('click', () => turn(-1)); $('#vnext').addEventListener('click', () => turn(1));
 view.addEventListener('click', e => { if (e.target === view) closeView(); });
+for (const ev of ['wheel', 'touchmove']) view.addEventListener(ev, e => e.preventDefault(), { passive: false });   // the page behind stays where it is
 
 /* ---------- moving: scroll, keys, the ticks, or on its own ---------- */
 let auto = false, jump = null;
@@ -460,6 +466,11 @@ $('#allbtn').addEventListener('click', () => { run(false); glide(maxY()); });
 $('#again').addEventListener('click', () => { scrollTo(0, 0); cur = tgt = where(0); });
 for (const ev of ['wheel', 'touchstart', 'pointerdown']) addEventListener(ev, e => { if (e.target.closest && e.target.closest('button, a, .view')) return; if (auto || jump) run(false); }, { passive: true });
 addEventListener('keydown', e => {
+  if (e.altKey || e.metaKey || e.ctrlKey) return;   // the browser's own shortcuts
+  if (view.classList.contains('show') && e.key === 'Tab') {   // the focus stays in the dialog
+    const f = [...view.querySelectorAll('button:not([disabled])')], k = f.indexOf(document.activeElement);
+    e.preventDefault(); f[(k + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus(); return;
+  }
   if (view.classList.contains('show')) { if (e.key === 'Escape') closeView(); else if (e.key === 'ArrowLeft') turn(-1); else if (e.key === 'ArrowRight') turn(1); return; }
   if (e.target.closest('button, a') && (e.key === ' ' || e.key === 'Enter')) return;
   const k = Math.round(tgt.p);
@@ -489,7 +500,7 @@ function paint(dt) {
   const hud = sstep(.5, 1, cur.open) * (1 - sstep(.04, .2, cur.fin));
   cap.style.opacity = hud; ruler.style.opacity = sstep(.3, 1, cur.open) * (1 - sstep(.12, .28, cur.fin)); $('#vig').style.opacity = 1 - sstep(.25, .6, cur.fin) * .85; $('#ticks').style.opacity = 1 - sstep(.1, .3, cur.fin);
   $('#ticks').style.visibility = cur.fin > .3 ? 'hidden' : 'visible';
-  const live = cur.fin > .86, e = $('#end'); e.style.opacity = sstep(.74, .95, cur.fin); e.classList.toggle('live', live); tilesEl.classList.toggle('live', live);
+  const live = cur.fin > .86, e = $('#end'); e.style.opacity = sstep(.74, .95, cur.fin); e.style.visibility = cur.fin > .74 ? 'visible' : 'hidden'; e.classList.toggle('live', live); tilesEl.classList.toggle('live', live);
   if (cur.p > N - 5) wakeMosaic();
 }
 
@@ -517,10 +528,12 @@ if (still) {   // the wall, as a still picture
 } else {
   let was = scrollY;
   addEventListener('resize', () => { if ($('#stage').clientWidth === W && $('#stage').clientHeight === H) return;   // a phone's bars coming and going: leave its scroll alone
-    const at = where(scrollY); measure(); layoutWall(); if (!at.fin && at.p > 0) scrollTo(0, LEAD + at.p * STEP); });
+    const at = { ...tgt }; measure(); layoutWall();   // where the last frame was: the browser may have moved the scroll already
+    if (at.fin) scrollTo(0, LEAD + (N - 1) * STEP + HOLD + at.fin * FIN); else if (at.p > 0) scrollTo(0, LEAD + at.p * STEP); });
   const to = location.hash.slice(1), k = R.dive.indexOf(to);
   if (k >= 0) { scrollTo(0, scrollFor(k)); was = scrollFor(k); } else if (to === 'wall') scrollTo(0, maxY());
   cur = tgt = where(scrollY || was); cur = { ...tgt };
+  addEventListener('hashchange', () => { const h = location.hash.slice(1), n = R.dive.indexOf(h); if (h !== 'wall' && n < 0) return; run(false); glide(n < 0 ? maxY() : scrollFor(n)); });
   requestAnimationFrame(t => { last = t; frame(t); });
 }
 window.__reel = { where, scrollFor, dive, get cur() { return cur; }, maxY };   // for checking the page from outside

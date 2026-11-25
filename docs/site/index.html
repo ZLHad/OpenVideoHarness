@@ -858,8 +858,8 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <h2 class="split"><span lang="en">Films first. <em>Then how they're made.</em></span><span lang="zh">先看片，<em>再看怎么做的。</em></span></h2>
     <p class="lede" data-r><span lang="en">Every shot here is from a film made this way, rendered by code. Click one to enlarge it, or ride through them in a single take, from a galaxy down to a point of light.</span><span lang="zh">这些镜头都出自用它做的片子，由代码渲染。点一个放大看；也可以跟着镜头走一遍，从一个星系推到一点光，中间不切。</span></p>
     <div class="cta" data-r>
-      <a class="btn" href="reel/" data-lang-link><span lang="en">One take</span><span lang="zh">一镜到底</span> <span class="arrow">→</span></a>
-      <a class="btn ghost" href="reel/#wall" data-lang-link><span lang="en">All the shots</span><span lang="zh">全部镜头</span></a>
+      <a class="btn" href="reel/index.html" data-lang-link><span lang="en">One take</span><span lang="zh">一镜到底</span> <span class="arrow">→</span></a>
+      <a class="btn ghost" href="reel/index.html#wall" data-lang-link><span lang="en">All the shots</span><span lang="zh">全部镜头</span></a>
     </div>
   </div>
 </section>
@@ -1224,7 +1224,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 <section class="slide" id="styles" data-en="Styles" data-zh="风格">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>09</b><span lang="en">Style library · point at one, click to hear it</span><span lang="zh">风格库 · 指着看，点开听</span></p><h2 class="split"><span lang="en">One sentence, <em>43 ways to draw it.</em></span><span lang="zh">同一句话，<em>43 种画法。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>09</b><span lang="en">Style library · point at one, click to hear it</span><span lang="zh">风格库 · 指着看，点开听</span></p><h2 class="split"><span lang="en">One sentence, <em><span data-n="styles">43</span> ways to draw it.</em></span><span lang="zh">同一句话，<em><span data-n="styles">43</span> 种画法。</em></span></h2></div>
       <p class="lede styles-lede" data-r><span lang="en">Every sample says the same line, “Every frame is code.” Only the style changes. Left alone, AI video drifts to one look: dark background, glow, glass cards.</span><span lang="zh">每段样片演的都是同一句“每一帧，都是代码”，不同的只有风格。放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。</span></p>
     </div>
     <div class="sty" id="sty">
@@ -1473,12 +1473,12 @@ const RELEASE_SAMPLES = {
 };
 const hoverClip = slug => stylePath(slug, slug in RELEASE_SAMPLES ? 'preview.mp4' : 'swatch.mp4');
 const fullClip = slug => !(slug in RELEASE_SAMPLES) ? { src: stylePath(slug, 'swatch.mp4') }
-  : STYLES_MEDIA_UPLOADED ? { src: `https://github.com/ZLHad/OpenVideoHarness/releases/download/styles-media/${RELEASE_SAMPLES[slug]}`, type: 'video/mp4' }
+  : STYLES_MEDIA_UPLOADED ? { files: [`https://github.com/ZLHad/OpenVideoHarness/releases/download/styles-media/${RELEASE_SAMPLES[slug]}`, stylePath(slug, 'preview.mp4')], poster: stylePath(slug, 'poster.jpg') }
   : { src: stylePath(slug, 'preview.mp4'), loop: true };
 const thumbPath = slug => `img/styles/${slug}.jpg`;                   // a 384 x 216 copy of its poster, for the galaxy
 // the styles in the order of their tiles in the mosaic video (styles-wall, 8 to a row, 320 x 180 each): neighbours contrast
 const STYLE_TILES = ['monumental-scifi', 'symmetry-pastel', 'shadow-puppet', 'watercolor-pastoral', 'era-media-relay', 'bubble-chart-story', 'y2k-chrome', 'dunhuang-mural', 'ink-wash', 'pastel-ui', 'synthwave-outrun', 'isotype', 'guochao-festive', 'neon-step-print', 'map-explainer', 'silhouette-papercut', 'risograph', 'lacquer-screen', 'walk-in-world', 'tabletop-miniature', 'deep-space-explainer', 'crt-terminal', 'visual-investigation', 'dark-math', 'whiteboard', 'paper-desk-dossier', 'clockwork-map', 'gold-line-dark', 'cutout-jazz', 'blueprint', 'chalkboard', 'bouncy-flat-2d', 'pixel-16bit', 'editorial-data', 'halftone-comic', 'swiss-grid-type', 'product-keynote', 'iso-anatomy', 'brutalist-meme', 'fui-hud', 'scratched-type', 'archival-pan-zoom', 'dark-studio-3d'];
-const R = window.REEL;   // the films' shots (reel/shots.js)
+const R = window.REEL || { order: [], shots: {}, films: {}, dive: [], mosaic: { cols: 8, w: 320, h: 180 }, release: {} };   // the films' shots (reel/shots.js); without it the rest of the page still works
 const MEDIA = 'https://github.com/ZLHad/OpenVideoHarness/releases/download/media/';
 const here = location.protocol === 'file:' || /^(localhost|127\.|\[::1\])/.test(location.hostname);   // a clone: tools/fetch_media.sh puts the files in media/
 const reelFile = (path, name) => [...(here ? [`media/${path}`] : []), MEDIA + name];
@@ -1782,7 +1782,7 @@ onEnter.how = () => { if (reduced || archTimer) return; archI = 0; setTimeout(()
 onLeave.how = () => { clearInterval(archTimer); archTimer = null; steps.forEach(el => el.classList.remove('lit')); };
 
 /* ---------- media helpers ---------- */
-function pauseAll(except) { $$('video').forEach(v => { if (v !== except && !v.paused) v.pause(); }); }
+function pauseAll(except) { $$('video:not([aria-hidden])').forEach(v => { if (v !== except && !v.paused) v.pause(); }); }
 
 /* ---------- the intro film, with light that spills from the picture ---------- */
 const intro = $('#intro'), screen = $('#screen'), chapters = $$('#chapters button');
@@ -1900,7 +1900,7 @@ function rwBig(now) {   // pointed at for a moment: its own clip, sharp, in plac
   if (id !== rw.want) { rw.want = id; rw.since = now; }
   if (rw.big && rw.big.id !== id) { rw.big.v.pause(); rw.big.v.replaceChildren(); rw.big.v.load(); rw.big.v.remove(); rw.big = null; }
   if (!id || rw.big || now - rw.since < 180 || saveData) return;
-  const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.style.display = 'none';
+  const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('aria-hidden', 'true'); v.style.display = 'none';
   for (const f of shotFiles(id)) { const so = document.createElement('source'); so.type = 'video/mp4'; so.src = f; v.appendChild(so); }   // release-src-ok: a <source type>
   document.body.appendChild(v); const p = v.play(); if (p) p.catch(() => {});
   rw.big = { id, v };
@@ -1926,7 +1926,7 @@ rw.cv.addEventListener('click', e => {
   if (!fine) rw.pt = null;
   if (id) openShot(id);
 });
-$$('[data-k]').forEach(el => { el.textContent = el.dataset.k === 'shots' ? R.order.length : new Set(R.order.map(id => R.shots[id].film)).size; });
+if (R.order.length) $$('[data-k]').forEach(el => { el.textContent = el.dataset.k === 'shots' ? R.order.length : new Set(R.order.map(id => R.shots[id].film)).size; });
 
 /* ---------- styles: one picture at full size, and all of them moving round it ---------- */
 const wall = $('#wall'), sty = { box: $('#sty'), cv: $('#styCv'), ctx: $('#styCv').getContext('2d'), stage: $('#styStage'), vid: $('#styVid'), m: mosaic('img/styles-wall.webp', reelFile('styles-wall.mp4', `styles-wall-${R.release['styles-wall']}.mp4`)), at: 1, on: false, raf: 0, until: 0, held: false, token: 0, next: null, front: null, born: 0, turns: 0 };
@@ -1949,7 +1949,7 @@ sty.stage.addEventListener('click', () => openStyle(tiles[sty.at]));
 sty.stage.addEventListener('pointerenter', () => { sty.held = fine; }); sty.stage.addEventListener('pointerleave', () => { sty.held = false; sty.until = performance.now() + 1600; });
 // the samples of spec 1 are the same five seconds, so the stage keeps one clock: change the style and the line goes on
 const styClock = d => (performance.now() / 1000) % d;
-function styVideo(slug) { const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('muted', ''); v.src = hoverClip(slug); v.dataset.slug = slug; return v; }
+function styVideo(slug) { const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('muted', ''); v.setAttribute('aria-hidden', 'true'); v.src = hoverClip(slug); v.dataset.slug = slug; return v; }
 function styShow(i) {
   const t = tiles[i], token = ++sty.token; sty.at = i; sty.until = performance.now() + (innerWidth < 760 ? 4600 : 3200);
   tiles.forEach((x, k) => x.b.classList.toggle('now', k === i));
@@ -1994,6 +1994,7 @@ function styStop() { sty.on = false; sty.m.pause(); sty.token++; $$('video', sty
 sty.m.img.addEventListener('load', () => { if (reduced) styDraw(); });
 seen(sty.box, styStart, styStop); loaded(() => seen(sty.box, sty.m.show, () => {}, '600px'));
 addEventListener('resize', () => { if (reduced) styDraw(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden || lb.classList.contains('show')) return; if (rw.on) rw.m.play(); if (sty.on) sty.m.play(); });   // a phone stops them when it leaves the page
 $$('[data-zoom]').forEach(b => b.addEventListener('click', () => { openLightbox({ img: $('img', b).src, cap: tr().lib(b.parentElement.querySelector('code').textContent) }); }));
 
 /* ---------- in practice ---------- */
@@ -2022,22 +2023,26 @@ const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
 let lbShot = null;   // the shot on show, and the others of its film
 function openShot(id) {
   const list = R.order.filter(k => R.shots[k].film === R.shots[id].film), at = list.indexOf(id), s = R.shots[id];
-  openLightbox({ video: { files: shotFiles(id), poster: `reel/posters/${id}.webp`, loop: true, mute: true }, cap: s[lang], small: R.films[s.film][lang] });
+  openLightbox({ video: { files: shotFiles(id), poster: `reel/posters/${id}.webp`, loop: true, mute: true, quiet: reduced || saveData }, cap: s[lang], small: R.films[s.film][lang] });
   lbShot = { list, at };
   const nav = document.createElement('span'); nav.className = 'lb-nav'; const [pv, nx, tk] = tr().shotNav;
   const btn = (txt, label, n) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.setAttribute('aria-label', label); b.addEventListener('click', () => turnShot(n)); return b; };
   if (list.length > 1) nav.append(btn('←', pv, -1), document.createTextNode(`${at + 1} / ${list.length}`), btn('→', nx, 1));
-  if ('n' in s) { const a = document.createElement('a'); a.href = `reel/?lang=${lang}#${id}`; a.textContent = tk; nav.append(a); }
+  if ('n' in s) { const a = document.createElement('a'); a.href = `reel/index.html?lang=${lang}#${id}`; a.textContent = tk; nav.append(a); }
   lbCap.appendChild(nav);
 }
-function turnShot(n) { const { list, at } = lbShot; openShot(list[(at + n + list.length) % list.length]); }
+function turnShot(n) {
+  const { list, at } = lbShot, held = lbCap.contains(document.activeElement);
+  openShot(list[(at + n + list.length) % list.length]);
+  if (held) { const b = $$('.lb-nav button', lbCap)[n < 0 ? 0 : 1]; if (b) b.focus(); }   // the button pressed is a new one now: keep the focus on it
+}
 function openLightbox({ video, img, cap, code, say, small }) {
-  pauseAll(); lbShot = null;
+  pauseAll(); rw.m.pause(); sty.m.pause(); lbShot = null;
   const tt = $('#toast'); if (tt) { clearTimeout(toastTimer); tt.classList.remove('show'); }   // a copy's line would sit over the lightbox's own
   lbMedia.innerHTML = '';
   if (video) {   // a path, or { src, type, loop }: a release file goes through <source type> (WebKit refuses it as a bare src)
     const c = typeof video === 'string' ? { src: video } : video;
-    const v = document.createElement('video'); v.controls = !c.mute; v.autoplay = true; v.playsInline = true; v.loop = !!c.loop; v.muted = !!c.mute;
+    const v = document.createElement('video'); v.controls = !c.mute || !!c.quiet; v.autoplay = !c.quiet; if (c.quiet) v.preload = 'none'; v.playsInline = true; v.loop = !!c.loop; v.muted = !!c.mute;
     if (c.poster) v.poster = c.poster;
     if (c.files) for (const f of c.files) { const so = document.createElement('source'); so.type = 'video/mp4'; so.src = f; v.appendChild(so); }   // release-src-ok: a <source type>
     else if (c.type) { const so = document.createElement('source'); so.type = c.type; so.src = c.src; v.appendChild(so); }   // release-src-ok: a <source type>
@@ -2063,7 +2068,7 @@ lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.addEventListener('keydown', e => {
   if (!lb.classList.contains('show')) return;
   if (e.key === 'Escape') closeLightbox();
-  else if (lbShot && lbShot.list.length > 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); turnShot(e.key === 'ArrowLeft' ? -1 : 1); }
+  else if (lbShot && lbShot.list.length > 1 && !(e.altKey || e.metaKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); turnShot(e.key === 'ArrowLeft' ? -1 : 1); }
 });
 
 /* ---------- copy buttons ---------- */

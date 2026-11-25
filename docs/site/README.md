@@ -69,6 +69,7 @@ A count on the page is wrapped as `<span data-n="styles">33</span>`. `tools/read
 
 - that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back);
 - that `STYLES` lists exactly the repo's styles, each with its thumbnail in `img/styles/` and its sample, and its Chinese name as in its `STYLE.md` title;
+- that `STYLE_TILES` is the repo's styles, each once, and that every shot in `reel/shots.js` is described, has its still, and is in `tools/media.txt` under the name the page asks for;
 - that there are as many `lang="en"` texts as `lang="zh"` (a `<small>` gloss, like "TikTok in China" after Douyin, may stand in one language);
 - that nothing from another site loads with the page (a stylesheet, script, font, image or frame).
 
