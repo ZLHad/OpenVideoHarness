@@ -19,8 +19,9 @@
 <!--
   The project's homepage: one file, no build step, in English and Chinese (EN / 中 in the top bar, or ?lang=en / ?lang=zh).
   Every visible text is written twice, <span lang="en">…</span><span lang="zh">…</span>; the strings the script writes are in T.
-  Nothing loads from another site until you press play on a film (GitHub's release): the two display fonts are in fonts/,
-  the pictures in this repo. A count on the page is <span data-n="name">…</span>, which tools/readme.py (tools/ci.sh) holds
+  Nothing loads from another site with the page: the two display fonts are in fonts/, the pictures in this repo. The two
+  moving walls (the films, the styles) fetch one silent mosaic video each from GitHub's release when they scroll into view;
+  until then, and where the release is out of reach, a still from this repo stands there. A film loads when you press play. A count on the page is <span data-n="name">…</span>, which tools/readme.py (tools/ci.sh) holds
   to the repo. Open it from a clone or on GitHub Pages; README.md next to this file has the details.
 -->
 <script>(function(){var d=document.documentElement,l=null;try{var q=new URLSearchParams(location.search).get('lang');if(q==='zh'||q==='en')l=q;else l=localStorage.getItem('ovh-lang');}catch(e){}if(l!=='zh'&&l!=='en')l=/^zh\b/i.test(navigator.language||'')?'zh':'en';d.setAttribute('data-lang',l);d.lang=l==='zh'?'zh-CN':'en';d.classList.add('js');})();</script>
@@ -466,23 +467,41 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 .film.info > span { margin-top: auto; font-family: var(--mono); font-size: 13px; color: var(--cyan); }
 .sees-note { font-size: 14px; color: var(--muted); max-width: 30em; text-align: right; }
 
+/* ---------- the films: a wall of moving shots ---------- */
+.reelwall { overflow: hidden; isolation: isolate; justify-content: flex-end; background: #000; }
+.rw { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2; cursor: pointer; touch-action: pan-y; }
+.rw-scrim { position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(95% 88% at 0% 100%, rgba(4,5,10,.96) 12%, rgba(4,5,10,.82) 40%, rgba(4,5,10,0) 74%), linear-gradient(180deg, var(--bg) 0, rgba(4,5,10,0) calc(var(--bar) + 30px)), linear-gradient(0deg, var(--bg), rgba(4,5,10,0) 90px); }
+.rw-copy { position: relative; width: 100%; max-width: 1360px; margin: 0 auto; pointer-events: none; }
+.rw-copy a { pointer-events: auto; }
+.rw-copy .eyebrow { color: #C9D3EE; text-shadow: 0 1px 12px #04050A, 0 0 3px #04050A; }
+.rw-copy .lede { max-width: 27em; margin-top: 16px; color: #E4EAFB; text-shadow: 0 1px 20px rgba(4,5,10,.9); }
+.rw-copy h2 { filter: drop-shadow(0 4px 26px rgba(4,5,10,.9)); }
+.rw-tip { position: absolute; z-index: 2; left: 0; top: 0; max-width: 20em; padding: 6px 12px; border-radius: 9px; background: rgba(6,8,16,.88); font-size: 14px; line-height: 1.4; color: #fff; pointer-events: none; opacity: 0; transition: opacity .18s; }
+.rw-tip.on { opacity: 1; }
+.lb-nav { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+.lb-nav button, .lb-nav a { min-height: 34px; padding: 4px 13px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid var(--line-2); color: var(--text); text-decoration: none; display: inline-flex; align-items: center; }
+.lb-nav button:hover, .lb-nav a:hover { border-color: var(--cyan); }
+.lb-cap small { display: block; color: var(--muted); font-size: 13.5px; }
+
 /* ---------- 7 · styles ---------- */
-.wall-stage { perspective: 1600px; overflow-x: clip; } /* the tilted wall must not widen the page (a phone would zoom out to fit it) */
-.wall { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; max-width: calc((100svh - var(--bar) - 250px) / .29); margin: 0 auto; transform-origin: 50% 0; transition: transform 1.8s var(--ease); }
-.js .wall { transform: rotateX(52deg) translateY(40px) scale(.92); }
-.js .in .wall { transform: none; }
-.sw { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #0A0E1A; box-shadow: 0 0 0 1px var(--line); transition: transform .4s var(--ease), box-shadow .4s, opacity .8s var(--ease); }
-.js .sw { opacity: 0; transition-delay: var(--d, 0s); }
-.js .in .sw { opacity: 1; }
-.sw:hover { transform: scale(1.08); z-index: 2; box-shadow: 0 0 0 1px rgba(107,230,255,.6), 0 20px 40px -14px rgba(107,230,255,.45); transition-delay: 0s; }
-.sw img, .sw video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.sw video { opacity: 0; transition: opacity .5s; }
-.sw.on video { opacity: 1; }
-.sw > span { position: absolute; inset: auto 0 0 0; padding: 14px 8px 5px; font-size: 12px; font-weight: 500; color: #fff; text-align: left; background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,0)); opacity: 0; transition: opacity .2s; }
-.sw:hover > span, .sw:focus-visible > span { opacity: 1; }
-.sw.info { display: flex; flex-direction: column; justify-content: center; padding: 8px 10px; gap: 2px; cursor: default; }
-.sw.info b { font-family: var(--display); font-weight: 600; font-size: clamp(18px, 1.6vw, 26px); line-height: 1; letter-spacing: -.02em; }
-.sw.info small { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.sty { position: relative; width: min(100vw - 24px, (100svh - var(--bar) - 176px) / .405); left: 50%; transform: translateX(-50%); }   /* the wall runs past the text column, as wide as the window's height lets it */
+.sty-cv { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.wall { position: relative; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; }
+.sw { position: relative; aspect-ratio: 16 / 9; border-radius: 5px; cursor: pointer; transition: box-shadow .25s; }
+.sw.now { box-shadow: 0 0 0 2px #fff, 0 0 26px rgba(107,230,255,.6); z-index: 2; }
+.sw:hover { box-shadow: 0 0 0 2px var(--cyan); z-index: 3; }
+.sw.info { grid-column: span 2; aspect-ratio: auto; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 6px 14px; gap: 2px; cursor: pointer; text-decoration: none; border-radius: 5px; }
+.sw.info b { font-family: var(--display); font-weight: 600; font-size: clamp(16px, 1.5vw, 26px); line-height: 1.05; letter-spacing: -.02em; }
+.sw.info small { font-size: 13px; color: var(--text-2); }
+.sty-stage { grid-column: 3 / 8; grid-row: 2 / 7; position: relative; border-radius: 8px; overflow: hidden; cursor: pointer; box-shadow: 0 0 0 1px var(--line-2), 0 30px 90px -20px rgba(0,0,0,.9); text-align: left; }
+.sty-vid, .sty-vid img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sty-vid video { display: none; }   /* decoded here, drawn on the wall's canvas */
+.sty-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 46px 18px 13px; background: linear-gradient(0deg, rgba(0,0,0,.82), rgba(0,0,0,0)); color: #fff; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.sty-cap b { font-family: var(--display); font-weight: 600; font-size: clamp(22px, 2.3vw, 40px); line-height: 1.05; letter-spacing: -.02em; }
+html[data-lang="zh"] .sty-cap b { letter-spacing: .01em; }
+.sty-cap code { font-size: 13px; color: rgba(255,255,255,.78); }
+.sty-n { position: absolute; top: 12px; right: 14px; font-family: var(--mono); font-size: 13px; color: #fff; background: rgba(0,0,0,.55); border-radius: 999px; padding: 3px 11px; }
 
 .lib-head { margin-top: clamp(22px, 3.5vh, 36px); display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
 .lib-head h3 { font-family: var(--display); font-weight: 600; font-size: clamp(19px, 1.5vw, 24px); letter-spacing: -.02em; }
@@ -639,7 +658,8 @@ html[data-lang="zh"] .studio-steps h3 { letter-spacing: .01em; }
 .btn .star { width: 16px; height: 16px; color: #FFD27A; flex: none; }
 .start-note { margin-top: 10px; }
 .sees-box { display: grid; gap: 8px; justify-items: end; }
-.styles-lede { max-width: 26em; }
+.styles-lede { max-width: 25em; font-size: clamp(17px, 1.2vw, 20px); }
+@media (min-width: 981px) { #styles .head { flex-wrap: nowrap; } #styles .head > div { flex: none; } }
 .contact-lede { max-width: 24em; }
 .contact-links { justify-content: center; }
 .plat code { font-size: 14px; color: var(--text); white-space: nowrap; }
@@ -687,7 +707,6 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .nav a::after { left: 7px; right: 7px; }
   .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .track { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .wall { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }
 }
 @media (max-width: 980px) {
   .nav { display: none; }
@@ -700,11 +719,16 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .screen-wrap, .chapters { max-width: none; }
   .hero-scrim { background: linear-gradient(0deg, rgba(4,5,10,.95) 25%, rgba(4,5,10,.8) 58%, rgba(4,5,10,.45) 85%, rgba(4,5,10,.3)); }
   .galaxy-cap { display: none; }
+  /* the styles: the big picture on top, the rest under it */
+  .sty { width: calc(100vw - 2 * var(--pad-x)); }
+  .wall { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .sty-stage { grid-column: 1 / -1; grid-row: auto; aspect-ratio: 16 / 9; }
+  .sw.info { grid-column: span 5; }
 }
 @media (max-width: 760px), (max-height: 560px) {
   html { scroll-snap-type: none; }
   .slide { min-height: 0; padding-top: calc(var(--bar) + 28px); padding-bottom: 44px; }
-  .hero { min-height: 100svh; }
+  .hero, .reelwall { min-height: 100svh; }
   .rail, .scroll-cue { display: none; }
 }
 @media (max-width: 640px) {
@@ -715,7 +739,13 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .films { grid-template-columns: minmax(0, 1fr); }
   .film.tall { grid-column: auto; }
-  .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sty { width: 100vw; }
+  .wall { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+  .sw, .sty-stage { border-radius: 0; }
+  .sw.info { grid-column: span 1; padding: 2px 8px; }
+  .sw.info b { font-size: 15px; }
+  .sw.info small { display: none; }
+  .sty-cap { padding: 34px 14px 10px; }
   .efforts, .faq { grid-template-columns: minmax(0, 1fr); }
   .gh .t { display: none; }
   .brand { font-size: 17px; }
@@ -761,7 +791,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; }
-  .js [data-r], .js .split .w > span, .js .hero h1, .js .wall, .js .sw { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+  .js [data-r], .js .split .w > span, .js .hero h1 { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
   .say-mini, .toast { transition: none; }
 }
 </style>
@@ -772,12 +802,12 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 <header class="topbar">
   <a class="brand" href="#top">OpenVideo<span>Harness</span></a>
   <nav class="nav" aria-label="Sections">
+    <a href="#reel"><span lang="en">Films</span><span lang="zh">成片</span></a>
     <a href="#studio">Studio</a>
     <a href="#start"><span lang="en">Get started</span><span lang="zh">快速开始</span></a>
     <a href="#features"><span lang="en">Features</span><span lang="zh">特性</span></a>
     <a href="#how"><span lang="en">How it works</span><span lang="zh">工作原理</span></a>
     <a href="#map"><span lang="en">Tools</span><span lang="zh">能力地图</span></a>
-    <a href="#film"><span lang="en">Film</span><span lang="zh">介绍片</span></a>
     <a href="#showcase"><span lang="en">Showcase</span><span lang="zh">作品</span></a>
     <a href="#styles"><span lang="en">Styles</span><span lang="zh">风格</span></a>
     <a href="#faq"><span lang="en">FAQ</span><span lang="zh">常见问题</span></a>
@@ -816,6 +846,22 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
   <p class="galaxy-cap" data-r><span lang="en">Every star is a film: the <span data-n="styles">43</span> style samples, in orbit</span><span lang="zh">每颗星都是一支片子：<span data-n="styles">43</span> 种风格的样片</span></p>
   <div class="scroll-cue" aria-hidden="true"><i></i><span lang="en">scroll</span><span lang="zh">向下</span></div>
+</section>
+
+<!-- the films: a wall of shots, and the way into the one take (reel/) -->
+<section class="slide reelwall" id="reel" data-en="Films" data-zh="成片">
+  <canvas id="rw" class="rw" aria-hidden="true"></canvas>
+  <div class="rw-scrim" aria-hidden="true"></div>
+  <p class="rw-tip" id="rwTip" aria-hidden="true"></p>
+  <div class="rw-copy">
+    <p class="eyebrow" data-r><span lang="en"><span data-k="shots">55</span> shots from <span data-k="films">16</span> films</span><span lang="zh"><span data-k="films">16</span> 支片子里的 <span data-k="shots">55</span> 个镜头</span></p>
+    <h2 class="split"><span lang="en">Films first. <em>Then how they're made.</em></span><span lang="zh">先看片，<em>再看怎么做的。</em></span></h2>
+    <p class="lede" data-r><span lang="en">Every shot here is from a film made this way, rendered by code. Click one to enlarge it, or ride through them in a single take, from a galaxy down to a point of light.</span><span lang="zh">这些镜头都出自用它做的片子，由代码渲染。点一个放大看；也可以跟着镜头走一遍，从一个星系推到一点光，中间不切。</span></p>
+    <div class="cta" data-r>
+      <a class="btn" href="reel/" data-lang-link><span lang="en">One take</span><span lang="zh">一镜到底</span> <span class="arrow">→</span></a>
+      <a class="btn ghost" href="reel/#wall" data-lang-link><span lang="en">All the shots</span><span lang="zh">全部镜头</span></a>
+    </div>
+  </div>
 </section>
 
 <!-- 01 · Studio -->
@@ -1178,10 +1224,15 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 <section class="slide" id="styles" data-en="Styles" data-zh="风格">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>09</b><span lang="en">Style library · click one to hear it</span><span lang="zh">风格库 · 点开能听声音</span></p><h2 class="split"><span lang="en">43 styles. <em>Not one default look.</em></span><span lang="zh">43 种风格，<em>不再千篇一律。</em></span></h2></div>
-      <p class="lede styles-lede" data-r><span lang="en">Left alone, AI video drifts to one look: dark background, glow, glass cards. Each style here comes with a sample that was really rendered.</span><span lang="zh">放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里每种风格都带一段实际渲染的样片。</span></p>
+      <div><p class="eyebrow" data-r><b>09</b><span lang="en">Style library · point at one, click to hear it</span><span lang="zh">风格库 · 指着看，点开听</span></p><h2 class="split"><span lang="en">One sentence, <em>43 ways to draw it.</em></span><span lang="zh">同一句话，<em>43 种画法。</em></span></h2></div>
+      <p class="lede styles-lede" data-r><span lang="en">Every sample says the same line, “Every frame is code.” Only the style changes. Left alone, AI video drifts to one look: dark background, glow, glass cards.</span><span lang="zh">每段样片演的都是同一句“每一帧，都是代码”，不同的只有风格。放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。</span></p>
     </div>
-    <div class="wall-stage"><div class="wall" id="wall"></div></div>
+    <div class="sty" id="sty">
+      <canvas class="sty-cv" id="styCv" aria-hidden="true"></canvas>
+      <div class="wall" id="wall">
+        <button type="button" class="sty-stage" id="styStage"><span class="sty-vid" id="styVid"></span><span class="sty-cap"><b><span lang="en" id="styEn"></span><span lang="zh" id="styZh"></span></b><small><code id="stySlug"></code></small></span><span class="sty-n" id="styN"></span></button>
+      </div>
+    </div>
     <div class="lib-head" data-r><h3><span lang="en">Recipes and components, as the agent sees them</span><span lang="zh">配方和组件，agent 看到的样子</span></h3><p class="fine"><span lang="en"><span data-n="recipes">75</span> shot recipes, <span data-n="sequences">11</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards and <span data-n="components">6</span> motion components, each move with a contact sheet like these. Click one to enlarge it.</span><span lang="zh"><span data-n="recipes">75</span> 张镜头配方、<span data-n="sequences">11</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡、<span data-n="components">6</span> 个动效组件，每个动作都配这样一张联系表。点开放大。</span></p></div>
     <div class="lib">
       <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../components/build-up/sample/media/sheet.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the build-up component: a tower rising floor by floor and a stepped block dropping in"></button><figcaption><code>build-up</code><span lang="en">pieces appear by a rule until the whole stands</span><span lang="zh">逐渐建成：零件按规则一块块出现，直到整体立起来</span></figcaption></figure>
@@ -1329,6 +1380,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   <div class="lb-card"><div id="lbMedia"></div><div class="lb-cap" id="lbCap"></div></div>
 </div>
 
+<script src="reel/shots.js"></script>
 <script>
 (() => {
 'use strict';
@@ -1354,6 +1406,7 @@ const T = {
     sheet: name => `${name}: the contact sheet Claude reviews`,
     tile: name => `${name}: play with sound`,
     yours: '<b>+ yours</b><small>borrow the grammar, not the shots</small>',
+    shotNav: ['Previous shot of this film', 'Next shot of this film', 'See it in the one take'],
     lib: name => `${name}: its contact sheet`,
   },
   zh: {
@@ -1367,6 +1420,7 @@ const T = {
     sheet: name => `${name}：Claude 审片时看的联系表`,
     tile: name => `${name}：带声音播放`,
     yours: '<b>+ 你的</b><small>借语法，不抄镜头</small>',
+    shotNav: ['这支片子的上一镜', '这支片子的下一镜', '在一镜到底里看'],
     lib: name => `${name}：它的联系表`,
   },
 };
@@ -1421,7 +1475,14 @@ const hoverClip = slug => stylePath(slug, slug in RELEASE_SAMPLES ? 'preview.mp4
 const fullClip = slug => !(slug in RELEASE_SAMPLES) ? { src: stylePath(slug, 'swatch.mp4') }
   : STYLES_MEDIA_UPLOADED ? { src: `https://github.com/ZLHad/OpenVideoHarness/releases/download/styles-media/${RELEASE_SAMPLES[slug]}`, type: 'video/mp4' }
   : { src: stylePath(slug, 'preview.mp4'), loop: true };
-const thumbPath = slug => `img/styles/${slug}.jpg`;                   // a 384 x 216 copy of its poster, for the galaxy and the wall
+const thumbPath = slug => `img/styles/${slug}.jpg`;                   // a 384 x 216 copy of its poster, for the galaxy
+// the styles in the order of their tiles in the mosaic video (styles-wall, 8 to a row, 320 x 180 each): neighbours contrast
+const STYLE_TILES = ['monumental-scifi', 'symmetry-pastel', 'shadow-puppet', 'watercolor-pastoral', 'era-media-relay', 'bubble-chart-story', 'y2k-chrome', 'dunhuang-mural', 'ink-wash', 'pastel-ui', 'synthwave-outrun', 'isotype', 'guochao-festive', 'neon-step-print', 'map-explainer', 'silhouette-papercut', 'risograph', 'lacquer-screen', 'walk-in-world', 'tabletop-miniature', 'deep-space-explainer', 'crt-terminal', 'visual-investigation', 'dark-math', 'whiteboard', 'paper-desk-dossier', 'clockwork-map', 'gold-line-dark', 'cutout-jazz', 'blueprint', 'chalkboard', 'bouncy-flat-2d', 'pixel-16bit', 'editorial-data', 'halftone-comic', 'swiss-grid-type', 'product-keynote', 'iso-anatomy', 'brutalist-meme', 'fui-hud', 'scratched-type', 'archival-pan-zoom', 'dark-studio-3d'];
+const R = window.REEL;   // the films' shots (reel/shots.js)
+const MEDIA = 'https://github.com/ZLHad/OpenVideoHarness/releases/download/media/';
+const here = location.protocol === 'file:' || /^(localhost|127\.|\[::1\])/.test(location.hostname);   // a clone: tools/fetch_media.sh puts the files in media/
+const reelFile = (path, name) => [...(here ? [`media/${path}`] : []), MEDIA + name];
+const shotFiles = id => reelFile(`reel/${id}.mp4`, `reel-${id}-${R.release[id]}.mp4`);
 
 /* ---------- split headings into words (Chinese: characters) that rise in ---------- */
 const CJK = /[㐀-鿿豈-﫿]/;
@@ -1782,47 +1843,156 @@ seesBtn.addEventListener('click', () => {
 });
 onLeave.showcase = resetFilms;
 
-/* ---------- styles: the wall ---------- */
-const wall = $('#wall');
-const tiles = STYLES.map(([slug, en, zh], i) => {
-  const b = document.createElement('button'); b.className = 'sw';
-  const col = i % 8, row = Math.floor(i / 8);
-  b.style.setProperty('--d', `${0.35 + (col + row) * 0.06}s`);
-  const img = new Image(); img.src = thumbPath(slug); img.alt = ''; img.loading = 'lazy'; img.width = 384; img.height = 216;
-  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'none';
-  const label = document.createElement('span');
-  const le = document.createElement('span'); le.lang = 'en'; le.textContent = en;
-  const lz = document.createElement('span'); lz.lang = 'zh'; lz.textContent = zh;
-  label.append(le, lz);
-  b.append(img, v, label); wall.appendChild(b);
-  const t = { b, v, slug, en, zh };
-  v.addEventListener('ended', () => b.classList.remove('on'));
-  b.addEventListener('mouseenter', () => playTile(t));
-  b.addEventListener('click', () => { stopWall(); openLightbox({ video: fullClip(slug), cap: lang === 'zh' ? zh : en, say: styleSay(slug, en, zh), code: `bin/vh new promo my-film --style ${slug}` }); });
+/* ---------- the two moving walls: one mosaic video each, drawn tile by tile on a canvas ---------- */
+const saveData = !!(navigator.connection && navigator.connection.saveData);
+function mosaic(still, files) {   // { show(), play(), pause(), src }: the still first, the video once the wall is in view
+  const m = { img: new Image(), v: null, get src() { return m.v && m.v.readyState >= 2 ? m.v : m.img.complete && m.img.naturalWidth ? m.img : null; } };
+  m.show = () => { if (!m.img.src) m.img.src = still; };
+  m.wake = () => {
+    m.show(); if (m.v || reduced || saveData) return;
+    const v = m.v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('muted', ''); v.setAttribute('aria-hidden', 'true');
+    v.style.display = 'none';
+    for (const f of files) { const so = document.createElement('source'); so.type = 'video/mp4'; so.src = f; v.appendChild(so); }   // release-src-ok: a <source type>
+    document.body.appendChild(v);
+  };
+  m.play = () => { m.wake(); if (m.v) { const p = m.v.play(); if (p) p.catch(() => {}); } };
+  m.pause = () => { if (m.v) m.v.pause(); };
+  return m;
+}
+function seen(el, on, off, margin = '0px') { new IntersectionObserver(([e]) => (e.isIntersecting && (margin !== '0px' || e.intersectionRatio >= .02) ? on : off)(), { rootMargin: margin, threshold: [0, .02] }).observe(el); }
+function fit(cv, ctx, w, h) { const d = Math.min(devicePixelRatio || 1, 2), W = Math.round(w * d), H = Math.round(h * d); if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } ctx.setTransform(d, 0, 0, d, 0, 0); ctx.imageSmoothingQuality = 'high'; }
+
+/* ---------- the films: rows of shots drifting past each other ---------- */
+const rw = { sec: $('#reel'), cv: $('#rw'), ctx: $('#rw').getContext('2d'), tip: $('#rwTip'), m: mosaic('reel/wall.webp', reelFile('reel-wall.mp4', `reel-wall-${R.release['reel-wall']}.mp4`)), rows: 5, gap: 6, w: 1, h: 1, tw: 1, th: 1, t: 0, last: 0, raf: 0, on: false, pt: null, hit: null, slow: 1, born: 0, big: null, want: null, since: 0 };
+function rwSize() { rw.w = rw.sec.clientWidth; rw.h = rw.sec.clientHeight; rw.rows = rw.w < 700 ? 7 : rw.h > 1150 ? 6 : 5; rw.th = (rw.h - rw.gap * (rw.rows - 1)) / rw.rows; rw.tw = rw.th * 16 / 9; }
+const rwRow = r => R.order.filter((_, i) => i % rw.rows === r);
+const rwShift = r => { const dir = r % 2 ? 1 : -1; return dir * (rw.t * (13 + hash(r + 2) * 9) + (reduced ? 0 : (scrollY - rw.sec.offsetTop) * (.1 + hash(r + 5) * .12))) + hash(r + 11) * 900; };
+function rwEach(fn) {   // every tile in the window: fn(id, x, y, row)
+  for (let r = 0; r < rw.rows; r++) {
+    const ids = rwRow(r), step = rw.tw + rw.gap, span = ids.length * step, y = r * (rw.th + rw.gap);
+    const k0 = rw.born ? ease(clampN((rw.t - rw.born - r * .07) / 1.5)) : 0, come = (1 - k0) * (r % 2 ? -1 : 1) * rw.w * .5;
+    const off = (((rwShift(r) + come) % span) + span) % span;
+    for (let x = off - span; x < rw.w; x += span) ids.forEach((id, k) => { const tx = x + k * step; if (tx > -rw.tw && tx < rw.w) fn(id, tx, y, r, k0); });
+  }
+}
+const clampN = x => Math.min(1, Math.max(0, x));
+function rwTile(src, id, x, y, w, h) { const k = R.order.indexOf(id), m = R.mosaic; rw.ctx.drawImage(src, (k % m.cols) * m.w, Math.floor(k / m.cols) * m.h, m.w, m.h, x, y, w, h); }
+function rwDraw() {
+  const c = rw.ctx; fit(rw.cv, c, rw.w, rw.h); c.clearRect(0, 0, rw.w, rw.h);
+  const src = rw.m.src; if (!src) return;
+  let hit = null; rw.hit = null;
+  if (rw.pt) rwEach((id, x, y) => { if (rw.pt.x >= x && rw.pt.x < x + rw.tw && rw.pt.y >= y && rw.pt.y < y + rw.th) hit = { id, x, y }; });
+  rw.hit = hit;
+  rwEach((id, x, y, r, k0) => { c.globalAlpha = k0 * (hit && hit.id !== id ? .42 : 1); rwTile(src, id, x, y, rw.tw, rw.th); });
+  c.globalAlpha = 1;
+  if (hit) {   // the one under the pointer comes forward
+    const s = 1.3, w = rw.tw * s, h = rw.th * s, x = Math.min(Math.max(hit.x - (w - rw.tw) / 2, 8), rw.w - w - 8), y = Math.min(Math.max(hit.y - (h - rw.th) / 2, 64), rw.h - h - 46);
+    c.save(); c.shadowColor = 'rgba(0,0,0,.85)'; c.shadowBlur = 60; c.fillStyle = '#000'; c.fillRect(x, y, w, h); c.restore();
+    if (rw.big && rw.big.id === hit.id && rw.big.v.readyState >= 2) c.drawImage(rw.big.v, x, y, w, h); else rwTile(src, hit.id, x, y, w, h);
+    c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 1.5; c.strokeRect(x, y, w, h);
+    if (rw.tip.dataset.id !== hit.id + lang) { rw.tip.dataset.id = hit.id + lang; rw.tip.textContent = R.shots[hit.id][lang]; }
+    rw.tip.style.transform = `translate(${x}px, ${y + h + 8}px)`;
+  }
+  rw.tip.classList.toggle('on', !!hit);
+}
+function rwBig(now) {   // pointed at for a moment: its own clip, sharp, in place of the mosaic's small one
+  const id = rw.hit && rw.hit.id;
+  if (id !== rw.want) { rw.want = id; rw.since = now; }
+  if (rw.big && rw.big.id !== id) { rw.big.v.pause(); rw.big.v.replaceChildren(); rw.big.v.load(); rw.big.v.remove(); rw.big = null; }
+  if (!id || rw.big || now - rw.since < 180 || saveData) return;
+  const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.style.display = 'none';
+  for (const f of shotFiles(id)) { const so = document.createElement('source'); so.type = 'video/mp4'; so.src = f; v.appendChild(so); }   // release-src-ok: a <source type>
+  document.body.appendChild(v); const p = v.play(); if (p) p.catch(() => {});
+  rw.big = { id, v };
+}
+function rwFrame(now) {
+  if (!rw.on) { rw.raf = 0; return; }
+  const dt = Math.min(.05, (now - rw.last) / 1000); rw.last = now;
+  rw.slow += ((rw.hit ? .12 : 1) - rw.slow) * Math.min(1, dt * 6); rw.t += dt * rw.slow;
+  if (!rw.born && rw.m.src && rw.sec.classList.contains('in')) rw.born = rw.t || .001;
+  rwDraw(); rwBig(now); rw.raf = requestAnimationFrame(rwFrame);
+}
+function rwStill() { rw.m.show(); rw.born = .001; rw.t = 99; rwDraw(); }
+seen(rw.sec, () => { rw.on = true; rw.m.play(); if (reduced) rwStill(); else if (!rw.raf) { rw.last = performance.now(); rw.raf = requestAnimationFrame(rwFrame); } }, () => { rw.on = false; rw.m.pause(); rw.pt = rw.hit = null; rwBig(0); });
+const loaded = fn => document.readyState === 'complete' ? fn() : addEventListener('load', fn);   // nothing of the walls before the first screen is in
+loaded(() => seen(rw.sec, rw.m.show, () => {}, '500px'));
+rwSize(); addEventListener('resize', () => { rwSize(); if (reduced && rw.m.img.complete) rwStill(); });
+rw.m.img.addEventListener('load', () => { if (reduced) rwStill(); });
+rw.sec.addEventListener('pointermove', e => { if (!fine) return; const b = rw.sec.getBoundingClientRect(); rw.pt = e.target === rw.cv ? { x: e.clientX - b.left, y: e.clientY - b.top } : null; });
+rw.sec.addEventListener('pointerleave', () => { rw.pt = null; });
+rw.cv.addEventListener('click', e => {
+  const b = rw.sec.getBoundingClientRect(); rw.pt = { x: e.clientX - b.left, y: e.clientY - b.top };
+  let id = rw.hit && rw.hit.id; if (!id || !fine) rwEach((k, x, y) => { if (rw.pt.x >= x && rw.pt.x < x + rw.tw && rw.pt.y >= y && rw.pt.y < y + rw.th) id = k; });
+  if (!fine) rw.pt = null;
+  if (id) openShot(id);
+});
+$$('[data-k]').forEach(el => { el.textContent = el.dataset.k === 'shots' ? R.order.length : new Set(R.order.map(id => R.shots[id].film)).size; });
+
+/* ---------- styles: one picture at full size, and all of them moving round it ---------- */
+const wall = $('#wall'), sty = { box: $('#sty'), cv: $('#styCv'), ctx: $('#styCv').getContext('2d'), stage: $('#styStage'), vid: $('#styVid'), m: mosaic('img/styles-wall.webp', reelFile('styles-wall.mp4', `styles-wall-${R.release['styles-wall']}.mp4`)), at: 1, on: false, raf: 0, until: 0, held: false, token: 0, next: null, front: null, born: 0 };
+const styleOf = Object.fromEntries(STYLES.map(([slug, en, zh]) => [slug, { slug, en, zh }]));
+const tiles = STYLE_TILES.map((slug, i) => {
+  const { en, zh } = styleOf[slug], b = document.createElement('button'); b.type = 'button'; b.className = 'sw';
+  wall.appendChild(b);
+  const t = { b, slug, en, zh };
+  b.addEventListener('pointerenter', () => { if (fine) { sty.held = true; styShow(i); } });
+  b.addEventListener('focus', () => { sty.held = true; styShow(i); });
+  b.addEventListener('pointerleave', () => { sty.held = false; sty.until = performance.now() + 1600; });
+  b.addEventListener('blur', () => { sty.held = false; });
+  b.addEventListener('click', () => openStyle(t));
   return t;
 });
-const yours = document.createElement('div'); yours.className = 'sw info';
-yours.style.setProperty('--d', `${0.35 + 10 * 0.06}s`);
+const openStyle = t => openLightbox({ video: fullClip(t.slug), cap: lang === 'zh' ? t.zh : t.en, say: styleSay(t.slug, t.en, t.zh), code: `bin/vh new promo my-film --style ${t.slug}` });
+const yours = document.createElement('a'); yours.className = 'sw info'; yours.href = 'https://github.com/ZLHad/OpenVideoHarness/tree/main/styles'; yours.target = '_blank'; yours.rel = 'noopener';
 wall.appendChild(yours);
-function playTile(t) {
-  if (!t.v.src) t.v.src = hoverClip(t.slug);
-  t.v.currentTime = 0;
-  const p = t.v.play(); if (p) p.then(() => t.b.classList.add('on')).catch(() => {});
+sty.stage.addEventListener('click', () => openStyle(tiles[sty.at]));
+sty.stage.addEventListener('pointerenter', () => { sty.held = fine; }); sty.stage.addEventListener('pointerleave', () => { sty.held = false; sty.until = performance.now() + 1600; });
+// the samples of spec 1 are the same five seconds, so the stage keeps one clock: change the style and the line goes on
+const styClock = d => (performance.now() / 1000) % d;
+function styVideo(slug) { const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('muted', ''); v.src = hoverClip(slug); v.dataset.slug = slug; return v; }
+function styShow(i) {
+  const t = tiles[i], token = ++sty.token; sty.at = i; sty.until = performance.now() + (innerWidth < 760 ? 4600 : 3200);
+  tiles.forEach((x, k) => x.b.classList.toggle('now', k === i));
+  $('#styEn').textContent = t.en; $('#styZh').textContent = t.zh; $('#stySlug').textContent = `styles/${t.slug}`; $('#styN').textContent = `${i + 1} / ${tiles.length}`;
+  sty.stage.setAttribute('aria-label', tr().tile(lang === 'zh' ? t.zh : t.en));
+  if (reduced || saveData) { const im = new Image(); im.alt = ''; im.src = stylePath(t.slug, 'poster.jpg'); sty.vid.replaceChildren(im); return; }
+  const free = o => { o.pause(); o.removeAttribute('src'); o.load(); o.remove(); };   // an emptied video gives its memory back
+  for (const o of $$('video', sty.vid)) if (o !== sty.next) free(o);
+  sty.front = null;
+  const v = sty.next && sty.next.dataset.slug === t.slug ? sty.next : styVideo(t.slug); sty.next = null;
+  if (!v.isConnected) sty.vid.appendChild(v);
+  const go = () => { if (token !== sty.token || !sty.on) return; if (v.duration && !(t.slug in RELEASE_SAMPLES)) v.currentTime = styClock(v.duration); const p = v.play(); if (p) p.then(() => { if (token === sty.token) { sty.front = v; sty.born = performance.now(); } }).catch(() => {}); };
+  if (v.readyState >= 2) go(); else v.addEventListener('loadeddata', go, { once: true });
 }
-const order = tiles.map((_, i) => i).sort((a, b) => ((a * 37 + 11) % tiles.length) - ((b * 37 + 11) % tiles.length));   // a fixed shuffle (37 is coprime with the count)
-let wallTimer = null, wallPtr = 0;
-function startWall() {
-  if (wallTimer || reduced) return;
-  wallTimer = setInterval(() => {
-    if ($$('.sw.on', wall).length >= 8) return;
-    const t = tiles[order[wallPtr++ % order.length]];
-    if (!t.b.classList.contains('on')) playTile(t);
-  }, 600);
+function styFrame(now) {
+  if (!sty.on) { sty.raf = 0; return; }
+  if (!sty.held && !lb.classList.contains('show')) {
+    if (now > sty.until - 1300 && !sty.next && !saveData) { sty.next = styVideo(tiles[(sty.at + 1) % tiles.length].slug); sty.vid.appendChild(sty.next); }   // the one after, ahead of time
+    if (now > sty.until) styShow((sty.at + 1) % tiles.length);
+  }
+  if (sty.odd = !sty.odd) styDraw();   // the video has 30 frames a second
+  sty.raf = requestAnimationFrame(styFrame);
 }
-function stopWall() { clearInterval(wallTimer); wallTimer = null; tiles.forEach(t => { t.v.pause(); t.b.classList.remove('on'); }); }
-onEnter.styles = () => setTimeout(() => { if (sections[current].id === 'styles') startWall(); }, 1200);
-onLeave.styles = stopWall;
-$$('[data-zoom]').forEach(b => b.addEventListener('click', () => { stopWall(); openLightbox({ img: $('img', b).src, cap: tr().lib(b.parentElement.querySelector('code').textContent) }); }));
+function styDraw() {
+  const b = sty.box, c = sty.ctx, w = b.clientWidth, h = b.clientHeight, src = sty.m.src; if (!w) return;
+  fit(sty.cv, c, w, h); c.clearRect(0, 0, w, h); if (!src) return;
+  const cell = (i, x, y, cw, ch) => c.drawImage(src, (i % 8) * 320, Math.floor(i / 8) * 180, 320, 180, x, y, cw, ch);
+  tiles.forEach((t, i) => cell(i, t.b.offsetLeft, t.b.offsetTop, t.b.offsetWidth, t.b.offsetHeight));
+  const g = sty.stage, x = g.offsetLeft, y = g.offsetTop, sw = g.offsetWidth, sh = g.offsetHeight, v = sty.front;
+  c.save(); c.beginPath(); if (c.roundRect && innerWidth > 640) c.roundRect(x, y, sw, sh, 8); else c.rect(x, y, sw, sh); c.clip();
+  cell(sty.at, x, y, sw, sh);   // the mosaic's small one until the sample itself is in
+  if (v && v.readyState >= 2) { c.globalAlpha = clampN((performance.now() - sty.born) / 240); c.drawImage(v, x, y, sw, sh); }
+  c.restore();
+}
+function styStart() {
+  if (sty.on) return; sty.on = true; sty.m.play(); styShow(sty.at);
+  if (reduced) styDraw(); else if (!sty.raf) sty.raf = requestAnimationFrame(styFrame);
+}
+function styStop() { sty.on = false; sty.m.pause(); sty.token++; $$('video', sty.vid).forEach(v => v.pause()); }
+sty.m.img.addEventListener('load', () => { if (reduced) styDraw(); });
+seen(sty.box, styStart, styStop); loaded(() => seen(sty.box, sty.m.show, () => {}, '600px'));
+addEventListener('resize', () => { if (reduced) styDraw(); });
+$$('[data-zoom]').forEach(b => b.addEventListener('click', () => { openLightbox({ img: $('img', b).src, cap: tr().lib(b.parentElement.querySelector('code').textContent) }); }));
 
 /* ---------- in practice ---------- */
 $$('a.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
@@ -1847,20 +2017,35 @@ $$('[data-szoom]').forEach(b => b.addEventListener('click', () => {   // the Stu
 
 /* ---------- lightbox ---------- */
 const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
-function openLightbox({ video, img, cap, code, say }) {
-  pauseAll();
+let lbShot = null;   // the shot on show, and the others of its film
+function openShot(id) {
+  const list = R.order.filter(k => R.shots[k].film === R.shots[id].film), at = list.indexOf(id), s = R.shots[id];
+  openLightbox({ video: { files: shotFiles(id), poster: `reel/posters/${id}.webp`, loop: true, mute: true }, cap: s[lang], small: R.films[s.film][lang] });
+  lbShot = { list, at };
+  const nav = document.createElement('span'); nav.className = 'lb-nav'; const [pv, nx, tk] = tr().shotNav;
+  const btn = (txt, label, n) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.setAttribute('aria-label', label); b.addEventListener('click', () => turnShot(n)); return b; };
+  if (list.length > 1) nav.append(btn('←', pv, -1), document.createTextNode(`${at + 1} / ${list.length}`), btn('→', nx, 1));
+  if ('n' in s) { const a = document.createElement('a'); a.href = `reel/?lang=${lang}#${id}`; a.textContent = tk; nav.append(a); }
+  lbCap.appendChild(nav);
+}
+function turnShot(n) { const { list, at } = lbShot; openShot(list[(at + n + list.length) % list.length]); }
+function openLightbox({ video, img, cap, code, say, small }) {
+  pauseAll(); lbShot = null;
   const tt = $('#toast'); if (tt) { clearTimeout(toastTimer); tt.classList.remove('show'); }   // a copy's line would sit over the lightbox's own
   lbMedia.innerHTML = '';
   if (video) {   // a path, or { src, type, loop }: a release file goes through <source type> (WebKit refuses it as a bare src)
     const c = typeof video === 'string' ? { src: video } : video;
-    const v = document.createElement('video'); v.controls = true; v.autoplay = true; v.playsInline = true; v.loop = !!c.loop;
-    if (c.type) { const so = document.createElement('source'); so.type = c.type; so.src = c.src; v.appendChild(so); }   // release-src-ok: a <source type>
+    const v = document.createElement('video'); v.controls = !c.mute; v.autoplay = true; v.playsInline = true; v.loop = !!c.loop; v.muted = !!c.mute;
+    if (c.poster) v.poster = c.poster;
+    if (c.files) for (const f of c.files) { const so = document.createElement('source'); so.type = 'video/mp4'; so.src = f; v.appendChild(so); }   // release-src-ok: a <source type>
+    else if (c.type) { const so = document.createElement('source'); so.type = c.type; so.src = c.src; v.appendChild(so); }   // release-src-ok: a <source type>
     else v.src = c.src;
     lbMedia.appendChild(v);
   }
   if (img) { const i = new Image(); i.src = img; i.alt = cap; lbMedia.appendChild(i); }
   lbCap.innerHTML = '';
   const c = document.createElement('span'); c.textContent = cap; lbCap.appendChild(c);
+  if (small) { const k = document.createElement('small'); k.textContent = small; c.appendChild(k); }
   if (say) {   // a sentence to paste into Studio or an agent: "make one like this"
     const d = document.createElement('div'); d.className = 'cmd say lb-say';
     for (const l of ['en', 'zh']) { const t = document.createElement('span'); t.lang = l; t.dataset.copyText = ''; t.textContent = say[l]; d.appendChild(t); }
@@ -1870,10 +2055,14 @@ function openLightbox({ video, img, cap, code, say }) {
   if (code) { const k = document.createElement('code'); k.textContent = code; if (say) k.className = 'lb-code'; lbCap.appendChild(k); }
   lb.classList.add('show');
 }
-function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; if (sections[current].id === 'styles') startWall(); }
+function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; lbShot = null; if (rw.on) rw.m.play(); if (sty.on) { sty.m.play(); styShow(sty.at); } }
 $('#lbX').addEventListener('click', closeLightbox);
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('show')) closeLightbox(); });
+document.addEventListener('keydown', e => {
+  if (!lb.classList.contains('show')) return;
+  if (e.key === 'Escape') closeLightbox();
+  else if (lbShot && lbShot.list.length > 1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); turnShot(e.key === 'ArrowLeft' ? -1 : 1); }
+});
 
 /* ---------- copy buttons ---------- */
 function bindCopy(b) { b.addEventListener('click', async e => {
@@ -1918,6 +2107,8 @@ function applyLang(l) {
   $$('.copy:not([data-toast])').forEach(b => { b.textContent = tr().copy; });   // a card's button keeps its two-language words
   tiles.forEach(t => t.b.setAttribute('aria-label', tr().tile(l === 'zh' ? t.zh : t.en)));
   yours.innerHTML = tr().yours;
+  $$('[data-lang-link]').forEach(a => { const [q, h] = a.getAttribute('href').split('#'); a.setAttribute('href', `${q.split('?')[0]}?lang=${l}${h ? '#' + h : ''}`); });
+  if (sty.on) sty.stage.setAttribute('aria-label', tr().tile(lang === 'zh' ? tiles[sty.at].zh : tiles[sty.at].en));
   ftSetPlaying(ft.playing); ftDraw(); ftShowCheck();
 }
 $('#langbtn').addEventListener('click', () => {

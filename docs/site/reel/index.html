@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>One take · OpenVideoHarness</title>
+<meta name="description" content="From a galaxy down to a point of light: shots from films made with OpenVideoHarness, joined into one take that moves as you scroll. 从一个星系推到一点光：用 OpenVideoHarness 做的片子，连成一个不切的长镜头。">
+<meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://zlhad.top/OpenVideoHarness/docs/site/reel/">
+<link rel="alternate" hreflang="en" href="https://zlhad.top/OpenVideoHarness/docs/site/reel/?lang=en">
+<link rel="alternate" hreflang="zh" href="https://zlhad.top/OpenVideoHarness/docs/site/reel/?lang=zh">
+<meta property="og:title" content="One take · OpenVideoHarness">
+<meta property="og:description" content="From a galaxy down to a point of light, in one take. Scroll to go in.">
+<meta property="og:image" content="https://zlhad.top/OpenVideoHarness/docs/site/reel/posters/blackhole.webp">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237CF7FF'/%3E%3Cstop offset='.5' stop-color='%239D8CFF'/%3E%3Cstop offset='1' stop-color='%23F07CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='8' y='8' width='16' height='16' rx='4' transform='rotate(45 16 16)' fill='url(%23g)'/%3E%3C/svg%3E">
+<!--
+  One take: the shots in shots.js joined into a single push-in, from a galaxy (10^21 m) to a point of light. The camera's
+  place is a function of how far the page is scrolled and nothing else: every shot sits inside the one before it, at a spot
+  picked for that pair (shots.js, the port), so scrolling zooms from one into the next and back again without a cut. The
+  last shot bursts into the whole wall. Space lets it run on its own.
+  One file, no build step, English and Chinese as on the homepage. The clips come from the GitHub release "media" as they
+  are needed (posters/ stands in until then, and where the release is out of reach); reduced motion shows the wall, still.
+-->
+<script>(function(){var d=document.documentElement,l=null;try{var q=new URLSearchParams(location.search).get('lang');if(q==='zh'||q==='en')l=q;else l=localStorage.getItem('ovh-lang');}catch(e){}if(l!=='zh'&&l!=='en')l=/^zh\b/i.test(navigator.language||'')?'zh':'en';d.setAttribute('data-lang',l);d.lang=l==='zh'?'zh-CN':'en';d.classList.add('js');if(matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('still');})();</script>
+<style>
+@font-face { font-family: "Inter Tight"; src: url("../fonts/InterTight-latin.woff2") format("woff2"); font-weight: 500 700; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+2013-2014, U+2018-201D, U+2022, U+2026, U+2192, U+2197, U+2212; }
+@font-face { font-family: "JetBrains Mono"; src: url("../fonts/JetBrainsMono-latin.woff2") format("woff2"); font-weight: 400 500; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+2013-2014, U+2018-201D, U+2022, U+2026, U+2190-2193, U+2197, U+21A9, U+21BA, U+2212; }
+:root {
+  --ac: #c9d3ff;
+  --serif: "Songti SC", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", "STSong", "Microsoft YaHei", serif;
+  --display: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  --px: clamp(18px, 3.6vw, 64px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: #000; }
+body { background: #000; color: #F4F6FF; font-family: var(--sans); line-height: 1.5; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+img, video, canvas { display: block; }
+:focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; border-radius: 6px; }
+html:not([data-lang]) [lang="zh"], html[data-lang="en"] [lang="zh"], html[data-lang="zh"] [lang="en"] { display: none !important; }
+
+#track { position: relative; }
+#stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: #000; contain: strict; }
+#world { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.layer { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; will-change: transform, opacity; pointer-events: none; }
+.iris, .inner { position: absolute; inset: 0; transform-origin: 50% 50%; will-change: transform; }
+.edge { position: absolute; inset: 0; }
+.upright .edge {   /* an upright window sees the picture's edge: its outer 4.5 % fades into the world it came out of */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4.5%, #000 95.5%, transparent), linear-gradient(transparent, #000 4.5%, #000 95.5%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4.5%, #000 95.5%, transparent), linear-gradient(transparent, #000 4.5%, #000 95.5%, transparent);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
+.edge img, .edge canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.edge canvas { opacity: 0; transition: opacity .35s; }
+.edge canvas.on { opacity: 1; }
+#vids { display: none; }   /* decoded here, drawn on canvases */
+.iris.s-iris, .iris.s-line { -webkit-mask-image: radial-gradient(ellipse closest-side, #000 58%, transparent 100%); mask-image: radial-gradient(ellipse closest-side, #000 58%, transparent 100%); }
+.iris.s-door { -webkit-mask-image: linear-gradient(90deg, transparent 24%, #000 31%, #000 69%, transparent 76%), linear-gradient(transparent 24%, #000 31%, #000 69%, transparent 76%); mask-image: linear-gradient(90deg, transparent 24%, #000 31%, #000 69%, transparent 76%), linear-gradient(transparent 24%, #000 31%, #000 69%, transparent 76%); -webkit-mask-composite: source-in; mask-composite: intersect; }
+.iris.open { -webkit-mask-image: none; mask-image: none; }
+.shade { position: absolute; inset: -15%; background: #000; opacity: 0; pointer-events: none; }
+#dust, #wall { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#dust { z-index: 200; }
+#wall { z-index: 150; }
+.vig { position: absolute; inset: 0; z-index: 210; pointer-events: none;
+  background: radial-gradient(120% 95% at 50% 45%, transparent 52%, rgba(0,0,0,.5) 100%), radial-gradient(72% 58% at 0% 100%, rgba(0,0,0,.62), transparent 78%), linear-gradient(0deg, rgba(0,0,0,.66), transparent 30%), linear-gradient(180deg, rgba(0,0,0,.45), transparent 16%); }
+#title::before { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 50%, rgba(0,0,0,.6), transparent 75%); z-index: -1; }
+
+/* ---------- the frame round the picture ---------- */
+.bar { position: absolute; z-index: 300; left: 0; right: 0; top: 0; padding: calc(14px + env(safe-area-inset-top)) var(--px) 0; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.home { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: -.01em; margin-right: auto; opacity: .92; }
+.home::before { content: "←"; font-family: var(--mono); font-weight: 400; transition: transform .3s var(--ease); }
+.home:hover::before { transform: translateX(-4px); }
+.chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.52); border: 1px solid rgba(255,255,255,.24); white-space: nowrap; transition: border-color .25s, background .25s; }
+.chip:hover { border-color: var(--ac); background: rgba(0,0,0,.5); }
+.chip .ic { width: 10px; height: 12px; position: relative; flex: none; }
+.chip .ic::before { content: ""; position: absolute; inset: 0; background: var(--ac); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.running .chip .ic::before { clip-path: polygon(0 0, 34% 0, 34% 100%, 0 100%, 0 0, 66% 0, 100% 0, 100% 100%, 66% 100%, 66% 0); }
+.cap { position: absolute; z-index: 300; left: var(--px); bottom: calc(clamp(44px, 8vh, 84px) + env(safe-area-inset-bottom)); max-width: min(38em, calc(100vw - 2 * var(--px))); text-shadow: 0 1px 18px rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.6); transition: opacity .45s; }
+.cap .line { display: flex; align-items: baseline; gap: .5em; flex-wrap: wrap; }
+.cap .word { font-family: var(--serif); font-weight: 700; font-size: clamp(38px, min(6.4vw, 10vh), 104px); line-height: 1.02; letter-spacing: .01em; }
+html[data-lang="en"] .cap .word { font-family: var(--display); font-weight: 600; letter-spacing: -.035em; }
+.cap .pow { font-family: var(--mono); font-size: clamp(15px, 1.5vw, 22px); color: var(--ac); transition: color .5s; white-space: nowrap; }
+.cap .pow sup { font-size: .68em; vertical-align: .55em; line-height: 0; }
+.cap .what { font-size: clamp(16px, 1.35vw, 21px); margin-top: .35em; text-wrap: balance; }
+.cap .from { font-size: clamp(12.5px, .95vw, 14.5px); color: rgba(244,246,255,.74); margin-top: .2em; }
+.cap.swap > * { animation: rise .7s var(--ease) both; }
+.cap.swap > :nth-child(2) { animation-delay: .06s; }
+.cap.swap > :nth-child(3) { animation-delay: .12s; }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); filter: blur(5px); } }
+#ruler { position: absolute; z-index: 300; right: calc(var(--px) - 6px); top: 50%; width: 92px; height: min(56vh, 520px); transform: translateY(-50%); pointer-events: none; transition: opacity .5s; }
+.ticks { position: absolute; z-index: 310; left: var(--px); right: var(--px); bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; gap: 3px; height: 26px; align-items: center; transition: opacity .5s; }
+.ticks button { flex: 1; height: 100%; position: relative; min-width: 0; }
+.ticks button::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; border-radius: 2px; background: rgba(255,255,255,.26); transition: background .3s, height .25s var(--ease), transform .25s var(--ease); transform: translateY(-50%); }
+.ticks button.past::after { background: rgba(255,255,255,.62); }
+.ticks button.now::after { background: var(--ac); height: 5px; }
+.ticks button:hover::after { height: 8px; background: #fff; }
+
+/* ---------- the opening ---------- */
+#title { position: absolute; z-index: 290; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 var(--px); pointer-events: none; }
+#title h1 { font-family: var(--serif); font-weight: 900; font-size: clamp(72px, min(17vw, 34vh), 300px); line-height: .98; letter-spacing: .02em; color: #fff; text-shadow: 0 0 60px rgba(0,0,0,.55); }
+html[data-lang="en"] #title h1 { font-family: var(--display); font-weight: 600; letter-spacing: -.055em; }
+#title p { font-size: clamp(17px, 1.55vw, 24px); max-width: 30em; margin-top: clamp(14px, 2.4vh, 28px); text-wrap: balance; text-shadow: 0 1px 24px rgba(0,0,0,.9); }
+#title .go { pointer-events: auto; margin-top: clamp(20px, 3.4vh, 38px); display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#title .hint { font-family: var(--mono); font-size: 13px; color: rgba(244,246,255,.82); margin-top: 16px; }
+html[data-lang="zh"] #title .hint { font-family: var(--sans); }
+
+/* ---------- the wall ---------- */
+#end { position: absolute; z-index: 320; inset: 0; pointer-events: none; opacity: 0; display: flex; flex-direction: column; justify-content: space-between; padding: calc(62px + env(safe-area-inset-top)) var(--px) calc(22px + env(safe-area-inset-bottom)); text-align: center; align-items: center; }
+#end h2 { font-family: var(--serif); font-weight: 700; font-size: clamp(25px, min(3.1vw, 5.2vh), 54px); line-height: 1.16; text-wrap: balance; }
+html[data-lang="en"] #end h2 { font-family: var(--display); font-weight: 600; letter-spacing: -.03em; }
+#end .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#end.live .row, #end.live .row * { pointer-events: auto; }
+.btn { display: inline-flex; align-items: center; min-height: 46px; padding: 10px 24px; border-radius: 999px; text-decoration: none; font-weight: 600; background: #fff; color: #07080d; border: 1px solid #fff; transition: transform .25s var(--ease), background .25s; }
+.btn:hover { transform: translateY(-2px); }
+.btn.ghost { background: rgba(0,0,0,.45); color: #fff; border-color: rgba(255,255,255,.4); }
+#tiles { position: absolute; z-index: 315; inset: 0; pointer-events: none; visibility: hidden; }
+#tiles.live { visibility: visible; }
+#tiles button { position: absolute; pointer-events: auto; border-radius: 3px; overflow: hidden; }
+#tiles.live button:hover, #tiles.live button:focus-visible { box-shadow: 0 0 0 2px #fff, 0 12px 40px rgba(0,0,0,.6); z-index: 2; }
+#tiles.dim button:not(.kin) { background: rgba(0,0,0,.66); }
+#tiles button { transition: background .3s, box-shadow .2s; }
+#tiles .yours { background: rgba(255,255,255,.06); border: 1px dashed rgba(255,255,255,.4); display: grid; place-content: center; text-decoration: none; position: absolute; pointer-events: auto; text-align: center; font-size: clamp(11px, 1.05vw, 16px); line-height: 1.25; border-radius: 3px; }
+#tiles .yours b { font-family: var(--display); font-weight: 600; font-size: 1.15em; }
+
+/* ---------- one shot, enlarged ---------- */
+.view { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.86); display: none; place-items: center; padding: 18px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.view.show { display: grid; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; } }
+.view .card { width: min(1280px, 100%, calc((100svh - 190px) * 16 / 9)); }
+.view .pic { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px rgba(255,255,255,.16), 0 40px 120px rgba(0,0,0,.8); }
+.view .pic img, .view .pic video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.view .meta { display: flex; gap: 8px 20px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.view .meta p { flex: 1 1 20em; min-width: 0; font-size: clamp(15px, 1.2vw, 18px); }
+.view .meta small { display: block; color: rgba(244,246,255,.66); font-size: 13.5px; }
+.view .x { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 14px; width: 46px; height: 46px; font-size: 30px; line-height: 1; }
+.view .of { font-family: var(--mono); font-size: 13px; color: rgba(244,246,255,.7); min-width: 3.4em; text-align: center; }
+.view .chip[disabled] { opacity: .3; pointer-events: none; }
+
+@media (max-width: 760px) {
+  #ruler { display: none; }
+  .bar { gap: 6px; }
+  .home { font-size: 15px; }
+  .chip { padding: 6px 11px; font-size: 13px; }
+  #allbtn { display: none; }
+  .ticks { gap: 2px; }
+  .cap .what { text-wrap: pretty; }
+  #end { padding-top: calc(60px + env(safe-area-inset-top)); }
+  .btn { min-height: 44px; padding: 9px 18px; font-size: 15px; }
+}
+/* reduced motion: no push-in; the wall, still */
+.still #track { height: auto !important; }
+.still #stage { position: relative; }
+.still #title, .still .cap, .still #ruler, .still .ticks, .still #runbtn, .still #allbtn, .still #dust { display: none; }
+.still #end { opacity: 1; }
+noscript p { position: fixed; inset: auto 0 40% 0; text-align: center; z-index: 999; padding: 0 20px; }
+</style>
+</head>
+<body>
+<noscript><p>This page needs JavaScript. <a href="../">OpenVideoHarness</a></p></noscript>
+<div id="track">
+  <main id="stage">
+    <div id="vids" aria-hidden="true"></div>
+    <div id="world"></div>
+    <canvas id="wall" aria-hidden="true"></canvas>
+    <canvas id="dust" aria-hidden="true"></canvas>
+    <div class="vig" id="vig" aria-hidden="true"></div>
+
+    <header class="bar">
+      <a class="home" href="../" data-home>OpenVideoHarness</a>
+      <button type="button" class="chip" id="runbtn" aria-pressed="false"><i class="ic" aria-hidden="true"></i><span id="runlabel"></span></button>
+      <button type="button" class="chip" id="allbtn"><span lang="en">All the shots</span><span lang="zh">全部镜头</span></button>
+      <button type="button" class="chip" id="langbtn" aria-label="中文 / English"><span lang="en">中文</span><span lang="zh">EN</span></button>
+    </header>
+
+    <section id="title">
+      <h1><span lang="en">One take</span><span lang="zh">一镜到底</span></h1>
+      <p><span lang="en">From a galaxy down to a point of light: <b data-k="dive"></b> shots from <b data-k="films"></b> films, and not one cut between them.</span><span lang="zh">从一个星系，一直推到一点光。<b data-k="dive"></b> 个镜头，来自 <b data-k="films"></b> 支片子，中间没有一刀。</span></p>
+      <div class="go"><button type="button" class="chip" id="gobtn"><i class="ic" aria-hidden="true"></i><span lang="en">Let it run</span><span lang="zh">自动推进</span></button></div>
+      <p class="hint"><span lang="en">or scroll to go in</span><span lang="zh">也可以自己滚动，往里走</span></p>
+    </section>
+
+    <div class="cap" id="cap" aria-live="polite"><div class="line"><b class="word" id="word"></b><span class="pow" id="pow"></span></div><p class="what" id="what"></p><p class="from" id="from"></p></div>
+    <canvas id="ruler" aria-hidden="true"></canvas>
+    <nav class="ticks" id="ticks" data-aria-en="Shots" data-aria-zh="镜头"></nav>
+
+    <div id="tiles"></div>
+    <section id="end">
+      <h2><span lang="en"><b data-k="all"></b> shots from <b data-k="allfilms"></b> films, every one rendered by code.</span><span lang="zh"><b data-k="all"></b> 个镜头，<b data-k="allfilms"></b> 支片子，都是代码渲染出来的。</span></h2>
+      <div class="row">
+        <a class="btn" href="../#start" data-home><span lang="en">Make one of your own</span><span lang="zh">做一支你自己的</span></a>
+        <a class="btn ghost" href="../#styles" data-home><span lang="en">See the 43 styles</span><span lang="zh">看 43 种风格</span></a>
+        <button type="button" class="btn ghost" id="again"><span lang="en">From the top</span><span lang="zh">从头再看</span></button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="view" id="view" role="dialog" aria-modal="true" data-aria-en="A shot, enlarged" data-aria-zh="放大的镜头">
+  <button type="button" class="x" id="vx" data-aria-en="Close" data-aria-zh="关闭">×</button>
+  <div class="card">
+    <div class="pic" id="vpic"></div>
+    <div class="meta">
+      <p><span id="vwhat"></span><small id="vfrom"></small></p>
+      <button type="button" class="chip" id="vprev" data-aria-en="Previous shot of this film" data-aria-zh="这支片子的上一镜">←</button>
+      <span class="of" id="vof"></span>
+      <button type="button" class="chip" id="vnext" data-aria-en="Next shot of this film" data-aria-zh="这支片子的下一镜">→</button>
+    </div>
+  </div>
+</div>
+
+<script src="shots.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const root = document.documentElement, R = window.REEL;
+const still = root.classList.contains('still');
+const dive = R.dive.map(id => R.shots[id]), N = dive.length;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const sstep = (a, b, x) => { x = clamp((x - a) / (b - a)); return x * x * (3 - 2 * x); };
+const smoother = x => x * x * x * (x * (x * 6 - 15) + 10);
+const mix = (a, b, t) => a + (b - a) * t;
+const hash = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };   // seeded, no Math.random()
+const thrift = !!(navigator.connection && navigator.connection.saveData);   // asked to save data: the stills only
+const here = location.protocol === 'file:' || /^(localhost|127\.|\[::1\])/.test(location.hostname);
+let lang = root.dataset.lang === 'zh' ? 'zh' : 'en';
+
+/* ---------- clips: from disk in a clone (tools/fetch_media.sh), from the release otherwise ---------- */
+const REL = 'https://github.com/ZLHad/OpenVideoHarness/releases/download/media/';
+function clip(name, file) {   // a muted, looping video with its <source>s; the release one carries its type (WebKit needs it)
+  const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('muted', ''); v.disablePictureInPicture = true;
+  const add = src => { const s = document.createElement('source'); s.type = 'video/mp4'; s.setAttribute('src', src); v.appendChild(s); };   // release-src-ok: a <source type>
+  if (here) add(`../media/${name}`);
+  add(REL + file);
+  return v;
+}
+const shotClip = id => clip(`reel/${id}.mp4`, `reel-${id}-${R.release[id]}.mp4`);
+const play = v => { const p = v.play(); if (p) p.catch(() => {}); };
+
+/* ---------- geometry: a 16:9 box a little larger than the window, each shot inside the one before ---------- */
+const OV = 1.1;
+let W = 1, H = 1, bw = 1, bh = 1, portrait = false, STEP = 1, LEAD = 1, HOLD = 1, FIN = 1;
+function measure() {
+  W = $('#stage').clientWidth; H = $('#stage').clientHeight;
+  const a = W / H; portrait = a < 1.15; root.classList.toggle('upright', portrait);
+  const cover = portrait ? Math.min(H * 16 / 9, W * 1.6) : Math.max(W, H * 16 / 9);   // upright, the shot floats in the world it came from
+  bw = cover * OV; bh = bw * 9 / 16;
+  STEP = H * (portrait ? 1.0 : 1.2); LEAD = H * .55; HOLD = H * .35; FIN = H * 2.2;
+  if (!still) $('#track').style.height = `${LEAD + (N - 1) * STEP + HOLD + FIN + H}px`;
+}
+const portOf = i => { const p = dive[i].port; return p ? { x: (p[0] - .5) * bw, y: (p[1] - .5) * bh, w: p[2] * (portrait ? 1.15 : 1), s: p[3] } : null; };
+const scrollFor = i => LEAD + i * STEP;
+function where(y) {   // scroll → the camera's place p (a shot and how far into the next) and the finale
+  return { p: clamp((y - LEAD) / STEP, 0, N - 1), fin: clamp((y - LEAD - (N - 1) * STEP - HOLD) / FIN), open: clamp(y / LEAD) };
+}
+const ease = s => .13 * s + .87 * smoother(s);   // a slow push while a shot is on, the dive in the middle
+
+/* ---------- layers: at most four shots are in the page at once ---------- */
+const world = $('#world'), shade = document.createElement('div'); shade.className = 'shade'; world.appendChild(shade);
+const layers = new Map();
+function ensure(i) {
+  if (i < 0 || i >= N || layers.has(i)) return layers.get(i);
+  const s = dive[i], el = document.createElement('div'); el.className = 'layer'; el.style.zIndex = i * 2 + 2;
+  const shape = i ? dive[i - 1].port[3] : 'iris';
+  el.innerHTML = `<div class="iris s-${shape}"><div class="inner"><div class="edge"></div></div></div>`;
+  const iris = el.firstChild, inner = iris.firstChild, edge = inner.firstChild;
+  const img = new Image(); img.alt = ''; img.decoding = 'async'; img.src = `posters/${s.id}.webp`; edge.appendChild(img);
+  world.appendChild(el);
+  const L = { i, el, iris, inner, edge, v: null, shape, open: false, on: false };
+  layers.set(i, L); return L;
+}
+function film(L) {   // the clip itself, once the camera is slow enough to look at it: a fast jump shows the posters it passes
+  if (L.v || thrift || Math.abs(zoomV) > 2.6) return;
+  const v = L.v = shotClip(dive[L.i].id), cv = document.createElement('canvas'), small = portrait || W * (devicePixelRatio || 1) < 1500;
+  cv.width = small ? 1120 : 1440; cv.height = small ? 630 : 810; const cx = cv.getContext('2d', { alpha: false });
+  // drawn on a canvas: a 30-frame video on the screen itself holds the whole page at 30 frames in Chrome
+  L.paint = () => { if (L.v === v && v.readyState >= 2) { cx.drawImage(v, 0, 0, cv.width, cv.height); cv.classList.add('on'); } };
+  if (v.requestVideoFrameCallback) { const each = () => { if (L.v !== v) return; L.paint(); v.requestVideoFrameCallback(each); }; v.requestVideoFrameCallback(each); L.auto = true; }
+  L.edge.appendChild(cv); $('#vids').appendChild(v); if (L.on) play(v);
+}
+function let_go(v) { v.pause(); v.replaceChildren(); v.load(); v.remove(); }   // an emptied video gives its memory back
+function drop(i) { const L = layers.get(i); if (!L) return; const v = L.v; L.v = null; if (v) let_go(v); L.el.remove(); layers.delete(i); }
+function running(L, on) { if (on) film(L); if (on === L.on) return; L.on = on; if (!L.v) return; if (on) play(L.v); else L.v.pause(); }
+function place(L, x, y, scale, op) {
+  L.el.style.width = `${bw}px`; L.el.style.height = `${bh}px`; L.el.style.marginLeft = `${-bw / 2}px`; L.el.style.marginTop = `${-bh / 2}px`;
+  L.el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${scale.toFixed(5)})`;
+  L.el.style.opacity = op; L.el.style.visibility = op > .002 ? 'visible' : 'hidden';
+}
+function iris(L, u) {   // u: 0 a spot, 1 the whole picture. The mask is fixed and scaled, the picture scaled back: no repaint
+  const wide = sstep(portrait ? .9 : .925, .998, u), open = u >= .999;   // it opens once the picture's own edges are outside the window
+  if (open !== L.open) { L.open = open; L.iris.classList.toggle('open', open); }
+  if (open) { L.iris.style.transform = L.inner.style.transform = 'none'; return; }
+  const grow = sstep(.08, .88, u), far = 2.4 * Math.pow(wide, 1.4);
+  const x = L.shape === 'door' ? mix(1, 1.84, grow) + far : mix(.74, .98, grow) + far;
+  const y = L.shape === 'line' ? mix(.09, .98, Math.pow(grow, 2.4)) + far : x;
+  L.iris.style.transform = `scale(${x.toFixed(4)}, ${y.toFixed(4)})`; L.inner.style.transform = `scale(${(1 / x).toFixed(5)}, ${(1 / y).toFixed(5)})`;
+}
+
+/* ---------- one frame, from p and fin ---------- */
+let vp = { x: 0, y: 0 }, shown = -1, zoomV = 0;
+function draw(p, fin) {
+  let i = Math.floor(p); if (i >= N - 1) i = N - 1;
+  const u = i < N - 1 ? ease(p - i) : 0, port = portOf(i);
+  for (const k of [...layers.keys()]) if (k < i - 2 || k > i + 3) drop(k);
+  for (const k of [i, i + 1, i - 1]) ensure(k);
+  if (p - i > .25) ensure(i + 2);
+  for (const k of [i + 1, i + 2]) { const A = layers.get(k); if (A) film(A); }   // the next two, ahead of time
+  const pw = port ? port.w : 1, Z = Math.pow(pw, -u);
+  const f = port ? { x: port.x / (1 - pw), y: port.y / (1 - pw) } : { x: 0, y: 0 };
+  const c = { x: f.x * (1 - Math.pow(pw, u)), y: f.y * (1 - Math.pow(pw, u)) };
+  vp.x = mix(vp.x, f.x, .08); vp.y = mix(vp.y, f.y, .08);
+  const gone = sstep(.02, .2, fin); world.style.opacity = 1 - gone; world.style.visibility = gone < 1 ? 'visible' : 'hidden';
+  const L = layers.get(i);
+  place(L, -c.x * Z, -c.y * Z, Z * (1 + fin * .5), 1); iris(L, 1); running(L, gone < 1 && u < .985);
+  if (i > 0) {   // the world it came out of: only an upright window still sees it
+    const q = portOf(i - 1), M = layers.get(i - 1), s = Z / q.w;
+    place(M, (-q.x / q.w - c.x) * Z, (-q.y / q.w - c.y) * Z, s, portrait && u < .6 ? (1 - sstep(.25, .6, u)) * .55 : 0); iris(M, 1); running(M, false);
+  }
+  if (port) {
+    const C = layers.get(i + 1), a = sstep(.07, .26, u);
+    place(C, (port.x - c.x) * Z, (port.y - c.y) * Z, pw * Z, a); iris(C, u);
+    running(C, u > .05);
+    shade.style.zIndex = i * 2 + 3; shade.style.opacity = (sstep(.18, .85, u) * .62).toFixed(3);
+  } else shade.style.opacity = 0;
+  for (const [k, l] of layers) { if (k > i + 1 || k < i - 1) { l.el.style.visibility = 'hidden'; running(l, false); } else if (l.on && l.paint && !l.auto) l.paint(); }
+  world.style.transform = u > 0 && u < 1 ? `rotate(${(Math.sin(Math.PI * u) * (hash(i + 3) - .5) * (portrait ? 3 : 5)).toFixed(3)}deg)` : 'none';
+  caption(u < .5 || i === N - 1 ? i : i + 1);
+  power(i, u, fin);
+}
+
+/* ---------- words ---------- */
+const cap = $('#cap');
+function caption(k, force) {
+  if (k === shown && !force) return; shown = k;
+  const s = dive[k], zh = lang === 'zh';
+  $('#word').textContent = zh ? s.wz : s.we; $('#what').textContent = zh ? s.zh : s.en; $('#from').textContent = zh ? R.films[s.film].zh : R.films[s.film].en;
+  cap.classList.remove('swap'); void cap.offsetWidth; cap.classList.add('swap');
+  root.style.setProperty('--ac', s.ac);
+  ticks.forEach((b, n) => { b.classList.toggle('past', n < k); b.classList.toggle('now', n === k); });
+}
+const LAST = -18;   // "light" is past the end of the scale
+let powText = '';
+const rawExp = k => dive[k].exp === null ? LAST : dive[k].exp;
+let expo = 21;
+function power(i, u, fin) {
+  const e0 = rawExp(i), e1 = i < N - 1 ? rawExp(i + 1) : e0;
+  expo = fin > 0 ? mix(LAST, 21, smoother(clamp(fin * 1.15))) : mix(e0, e1, u);
+  const n = Math.round(expo), t = expo < -15.6 ? '' : `10<sup>${String(n).replace('-', '−')}</sup> m`;
+  if (t !== powText) { powText = t; $('#pow').innerHTML = t; }
+}
+const ruler = $('#ruler'), rx = ruler.getContext('2d');
+function drawRuler() {
+  const d = Math.min(devicePixelRatio || 1, 2), w = ruler.clientWidth, h = ruler.clientHeight; if (!w) return;
+  if (ruler.width !== Math.round(w * d)) { ruler.width = Math.round(w * d); ruler.height = Math.round(h * d); }
+  rx.setTransform(d, 0, 0, d, 0, 0); rx.clearRect(0, 0, w, h);
+  const gap = h / 11, mid = h / 2; rx.textAlign = 'right'; rx.textBaseline = 'middle';
+  for (let n = -24; n <= 26; n++) for (let t = 0; t < 5; t++) {
+    const y = mid + (expo - n - t / 5) * gap; if (y < -4 || y > h + 4) continue;
+    const a = Math.pow(1 - Math.abs(y - mid) / (mid + 4), 1.3), out = n < -15 || n > 21;
+    if (out) continue;
+    rx.strokeStyle = `rgba(255,255,255,${(t ? .34 : .85) * a})`; rx.lineWidth = 1;
+    rx.beginPath(); rx.moveTo(w - 8, y); rx.lineTo(w - 8 - (t ? 7 : 16), y); rx.stroke();
+    if (!t && n % 3 === 0) { rx.fillStyle = `rgba(255,255,255,${.9 * a})`; rx.font = '500 12px "JetBrains Mono", monospace'; const x = w - 46; rx.fillText('10', x, y + 1); rx.font = '500 9px "JetBrains Mono", monospace'; rx.textAlign = 'left'; rx.fillText(String(n).replace('-', '−'), x + 1, y - 4); rx.textAlign = 'right'; }
+  }
+  rx.strokeStyle = getComputedStyle(root).getPropertyValue('--ac'); rx.lineWidth = 2; rx.beginPath(); rx.moveTo(w - 34, mid); rx.lineTo(w, mid); rx.stroke();
+}
+
+/* ---------- dust: what the camera flies through, the same from the first shot to the last ---------- */
+const dust = $('#dust'), dx = dust.getContext('2d'), D = 120;
+const motes = Array.from({ length: D }, (_, i) => ({ a: hash(i * 3 + 1) * 6.2832, r: .12 + Math.pow(hash(i * 5 + 2), .6) * 1.15, z: hash(i * 7 + 3), s: .5 + hash(i * 11 + 4) }));
+function drawDust(dt, v) {
+  const d = Math.min(devicePixelRatio || 1, 1.5);
+  if (dust.width !== Math.round(W * d)) { dust.width = Math.round(W * d); dust.height = Math.round(H * d); }
+  dx.setTransform(d, 0, 0, d, 0, 0); dx.clearRect(0, 0, W, H);
+  const cx = W / 2 + vp.x, cy = H / 2 + vp.y, R0 = Math.hypot(W, H) * .42, sp = clamp(v * .5, -1.6, 1.6);
+  dx.strokeStyle = getComputedStyle(root).getPropertyValue('--ac'); dx.lineCap = 'round';
+  for (const m of motes) {
+    m.z -= (sp + .012) * dt * (.6 + m.s * .5); if (m.z < .04) m.z += .96; if (m.z > 1) m.z -= .96;
+    const q = 1 / (m.z * 2.4 + .08), x = cx + Math.cos(m.a) * m.r * R0 * q * .5, y = cy + Math.sin(m.a) * m.r * R0 * q * .5;
+    if (x < -60 || x > W + 60 || y < -60 || y > H + 60) continue;
+    const q2 = 1 / ((m.z + clamp(Math.abs(sp) * .07, .0015, .11)) * 2.4 + .08);
+    dx.globalAlpha = clamp((1 - m.z) * .62 * Math.min(1, m.z * 9)) * (.45 + Math.min(.55, Math.abs(sp) * .6)); dx.lineWidth = m.s * q * .34;
+    dx.beginPath(); dx.moveTo(x, y); dx.lineTo(cx + Math.cos(m.a) * m.r * R0 * q2 * .5, cy + Math.sin(m.a) * m.r * R0 * q2 * .5); dx.stroke();
+  }
+  dx.globalAlpha = 1;
+}
+
+/* ---------- the wall: every shot at once, from one mosaic video ---------- */
+const wallCv = $('#wall'), wx = wallCv.getContext('2d'), tilesEl = $('#tiles');
+const mosaic = new Image(); let mosaicV = null;
+function wakeMosaic() { if (!mosaic.src) mosaic.src = 'wall.webp'; if (!mosaicV && !still && !thrift) { mosaicV = clip('reel-wall.mp4', `reel-wall-${R.release['reel-wall']}.mp4`); $('#vids').appendChild(mosaicV); } }
+let cells = [], tileBtns = [];
+function layoutWall() {
+  const n = R.order.length + 1, cols = W / H > 1.15 ? 8 : W / H > .68 ? 7 : 4, rows = Math.ceil(n / cols), gap = W > 760 ? 4 : 3;
+  const topPad = W > 760 ? 118 : 126, botPad = W > 760 ? 92 : 128, availH = H - topPad - botPad, availW = W - (W > 760 ? 28 : 12);
+  const cw = Math.min((availW - gap * (cols - 1)) / cols, ((availH - gap * (rows - 1)) / rows) * 16 / 9), ch = cw * 9 / 16;
+  const tw = cols * cw + gap * (cols - 1), th = rows * ch + gap * (rows - 1), x0 = (W - tw) / 2, y0 = topPad + Math.max(0, (availH - th) / 2);
+  cells = Array.from({ length: n }, (_, k) => ({ x: x0 + (k % cols) * (cw + gap), y: y0 + Math.floor(k / cols) * (ch + gap), w: cw, h: ch }));
+  tileBtns.forEach((b, k) => { const q = cells[k]; b.style.cssText = `left:${q.x}px;top:${q.y}px;width:${q.w}px;height:${q.h}px`; });
+}
+function buildTiles() {
+  R.order.forEach(id => {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = id;
+    b.addEventListener('click', () => openView(id));
+    b.addEventListener('pointerenter', () => kin(id)); b.addEventListener('focus', () => kin(id)); b.addEventListener('pointerleave', () => kin(null));
+    tilesEl.appendChild(b); tileBtns.push(b);
+  });
+  const y = document.createElement('a'); y.className = 'yours'; y.href = '../#start'; y.dataset.home = ''; y.innerHTML = '<span lang="en"><b>+ yours</b></span><span lang="zh"><b>+ 你的</b></span>';
+  tilesEl.appendChild(y); tileBtns.push(y);
+}
+function kin(id) { const f = id && R.shots[id].film; tilesEl.classList.toggle('dim', !!id); tileBtns.forEach(b => b.classList.toggle('kin', !!id && b.dataset.id && R.shots[b.dataset.id].film === f)); }
+function drawWall(fin) {
+  if (fin <= .001) { if (wallCv.style.visibility !== 'hidden') { wallCv.style.visibility = 'hidden'; if (mosaicV) mosaicV.pause(); } return; }
+  wallCv.style.visibility = 'visible'; wakeMosaic(); if (mosaicV && mosaicV.paused) play(mosaicV);
+  const d = Math.min(devicePixelRatio || 1, 2);
+  if (wallCv.width !== Math.round(W * d) || wallCv.height !== Math.round(H * d)) { wallCv.width = Math.round(W * d); wallCv.height = Math.round(H * d); }
+  wx.setTransform(d, 0, 0, d, 0, 0); wx.clearRect(0, 0, W, H);
+  const ready = mosaicV && mosaicV.readyState >= 2, src = ready ? mosaicV : mosaic; if (!ready && !mosaic.complete) return;
+  const { cols, w, h } = R.mosaic, cx = W / 2, cy = H / 2, far = Math.hypot(W, H) / 2;
+  const glow = sstep(0, .16, fin) * (1 - sstep(.2, .46, fin));   // the point of light goes off
+  if (glow > 0) { const g = wx.createRadialGradient(cx, cy, 0, cx, cy, far * (.12 + fin * 1.5)); g.addColorStop(0, `rgba(255,255,255,${glow})`); g.addColorStop(.25, `rgba(220,232,255,${glow * .4})`); g.addColorStop(1, 'rgba(0,0,0,0)'); wx.fillStyle = g; wx.fillRect(0, 0, W, H); }
+  R.order.forEach((id, k) => {
+    const q = cells[k], tx = q.x + q.w / 2, ty = q.y + q.h / 2, dist = Math.hypot(tx - cx, ty - cy) / far;
+    const t = clamp((fin - .07 - dist * .17 - hash(k + 5) * .07) / .52); if (t <= 0) return;
+    const e = 1 - Math.pow(1 - t, 4), over = Math.sin(Math.PI * t) * (1.1 + hash(k + 40) * 1.6);   // flies toward the lens on its way out
+    const s = mix(.02, 1, e) * (1 + over), x = mix(cx, tx, e) + (tx - cx) * over * .35, y = mix(cy, ty, e) + (ty - cy) * over * .35;
+    wx.save(); wx.globalAlpha = clamp(t * 6); wx.translate(x, y); wx.rotate((hash(k + 9) - .5) * 1.4 * (1 - e)); wx.scale(s, s);
+    wx.drawImage(src, (k % cols) * w, Math.floor(k / cols) * h, w, h, -q.w / 2, -q.h / 2, q.w, q.h); wx.restore();
+  });
+}
+
+/* ---------- a shot, enlarged: with the other shots of the same film beside it ---------- */
+const view = $('#view'); let vlist = [], vat = 0, back = null;
+function openView(id) { vlist = R.order.filter(k => R.shots[k].film === R.shots[id].film); vat = vlist.indexOf(id); back = document.activeElement; run(false); view.classList.add('show'); showView(); $('#vx').focus({ preventScroll: true }); }
+function showView() {
+  const s = R.shots[vlist[vat]], zh = lang === 'zh', pic = $('#vpic'); pic.replaceChildren();
+  const img = new Image(); img.src = `posters/${s.id}.webp`; img.alt = zh ? s.zh : s.en; pic.appendChild(img);
+  const v = shotClip(s.id); pic.appendChild(v); play(v);
+  $('#vwhat').textContent = zh ? s.zh : s.en; $('#vfrom').textContent = R.films[s.film][zh ? 'zh' : 'en'];
+  $('#vof').textContent = `${vat + 1} / ${vlist.length}`; const one = vlist.length < 2; $('#vprev').disabled = one; $('#vnext').disabled = one;
+}
+function closeView() { if (!view.classList.contains('show')) return; view.classList.remove('show'); $('#vpic').replaceChildren(); if (back) back.focus({ preventScroll: true }); }
+const turn = n => { vat = (vat + n + vlist.length) % vlist.length; showView(); };
+$('#vx').addEventListener('click', closeView); $('#vprev').addEventListener('click', () => turn(-1)); $('#vnext').addEventListener('click', () => turn(1));
+view.addEventListener('click', e => { if (e.target === view) closeView(); });
+
+/* ---------- moving: scroll, keys, the ticks, or on its own ---------- */
+let auto = false, jump = null;
+const ticks = dive.map((s, k) => { const b = document.createElement('button'); b.type = 'button'; b.addEventListener('click', () => { run(false); glide(scrollFor(k)); b.blur(); }); $('#ticks').appendChild(b); return b; });
+function run(on) { auto = on && !still; jump = null; document.body.classList.toggle('running', auto); $('#runbtn').setAttribute('aria-pressed', auto); $('#runlabel').textContent = lang === 'zh' ? (auto ? '停下' : '自动推进') : (auto ? 'Hold' : 'Let it run'); if (auto && scrollY > maxY() - 4) scrollTo(0, 0); ay = scrollY; }
+const maxY = () => document.documentElement.scrollHeight - innerHeight;
+function glide(y) { jump = { from: scrollY, to: clamp(y, 0, maxY()), t: 0, d: clamp(Math.abs(y - scrollY) / H * .28, y >= maxY() - 2 ? 2.8 : .9, 3.4) }; }
+let ay = 0;
+$('#runbtn').addEventListener('click', () => run(!auto)); $('#gobtn').addEventListener('click', () => run(true));
+$('#allbtn').addEventListener('click', () => { run(false); glide(maxY()); });
+$('#again').addEventListener('click', () => { scrollTo(0, 0); cur = tgt = where(0); });
+for (const ev of ['wheel', 'touchstart', 'pointerdown']) addEventListener(ev, e => { if (e.target.closest && e.target.closest('button, a, .view')) return; if (auto || jump) run(false); }, { passive: true });
+addEventListener('keydown', e => {
+  if (view.classList.contains('show')) { if (e.key === 'Escape') closeView(); else if (e.key === 'ArrowLeft') turn(-1); else if (e.key === 'ArrowRight') turn(1); return; }
+  if (e.target.closest('button, a') && (e.key === ' ' || e.key === 'Enter')) return;
+  const k = Math.round(tgt.p);
+  if (e.key === ' ') { e.preventDefault(); run(!auto); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); run(false); glide(tgt.p >= N - 1.02 ? maxY() : scrollFor(k + 1)); }
+  else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); run(false); glide(tgt.fin > .02 ? scrollFor(N - 1) : k ? scrollFor(k - 1) : 0); }
+});
+
+/* ---------- the loop ---------- */
+let tgt = { p: 0, fin: 0, open: 0 }, cur = { p: 0, fin: 0, open: 0 }, last = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (document.hidden) { last = now; return; }
+  const dt = clamp((now - last) / 1000, 0, .05); last = now;
+  if (jump) { jump.t = Math.min(1, jump.t + dt / jump.d); const y = mix(jump.from, jump.to, smoother(jump.t)); scrollTo(0, y); if (jump.t >= 1) jump = null; }
+  else if (auto && !view.classList.contains('show')) { if (Math.abs(scrollY - ay) > 4) ay = scrollY; ay += STEP / 4.4 * dt; scrollTo(0, ay); if (ay >= maxY()) run(false); }
+  tgt = where(scrollY);
+  const g = 1 - Math.exp(-dt * 8), was = cur.p;
+  cur.p = Math.abs(tgt.p - cur.p) < 1e-5 ? tgt.p : mix(cur.p, tgt.p, g); cur.fin = mix(cur.fin, tgt.fin, g); cur.open = mix(cur.open, tgt.open, g);
+  if (Math.abs(tgt.fin - cur.fin) < 1e-4) cur.fin = tgt.fin;
+  zoomV = mix(zoomV, dt ? (cur.p - was) / dt : 0, .2);
+  paint(dt);
+}
+function paint(dt) {
+  draw(cur.p, cur.fin); drawDust(dt, zoomV * 1.6 - (cur.fin > .05 && cur.fin < .7 ? 1.2 : 0)); drawRuler(); drawWall(cur.fin);
+  const t = $('#title'), o = 1 - sstep(.1, .8, cur.open); t.style.opacity = o; t.style.visibility = o > .01 ? 'visible' : 'hidden'; t.style.transform = `scale(${1 + cur.open * .5})`;
+  const hud = sstep(.5, 1, cur.open) * (1 - sstep(.04, .2, cur.fin));
+  cap.style.opacity = hud; ruler.style.opacity = sstep(.3, 1, cur.open) * (1 - sstep(.12, .28, cur.fin)); $('#vig').style.opacity = 1 - sstep(.25, .6, cur.fin) * .85; $('#ticks').style.opacity = 1 - sstep(.1, .3, cur.fin);
+  $('#ticks').style.visibility = cur.fin > .3 ? 'hidden' : 'visible';
+  const live = cur.fin > .86, e = $('#end'); e.style.opacity = sstep(.74, .95, cur.fin); e.classList.toggle('live', live); tilesEl.classList.toggle('live', live);
+  if (cur.p > N - 5) wakeMosaic();
+}
+
+/* ---------- language ---------- */
+function applyLang(l) {
+  lang = l; root.dataset.lang = l; root.lang = l === 'zh' ? 'zh-CN' : 'en';
+  document.title = l === 'zh' ? '一镜到底 · OpenVideoHarness' : 'One take · OpenVideoHarness';
+  $$('[data-aria-en]').forEach(el => el.setAttribute('aria-label', el.dataset[l === 'zh' ? 'ariaZh' : 'ariaEn']));
+  ticks.forEach((b, k) => { b.setAttribute('aria-label', l === 'zh' ? dive[k].wz : dive[k].we); b.title = l === 'zh' ? dive[k].wz : dive[k].we; });
+  tileBtns.forEach(b => { const s = R.shots[b.dataset.id]; if (s) b.setAttribute('aria-label', l === 'zh' ? s.zh : s.en); });
+  $$('[data-home]').forEach(a => { const [p, h] = a.getAttribute('href').split('#'); a.setAttribute('href', `${p.split('?')[0]}?lang=${l}${h ? '#' + h : ''}`); });
+  if (shown >= 0) caption(shown, true); run(auto);
+  if (view.classList.contains('show')) showView();
+}
+$('#langbtn').addEventListener('click', () => { const l = lang === 'zh' ? 'en' : 'zh'; applyLang(l); try { localStorage.setItem('ovh-lang', l); } catch (e) { /* private mode */ } try { const u = new URL(location.href); u.searchParams.set('lang', l); history.replaceState(null, '', u); } catch (e) { /* file:// */ } });
+
+/* ---------- start ---------- */
+const counts = { dive: N, films: new Set(dive.map(s => s.film)).size, all: R.order.length, allfilms: new Set(R.order.map(id => R.shots[id].film)).size };
+$$('[data-k]').forEach(el => { el.textContent = counts[el.dataset.k]; });
+buildTiles(); measure(); layoutWall(); applyLang(lang);
+if (still) {   // the wall, as a still picture
+  wakeMosaic(); tilesEl.classList.add('live'); $('#end').classList.add('live');
+  const paintStill = () => { $('#wall').style.visibility = 'visible'; const d = Math.min(devicePixelRatio || 1, 2); wallCv.width = W * d; wallCv.height = H * d; wx.setTransform(d, 0, 0, d, 0, 0); R.order.forEach((id, k) => { const q = cells[k], m = R.mosaic; wx.drawImage(mosaic, (k % m.cols) * m.w, Math.floor(k / m.cols) * m.h, m.w, m.h, q.x, q.y, q.w, q.h); }); };
+  mosaic.addEventListener('load', paintStill); addEventListener('resize', () => { measure(); layoutWall(); paintStill(); });
+} else {
+  let was = scrollY;
+  addEventListener('resize', () => { const at = where(scrollY); measure(); layoutWall(); if (!at.fin && at.p > 0) scrollTo(0, LEAD + at.p * STEP); });
+  const to = location.hash.slice(1), k = R.dive.indexOf(to);
+  if (k >= 0) { scrollTo(0, scrollFor(k)); was = scrollFor(k); } else if (to === 'wall') scrollTo(0, maxY());
+  cur = tgt = where(scrollY || was); cur = { ...tgt };
+  requestAnimationFrame(t => { last = t; frame(t); });
+}
+window.__reel = { where, scrollFor, dive, get cur() { return cur; }, maxY };   // for checking the page from outside
+})();
+</script>
+</body>
+</html>
