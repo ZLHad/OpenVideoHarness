@@ -516,7 +516,8 @@ if (still) {   // the wall, as a still picture
   mosaic.addEventListener('load', paintStill); addEventListener('resize', () => { measure(); layoutWall(); paintStill(); });
 } else {
   let was = scrollY;
-  addEventListener('resize', () => { const at = where(scrollY); measure(); layoutWall(); if (!at.fin && at.p > 0) scrollTo(0, LEAD + at.p * STEP); });
+  addEventListener('resize', () => { if ($('#stage').clientWidth === W && $('#stage').clientHeight === H) return;   // a phone's bars coming and going: leave its scroll alone
+    const at = where(scrollY); measure(); layoutWall(); if (!at.fin && at.p > 0) scrollTo(0, LEAD + at.p * STEP); });
   const to = location.hash.slice(1), k = R.dive.indexOf(to);
   if (k >= 0) { scrollTo(0, scrollFor(k)); was = scrollFor(k); } else if (to === 'wall') scrollTo(0, maxY());
   cur = tgt = where(scrollY || was); cur = { ...tgt };

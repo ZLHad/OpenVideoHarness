@@ -1458,7 +1458,7 @@ const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;   // the 5 s s
 // asset (tools/media.txt, release styles-media), named here. Its tile plays the preview; the lightbox plays the release
 // file through <source type="video/mp4"> once STYLES_MEDIA_UPLOADED is true (flip it when the maintainer has uploaded
 // them), and the preview until then. tools/readme.py check holds this list to tools/media.txt and the styles' specs.
-const STYLES_MEDIA_UPLOADED = false;
+const STYLES_MEDIA_UPLOADED = true;
 const RELEASE_SAMPLES = {
   'chalkboard': 'chalkboard-6ac99c95.mp4',
   'dark-studio-3d': 'dark-studio-3d-814b8863.mp4',
@@ -1859,7 +1859,7 @@ function mosaic(still, files) {   // { show(), play(), pause(), src }: the still
   m.pause = () => { if (m.v) m.v.pause(); };
   return m;
 }
-function seen(el, on, off, margin = '0px') { new IntersectionObserver(([e]) => (e.isIntersecting && (margin !== '0px' || e.intersectionRatio >= .02) ? on : off)(), { rootMargin: margin, threshold: [0, .02] }).observe(el); }
+function seen(el, on, off, margin = '0px') { new IntersectionObserver(es => { const e = es[es.length - 1]; (e.isIntersecting && (margin !== '0px' || e.intersectionRatio >= .02) ? on : off)(); }, { rootMargin: margin, threshold: [0, .02] }).observe(el); }
 function fit(cv, ctx, w, h) { const d = Math.min(devicePixelRatio || 1, 2), W = Math.round(w * d), H = Math.round(h * d); if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } ctx.setTransform(d, 0, 0, d, 0, 0); ctx.imageSmoothingQuality = 'high'; }
 
 /* ---------- the films: rows of shots drifting past each other ---------- */
@@ -1929,7 +1929,7 @@ rw.cv.addEventListener('click', e => {
 $$('[data-k]').forEach(el => { el.textContent = el.dataset.k === 'shots' ? R.order.length : new Set(R.order.map(id => R.shots[id].film)).size; });
 
 /* ---------- styles: one picture at full size, and all of them moving round it ---------- */
-const wall = $('#wall'), sty = { box: $('#sty'), cv: $('#styCv'), ctx: $('#styCv').getContext('2d'), stage: $('#styStage'), vid: $('#styVid'), m: mosaic('img/styles-wall.webp', reelFile('styles-wall.mp4', `styles-wall-${R.release['styles-wall']}.mp4`)), at: 1, on: false, raf: 0, until: 0, held: false, token: 0, next: null, front: null, born: 0 };
+const wall = $('#wall'), sty = { box: $('#sty'), cv: $('#styCv'), ctx: $('#styCv').getContext('2d'), stage: $('#styStage'), vid: $('#styVid'), m: mosaic('img/styles-wall.webp', reelFile('styles-wall.mp4', `styles-wall-${R.release['styles-wall']}.mp4`)), at: 1, on: false, raf: 0, until: 0, held: false, token: 0, next: null, front: null, born: 0, turns: 0 };
 const styleOf = Object.fromEntries(STYLES.map(([slug, en, zh]) => [slug, { slug, en, zh }]));
 const tiles = STYLE_TILES.map((slug, i) => {
   const { en, zh } = styleOf[slug], b = document.createElement('button'); b.type = 'button'; b.className = 'sw';
@@ -1964,11 +1964,13 @@ function styShow(i) {
   const go = () => { if (token !== sty.token || !sty.on) return; if (v.duration && !(t.slug in RELEASE_SAMPLES)) v.currentTime = styClock(v.duration); const p = v.play(); if (p) p.then(() => { if (token === sty.token) { sty.front = v; sty.born = performance.now(); } }).catch(() => {}); };
   if (v.readyState >= 2) go(); else v.addEventListener('loadeddata', go, { once: true });
 }
+const STY_TURNS = 14;   // how many times the middle changes by itself before it stays: a sample is about 1 MB
 function styFrame(now) {
   if (!sty.on) { sty.raf = 0; return; }
-  if (!sty.held && !lb.classList.contains('show')) {
+  if (sty.held) sty.turns = 0;
+  else if (sty.turns < STY_TURNS && !lb.classList.contains('show')) {
     if (now > sty.until - 1300 && !sty.next && !saveData) { sty.next = styVideo(tiles[(sty.at + 1) % tiles.length].slug); sty.vid.appendChild(sty.next); }   // the one after, ahead of time
-    if (now > sty.until) styShow((sty.at + 1) % tiles.length);
+    if (now > sty.until) { sty.turns++; styShow((sty.at + 1) % tiles.length); }
   }
   if (sty.odd = !sty.odd) styDraw();   // the video has 30 frames a second
   sty.raf = requestAnimationFrame(styFrame);
@@ -1985,7 +1987,7 @@ function styDraw() {
   c.restore();
 }
 function styStart() {
-  if (sty.on) return; sty.on = true; sty.m.play(); styShow(sty.at);
+  if (sty.on) return; sty.on = true; sty.turns = 0; sty.m.play(); styShow(sty.at);
   if (reduced) styDraw(); else if (!sty.raf) sty.raf = requestAnimationFrame(styFrame);
 }
 function styStop() { sty.on = false; sty.m.pause(); sty.token++; $$('video', sty.vid).forEach(v => v.pause()); }
@@ -2055,7 +2057,7 @@ function openLightbox({ video, img, cap, code, say, small }) {
   if (code) { const k = document.createElement('code'); k.textContent = code; if (say) k.className = 'lb-code'; lbCap.appendChild(k); }
   lb.classList.add('show');
 }
-function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; lbShot = null; if (rw.on) rw.m.play(); if (sty.on) { sty.m.play(); styShow(sty.at); } }
+function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; lbShot = null; if (rw.on) { rw.m.play(); if (rw.big) rw.big.v.play().catch(() => {}); } if (sty.on) { sty.m.play(); styShow(sty.at); } }
 $('#lbX').addEventListener('click', closeLightbox);
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.addEventListener('keydown', e => {
