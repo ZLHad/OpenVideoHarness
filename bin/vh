@@ -31,6 +31,7 @@ declare -a TYPES=(
   "edit:09-editing-talking-head:真人素材剪辑/口播，用户自己的素材（实验中；HyperFrames）"
   "long:10-long-explainer:长讲解，10 分钟以上的横屏（canvas-film）"
   "recap:11-photo-recap:照片回顾，用户自己的照片和片段：婚礼、旅行、一年回顾（实验中；canvas-film + 剪辑表）"
+  "tutorial:12-product-tutorial:产品使用教程，操作用代码重做、不录屏，一步一镜（canvas-film + ui-stage 组件）"
 )
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
 type_key() { # type_key <word>: a type's short name, from the short name, its number (02), its doc's name (02-knowledge-short, also as video-types/02-knowledge-short.md) or that name's stem (knowledge-short)
@@ -728,7 +729,7 @@ cmd_new() {
         1080x1920) aspect=9:16 ;; 1080x1080) aspect=1:1 ;; 1080x1350) aspect=4:5 ;; 1080x1440) aspect=3:4 ;; esac
     fi
   fi
-  [ -n "$engine" ] || case "$type" in long|recap) engine=canvas-film ;; esac   # these two types' own engine
+  [ -n "$engine" ] || case "$type" in long|recap|tutorial) engine=canvas-film ;; esac   # these types' own engine
   case "$lang" in ""|zh|en) ;; *) vh_fail usage 2 "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" ;; esac
   case "$engine" in ""|canvas-film) ;; *) vh_fail usage 2 "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" ;; esac
   [ -z "$fromdir" ] || [ "$engine" != canvas-film ] || [ ! -f "$fromdir/three/layer.js" ] || three=1   # an episode keeps the series' Three.js layer

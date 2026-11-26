@@ -81,6 +81,7 @@
 | [gate-as-door](seam/gate-as-door.md) | 世界里立着一扇形状对应下一章的门（画框、竖屏、节点），镜头朝门心加速穿过去，门框掠出画面，门里的世界接管 | 3–5 | 0.8–1.6 s | tuned |
 | [gl-transition](seam/gl-transition.md) | 一段着色器、一个参数切五种转场：交叉扭曲、斜向扭曲擦除、梦幻波纹、涟漪、模糊交叉；前后两镜当纹理喂进去，进度由 t 算 | 2–4 | 0.5–1 s | tuned |
 | [portal-wipe](seam/portal-wipe.md) | 页面上的一张卡放大成全屏窗口，被点开的那个世界从窗里长出来接管画面 | 3–4 | 1.3–1.6 s | tuned |
+| [sentence-to-shot](seam/sentence-to-shot.md) | 人打给 agent 的那句意见发出去以后，句子本身的笔画碎成几千个点，按从左到右的顺序起飞，沿弧线落进改好的镜头的形状里；新画面在点下面亮起来，点淡去，镜头交给改完的版本 | 3–5 | 2–3.5 s | battle-tested |
 | [whip-pan](seam/whip-pan.md) | 相机一拍横甩到下一景，中段糊到认不出，借糊帧换景；两款：直接落位、急刹长尾 | 3–5 | 0.27–2 s | tuned |
 | [zoom-through](seam/zoom-through.md) | 沿镜头纵深方向切：推进款里旧字冲向镜头、新字从远处继续长大；拉回款里旧的退远、新的从镜头背后缩回来落定 | 2–4 | 0.6–0.8 s | tuned |
 
@@ -129,6 +130,7 @@
 | [answer-stream](ui/answer-stream.md) | 一段 AI 回答按词组一块块出来，每块先以 22% 浓度出现、0.26 s 内实到 100%，末尾跟一个强调色的光标块；出完停住给读的时间 | 2 | 2–5 s | tuned |
 | [button-to-player](ui/button-to-player.md) | 一颗"预览"小按钮的外壳自己拉长成整个播放器，播放键一路移到中心、长出底盘，再变成暂停，原位留一个按钮的虚影 | 3 | 2.2–5 s | tuned |
 | [card-to-workspace](ui/card-to-workspace.md) | 角落里一张小卡从自己的角上长成整个编辑器窗口，卡的标题是同一个元素、一路飞进窗口标题栏，虚线从卡角连到窗角，内容等外壳过半才进 | 3 | 2–5 s | tuned |
+| [caret-character](ui/caret-character.md) | 终端里的光标换成一个小角色，字从它身后一个个落下；换行时它跳到下一行开头，报错那一下它被撞倒，修好了再跳起来，镜头始终跟着它所在的那一行 | 3 | 3–20 s | battle-tested |
 | [chat-thread](ui/chat-thread.md) | 消息一条条出现，新气泡从 0.75 倍长到 1 倍，旧的对话整体往上推一格；问和答左右分开，条与条之间给够读的时间 | 2 | 3–6 s | tuned |
 | [deal-to-grid](ui/deal-to-grid.md) | 一摞卡像发牌一样飞进网格的真实槽位，出牌越来越快，相机追着往下滚，满板后停半秒 | 4–5 | 2.9–3.8 s | upstream-tested |
 | [diff-reveal](ui/diff-reveal.md) | 代码或文档的改动一行行显出来：先标删除（底色从左铺开、减号），再插入新增的行（把下面的行推开、加号），左边一列标记；一屏不超过 8 行改动 | 2 | 1.5–4 s | tuned |
@@ -149,9 +151,12 @@
 | [toast-stack](ui/toast-stack.md) | 完成通知从右边滑进来、在右上角叠成一摞，最新的在最上面；中间一条被关掉以后，下面的平滑补上空位，同时可读的不超过三条 | 3 | 2–5 s | tuned |
 | [toggle-slide](ui/toggle-slide.md) | 开关的圆钮滑到另一头、带一点回弹落定，轨道换色，圆钮上出现勾、旁边的"关"换成"开"；状态不只靠颜色表达 | 2 | 0.67–2 s | tuned |
 | [upload-stack](ui/upload-stack.md) | 几张文件卡一张张抬起叠成一列，每张带自己的进度条，按各自的大小用不同的时间走到 100%；全部完成，标题才换成"已上传" | 2 | 2–5 s | tuned |
+| [window-assemble](ui/window-assemble.md) | 产品的图标落下、被双击，一下亮光，名字从画面中间冲过去；它的真窗口按自己的分区切成几块，从各自的方向带着纵深弹进来、错开 0.13 s，主画面最后从镜头这边落进去，整窗转正，一道光扫过，里面的内容开始动 | 4 | 2–4.5 s | battle-tested |
 | [zoom-callout](ui/zoom-callout.md) | 界面上一个很小的数先被圈出来，一条线从圈引到旁边，一个圆形放大框弹出来，里面是同一个数的 4.5 倍字号和它的标签 | 2 | 1.5–4 s | tuned |
 | [browser-walkthrough](interaction/browser-walkthrough.md) | 每个页面状态一张真截图，光标走向量好的目标、停稳再点，页面在点下去之后才换，镜头比光标沉稳，只在要看的区域变了才推过去 | 1–2 | 4–12 s | tuned |
+| [ime-typing](interaction/ime-typing.md) | 一句中文像真人用输入法打出来：拼音字母先落在光标处、带下划线，候选框弹出，空格一按词才上屏；桌上的键盘同一时刻按下对应的键、亮一下再弹起 | 2 | 1.5–8 s | battle-tested |
 | [oversized-cursor](interaction/oversized-cursor.md) | 一只画面宽度 7% 的光标从画外进来，把视线带到下一个目标，点一下让下一件事发生，然后离开或带进下一镜 | 2–3 | 1–3 s | tuned |
+| [step-capture](interaction/step-capture.md) | 一个真界面每走一小步截一张（打一个字一张、拖一格一张、播放中的视频每 0.4 s 一张），按时间一张张换、相邻两张交叉 0.09 s；镜头在截图自己的像素里推，光标在同一套坐标里走，讲到哪一块，其余压暗或给它一圈光 | 1–2 | 3–20 s | battle-tested |
 | [type-and-filter](interaction/type-and-filter.md) | 在真实界面上按人手的速度打字搜索，网格自己收敛成一张卡，点击它，镜头推进交给详情 | 3 | 2.3–2.7 s | upstream-tested |
 | [layer-depth](camera/layer-depth.md) | 叠得几乎平的三层（图表在后、列表居中、页面在前）从后往前依次拉开、转向同一个灭点，每层留着自己的内容；虚线引向灭点，停留时机位上下浮动，三层错开着呼吸 | 2 | 2–5 s | tuned |
 | [one-take-world-travel](camera/one-take-world-travel.md) | 一台镜头在同一个 3D 世界里从一个站点飞到下一个：甩过去、到站减速成慢推、停站时保留低幅漂移，字在读的时候骑在镜头前 | 2–5 | 3–8 s | tuned |
@@ -259,7 +264,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 | 接缝 | `carry` 带着动量过去 · `enter` 钻进去看详情 · `chapter` 换章节 · `refocus` 同一空间里转移注意 |
 | 收尾 | `sign-off` 落款 · `cta` 行动号召 |
 
-**types**：`math` · `short` · `promo` · `mv` · `data` · `paper` · `handdrawn` · `meme` · `long` · `recap`（即 `bin/vh types` 里除 `edit` 以外的 10 类；`edit`（09）剪用户自己的素材，暂无配方。`long`、`recap` 也还没有专门标它们的配方：`--type long` 连带列出 `paper`、`data`、`math` 的，`--type recap` 连带列出 `mv` 的）
+**types**：`math` · `short` · `promo` · `mv` · `data` · `paper` · `handdrawn` · `meme` · `long` · `recap` · `tutorial`（即 `bin/vh types` 里除 `edit` 以外的 11 类；`edit`（09）剪用户自己的素材，暂无配方。`long`、`recap` 也还没有专门标它们的配方：`--type long` 连带列出 `paper`、`data`、`math` 的，`--type recap` 连带列出 `mv` 的；`tutorial` 的配方还少，`--type tutorial` 连带列出 `promo` 的界面和交互配方）
 
 **engines**：`hyperframes` HTML/DOM + GSAP 的 composition · `canvas` 2D canvas 的 `renderAt(t)`（草图就是这种，在 HyperFrames 里跑） · `three` HyperFrames 里的 Three.js 层 · `p5` ClaudeAnimationBase · `manim` · `remotion`（来源的参考实现，本仓库不首选）
 
@@ -350,6 +355,6 @@ bin/vh recipes sample <id> --style risograph        # 换一张皮看看：联�
 - **许可怎么算**：来自上游的部分仍按它自己的许可（Apache-2.0 或 MIT），七个上游的许可原文连同版权行逐字放在 [`LICENSES/`](LICENSES/)；本仓库的改动按 MIT。把这些文件拿到别处用，要连同它的"许可"一段、对应的许可原文和 `NOTICE.md` 一起带走。
 - **每个文件怎么标**：frontmatter 的 `derived_from` 写上游仓库、commit 和路径；正文"来源"一节先写改了什么（文字重写，参数按本仓库的规则改过，见上文"和原文不同"的几处），末尾一段"**许可**"写明本文件修改自哪些上游文件、在哪个 commit，并链接许可原文。
 - **NOTICE 和署名**：七个上游在所用的 commit 都没有 NOTICE 文件，所以没有要转载的 NOTICE 文字。Apache-2.0 的两个，用到的上游文件里没有单独的版权头，要保留的是两份 LICENSE 里的版权行；gl-transitions 的每个着色器文件写着自己的作者，作者名写在 `gl-transition` 的"来源"里，着色器代码里保留了作者注释。shotcraft 注明它的 B、C 两式转场来自对 Linear 发布片的抽帧逆向，这句话在 `dark-tunnel`、`focus-handoff` 的"来源"里保留了。
-- **其余都是本仓库的**：原创的配方（`decode-type`、`diffusion-reveal`、`edited-plate-lapse`、`gate-as-door`、`one-take-world-travel`、`thread-through-cuts`，以及只来自拆解、没有复制任何内容的 `flash-stitch`）、本文、`_TEMPLATE.md` 和 `tools/recipes.py` 按 MIT。
+- **其余都是本仓库的**：原创的配方（`caret-character`、`decode-type`、`diffusion-reveal`、`edited-plate-lapse`、`gate-as-door`、`ime-typing`、`one-take-world-travel`、`sentence-to-shot`、`step-capture`、`thread-through-cuts`、`window-assemble`，以及只来自拆解、没有复制任何内容的 `flash-stitch`）、本文、`_TEMPLATE.md` 和 `tools/recipes.py` 按 MIT。
 
 shotcraft 的卡片本身研究自公开的商业片和个人作品，作者声明只取手法、全部重写；我们守同一条边界。拆解和取舍的全过程见 [`cases/promo-video-shotcraft.md`](../cases/promo-video-shotcraft.md)。

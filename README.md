@@ -20,7 +20,7 @@ Plenty of tools can turn a sentence or two into a video. The hard part is doing 
 
 <sub>All made with it. A dozen films in a month, about 100 minutes in all; the longest runs 33 minutes in 4K.</sub>
 
-**11 video types · 43 styles · 5 engines · voice, music, sound effects and captions included · runs on your own computer · MIT**
+**12 video types · 43 styles · 5 engines · voice, music, sound effects and captions included · runs on your own computer · MIT**
 
 </div>
 
@@ -231,7 +231,7 @@ Four layers, and an agent reads only what the film at hand needs:
 
 | Layer | What's in it |
 |---|---|
-| **The router** | [CLAUDE.md](CLAUDE.md): which of the 11 video types this is, how much review it gets, who decides what, and the rules that never bend |
+| **The router** | [CLAUDE.md](CLAUDE.md): which of the 12 video types this is, how much review it gets, who decides what, and the rules that never bend |
 | **The craft** | Docs an agent follows: [video types](video-types/), the [playbook](playbook/), [styles](styles/README.md), [recipes](recipes/README.md), [components](components/README.md), [case studies](cases/README.md) |
 | **The tools** | One CLI, `bin/vh`: from topic research to the upload copy ([what's in the box](#whats-in-the-box)) |
 | **The engines** | HyperFrames, canvas + Three.js, p5.brush, Manim and Blender, which it tells the agent how to use ([engines](#engines)) |
@@ -328,6 +328,7 @@ Remotion appears in a few type docs as an alternative; no showcase film uses it,
 | 09 Edits of your own footage (experimental) | Talking heads and interviews: cut filler, add captions and graphics, make a vertical version | HyperFrames | [09](video-types/09-editing-talking-head.md) |
 | 10 Long explainers | Landscape explainers of 10 minutes or more | canvas-film | [10](video-types/10-long-explainer.md) |
 | 11 Photo recaps (experimental) | Your own photos and clips: a wedding, a trip, a year in review | canvas-film + edit list | [11](video-types/11-photo-recap.md) |
+| 12 Product tutorials | How to install and use a piece of software, its operations rebuilt in code instead of screen-recorded | canvas-film + `ui-stage` | [12](video-types/12-product-tutorial.md) |
 
 For realistic people or physics, generated video with code on top ([playbook/05](playbook/05-hybrid-genvideo.md)); for a story with an arc or anything over three minutes, [playbook/09](playbook/09-narrative.md); for hooks, titles and covers, [playbook/10](playbook/10-hooks-and-packaging.md).
 
@@ -341,9 +342,9 @@ A style is a reference, not a template: borrow one, mix several, or ignore them 
 
 ### Recipes, shot-grammar cards, components
 
-- **[Recipes](recipes/README.md)**: 75 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 11 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
+- **[Recipes](recipes/README.md)**: 80 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 11 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
 - **Shot-grammar cards**: 24 shot-grammar cards in `recipes/shot/` for shot sizes, angles, the axis and camera moves, each saying what it does to the viewer and when to take it or not. A shot's choice goes into its `camera` field, and `bin/vh storyboard` prints it under the shot.
-- **[Components](components/README.md)**: 6 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
+- **[Components](components/README.md)**: 7 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
 
 All of these are defaults to start from, not rules: a concept that needs something else simply does it.
 
