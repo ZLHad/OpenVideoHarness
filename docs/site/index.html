@@ -836,8 +836,8 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <p class="lede" data-r><span lang="en">Say what you want in one sentence, and a coding agent such as Claude Code or Codex writes the code and renders the film. It can be controlled, repeated and fitted into your own workflow. Every step shows up in Studio: point at a shot, say what to change, and compare the two cuts.</span><span lang="zh">说一句想做什么，Claude Code、Codex 这样的 agent 写代码、渲染成片。可控、可重复，接得进你自己的流程。每一步都摆在 Studio 里：指着镜头说一句，它去改，改完两版对照着看。</span></p>
     <div class="cta" data-r>
       <a class="btn" href="#start"><span lang="en">Get started</span><span lang="zh">开始使用</span> <span class="arrow">→</span></a>
-      <a class="btn ghost" href="#tour"><span lang="en">Watch the 5-min walk-through</span><span lang="zh">看 5 分钟介绍片</span></a>
       <a class="btn ghost" href="#studio"><span lang="en">See Studio in 17 s</span><span lang="zh">17 秒看 Studio</span></a>
+      <a class="btn ghost" href="#tour"><span lang="en">Watch the 5-min walk-through</span><span lang="zh">看 5 分钟介绍片</span></a>
       <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .8l2.2 4.5 5 .7-3.6 3.5.9 5L8 12.1 3.5 14.5l.9-5L.8 6l5-.7z"/></svg><span lang="en">Star on GitHub</span><span lang="zh">GitHub 点 Star</span></a>
     </div>
     <ul class="trust" data-r>
@@ -849,25 +849,6 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
   <p class="galaxy-cap" data-r><span lang="en">Every star is a film: the <span data-n="styles">43</span> style samples, in orbit</span><span lang="zh">每颗星都是一支片子：<span data-n="styles">43</span> 种风格的样片</span></p>
   <div class="scroll-cue" aria-hidden="true"><i></i><span lang="en">scroll</span><span lang="zh">向下</span></div>
-</section>
-
-<!-- the walk-through film: five minutes, from install to a finished film -->
-<section class="slide" id="tour" data-en="Walk-through" data-zh="介绍片">
-  <div class="wrap">
-    <div class="head">
-      <div><p class="eyebrow" data-r><span lang="en">Walk-through film · 5:17 · with sound</span><span lang="zh">介绍片 · 5 分 17 秒 · 有声</span></p><h2 class="split"><span lang="en">Five minutes, <em>from install to a finished film.</em></span><span lang="zh">五分钟，<em>从装好走到成片。</em></span></h2></div>
-      <p class="lede" data-r><span lang="en">Installing it, three ways in, how a real 33-minute film was made step by step, and how it was reviewed in Studio. The walk-through was made with it too. Chinese narration and subtitles.</span><span lang="zh">怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。这支介绍片也是用它做的。中文配音、中文字幕。</span></p>
-    </div>
-    <figure class="studio-shot" data-r>
-      <div class="sfilm" id="tfilm">
-        <video playsinline preload="none" poster="img/tour.zh.jpg" data-poster-en="img/tour.en.jpg" data-poster-zh="img/tour.zh.jpg" data-aria-en="OpenVideoHarness walk-through, 5 minutes 17 seconds" data-aria-zh="OpenVideoHarness 介绍片，5 分 17 秒">
-          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4" type="video/mp4">
-        </video>
-        <button type="button" class="bigplay" data-aria-en="Play the walk-through with sound" data-aria-zh="带声音播放介绍片"><span><span lang="en">Play with sound</span><span lang="zh">带声音播放</span></span></button>
-      </div>
-      <figcaption><span lang="en">Streams from the repo's GitHub release once you press play. Download: <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p, 164 MB</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K, 740 MB</a></span><span lang="zh">按下播放才从仓库的 GitHub Release 加载。下载：<a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p，164 MB</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K，740 MB</a></span></figcaption>
-    </figure>
-  </div>
 </section>
 
 <!-- the films: a wall of shots, and the way into the one take (reel/) -->
@@ -927,6 +908,25 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       </div>
       <p class="studio-open"><span lang="en">Click the <strong>OVH Studio</strong> icon (the installer puts it in your applications), tell your agent “open Studio”, or run <code>bin/vh studio</code>: the same window each time. In English or Chinese, in three dark themes.<span class="fine">It reads and writes the project's own files. A new film still starts from a sentence to the agent, and shows up here as soon as it exists.</span></span><span lang="zh">点 <strong>OVH Studio</strong> 图标（安装脚本会把它放进你的应用程序），对 agent 说“打开 Studio”，或者运行 <code>bin/vh studio</code>：每次都是这一个窗口。中文或英文，三套深色主题。<span class="fine">它读写的就是项目里的文件。新片子仍从对 agent 说的一句话开始，一建好就出现在这里。</span></span></p>
     </div>
+  </div>
+</section>
+
+<!-- the walk-through film: five minutes, from install to a finished film -->
+<section class="slide" id="tour" data-en="Walk-through" data-zh="5 分钟上手">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><span lang="en">Walk-through film · 5:17 · with sound</span><span lang="zh">介绍片 · 5 分 17 秒 · 有声</span></p><h2 class="split"><span lang="en">Five minutes, <em>from install to a finished film.</em></span><span lang="zh">五分钟，<em>从装好走到成片。</em></span></h2></div>
+      <p class="lede" data-r><span lang="en">Installing it, three ways in, how a real 33-minute film was made step by step, and how it was reviewed in Studio. The walk-through was made with it too. Chinese narration and subtitles.</span><span lang="zh">怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。这支介绍片也是用它做的。中文配音、中文字幕。</span></p>
+    </div>
+    <figure class="studio-shot" data-r>
+      <div class="sfilm" id="tfilm">
+        <video playsinline preload="none" poster="img/tour.zh.jpg" data-poster-en="img/tour.en.jpg" data-poster-zh="img/tour.zh.jpg" data-aria-en="OpenVideoHarness walk-through, 5 minutes 17 seconds" data-aria-zh="OpenVideoHarness 介绍片，5 分 17 秒">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="bigplay" data-aria-en="Play the walk-through with sound" data-aria-zh="带声音播放介绍片"><span><span lang="en">Play with sound</span><span lang="zh">带声音播放</span></span></button>
+      </div>
+      <figcaption><span lang="en">Streams from the repo's GitHub release once you press play. Download: <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p, 164 MB</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K, 740 MB</a></span><span lang="zh">按下播放才从仓库的 GitHub Release 加载。下载：<a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p，164 MB</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K，740 MB</a></span></figcaption>
+    </figure>
   </div>
 </section>
 

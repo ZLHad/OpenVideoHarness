@@ -16,10 +16,6 @@
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex%20%7C%20DeepSeek%20Harness-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
 
-<a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#tour"><img src="docs/assets/films/tour.zh.jpg" width="960" alt="介绍片封面：AI 做的视频，想改哪改哪。点开在官网带声音播放"></a>
-
-<sub>5 分 17 秒的介绍片，中文配音和字幕：怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。点图到官网带声音看，或下载 <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a>（164 MB）/ <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a>（740 MB）。这支片子也是用它做的。</sub>
-
 <a href="#能做出什么"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="十二支成片的片段同时在动：黑洞喷流、互为镜像的分子、刹车盘的热成像、水墨、皮影、数据做成的城市"></a>
 
 <sub>都是用它做出来的片子。一个月十二支，加起来约 100 分钟，最长一支 33 分钟、4K。</sub>
@@ -29,6 +25,10 @@
 </div>
 
 ## 快速开始
+
+<p align="center"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#tour"><img src="docs/assets/films/tour.zh.jpg" width="960" alt="介绍片封面：AI 做的视频，想改哪改哪。点开在官网带声音播放"></a></p>
+
+<p align="center"><sub>动手前可以先看一遍。5 分 17 秒的介绍片，中文配音和字幕：怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。点图到官网带声音看，或下载 <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a>（164 MB）/ <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a>（740 MB）。这支片子也是用它做的。</sub></p>
 
 需要 macOS 或 Linux、Git、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 [uv](https://github.com/astral-sh/uv)，以及已登录的 Claude Code 或 Codex。[完整要求](#要求成本和限制)
 

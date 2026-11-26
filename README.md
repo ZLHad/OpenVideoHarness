@@ -16,10 +16,6 @@ Plenty of tools can turn a sentence or two into a video. The hard part is doing 
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex%20%7C%20DeepSeek%20Harness-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
 
-<a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#tour"><img src="docs/assets/films/tour.en.jpg" width="960" alt="Poster of the walk-through film: edit any shot of an AI-made video. Opens it on the website with sound"></a>
-
-<sub>A 5-minute 17-second walk-through, narrated and subtitled in Chinese: installing it, three ways in, how a real 33-minute film was made step by step, and how it was reviewed in Studio. Click the poster to watch it on the website with sound, or download it in <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a> (164 MB) or <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a> (740 MB). It was made with the harness too.</sub>
-
 <a href="#what-it-makes"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="Moments from twelve finished films, all moving: a black hole's jet, mirror-image molecules, a brake disc in thermal false colour, ink wash, shadow puppets, a city built from data"></a>
 
 <sub>All made with it. A dozen films in a month, about 100 minutes in all; the longest runs 33 minutes in 4K.</sub>
@@ -29,6 +25,10 @@ Plenty of tools can turn a sentence or two into a video. The hard part is doing 
 </div>
 
 ## Quick start
+
+<p align="center"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#tour"><img src="docs/assets/films/tour.en.jpg" width="960" alt="Poster of the walk-through film: edit any shot of an AI-made video. Opens it on the website with sound"></a></p>
+
+<p align="center"><sub>Watch it before you start. A 5-minute 17-second walk-through, narrated and subtitled in Chinese: installing it, three ways in, how a real 33-minute film was made step by step, and how it was reviewed in Studio. Click the poster to watch it on the website with sound, or download it in <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a> (164 MB) or <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a> (740 MB). It was made with the harness too.</sub></p>
 
 You need macOS or Linux, Git, Node.js 22+, Chrome, FFmpeg, Python 3 with [uv](https://github.com/astral-sh/uv), and a signed-in Claude Code or Codex installation. [Requirements and limits](#requirements-cost-and-limits)
 
