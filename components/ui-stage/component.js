@@ -78,7 +78,11 @@ export function planLine(line, i = 0, seed = 1) {
   if (how === "paste") keys.push([at - 0.02, "⌘"], [at, "v"]);
   return { how, at, times, end, enter, keys, text: cs.join("") };
 }
-const plans = (p) => p.lines.map((l, i) => planLine(l, i, p.seed));
+const plans = (p) => {   // lines in the order they begin: the caret and the scroll follow the last one that has begun
+  p.lines.forEach((l, i) => { if (i && l && p.lines[i - 1] && Number.isFinite(l.at) && l.at < p.lines[i - 1].at) fail(`lines[${i}] begins at ${l.at} s, before lines[${i - 1}] (${p.lines[i - 1].at} s): give them in the order they begin`); });
+  if (p.capture && !(Array.isArray(p.capture.states) && p.capture.states.length)) fail("capture needs states: [[t, name], …]");
+  return p.lines.map((l, i) => planLine(l, i, p.seed));
+};
 
 /** What the scene sounds like, from the params alone: [{ t, kind }] (key, space, enter, paste, line, click, drag, step),
  *  in time order, for the sound pass (audio/events.json). */
@@ -362,6 +366,7 @@ export function build(root, params) {
   const p = opts(params), C = p.colors, doc = root.ownerDocument;
   const el = (css, parent = root, html) => { const d = doc.createElement("div"); d.style.cssText = "position:absolute;" + css; if (html != null) d.innerHTML = html; parent.append(d); return d; };
   const els = { p, root };
+  plans(p);   // a wrong line or capture is an error that names it, here as in state()
   if (p.capture) {
     const [w, h] = p.capture.size || [1440, 900], src = p.capture.src || "assets/ui/{name}.jpg";
     const v = p.capture.view, holder = v ? el(`left:${v[0]}px;top:${v[1]}px;width:${v[2]}px;height:${v[3]}px;overflow:hidden;border-radius:18px;`) : root;
@@ -392,7 +397,7 @@ export function build(root, params) {
   els.marks = p.marks.map(() => el("left:0;top:0;width:0;height:0;display:none;border-radius:16px;"));
   if (p.steps.length) els.chip = el(`left:${p.chip[0]}px;top:${p.chip[1]}px;height:84px;border-radius:42px;background:rgba(24,24,22,.94);color:${C.text};display:flex;align-items:center;gap:14px;padding:0 40px 0 12px;font:600 44px ${p.font};white-space:nowrap;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35);`,
     root, `<b style="width:60px;height:60px;border-radius:30px;background:${C.accent};color:#111;display:flex;align-items:center;justify-content:center;font-size:35px"></b><span></span>`);
-  if (p.cursor) els.cur = el(`left:0;top:0;width:74px;height:74px;transform-origin:5px 3px;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5));`, root, `<svg viewBox="0 0 28 28" width="100%" height="100%"><path d="${ARROW}" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`);
+  if (p.cursor) els.cur = el(`left:0;top:0;width:74px;height:74px;transform-origin:${(5 * 74 / 28).toFixed(2)}px ${(3 * 74 / 28).toFixed(2)}px;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5));`, root, `<svg viewBox="0 0 28 28" width="100%" height="100%"><path d="${ARROW}" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`);
   const dpr = (doc.defaultView && doc.defaultView.devicePixelRatio) >= 1.5 ? 2 : 1;   // a 4K render draws the rings at its pixels
   els.rings = doc.createElement("canvas"); els.rings.width = W0 * dpr; els.rings.height = H0 * dpr; els.dpr = dpr;
   els.rings.style.cssText = `position:absolute;left:0;top:0;width:${W0}px;height:${H0}px;pointer-events:none;`; root.append(els.rings);
@@ -443,7 +448,7 @@ export function dom(els, st) {
     if (st.step) {
       const [b, s] = els.chip.children, up = `translateY(${((1 - st.step.k) * 60).toFixed(1)}px)`;
       b.textContent = st.step.n; s.textContent = st.step.text; b.style.transform = up; s.style.transform = up;
-      els.chip.style.transform = `translateX(${((1 - st.step.slide) * -900).toFixed(1)}px)`;
+      els.chip.style.transform = `translateX(${((1 - st.step.slide) * -(els.chip.offsetWidth + p.chip[0] + 40)).toFixed(1)}px)`;   // out of the frame, however long the text
     }
   }
   const x = els.rings.getContext("2d"); x.setTransform(els.dpr, 0, 0, els.dpr, 0, 0); x.clearRect(0, 0, W0, H0);
@@ -451,7 +456,7 @@ export function dom(els, st) {
     els.cur.style.display = st.cursor ? "" : "none";
     if (st.cursor) {
       const c = st.cursor, s = c.size / 74;
-      els.cur.style.transform = `translate(${(c.x - 5 * c.size / 28).toFixed(1)}px,${(c.y - 3 * c.size / 28).toFixed(1)}px) scale(${(s * (1 - 0.16 * c.press)).toFixed(3)})`;
+      els.cur.style.transform = `translate(${(c.x - 5 * 74 / 28).toFixed(2)}px,${(c.y - 3 * 74 / 28).toFixed(2)}px) scale(${(s * (1 - 0.16 * c.press)).toFixed(3)})`;   // the tip is the origin: it stays on the point at any size and press
       for (const r of c.rings) { x.save(); x.strokeStyle = C.accent; x.globalAlpha = r.a; x.lineWidth = 5; x.beginPath(); x.arc(c.x, c.y, r.r, 0, Math.PI * 2); x.stroke(); x.restore(); }
     }
   }
