@@ -8,13 +8,17 @@
 
 一两句话让 AI 做出一支视频，现在很多工具都行。难的是可控、可重复、能成批地做，还能接进你自己的流程。这个项目做的就是这一套。
 
-**[快速开始](#快速开始)** · [Studio 演示，17 秒带声音](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio) · [看带声音的样片](#5-支样片点开有声音)
+**[快速开始](#快速开始)** · [5 分钟介绍片](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#tour) · [Studio 演示，17 秒带声音](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio) · [看带声音的样片](#5-支样片点开有声音)
 
 [English](README.md) · **中文** · [官网](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex%20%7C%20DeepSeek%20Harness-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
+
+<a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#tour"><img src="docs/assets/films/tour.zh.jpg" width="960" alt="介绍片封面：AI 做的视频，想改哪改哪。点开在官网带声音播放"></a>
+
+<sub>5 分 17 秒的介绍片，中文配音和字幕：怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。点图到官网带声音看，或下载 <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a>（164 MB）/ <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a>（740 MB）。这支片子也是用它做的。</sub>
 
 <a href="#能做出什么"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="十二支成片的片段同时在动：黑洞喷流、互为镜像的分子、刹车盘的热成像、水墨、皮影、数据做成的城市"></a>
 
