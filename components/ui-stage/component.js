@@ -242,15 +242,7 @@ const pic = (pics, n) => (typeof pics === "function" ? pics(n) : pics && pics[n]
  */
 export function canvas(ctx, st, params, pics = {}) {
   const p = opts(params), C = p.colors;
-  if (st.capture) {
-    const c = st.capture, [w, h] = c.size, z = c.cam.z, x = c.at[0] - c.cam.cx * z, y = c.at[1] - c.cam.cy * z;
-    ctx.save(); if (c.view) { ctx.beginPath(); ctx.roundRect(...c.view, 18); ctx.clip(); }
-    ctx.beginPath(); ctx.roundRect(x, y, w * z, h * z, 14 * Math.min(z, 2)); ctx.clip();
-    const A = c.a && c.q < 1 ? pic(pics, c.a) : null, B = pic(pics, c.b);
-    if (A) ctx.drawImage(A, x, y, w * z, h * z);
-    if (B) { ctx.globalAlpha = A ? c.q : 1; ctx.drawImage(B, x, y, w * z, h * z); }
-    ctx.restore();
-  }
+  if (st.capture) drawCapture(ctx, st.capture, pics);
   if (p.window || p.keyboard) {
     const k = st.cam; ctx.save(); ctx.translate(W0 / 2, H0 / 2); ctx.scale(k.z, k.z); ctx.translate(-k.cx, -k.cy);
     if (p.window) drawWindow(ctx, st, p);
@@ -271,6 +263,19 @@ export function canvas(ctx, st, params, pics = {}) {
     ctx.save(); ctx.translate(c.x - 5 * s, c.y - 3 * s); ctx.scale(s, s); ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8 / s; ctx.shadowOffsetY = 6;
     ctx.fillStyle = "#fff"; ctx.fill(arrow()); ctx.shadowColor = "transparent"; ctx.lineWidth = 1.5; ctx.strokeStyle = "#111"; ctx.lineJoin = "round"; ctx.stroke(arrow()); ctx.restore();
   }
+}
+// the capture in view, drawn at the context's own pixels: the picture's full resolution reaches the screen, however far the
+// camera pushes in (the DOM painter draws it the same way, into a full-frame canvas: see build())
+function drawCapture(ctx, c, pics) {
+  const [w, h] = c.size, z = c.cam.z, x = c.at[0] - c.cam.cx * z, y = c.at[1] - c.cam.cy * z;
+  ctx.save(); if (c.view) { ctx.beginPath(); ctx.roundRect(...c.view, 18); ctx.clip(); }
+  ctx.beginPath(); ctx.roundRect(x, y, w * z, h * z, 14 * Math.min(z, 2)); ctx.clip();
+  ctx.imageSmoothingQuality = "high";
+  const ok = (im) => im && (im.complete === undefined || (im.complete && im.naturalWidth > 0));   // an <img> not loaded yet draws nothing
+  const A = c.a && c.q < 1 ? pic(pics, c.a) : null, B = pic(pics, c.b);
+  if (ok(A)) ctx.drawImage(A, x, y, w * z, h * z);
+  if (ok(B)) { ctx.globalAlpha = ok(A) ? c.q : 1; ctx.drawImage(B, x, y, w * z, h * z); }
+  ctx.restore();
 }
 function drawWindow(ctx, st, p) {
   const C = p.colors, w = p.window, kind = w.kind || "terminal", light = kind === "browser", bar = kind === "app" ? 0 : 60;
@@ -357,26 +362,31 @@ const hex = (c) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(c)); const n = m
 // ── DOM painter ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 /**
- * build(root, params) makes the elements once inside root (absolutely placed, 1920 × 1080): the capture box with an
- * <img> a state (capture.src: "assets/ui/{name}.jpg"; every state's picture is loaded, so keep a DOM player to a few
- * dozen states and use the canvas painter with a loader for more), the stage (window, keyboard), the marks, the chip
- * and the cursor. dom(els, st) changes only transforms, opacity, sizes and the lines' text.
+ * build(root, params) makes the elements once inside root (absolutely placed, 1920 × 1080): a full-frame canvas the
+ * capture is drawn into at the output's own pixels (an Image a state from capture.src, "assets/ui/{name}.jpg"; els.ready
+ * resolves once they are decoded, so await it before the first frame), the stage (window, keyboard), the marks, the chip
+ * and the cursor. dom(els, st, pics) changes only transforms, opacity, sizes and the lines' text, and redraws the capture
+ * canvas; pics defaults to the Images build loaded; with many states pass loader().get instead and await its load().
+ * The capture is not an element enlarged with a CSS scale: a layer under a 3D transform can be rasterised at its own
+ * size and then enlarged (a 2026-11 film's player, a canvas in a CSS-scaled box, blurred the interface's small type that
+ * way at a 2–3× push), so the picture is drawn at the output's pixels, as canvas() does. A tilt (rx, ry) is a small CSS 3D
+ * on the whole drawn canvas, which stays sharp.
  */
 export function build(root, params) {
   const p = opts(params), C = p.colors, doc = root.ownerDocument;
   const el = (css, parent = root, html) => { const d = doc.createElement("div"); d.style.cssText = "position:absolute;" + css; if (html != null) d.innerHTML = html; parent.append(d); return d; };
   const els = { p, root };
   plans(p);   // a wrong line or capture is an error that names it, here as in state()
-  if (p.capture) {
-    const [w, h] = p.capture.size || [1440, 900], src = p.capture.src || "assets/ui/{name}.jpg";
-    const v = p.capture.view, holder = v ? el(`left:${v[0]}px;top:${v[1]}px;width:${v[2]}px;height:${v[3]}px;overflow:hidden;border-radius:18px;`) : root;
-    els.capOff = v ? [v[0], v[1]] : [0, 0];
-    els.cap = el(`left:0;top:0;width:${w}px;height:${h}px;transform-origin:0 0;border-radius:14px;overflow:hidden;background:#141413;box-shadow:0 30px 90px rgba(0,0,0,.55);`, holder);
+  const dpr = (doc.defaultView && doc.defaultView.devicePixelRatio) >= 1.5 ? 2 : 1;   // a 4K render draws at its own pixels
+  els.dpr = dpr;
+  if (p.capture) {   // not an element scaled up with CSS (that blurs): a full-frame canvas the capture is drawn into, as canvas() does
+    const src = p.capture.src || "assets/ui/{name}.jpg";
+    els.cap = doc.createElement("canvas"); els.cap.width = W0 * dpr; els.cap.height = H0 * dpr;
+    els.cap.style.cssText = `position:absolute;left:0;top:0;width:${W0}px;height:${H0}px;`; root.append(els.cap);
     els.pics = {};
-    for (const n of new Set(p.capture.states.map((s) => s[1]))) {
-      const im = doc.createElement("img"); im.src = src.replace("{name}", n); im.style.cssText = `position:absolute;left:0;top:0;width:${w}px;height:${h}px;opacity:0;`; els.cap.append(im); els.pics[n] = im;
-    }
-  }
+    for (const n of new Set(p.capture.states.map((s) => s[1]))) { const im = new Image(); im.decoding = "async"; im.src = src.replace("{name}", n); els.pics[n] = im; }
+    els.ready = Promise.all(Object.values(els.pics).map((im) => im.decode().catch(() => { throw new Error(`ui-stage: picture ${im.src} did not load`); })));
+  } else els.ready = Promise.resolve();
   els.stage = el(`left:0;top:0;width:${W0}px;height:${H0}px;transform-origin:0 0;`);
   if (p.window) {
     const w = p.window, kind = w.kind || "terminal", light = kind === "browser", bar = kind === "app" ? 0 : 60;
@@ -398,17 +408,20 @@ export function build(root, params) {
   if (p.steps.length) els.chip = el(`left:${p.chip[0]}px;top:${p.chip[1]}px;height:84px;border-radius:42px;background:rgba(24,24,22,.94);color:${C.text};display:flex;align-items:center;gap:14px;padding:0 40px 0 12px;font:600 44px ${p.font};white-space:nowrap;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35);`,
     root, `<b style="width:60px;height:60px;border-radius:30px;background:${C.accent};color:#111;display:flex;align-items:center;justify-content:center;font-size:35px"></b><span></span>`);
   if (p.cursor) els.cur = el(`left:0;top:0;width:74px;height:74px;transform-origin:${(5 * 74 / 28).toFixed(2)}px ${(3 * 74 / 28).toFixed(2)}px;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5));`, root, `<svg viewBox="0 0 28 28" width="100%" height="100%"><path d="${ARROW}" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`);
-  const dpr = (doc.defaultView && doc.defaultView.devicePixelRatio) >= 1.5 ? 2 : 1;   // a 4K render draws the rings at its pixels
-  els.rings = doc.createElement("canvas"); els.rings.width = W0 * dpr; els.rings.height = H0 * dpr; els.dpr = dpr;
+  els.rings = doc.createElement("canvas"); els.rings.width = W0 * dpr; els.rings.height = H0 * dpr;
   els.rings.style.cssText = `position:absolute;left:0;top:0;width:${W0}px;height:${H0}px;pointer-events:none;`; root.append(els.rings);
   return els;
 }
-export function dom(els, st) {
+export function dom(els, st, pics = els.pics) {
   const p = els.p, C = p.colors;
-  if (els.cap && st.capture) {
-    const c = st.capture, z = c.cam.z;
-    els.cap.style.transform = `translate(${c.at[0] - els.capOff[0]}px,${c.at[1] - els.capOff[1]}px) perspective(2400px) rotateX(${c.cam.rx}deg) rotateY(${c.cam.ry}deg) scale(${z}) translate(${-c.cam.cx}px,${-c.cam.cy}px)`;
-    for (const [n, im] of Object.entries(els.pics)) { const o = n === c.b ? (c.a && c.q < 1 ? c.q : 1) : n === c.a && c.q < 1 ? 1 : 0; im.style.opacity = String(o); im.style.zIndex = n === c.b ? "2" : "1"; }
+  if (els.cap) {
+    const x = els.cap.getContext("2d"); x.setTransform(els.dpr, 0, 0, els.dpr, 0, 0); x.clearRect(0, 0, W0, H0);
+    if (st.capture) {
+      const c = st.capture; drawCapture(x, c, pics);
+      const tilt = Math.abs(c.cam.rx) + Math.abs(c.cam.ry) > 1e-3;   // a small tilt of the whole drawn frame: barely resampled, stays sharp
+      els.cap.style.transformOrigin = `${c.at[0]}px ${c.at[1]}px`;
+      els.cap.style.transform = tilt ? `perspective(2400px) rotateX(${c.cam.rx}deg) rotateY(${c.cam.ry}deg)` : "";
+    }
   }
   const k = st.cam; els.stage.style.transform = `translate(${W0 / 2}px,${H0 / 2}px) scale(${k.z}) translate(${-k.cx}px,${-k.cy}px)`;
   if (els.rows) {
