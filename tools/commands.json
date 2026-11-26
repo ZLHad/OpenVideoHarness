@@ -474,7 +474,7 @@
             "a scaffold step that fails (HyperFrames' init, npm install): the project stays, the command that finishes it is said, exit 1;",
             "--no-install: no network now: those two steps are left out on purpose, the command that installs the engine later is said (bin/vh status names it too), exit 0;",
             "--json: {\"version\": 1, \"project\", \"type\", \"doc\", \"effort\", \"lang\", \"frame\", \"watch\", \"resolution\", \"engine\", \"scaffold\": {\"ok\", \"finish\", \"skipped\"}, \"next\"} on stdout (next is bin/vh status's next_step), the lines a person reads on stderr;",
-            "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md); long and recap have it by default;",
+            "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md); long, recap and tutorial have it by default;",
             "--three with it: the Three.js layer in three/ and a pinned three.js, 3D drawn under the 2D (its README, Three.js 层);",
             "--aspect: short/promo/data/meme, and recap, whose film goes through edit.json while its pages stay 16:9 (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only on HyperFrames); --lang: the review pages' language (default zh; set it from the user's first request);",
             "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",

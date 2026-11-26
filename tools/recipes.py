@@ -71,7 +71,7 @@ VOCAB = {
                "breath", "accelerate", "punctuate", "hush", "payoff",
                "carry", "enter", "chapter", "refocus",
                "sign-off", "cta"],
-    "types": ["math", "short", "promo", "mv", "data", "paper", "handdrawn", "meme", "long", "recap"],
+    "types": ["math", "short", "promo", "mv", "data", "paper", "handdrawn", "meme", "long", "recap", "tutorial"],
     "engines": ["hyperframes", "canvas", "three", "p5", "manim", "remotion"],
     "aspect": ["landscape", "portrait", "square"],
     "needs": ["ui-page", "ui-element", "text", "number", "series", "photo", "footage", "logo", "3d", "none"],
@@ -759,7 +759,7 @@ def cmd_check(files):
 
 
 # ---------------------------------------------------------------- list
-TYPE_BORROWS = {"long": {"paper", "data", "math"}, "recap": {"mv"}}   # types few cards name yet: --type lists the cards of the types they share a language with
+TYPE_BORROWS = {"long": {"paper", "data", "math"}, "recap": {"mv"}, "tutorial": {"promo"}}   # types few cards name yet: --type lists the cards of the types they share a language with
 FILTERS = {  # flag: (frontmatter field, vocabulary or special)
     "--intent": ("intent", "intent"), "--family": ("family", "family"), "--role": ("role", "role"),
     "--type": ("types", "types"), "--engine": ("engines", "engines"), "--aspect": ("aspect", "aspect"),

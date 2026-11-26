@@ -20,7 +20,7 @@
 
 <sub>都是用它做出来的片子。一个月十二支，加起来约 100 分钟，最长一支 33 分钟、4K。</sub>
 
-**11 类视频 · 43 种风格 · 5 个引擎 · 配音、配乐、音效、字幕齐全 · 在你自己的电脑上跑 · MIT**
+**12 类视频 · 43 种风格 · 5 个引擎 · 配音、配乐、音效、字幕齐全 · 在你自己的电脑上跑 · MIT**
 
 </div>
 
@@ -231,7 +231,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 | 哪一层 | 里面有什么 |
 |---|---|
-| **路由** | [CLAUDE.md](CLAUDE.md)：这是 11 类视频里的哪一类、做多认真、谁拍板什么，以及不让步的底线 |
+| **路由** | [CLAUDE.md](CLAUDE.md)：这是 12 类视频里的哪一类、做多认真、谁拍板什么，以及不让步的底线 |
 | **门道** | agent 照着做的文档：[视频类型](video-types/)、[playbook](playbook/)、[风格](styles/README.md)、[配方](recipes/README.md)、[组件](components/README.md)、[案例](cases/README.md) |
 | **工具** | 一个命令行 `bin/vh`：从选题调研到上传版（见[工具一览](#工具一览)） |
 | **引擎** | HyperFrames、canvas + Three.js、p5.brush、Manim、Blender，它告诉 agent 怎么用（见[引擎](#引擎)） |
@@ -328,6 +328,7 @@ Remotion 在几份类型文档里列为备选，没有样片用它，要手动�
 | 09 剪你自己的素材（试验中） | 口播、访谈：删口水词、加字幕和图解、出竖屏版 | HyperFrames | [09](video-types/09-editing-talking-head.md) |
 | 10 长讲解 | 10 分钟以上的横屏讲解 | canvas-film | [10](video-types/10-long-explainer.md) |
 | 11 照片回顾（试验中） | 你自己的照片和片段：婚礼、旅行、一年回顾 | canvas-film + 剪辑表 | [11](video-types/11-photo-recap.md) |
+| 12 产品使用教程 | 软件怎么装、怎么用，操作用代码重做，不录屏 | canvas-film + `ui-stage` | [12](video-types/12-product-tutorial.md) |
 
 要写实人物或真实物理时，接生成式视频再用代码叠加（[playbook/05](playbook/05-hybrid-genvideo.md)）；讲有起伏的故事或 3 分钟以上的长片看 [playbook/09](playbook/09-narrative.md)；开头钩子、标题和封面看 [playbook/10](playbook/10-hooks-and-packaging.md)。
 
@@ -341,9 +342,9 @@ AI 做的视频放着不管，很容易长成一个样子：暗底、发光、�
 
 ### 配方、镜头语法卡、组件
 
-- **[配方](recipes/README.md)**：75 张镜头配方（一个镜头或一个接缝怎么动：分几段、每段多少帧、哪些参数不能降、在哪容易翻车），另有 11 条全片骨架（整支片子的能量弧和停顿预算）。`bin/vh recipes list --intent … --energy …` 按意图和能量筛；写了代码草图的配方都带一张实渲的样片联系表。
+- **[配方](recipes/README.md)**：80 张镜头配方（一个镜头或一个接缝怎么动：分几段、每段多少帧、哪些参数不能降、在哪容易翻车），另有 11 条全片骨架（整支片子的能量弧和停顿预算）。`bin/vh recipes list --intent … --energy …` 按意图和能量筛；写了代码草图的配方都带一张实渲的样片联系表。
 - **镜头语法卡**：`recipes/shot/` 里有 24 张镜头语法卡，讲景别、角度、轴线和运镜，每张写它对观众起什么作用、什么时候用、什么时候别用。选定的写进镜头表的 `camera`，`bin/vh storyboard` 会印在镜头下面。
-- **[组件](components/README.md)**：6 个动效组件（弹簧场景、翻页、纸面转场、章节进度条、一块块搭起来的建筑、给太干净的画面收尾），每个都由 t 算出状态，再用很薄的一层画进 canvas、DOM 或 Three.js。`bin/vh components add` 把它复制进项目。
+- **[组件](components/README.md)**：7 个动效组件（弹簧场景、翻页、纸面转场、章节进度条、一块块搭起来的建筑、给太干净的画面收尾、教程里的操作台：打字、键盘、光标和真截图），每个都由 t 算出状态，再用很薄的一层画进 canvas、DOM 或 Three.js。`bin/vh components add` 把它复制进项目。
 
 这些都是起步用的默认做法，不是规则：立意需要别的做法，直接做就行。
 

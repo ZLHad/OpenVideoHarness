@@ -126,8 +126,8 @@ function dayOf(sec) {   // one way to write a day everywhere on the space: 今�
 }
 const TYPE_WORDS = { "01": ["原理讲解", "Explainer"], "02": ["知识短视频", "Knowledge short"], "03": ["产品片", "Product film"], "04": ["MV", "Music video"],
   "05": ["数据故事", "Data story"], "06": ["论文讲解", "Paper explainer"], "07": ["手绘短片", "Hand-drawn"], "08": ["快剪", "Fast cut"],
-  "09": ["口播剪辑", "Talking head"], "10": ["长讲解", "Long explainer"], "11": ["照片回顾", "Photo recap"] };
-const TYPE_KEYS = { math: "01", short: "02", promo: "03", mv: "04", data: "05", paper: "06", handdrawn: "07", meme: "08", edit: "09", long: "10", recap: "11" };
+  "09": ["口播剪辑", "Talking head"], "10": ["长讲解", "Long explainer"], "11": ["照片回顾", "Photo recap"], "12": ["使用教程", "Tutorial"] };
+const TYPE_KEYS = { math: "01", short: "02", promo: "03", mv: "04", data: "05", paper: "06", handdrawn: "07", meme: "08", edit: "09", long: "10", recap: "11", tutorial: "12" };
 function typeWords(ty) {   // a film's kind by its name in this page's language ("01-math-science-explainer", "math" → 原理讲解)
   const x = String(ty || "").trim().toLowerCase(), m = x.match(/^(\d\d)\b/), k = m ? m[1] : TYPE_KEYS[x];
   return k && TYPE_WORDS[k] ? TYPE_WORDS[k][LANG === "zh" ? 0 : 1] : "";

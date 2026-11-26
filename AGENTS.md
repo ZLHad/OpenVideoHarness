@@ -93,6 +93,7 @@
 | 剪用户自己录的素材：口播、访谈、Vlog，删口水词和重录、剪接缝、加字幕和图解、出竖屏版（实验性） | `video-types/09-editing-talking-head.md`，细节在 `engines/editing.md` | HyperFrames |
 | 10 分钟以上的横屏讲解：长科普、讲透一件大事、讲观点的长片 | `video-types/10-long-explainer.md` | canvas-film |
 | 用自己的照片和片段做回顾：婚礼、旅行、一年回顾、纪念日（实验性） | `video-types/11-photo-recap.md` | canvas-film + 剪辑表（`engines/EDIT.md`） |
+| 软件或产品的使用教程：怎么装、从哪开始、一步步怎么用，操作用代码重做、不录屏 | `video-types/12-product-tutorial.md` | canvas-film + 组件 `ui-stage` |
 | 需要写实人物、真实物理、实拍感，或整片要由视频模型出画面 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档（用户自己录的真人素材不用生成，走 09） | 生成式视频 + 代码叠加 |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`；要路径追踪的光影、物理模拟或真实景深时读 `engines/blender.md`（部分验证；渲染时间先渲 3–5 帧校准）。样板是 `showcase/04-intro-film/` | HyperFrames + Three.js 层；重光影的镜头用 Blender |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） |
@@ -141,12 +142,12 @@ OpenVideoHarness/
 ├── bin/vh                    命令行：doctor · setup · settings · install-skill · sync-agents · sound · commands · status · projects · cancel · history · activity · know · artifacts · studio · types · effort · new · footage · assets · scout · ref · web · review · gate · desk · concept · breakdown · cast · style · recipes · storyboard · rhythm · words · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · peaks · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
 ├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/                   轻量 skill（`bin/vh install-skill` 装上的是指回这里的短桩，`git pull` 后不用重装）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用已装浏览器查网页事实、存参考页
-├── video-types/              11 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
+├── video-types/              12 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
 ├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页和审阅台 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS；用到时再复制：SCRIPT、CHARACTER、PACKAGING；TASTE_CHECKLIST 不复制，自查和评审都读这里的一份
 ├── styles/                   风格预设（参考，不是模板）：STYLE.md + tokens.json + 真渲的 5 s 样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方和全片骨架
-├── components/               能复用的动效（弹簧场景、翻页、纸面转场、章节进度条），各带参数表和样片；lib/ 是它们和样片共用的库
+├── components/               能复用的动效（弹簧场景、翻页、纸面转场、章节进度条、教程里的操作台），各带参数表和样片；lib/ 是它们和样片共用的库
 ├── cases/                    真实案例拆解；opus55-gallery 是社区作品精选
 ├── showcase/                 本仓库自己做的片子（成片在 GitHub Release `media`，tools/fetch_media.sh 下载）
 ├── docs/research/            研究笔记：量过的几件事和因此改了什么；是实验记录，不是规则
