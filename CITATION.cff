@@ -7,8 +7,8 @@ authors:
 repository-code: "https://github.com/ZLHad/OpenVideoHarness"
 url: "https://github.com/ZLHad/OpenVideoHarness"
 license: MIT
-version: "0.9.1"
-date-released: "2026-11-25"
+version: "0.9.9"
+date-released: "2026-11-27"
 abstract: >-
   A video-as-code harness that turns coding agents such as Claude Code and Codex into a multi-genre video studio:
   every frame is a pure function of time, the agent reviews its own rendered frames, and people approve the concept

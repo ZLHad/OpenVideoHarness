@@ -2,6 +2,52 @@
 
 What changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.
 
+## v0.9.9 — 2026-11-27
+
+A minor release: product tutorials without screen recording, a 5-minute walk-through film, a moving homepage (film wall, one-shot reel, and live 43-style stage), and five pre-release fixes.
+
+### What's new
+
+- **12th video type — Product tutorial (`video-types/12-product-tutorial.md`):** step-by-step software tutorials redrawn in code rather than screen-recorded (`bin/vh new tutorial <slug>`), backed by the new `components/ui-stage` component (terminal/browser/app frames, IME pinyin typing with a synced keyboard, cursor presses, step tags, real screenshot playback in canvas or DOM, audio `events()`, and per-frame `loader()`) and five new recipes (`ime-typing`, `caret-character`, `step-capture`, `sentence-to-shot`, `window-assemble`).
+- **A 5-minute walk-through film:** a 5 min 17 s tour covering setup, three workflows, how a 33-minute film was made, and reviewing in Studio — placed right beside Quick Start on the homepage (`#tour`) and in both READMEs, with 1080p and 4K copies on Release `media` (Chinese voice-over and subtitles).
+- **Moving film wall, one-shot reel, and live 43-style wall on the homepage:** a full-width wall of 55 shots from 16 films, a scroll-driven one-shot zoom page (`docs/site/reel/`) threading 31 shots into the full wall, and a live style section where all 43 swatches move around a central stage with an auto-cycle progress hairline and `←` / `→` lightbox browsing across every style (all 10 spec-2 styles now play their full sound swatch in the lightbox). Wall clips load lazily only when scrolled into view.
+- **Pre-release fixes and polish:** `bin/vh status` locks onto the passing `bin/vh check` final instead of a newer sample or `-silent` cut; `bin/vh tts --align local` records the local Whisper model name; static gate ① pages without concept cards mount only the outline module; `BRIEF.md` `Output:` duration parsing ignores timestamps inside parenthetical notes; `bin/vh` `mktemp -d` honors `TMPDIR`; signal tests avoid tight `sleep` races on slower Macs; and the READMEs and homepage unify multi-agent wording, Keychain key storage, and the tutorial example.
+
+Known and not fixed: the 17-second Studio film still shows the old words.
+
+The full entries follow, newest first.
+
+**v0.9.9 发版前收尾：修 5 处小毛病，润色 README 和官网**
+- Why: 发 v0.9.9 前把近期真片子暴露的 5 处细节问题一次清掉，并把 README 与官网里过时的表述和互动细节补齐。
+- 已交付片子认准通过检查的正式成片（`tools/status.py`）：按 `bin/vh check` 通过判定交付时记下对应成片路径，并在有多个通过的成片时优先非 `-silent` 版；不再退回去把更新的局部小样或无声循环版当成正式成片。
+- 本地 Whisper 对时（`bin/vh tts --align local`）在 `timeline.json` 里如实记录本机 Whisper 模型名，不再写成 `gemini-3.5-transcribe`；`BRIEF.md` 的 `Output:` 行里括号说明自带的时刻（如 `23:42 改稿`）不再盖过主干里的片长（`tools/gatecheck.py`）；`bin/vh` 一处裸写 `mktemp -d` 补齐 `${TMPDIR:-/tmp}`；`CLAUDE.md`（同步 `AGENTS.md`）顺清"不用审、直接出"与默认档位的断句。
+- 关卡 ① 没有立意卡（立意已由人定）的静态审阅页只挂大纲模块，不再先摆满屏素材、不再显示"等你挑一张"或混入旧的 `gate-1.json` 卡片（`tools/review.py`、`tools/desk/static/modules.js`）；`tools/ci.sh` 里信号检查的替身 `uv` 去掉 `sleep 0.05` 循环改用可中断 `wait`，消除 macOS 慢机器上的偶发超时。
+- README 和官网：补全"API Key 也可存在 Studio 钥匙串"的口径、给需求示例补上第 12 类产品教程、拆清安装缓存与国内镜像两段说明；官网把残留的 5 处"Claude"统一为"agent"、同步"选模型和思考深度"用词、组件区换上新组件 `ui-stage` 联系表；风格墙中央主画面加上自动轮播进度细线，灯箱里打开风格支持 `←` / `→` 翻看全部 43 种风格并在关闭后还原焦点，统一卡片悬停聚光与视频播放键动效，"一镜到底"补上悬停反馈与开屏滚动提示线。
+
+**介绍片挪到"快速开始"旁边**
+- Why: 介绍片放在最前面太抢，先看到 Studio 再看怎么上手更顺。
+- 官网：介绍片一节挪到 Studio 之后、"快速开始"之前；侧栏里它叫"5 分钟上手"，不和下面 103 秒的那支"介绍片"重名；首页按钮按页面顺序排，先 Studio 后介绍片。
+- 两份 README：封面和说明从页首挪进"快速开始"的开头，第一行的链接保留。
+
+**README 和官网放上 5 分钟介绍片**
+- Why: 一支 5 分 17 秒的介绍片做完了：怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。第一次来的人先看它，比读一屏字快。
+- 两份 README 加了它：第一行的链接，"快速开始"开头一张带播放键的封面（中文 `docs/assets/films/tour.zh.jpg`，英文 `tour.en.jpg`），点开到官网带声音看，旁边给 1080p 和 4K 的下载。GitHub 免费账号的 README 只能内嵌 10 MB 以内的视频，所以片子本身不内嵌。
+- 官网首页在 Studio 之后、"快速开始"之前新加一节"介绍片"（`#tour`），和 Studio 短片用同一个播放器，按下播放才从 Release 加载；首页按钮多了一个"看 5 分钟介绍片"。封面跟着页面语言换。
+- 片子在 Release `media`：`tour-film-1080p-3750c1a5.mp4`（164 MB）、`tour-film-4k-1cf1059a.mp4`（740 MB）。中文配音和字幕，英文页写明了。
+
+**第 12 类视频：产品使用教程，操作用代码重做、不录屏**
+- Why: 一支 5 分 17 秒的使用教程做完了，它的做法（真界面一步一张截图按时间放、拼音打字和键盘、逐处定停顿、只看节奏的一轮评审）值得每支同类片子直接用，不用再从头摸。
+- 新类型文档 `video-types/12-product-tutorial.md`：先在干净的副本里把产品真走一遍，大纲按"看完能做"排，一步一镜，停顿加在新画面出来以后，字幕句号处断，单独一轮只看叙事节奏；带单位的数都是那支片子上量的。`bin/vh new tutorial <slug>` 建 canvas-film 项目，路由表、`bin/vh types`、两份 README、官网和 Studio 的类型名都加上了它。
+- 新组件 `components/ui-stage`：终端、浏览器或应用的窗口，逐字打出、粘贴、打印的行（中文走拼音和候选框），跟着按下的键盘，光标和按压，步骤标签，真截图回放（镜头在截图自己的像素里推、聚光、光圈）；canvas 和 DOM 两种落笔，`events()` 给出音效的时刻，`loader()` 按帧载入截图。
+- 五张新配方：`ime-typing`（拼音打字，键盘跟着按）、`caret-character`（光标是个角色）、`step-capture`（真界面逐步回放）、`sentence-to-shot`（一句话散开，落成新镜头）、`window-assemble`（真窗口一块块拼起来），各带联系表和那支片子里用户的判例。`bin/vh recipes list --type tutorial` 连带列出发布片的界面和交互配方。
+
+**官网：成片墙、"一镜到底"和会动的风格墙**
+- Why: 官网上看不到做出来的片子有多好：作品只有 4 支样片，风格是一片不动的小图，README 里的成片片段官网一段都没有。
+- 首页开屏后紧跟一面全幅的成片墙：16 支片子里的 55 个镜头一排排地动，指着一个它就放大、清楚地播，点开能翻这支片子的其他镜头。画面只写看到的是什么、哪类片子、用什么引擎。
+- 新的一页"一镜到底"（`docs/site/reel/`，导航第一项和成片墙的按钮都进得去）：31 个镜头连成一个不切的推进，从星系推到一点光。镜头的位置只由滚动决定，往回滚就退回去；空格或按钮自动走；最后炸开成 55 个镜头的整面墙，指着一个，同一支片子的镜头一起亮。手机竖屏上，上一个世界留在画面外围。
+- 风格一节改成"同一句话，43 种画法"：43 种样片同时在动，围着中间一张大的；中间自己换，指哪个换哪个，接着同一个时钟演，点开听声音、复制一句需求；10 种新规格的风格点开以后也放带声音的完整样片（原来只放 2 秒无声预览）。
+- 省着用：两面墙各是一个拼好的无声视频（4.7 MB、2.7 MB），滚到才取、离开就停，首屏一个视频都不加载；减少动态、省流量或者取不到视频时是仓库里的静帧。片段在 Release `media`，登记在 `tools/media.txt`。
+
 ## v0.9.1 — 2026-11-25
 
 A patch release: the pictures and two layout faults that v0.9.0 left behind.
