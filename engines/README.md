@@ -55,7 +55,7 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9   # 建好就能取帧：模板�
 
 - 片子就是一个自己写的页面：按页面合约（[`CONTRACT.md`](CONTRACT.md)）交出 `window.film`，画什么、怎么画、用哪个库都由 agent 定，canvas、SVG、DOM、WebGL 都行。
 - 宿主只认合约、不认引擎，所以 `bin/vh frames`、`render`、`patch`、`determinism`、`readcheck`、`textcheck`、`fonts check`、`storyboard` 和 Studio 都照样能用；`texts`、`shots` 写了，读时、被挡的字和分镜页才查得到、画得出。
-- 开工前只读 `page/README.md`（合约、工具和工具查的底线），类型文档和其余文档按需查（CLAUDE.md 路由表下面的"不用引擎"）。
+- 开工前只读 `page/README.md`（合约、工具和工具查的底线），类型文档和其余文档按需查（CLAUDE.md 路由表的第一行"不用引擎"）。
 - 没有 canvas-film 那套挂在旁白上的镜头表、字幕排版和章节条；长片要它们时用 `--engine canvas-film`。
 
 ## HyperFrames（HTML + GSAP）
