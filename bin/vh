@@ -40,6 +40,11 @@ type_key() { # type_key <word>: a type's short name, from the short name, its nu
   return 1
 }
 sedi() { local e=$1 f; shift; for f in "$@"; do sed "$e" "$f" > "$f.vh$$" && mv "$f.vh$$" "$f"; done; }   # in-place sed on both BSD/macOS and GNU/Linux
+copy_tree() { # copy_tree <from> <to> [name…]: the folder's files into <to> (made if need be), times and modes kept, every
+  # file or folder called one of the names left out at any depth: what rsync -a --exclude <name> did, without rsync, which
+  # a minimal Linux (a Docker image, a cloud container) does not have
+  python3 -c 'import shutil, sys; shutil.copytree(sys.argv[1], sys.argv[2], symlinks=True, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*sys.argv[3:]))' "$@"
+}
 
 chrome_path() { # the Chrome render.mjs would use: CHROME_PATH, system installs, then Playwright's Chromium builds (newest first)
   local p d n
@@ -785,15 +790,15 @@ cmd_new() {
   NEW_DIR=$dir; vh_trap
   if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
     mkdir -p "$dir"
-    rsync -a --exclude out "$ROOT/engines/canvas-film/template/" "$dir/"
+    copy_tree "$ROOT/engines/canvas-film/template" "$dir" out
     cp "$ROOT/engines/canvas-film/README.md" "$dir/ENGINE_README.md"
-    [ -z "$three" ] || rsync -a "$ROOT/engines/canvas-film/three/" "$dir/three/"   # the Three.js layer and its pinned three.js
+    [ -z "$three" ] || copy_tree "$ROOT/engines/canvas-film/three" "$dir/three"   # the Three.js layer and its pinned three.js
   elif [ "$engine" = page ]; then   # no engine: the film is one page of the agent's own, and nothing to install
     mkdir -p "$dir"
     cp "$ROOT/engines/page/template/film.html" "$dir/film.html"
     cp "$ROOT/engines/page/README.md" "$dir/ENGINE_README.md"
   elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
-    rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
+    copy_tree "$ROOT/engines/ClaudeAnimationBase" "$dir" node_modules out
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
     if [ -n "$noinst" ]; then todo="(cd $(rel "$dir") && npm install)"
     else (cd "$dir" && npm install --no-fund --no-audit --loglevel=error) || todo="(cd $(rel "$dir") && npm install)"; fi
