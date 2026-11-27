@@ -82,7 +82,7 @@
 
 | 用户想要 | 读 | 首选引擎 |
 |---|---|---|
-| 不照模板、不用现成引擎：用户说"自由发挥""不用照模板""你自己定怎么做"，或者下面没有贴切的类型（任何类型都行） | 开工前读 `engines/page/README.md`（合约、工具和工具查的底线），`standard` 和 `studio` 照第 2 步再读 01 的总表和规格；类型文档、playbook、配方、风格按需用 `bin/vh know` 查；档位、关卡和底线照旧 | 不用引擎：`bin/vh new <type> <slug> --engine page`，自己写一个页面 |
+| 不照模板、不用现成引擎：创意短片、实验短片，用户说"自由发挥""不用照模板""你自己定怎么做"，或者下面没有贴切的类型（任何类型都行） | 开工前读 `engines/page/README.md`（合约、工具和工具查的底线），`standard` 和 `studio` 照第 2 步再读 01 的总表和规格；类型文档、playbook、配方、风格按需用 `bin/vh know` 查；档位、关卡和底线照旧 | 不用引擎：`bin/vh new <type> <slug> --engine page`，自己写一个页面 |
 | 数学、物理、算法的原理讲解，3b1b 风格 | `video-types/01-math-science-explainer.md` | Manim CE |
 | 知识科普短视频，竖屏或横屏（抖音、B站、小红书、视频号、Shorts） | `video-types/02-knowledge-short.md` | HyperFrames |
 | 产品宣传、发布片、App 或 SaaS 介绍、功能演示 | `video-types/03-product-promo.md` | HyperFrames |
