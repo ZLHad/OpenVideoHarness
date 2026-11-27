@@ -166,7 +166,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 ## Linux：渲染前要先备好的三样
 
-2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测，x86_64 没测。
+2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测。2026-11-27 又在一台云端容器（Ubuntu 24.04.5，x86_64，没有 GPU）里做了七支有声片（HyperFrames 和 page 两种，研究笔记 10）：x86_64 上 HyperFrames 钉的 chrome-headless-shell 能直接下载，没有下面第一条的问题；那台容器的中文字体只有文泉驿，几支片子从 npm 装了 OFL 字体（`@fontsource/…`）。精简的系统没有 rsync，`bin/vh new` 现在也不需要它。
 
 - **arm64 上的浏览器**：HyperFrames 固定的那一版没有 linux-arm64 的 chrome-headless-shell，它就自己用 apt 装系统的 Chromium。Ubuntu 的 `chromium-browser` 只是一个要 snapd 的空壳，Docker 和没有 snapd 的服务器上跑不起来：渲染报 `Target closed`，`browser ensure` 却说已经就绪。办法：先 `apt purge chromium-browser`，再 `npx @puppeteer/browsers install chrome-headless-shell --path ~/.cache/puppeteer` 下一份 linux-arm64 的（那次是 159 版，比固定的 152 新，字的排布可能有细微差别），然后把 `HYPERFRAMES_BROWSER_PATH` 指向里面的 `chrome-headless-shell`。`bin/vh` 的页面工具也会在 `~/.cache/puppeteer` 里找到它。
 - **Chrome 要的系统库**：报 `Target closed` 时，直接运行那个浏览器文件（`--version`），它会说缺哪个 `.so`。那台机器装过 ffmpeg 以后，只缺 `libnss3` 和 `libnspr4`。上面那条命令的 `--install-deps`（要 root）说能顺带装好这些库，没试过。
