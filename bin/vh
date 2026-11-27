@@ -908,7 +908,8 @@ PY
   if [ -n "$todo" ] && [ -n "$noinst" ]; then echo "   engine   : not installed (--no-install): $todo with the network, before the scenes; bin/vh status names it there"
   elif [ -n "$todo" ]; then echo "   first    : $todo"; fi
   case "$engine:$eff" in
-    page:*) echo "   next     : the agent runs bin/vh effort $eff, reads ENGINE_README.md (the page contract, the tools and the floors they check; the type doc and the rest on demand), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+    page:quick) echo "   next     : the agent runs bin/vh effort quick, reads ENGINE_README.md (the page contract, the tools and the floors they check; the type doc and the rest on demand), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+    page:*) echo "   next     : the agent runs bin/vh effort $eff, reads ENGINE_README.md (the page contract, the tools and the floors they check) and playbook/01-pipeline.md's 总表 and 规格 (the type doc and the rest on demand), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
     *:quick) echo "   next     : the agent runs bin/vh effort quick, reads playbook/quick.md and video-types/$doc.md (工作流, 禁止), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
     *) echo "   next     : the agent runs bin/vh effort $eff, reads video-types/$doc.md and playbook/01-pipeline.md's 总表 and 规格 (nothing more yet), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
   esac
