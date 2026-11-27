@@ -73,7 +73,8 @@ def main():
     name = next((k for k, (_, marks, *_r) in ENGINES.items() if all((proj / m).is_file() for m in marks)), None)
     if not name:
         print(f"doctor: {show(proj)} has no copied engine to compare (a canvas-film project has film.html and src/90-main.js, "
-              "a hand-drawn one render.mjs and src/core.js); other engines are not copied into the project", file=sys.stderr)
+              "a hand-drawn one render.mjs and src/core.js); other engines are not copied into the project, and a page project "
+              "(bin/vh new --engine page) has none: its film.html is the film", file=sys.stderr)
         sys.exit(2)
     tmpl, _, own, readme, dirs = ENGINES[name]
     want = [f for f in files(tmpl) if not own(f) and f != "README.md"]

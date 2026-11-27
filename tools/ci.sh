@@ -1267,6 +1267,21 @@ PY
   vh new short cf3 --engine no-such --dir "$t" >/dev/null 2>&1; a=$?
   [ $rc = 2 ] && [ $a = 2 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
     || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
+  # --engine page: no engine, one film.html of the agent's own and its card, any type at any frame, nothing installed;
+  # bin/vh status sends the agent to the card instead of the type doc
+  if vh new short pg --engine page --dir "$t" >/dev/null 2>&1 && vh new promo pg2 --engine page --aspect 1:1 --dir "$t" >/dev/null 2>&1; then
+    dir=$(ls -d "$t"/*-pg); d2=$(ls -d "$t"/*-pg2)
+    a=$(python3 "$ROOT/tools/status.py" "$dir" --json 2>/dev/null | python3 -c 'import json, sys; print(" ".join(x or "" for x in json.load(sys.stdin)["next_step"]["read"]))' 2>/dev/null)
+    case " $a " in *" engines/page/README.md "*) printf '%s' "$a" | grep -q 'video-types/' && a="(the type doc too) $a" ;; *) a="(no card) $a" ;; esac
+    [ -f "$dir/film.html" ] && [ -f "$dir/ENGINE_README.md" ] && [ ! -e "$dir/src" ] && [ ! -e "$dir/index.html" ] && [ ! -e "$dir/node_modules" ] \
+      && grep -q '^- Output: 1080x1920,' "$dir/BRIEF.md" && grep -q '^- Engine: page (ENGINE_README.md)' "$dir/BRIEF.md" \
+      && grep -q 'content="width=1080, height=1920"' "$dir/film.html" && grep -q '^const W = 1080, H = 1920,' "$dir/film.html" \
+      && grep -q '^const W = 1080, H = 1080,' "$d2/film.html" && grep -q '^- Output: 1080x1080,' "$d2/BRIEF.md" && case "$a" in "("*) false ;; esac \
+      && ok "bin/vh new --engine page: one film.html at the frame asked for (short 1080x1920, 1:1 1080x1080) and its card; status reads the card, not the type doc" \
+      || bad "bin/vh new --engine page: film.html, its size, the BRIEF's Output and Engine lines or status's reads are wrong (reads: $a)"
+  else bad "bin/vh new --engine page"; fi
+  vh new short pg3 --engine page --three --dir "$t" >/dev/null 2>&1; rc=$?
+  [ $rc = 2 ] && [ -z "$(ls -d "$t"/*-pg3 2>/dev/null)" ] && ok "bin/vh new refuses --three without --engine canvas-film" || bad "bin/vh new --engine page --three exited $rc"
   rm -rf "$t"
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it; a script is there,
   # as with none tts writes the sample and fetches nothing)
@@ -11209,6 +11224,15 @@ film_checks() {
      && python3 -c "import struct, sys; d = open(sys.argv[1], 'rb').read(); sys.exit(0 if struct.unpack('>II', d[16:24]) == (320, 180) else 1)" "$t/b/index-t0002.500.png"
   then ok "frames: a page's frame at t is the same after another frame or alone (the clock holds Math.random at t, and says so), at its meta viewport size; ready is called as a method"
   else bad "frames on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  # a page project (bin/vh new --engine page) draws at its own frame, and textcheck checks it at that size: the page's
+  # viewport and window.film, as the host takes them (not HyperFrames' data-width alone)
+  vh new short pgf --engine page --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-pgf 2>/dev/null)
+  a=$(vh frames "$p" --at 1 --out "$t/pgf" 2>&1); rc=$?
+  b=$(vh textcheck "$p" 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && printf '%s' "$b" | grep -q 'film.html · 1080x1920 ·' \
+     && python3 -c "import struct, sys; d = open(sys.argv[1], 'rb').read(); sys.exit(0 if struct.unpack('>II', d[16:24]) == (1080, 1920) else 1)" "$t/pgf/film-t0001.000.png"
+  then ok "a page project draws at its own frame (1080x1920), and textcheck checks it at that size"
+  else bad "a page project: frames exit $rc ($(printf '%s' "$a" | tail -c 300)), textcheck exit $rc2 ($(printf '%s' "$b" | head -c 300))"; fi
   a=$(vh frames tools/film/fixture/throws.html --at 1,2.5 --out "$t/c" 2>&1); rc=$?
   case "$rc:$a" in 1:*"t=2.5 s"*"no picture after 2 s"*) ok "frames: a frame that throws exits 1 and names its t" ;; *) bad "frames on a throwing page: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   a=$(vh frames tools/film/fixture/late.html --at 1,2.5 --out "$t/c2" 2>&1); rc=$?

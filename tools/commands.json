@@ -456,6 +456,7 @@
         "video-types/<type doc>",
         "the type's engine in engines/",
         "engines/canvas-film/three/ (--three)",
+        "engines/page/ (--engine page)",
         "styles/<preset>/ (--style)",
         "<project>/BRIEF.md, STYLE.md, style-refs/, STORYBOARD.md, audio/*events*.json (--from)"
       ],
@@ -467,7 +468,7 @@
       ],
       "usage": [
         {
-          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--no-install] [--json]",
+          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three] | --engine page] [--from <project>] [--dir <folder>] [--no-install] [--json]",
           "text": [
             "create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);",
             "<type>: the short name, its number (02), its doc's name (02-knowledge-short) or that name's stem (knowledge-short);",
@@ -476,6 +477,7 @@
             "--json: {\"version\": 1, \"project\", \"type\", \"doc\", \"effort\", \"lang\", \"frame\", \"watch\", \"resolution\", \"engine\", \"scaffold\": {\"ok\", \"finish\", \"skipped\"}, \"next\"} on stdout (next is bin/vh status's next_step), the lines a person reads on stderr;",
             "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md); long, recap and tutorial have it by default;",
             "--three with it: the Three.js layer in three/ and a pinned three.js, 3D drawn under the 2D (its README, Three.js 层);",
+            "--engine page: no engine, any type and any --aspect: one film.html of the agent's own that keeps the page contract, and its card as ENGINE_README.md (engines/page/README.md), nothing to install;",
             "--aspect: short/promo/data/meme, and recap, whose film goes through edit.json while its pages stay 16:9 (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only on HyperFrames); --lang: the review pages' language (default zh; set it from the user's first request);",
             "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",
             "--from <project>: the next episode of a series: that project's BRIEF spec, style and outline skeleton, STYLE.md,",

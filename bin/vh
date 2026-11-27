@@ -688,7 +688,7 @@ PY
 cmd_new() {
   local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
   VH_OWN=new; [ -z "$VH_JSON" ] || vh_trap   # (a step that stops it unsaid: vh_exit says so)
-  [ $# -ge 2 ] || { x="usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--no-install] [--json]"; echo "$x" >&2; cmd_types >&2; vh_said usage "$x"; exit 2; }
+  [ $# -ge 2 ] || { x="usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three] | --engine page] [--from <project>] [--dir <folder>] [--no-install] [--json]"; echo "$x" >&2; cmd_types >&2; vh_said usage "$x"; exit 2; }
   case "$2" in -*) vh_fail usage 2 "bin/vh new: $2 is no slug: bin/vh new <type> <slug> [options]" ;; esac
   local type slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff="" json="" todo="" noinst=""
   type=$(type_key "$1") || { echo "unknown type: $1" >&2; cmd_types >&2; vh_said usage "unknown type: $1" "bin/vh types lists them"; exit 2; }
@@ -704,7 +704,7 @@ cmd_new() {
     --watch)  needv $# "${2:-}" "--watch needs phone, feed or desktop"; watch=$2; shift 2 ;;
     --res)    needv $# "${2:-}" "--res needs 1080p or 4k"; outres=$2; shift 2 ;;
     --lang)   needv $# "${2:-}" "--lang needs zh or en"; lang=$2; shift 2 ;;
-    --engine) needv $# "${2:-}" "--engine needs canvas-film (engines/canvas-film/README.md)"; engine=$2; shift 2 ;;
+    --engine) needv $# "${2:-}" "--engine needs canvas-film (engines/canvas-film/README.md) or page (engines/page/README.md)"; engine=$2; shift 2 ;;
     --three)  three=1; shift ;;
     --from)   needv $# "${2:-}" "--from needs a project (a folder, or a name under the projects folder)"; from=$2; shift 2 ;;
     --json)   json=1; shift ;;
@@ -717,6 +717,7 @@ cmd_new() {
     [ -f "$fromdir/BRIEF.md" ] || vh_fail no_project 2 "--from: $fromdir is not a project (no BRIEF.md)"
     for x in aspect:"$aspect" watch:"$watch" res:"$outres" lang:"$lang" effort:"$effort" engine:"$engine" style:"$style"; do [ -z "${x#*:}" ] || given="$given${given:+,}${x%%:*}"; done
     [ -n "$engine" ] || ! grep -q '^- Engine: canvas-film' "$fromdir/BRIEF.md" || engine=canvas-film
+    [ -n "$engine" ] || ! grep -q '^- Engine: page' "$fromdir/BRIEF.md" || engine=page
     if [ -z "$aspect" ] && [ -z "$engine" ]; then
       case "$type:$(sed -n 's/^- Output: \([0-9]*x[0-9]*\).*/\1/p' "$fromdir/BRIEF.md" | head -1)" in
         short:1920x1080|promo:1920x1080|data:1920x1080|meme:1920x1080) aspect=16:9 ;; short:1080x1920|promo:1080x1920|data:1080x1920|meme:1080x1920) aspect=9:16 ;;
@@ -731,7 +732,7 @@ cmd_new() {
   fi
   [ -n "$engine" ] || case "$type" in long|recap|tutorial) engine=canvas-film ;; esac   # these types' own engine
   case "$lang" in ""|zh|en) ;; *) vh_fail usage 2 "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" ;; esac
-  case "$engine" in ""|canvas-film) ;; *) vh_fail usage 2 "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" ;; esac
+  case "$engine" in ""|canvas-film|page) ;; *) vh_fail usage 2 "unknown --engine: $engine (canvas-film | page; leave it out for the type's own engine)" ;; esac
   [ -z "$fromdir" ] || [ "$engine" != canvas-film ] || [ ! -f "$fromdir/three/layer.js" ] || three=1   # an episode keeps the series' Three.js layer
   [ -z "$three" ] || [ "$engine" = canvas-film ] || vh_fail usage 2 "--three is canvas-film's Three.js layer: add --engine canvas-film (engines/canvas-film/README.md, Three.js 层)"
   local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list >&2; vh_said usage "--style $style: no such preset" "bin/vh style list shows the presets"; exit 2; }; fi
@@ -745,6 +746,11 @@ cmd_new() {
       4:5:recap) res=portrait; frameh=1350 ;; 3:4:recap) res=portrait; frameh=1440 ;;
       *:recap) vh_fail usage 2 "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" ;;
       *) vh_fail usage 2 "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" ;; esac
+  elif [ "$engine" = page ]; then   # a page of its own draws any frame: the one asked for, else the type's own (engines/page/README.md)
+    case "$aspect" in "") ;; 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
+      4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;
+      *) vh_fail usage 2 "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" ;; esac
+    [ -n "$res" ] || case "$type" in short|edit) res=portrait ;; *) res=landscape ;; esac
   elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter
@@ -782,6 +788,10 @@ cmd_new() {
     rsync -a --exclude out "$ROOT/engines/canvas-film/template/" "$dir/"
     cp "$ROOT/engines/canvas-film/README.md" "$dir/ENGINE_README.md"
     [ -z "$three" ] || rsync -a "$ROOT/engines/canvas-film/three/" "$dir/three/"   # the Three.js layer and its pinned three.js
+  elif [ "$engine" = page ]; then   # no engine: the film is one page of the agent's own, and nothing to install
+    mkdir -p "$dir"
+    cp "$ROOT/engines/page/template/film.html" "$dir/film.html"
+    cp "$ROOT/engines/page/README.md" "$dir/ENGINE_README.md"
   elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
@@ -810,6 +820,11 @@ PY
   if [ "$engine" = canvas-film ]; then   # 16:9 is these types' own frame except short and edit
     case "$type" in short|edit) printf '\n> **画幅 16:9（%s，canvas-film 引擎）**：%s\n' "$wh" "$nframe" >> "$dir/BRIEF.md" ;; esac
     [ "$type:$res" = recap:landscape ] || [ "$type" != recap ] || printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：页面（`film.html`）还是 16:9，片子走 `edit.json`，`size` 按这一行（`video-types/11-photo-recap.md` 的"竖屏"）。%s\n' "${aspect:-$res}" "$wh" "$nframe" >> "$dir/BRIEF.md"
+  elif [ "$engine" = page ]; then   # the type's own frame (portrait for short and edit, landscape for the rest): nothing to say
+    case "$type:$res:$frameh" in short:portrait:|edit:portrait:) ;;
+      short:*|edit:*) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：%s\n' "$aspect" "$wh" "$nframe" >> "$dir/BRIEF.md" ;;
+      *:landscape:) ;;
+      *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：%s\n' "$aspect" "$wh" "$nframe" >> "$dir/BRIEF.md" ;; esac
   else
     case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
       *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：%s\n' "$aspect" "$wh" "$nframe" >> "$dir/BRIEF.md" ;;
@@ -827,6 +842,18 @@ open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
 PY
     echo "   engine   : canvas-film (ENGINE_README.md) · the example film draws as it is: bin/vh frames $(rel "$dir") --at 1,5,9"
     [ -z "$three" ] || echo "   three.js : the Three.js layer in three/ (a pinned three.js with it): FILM.three in src/50-shots.js turns it on (ENGINE_README.md, Three.js 层)"
+  elif [ "$engine" = page ]; then
+    sedi 's|^- Engine: {[^}]*}|- Engine: page (ENGINE_README.md)|' "$dir/BRIEF.md"
+    sedi "s|width=1920, height=1080|width=${wh%x*}, height=${wh#*x}|; s|^const W = 1920, H = 1080,|const W = ${wh%x*}, H = ${wh#*x},|" "$dir/film.html"
+    python3 - "$dir/BRIEF.md" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+note = ("> **本项目不用现成引擎（page）**（`ENGINE_README.md`，和 `engines/page/README.md` 是同一份）：片子就是 `film.html`，按页面合约交出 `window.film`，"
+        "画什么、怎么画、用什么库由你定；类型文档、playbook、配方和风格都按需查（`bin/vh know`）。档位、关卡和底线照旧。现在的 `film.html` 是一个占位的空页面，开工时换掉。\n"
+        "> 取帧 `bin/vh frames <项目> --at …`，查每一帧是不是 t 的函数 `bin/vh determinism <项目>`，成片画面 `bin/vh render <项目>`。\n\n")
+open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
+PY
+    echo "   engine   : page (ENGINE_README.md) · no engine: film.html is the film, an empty page to replace; bin/vh frames $(rel "$dir") --at 1,5,9 draws it"
   else
     case "$type" in
       short|promo|data|meme) x=${frameh:+$aspect}; x=${x:-$res}
@@ -875,8 +902,9 @@ PY
   echo "   review in: ${lang:-zh}  (the review pages' language: --lang en for an English-speaking user)"
   if [ -n "$todo" ] && [ -n "$noinst" ]; then echo "   engine   : not installed (--no-install): $todo with the network, before the scenes; bin/vh status names it there"
   elif [ -n "$todo" ]; then echo "   first    : $todo"; fi
-  case "$eff" in
-    quick) echo "   next     : the agent runs bin/vh effort quick, reads playbook/quick.md and video-types/$doc.md (工作流, 禁止), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+  case "$engine:$eff" in
+    page:*) echo "   next     : the agent runs bin/vh effort $eff, reads ENGINE_README.md (the page contract, the tools and the floors they check; the type doc and the rest on demand), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+    *:quick) echo "   next     : the agent runs bin/vh effort quick, reads playbook/quick.md and video-types/$doc.md (工作流, 禁止), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
     *) echo "   next     : the agent runs bin/vh effort $eff, reads video-types/$doc.md and playbook/01-pipeline.md's 总表 and 规格 (nothing more yet), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
   esac
   echo "              a person starting here: open Claude Code or Codex in the repo root and say what the video is about;"

@@ -25,6 +25,10 @@ engine    the engine docs counted at every level: the section of engines/README.
           04 and 06 show one engine though their type docs allow two (04: HyperFrames for type-led videos; 06: Manim
           and HyperFrames mixed). A film that spans two types reads both type docs.
 type doc  without its 来源 section (CLAUDE.md step 1: a list of sources, looked up when checking a fact), at every level.
+page      the last row: no engine (bin/vh new … --engine page, any type), the way CLAUDE.md routes it: the same base, then
+          engines/page/README.md in place of the type doc, the engine docs, playbook/quick.md and playbook/12 (on demand
+          there); quick adds what bin/vh effort quick prints and playbook/02's 手机测试 section, start what bin/vh effort
+          standard prints; standard, +sound and max add the same stops' sections, 04, and 09–11 as the other rows.
 tools/ci.sh prints this table as a baseline. It never fails on the numbers; it fails when a file or a section it
 counts is missing, so the table cannot quietly shrink.
 """
@@ -134,6 +138,12 @@ def table():
         sound = standard + len(text("playbook/04-audio.md"))
         top = sound + sum(len(text(f"playbook/{f}")) for f in ("09-narrative.md", "10-hooks-and-packaging.md", "11-composition.md"))
         rows.append({"type": doc.stem, "quick": quick, "start": start, "standard": standard, "sound": sound, "max": top, "engine": engine})
+    card = len(text("engines/page/README.md"))   # no engine: the card instead of the type doc and the engine docs
+    start = base + card + std_effort
+    sound = start + later + len(text("playbook/04-audio.md"))
+    rows.append({"type": "page (--engine page)", "quick": base + card + len(effort("quick")) + len(sections("playbook/02-verification.md", "手机测试")),
+                 "start": start, "standard": start + later, "sound": sound,
+                 "max": sound + sum(len(text(f"playbook/{f}")) for f in ("09-narrative.md", "10-hooks-and-packaging.md", "11-composition.md")), "engine": card})
     return rows
 
 def main():

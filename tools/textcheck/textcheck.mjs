@@ -109,7 +109,11 @@ const dir = path.dirname(html), project = dir;
 outDir = path.resolve(outDir || path.join(project, "out", "check", "textcheck"));
 const src = fs.readFileSync(html, "utf8"), rootTag = (src.match(/<[^>]*\bdata-composition-id\b[^>]*>/) || [""])[0];
 const attr = (n) => { const m = rootTag.match(new RegExp(`\\b${n}="([\\d.]+)"`)); return m ? +m[1] : 0; };
-const W = attr("data-width") || 1920, H = attr("data-height") || 1080;
+// the frame as tools/film/host.mjs sizes it: the composition's data-width x data-height, else the page's viewport meta, else
+// 1920 x 1080; once the page has loaded, the size window.film gives wins (engines/CONTRACT.md)
+const meta = (src.match(/<meta[^>]*name=["']viewport["'][^>]*content=["']([^"']*)["']/i) || [])[1] || "";
+const mv = (n) => { const m = meta.match(new RegExp(`\\b${n}\\s*=\\s*(\\d+)`)); return m ? +m[1] : 0; };
+let W = attr("data-width") || mv("width") || 1920, H = attr("data-height") || mv("height") || 1080;
 
 // the registry of reads: --texts, else the page's texts (window.film.texts or window.__vh.texts), else out/texts.json (what bin/vh readcheck --export saves)
 function items(j) {
@@ -196,6 +200,10 @@ try {
   if (ready) stop(`${ready} (window.__hf.buildReady, window.film.ready, window.__vh.ready or the fonts)`);
   const T0 = Date.now(), phase = (name) => { if (process.env.TEXTCHECK_TIMING) console.error(`  [${((Date.now() - T0) / 1000).toFixed(1)} s] ${name}`); };
   const info = await call("info");
+  if (info.width > 0 && info.height > 0 && (info.width !== W || info.height !== H)) {   // the page's own size, as the host takes it
+    W = info.width; H = info.height;
+    await browser.send("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: 1, mobile: false }, s);
+  }
   if (!info.draw) {
     stop(`${path.relative(process.cwd(), html) || html} has no window.film.frame(t) (nor the older window.__vh.draw), so nothing can be drawn on demand. Add one line to the composition's inline script:\n` +
       `    window.film = { frame: (t) => drawFrame(t), duration: 24.8 };   // your function that draws frame t, and the length; texts: [...] optional\n` +
