@@ -882,9 +882,11 @@ def collect(project, now=None, light=False):
     if shipped:
         films = []
         if deliveries:
-            what, when = f"bin/vh deliver: {deliveries[-1]['output']}", deliveries[-1]["time"]
+            dl_sorted = sorted(deliveries, key=lambda x: x.get("time") or "")
+            what, when, films = f"bin/vh deliver: {dl_sorted[-1]['output']}", dl_sorted[-1]["time"], [dl_sorted[-1]["output"]]
         elif final_ok:
-            what, when = "the final film passed bin/vh check", text(passing[-1].get("at"))
+            best = max(passing, key=lambda c: ("silent" not in Path(c["video"]).stem.lower(), c.get("t") or 0))
+            what, when, films = "the final film passed bin/vh check", text(best.get("at")), [best["video"]]
         elif recorded:
             when, films = recorded[-1]
             gone = not any((project / f).exists() for f in films)

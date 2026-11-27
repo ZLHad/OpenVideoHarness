@@ -368,7 +368,10 @@ body.cinema .topbar { transform: translateY(-100%); }
 
 /* ---------- 5 · the capability map ---------- */
 .map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.station { border-radius: 16px; padding: clamp(14px, 1.3vw, 20px); background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.station { position: relative; overflow: hidden; border-radius: 16px; padding: clamp(14px, 1.3vw, 20px); background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); transition: transform .5s var(--ease), box-shadow .5s var(--ease), border-color .3s, opacity .9s var(--ease), filter .9s var(--ease); }
+.station::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s; background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(107,230,255,.12), rgba(157,140,255,.05) 40%, transparent 65%); }
+.station:hover { transform: translateY(-3px); border-color: rgba(107,230,255,.35); box-shadow: var(--glass-hi), 0 30px 60px -30px rgba(107,230,255,.28); }
+.station:hover::before { opacity: 1; }
 .station h3 { display: flex; align-items: baseline; gap: 10px; font-family: var(--display); font-weight: 600; font-size: clamp(21px, 1.7vw, 28px); letter-spacing: -.02em; margin-bottom: 12px; }
 .station h3 b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--cyan); letter-spacing: .08em; }
 .station ul { list-style: none; display: grid; gap: 10px; }
@@ -393,14 +396,15 @@ body.cinema .ambient { opacity: .8; }
 body.cinema .screen-wrap::after { opacity: 0; }
 .js #film .screen-wrap[data-r] { transform: translateY(30px) scale(.94); transition-duration: 1.4s; }
 .js #film.in .screen-wrap[data-r] { transform: none; }
-.screen video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.screen video { width: 100%; height: 100%; object-fit: contain; background: #000; transition: transform .8s var(--ease); }
+.screen:not(.started):hover video { transform: scale(1.018); }
 .bigplay { position: absolute; inset: 0; display: grid; place-items: end start; padding: clamp(14px, 2.4vw, 28px); background: linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0) 40%); transition: opacity .4s; }
 .bigplay > span {
   display: inline-flex; align-items: center; gap: 12px; padding: 14px 24px 14px 18px; border-radius: 999px;
   background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); color: #fff; font-weight: 600; font-size: 18px;
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: transform .35s var(--ease), background .3s;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: transform .35s var(--ease), background .3s, border-color .3s, box-shadow .35s;
 }
-.bigplay:hover > span { transform: scale(1.04); background: rgba(255,255,255,.2); }
+.bigplay:hover > span, .screen:not(.started):hover .bigplay > span, .sfilm:not(.sound):hover .bigplay > span { transform: scale(1.04); background: rgba(255,255,255,.2); border-color: rgba(107,230,255,.55); box-shadow: 0 12px 36px -12px rgba(107,230,255,.45); }
 .bigplay > span::before { content: ""; border-left: 16px solid var(--cyan); border-top: 10px solid transparent; border-bottom: 10px solid transparent; margin-left: 4px; filter: drop-shadow(0 0 6px var(--cyan)); }
 .screen.playing .bigplay, .screen.started .bigplay { opacity: 0; pointer-events: none; }
 .chapters { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 16px auto 0; transition: opacity .5s; }
@@ -502,6 +506,8 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 html[data-lang="zh"] .sty-cap b { letter-spacing: .01em; }
 .sty-cap code { font-size: 13px; color: rgba(255,255,255,.78); }
 .sty-n { position: absolute; top: 12px; right: 14px; font-family: var(--mono); font-size: 13px; color: #fff; background: rgba(0,0,0,.55); border-radius: 999px; padding: 3px 11px; }
+.sty-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--iri); transform-origin: left; transform: scaleX(0); opacity: .9; pointer-events: none; transition: opacity .35s; z-index: 2; }
+.sty-stage.held .sty-bar { opacity: .28; }
 
 .lib-head { margin-top: clamp(22px, 3.5vh, 36px); display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
 .lib-head h3 { font-family: var(--display); font-weight: 600; font-size: clamp(19px, 1.5vw, 24px); letter-spacing: -.02em; }
@@ -561,8 +567,9 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .start-cli summary { color: var(--cyan); cursor: pointer; font-size: 14px; }
 .start-cli .cmd { margin-top: 6px; }
 .steps h3 + .fine, .steps .fine + .cmd { margin-bottom: 6px; }
-.copy { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--sans); font-size: 12.5px; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid var(--line); color: var(--text); transition: background .2s; }
+.copy { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--sans); font-size: 12.5px; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid var(--line); color: var(--text); transition: background .2s, border-color .2s, color .2s; }
 .copy:hover { background: rgba(107,230,255,.2); }
+.copy.ok { border-color: rgba(124,245,200,.55); background: rgba(124,245,200,.14); color: var(--mint); }
 .next { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14.5px; }
 .next span { padding: 5px 11px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--line); }
 .next span.g { background: linear-gradient(135deg, rgba(255,122,217,.85), rgba(157,140,255,.85)); color: #0A0612; border-color: transparent; font-weight: 500; }
@@ -608,7 +615,8 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 #tour .sfilm .bigplay { place-items: end end; }
 #tour .studio-shot { max-width: calc((100svh - var(--bar) - 360px) * 16 / 9); margin-left: auto; margin-right: auto; }
 .sfilm { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--line-2), 0 40px 80px -40px rgba(0,0,0,.9); }
-.sfilm video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.sfilm video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; transition: transform .8s var(--ease); }
+.sfilm:not(.sound):hover video { transform: scale(1.018); }
 .sfilm .bigplay { background: linear-gradient(0deg, rgba(0,0,0,.4), rgba(0,0,0,0) 30%); padding: clamp(12px, 2vw, 22px); }
 .sfilm .bigplay > span { gap: 10px; padding: 10px 18px 10px 14px; font-size: 15px; }
 .sfilm .bigplay > span::before { border-left-width: 12px; border-top-width: 7px; border-bottom-width: 7px; }
@@ -621,7 +629,10 @@ a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
 @media (max-width: 380px) { .sfilm .bigplay > span { font-size: 0; gap: 0; padding: 8px 9px 8px 11px; } }   /* the icon alone; its aria-label stays */
 .studio-shot figcaption { position: relative; margin-top: 12px; font-size: 14.5px; color: var(--text-2); max-width: 60em; }
 .studio-steps { list-style: none; margin-top: clamp(22px, 4vh, 44px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; counter-reset: st; }
-.studio-steps li { display: flex; flex-direction: column; gap: 8px; border-radius: 14px; padding: 10px 10px 14px; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi); }
+.studio-steps li { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px; border-radius: 14px; padding: 10px 10px 14px; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi); transition: transform .5s var(--ease), box-shadow .5s var(--ease), border-color .3s, opacity .9s var(--ease), filter .9s var(--ease); }
+.studio-steps li::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s; background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgba(107,230,255,.12), rgba(157,140,255,.05) 40%, transparent 65%); }
+.studio-steps li:hover { transform: translateY(-3px); border-color: rgba(107,230,255,.35); box-shadow: var(--glass-hi), 0 26px 52px -28px rgba(107,230,255,.3); }
+.studio-steps li:hover::before { opacity: 1; }
 .studio-steps .shot-btn { border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
 .studio-steps h3 { font-family: var(--display); font-size: clamp(17px, 1.3vw, 21px); letter-spacing: -.015em; margin: 4px 4px 0; display: flex; gap: 8px; align-items: baseline; }
 .studio-steps h3::before { counter-increment: st; content: "0" counter(st); font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--cyan); }
@@ -795,6 +806,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   *, *::before, *::after { animation: none !important; }
   .js [data-r], .js .split .w > span, .js .hero h1 { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
   .say-mini, .toast { transition: none; }
+  .sty-bar { display: none; }
 }
 </style>
 </head>
@@ -1018,7 +1030,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <article class="card" data-r><div class="ill ill-idea" aria-hidden="true"><i></i><i></i><i></i></div><span class="n">01</span><h3><span lang="en">Idea first</span><span lang="zh">先想立意</span></h3><p><span lang="en">Two or three concept cards, each with one frame and a hook, before a line of code. It names what every other video on the topic looks like, and steers away.</span><span lang="zh">写代码之前，先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</span></p><span class="where">playbook/12-ideation.md</span></article>
       <article class="card" data-r><div class="ill ill-nine" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:5"></i><i style="--i:4"></i><i style="--i:3"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i></div><span class="n">02</span><h3><span lang="en"><span data-n="types">Twelve</span> workflows</span><span lang="zh"><span data-n="types">十二</span>类工作流</span></h3><p><span lang="en">Science shorts, 3Blue1Brown-style explainers, launch films, music videos, data stories, paper talks, hand-drawn shorts, meme edits, long explainers, software tutorials, and your own footage and photos.</span><span lang="zh">科普短视频、3Blue1Brown 风格讲解、产品发布片、MV、数据故事、论文讲解、手绘短片、梗图快剪、长讲解、软件使用教程，还有你自己的素材和照片。</span></p><span class="where">video-types/</span></article>
       <article class="card" data-r><div class="ill ill-gates" aria-hidden="true"><i style="--i:0">1</i><i style="--i:1">2</i><i style="--i:2">3</i></div><span class="n">03</span><h3><span lang="en">You decide where it costs</span><span lang="zh">贵的地方由你拍板</span></h3><p><span lang="en">The direction and the first draft, and the storyboard too when the film is long, heavy to render or paid. Name anything else you want to own: the hook, the style, the voice, the cover. Or say "quick" and it runs straight through.</span><span lang="zh">创意方向和初版；片子长、渲染重或要花钱时，再加分镜。还想亲自定别的，点名就行：钩子、风格、配音、封面。说"快速出一版"，它就一口气做完。</span></p><span class="where">CLAUDE.md · director mode</span></article>
-      <article class="card" data-r><div class="ill ill-sheet" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="n">04</span><h3><span lang="en">It checks its own work</span><span lang="zh">自己检查自己</span></h3><p><span lang="en">Claude can't watch video. So it reads contact sheets against a <span data-n="checklist">20</span>-point checklist, measures the audio, and a second Claude with a fresh context scores the draft on <span data-n="scores">8</span> points.</span><span lang="zh">Claude 看不了视频，所以它看联系表、对照 <span data-n="checklist">20</span> 条清单改，用数据查声音；再由一个全新上下文的 Claude 按 <span data-n="scores">8</span> 项给初版打分。</span></p><span class="where">templates/TASTE_CHECKLIST.md</span></article>
+      <article class="card" data-r><div class="ill ill-sheet" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="n">04</span><h3><span lang="en">It checks its own work</span><span lang="zh">自己检查自己</span></h3><p><span lang="en">An agent can't watch video. So it reads contact sheets against a <span data-n="checklist">20</span>-point checklist, measures the audio, and a fresh-context reviewer scores the draft on <span data-n="scores">8</span> points.</span><span lang="zh">agent 看不了视频，所以它看联系表、对照 <span data-n="checklist">20</span> 条清单改，用数据查声音；再由全新上下文的独立评审按 <span data-n="scores">8</span> 项给初版打分。</span></p><span class="where">templates/TASTE_CHECKLIST.md</span></article>
       <article class="card" data-r><div class="ill ill-eq" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i><i style="--i:10"></i></div><span class="n">05</span><h3><span lang="en">Sound, as code</span><span lang="zh">声音也是代码</span></h3><p><span lang="en">Chinese and English voiceover, two-language subtitles, a score and <span data-n="sfx">21</span> sound effects written as code, every cue on its frame, mixed to −14 LUFS.</span><span lang="zh">中英配音、双语字幕，配乐和 <span data-n="sfx">21</span> 个音效都用代码写，每个卡点落在它那一帧，混音到 −14 LUFS。</span></p><span class="where">bin/vh tts · music · sfx · mix · qa</span></article>
       <article class="card wide" data-r>
         <div class="txt">
@@ -1039,7 +1051,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <div class="ft-out" id="ftOut" aria-live="polite"></div>
         </div>
       </article>
-      <article class="card" data-r><div class="ill ill-orbit" aria-hidden="true"><i style="--i:0;background:#7CF7FF;color:#7CF7FF"></i><i style="--i:1;background:#9D8CFF;color:#9D8CFF"></i><i style="--i:2;background:#F07CFF;color:#F07CFF"></i><i style="--i:3;background:#FFC9A6;color:#FFC9A6"></i><i style="--i:4;background:#7CF5C8;color:#7CF5C8"></i><i style="--i:5;background:#6B8CFF;color:#6B8CFF"></i></div><span class="n">07</span><h3><span lang="en"><span data-n="styles">43</span> styles, 3D and Blender</span><span lang="zh"><span data-n="styles">43</span> 种风格，还有 3D</span></h3><p><span lang="en">A style library to borrow from, each with a rendered sample. 3D models go in a Three.js layer under the 2D; when a shot needs real glass or a million stars, Claude drives Blender from Python.</span><span lang="zh">风格库可以借来用，每种都带实际渲染的样片。3D 模型放进 2D 下面的 Three.js 层；要真玻璃、上百万颗星时，Claude 写 Python 驱动 Blender。</span></p><span class="where">styles/ · engines/blender.md</span></article>
+      <article class="card" data-r><div class="ill ill-orbit" aria-hidden="true"><i style="--i:0;background:#7CF7FF;color:#7CF7FF"></i><i style="--i:1;background:#9D8CFF;color:#9D8CFF"></i><i style="--i:2;background:#F07CFF;color:#F07CFF"></i><i style="--i:3;background:#FFC9A6;color:#FFC9A6"></i><i style="--i:4;background:#7CF5C8;color:#7CF5C8"></i><i style="--i:5;background:#6B8CFF;color:#6B8CFF"></i></div><span class="n">07</span><h3><span lang="en"><span data-n="styles">43</span> styles, 3D and Blender</span><span lang="zh"><span data-n="styles">43</span> 种风格，还有 3D</span></h3><p><span lang="en">A style library to borrow from, each with a rendered sample. 3D models go in a Three.js layer under the 2D; when a shot needs real glass or a million stars, the agent drives Blender from Python.</span><span lang="zh">风格库可以借来用，每种都带实际渲染的样片。3D 模型放进 2D 下面的 Three.js 层；要真玻璃、上百万颗星时，agent 写 Python 驱动 Blender。</span></p><span class="where">styles/ · engines/blender.md</span></article>
     </div>
   </div>
 </section>
@@ -1078,7 +1090,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </div>
       </div>
       <div class="arch-flow" data-r>
-        <div class="flow-label"><span><span lang="en">Each film is a project folder:</span><span lang="zh">每支片子是一个项目目录：</span> <code>projects/&lt;date&gt;-&lt;slug&gt;/</code></span><span class="legend"><span><i class="c"></i><span lang="en">you decide, in Studio or on a review page</span><span lang="zh">你拍板，在 Studio 里或一页审阅页上</span></span><span><i></i><span lang="en">Claude checks itself</span><span lang="zh">Claude 自查</span></span><span><i class="a"></i><span lang="en">a request, moving through</span><span lang="zh">一条需求走过的路</span></span></span></div>
+        <div class="flow-label"><span><span lang="en">Each film is a project folder:</span><span lang="zh">每支片子是一个项目目录：</span> <code>projects/&lt;date&gt;-&lt;slug&gt;/</code></span><span class="legend"><span><i class="c"></i><span lang="en">you decide, in Studio or on a review page</span><span lang="zh">你拍板，在 Studio 里或一页审阅页上</span></span><span><i></i><span lang="en">the agent checks itself</span><span lang="zh">agent 自查</span></span><span><i class="a"></i><span lang="en">a request, moving through</span><span lang="zh">一条需求走过的路</span></span></span></div>
         <ol class="track">
           <li data-step><span lang="en">Idea</span><span lang="zh">立意</span><small><span lang="en">2–3 concept cards</span><span lang="zh">2–3 张立意卡</span></small></li>
           <li class="gate" data-step><span lang="en">① You</span><span lang="zh">① 你</span><small><span lang="en">pick one</span><span lang="zh">选一张</span></small></li>
@@ -1187,8 +1199,8 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <div class="head">
       <div><p class="eyebrow" data-r><b>08</b><span lang="en">Showcase · hover to preview, click for sound</span><span lang="zh">作品 · 悬停预览，点击带声音播放</span></p><h2 class="split"><span lang="en">Each from <em>one sentence.</em></span><span lang="zh">每一支，<em>都从一句话开始。</em></span></h2></div>
       <div class="sees-box" data-r>
-        <button class="toggle" id="sees" aria-pressed="false"><i></i><span lang="en">What Claude sees</span><span lang="zh">Claude 看到的</span></button>
-        <p class="sees-note" id="seesNote" hidden><span lang="en">Claude can't watch video. It reviews contact sheets: frames tiled with their timecodes.</span><span lang="zh">Claude 看不了视频，它审的是联系表：按时间码平铺的一帧帧画面。</span></p>
+        <button class="toggle" id="sees" aria-pressed="false"><i></i><span lang="en">What the agent sees</span><span lang="zh">agent 看到的</span></button>
+        <p class="sees-note" id="seesNote" hidden><span lang="en">An agent can't watch video. It reviews contact sheets: frames tiled with their timecodes.</span><span lang="zh">agent 看不了视频，它审的是联系表：按时间码平铺的一帧帧画面。</span></p>
       </div>
     </div>
     <div class="films" id="films">
@@ -1252,12 +1264,12 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <div class="sty" id="sty">
       <canvas class="sty-cv" id="styCv" aria-hidden="true"></canvas>
       <div class="wall" id="wall">
-        <button type="button" class="sty-stage" id="styStage"><span class="sty-vid" id="styVid"></span><span class="sty-cap"><b><span lang="en" id="styEn"></span><span lang="zh" id="styZh"></span></b><small><code id="stySlug"></code></small></span><span class="sty-n" id="styN"></span></button>
+        <button type="button" class="sty-stage" id="styStage"><span class="sty-vid" id="styVid"></span><span class="sty-cap"><b><span lang="en" id="styEn"></span><span lang="zh" id="styZh"></span></b><small><code id="stySlug"></code></small></span><span class="sty-n" id="styN"></span><i class="sty-bar" id="styBar" aria-hidden="true"></i></button>
       </div>
     </div>
     <div class="lib-head" data-r><h3><span lang="en">Recipes and components, as the agent sees them</span><span lang="zh">配方和组件，agent 看到的样子</span></h3><p class="fine"><span lang="en"><span data-n="recipes">80</span> shot recipes, <span data-n="sequences">11</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards and <span data-n="components">7</span> motion components, each move with a contact sheet like these. Click one to enlarge it.</span><span lang="zh"><span data-n="recipes">80</span> 张镜头配方、<span data-n="sequences">11</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡、<span data-n="components">7</span> 个动效组件，每个动作都配这样一张联系表。点开放大。</span></p></div>
     <div class="lib">
-      <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../components/build-up/sample/media/sheet.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the build-up component: a tower rising floor by floor and a stepped block dropping in"></button><figcaption><code>build-up</code><span lang="en">pieces appear by a rule until the whole stands</span><span lang="zh">逐渐建成：零件按规则一块块出现，直到整体立起来</span></figcaption></figure>
+      <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../components/ui-stage/sample/media/sheet.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the ui-stage component: Chinese pinyin typing with a live keyboard, a cursor clicking in an app and a terminal printing output"></button><figcaption><code>ui-stage</code><span lang="en">software tutorials rebuilt in code: typing, keyboard, cursor and real captures</span><span lang="zh">教程操作台：打字、键盘联动、光标和真截图回放，不录屏</span></figcaption></figure>
       <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../components/page-turn/sample/media/sheet.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the page-turn component: years printed on pages that turn over"></button><figcaption><code>page-turn</code><span lang="en">a book page turns over; the turn is the cut</span><span lang="zh">翻页：书页翻过去，翻页本身就是剪辑点</span></figcaption></figure>
       <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../recipes/type/media/decode-type.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the decode-type recipe: a line of type decoding into place"></button><figcaption><code>decode-type</code><span lang="en">a recipe: type that decodes into place, then stays long enough to read</span><span lang="zh">一张配方：字解码到位，再停够读完的时间</span></figcaption></figure>
       <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../recipes/data/media/chart-morph.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the chart-morph recipe: a bar chart turning into an area chart"></button><figcaption><code>chart-morph</code><span lang="en">a recipe: one chart becomes another without a cut</span><span lang="zh">一张配方：一种图表不切镜地变成另一种</span></figcaption></figure>
@@ -1313,7 +1325,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">What does it cost?</span><span lang="zh">要花多少钱？</span></summary>
-          <div class="a"><span lang="en">Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget and is held against it before it is made; keys are always read from environment variables.</span><span lang="zh">渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量）；接云端配音、生成图、生成音乐或生成式视频时，按各家收费。付费调用要有预算，调用前先按预算占住；key 一律从环境变量读。</span></div>
+          <div class="a"><span lang="en">Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget and is held against it before it is made; keys come from environment variables or Studio's Keychain settings, never from files.</span><span lang="zh">渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量）；接云端配音、生成图、生成音乐或生成式视频时，按各家收费。付费调用要有预算，调用前先按预算占住；key 从环境变量或 Studio 设置页（系统钥匙串）读，绝不写进文件。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">How long does a film take?</span><span lang="zh">做一支要多久？</span></summary>
@@ -1325,7 +1337,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Does it work with Codex?</span><span lang="zh">能用 Codex 吗？</span></summary>
-          <div class="a"><span lang="en">Yes. Select Codex in Studio and use <strong>Choose model and effort</strong> to see what your account offers before sending the first request. The installer also registers the <code>open-video-harness</code> skill for Codex and Claude Code, so either agent can find the workbench from another folder.</span><span lang="zh">能。在 Studio 选 Codex，发送第一条需求前可点<strong>选择模型和推理档</strong>，查看账号能用的选项。安装脚本也给 Codex 和 Claude Code 注册 <code>open-video-harness</code> skill，从别的目录也能找到工作台。</span></div>
+          <div class="a"><span lang="en">Yes. Select Codex in Studio and use <strong>Choose model and effort</strong> to see what your account offers before sending the first request. The installer also registers the <code>open-video-harness</code> skill for Codex and Claude Code, so either agent can find the workbench from another folder.</span><span lang="zh">能。在 Studio 选 Codex，发送第一条需求前可点<strong>选模型和思考深度</strong>，查看账号能用的选项。安装脚本也给 Codex 和 Claude Code 注册 <code>open-video-harness</code> skill，从别的目录也能找到工作台。</span></div>
         </details>
       </div>
       <div class="faq-col">
@@ -1343,7 +1355,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Where does the page load its media from?</span><span lang="zh">官网的图片和视频从哪里加载？</span></summary>
-          <div class="a"><span lang="en">The fonts and images are served with this site. Studio's demo and the showcase films stream from GitHub Releases when you press play. The film folders link to their source and downloads. For installation help on a slow network, see the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network ↗</a>.</span><span lang="zh">字体和图片随官网一起提供。Studio 演示和成片样例按下播放后才从 GitHub Releases 加载。每支样片的目录也提供源码和下载链接。网络慢时怎么安装，见 Wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络 ↗</a>。</span></div>
+          <div class="a"><span lang="en">The fonts and images are served with this site. The two moving walls fetch their silent mosaic video from GitHub Releases when they scroll into view, and the Studio demo, 5-minute walk-through and showcase films stream only when you press play. For installation help on a slow network, see the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network ↗</a>.</span><span lang="zh">字体和图片随官网一起提供。两面动态墙滚到视野里才从 GitHub Releases 加载无声拼图视频，Studio 演示、5 分钟介绍片和样片则只在按下播放后才开始加载。网络慢时怎么安装，见 Wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络 ↗</a>。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Is it an Anthropic project?</span><span lang="zh">是 Anthropic 官方项目吗？</span></summary>
@@ -1425,10 +1437,11 @@ const T = {
     check: (f, o, d, n) => `Frame ${f}, rendered again right after frame ${o}: ${d.toLocaleString('en')} of ${n.toLocaleString('en')} pixels differ.` + (d ? '' : ' Identical.'),
     play: 'Play', pause: 'Pause',
     copy: 'Copy', copied: 'Copied', select: 'Selected',
-    sheet: name => `${name}: the contact sheet Claude reviews`,
+    sheet: name => `${name}: the contact sheet the agent reviews`,
     tile: name => `${name}: play with sound`,
     yours: '<b>+ yours</b><small>borrow the grammar, not the shots</small>',
     shotNav: ['Previous shot of this film', 'Next shot of this film', 'See it in the one take'],
+    styleNav: ['Previous style', 'Next style'],
     lib: name => `${name}: its contact sheet`,
   },
   zh: {
@@ -1439,10 +1452,11 @@ const T = {
     check: (f, o, d, n) => `第 ${f} 帧，紧接在第 ${o} 帧之后重渲：${n.toLocaleString('zh')} 个像素里有 ${d.toLocaleString('zh')} 个不同。` + (d ? '' : '完全一致。'),
     play: '播放', pause: '暂停',
     copy: '复制', copied: '已复制', select: '已选中',
-    sheet: name => `${name}：Claude 审片时看的联系表`,
+    sheet: name => `${name}：agent 审片时看的联系表`,
     tile: name => `${name}：带声音播放`,
     yours: '<b>+ 你的</b><small>借语法，不抄镜头</small>',
     shotNav: ['这支片子的上一镜', '这支片子的下一镜', '在一镜到底里看'],
+    styleNav: ['上一个风格', '下一个风格'],
     lib: name => `${name}：它的联系表`,
   },
 };
@@ -1494,7 +1508,7 @@ const RELEASE_SAMPLES = {
   'whiteboard': 'whiteboard-b8f99591.mp4',
 };
 const hoverClip = slug => stylePath(slug, slug in RELEASE_SAMPLES ? 'preview.mp4' : 'swatch.mp4');
-const fullClip = slug => !(slug in RELEASE_SAMPLES) ? { src: stylePath(slug, 'swatch.mp4') }
+const fullClip = slug => !(slug in RELEASE_SAMPLES) ? { src: stylePath(slug, 'swatch.mp4'), poster: stylePath(slug, 'poster.jpg') }
   : STYLES_MEDIA_UPLOADED ? { files: [`https://github.com/ZLHad/OpenVideoHarness/releases/download/styles-media/${RELEASE_SAMPLES[slug]}`, stylePath(slug, 'preview.mp4')], poster: stylePath(slug, 'poster.jpg') }
   : { src: stylePath(slug, 'preview.mp4'), loop: true };
 const thumbPath = slug => `img/styles/${slug}.jpg`;                   // a 384 x 216 copy of its poster, for the galaxy
@@ -1689,7 +1703,7 @@ onEnter.why = () => { if (reduced || flowTimer) return; flowTimer = setInterval(
 onLeave.why = () => { clearInterval(flowTimer); flowTimer = null; };
 
 /* ---------- features: spotlight on the card under the cursor ---------- */
-$$('.card').forEach(c => c.addEventListener('pointermove', e => {
+$$('.card, .station, .studio-steps li').forEach(c => c.addEventListener('pointermove', e => {
   const r = c.getBoundingClientRect();
   c.style.setProperty('--mx', `${e.clientX - r.left}px`); c.style.setProperty('--my', `${e.clientY - r.top}px`);
 }));
@@ -1951,7 +1965,7 @@ rw.cv.addEventListener('click', e => {
 if (R.order.length) $$('[data-k]').forEach(el => { el.textContent = el.dataset.k === 'shots' ? R.order.length : new Set(R.order.map(id => R.shots[id].film)).size; });
 
 /* ---------- styles: one picture at full size, and all of them moving round it ---------- */
-const wall = $('#wall'), sty = { box: $('#sty'), cv: $('#styCv'), ctx: $('#styCv').getContext('2d'), stage: $('#styStage'), vid: $('#styVid'), m: mosaic('img/styles-wall.webp', reelFile('styles-wall.mp4', `styles-wall-${R.release['styles-wall']}.mp4`)), at: 1, on: false, raf: 0, until: 0, held: false, token: 0, next: null, front: null, born: 0, turns: 0 };
+const wall = $('#wall'), sty = { box: $('#sty'), cv: $('#styCv'), ctx: $('#styCv').getContext('2d'), stage: $('#styStage'), bar: $('#styBar'), vid: $('#styVid'), m: mosaic('img/styles-wall.webp', reelFile('styles-wall.mp4', `styles-wall-${R.release['styles-wall']}.mp4`)), at: 1, on: false, raf: 0, until: 0, dur: 3200, held: false, token: 0, next: null, front: null, born: 0, turns: 0 };
 const styleOf = Object.fromEntries(STYLES.map(([slug, en, zh]) => [slug, { slug, en, zh }]));
 const tiles = STYLE_TILES.map((slug, i) => {
   const { en, zh } = styleOf[slug], b = document.createElement('button'); b.type = 'button'; b.className = 'sw';
@@ -1964,7 +1978,22 @@ const tiles = STYLE_TILES.map((slug, i) => {
   b.addEventListener('click', () => openStyle(t));
   return t;
 });
-const openStyle = t => openLightbox({ video: fullClip(t.slug), cap: lang === 'zh' ? t.zh : t.en, say: styleSay(t.slug, t.en, t.zh), code: `bin/vh new promo my-film --style ${t.slug}` });
+function openStyle(t) {
+  const at = tiles.indexOf(t);
+  openLightbox({ video: fullClip(t.slug), cap: lang === 'zh' ? t.zh : t.en, say: styleSay(t.slug, t.en, t.zh), code: `bin/vh new promo my-film --style ${t.slug}` });
+  if (at < 0) return;
+  lbStyle = at;
+  const nav = document.createElement('span'); nav.className = 'lb-nav'; const [pv, nx] = tr().styleNav;
+  const btn = (txt, label, n) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.setAttribute('aria-label', label); b.addEventListener('click', () => turnStyle(n)); return b; };
+  nav.append(btn('←', pv, -1), document.createTextNode(`${at + 1} / ${tiles.length}`), btn('→', nx, 1));
+  lbCap.insertBefore(nav, lbCap.children[1] || null);
+}
+function turnStyle(n) {
+  const held = lbCap.contains(document.activeElement);
+  const next = (lbStyle + n + tiles.length) % tiles.length;
+  styShow(next); openStyle(tiles[next]);
+  if (held) { const b = $$('.lb-nav button', lbCap)[n < 0 ? 0 : 1]; if (b) b.focus(); }
+}
 const yours = document.createElement('a'); yours.className = 'sw info'; yours.href = 'https://github.com/ZLHad/OpenVideoHarness/tree/main/styles'; yours.target = '_blank'; yours.rel = 'noopener';
 wall.appendChild(yours);
 sty.stage.addEventListener('click', () => openStyle(tiles[sty.at]));
@@ -1973,7 +2002,8 @@ sty.stage.addEventListener('pointerenter', () => { sty.held = fine; }); sty.stag
 const styClock = d => (performance.now() / 1000) % d;
 function styVideo(slug) { const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('muted', ''); v.setAttribute('aria-hidden', 'true'); v.src = hoverClip(slug); v.dataset.slug = slug; return v; }
 function styShow(i) {
-  const t = tiles[i], token = ++sty.token; sty.at = i; sty.until = performance.now() + (innerWidth < 760 ? 4600 : 3200);
+  const t = tiles[i], token = ++sty.token; sty.at = i; sty.dur = innerWidth < 760 ? 4600 : 3200; sty.until = performance.now() + sty.dur;
+  if (sty.bar) sty.bar.style.transform = 'scaleX(0)';
   tiles.forEach((x, k) => x.b.classList.toggle('now', k === i));
   $('#styEn').textContent = t.en; $('#styZh').textContent = t.zh; $('#stySlug').textContent = `styles/${t.slug}`; $('#styN').textContent = `${i + 1} / ${tiles.length}`;
   sty.stage.setAttribute('aria-label', tr().tile(lang === 'zh' ? t.zh : t.en));
@@ -1989,8 +2019,11 @@ function styShow(i) {
 const STY_TURNS = 14;   // how many times the middle changes by itself before it stays: a sample is about 1 MB
 function styFrame(now) {
   if (!sty.on) { sty.raf = 0; return; }
+  const paused = sty.held || sty.turns >= STY_TURNS || lb.classList.contains('show');
+  sty.stage.classList.toggle('held', paused);
   if (sty.held) sty.turns = 0;
-  else if (sty.turns < STY_TURNS && !lb.classList.contains('show')) {
+  else if (!paused) {
+    if (sty.bar) sty.bar.style.transform = `scaleX(${clampN(1 - (sty.until - now) / sty.dur).toFixed(4)})`;
     if (now > sty.until - 1300 && !sty.next && !saveData) { sty.next = styVideo(tiles[(sty.at + 1) % tiles.length].slug); sty.vid.appendChild(sty.next); }   // the one after, ahead of time
     if (now > sty.until) { sty.turns++; styShow((sty.at + 1) % tiles.length); }
   }
@@ -2052,7 +2085,7 @@ $$('[data-szoom]').forEach(b => b.addEventListener('click', () => {   // the Stu
 
 /* ---------- lightbox ---------- */
 const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
-let lbShot = null;   // the shot on show, and the others of its film
+let lbShot = null, lbStyle = null, lbBack = null;   // the shot or style on show, and the trigger to return focus to
 function openShot(id) {
   const list = R.order.filter(k => R.shots[k].film === R.shots[id].film), at = list.indexOf(id), s = R.shots[id];
   openLightbox({ video: { files: shotFiles(id), poster: `reel/posters/${id}.webp`, loop: true, mute: true, quiet: reduced || saveData }, cap: s[lang], small: R.films[s.film][lang] });
@@ -2069,7 +2102,9 @@ function turnShot(n) {
   if (held) { const b = $$('.lb-nav button', lbCap)[n < 0 ? 0 : 1]; if (b) b.focus(); }   // the button pressed is a new one now: keep the focus on it
 }
 function openLightbox({ video, img, cap, code, say, small }) {
-  pauseAll(); rw.m.pause(); sty.m.pause(); lbShot = null;
+  if (!lb.classList.contains('show')) lbBack = document.activeElement;
+  pauseAll(); rw.m.pause(); sty.m.pause(); lbShot = null; lbStyle = null;
+  $$('video', lbMedia).forEach(v => { v.pause(); v.replaceChildren(); v.removeAttribute('src'); v.load(); });
   const tt = $('#toast'); if (tt) { clearTimeout(toastTimer); tt.classList.remove('show'); }   // a copy's line would sit over the lightbox's own
   lbMedia.innerHTML = '';
   if (video) {   // a path, or { src, type, loop }: a release file goes through <source type> (WebKit refuses it as a bare src)
@@ -2094,13 +2129,23 @@ function openLightbox({ video, img, cap, code, say, small }) {
   if (code) { const k = document.createElement('code'); k.textContent = code; if (say) k.className = 'lb-code'; lbCap.appendChild(k); }
   lb.classList.add('show');
 }
-function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; lbShot = null; if (rw.on) { rw.m.play(); if (rw.big) rw.big.v.play().catch(() => {}); } if (sty.on) { sty.m.play(); styShow(sty.at); } }
+function closeLightbox() {
+  lb.classList.remove('show');
+  $$('video', lbMedia).forEach(v => { v.pause(); v.replaceChildren(); v.removeAttribute('src'); v.load(); });
+  lbMedia.innerHTML = ''; lbShot = null; lbStyle = null;
+  if (lbBack && lbBack.focus) lbBack.focus({ preventScroll: true }); lbBack = null;
+  if (rw.on) { rw.m.play(); if (rw.big) rw.big.v.play().catch(() => {}); }
+  if (sty.on) { sty.m.play(); styShow(sty.at); }
+}
 $('#lbX').addEventListener('click', closeLightbox);
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.addEventListener('keydown', e => {
   if (!lb.classList.contains('show')) return;
   if (e.key === 'Escape') closeLightbox();
-  else if (lbShot && lbShot.list.length > 1 && !(e.altKey || e.metaKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); turnShot(e.key === 'ArrowLeft' ? -1 : 1); }
+  else if (!(e.altKey || e.metaKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    if (lbShot && lbShot.list.length > 1) { e.preventDefault(); turnShot(e.key === 'ArrowLeft' ? -1 : 1); }
+    else if (lbStyle !== null) { e.preventDefault(); turnStyle(e.key === 'ArrowLeft' ? -1 : 1); }
+  }
 });
 
 /* ---------- copy buttons ---------- */
@@ -2110,6 +2155,7 @@ function bindCopy(b) { b.addEventListener('click', async e => {
   const label = b.innerHTML;   // a button with its own words (a film card's) gets them back, the others their "Copy"
   try {
     await navigator.clipboard.writeText(value.textContent);
+    b.classList.add('ok');
     if (b.hasAttribute('data-toast')) toast(`${tr().copied}: ${value.textContent}`); else b.textContent = tr().copied;
   }
   catch {   // no clipboard (a page over http, a refusal): the sentence is shown to copy by hand
@@ -2119,7 +2165,7 @@ function bindCopy(b) { b.addEventListener('click', async e => {
     selection.removeAllRanges(); selection.addRange(range);
     b.textContent = tr().select;
   }
-  setTimeout(() => { if (b.hasAttribute('data-toast')) b.innerHTML = label; else b.textContent = tr().copy; }, 1600);
+  setTimeout(() => { b.classList.remove('ok'); if (b.hasAttribute('data-toast')) b.innerHTML = label; else b.textContent = tr().copy; }, 1600);
 }); }
 let toastTimer = null;
 function toast(text) {

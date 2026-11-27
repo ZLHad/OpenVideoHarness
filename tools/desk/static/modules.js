@@ -83,7 +83,7 @@ moduleWords({
   rec: "推荐", picked: "你选的", pick_this: "选这张", picked_btn: "已选", like_this: "照这个方向再出一张", like_say: "照 {x} 的方向再出一张：",
   pro: "好处", con: "代价", l_card: "立意卡 {x}",
   cards_none: "立意卡还没出来。下面是写下的立意：",
-  bar_idea_wait: "等你挑一张。挑好了就发出去。", bar_idea_wait_s: "等你挑一张。挑好了，把下面那行回复发给做这支片子的 AI。", bar_idea_done: "立意已经定了。要是现在改，大纲和分镜都得重来。", bar_idea_todo: "立意还没定。AI 会先想几个方向，停在这里给你挑。",
+  bar_idea_wait: "等你挑一张。挑好了就发出去。", bar_idea_wait_s: "等你挑一张。挑好了，把下面那行回复发给做这支片子的 AI。", bar_idea_nocard: "立意已经定好，请看下面的大纲和待定项。", bar_idea_done: "立意已经定了。要是现在改，大纲和分镜都得重来。", bar_idea_todo: "立意还没定。AI 会先想几个方向，停在这里给你挑。",
   idea_none: "立意卡还没出来，立意也还没写。", to_outline: "看大纲",
   idea_done: "你选了 {x}",
   idea_done_d: "{d} 定下的。要改，写一条意见。", idea_done_d_s: "{d} 定下的。要改，跟做这支片子的 AI 说。", idea_done_d0_s: "已经定了。要改，跟做这支片子的 AI 说。", skip_sub_s: "这一步没单独停下来给你看。要改，跟做这支片子的 AI 说。",
@@ -99,7 +99,7 @@ moduleWords({
   rec: "recommended", picked: "your pick", pick_this: "Pick this", picked_btn: "Picked", like_this: "Another in this direction", like_say: "Another card in the direction of {x}: ",
   pro: "Pro", con: "Cost", l_card: "Concept card {x}",
   cards_none: "No concept cards yet. Here is the concept as written:",
-  bar_idea_wait: "Waiting for your pick. Once you have picked, send it.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the AI making the film.", bar_idea_done: "The concept is decided. Changing it now means redoing the outline and the storyboard.", bar_idea_todo: "The concept isn't decided yet. The AI thinks of a few directions first and stops here for you to pick.",
+  bar_idea_wait: "Waiting for your pick. Once you have picked, send it.", bar_idea_wait_s: "Waiting for your pick. Then send the reply below to the AI making the film.", bar_idea_nocard: "The concept is already set; review the outline and decisions below.", bar_idea_done: "The concept is decided. Changing it now means redoing the outline and the storyboard.", bar_idea_todo: "The concept isn't decided yet. The AI thinks of a few directions first and stops here for you to pick.",
   idea_none: "No concept cards yet, and no concept written.", to_outline: "See the outline",
   idea_done: "You picked {x}",
   idea_done_d: "Decided on {d}. To change it, write a note.", idea_done_d_s: "Decided on {d}. To change it, tell the AI making the film.", idea_done_d0_s: "Decided. To change it, tell the AI making the film.", skip_sub_s: "This step wasn't shown on its own. To change it, tell the AI making the film.",
@@ -111,7 +111,8 @@ moduleWords({
 const KINDS = [["number", /数字|数据|number/i], ["object", /物件|实物|object|thing/i], ["quote", /原话|引文|引语|quote|words/i], ["conflict", /矛盾|冲突|contradict|conflict/i], ["surprise", /意外|反常|surpris/i]];
 const kindOf = (k) => (KINDS.find(([, re]) => re.test(k || "")) || ["other"])[0];
 function conceptRound() {   // the newest gate ① page and its concept decision: the one drawn with pictures, else one named for it
-  const r = D.rounds.filter((x) => gateBase(x.id) === "1").pop();
+  const g1 = D.rounds.filter((x) => gateBase(x.id) === "1");
+  const r = readOnly() ? g1.find((x) => x.id === D.current) : g1.pop();
   if (!r) return null;
   const decs = (r.data.decisions || []).filter((d) => d && Array.isArray(d.options) && d.options.length);
   const dec = decs.find((d) => d.options.some((o) => o && (o.frame || o.frame_missing))) || decs.find((d) => /concept|立意|idea/i.test(`${d.id} ${d.question || ""}`));
@@ -164,9 +165,12 @@ function mIdea2() {
     if (settled) sub = day ? tRO("idea_done_d", { d: day }) : tRO("idea_done_d0");
     right = D.concept.line || D.concept.spine ? voidLine(t(settled ? "cards_none_done" : "cards_none")) + briefConcept() : voidLine(t("idea_none"));
   }
-  const wait = stationState("1") === "waiting_person" || (cr && cr.open && !chosenOf(cr));
+  const wait = !!(cr && (stationState("1") === "waiting_person" || (cr.open && !chosenOf(cr))));
+  const bar = wait ? (readOnly() ? "bar_idea_wait_s" : "bar_idea_wait")
+    : (!cr && stationState("1") === "waiting_person") ? "bar_idea_nocard"
+    : filmDelivered() ? "bar_redo" : settled || (cr && !cr.open) ? "bar_idea_done" : "bar_idea_todo";
   return headM("idea", title, sub) + `<div class="mgrid idea">${left}<div class="cards-col">${right}</div></div>`
-    + barM(t(wait ? (readOnly() ? "bar_idea_wait_s" : "bar_idea_wait") : filmDelivered() ? "bar_redo" : settled || (cr && !cr.open) ? "bar_idea_done" : "bar_idea_todo"), "outline", t("to_outline"));
+    + barM(t(bar), "outline", t("to_outline"));
 }
 function syncIdea(dec, val) {   // a pick made anywhere (the cards here, the right column): the cards follow
   const cr = conceptRound(); if (!cr || cr.dec.id !== dec) return;

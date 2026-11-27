@@ -23,7 +23,7 @@
    - ② **分镜**（计划里有它时）：按大纲的段落拆页，每镜一张关键帧，没把握的镜头标出来，逐镜默认通过；长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表、reviewer 的分数，再写你自己最不满意的地方（有几处写几处，最要紧的在前）；没有单独停分镜的片子，分镜也放在这一页，逐镜默认通过。
 
-   每次停最多要人定 3 件事。`bin/vh gate <项目> <n> --init` 写 gate JSON 骨架，填好后运行 `bin/vh gate <项目> <n>` 出页。`studio` 默认在审阅台停；Studio 开着时，`standard` 的停也开在 Studio 里（`bin/vh gate` 自己看，不会替你起 Studio）。后台唤醒和换会话的用法见 `playbook/01-pipeline.md` 的"审阅台"。然后**停下来等人回复**（关卡 ① 的例外见"停在哪"）。收到回复，把原话逐字记进 `REVIEW.md`，接着做下一步。用户亲口说"不用审、直接出"时，原话和日期抄进 `REVIEW.md`。没提档位按 `quick` 做；指定 `standard` 或 `studio` 时由独立 reviewer 代审。
+   每次停最多要人定 3 件事。`bin/vh gate <项目> <n> --init` 写 gate JSON 骨架，填好后运行 `bin/vh gate <项目> <n>` 出页。`studio` 默认在审阅台停；Studio 开着时，`standard` 的停也开在 Studio 里（`bin/vh gate` 自己看，不会替你起 Studio）。后台唤醒和换会话的用法见 `playbook/01-pipeline.md` 的"审阅台"。然后**停下来等人回复**（关卡 ① 的例外见"停在哪"）。收到回复，把原话逐字记进 `REVIEW.md`，接着做下一步。用户亲口说"不用审、直接出"时，原话和日期抄进 `REVIEW.md`；这样要求时没提档位按 `quick` 做，指定 `standard` 或 `studio` 时由独立 reviewer 代审（未要求跳过审阅时默认 `standard`，见下节）。
 
 ## 努力程度（effort）
 
