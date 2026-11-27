@@ -348,7 +348,7 @@ A style is a reference, not a template: borrow one, mix several, or ignore them 
 
 - **[Recipes](recipes/README.md)**: 80 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 11 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
 - **Shot-grammar cards**: 24 shot-grammar cards in `recipes/shot/` for shot sizes, angles, the axis and camera moves, each saying what it does to the viewer and when to take it or not. A shot's choice goes into its `camera` field, and `bin/vh storyboard` prints it under the shot.
-- **[Components](components/README.md)**: 7 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
+- **[Components](components/README.md)**: 8 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures, and a plate that says where a fact comes from), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
 
 All of these are defaults to start from, not rules: a concept that needs something else simply does it.
 

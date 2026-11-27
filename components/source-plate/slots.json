@@ -1,0 +1,37 @@
+{
+ "version": 1,
+ "name": "source-plate",
+ "summary": "A plate that says where something comes from (a person, a paper, a dataset, a quote's source): one look for every plate in a film, up as long as the pace needs to read all of it (never under the floor), no line under the label floor, its lines in window.film.texts for readcheck and textcheck.",
+ "tags": ["铭牌", "出处", "人名条", "引用", "论文", "数据来源", "原话", "lower third", "name plate", "citation", "source"],
+ "painters": ["canvas", "dom"],
+ "use": "lay = layout(params, measure) once (measure(text, font) → px); st = state(params, t, lay); canvas(ctx, st, params, lay), or els = build(root, params, lay) once and dom(els, st). texts(params, lay) gives window.film.texts its entries; boxes(params, st, lay) gives window.film.ui(t) its box; readSeconds(text, pace) is how long a text needs.",
+ "slots": [
+  {"name": "kind", "type": "string", "default": "source", "text": "person | paper | data | quote | source: what the tag says unless tag is given"},
+  {"name": "title", "type": "string", "default": "", "text": "the first line: a name, a paper's title, a dataset, the quoted words, copied from the source as it is (hard rule 5)"},
+  {"name": "detail", "type": "string", "default": "", "text": "the second line: who they are; authors · venue · year; publisher · edition; who said it and where"},
+  {"name": "ref", "type": "string", "default": "", "text": "an optional third line in the monospaced face: a DOI, an arXiv id, a page, a URL's host and path"},
+  {"name": "tag", "type": "string|null", "default": null, "text": "the label over the title; null: by kind and lang; an empty string for none"},
+  {"name": "lang", "type": "string", "default": "zh", "text": "the tags' language: zh 人物 论文 数据 原话 出处, en Speaker Paper Data Quote Source"},
+  {"name": "t", "type": "number", "default": 0, "unit": "s", "text": "when it starts coming in"},
+  {"name": "hold", "type": "number|null", "default": null, "unit": "s", "text": "how long it is fully up; null: what the pace needs to read all of it (bin/vh readcheck's count); a hold under the floor (one brisk read, at least 1.5 s) is lengthened to it"},
+  {"name": "pace", "type": "string", "default": "normal", "text": "relaxed | normal | brisk: the BRIEF's Pace (playbook/03 §4); brisk is the floor"},
+  {"name": "in", "type": "number", "default": 0.45, "unit": "s", "text": "the move in: the bar grows, the plate opens from its side, the lines come up one after another"},
+  {"name": "out", "type": "number", "default": 0.35, "unit": "s", "text": "the move out: a fade with a short slide toward its side"},
+  {"name": "anchor", "type": "string", "default": "lower-left", "text": "lower-left | lower-right | upper-left | upper-right"},
+  {"name": "margin", "type": "array|null", "default": null, "unit": "px", "text": "[from the side, from the top or bottom]; null: the title-safe box, 10 % in from each edge"},
+  {"name": "width", "type": "number", "default": 1000, "unit": "px", "text": "the widest a line runs before it wraps (a long paper title wraps by words, Chinese by characters)"},
+  {"name": "size", "type": "number", "default": 52, "unit": "px", "text": "the title's size at 1080p"},
+  {"name": "detailSize", "type": "number", "default": 44, "unit": "px", "text": "the detail line's size"},
+  {"name": "refSize", "type": "number", "default": 44, "unit": "px", "text": "the reference line's size"},
+  {"name": "tagSize", "type": "number", "default": 44, "unit": "px", "text": "the tag's size"},
+  {"name": "floor", "type": "number", "default": 44, "unit": "px", "text": "no line drawn under this: the label floor of the BRIEF's Watch on (playbook/03 §4: 44 for desktop and phone, 80 for feed)"},
+  {"name": "colors", "type": "object", "default": {"plate": "13,17,23", "alpha": 0.82, "text": "#f4f6fb", "detail": "#c9d1d9", "ref": "#9aa4b2", "accent": "#e4572e"}, "text": "the plate as r,g,b and its opacity, the title, the detail, the reference line, and the accent of the bar and the tag's chip (the tag's letters on it are near-black or white, whichever reads better)"},
+  {"name": "font", "type": "string", "default": "\"Helvetica Neue\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif", "text": "the CSS family list of the tag, title and detail (lib/text.js fontStack(tokens, role) makes one from a style's tokens)"},
+  {"name": "weight", "type": "number", "default": 700, "text": "the title's and the tag's weight"},
+  {"name": "detailWeight", "type": "number", "default": 500, "text": "the detail line's weight"},
+  {"name": "mono", "type": "string", "default": "Menlo, \"SF Mono\", \"Noto Sans Mono\", monospace", "text": "the reference line's family list"}
+ ],
+ "provenance": [
+  {"repo": "this repository", "path": "tools/readcheck.py", "license": "MIT", "note": "the reading time: the same CJK ranges, paces and floor as bin/vh readcheck (playbook/03 §4)"}
+ ]
+}
