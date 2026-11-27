@@ -391,9 +391,7 @@ def _number(word):
     return float(d[word]) if word in d else None
 
 
-def film_seconds(output_line):
-    """The length an Output line gives, in seconds, however it is written: "exactly 45s", "{60–90}s" (its longer end), "12 min",
-    "3 minutes", "100 sec", "2m30s" and "1 min 40 s" (added up), "1:30", "两分钟"; None when it gives none yet."""
+def _scan_seconds(output_line):
     o = (output_line or "").replace("{", " ").replace("}", " ")
     found, run, last_end, last_rank = [], 0.0, None, None
     for m in LENGTH.finditer(o):
@@ -415,6 +413,15 @@ def film_seconds(output_line):
         a, b, c = int(m.group(1)), int(m.group(2)), m.group(3)
         found.append(a * 3600 + b * 60 + int(c) if c else a * 60 + b)
     return max(found) if max(found) > 0 else None
+
+
+def film_seconds(output_line):
+    """The length an Output line gives, in seconds, however it is written: "exactly 45s", "{60–90}s" (its longer end), "12 min",
+    "3 minutes", "100 sec", "2m30s" and "1 min 40 s" (added up), "1:30", "两分钟"; None when it gives none yet.
+    Parenthetical notes (e.g. a wall-clock edit time like "23:42 改稿") are ignored when the main text already states a length."""
+    o = output_line or ""
+    main = re.sub(r"\([^)]*\)|（[^）]*）", " ", o)
+    return _scan_seconds(main) or _scan_seconds(o)
 
 
 def costly(project, seconds=None):

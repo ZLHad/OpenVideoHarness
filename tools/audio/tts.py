@@ -1522,7 +1522,7 @@ def main():
         tl = {"provider": a.provider, "voice": a.voice, "lang": a.lang, "duration": round(duration(joined), 3),
               **({"grid": {"beats": a.beats, "snap": a.snap, "lead": a.lead}} if grid else {}),
               **({"speakers": speakers} if dialogue else {}), **({"join": join} if join != "none" else {}),
-              **({"align": {"model": os.environ.get("GEMINI_ASR_MODEL", "gemini-3.5-transcribe"), "min_sim": a.min_sim}} if align else {}),
+              **({"align": {"model": firstuse.model_id("whisper") if a.align == "local" else os.environ.get("GEMINI_ASR_MODEL", "gemini-3.5-transcribe"), "min_sim": a.min_sim}} if align else {}),
               "segments": [{k: v for k, v in s.items() if not k.startswith("_")} for s in segs],
               "joined": joined_parts(parts, vo, proj, fresh, said_kept)}
         body = json.dumps(tl, ensure_ascii=False, indent=2)

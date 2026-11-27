@@ -1121,7 +1121,7 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
     return 0
   fi
   echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.202} (${h:+1080x$h from }$res) — pinned, no global skills, telemetry off"
-  tmp=$(mktemp -d)
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/vh.XXXXXX")
   if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.202}" init hf --non-interactive --resolution "$res" >"$tmp/.init.log" 2>&1); then
     echo "$c_no hyperframes init failed (offline?); npx said last:" >&2; tail -n 6 "$tmp/.init.log" | sed 's/^/   /' >&2
     echo "   retry later: bin/vh hf-init ${dir#$ROOT/} $frame" >&2; rm -rf "$tmp"; return 1; fi

@@ -2666,7 +2666,8 @@ for line, want in (("default", None), ("", None), ("{x}", None), ("1, 3", {"1", 
 for line, want in (("1920x1080, 30 fps, exactly 103.0s (3090 frames)", 103), ("{W}x{H}, {fps} fps, exactly {N}s ({frames} frames)", None), ("1080x1920, 30 fps, {60–90}s", 90),
                    ("1920x1080, 30 fps, 12 min", 720), ("1920x1080, 30 fps, 约 45 秒", 45), ("1:30", 90), ("3 minutes", 180), ("5 mins", 300), ("120 seconds", 120), ("100 sec", 100),
                    ("两分钟", 120), ("十五分钟", 900), ("1分30秒", 90), ("2m30s", 150), ("1 min 40 s", 100), ("1 小时 5 分钟", 3900), ("30 fps, 1:02:03", 3723), ("2–3 min", 180),
-                   ("1080x1920, 9:16, 30 fps, exactly 20s", 20), ("h264, 30 fps", None), ("out.mp4 s", None), ("1920x1080, 24 fps, exactly 8s (192 frames)", 8)):
+                   ("1080x1920, 9:16, 30 fps, exactly 20s", 20), ("h264, 30 fps", None), ("out.mp4 s", None), ("1920x1080, 24 fps, exactly 8s (192 frames)", 8),
+                   ("1920x1080, 30 fps, 12:40（23:42 亲手改稿后估约）", 760), ("1920x1080, 30 fps (about 45s)", 45)):
     if G.film_seconds(line) != want:
         bad.append(f"film_seconds({line!r}) = {G.film_seconds(line)}")
 for path, want in (("out/final.mp4", True), ("out/final/film-4k.mp4", True), ("media/film.mp4", True), ("media/videos/s/1080p30/S.mp4", True), ("media/videos/s/480p15/S.mp4", False),
@@ -3928,6 +3929,18 @@ want(mod["1"] and mod["1"]["modules"] == ["idea", "outline"] and mod["1"]["rel"]
      and mod["2"] and mod["2"]["modules"] == ["board"] and len(mod["2"]["data"]["shots"]["items"]) == 6 and mod["3"] is None
      and all(x in pages["1"] for x in inl) and not any(x in pages["3"] for x in inl[1:]) and "</script" not in "".join(inl[1:]),
      f"the static pages' modules (立意 and 大纲 on ①, 分镜 on ②, none on ③): {[(g, m and m['modules']) for g, m in mod.items()]}")
+# a gate ① page with no concept cards (e.g. outline-only 1b beside an older gate-1.json): opens with outline alone, no stale cards
+import shutil, tempfile
+from pathlib import Path
+with tempfile.TemporaryDirectory() as td:
+    p1b = Path(td) / "demo"; shutil.copytree("tools/desk/fixtures/demo", p1b)
+    (p1b / "out/review/gate-1b.json").write_text(json.dumps({"version": 1, "summary": "确认大纲节奏",
+        "decisions": [{"id": "pace", "question": "节奏选哪档？", "options": [{"id": "A", "label": "明快"}, {"id": "B", "label": "从容"}], "recommend": "A"}]}, ensure_ascii=False), encoding="utf-8")
+    rc1b, _, path1b = review.publish(p1b, "1b")
+    m1b = re.search(r'<script type="application/json" id="ovh-data">(.*?)</script>', path1b.read_text(encoding="utf-8"), re.S) if rc1b == 0 else None
+    d1b = json.loads(m1b.group(1)) if m1b else None
+    want(rc1b == 0 and d1b and d1b["modules"] == ["outline"] and d1b["data"]["current"] == "1b",
+         f"static gate 1 without concept cards should mount outline alone: rc={rc1b}, mods={d1b and d1b['modules']}")
 want('class="g-marks"' in pages["3"] and "0:27.0–0:32.0" in pages["3"] and 'data-t="15.5"' in pages["3"], "demo gate 3: the least-sure times (t, and a time as the id)")
 want(review.time_of("0–5 s") == (0.0, 5.0) and review.time_of("1:05–1:12") == (65.0, 72.0) and review.time_of("12.4 s") == (12.4, None) and review.time_of("S04") is None, "time_of")
 want(review.budget_len("初版 32 s") == (3.5, True) and review.budget_len("A short line") == (12, False), f"budget_len: {review.budget_len('初版 32 s')}")
@@ -9654,7 +9667,7 @@ cancel_checks() {   # bin/vh cancel on commands a stand-in keeps busy (no networ
   local t p a rc b c d pid
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
   cp -R tools/desk/fixtures/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
-  printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  printf '#!/bin/sh\np=""\ntrap '\''kill "$p" 2>/dev/null; exit 130'\'' INT\ntrap '\''kill "$p" 2>/dev/null; exit 143'\'' TERM\nsleep 60 &\np=$!\n: > "$UVMARK"\nwait "$p"\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
 import json, os, re, shutil, signal, subprocess, sys, time
 sh, root, p, t = sys.argv[1:]
@@ -10553,7 +10566,7 @@ PY
   # runner, 2026-10-28) a Ctrl-C to qa had no answer within 10 s, with the steps before it on time; that ended in a
   # traceback that said nothing more
   rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
-  printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  printf '#!/bin/sh\np=""\ntrap '\''kill "$p" 2>/dev/null; exit 130'\'' INT\ntrap '\''kill "$p" 2>/dev/null; exit 143'\'' TERM\nsleep 60 &\np=$!\n: > "$UVMARK"\nwait "$p"\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   : > "$p/audio/mix.wav"
   a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY'
 import json, os, signal, subprocess, sys, time

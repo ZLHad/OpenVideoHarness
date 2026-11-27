@@ -2588,6 +2588,26 @@ def handoff_checks():
             return n
     check("delivered: the newest delivery is named, whatever order the files are found in", delivered_newest)
 
+    def delivered_checked_final():
+        o = stage("shipped-checked")
+        r = (o / "REVIEW.md").read_text().replace("## 关卡 ③ 初版\n- 页面：\n- 原话：\n- 定了：　改了：", "## 关卡 ③ 初版\n- 页面：`out/review/gate-3.html`（2026-11-17）\n- 原话：\"可以\"\n- 定了：初版通过　改了：—")
+        (o / "REVIEW.md").write_text(r)
+        (o / "out" / "sample").mkdir(parents=True, exist_ok=True)
+        (o / "out" / "check").mkdir(parents=True, exist_ok=True)
+        (o / "out" / "versions").mkdir(parents=True, exist_ok=True)
+        for rel_p, body in (("out/final.mp4", b"main-final"), ("out/final-silent.mp4", b"silent-loop"), ("out/sample/d2.mp4", b"sample-clip")):
+            (o / rel_p).write_bytes(body)
+        for name, rel_p, tval in (("final.check.json", "out/final.mp4", 100.0), ("final-silent.check.json", "out/final-silent.mp4", 110.0)):
+            st = (o / rel_p).stat()
+            (o / "out" / "check" / name).write_text(json.dumps({"version": 1, "video": rel_p, "at": "2026-11-26T12:00:00+0800", "t": tval,
+                                                                 "verdict": "pass", "exit": 0, "size": st.st_size, "mtime_ns": st.st_mtime_ns}))
+        (o / "out" / "versions" / "versions.json").write_text(json.dumps({"v": 1, "next": 2, "entries": [
+            {"id": "v1", "n": 1, "t": 200.0, "at": "2026-11-26T12:05:00+0800", "film": "out/sample/d2.mp4", "file": "out/sample/d2.mp4", "current": True}]}))
+        n = status(o)["now"]
+        if n["code"] != "delivered" or n["facts"].get("film") != "out/final.mp4":
+            return n
+    check("delivered via passing check: names the checked non-silent final, not a newer sample version or silent variant", delivered_checked_final)
+
     def terminal_words():   # bin/vh status is read by agents: no words to say as if to the person, no command that raises a window
         texts = [status(p, js=False) for p in (stage("t-wait", "3"),)]
         bad = [x for x in texts if re.search(r"say: |bin/vh studio", x)]

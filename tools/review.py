@@ -178,11 +178,19 @@ def static_file(name):
 STATION_MODULES = {"1": ("idea", "outline"), "E0": ("idea",), "E1": ("outline",), "2": ("board",), "E2": ("sound",), "E3": ("sound",)}
 
 
+def _has_concept_cards(r):
+    """True when a gate ① round asks to pick a concept (option frames, or a concept/立意 decision)."""
+    decs = [x for x in ((r or {}).get("data") or {}).get("decisions") or [] if isinstance(x, dict) and isinstance(x.get("options"), list) and x.get("options")]
+    return any(any(isinstance(o, dict) and (o.get("frame") or o.get("frame_missing")) for o in x["options"]) for x in decs) \
+        or any(re.search(r"concept|立意|idea", f"{x.get('id', '')} {x.get('question', '')}", re.I) for x in decs)
+
+
 def module_payload(project, gate, out_dir, marks, lang):
     """What a static page's module reads, as JSON for a <script type="application/json">: the console's reading of the project
     (tools/desk/server.py, project_data) cut to what the stop's modules use, the page's marks, and the way from the page's
     folder to the project's files. None for a stop with no module, or a project that cannot be read."""
-    mods = STATION_MODULES.get((re.match(r"E\d|\d", gate or "") or [""])[0])
+    base = (re.match(r"E\d|\d", gate or "") or [""])[0]
+    mods = STATION_MODULES.get(base)
     if not mods:
         return None
     here = str(STATIC.parent)   # tools/desk
@@ -190,6 +198,10 @@ def module_payload(project, gate, out_dir, marks, lang):
         sys.path.insert(0, here)
     import server   # noqa: E402  (imported here: it imports this file)
     d = server.project_data(project, parts=("studio", "mods") if "sound" in mods else ())
+    if base == "1":
+        cur_r = next((r for r in d.get("rounds") or [] if r.get("id") == gate), None)
+        if cur_r and not _has_concept_cards(cur_r):
+            mods = ("outline",)
     st = d.get("status") or {}
     data = {k: d.get(k) for k in ("project", "concept", "spec", "outline", "facts", "ideas", "shots", "ledger", "agent_decided", "music", "lang")}
     data["rounds"] = [{"id": r["id"], "data": r["data"]} for r in d.get("rounds") or []]

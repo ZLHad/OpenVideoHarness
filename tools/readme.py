@@ -439,13 +439,6 @@ def site_problems(have):
         c = html_lib.unescape(re.sub(r"<[^>]+>", "", c)).strip()
         if not any(f"`{x}`" in readmes or f"\n{x}\n" in readmes for x in (c, c.removeprefix("cd ~/OpenVideoHarness && "))):
             bad.append(f"{SITE}: offers the command {c!r}, which no README gives (write it there first)")
-    # every command the page gives to copy is one a README gives on the same commit (whole, or after "cd ~/OpenVideoHarness
-    # && "), so the page cannot offer a command the repo does not have yet
-    readmes = "\n".join((ROOT / f).read_text(encoding="utf-8") for f in ("README.md", "README.zh-CN.md"))
-    for c in re.findall(r"<code data-copy-text>(.*?)</code>", html, re.S):
-        c = html_lib.unescape(re.sub(r"<[^>]+>", "", c)).strip()
-        if not any(f"`{x}`" in readmes or f"\n{x}\n" in readmes for x in (c, c.removeprefix("cd ~/OpenVideoHarness && "))):
-            bad.append(f"{SITE}: offers the command {c!r}, which no README gives (write it there first)")
     body = html[html.find("<body"):]
     tags = re.findall(r"<(\w+)\b[^>]*\blang=\"(en|zh)\"", body)
     en, zh = (sum(1 for tag, lang in tags if lang == want and tag != "small") for want in ("en", "zh"))

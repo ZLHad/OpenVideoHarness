@@ -76,8 +76,8 @@ html:not([data-lang]) [lang="zh"], html[data-lang="en"] [lang="zh"], html[data-l
 .home { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: -.01em; margin-right: auto; opacity: .92; }
 .home::before { content: "←"; font-family: var(--mono); font-weight: 400; transition: transform .3s var(--ease); }
 .home:hover::before { transform: translateX(-4px); }
-.chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.52); border: 1px solid rgba(255,255,255,.24); white-space: nowrap; transition: border-color .25s, background .25s; }
-.chip:hover { border-color: var(--ac); background: rgba(0,0,0,.5); }
+.chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.52); border: 1px solid rgba(255,255,255,.24); white-space: nowrap; transition: border-color .25s, background .25s, transform .25s var(--ease); }
+.chip:hover { border-color: var(--ac); background: rgba(255,255,255,.12); transform: translateY(-1px); }
 .chip .ic { width: 10px; height: 12px; position: relative; flex: none; }
 .chip .ic::before { content: ""; position: absolute; inset: 0; background: var(--ac); clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .running .chip .ic::before { clip-path: polygon(0 0, 34% 0, 34% 100%, 0 100%, 0 0, 66% 0, 100% 0, 100% 100%, 66% 100%, 66% 0); }
@@ -107,7 +107,10 @@ html[data-lang="en"] .cap .word { font-family: var(--display); font-weight: 600;
 html[data-lang="en"] #title h1 { font-family: var(--display); font-weight: 600; letter-spacing: -.055em; }
 #title p { font-size: clamp(17px, 1.55vw, 24px); max-width: 30em; margin-top: clamp(14px, 2.4vh, 28px); text-wrap: balance; text-shadow: 0 1px 24px rgba(0,0,0,.9); }
 #title .go { pointer-events: auto; margin-top: clamp(20px, 3.4vh, 38px); display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-#title .hint { font-family: var(--mono); font-size: 13px; color: rgba(244,246,255,.82); margin-top: 16px; }
+#title .hint { font-family: var(--mono); font-size: 13px; color: rgba(244,246,255,.82); margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#title .hint::after { content: ""; width: 1px; height: 28px; background: linear-gradient(180deg, var(--ac), transparent); animation: hintdrop 2.2s var(--ease) infinite; }
+@keyframes hintdrop { 0% { opacity: .2; transform: translateY(-4px) scaleY(.5); } 50% { opacity: 1; transform: translateY(3px) scaleY(1); } 100% { opacity: .2; transform: translateY(8px) scaleY(.6); } }
+@media (prefers-reduced-motion: reduce) { #title .hint::after { animation: none; } }
 html[data-lang="zh"] #title .hint { font-family: var(--sans); }
 
 /* ---------- the wall ---------- */
