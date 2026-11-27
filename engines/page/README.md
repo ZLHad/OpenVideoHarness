@@ -52,7 +52,7 @@ CLAUDE.md"任何档位都不降的底线"里，有命令在查的这几样，以
 
 画面跟着什么走，就从那里取时间，不手写秒数（硬规则 2）：
 
-- **旁白**：写 `audio/script.txt`，`bin/vh tts <项目>` 配音，出来的 `audio/timeline.<语言>.json` 里每句、每个字都有秒数。模板里的 `at("a2", "看不到")` 取这几个字开口的时刻（在 `ready` 里先载入时间轴）。逐字的时间要靠对齐，`bin/vh tts -h` 说哪种方式这台机器能用。
+- **旁白**：稿子怎么写得像人写的，见 `playbook/09-narrative.md` 第 10 节，写完跑 `bin/vh words <项目>` 看模型顺手的句式落在哪；分镜里每一镜写一件旁白没说、画面要多说的事（`templates/STORYBOARD.md`）。写 `audio/script.txt`，`bin/vh tts <项目>` 配音，出来的 `audio/timeline.<语言>.json` 里每句、每个字都有秒数。模板里的 `at("a2", "看不到")` 取这几个字开口的时刻（在 `ready` 里先载入时间轴）。逐字的时间要靠对齐，`bin/vh tts -h` 说哪种方式这台机器能用。
 - **音乐**：`bin/vh music` 用代码作曲，同时写出每一拍、每一小节的秒数；用现成的曲子时 `bin/vh beats` 分析节拍。
 - **音效**：动作发生的时刻写进一份事件表，例如 `audio/sfx.json`（`[{"t": 3.2, "sfx": "click"}]`）。页面在 `ready` 里读它来画动作，`bin/vh sfx place audio/sfx.json audio/sfx.wav <片长>` 读同一份来放声音，一份时间，两边对得上。`t` 也能写成挂在旁白或小节上的引用（`bin/vh sfx -h`），这时页面要按同样的规则换算。
 - **字幕**：`bin/vh captions <项目>` 从旁白时间轴出 SRT 和 `captions.json`；可以由页面画出来，也可以 `bin/vh mux` 作为可开关的字幕轨。
