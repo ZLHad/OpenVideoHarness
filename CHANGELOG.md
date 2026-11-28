@@ -2,6 +2,60 @@
 
 What changed since the last release is in `changes/`, one file a change; `python3 tools/changes.py show` prints it.
 
+## v0.10.0 — 2026-11-28
+
+A minor release: start a film with no engine (`--engine page`), the `source-plate` citation component, Research Note 10 (no-engine vs. default workflow), Linux portability fixes (`textcheck` sizing and no `rsync` dependency), and final README/homepage polish.
+
+*(Note: `v0.9.9` was merged to `main` right before `v0.10.0` without a separate GitHub Release tag, so users upgrading from `v0.9.1` also get `v0.9.9`'s 12th video type for product tutorials, `components/ui-stage`, the 5-minute walk-through film, and the moving homepage walls — see `## v0.9.9` below.)*
+
+### What's new
+
+- **No-engine path (`bin/vh new <type> <slug> --engine page`):** create a bare `film.html` that keeps the `window.film` page contract (`engines/CONTRACT.md`) with nothing to install, at any type and aspect ratio (`--dpr 2` for 4K), paired with a concise ~4,500-character card (`engines/page/README.md`). Routed from the first row of `CLAUDE.md` for creative/experimental shorts or "decide how yourself" requests; `bin/vh status`, `readpath.py`, `components add`, `engine_copy.py`, and all render/check/review tools support it out of the box.
+- **Research note 10 (`docs/research/en/10-page-vs-workflow.md`):** blind comparison across three requests (no-engine page path vs. default workflow, six finished films). Core ideas came out nearly identical (8–9/10 similarity) and mean scores tied (6.92 vs. 7.09), so default required reading stays unchanged while `--engine page` gives a lighter route.
+- **Storyboard and review ask for picture beyond narration:** `templates/STORYBOARD.md` and `templates/TASTE_CHECKLIST.md` now ask what each shot adds beyond what the voiceover already says, preventing literal illustration of narration.
+- **8th motion component — `source-plate` (`components/source-plate/`):** citation/attribution lower-third plates for people, papers, datasets, and quotes, with built-in reading-time floor matching `bin/vh readcheck`, minimum text-size `floor`, auto-contrast tag chips, `texts()`/`boxes()` hooks, and canvas + DOM painters.
+- **Cross-platform and tool fixes:** `bin/vh textcheck` now sizes non-HyperFrames pages from their viewport meta and `window.film.width/height` instead of defaulting to 1920×1080; `bin/vh new` replaces `rsync` with Python's `shutil.copytree`, fixing project creation on minimal Linux containers (verified with seven films with sound on Ubuntu 24.04 x86_64).
+- **README and homepage sync:** both READMEs and `docs/site/index.html` now cover `--engine page`, Research Note 10, the Linux x86_64 verification, 8 components, and consistent Studio terminology (fixing two English README wording/link slips).
+
+Known and not fixed: the 17-second Studio film still shows the old words.
+
+The full entries follow, newest first.
+
+**`bin/vh new` 不再需要 rsync：精简的 Linux 上也建得出 canvas-film 和手绘项目**
+- Why: 在一台云端容器（Ubuntu 24.04.5，x86_64）上，`bin/vh new … --engine canvas-film`、长讲解、照片回顾、教程和手绘类的项目都建不出来，报 `rsync: command not found`；Docker 镜像和精简的 Linux 默认没有 rsync，`bin/vh doctor` 也不查它。
+- 复制引擎模板、Three.js 层和手绘引擎改用 Python 自带的 `shutil.copytree`（Python 3 本来就是必需的）：时间和权限照旧保留，`out`、`node_modules` 照旧不复制，任何一层都不复制，和原来 `rsync -a --exclude` 一样。
+
+**不用引擎也能开片：`bin/vh new … --engine page`，只守页面合约，怎么画由 agent 自己定**
+- Why: 仓库的取帧、出片、检查和审阅本来就只认页面合约 `window.film`、不认引擎，可开片时只能按类型分到一个引擎，没有一条路通向"自己写一个页面"；现在的模型几十行代码就能写出一个只由 t 决定的页面，按类型分配引擎、开工前读完类型文档，反倒把它往同一种做法上推。只守底线的那组片子在研究笔记 06 的盲评里两次被选去发布。
+- `bin/vh new <type> <slug> --engine page`：任何类型、任何画幅（`--aspect`，4K 渲染时 `--dpr 2`），复制一个按合约写好的占位 `film.html`（尺寸按 BRIEF 的 Output 写好，带种子随机、缓动和按旁白字词取时间的 `at()`）和它的说明 `ENGINE_README.md`，不装任何依赖。BRIEF 的 Engine 一行写 `page`。
+- 新的说明卡 `engines/page/README.md`：合约的几个字段，取帧、出片、只重画几秒、分镜、字体检查和声音的命令，CLAUDE.md 底线里有命令在查的那几样各由哪条命令查、没有命令能查的几样要自己盯，时间怎么从旁白、音乐和事件表里取，动手前先用三种明显不同的做法各画一帧再挑，交之前看什么，想用组件、Three.js 和剪辑表时怎么拿进来。
+- CLAUDE.md 路由表的第一行是"不用引擎"：用户说"自由发挥""不用照模板""你自己定怎么做"，或者没有贴切的类型时走这条路（起初写在表下面的一段里，试跑的 agent 读完表就照类型选了引擎，没读到它），开工前只读那张卡，类型文档、playbook、配方、风格按需用 `bin/vh know` 查，档位、关卡和底线照旧。`playbook/00` 的引擎选型表、`engines/README.md`、quick 卡各加了一处。
+- `bin/vh status` 认得 page 项目：必读从类型文档和 quick 卡换成那张卡（关卡要用的几节照旧），写场景时只列命令查不到的几节（预算、事实核查、有声片的音频 QA），出 4K 终版时带 `--dpr 2`；`tools/readpath.py` 的读量表多了一行 page。`bin/vh components add` 给 page 项目的提示是直接 `import`。
+- 修了一处 `bin/vh textcheck` 的毛病：不是 HyperFrames 的页面，它只认 `data-width`，竖屏、方形的页面会按 1920×1080 去查；现在和出片的宿主一样，先看 viewport，载入后以 `window.film` 给的尺寸为准。
+
+**分镜每一镜写一件旁白没说的事，评审也问画面多给了什么**
+- Why: 从旁白稿拆分镜时，模型常常只把旁白说的那件事画出来：旁白说"水汽遇冷"，画面就画一团气，片子成了给旁白配的图。分镜模板的"画面"一列只要求写看到什么、事件和镜头运动，打分层问的是"关掉旁白，这一镜在说什么"，没有一处要求画面比旁白多说一点。
+- `templates/STORYBOARD.md`：画面一列写到能照着画（主体、构图、动作从哪到哪、什么变了），再写一句旁白没说、画面要多说的那一件事：一个比喻、一组对比、一个细节、一个数字的形状。说不出这一句的镜头，要么想出这一件，要么让旁白少说一点、交给画面。表头多了"旁白没说的那一件"。
+- `templates/TASTE_CHECKLIST.md` 的打分层：答完只看帧的两问以后，再对着每一镜的旁白问画面多给了什么；只把旁白说的那件事画出来的镜头列出来，算进"立意"和"变化"。
+- CLAUDE.md 路由表第一行写明创意短片、实验短片走"不用引擎"；page 的说明卡指向旁白稿的写法（`playbook/09-narrative.md` 第 10 节）和 `bin/vh words`。
+
+**README 和官网同步补全 `--engine page`、研究笔记 10、Linux 实测与术语统一**
+- Why: 合入 `--engine page` 和研究笔记 10 后，README 与官网正文中还没把无引擎路线、研究笔记 10 与 Linux x86_64 七支有声片实测写齐，英文 README 还有两处语言小错，Studio 术语也残留两处旧词。
+- 英文 `README.md`：修正第 415 行指向中文研究笔记 10 的链接为英文版 `docs/research/en/10-page-vs-workflow.md`，把 `words` 一行夹杂的中文例子改写成英文表达。
+- 两份 README 与 `docs/site/index.html`：在“引擎”与官网能力地图补上 `--engine page`（不用引擎、守 `window.film` 合约）的定位，在自测透明度段落与官网 FAQ #1/#8 同步研究笔记 10 和 Linux x86_64 实测；统一 Studio 术语（“一次发出去”“意见”，官网步骤补上“文案 / script”）。
+
+**研究笔记 10：不用引擎和默认流程，同一句需求各做一支，盲评**
+- Why: 这个 PR 加了"不用引擎"这条路，主张是放开"怎么做"以后片子不比走流程差；默认流程的必读要不要减，也要看数据。
+- `docs/research/10-page-vs-workflow.md`（中英两版）：三句需求、两组各一支、全新上下文的盲评。两组的点子几乎一样（相似度 8、9、8），新意和做工互有胜负，平均 6.92 对 7.09；不用引擎的输在开头不动、停顿多，默认流程的有一支画错两处。"不用引擎"写在路由表下面时 agent 读不到，挪进表的第一行才走得上。
+- 因此：路由放进表的第一行，`quick` 的 page 片照说明卡做；默认流程的必读这次不减；建议以后把"开头静止"做成 `bin/vh check` 的一项警告。
+- 两份 README 和 `engines/README.md` 的 Linux 一节记下：x86_64 的云端容器里做过七支有声片。
+
+**新组件 `source-plate`：标明出处的铭牌，停多久、字多大由组件兜住**
+- Why: 人名、论文、数据和原话的出处，每支片子都在手写一块牌子，常见的两处翻车都是底线：牌子没停够读一遍的时间，标签和 DOI 这类小字低于辅助字的下限。把这两条做成组件的默认行为，比每支片子各自记得要可靠。
+- `components/source-plate`：一块铭牌写人物（名字、身份）、论文（题目，作者、刊物和年份，DOI）、数据或原话的出处，标签按 `kind` 和 `lang` 自动给（人物、论文、数据、原话、出处）。不写 `hold` 时，它按 BRIEF 的 Pace 算够读完全部字的时间，算法和 `bin/vh readcheck` 一样；给的 `hold` 低于底线（快读一遍，至少 1.5 秒）会被拉长到底线。没有一行字小于 `floor`（默认 44 px，`feed` 档写 80）。长的论文题目按词换行，中文按字。
+- `texts()` 把铭牌上的每一行交给 `window.film.texts`，`bin/vh readcheck` 和 `textcheck` 直接量得到；`boxes()` 给 `window.film.ui(t)`；canvas 和 DOM 两种落笔，DOM 只动 transform、opacity 和 clip-path。标签放在强调色的小色块上，字用黑或白，按色块颜色挑对比高的那个。
+- 在这台 Linux x86_64 机器上用 `--engine page` 做了一支 10 秒的有声验证片来试它：第一版里强调色的红字标签压在深色底板上只有 2.5:1，`bin/vh textcheck` 判了失败，所以改成了现在的色块。README、官网和概览图里的组件数从 7 改成 8。
+
 ## v0.9.9 — 2026-11-27
 
 A minor release: product tutorials without screen recording, a 5-minute walk-through film, a moving homepage (film wall, one-shot reel, and live 43-style stage), and five pre-release fixes.
