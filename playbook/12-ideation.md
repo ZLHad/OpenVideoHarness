@@ -161,7 +161,7 @@ FunTech 在终场前用了约 1 s 真静音。这碰的是底线，不在可改�
 - **每张卡配一张图**。人看图比读文字快：`standard` 每张立意卡配一帧关键画面（草图、灰盒，或者 HyperFrames 的 `snapshot`）；`studio` 每张配一段 10–20 s 的草图，做法同 `01-pipeline.md` 的 look-dev；这段草图同时就是那种风格的小样。借来的预设，人想看真渲小样时放到 E0。还没有合成文件时，一张卡写一页草图放在 `out/review/` 下（例如 `out/review/card-a.html`：画面直接写在页面里，`<meta name="viewport" content="width=1080, height=1920">` 定尺寸，再加一行 `<script>window.film = { frame() {}, duration: 1 };</script>`，页面合约见 `engines/CONTRACT.md`），`bin/vh frames <项目>/out/review/card-a.html --at 0 --out <项目>/out/review/cards` 画成 `out/review/cards/card-a-t0000.000.png`（路径照 `bin/vh` 的规矩从当前目录算，所以写全），gate JSON 里那张卡的 `frame` 填这个路径。`out/review/` 下的草图页不等关卡 ① 的记录，`bin/vh render` 也照渲（拦的只是整片）。
 - **和最近几支撞了没有**（可选）：`bin/vh looks check <项目> --images <卡上的图>` 拿立意卡的画面对照仓库外的外观账本（每支交付后 `bin/vh looks add`），报底色、色板、版式、字体、转场、音效和预设的重合；有意重复就在 `DECISIONS.md` 写一句。
 - **自由草图**（可选，一句话需求时推荐）：写立意卡之前，agent 可以先按自己最想做的那个点子，只守底线、不套任何默认值，渲一段 10–20 s 的草图，当作那张卡的图。它也能暴露模型自己的直觉，常常比套模板的版本更有意思。
-- **草图卡**（可选）：MV、手绘、实验片在任何档位都可以用三段 10 s 左右的草图代替文字卡，卡上可以只有卡号和一行名字，画面、节奏和声音让草图去说。每段草图挂在立意那个决定下（gate JSON 的 `assets[].for`），caption 写卡号，审阅台的 `film` 指推荐的那段。`quick` 没有关卡，草图只用来给自己挑方向，挑中的写进 `DECISIONS.md`。
+- **草图卡**（可选）：MV、手绘、实验片在任何档位都可以用三段 10 s 左右的草图代替文字卡，卡上可以只有卡号和一行名字，画面、节奏和声音让草图去说。每段草图挂在立意那个决定下（gate JSON 的 `assets[].for`），caption 写卡号，审阅页的 `film` 指推荐的那段。`quick` 没有关卡，草图只用来给自己挑方向，挑中的写进 `DECISIONS.md`。
 - **可选件**：三案怎么拉开、2–4 s 的动态小样、渲染耗时估计、六选三缩略图页、轮盘卡（`bin/vh concept`），见 `ideation-extras.md`；都不改必交的东西。
 - **`quick`**：想两三个一句话点子（第 3 节的四个问题可以帮忙），挑一个，在 `DECISIONS.md` 写一行为什么，再写一行同题视频最常见的做法，交付时两行一起列给人看。风格从选中的点子推出来，可以参考一个或几个预设（`bin/vh style apply <preset[,preset]> <project>`），也可以不参考。没人看着的时候（`quick`、授权的无人值守）更要走这一步：没有人会替你说"这和别的片子一样"。
 

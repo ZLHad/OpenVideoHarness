@@ -237,7 +237,7 @@
             "waiting for the agent, in progress or not started, from the files: the gate pages, the desk's",
             "submissions, REVIEW.md's decisions; who is waited on, the latest renders and the last check, open",
             "review items, the material on record and the spend (bin/vh assets), what runs now, and the next step: who has it,",
-            "what to do, the commands and the sections to read (tools/status.py; --json: the fields in tools/desk/README.md)"
+            "what to do, the commands and the sections to read (tools/status.py; --json: the fields in tools/schemas/output/status.schema.json)"
           ]
         }
       ]
@@ -1165,7 +1165,7 @@
     },
     {
       "name": "gate",
-      "summary": "A stop in one command: check the gate JSON, build the review page, open the review desk where the stop is reviewed there, print the chat message (gate ①'s says where this film stops); --wait waits for the submission. Gate ③'s page is not sent while gate ②, when the film's plan has it, is not on record.",
+      "summary": "Validate a stop, build its local review page and print the message for the chat. Gate ③ checks the required earlier stops before sending the page.",
       "when": "at the gates of the film's plan (bin/vh status, stops:) and at any checkpoint the director mode adds",
       "stages": ["1", "3", "8"],
       "reads": [
@@ -1176,139 +1176,20 @@
       "writes": [
         "<project>/.ovh/history/index.jsonl, objects/<id>, .gitignore and .lock (a snapshot on each page that goes out)",
         "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
-        "<project>/out/review/gate-<n>.json (--init)",
-        "<project>/out/review/feedback/.consumed (--wait: the submission handed over)",
-        "the review desk, a local server, for a stop reviewed there"
+        "<project>/out/review/gate-<n>.json (--init)"
       ],
       "usage": [
         {
-          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s] [--print-address] [--json]",
+          "synopsis": "gate <project> [n] [--page|--chat] [--json]",
           "text": [
-            "a stop in one command: checks out/review/gate-<n>.json, builds",
-            "the review page and makes it this round, opens the review desk when the stop is reviewed there (Studio when it runs,",
-            "a film outside its folders joining it; the desk shows its window at the stop itself, and the message says so, with no address)",
-            "(LOCAL.md's 审阅方式; else studio: desk; standard: Studio while it is open, else the page; quick: page), prints the chat message;",
-            "--wait (desk): then waits like desk wait, exit 0 only when a submission was received; a standard film's stop that went out",
-            "as the static page by default (Studio not open): the page goes out as usual, exit 5: nothing was answered; end the turn",
-            "and wait for the person's reply in the chat; exit 7: another page went out before anything came for this one: run",
-            "bin/vh status and wait on the round open now (tools/gate.py)"
+            "builds the local HTML page, makes it this round and prints the message to send to the person",
+            "review on the page (default) or in the chat (LOCAL.md's 审阅方式); the person replies in the chat"
           ]
         },
         {
           "synopsis": "gate <project> <n> --init [--json]",
           "text": [
-            "writes out/review/gate-<n>.json as a skeleton for this stop: each {填：…} says what goes there, and gate refuses the file until none is left; never overwrites"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "desk",
-      "summary": "The console and review desk, Studio's shell: a rail of modules, the film's stops on top, and a right column with two tabs: a conversation with an agent installed on this machine (Claude Code, Codex, DeepSeek Harness: its words, each tool call as a card, the requests it asks the person to approve, a stop) and this round (what waits for the person, their notes and one submit); with no project, the space of every film, waiting ones first; a project opens on the module of the stop that waits (the cut module lays the film, shots, narration, music, checks and notes on one timeline); wait blocks until the person submits, feedback prints the latest submission, data what the desk reads.",
-      "when": "whenever the person wants to see every film; studio's stops, or whenever the person wants to review item by item",
-      "stages": ["1", "3", "8"],
-      "reads": [
-        "<project>/out/review/gate-<n>.json",
-        "<project>/BRIEF.md, SCRIPT.md, NOTES.md, DECISIONS.md, REVIEW.md, the shot table (shots.json or edit.json)",
-        "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects, each --root), as bin/vh status reads it",
-        "for the cut module: what bin/vh timeline --resolved reads, out/proxy/<film>.thumbs and .peaks.json, the latest out/check record, out/versions/versions.json"
-      ],
-      "writes": [
-        "<project>/out/review/feedback/<round>-<time>.json and .md",
-        "<project>/REVIEW.md (a submission, as a dated section)",
-        "<project>/out/review/feedback/.consumed (what an agent has been handed)",
-        "<project>/out/review/revisions/<id>.json (the comparison for one submitted comment)",
-        "<project>/out/review/revisions/media/ (copies of the two cuts, including sound)",
-        "<project>/.ovh/agents/<id>.jsonl and .json (a conversation in the agent column: its events, appended)",
-        "<project>/.ovh/agent.lock (while a turn of the column's agent runs)",
-        "$OVH_AGENTS_DIR or $XDG_CACHE_HOME/ovh/agents/<kind>/ (desk agents install: the pinned adapter)"
-      ],
-      "usage": [
-        {
-          "synopsis": "desk [<project>] [--root DIR …] [--port N] [--idle s] [--only] [--no-open] [--print-address] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk revision <project> <feedback> --before VIDEO --after VIDEO [--item N] [--span START-END] [--json] | desk data <project> | desk link [<project>] [--root DIR …] [--force] [--no-open] [--print-address] [--json] | desk agents [install <claude|codex|dsh>] [--json]",
-          "text": [
-            "the console and review desk (tools/desk/README.md): a local page on 127.0.0.1, Studio's shell: modules on the left,",
-            "the film's stops on top, on the right a conversation with an agent and what waits for the person. No project: the space,",
-            "every project bin/vh projects finds (--root: more folders), a card a film, waiting ones first. A project: the page",
-            "opens on the module of the stop that waits (gate 1 concept, 2 storyboard, 3 the cut, with its timeline). --only: that",
-            "project and nothing else under the roots (bin/vh gate's desk). wait: block until the person submits, print it, exit 0",
-            "(an agent runs it in the background; notes no agent took yet, of any round, come first; 3 after 12 h; 7 this round's",
-            "page is no longer the one out: run bin/vh status, wait on the round open now); feedback: the latest submission; data: what the desk reads from the project, as JSON.",
-            "revision: put one saved comment and the original and revised cuts in the Cut module's review list.",
-            "The desk shows Studio's window itself: started in a terminal it does (--no-open: not); bin/vh studio does any other",
-            "time, and a page that can only look has a button for it. Nothing it prints opens a page; --print-address writes an",
-            "address with a one-time code (ten minutes, one page) to the terminal alone, for a browser on another machine",
-            "(refused with no terminal).",
-            "link: that desk (or the console) stops and starts again alike, and shows the new run's window.",
-            "The column's other tab talks to an agent on this machine in the film's folder; agents: which are installed, and",
-            "install <kind>: its pinned adapter, outside the repo (it uses the person's own login)"
-          ]
-        }
-      ],
-      "subcommands": [
-        {
-          "name": "wait",
-          "summary": "block until the reviewer submits, print it, exit 0 (run it in the background)"
-        },
-        {
-          "name": "feedback",
-          "summary": "the latest submission"
-        },
-        {
-          "name": "revision",
-          "summary": "attach the before and after cuts to one submitted comment for Studio to review"
-        },
-        {
-          "name": "agents",
-          "summary": "the agents the console's column can talk to; install <kind> puts the pinned adapter outside the repo"
-        },
-        {
-          "name": "data",
-          "summary": "what the desk reads from the project, as JSON"
-        }
-      ]
-    },
-    {
-      "name": "studio",
-      "summary": "Show Studio (the console, bin/vh desk) in its one window, from a terminal, from an agent (\"打开 Studio\") or from the launcher icon this installs (macOS: OVH Studio.app; Linux: a desktop entry). Open already: it comes to the front, never a second; not running: the console starts in the background first. The window is a Chromium-family browser named outright with Studio's own profile, counted as open only when its page connects (else once more, then a browser tab, and it says so). Nothing secret is printed.",
-      "when": "whenever the person wants to open Studio or a film in it: say it, or click the icon; --install-icon once per machine",
-      "stages": ["any", "env"],
-      "reads": [
-        "the running console's info file in this user's temp folder (ovh-desk-<uid>/), and beside it console-<…>.films, the films outside Studio's folders that joined its space (the last fifty)",
-        "every project bin/vh projects finds ($OVH_PROJECTS, <repo>/projects), to open on one"
-      ],
-      "writes": [
-        "what bin/vh desk writes, when it starts one (in the background, owner icon when the icon started it)",
-        "before it opens: ~/.claude/skills/*/SKILL.md, ~/.agents/skills/*/SKILL.md, only the stubs bin/vh install-skill wrote for this clone, untouched and behind skills/",
-        "--install-icon: ~/Applications/OVH Studio.app (macOS) or ~/.local/share/applications/ovh-studio.desktop and ~/.local/share/ovh-studio/ (Linux; $XDG_DATA_HOME), or all of it in --dir"
-      ],
-      "usage": [
-        {
-          "synopsis": "studio [<project>] [--print-address] [--json]",
-          "text": [
-            "show Studio's one window (tools/desk/studio.py, window.py, tools/desk/README.md): raised when it is open, made when",
-            "not, the console started in the background when it does not run (it stops 12 h after its window closes); a",
-            "project: on that film (one outside Studio's folders joins Studio's space, in the same window). An agent runs it too",
-            "when the person asks to open Studio. --print-address: no screen here (ssh): show nothing, write an address that opens",
-            "one page, once, within ten minutes, to the terminal alone; refused with no terminal and while Studio runs"
-          ]
-        },
-        {
-          "synopsis": "studio --install-icon [--no-shell] [--dir DIR] | --remove-icon [--dir DIR] | --icon-status [--dir DIR] [--json]",
-          "text": [
-            "OVH Studio, Studio's own window (tools/desk/shell: Electron pinned from a committed lockfile, about 130 MB downloaded",
-            "once, the app running the shell from this clone; ad-hoc signed). --no-shell, or no npm and nothing cached: the launcher",
-            "that opens a browser's window, made with what the system has (osacompile and codesign on macOS, stdlib Python for the picture):",
-            "click it to bring up Studio's window, again to bring it to the front; on macOS quitting it stops the Studio it started",
-            "and closes its window. It runs",
-            "bin/vh studio in this clone, so a git pull needs no reinstall; a clone that moved says which command to run again"
-          ]
-        },
-        {
-          "synopsis": "studio --icon open|alive|quit [--force]",
-          "text": [
-            "what the icon runs: open (as above, the console it starts is the icon's), alive (0 while a Studio runs), quit (stop",
-            "the icon's console; exit 3 while an agent in its column is mid-turn, unless --force)"
+            "writes out/review/gate-<n>.json as a skeleton; gate refuses the file until all placeholders are filled in and never overwrites an existing file"
           ]
         }
       ]

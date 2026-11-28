@@ -19,11 +19,7 @@ series_checks 28
 decision_checks 45
 new_checks 4
 gate_checks 23
-desk_checks 14
-console_checks 12
-agent_checks 16
-settings_page_checks 6
-studio_checks 30
+review_checks 14
 looks_checks 17
 activity_checks 6
 status_checks 6

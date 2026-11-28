@@ -1,9 +1,0 @@
-{
-  "name": "ovh-studio-shell",
-  "private": true,
-  "description": "Studio's window of its own: an Electron shell around the console page (tools/desk/README.md). bin/vh studio --install-icon installs this with npm ci, outside the repo.",
-  "main": "main.js",
-  "dependencies": {
-    "electron": "45.2.3"
-  }
-}

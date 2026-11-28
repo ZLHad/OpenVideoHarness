@@ -2,7 +2,7 @@
 
 一支片子可以是一个页面，也可以是一串段。项目根目录的 `edit.json` 把片子排成一行段：每一段从一个来源取画面（一个页面、一张图、一种纯色、一段实拍或档案片段、另一支片子），还没有来源的段画成灰卡。`bin/vh render` 看到它就按它出片，每一段各用各的画法，段与段之间是硬切，每个切点都是关键帧。片段自己的声音、只出声的段放在哪一刻，也由它定，`bin/vh mix … edit=` 照着放进混音。
 
-它就是 `shots.json` 长大了：每一行还是那些字段（`id`、`segment`、`reads`、`label`、`unsure`、`frame`、`at`），多一个 `src` 说这一段的画面从哪来。一个项目只留一份镜头表：有了 `edit.json`，段就是镜头，storyboard、rhythm、审阅台、thumbs、`patch --shot` 都从它读。两份都在时，这些命令都会停下，让你留一份。
+它就是 `shots.json` 长大了：每一行还是那些字段（`id`、`segment`、`reads`、`label`、`unsure`、`frame`、`at`），多一个 `src` 说这一段的画面从哪来。一个项目只留一份镜头表：有了 `edit.json`，段就是镜头，storyboard、rhythm、审阅页、thumbs、`patch --shot` 都从它读。两份都在时，这些命令都会停下，让你留一份。
 
 单页片子不用它，什么都不变。
 
@@ -67,7 +67,7 @@
 | `tracks` | 是 | `[{id, entries: [...]}]`。现在只画第一轨（V1）；上层轨以后再加 |
 | `chapters` | 否 | `[{t, title}]`，`t` 可以写引用，包括 `"@|S03"`（S03 的起点）。不写时用页面段自己的章节，按钟换算 |
 | `covers` | 否 | `[{id, t, title?}]`，`t` 是片子时间 |
-| `video` | 否 | storyboard 和审阅台播放的视频，同 `shots.json` 的 `video` |
+| `video` | 否 | storyboard 和审阅页播放的视频，同 `shots.json` 的 `video` |
 | `approval`、`removed` | 否 | 记下来给审阅页看，渲染不读 |
 
 ## 来源
@@ -194,7 +194,7 @@ render 把片子按串切成块（每块一个 GOP），每块画完都留在 `o
 | `determinism` | 按串抽样：每串里两帧，每个切点两边各一帧；片段的帧单独解一次、在一次连续解码里再取一次，md5 必须相同 |
 | `cues` | 两层：剪辑表自己的起止（写法和解出来的秒），每个页面段的 cue（换算到片子时间）；`--save` 两层都存，下次说谁挪了 |
 | `storyboard`、`rhythm` | 段就是镜头，不用浏览器读；格子角上标来源种类，灰卡是灰格；没有视频时按片子的画法取帧 |
-| 审阅台、`thumbs` | 段就是镜头；thumbs 读片子 sidecar 里的段和页面里的镜头 |
+| 审阅页、`thumbs` | 段就是镜头；thumbs 读片子 sidecar 里的段和页面里的镜头 |
 | `check` | 还剩灰卡就判失败；画它的图在 render 之后变了，提醒；每条有时间的发现都标上它落在哪一段 |
 | `deliver` | 还剩灰卡就不出片 |
 | `versions` | 每一版记剪辑表的哈希；`compare` 两版时按段说谁挪了、谁换了来源 |

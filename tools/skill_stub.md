@@ -6,8 +6,9 @@ Harness path (set by install.sh): @HARNESS@
 This installed file is a stub; the skill itself lives in the OpenVideoHarness clone, so it is current after every `git pull`
 there, with nothing to reinstall. Before anything else:
 
-1. Find the harness: the first of `$OVH_DIR`, the path on the line above, `~/OpenVideoHarness` and the current working
-   directory that has `bin/vh` in it.
+1. Find the harness. Use `$OVH_DIR` if it names a checkout. Next use the OpenVideoHarness checkout containing the
+   current working directory, if there is one. Otherwise try the path on the line above and then `~/OpenVideoHarness`.
+   A checkout contains `bin/vh` and a `skills/` directory.
 2. Read `<harness>/skills/@NAME@/SKILL.md` and follow it in place of this file.
 
 If the harness is there but `skills/@NAME@/SKILL.md` is not, this skill was renamed or removed: say so to the user, and

@@ -12,12 +12,15 @@ This skill is a thin pointer. All workflows, rules and tools live in the OpenVid
 ## 1. Locate the harness
 
 Sent here by the stub `bin/vh install-skill` writes? Then you have found it already: it is the clone this file is in.
-Otherwise use the first of these that exists and contains `bin/vh`:
+Otherwise use the first OpenVideoHarness checkout in this order:
 
 1. `$OVH_DIR`
-2. the path on the "Harness path" line above
-3. `~/OpenVideoHarness`
-4. the current working directory
+2. the checkout containing the current working directory
+3. the path on the "Harness path" line above
+4. `~/OpenVideoHarness`
+
+A checkout has both `bin/vh` and `skills/open-video-harness/SKILL.md`. When working in the Studio preview, use the tools
+from its checkout for the preview's review workflow.
 
 If none exists, ask the user for permission, then install it:
 
@@ -46,8 +49,6 @@ Audio tools:
 - `bin/vh music` — code-composed soundtrack;
 - `bin/vh sfx` — sound effects;
 - `bin/vh mix` and `bin/vh mux` — mixing and muxing.
-
-When the user says "打开 Studio", "打开控制台" or "open Studio", run `<harness>/bin/vh studio` (with a project: `bin/vh studio <project>`): Studio's own window opens, or comes to the front when it is open already, also when you run it. Tell them what it printed. There is no address to pass on.
 
 Run `bin/vh doctor` if anything looks missing, and before the first film in a host that only lets you write the workspace (a sandbox): its `caches` line names the download folders it cannot write and what to set, and its `skills` line says when the installed skill needs `bin/vh install-skill` again (a stub reads this file in the clone, so a `git pull` keeps it current; a whole copy does not).
 
@@ -80,5 +81,4 @@ The harness prints paths and chat lines because every agent can read those. When
 - **Show the page and the film beside the chat.** If the host can display a local file next to the conversation (a side panel, a preview pane, a file card), open the stop's review page (`out/review/gate-<n>.html`), the contact sheet and the draft or final film there when you stop or deliver. Give the path as well.
 - **Ask with the host's question tool.** If the host has a tool that asks the user a question with options (Claude Code's `AskUserQuestion`, for one), put the stop's decisions there: one question a decision, at most three, the options and the recommended one taken from the gate JSON, the recommended one first. What the user picks and any note they type are their words: copy them into `REVIEW.md` verbatim, as you would a chat reply.
 - **Carry on in the same turn.** When the answer comes back, record it and go on to the next step at once. Do not end the turn to say that you will.
-- **Resume a Studio review in Codex.** Publish with `bin/vh gate <project> <n> --desk` and tell the reviewer to return to the conversation after submitting. On return, run `bin/vh status`: notes nobody has taken yet are listed first, and `bin/vh desk wait <project>` hands them all over at once. Use `--wait` in hosts that wake the agent after the command completes.
 - **No such tools** (a plain terminal, another agent): send the lines `bin/vh gate` prints and wait for the reply, as CLAUDE.md says.

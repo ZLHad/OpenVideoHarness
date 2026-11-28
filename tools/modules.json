@@ -38,7 +38,7 @@
       "license": "PSF-2.0",
       "needs": {},
       "adapter": ["tools/*.py", "tools/audio/*.py"],
-      "commands": ["new", "status", "activity", "review", "gate", "desk", "check", "deliver", "clean", "versions", "proxy", "commands", "doctor"],
+      "commands": ["new", "status", "activity", "review", "gate", "check", "deliver", "clean", "versions", "proxy", "commands", "doctor"],
       "required": true,
       "check": {"program": "python3", "version": ["python3", "--version"], "pattern": "Python (\\d+(?:\\.\\d+)*)"},
       "install": {"macos": "brew install python (or the Xcode command line tools)", "linux": "sudo apt install python3"}
@@ -464,62 +464,6 @@
       "required": false,
       "check": {"program": "claude", "version": ["claude", "--version"], "pattern": "(\\d+(?:\\.\\d+)+)", "files": ["~/.claude/skills/open-video-harness/SKILL.md"]},
       "install": {"macos": "claude.com/claude-code, then bin/vh install-skill claude", "linux": "claude.com/claude-code, then bin/vh install-skill claude"}
-    },
-    {
-      "name": "claude-agent-acp",
-      "kind": "npm",
-      "purpose": "Lets the console's agent column talk to Claude Code: the Agent Client Protocol adapter, which brings its own Claude Code. It runs with the person's own login and, by default, their own settings (mode, allow rules, skills).",
-      "version": {"pin": "0.107.0"},
-      "license": "Apache-2.0 (the adapter); Claude Code under Anthropic's terms",
-      "needs": {"programs": ["node"], "account": "a Claude subscription or Claude Code login (claude, then /login)"},
-      "adapter": ["tools/desk/agents.py (ADAPTERS, install, Manager)", "tools/desk/acp.py", "tools/desk/acp_guard.py", "tools/desk/agent-locks/"],
-      "commands": ["desk"],
-      "required": false,
-      "check": {"desk_agent": "claude"},
-      "install": {"macos": "bin/vh desk agents install claude (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install claude (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
-    },
-    {
-      "name": "codex-acp",
-      "kind": "npm",
-      "purpose": "Lets the console's agent column talk to Codex: the Agent Client Protocol adapter, which brings its own Codex. It uses the person's own ChatGPT login or Codex settings.",
-      "version": {"pin": "2.6.0"},
-      "license": "Apache-2.0",
-      "needs": {"programs": ["node"], "account": "a ChatGPT plan or the OpenAI login Codex already uses (codex login)"},
-      "adapter": ["tools/desk/agents.py (ADAPTERS, install, Manager)", "tools/desk/acp.py", "tools/desk/acp_guard.py", "tools/desk/agent-locks/"],
-      "commands": ["desk"],
-      "required": false,
-      "check": {"desk_agent": "codex"},
-      "install": {"macos": "bin/vh desk agents install codex (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install codex (about 0.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
-    },
-    {
-      "name": "dsh-acp",
-      "kind": "npm",
-      "purpose": "Lets the console's agent column talk to DeepSeek Harness: its CLI with the ACP profile, under a DSH_HOME of the console's own; the person's ~/.dsh is left alone and their credentials file is read where it is.",
-      "version": {"pin": "0.2.2-rc.3"},
-      "license": "MIT",
-      "needs": {"programs": ["node"], "account": "DeepSeek Harness signed in once (its desktop app or dsh), which writes ~/.dsh/.credentials.yaml"},
-      "adapter": ["tools/desk/agents.py (ADAPTERS, dsh_profile, install, Manager)", "tools/desk/acp.py", "tools/desk/acp_guard.py", "tools/desk/agent-locks/"],
-      "commands": ["desk"],
-      "required": false,
-      "check": {"desk_agent": "dsh"},
-      "install": {"macos": "bin/vh desk agents install dsh (about 1.4 GB, in $XDG_CACHE_HOME/ovh/agents)", "linux": "bin/vh desk agents install dsh (about 1.4 GB, in $XDG_CACHE_HOME/ovh/agents)"}
-    },
-    {
-      "name": "electron",
-      "kind": "npm",
-      "purpose": "Studio's own window (tools/desk/shell): the console page in a window with its own frame, Dock icon and name, one window always. Optional: without it Studio opens in a window of a Chromium-family browser.",
-      "version": {"pin": "45.2.3"},
-      "license": "MIT (Electron); Chromium's own licences in its LICENSES.chromium.html",
-      "needs": {"programs": ["node"]},
-      "adapter": ["tools/desk/shell/ (main.js, preload.js, its lockfile)", "tools/desk/window.py (shell, shell_send, shell_pid)",
-                  "tools/desk/studio.py (fetch_electron, build_shell_app, build_shell_linux)", "tools/desk/launcher/shell-boot.js"],
-      "commands": ["studio"],
-      "required": false,
-      "check": {"studio_shell": true},
-      "install": {
-        "macos": "bin/vh studio --install-icon (about 130 MB downloaded once, 260 MB on disk; the download kept in $XDG_CACHE_HOME/ovh/studio-shell)",
-        "linux": "bin/vh studio --install-icon (about 130 MB downloaded once; Electron in $XDG_DATA_HOME/ovh-studio/shell)"
-      }
     },
     {
       "name": "yt-dlp",

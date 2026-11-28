@@ -9,7 +9,7 @@
 # name any of them. A line that misses one of those groups, or reaches every group, fails the check;
 # python3 tools/ci_select.py --suggest prints what each line must name. So bin/vh, the engines, the templates, the
 # docs an agent reads (CLAUDE.md, playbook/, video-types/), the styles and components, and the shared tools (status,
-# review, the desk, jsonerr and what they use) have no line here: nearly every group goes through them.
+# review, jsonerr and what they use) have no line here: nearly every group goes through them.
 # What the check cannot see: a tool that runs another through a name it builds (tools/film/$tool.mjs in bin/vh) or
 # through bin/vh <command> from inside Python; a file read by a path that never spells its name.
 # The groups on the "always" line run whatever changed: they are cheap, and they read the whole tree.
@@ -19,27 +19,27 @@
 always                      static_checks doc_checks readpath_report
 
 # change notes, landing, this table and its reader
-changes/**                  plumbing_checks studio_checks land_checks
-CHANGELOG.md                plumbing_checks smoke_checks desk_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks land_checks settings_page_checks
-tools/changes.py            plumbing_checks studio_checks
+changes/**                  plumbing_checks land_checks
+CHANGELOG.md                plumbing_checks smoke_checks review_checks cancel_checks assets_checks scout_checks web_checks model3d_checks land_checks
+tools/changes.py            plumbing_checks
 tools/land.py               land_checks
 tools/ci_select.py          plumbing_checks
 tools/ci-paths.txt          plumbing_checks
 .github/**
 
 # pages people read (a tool that names one of them puts its groups here)
-README.zh-CN.md             desk_checks
+README.zh-CN.md             review_checks
 ACKNOWLEDGMENTS.md
-CONTRIBUTING.md             plumbing_checks desk_checks studio_checks hdri_checks
+CONTRIBUTING.md             plumbing_checks review_checks hdri_checks
 CODE_OF_CONDUCT.md
 SECURITY.md
-CITATION.cff                plumbing_checks desk_checks studio_checks
+CITATION.cff                plumbing_checks review_checks
 LICENSE                     hf_checks
-showcase/**                 smoke_checks timeline_checks decision_checks desk_checks console_checks web_checks model3d_checks
-cases/**                    gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
-install.sh                  plumbing_checks smoke_checks desk_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks settings_page_checks
-LOCAL.example.md            plumbing_checks smoke_checks desk_checks studio_checks cancel_checks assets_checks scout_checks web_checks model3d_checks settings_page_checks
-skills/**                   smoke_checks cancel_checks assets_checks scout_checks web_checks model3d_checks settings_page_checks studio_checks
+showcase/**                 smoke_checks timeline_checks decision_checks review_checks web_checks model3d_checks
+cases/**                    gate_checks review_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks
+install.sh                  plumbing_checks smoke_checks review_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
+LOCAL.example.md            plumbing_checks smoke_checks review_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
+skills/**                   smoke_checks cancel_checks assets_checks scout_checks web_checks model3d_checks
 
 # tools a few groups reach
 tools/model3d/**            model3d_checks
@@ -47,8 +47,8 @@ tools/words.py              cancel_checks words_checks
 tools/components.py         components_checks hdri_checks
 tools/assets/hdri.py        hdri_checks
 tools/hf.py                 hf_checks
-tools/know.py               gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
-tools/readpath.py           gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks studio_checks
-tools/artifacts.py          gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks artifacts_checks studio_checks
-tools/artifacts.json        gate_checks desk_checks console_checks status_checks contract_checks cancel_checks history_checks artifacts_checks studio_checks
+tools/know.py               gate_checks review_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks
+tools/readpath.py           gate_checks review_checks status_checks contract_checks cancel_checks history_checks know_checks artifacts_checks
+tools/artifacts.py          gate_checks review_checks status_checks contract_checks cancel_checks history_checks artifacts_checks
+tools/artifacts.json        gate_checks review_checks status_checks contract_checks cancel_checks history_checks artifacts_checks
 tools/textcheck/fixture/**  textcheck_checks render_checks film_engine_checks

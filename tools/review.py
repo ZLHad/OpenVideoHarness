@@ -7,7 +7,7 @@ usage: python3 tools/review.py <project> [gate]
 
 The file name sets the gate: gate-2b.json is page 2 of gate ②, whatever its "gate" field says (a mismatch is a
 warning). Writes out/review/gate-<n>.html, and the same page as out/review/index.html (always the latest page), notes
-<n> in out/review/.current (the review desk's "this round"), then
+<n> in out/review/.current, then
 prints the chat message: the decisions, the reply that takes every recommendation, the least-sure shots, and the path
 of gate-<n>.html, which a later page does not overwrite. playbook/01-pipeline.md ("审阅页") explains the page and
 every field:
@@ -17,13 +17,9 @@ every field:
   segments[{id, title, t0, t1, note, shots[{id, t0, t1, frame, see, vo, note}]}], appendix[{title, text, path}]
   optional: version (1, as bin/vh gate --init writes it; not read), gate, title, lang (zh | en; default: the BRIEF's "Review
   language" line, else zh), decided[], delegated[], not_reviewed, include (a JSON file, or a list of them, whose keys fill in
-  what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②). The review desk (bin/vh
-  desk, tools/desk/README.md) reads the same file and a few more optional keys (listen, music, film); this page ignores them.
-  With JavaScript the page also shows its stop's module read only, above the gate view, as the console draws it (立意 and
-  大纲 for gate ①, 分镜 for ②, 声音 for E2 and E3; tools/desk/static/modules.js): the project's data for it goes into the
-  page, with the console's renderers. Without JavaScript, or when the project cannot be read, the page is the gate view.
+  what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②). The page can also show listening points, audio attachments and the draft video.
   A text that still holds a {填：…} or {fill in: …} from bin/vh gate --init, here or in a file it includes, is not ready: nothing
-  is written (exit 2), and the file is no page yet for bin/vh status, the desk or this round.
+  is written (exit 2), and the file is no page yet for bin/vh status or this round.
 
 Paths are relative to the project and linked relatively, so the page opens straight from disk (images, GIF, mp4 and
 audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped; appendix
@@ -100,8 +96,7 @@ T = {
 # of what the agent wants to say goes into the decisions, the folds and the appendix. A warning, never a refusal.
 BUDGET = {"summary": (40, 100), "question": (30, 80), "label": (20, 50), "note": (40, 100)}
 
-STATIC = Path(__file__).resolve().parent / "desk" / "static"   # ui.css and ui.js: one stylesheet and one script for the static
-# page (inlined) and the console (served), so the gate view looks and behaves the same in both
+STATIC = Path(__file__).resolve().parent / "review_ui"
 
 TIME_ID = re.compile(r"^\s*(?:(\d+):)?(\d+(?:\.\d+)?)\s*(?:[–—-]\s*(?:(\d+):)?(\d+(?:\.\d+)?))?\s*s?\s*$")   # "12.4 s", "0–5 s", "1:05–1:12"
 
@@ -171,61 +166,6 @@ def static_file(name):
         return (STATIC / name).read_text(encoding="utf-8")
     except OSError:
         return ""
-
-
-# the console's modules a static page shows above its gate view, read only, by the gate's base (tools/desk/static/modules.js);
-# a stop the cut module stands for (③, E4, E5) has none: the gate view's player and its ruler are its static version
-STATION_MODULES = {"1": ("idea", "outline"), "E0": ("idea",), "E1": ("outline",), "2": ("board",), "E2": ("sound",), "E3": ("sound",)}
-
-
-def _has_concept_cards(r):
-    """True when a gate ① round asks to pick a concept (option frames, or a concept/立意 decision)."""
-    decs = [x for x in ((r or {}).get("data") or {}).get("decisions") or [] if isinstance(x, dict) and isinstance(x.get("options"), list) and x.get("options")]
-    return any(any(isinstance(o, dict) and (o.get("frame") or o.get("frame_missing")) for o in x["options"]) for x in decs) \
-        or any(re.search(r"concept|立意|idea", f"{x.get('id', '')} {x.get('question', '')}", re.I) for x in decs)
-
-
-def module_payload(project, gate, out_dir, marks, lang):
-    """What a static page's module reads, as JSON for a <script type="application/json">: the console's reading of the project
-    (tools/desk/server.py, project_data) cut to what the stop's modules use, the page's marks, and the way from the page's
-    folder to the project's files. None for a stop with no module, or a project that cannot be read."""
-    base = (re.match(r"E\d|\d", gate or "") or [""])[0]
-    mods = STATION_MODULES.get(base)
-    if not mods:
-        return None
-    here = str(STATIC.parent)   # tools/desk
-    if here not in sys.path:
-        sys.path.insert(0, here)
-    import server   # noqa: E402  (imported here: it imports this file)
-    d = server.project_data(project, parts=("studio", "mods") if "sound" in mods else ())
-    if base == "1":
-        cur_r = next((r for r in d.get("rounds") or [] if r.get("id") == gate), None)
-        if cur_r and not _has_concept_cards(cur_r):
-            mods = ("outline",)
-    st = d.get("status") or {}
-    data = {k: d.get(k) for k in ("project", "concept", "spec", "outline", "facts", "ideas", "shots", "ledger", "agent_decided", "music", "lang")}
-    data["rounds"] = [{"id": r["id"], "data": r["data"]} for r in d.get("rounds") or []]
-    data["current"] = gate   # the page's own round: its decisions are the ones the module picks
-    data["history"] = [{k: h.get(k) for k in ("title", "date", "quotes", "notes")} for h in d.get("history") or []]
-    data["status"] = {"stations": st.get("stations") or [], "assets": {"budget": ((st.get("assets") or {}).get("budget") or {})}}
-    data["docs"] = [x for x in d.get("docs") or [] if x.get("file") == "STORYBOARD.md"] if "board" in mods else []
-    cur = d.get("current")
-    if cur and cur != gate and d.get("round_open"):   # a page made after its stop: the open round's unsure places count in its outline as in the console
-        try:
-            more = [m for m in page_for(project, cur, lang=lang).marks() if m["kind"] == "least" and m["t"] is not None]
-        except (ValueError, OSError, AttributeError, KeyError, TypeError):
-            more = []
-        marks = list(marks) + [m for m in more if m["target"] not in {x["target"] for x in marks}]
-    data["marks"] = marks
-    if "sound" in mods:
-        tl = (d.get("studio") or {}).get("timeline") or {}
-        data["studio"] = {"timeline": {"narration": tl.get("narration") or [], "duration": tl.get("duration")}, "peaks": (d.get("studio") or {}).get("peaks"),
-                          "film": (d.get("studio") or {}).get("film")}
-        data["mods"] = {k: (d.get("mods") or {}).get(k) for k in ("loudness", "silences", "checks", "pace", "voice", "audition", "lifts", "errors")}
-    rel = os.path.relpath(project, out_dir).replace(os.sep, "/")
-    body = json.dumps({"modules": list(mods), "lang": lang, "rel": "" if rel == "." else rel + "/", "data": data}, ensure_ascii=False, separators=(",", ":"))
-    # nothing in it can close the script element or read as markup, and no address reads as one to load
-    return body.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e").replace("/", "\\/")
 
 
 HEAD_JS = """(function(){var r=document.documentElement,k=['darkfield','prism','bridge'],t=null;try{t=new URLSearchParams(location.search).get('theme')}catch(e){}
@@ -493,7 +433,7 @@ class Page:
             least.append({"id": scalar(x.get("id"), f"least_sure[{i}].id").strip(),
                           "note": scalar(x.get("note"), f"least_sure[{i}].note").strip(), "t": t0, "t1": t1 if t1 and t0 is not None and t1 > t0 else None})
         d["least_sure"] = least
-        listen = []   # the review desk's "please listen to these" (tools/desk/README.md): [{t, note}]; a malformed one is left out
+        listen = []   # the review desk's "please listen to these" : [{t, note}]; a malformed one is left out
         for i, x in enumerate(d.get("listen") if isinstance(d.get("listen"), list) else []):
             try:
                 t = seconds(x.get("t"), f"listen[{i}].t") if isinstance(x, dict) else None
@@ -506,6 +446,8 @@ class Page:
         d["listen"] = listen
         d["film"] = d.get("film") if isinstance(d.get("film"), str) else ""
         segs = [dict(as_dict(x, f"segments[{i}]")) for i, x in enumerate(as_list(d.get("segments"), "segments"))]
+        if d.get("segments") is None and re.fullmatch(r"2[a-zA-Z]?", self.gate):
+            segs = self.default_storyboard(set(ids))
         d["segments"] = segs
         for i, s in enumerate(segs, 1):
             s["id"] = scalar(s.get("id"), f"segments[{i - 1}].id").strip() or str(i)
@@ -637,18 +579,41 @@ class Page:
         return [sh for s in self.d["segments"] for sh in s["shots"]]
 
     def project_extra(self):
-        """The outline and shot table the review desk reads from the project (tools/desk/reader.py), for a ruler when the
+        """The project's outline and shot table, for a ruler when the
         page itself has no segments; {} when they cannot be read. Read once."""
         if self._extra is None:
             self._extra = {}
             try:
-                sys.path.insert(0, str(ROOT / "tools" / "desk"))
-                import reader
-                r = reader.read_project(self.project)
+                import project_reader
+                r = project_reader.read_project(self.project)
                 self._extra = {"outline": r.get("outline") or [], "shots": (r.get("shots") or {}).get("items") or []}
             except Exception:   # the ruler is a help, never a reason for the page to fail
                 pass
         return self._extra
+
+    def default_storyboard(self, decision_ids):
+        """Use the project's shot table when an older storyboard pack has no segments."""
+        project = self.project_extra()
+        outline = {part["id"]: part for part in project["outline"]} if project else {}
+        grouped = {}
+        seen = set()
+        for shot in project.get("shots", []):
+            sid = txt(shot["id"]).strip()
+            if not sid or sid in seen:
+                continue
+            seen.add(sid)
+            grouped.setdefault(shot["seg"], []).append(
+                {"id": sid, "t0": shot["start"], "t1": shot["end"], "frame": shot["frame"],
+                 "see": txt(shot.get("label")), "vo": txt(shot.get("vo") or shot.get("caption")), "note": ""})
+        result = []
+        for i, (key, shots) in enumerate(grouped.items(), 1):
+            part = outline.get(key, {})
+            sid = f"storyboard-{i}"
+            while sid in decision_ids:
+                sid += "-"
+            result.append({"id": sid, "title": part.get("title") or self.t["board"],
+                           "t0": part.get("t0"), "t1": part.get("t1"), "shots": shots})
+        return result
 
     # ---- what goes on the ruler ------------------------------------------------------------------------------
     def marks(self):
@@ -1069,30 +1034,21 @@ class Page:
                 f'<footer class="g-foot">{"".join(x for x in foot if x)}</footer></article>')
 
     def render(self):
-        """The static page: the gate view with ui.css and ui.js inlined, so it opens from disk with no server; with its stop's
-        module above it (module_payload) when the stop has one and the project reads."""
-        self.settled = stop_settled(self.project, self.gate)   # a page of a stop settled since: a record
-        body = self.body()   # normalizes first: the title may come from the gate's name
+        """Render a standalone page that opens from disk."""
+        self.settled = stop_settled(self.project, self.gate)
+        body = self.body()
         t, title, film = self.t, self.name(), brief_title(self.project) or self.project.name
-        try:
-            data = module_payload(self.project, self.gate, self.out, self.marks(), self.lang)
-        except Exception as e:   # an old project, a file that does not read: the page is the gate view alone
-            data = None
-            self.warn(f"the stop's module above the page left out ({type(e).__name__}: {e})")
-        mod_css = f'<style>{static_file("modules.css")}</style>' if data else ""
-        mod_js = (f'<script type="application/json" id="ovh-data">{data}</script>'
-                  + "".join(f"<script>{static_file(n)}</script>" for n in ("core.js", "modules.js", "static.js"))) if data else ""
         return (f'<!doctype html><html lang="{t["html_lang"]}"><head><meta charset="utf-8">'
                 f'<meta name="viewport" content="width=device-width, initial-scale=1">'
                 f'<title>{esc(title)} · {esc(film)}</title>'
-                f'<style>{static_file("ui.css")}</style>{mod_css}<script>{HEAD_JS}</script></head><body>'
+                f'<style>{static_file("ui.css")}</style><script>{HEAD_JS}</script></head><body>'
                 f'<header class="top"><div class="wrap"><span class="mark">OVH</span><nav class="crumbs">'
                 f'<span class="cr"><b>{esc(film)}</b></span><span class="cr hide-s"><span class="sep">/</span><span>{esc(title)}</span></span></nav>'
                 f'<div class="top-tools"><details class="tmenu"><summary class="btn btn-quiet">{t["theme"]}</summary><div class="themes" role="group" aria-label="{t["theme"]}">'
                 + "".join(f'<button type="button" data-theme-set="{k}" aria-pressed="false">{n}</button>' for k, n in zip(("darkfield", "prism", "bridge"), t["themes"]))
                 + '</div></details></div></div></header>'
                 f'<main class="wrap">{body}</main>'
-                f'<script>{static_file("ui.js")}</script>{mod_js}</body></html>\n')
+                f'<script>{static_file("ui.js")}</script></body></html>\n')
 
     def chat(self, page_path):
         """The whole chat message: plain text, no markup."""
@@ -1293,14 +1249,6 @@ def page_for(project, gate, link=None, live=False, lang=None):
     return page
 
 
-def stage_for(project, film, link):
-    """The project page's picture when no gate waits (the console): the film with the ruler of the project's outline and
-    shots, in the gate view's player markup."""
-    page = Page(Path(project), Path(project) / "BRIEF.md", {"summary": "·", "decisions": []}, "stage", link=link, live=True)
-    page.normalize()
-    return page.player({"path": film, "caption": "", "poster": "", "t0": None, "t1": None, "for": ""})
-
-
 def main():
     ap = argparse.ArgumentParser(description="Build the decision-first review page from out/review/gate-<n>.json")
     ap.add_argument("project", help="project directory, or its folder name under projects/")
@@ -1396,7 +1344,7 @@ def publish(project, gate_arg=None, shown=None):
     segs = data["segments"]
     what = (f"{page.title()} · {len(data['decisions'])} decision(s) · {len(segs)} segment(s) · "
             f"{sum(len(s['shots']) for s in segs)} shot(s)")
-    if page.errors:   # not sent, so not this round either: the desk and its watcher stay on the page that is out
+    if page.errors:   # not sent, so not this round either: the current page stays in place
         print(f"✗ {page_path} written with {len(page.errors)} problem(s) above ({what}); fix them before sending, "
               "so no chat message this time", file=sys.stderr)
         try:   # and bin/vh status: the person got nothing from this run
@@ -1404,7 +1352,7 @@ def publish(project, gate_arg=None, shown=None):
         except OSError as e:
             print(f"can't write {_refused_file(project, gate)}: {e.strerror or e}", file=sys.stderr)
         return 1, page, page_path
-    try:   # the page just made is "this round" for the review desk and its watcher, whatever its name or the order of
+    try:   # the page just made is "this round" for the project, whatever its name or the order of
         # the stops (a concept page 1b after gate 2, a voice page E3b after gate 3, a page called "final")
         (rdir / ".current").write_text(gate + "\n", encoding="utf-8")
         _refused_file(project, gate).unlink(missing_ok=True)

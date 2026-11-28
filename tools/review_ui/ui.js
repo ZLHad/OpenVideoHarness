@@ -1,8 +1,5 @@
 "use strict";
-/* OpenVideoHarness review UI: the one script of a gate view, shared by the static review page (bin/vh review inlines this
-   file, so it runs from disk with no server) and the console (bin/vh desk serves it, and studio.js mounts each gate view
-   with hooks that send the picks through the desk's submission channel). It reads only the page's own markup (tools/review.py
-   writes it) and keeps no state of its own beyond the light/dark choice. No framework, no network. */
+/* Controls for the standalone review page. */
 (function () {
   const $ = (s, el) => (el || document).querySelector(s), $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const clock = (x) => { if (x == null || isNaN(x)) return "–"; x = Math.max(0, x); const m = Math.floor(x / 60), s = x - m * 60; return `${m}:${s.toFixed(1).padStart(4, "0")}`; };

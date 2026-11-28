@@ -12,7 +12,7 @@
 - Watch on: {watch}  <!-- 主要在哪看，定字号下限和可读性检查缩到多宽（playbook/03 §4）：phone 手机竖屏；feed 横屏片放在手机信息流里，竖着拿、不转屏；desktop 电脑，或手机转成横屏全屏。bin/vh new 按画幅填了默认值，人说了发在哪就照着改 -->
 - Pace: normal  <!-- relaxed | normal | brisk：画面文字读得多从容，定 bin/vh readcheck 的目标（playbook/03 §2）。relaxed 讲解、论文、书信体，观众边读边想；normal 大多数片子；brisk 快剪、梗、卡点 MV。bin/vh new 给 math、paper 写 relaxed，meme 写 brisk，其余 normal。底线（够快读一遍）不随它变；某一段要换挡，在合成里标 data-pace -->
 - Resolution: {res}  <!-- 交付哪几种：1080p、4k、1080p, 4k（4k 是合成尺寸的 2 倍），默认 1080p。4k 照常按 1080p 写合成和字号，出片时渲成 4K（HyperFrames `render --resolution 4k`，竖屏 `portrait-4k`，方形 `square-4k`，4:5 没有 4K 预设；Manim `-qk --fps 30`；Remotion `--scale=2`）；canvas、Three.js、手绘引擎和出 4K 前的检查见 playbook/01 "规格"、engines/README.md "出 4K" -->
-- Review language: zh  <!-- zh | en：审阅页和审阅台的界面语言，按用户第一句话的语言定（bin/vh new --lang）；字幕和项目文档照旧用项目自己的语言 -->
+- Review language: zh  <!-- zh | en：审阅页的语言，按用户第一句话的语言定（bin/vh new --lang）；字幕和项目文档照旧用项目自己的语言 -->
 - Engine: {HyperFrames | Remotion | Manim CE | ClaudeAnimationBase (p5.brush) | other}
 - Platform / audience: {where it plays, who watches, sound-on or muted}
 - Language: {zh-CN | en}, narration: {TTS voice | user recording | song | none}
@@ -28,7 +28,7 @@
 
 ## Outline
 <!-- 关卡 ① 的大纲，段数跟片子走（playbook/09-narrative.md 第 3 节）。段名按内容或阶段起，看名字就知道这段讲什么，例如"按下发送 / 信道编码与调制 / 基站接住"；起承转合、幕这类结构标签最多写进"标签"列，可以不写。
-     审阅台按这张表画时间条（列名的约定见 tools/desk/README.md）；时间写"0–10 s"，有配乐时也可以加"小节"列。 -->
+     审阅页按这张表画时间条；时间写"0–10 s"，有配乐时也可以加"小节"列。 -->
 | # | 段落 | 标签 | 时间 | 观众看完知道 / 感到 | 关键画面 |
 |---|---|---|---|---|---|
 | 1 | {按内容起的段名} | {可不写：起 / 承 / 转 / 合} | {0–10 s} | {…} | {…} |

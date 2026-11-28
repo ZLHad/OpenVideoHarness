@@ -28,7 +28,7 @@
 
 <p align="center"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#tour"><img src="docs/assets/films/tour.zh.jpg" width="960" alt="介绍片封面：AI 做的视频，想改哪改哪。点开在官网带声音播放"></a></p>
 
-<p align="center"><sub>动手前可以先看一遍。5 分 17 秒的介绍片，中文配音和字幕：怎么装，三种用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。点图到官网带声音看，或下载 <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a>（164 MB）/ <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a>（740 MB）。这支片子也是用它做的。</sub></p>
+<p align="center"><sub>动手前可以先看一遍。5 分 17 秒的介绍片，中文配音和字幕：v0.10.0 的安装和用法，一支 33 分钟的真片怎么一步步做出来，在 Studio 里怎么审。点图到官网带声音看，或下载 <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a>（164 MB）/ <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a>（740 MB）。这支片子也是用它做的。</sub></p>
 
 需要 macOS 或 Linux、Git、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 [uv](https://github.com/astral-sh/uv)，以及已登录的 Claude Code 或 Codex。[完整要求](#要求成本和限制)
 
@@ -36,9 +36,10 @@
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
-装好后选一个入口开片。哪个顺手用哪个，从哪里开的片子都会出现在 Studio 里。
+> 想体验 Studio App，也可以安装 [Studio v0.10.0](#打开-studio)。
 
-- **Studio**。从应用程序打开 **OVH Studio**，也可在安装目录运行 `bin/vh studio`。在右边选择 Claude Code 或 Codex。看到适配器安装提示时点「装上」，再发送需求。
+装好后，在 Claude Code 或 Codex 里开始做片。
+
 - **终端**。在默认安装目录运行 `cd ~/OpenVideoHarness && codex` 或 `cd ~/OpenVideoHarness && claude`，再发送需求。
 - **Claude Code 或 Codex 的桌面 App**。把安装目录（默认 `~/OpenVideoHarness`）当作项目打开，直接发送需求。
 - **在别的文件夹里**。安装时已经给 Claude Code 和 Codex 各注册了一个叫 `open-video-harness` 的 skill。所以不管开着哪个项目，说一句"做一支视频……"，agent 都会找到工作台照着做。片子默认建在工作台的 `projects/` 下，想放在别处就说一声。只想装这个 skill，见[安装选项](#安装更新和国内网络)。
@@ -125,7 +126,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 用哪个模型、想多深，都在“在这里聊”那一栏里选，Studio 记得你上次的选择。Codex 那一栏点 **选模型和思考深度**，它先开一个空对话，读出你的账号能用的模型，选好再发送需求。
 
-点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者运行 `bin/vh studio`，都会打开同一个窗口。精品档默认在 Studio 审阅。Studio 显示 agent 正在等反馈时，点"发出去"就能叫醒它；其余情况发出去以后回原对话说一声"我发了"。标准档在 Studio 开着时也在 Studio 审，没开时发静态审阅页；也可以指定用哪个。界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](tools/desk/README.md)
+界面有中文和英文，三套深色主题：暗场、棱镜、舰桥。[打开 Studio](#打开-studio) · [Studio 文件约定](https://github.com/ZLHad/OpenVideoHarness/blob/v0.10.0/tools/desk/README.md)
 
 <table>
 <tr>
@@ -136,9 +137,13 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 ### 打开 Studio
 
-点 **OVH Studio** 图标、对 agent 说"打开 Studio"，或者在终端里运行 `bin/vh studio`（`bin/vh studio <项目>` 直接打开到那支片子），出来的都是同一个窗口，再叫一次只是把它带回最前面。关掉窗口，Studio 还在后台开着，正在干活的 agent 接着干；再点图标，窗口回到原来的地方；退出 OVH Studio，Studio 才停。放在别的文件夹里的片子，用 `bin/vh studio <项目>` 打开，也加进这一个窗口。
+用以下命令安装 [Studio v0.10.0 体验版](https://github.com/ZLHad/OpenVideoHarness/releases/tag/v0.10.0)。安装后从应用程序打开 **OVH Studio**。体验版放在 `~/OpenVideoHarness-Studio-Preview`，Skills 仍按上面的路径安装。
 
-图标没装上时，`bin/vh studio --install-icon` 补装。没有 OVH Studio 时，窗口用电脑上的 Chrome、Edge、Chromium 或 Brave；这几样都没有，就开在默认浏览器的一个标签页里。
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash -s -- --studio
+```
+
+如需打开已有影片，从体验版目录运行 `bin/vh studio <影片目录>`。
 
 ## 能做出什么
 
@@ -250,7 +255,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 6. **关卡 ③：初版**：给你看初版、联系表、评审分数和它最不满意的地方。你说不清哪里不对时，它把同一段做成两三个版本让你挑。
 7. **出片**：成片过一遍 `bin/vh check`，这次踩的坑写进项目的 `LESSONS.md`。
 
-几条从不放松的规则：每一帧只由 t 决定；有声音时声音定时长；先分镜后代码；数字、引文、论文信息照抄原文，拿不准的不编进片子；API key 只放在环境变量或 Studio 设置页（系统钥匙串）里，绝不写进文件。
+几条从不放松的规则：每一帧只由 t 决定；有声音时声音定时长；先分镜后代码；数字、引文、论文信息照抄原文，拿不准的不编进片子；API key 只放在环境变量或系统钥匙串里，绝不写进文件。
 
 **量到什么就公开什么，对自己不利的也一样。** 我们做过两次小规模盲评：[docs/research/06](docs/research/06-concept-first-ab.md) 里，按流程做的片子点子更新，但评审觉得只守底线的两支做工更好、两次选它们去发；[docs/research/10](docs/research/10-page-vs-workflow.md) 拿不用引擎（`--engine page`）对默认流程盲评，平均 6.92 对 7.09 不分高下。评审指出的问题后来都变成了检查，其余记录在[研究笔记](docs/research/README.md)里。
 
@@ -270,7 +275,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 ## 工具一览
 
-工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 74 条命令，每条命令加 `-h` 看用法。
+工具跟着做片子的顺序走：想、找料、做、查和交付。下表每个名字都是一条 `bin/vh` 命令；`bin/vh commands` 按流程阶段列出全部 72 条命令，每条命令加 `-h` 看用法。
 
 | | 命令 | 做什么 |
 |---|---|---|
@@ -291,7 +296,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 | | `edit` | 把片子写成剪辑表：页面、图片、实拍素材、别的片子和声音排成一列 |
 | | `words` | 查旁白稿和字幕稿里模型顺手的句式（"不是 A 而是 B"、三连排比、下结论的冒号这些）：在哪、多密，由你决定改不改；它不改稿 |
 | | `tts` · `music` · `captions` · `mix` | 配音、用代码写的配乐、字幕、混音（见[声音](#声音)） |
-| **查和交付** | `studio` · `gate` · `desk` | 叫出 [Studio](#studio) 的窗口；一条命令停下来等你拍板；`desk` 是 Studio 背后的控制台，也能只开一支片子的审阅台 |
+| **查和交付** | `gate` | 生成本地审阅页，在关卡等你拍板 |
 | | `frames` · `sheet` · `determinism` | 无损取帧、联系表，以及查每一帧是不是真的只由 t 决定 |
 | | `check` | 对着 Brief 查成片：黑场、定格、静音、闪烁、字幕、色彩标记、响度 |
 | | `render` | 分块并行渲 MP4，中断了能续渲，每次渲染都留一个版本 |
@@ -300,7 +305,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 | | `artifacts` | 项目里每种文件是什么、谁写的；这支片子有什么、缺什么、什么过期了 |
 | | `projects` · `cancel` · `history` | 所有项目和各自到哪了；停下一条正在跑的命令，并在记录里写清楚；你和 agent 写的文本的退路 |
 
-`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 44 个外接模块（程序、包、模型和联网服务）里的哪些。
+`bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 40 个外接模块（程序、包、模型和联网服务）里的哪些。
 
 ## 引擎、类型和素材库
 
@@ -316,7 +321,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 | Manim CE，可选更快的后端 [ManimGX](engines/manimgx.md) | 数学和机制 | 数学、科学讲解，论文讲解 |
 | [Blender](engines/blender.md) 5.2，可选 | 路径追踪的光影、物理、真实景深；或者把 3D 资产整理好交给 Three.js 层 | 网页引擎做不到的镜头 |
 
-想自由发挥、做创意或实验短片，也可以**不用现成引擎**：`bin/vh new <type> <slug> --engine page` 只放一个守页面合约（[`engines/CONTRACT.md`](engines/CONTRACT.md)）的空白 `film.html`，不装依赖，画什么、用什么库由你定，取帧、出片、检查和 Studio 审阅工具照样用（见 [`engines/page/README.md`](engines/page/README.md)）。Remotion 在几份类型文档里列为备选，没有样片用它，要手动初始化（见 [engines/README.md](engines/README.md)）。
+想自由发挥、做创意或实验短片，也可以**不用现成引擎**：`bin/vh new <type> <slug> --engine page` 只放一个守页面合约（[`engines/CONTRACT.md`](engines/CONTRACT.md)）的空白 `film.html`，不装依赖，画什么、用什么库由你定，取帧、出片、检查和审阅页照样用（见 [`engines/page/README.md`](engines/page/README.md)）。Remotion 在几份类型文档里列为备选，没有样片用它，要手动初始化（见 [engines/README.md](engines/README.md)）。
 
 ### 视频类型
 
@@ -396,7 +401,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 
 哪一档都不放松的：事实不编、有声片里没有突然的静音、画面不频闪、字不小于目标屏幕的下限、素材许可记清楚、没有预算不调付费接口。
 
-想管得更细，可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面。点了名的，它出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来是一条命令（`bin/vh gate`）。`standard` 档默认生成一个本地审阅页：画面在前，要你定的事是能点的卡片，没把握的地方标在播放器下面的标尺上，点一下跳到那一秒；Studio 开着时，`standard` 档的这一站改开在 Studio 里。`studio` 档默认停在 [Studio](#studio) 里，打开在等你的那一站，你一提交 agent 就接着做。两种页面都有中英文，跟着你第一句话的语言走。
+想管得更细，可以点名自己定钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面。每次停下来用 `bin/vh gate` 生成审阅页，画面、选项和时间标记都在页上，回复发回对话。审阅页支持中英文。
 
 ## 要求、成本和限制
 
@@ -410,40 +415,38 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 | LaTeX | Manim 里的公式 |
 | Blender 5.2 | 只有路径追踪的镜头和整理 3D 模型才要；沙箱目前只在 macOS 上有 |
 
-- **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住。API Key 从环境变量读，或者用 Studio 设置页里存的（见 [API Key](#api-key)）。
+- **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住。API Key 从环境变量或系统钥匙串读取（见 [API Key](#api-key)）。
 - **时间**：30 秒的标准档片子大约 1–2 小时，大部分花在自查和返工上。
 - **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，在一台云端容器（Ubuntu 24.04，x86_64）里做过七支有声片（[研究笔记 10](docs/research/10-page-vs-workflow.md)），事先要备好的三样见 [engines/README.md](engines/README.md#linux渲染前要先备好的三样)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
 
 ### API Key
 
-配音默认用这台电脑上的声音，不用 API Key。在线服务（Gemini、MiniMax、ElevenLabs、阿里云百炼）要用各家网站上的 API Key。把它粘贴到 Studio 的设置页（设置 → 服务）：存在这台电脑的钥匙串里（Linux 上是 Secret Service），不写进任何文件，终端里和 Studio 的对话里，每条命令都找得到。
-
-没有这样的地方可存时，把 key 写进终端每次启动都会读的那个文件（macOS 是 `~/.zshrc`，多数 Linux 是 `~/.bashrc`），再开一个新终端，从那里打开 Studio：
+默认的本地配音无需密钥。用在线服务时，在启动 agent 的终端里设置服务所需的环境变量。此前已存在系统钥匙串里的同名密钥也可以读取，环境变量优先。
 
 ```bash
-echo 'export GEMINI_API_KEY=把你的key粘贴在这里' >> ~/.zshrc
+export GEMINI_API_KEY='your-provider-key'
 ```
 
-其他几家的变量名，设置页上都写着。这样设的 key，比 Studio 里存的同名 key 先用。有 API Key 不等于有预算：出图、Lyria 作曲和按次计费的配音（MiniMax 按量付费、ElevenLabs、阿里云百炼）没写预算就不调；本机的声音、Gemini（逐字对时、试音也一样，先用免费额度）和 MiniMax 的 Token Plan key 照旧用。
+付费接口还需在项目里设置预算。
 
 ## 安装、更新和国内网络
 
-默认给两个 agent 注册 skill，约占 400 MB。37 个只读参考仓库安装时不拉：agent 用到文档指的那一个时再拉，拉之前先说多大；`--refs` 在安装时一次拉全（再约 300 MB）。Studio 应用另占约 380 MB，含缓存的安装包。
+默认给两个 agent 注册 skill，约占 400 MB。37 个只读参考仓库安装时不拉：agent 用到文档指的那一个时再拉，拉之前先说多大；`--refs` 在安装时一次拉全（再约 300 MB）。
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # 装到别的位置
 bash install.sh --refs                           # 安装时就把 37 个参考仓库拉全（约 300 MB）
 bash install.sh --mirror cn                      # 直接用国内镜像（--mirror off：不用；不写时先试官方源）
+bash install.sh --studio                          # 安装 Skills 和 Studio 体验版
 bash install.sh --no-skill                       # 不注册全局 skill
-bash install.sh --no-icon                        # 不把 OVH Studio 放进应用程序（以后 bin/vh studio --install-icon 再放）
 ```
 
-- 安装时什么都不问。macOS 和 Linux 桌面上，它会把 OVH Studio（Studio 自己的窗口）放进应用程序（Electron：第一次下载约 130 MB，占约 260 MB 磁盘）；哪一步没成，它用一句话说接下来做什么。最后几行说清这台机器能不能做第一支片、还缺什么、怎么补，配音在这台机器上怎么来，以及两种开始的办法：点 OVH Studio，或者在这个文件夹里打开 Claude Code 或 Codex，说你想做什么片子（完整的报告在 `bin/vh doctor`）。
+- 安装结束时会说明这台机器能否制作第一支片子、缺什么以及怎么补。完整报告可运行 `bin/vh doctor`。
 - 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
 - 更新：用同样的参数再运行一次安装命令（或者 `git pull`）；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。装出去的 skill 是指回克隆里 `skills/` 的短桩，跟着一起更新；少数要重装的时候（`bin/vh install-skill`），`bin/vh doctor` 会说。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。
 - **首次运行的额外缓存下载**：第一次渲染和第一次用声音工具会往 `~/.cache` 下载依赖：Chrome 约 200 MB，声音工具的 Python 依赖约 0.7 GB，默认的本地配音约 2.6 GB（依赖 0.8 GB、模型 1.8 GB；`bin/vh tts` 开始前会先说，并显示进度；`--provider edge` 只要一个小包）；`--align local` 用的本地 Whisper 另需约 3.6 GB，同样先说（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。
-- **国内网络自动切镜像**：安装时先试官方的 npm 源、Hugging Face 和 Google 的存储（各试两次），哪个连不上、它的国内镜像连得上，就改用国内镜像（npmmirror、清华 TUNA、hf-mirror，列在 `tools/mirrors.txt`），并说明是哪个、为什么。之后 `bin/vh` 起的下载都跟着走：npm、Python 包、本地配音模型、Electron、渲染用的 Chrome，还有 Studio 起的 agent 自己跑的 `npm`、`uv`。你自己设过的源（`.npmrc`、`uv.toml` 或那个变量）不动。`bin/vh settings mirror off` 关掉；这之前装的，`bin/vh settings mirror cn` 打开。不走镜像的：GitHub（克隆本身、`references/fetch.sh`、`--obscura`）、`bin/vh hf add`、`bin/vh hdri`（Poly Haven），以及手绘引擎的 studio 页面加载的 Google Fonts。其余细节见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
+- **国内网络自动切镜像**：安装时先试官方的 npm 源、Hugging Face 和 Google 的存储（各试两次），哪个连不上、它的国内镜像连得上，就改用国内镜像（npmmirror、清华 TUNA、hf-mirror，列在 `tools/mirrors.txt`），并说明是哪个、为什么。之后 `bin/vh` 起的下载都跟着走：npm、Python 包、本地配音模型，以及渲染用的 Chrome。你自己设过的源（`.npmrc`、`uv.toml` 或那个变量）不动。`bin/vh settings mirror off` 关掉；这之前装的，`bin/vh settings mirror cn` 打开。不走镜像的：GitHub（克隆本身、`references/fetch.sh`、`--obscura`）、`bin/vh hf add`、`bin/vh hdri`（Poly Haven），以及手绘引擎的 studio 页面加载的 Google Fonts。其余细节见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 
 只装 skill，作为 agent 的插件装（各两条终端命令；`--sparse` 只取插件自己的目录，约 2 MB，不拉整个仓库）：
 
@@ -473,7 +476,7 @@ codex plugin add open-video-harness@open-video-harness
 | 引擎、页面合约、剪辑表 | [engines/](engines/README.md)、[CONTRACT.md](engines/CONTRACT.md)、[EDIT.md](engines/EDIT.md) |
 | 社区作品的 15 个案例拆解，以及本仓库自己做的片子和全部过程记录 | [cases/](cases/README.md)、[showcase/](showcase/) |
 | 我们量过什么、因此改了什么 | [docs/research/](docs/research/README.md) |
-| Studio：怎么打开、每个模块读什么写什么 | [tools/desk/README.md](tools/desk/README.md) |
+| Studio：怎么打开、每个模块读什么写什么 | [tools/desk/README.md](https://github.com/ZLHad/OpenVideoHarness/blob/v0.10.0/tools/desk/README.md) |
 | 命令行 | `bin/vh commands`、`bin/vh help`，每条命令加 `-h` |
 | 新手教程、排错、常见问题 | [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
 

@@ -28,7 +28,7 @@ Plenty of tools can turn a sentence or two into a video. The hard part is doing 
 
 <p align="center"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#tour"><img src="docs/assets/films/tour.en.jpg" width="960" alt="Poster of the walk-through film: edit any shot of an AI-made video. Opens it on the website with sound"></a></p>
 
-<p align="center"><sub>Watch it before you start. A 5-minute 17-second walk-through, narrated and subtitled in Chinese: installing it, three ways in, how a real 33-minute film was made step by step, and how it was reviewed in Studio. Click the poster to watch it on the website with sound, or download it in <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a> (164 MB) or <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a> (740 MB). It was made with the harness too.</sub></p>
+<p align="center"><sub>Watch it before you start. A 5-minute 17-second walk-through, narrated and subtitled in Chinese: installing and opening v0.10.0, how a real 33-minute film was made step by step, and how it was reviewed in Studio. Click the poster to watch it on the website with sound, or download it in <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-1080p-3750c1a5.mp4">1080p</a> (164 MB) or <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/tour-film-4k-1cf1059a.mp4">4K</a> (740 MB). It was made with the harness too.</sub></p>
 
 You need macOS or Linux, Git, Node.js 22+, Chrome, FFmpeg, Python 3 with [uv](https://github.com/astral-sh/uv), and a signed-in Claude Code or Codex installation. [Requirements and limits](#requirements-cost-and-limits)
 
@@ -36,9 +36,10 @@ You need macOS or Linux, Git, Node.js 22+, Chrome, FFmpeg, Python 3 with [uv](ht
 curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 ```
 
-Choose where to start your film. Use whichever suits you: a film started anywhere shows up in Studio.
+> To try the Studio app, install the [Studio v0.10.0 preview](#open-studio).
 
-- **Studio.** Open **OVH Studio** from Applications, or run `bin/vh studio` from the install folder. Select Claude Code or Codex in the agent column and choose **Set it up** if the adapter is missing. Send your request there.
+Start a film from Claude Code or Codex.
+
 - **Terminal.** In the default install folder, run `cd ~/OpenVideoHarness && codex` or `cd ~/OpenVideoHarness && claude`, then send your request.
 - **The Claude Code or Codex desktop app.** Open the install folder (`~/OpenVideoHarness` by default) as the project and send your request.
 - **From any other folder.** The installer registers a skill named `open-video-harness` with Claude Code and with Codex. So whichever project is open, ask for a video and the agent finds the workbench and follows it. Films go under the workbench's `projects/` unless you name another place. To install the skill alone, see [install options](#install-options-and-updates).
@@ -125,7 +126,7 @@ The right-hand column also talks straight to the agents on this machine (Claude 
 
 Which model to use and how hard it thinks are picked under “Chat here” in the column, and Studio remembers your last choice. In the Codex column, **Choose model and effort** opens an empty chat and reads out the models your account offers before you send your request.
 
-Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` to open the same window. The `studio` level uses Studio for reviews by default. When Studio shows the agent is waiting, submission wakes it. Otherwise, return to the chat after submitting and say “I've sent it”. The `standard` level uses Studio while Studio is open, and a review page otherwise. You can also ask for either. Studio comes in English and Chinese, in three dark themes: Darkfield, Prism and Bridge. [Open Studio](#open-studio) · [Studio file reference](tools/desk/README.md)
+The interface is bilingual and has three themes: Darkfield, Prism, and Bridge. [Open Studio](#open-studio) · [Studio file contract](https://github.com/ZLHad/OpenVideoHarness/blob/v0.10.0/tools/desk/README.md)
 
 <table>
 <tr>
@@ -136,9 +137,13 @@ Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh stu
 
 ### Open Studio
 
-Click the **OVH Studio** icon, tell your agent "open Studio", or run `bin/vh studio` in a terminal (`bin/vh studio <project>` lands on that film): it's the same window each time, and asking again only brings it to the front. Closing the window leaves Studio running in the background, so an agent at work carries on; click the icon again and the window comes back where it was; quitting OVH Studio is what stops it. A film kept in another folder joins this same window when you open it with `bin/vh studio <project>`.
+Install the [Studio v0.10.0 preview](https://github.com/ZLHad/OpenVideoHarness/releases/tag/v0.10.0) with the command below, then open **OVH Studio** from Applications. The preview installs in `~/OpenVideoHarness-Studio-Preview`, alongside the Skills checkout.
 
-If the icon isn't there, `bin/vh studio --install-icon` adds it. Without OVH Studio, the window is your Chrome, Edge, Chromium or Brave; with none of those, a tab of your default browser.
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash -s -- --studio
+```
+
+To open an existing film, run `bin/vh studio <project>` from the preview folder.
 
 ## What it makes
 
@@ -270,7 +275,7 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 74 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 72 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|
@@ -291,7 +296,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `edit` | The film as an edit list: pages, images, footage, other films and sounds in a row |
 | | `words` | The script read for the sentence shapes model drafts reach for ("not A, but B", rule-of-three lists, a colon that hands over the verdict): where they are and how often, for you to decide; it never edits |
 | | `tts` · `music` · `captions` · `mix` | Voiceover, a score written as code, subtitles, the mix ([Sound](#sound)) |
-| **Check and deliver** | `studio` · `gate` · `desk` | Brings up [Studio](#studio)'s window; a stop for your sign-off in one command; `desk` is the console behind Studio, and can also open one film's review desk on its own |
+| **Check and deliver** | `gate` | Builds a local review page for your sign-off |
 | | `frames` · `sheet` · `determinism` | Lossless frames, contact sheets, and a check that each frame really is a function of t |
 | | `check` | The rendered film against its brief: black, frozen or silent stretches, flashes, subtitles, colour tags, loudness |
 | | `render` | An MP4 drawn in parallel, resumable chunks, each render kept as a version |
@@ -300,7 +305,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `artifacts` | Every kind of file a project holds: what it is and who writes it; what this project has, lacks and has out of date |
 | | `projects` · `cancel` · `history` | Every project and where it stands; a running command stopped, with its end on record; a way back for the text you and the agent write |
 
-`bin/vh doctor` says which of the 44 outside programs, packages, models and services this machine can use (`tools/modules.json`).
+`bin/vh doctor` says which of the 40 outside programs, packages, models and services this machine can use (`tools/modules.json`).
 
 ## Engines, types and libraries
 
@@ -396,7 +401,7 @@ The level sets how closely the agent checks its own work and how many review rou
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, type no smaller than the floor for the target screen, licences on record, and no paid call without a budget.
 
-For finer control, name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. Each stop is one command (`bin/vh gate`). At `standard` it builds a local review page by default, with the picture first: the decisions are cards to click, and the places the agent is least sure of sit on the ruler under the player, a click away. While Studio is open, a `standard` stop opens there instead. At `studio` the stop is in [Studio](#studio) by default, opened at the stop that waits for you, and the agent carries on as soon as you submit. Both come in English or Chinese, following your first request.
+Name the decisions you want to make yourself, such as the hook, voice, script, storyboard, title or cover. At each stop, `bin/vh gate` builds a local page with the footage, options and timing marks. Reply in the conversation. Review pages are available in English and Chinese.
 
 ## Requirements, cost and limits
 
@@ -410,40 +415,38 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 | LaTeX | formulas in Manim |
 | Blender 5.2 | only for path-traced shots and preparing 3D models; its sandbox is macOS-only for now |
 
-- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made. API keys come from the environment or from Studio's settings ([API Key](#api-key)).
+- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made. API keys come from the environment or the system key store ([API Key](#api-key)).
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
 - **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker) and seven films with sound in a cloud container (Ubuntu 24.04, x86_64; [research note 10](docs/research/en/10-page-vs-workflow.md)), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 
 ### API Key
 
-Voices are made on this computer by default and need no API Key. An online service (Gemini, MiniMax, ElevenLabs, Alibaba Cloud Model Studio) needs the API Key from its own site. Paste it into Studio's settings (Settings → Services): it's kept in the computer's Keychain (on Linux, the Secret Service), never written into a file, and every command finds it, in the terminal and in Studio's chat.
-
-Where there is no such store, put the key in the file your terminal reads each time it starts (`~/.zshrc` on macOS, `~/.bashrc` on most Linux), then open a new terminal and start Studio from it:
+Local voiceover needs no key. For an online service, set its environment variable in the terminal that starts your agent. Previously saved system keys are still read, with environment variables taking precedence.
 
 ```bash
-echo 'export GEMINI_API_KEY=paste-your-key-here' >> ~/.zshrc
+export GEMINI_API_KEY='your-provider-key'
 ```
 
-The settings page lists the other services' names. A key set this way is used before one saved in Studio, name by name. An API Key isn't a budget: pictures, Lyria music and voices billed per use (MiniMax pay-as-you-go, ElevenLabs, Alibaba Cloud Model Studio) are not made without a budget, while this computer's own voices, Gemini (word timing and auditions too, its free tier first) and MiniMax's Token Plan key are used as before.
+Paid calls also require a project budget.
 
 ## Install options and updates
 
-By default the installer registers the skills for both agents and uses about 400 MB on disk. The 37 read-only reference repos agents can read are not fetched then: an agent fetches the one a doc points to when it first needs it, saying its size first; `--refs` fetches them all now (about 300 MB more). The Studio app uses about 380 MB more, including its cached installer.
+By default the installer registers the skills for both agents and uses about 400 MB on disk. The 37 read-only reference repos agents can read are not fetched then: an agent fetches the one a doc points to when it first needs it, saying its size first; `--refs` fetches them all now (about 300 MB more).
 
 ```bash
 bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
 bash install.sh --refs                           # fetch all 37 reference repos now (about 300 MB)
 bash install.sh --mirror cn                      # use the mainland-China mirrors (--mirror off: never; without it the official sources come first)
+bash install.sh --studio                          # install Skills and the Studio preview
 bash install.sh --no-skill                       # don't register the global skill
-bash install.sh --no-icon                        # leave OVH Studio out of your applications (bin/vh studio --install-icon adds it later)
 ```
 
-- Nothing asks a question. On macOS and on a Linux desktop the installer puts OVH Studio, Studio's own window, in your applications (Electron: about 130 MB downloaded once, 260 MB on disk); when a step fails it says what to do next in one sentence. It ends with a few lines: ready for a first film or not, what it still needs and how to get it, how a voice comes on this machine, and the two ways to start: click OVH Studio, or open Claude Code or Codex in the folder and say what film you want (`bin/vh doctor` has the full report).
+- The installer reports whether the machine can make its first film and how to address missing dependencies. Run `bin/vh doctor` for the full report.
 - The installer fetches only the newest commit: the repo itself is about 95 MB to download and 200 MB on disk, before its packages and the reference repos. To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
 - To update, run the installer again with the same options (or `git pull`); `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed. The installed skills are short stubs that read `skills/` in the clone, so they follow the update; `bin/vh doctor` says in the rare case one needs `bin/vh install-skill` again.
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where its scripts expect them.
 - **First-run cache downloads.** The first render and the first use of the sound tools download more into `~/.cache`: Chrome about 200 MB, the sound tools' Python packages about 0.7 GB, and the default local voice about 2.6 GB (its packages 0.8 GB, its model 1.8 GB), which `bin/vh tts` says before it starts and shows the progress of (`--provider edge` needs only a small package). The local Whisper behind `--align local` is about 3.6 GB more, said the same way (measured 2026-11; where each goes is on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started)).
-- **Mainland-China mirrors.** Where the official sources are blocked, the installer tries the official npm registry, Hugging Face and Google's storage first (twice each), and when one does not answer and its mainland-China mirror does, it switches to the mirrors (npmmirror, Tsinghua's TUNA, hf-mirror, listed in `tools/mirrors.txt`) and says which and why. From then on the downloads `bin/vh` starts follow: npm, Python packages, the local voice's model, Electron, the Chrome renders use, and an agent's own `npm` or `uv` in a session Studio started. A registry you set yourself (an `.npmrc`, a `uv.toml`, the variable) stays yours. `bin/vh settings mirror off` turns it off; installed before this, `bin/vh settings mirror cn` turns it on. Not covered: GitHub (the clone itself, `references/fetch.sh`, `--obscura`), `bin/vh hf add`, `bin/vh hdri` (Poly Haven) and the Google Fonts the hand-drawn engine's studio page loads. More on the wiki's [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) page.
+- **Mainland-China mirrors.** Where the official sources are blocked, the installer tries the official npm registry, Hugging Face and Google's storage first (twice each), and when one does not answer and its mainland-China mirror does, it switches to the mirrors (npmmirror, Tsinghua's TUNA, hf-mirror, listed in `tools/mirrors.txt`) and says which and why. From then on the downloads `bin/vh` starts follow: npm, Python packages, the local voice's model and the Chrome used for rendering. A registry you set yourself (an `.npmrc`, a `uv.toml`, the variable) stays yours. `bin/vh settings mirror off` turns it off; installed before this, `bin/vh settings mirror cn` turns it on. Not covered: GitHub (the clone itself, `references/fetch.sh`, `--obscura`), `bin/vh hf add`, `bin/vh hdri` (Poly Haven) and the Google Fonts the hand-drawn engine's studio page loads. More on the wiki's [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) page.
 
 Skill only, as a plugin of the agent's (two shell commands each; `--sparse` fetches the plugin's own folders, about 2 MB, not the whole repo):
 
@@ -473,7 +476,7 @@ Or `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-
 | Engines, the page contract, edit lists | [engines/](engines/README.md), [CONTRACT.md](engines/CONTRACT.md), [EDIT.md](engines/EDIT.md) |
 | 15 case studies of community work, and the repo's own films with every step on record | [cases/](cases/README.md), [showcase/](showcase/) |
 | What we measured, and what changed because of it | [docs/research/](docs/research/en/README.md) |
-| Studio: how to open it, what each module reads and writes | [tools/desk/README.md](tools/desk/README.md) |
+| Studio: how to open it, what each module reads and writes | [tools/desk/README.md](https://github.com/ZLHad/OpenVideoHarness/blob/v0.10.0/tools/desk/README.md) |
 | The CLI | `bin/vh commands`, `bin/vh help`, any command with `-h` |
 | Tutorials, troubleshooting, FAQ | the [wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
 

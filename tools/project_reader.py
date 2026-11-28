@@ -1,20 +1,10 @@
-"""Review desk, core: read one project folder into the desk's data (one JSON object).
-
-The project's markdown and JSON stay the only source of truth: this module reads them and writes nothing. What it
-reads is the contract in tools/desk/README.md (BRIEF Spec / Content / Outline, SCRIPT's caption or narration table,
-NOTES 素材清单, DECISIONS, REVIEW, shots.json, out/review/gate-*.json, the score's beat map, out/review/feedback/).
-What it cannot parse is not lost: every project doc also comes back as safe HTML (render_md), and the desk shows that
-wherever a structured view would be empty, with a warning that says what was not found.
-
-Paths in the output are relative to the project; the desk serves them under /p/.
-"""
+"""Read the project documents and metadata used by status and the local review page."""
 import html, json, os, re, sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import review as R   # noqa: E402  (tools/review.py: merge_includes, review_lang, the gate names)
-import packcheck as PC   # noqa: E402  (tools/packcheck.py: PACKAGING.md's copy for each platform, as bin/vh check reads it)
-import shot_source as SS   # noqa: E402  (tools/shot_source.py: where the project's shot table is)
+import review as R   # (tools/review.py: merge_includes, review_lang, the gate names)
+import packcheck as PC   # (tools/packcheck.py: PACKAGING.md's copy for each platform, as bin/vh check reads it)
+import shot_source as SS   # (tools/shot_source.py: where the project's shot table is)
 
 DOCS = ["BRIEF.md", "STORYBOARD.md", "SCRIPT.md", "STYLE.md", "NOTES.md", "DECISIONS.md", "REVIEW.md",
         "LESSONS.md", "PACKAGING.md", "CHARACTER.md"]
@@ -714,7 +704,7 @@ def _packaging(text):
 
 
 def read_project(project):
-    """The whole desk data for a project folder (see tools/desk/README.md for every key)."""
+    """Read the project's documents, outline, and shot table."""
     project = Path(project).resolve()
     warnings = []
     brief, script, notes = (_read(project / n, warnings) for n in ("BRIEF.md", "SCRIPT.md", "NOTES.md"))
