@@ -64,7 +64,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 </tr>
 <tr>
 <td valign="top"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="100%" alt="Studio 的 17 秒演示：窗口打开，光标拖着播放头看片，点住 0:05 那一秒，写下一句意见，画面照着改了，最后点头放行"></a><br><sub>17 秒看 Studio：看、指、说、定。点开是带声音的那一版。</sub></td>
-<td valign="top"><b>整个流程，在一个窗口里。</b><br>在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整个制作流程：每支片子走到哪一站、在等谁，一眼看到；审片时指着一秒写一句，攒几条一起交给 agent；要你拍板的事是几张卡，点一下就定。用起来就四个动作：<b>看</b>片子走到哪，<b>指</b>住某一秒或一个镜头，<b>说</b>一句想怎么改，在卡片上<b>定</b>下来。外观、语言、默认用哪个 agent、各家在线服务的 API Key，都在 Studio 的设置页里改，不用碰配置文件。</td>
+<td valign="top"><b>整个流程，在一个窗口里。</b><br>在原来的 skill 和命令行之上，我们做了可视化的 Studio 窗口，让你更方便地掌握整个制作流程：每支片子走到哪一站、在等谁，一眼看到；审片时指着一秒写一句，攒几条一次发出去；要你拍板的事是几张卡，点一下就定。用起来就四个动作：<b>看</b>片子走到哪，<b>指</b>住某一秒或一个镜头，<b>说</b>一句想怎么改，在卡片上<b>定</b>下来。外观、语言、默认用哪个 agent、各家在线服务的 API Key，都在 Studio 的设置页里改，不用碰配置文件。</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="影片之海坍缩，上面写着“差的是什么”"><br><sub>立意那一站上的原话："玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"。</sub></td>
@@ -252,7 +252,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 几条从不放松的规则：每一帧只由 t 决定；有声音时声音定时长；先分镜后代码；数字、引文、论文信息照抄原文，拿不准的不编进片子；API key 只放在环境变量或 Studio 设置页（系统钥匙串）里，绝不写进文件。
 
-**量到什么就公开什么，对自己不利的也一样。** 我们做过一次小的盲评（[docs/research/06](docs/research/06-concept-first-ab.md)）：按流程做的片子点子更新，但评审觉得只守几条底线的那两支做得更好，两次都选了它们去发。评审指出的问题后来都变成了检查。其余的在[研究笔记](docs/research/README.md)里。
+**量到什么就公开什么，对自己不利的也一样。** 我们做过两次小规模盲评：[docs/research/06](docs/research/06-concept-first-ab.md) 里，按流程做的片子点子更新，但评审觉得只守底线的两支做工更好、两次选它们去发；[docs/research/10](docs/research/10-page-vs-workflow.md) 拿不用引擎（`--engine page`）对默认流程盲评，平均 6.92 对 7.09 不分高下。评审指出的问题后来都变成了检查，其余记录在[研究笔记](docs/research/README.md)里。
 
 ### 需求示例
 
@@ -286,7 +286,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 | | `cast` | 项目里的角色、服装、道具和场景，定稿的参考图各放一个目录，`image gen --ref cast:<id>` 会带上它们 |
 | | `model3d` · `hdri` | 3D 模型放进来之前先读一遍；从 Poly Haven 取 CC0 的环境贴图给它打光 |
 | | `assets` | 片子用到的每个文件记在一本台账里：从哪来、什么许可、花了多少钱；交付前 `check`、出 `credits` |
-| **做** | `new` | 按模板建项目，大多数类型会一起搭好引擎 |
+| **做** | `new` | 按模板建项目，大多数类型会一起搭好引擎；加 `--engine page` 可以不用引擎、自己写页面 |
 | | `style` · `recipes` · `components` | 风格预设、镜头配方和镜头语法卡、动效组件 |
 | | `edit` | 把片子写成剪辑表：页面、图片、实拍素材、别的片子和声音排成一列 |
 | | `words` | 查旁白稿和字幕稿里模型顺手的句式（"不是 A 而是 B"、三连排比、下结论的冒号这些）：在哪、多密，由你决定改不改；它不改稿 |
@@ -316,7 +316,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 | Manim CE，可选更快的后端 [ManimGX](engines/manimgx.md) | 数学和机制 | 数学、科学讲解，论文讲解 |
 | [Blender](engines/blender.md) 5.2，可选 | 路径追踪的光影、物理、真实景深；或者把 3D 资产整理好交给 Three.js 层 | 网页引擎做不到的镜头 |
 
-Remotion 在几份类型文档里列为备选，没有样片用它，要手动初始化（见 [engines/README.md](engines/README.md)）。
+想自由发挥、做创意或实验短片，也可以**不用现成引擎**：`bin/vh new <type> <slug> --engine page` 只放一个守页面合约（[`engines/CONTRACT.md`](engines/CONTRACT.md)）的空白 `film.html`，不装依赖，画什么、用什么库由你定，取帧、出片、检查和 Studio 审阅工具照样用（见 [`engines/page/README.md`](engines/page/README.md)）。Remotion 在几份类型文档里列为备选，没有样片用它，要手动初始化（见 [engines/README.md](engines/README.md)）。
 
 ### 视频类型
 
