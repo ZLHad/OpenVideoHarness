@@ -349,7 +349,7 @@ A style is a reference, not a template: borrow one, mix several, or ignore them 
 
 - **[Recipes](recipes/README.md)**: 80 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 11 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
 - **Shot-grammar cards**: 24 shot-grammar cards in `recipes/shot/` for shot sizes, angles, the axis and camera moves, each saying what it does to the viewer and when to take it or not. A shot's choice goes into its `camera` field, and `bin/vh storyboard` prints it under the shot.
-- **[Components](components/README.md)**: 7 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
+- **[Components](components/README.md)**: 8 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures, and a plate that says where a fact comes from), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
 
 All of these are defaults to start from, not rules: a concept that needs something else simply does it.
 
@@ -412,7 +412,7 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 
 - **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made. API keys come from the environment or from Studio's settings ([API Key](#api-key)).
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
-- **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
+- **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker) and seven films with sound in a cloud container (Ubuntu 24.04, x86_64; [research note 10](docs/research/10-page-vs-workflow.md)), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 
 ### API Key
 
