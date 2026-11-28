@@ -2,7 +2,7 @@
 
 新项目一律建在 `projects/<date>-<slug>/` 下。本目录里的东西是模板，不要直接在里面改。
 
-最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（失败时留下项目、说清哪条命令补上，退出码是 1；现在没网就加 `--no-install`，先不装，它说之后用哪条命令补装，退出码是 0）。加 `--engine canvas-film` 时，不管哪一类，都改成复制旁白驱动的 canvas 引擎（下面"canvas-film"一节）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
+最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（失败时留下项目、说清哪条命令补上，退出码是 1；现在没网就加 `--no-install`，先不装，它说之后用哪条命令补装，退出码是 0）。加 `--engine canvas-film` 时，不管哪一类，都改成复制旁白驱动的 canvas 引擎（下面"canvas-film"一节）；加 `--engine page` 时不用引擎，只放一个按页面合约写的空页面（下面"page"一节）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
 
 ## ClaudeAnimationBase（p5.js + p5.brush），已装好
 
@@ -43,6 +43,20 @@ bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和�
   - 要画的帧超过 600 帧时，先在片中均匀取几帧画出来、按成片的设置编码，打印每帧耗时、预计用时、视频大概多大、渲染时磁盘最多要多少（各段加合并出的那份，约两倍），磁盘放不下就停（exit 2）。几秒钟；`--no-estimate` 跳过，`--estimate` 让短片也估。用时是按一个浏览器的速度除以 worker 数算的，几个浏览器共用一块 GPU 或机器忙时会更久。
   - 页面给出 `window.film.fps` 时（模板给的是 `FILM.fps`，颗粒每帧换一次），`--fps` 和它不一样会提醒，两个数都写出来；改帧率时两处一起改。之前复制的项目没有这个字段，`render` 直接读 `FILM.fps`，不用改。
   - `--out` 的相对路径和别的 `bin/vh` 命令一样，从当前目录算起。在仓库根目录跑 `--out out/x.mp4`，视频会在仓库的 `out/` 里，不在项目里，这时会把完整路径打出来；要放进项目，写项目里的路径，或者不写 `--out`（默认 `<项目>/out/<页面名>.mp4`）。
+
+## page（不用引擎，自己写页面），已装好
+
+完整说明：[`page/README.md`](page/README.md)。
+
+```bash
+bin/vh new <type> <slug> --engine page            # 一个 film.html 和它的说明，不用装依赖；任何类型、任何画幅（--aspect），4K 渲染时加 --dpr 2
+bin/vh frames projects/<date>-<slug> --at 1,5,9   # 建好就能取帧：模板是一个占位的空页面
+```
+
+- 片子就是一个自己写的页面：按页面合约（[`CONTRACT.md`](CONTRACT.md)）交出 `window.film`，画什么、怎么画、用哪个库都由 agent 定，canvas、SVG、DOM、WebGL 都行。
+- 宿主只认合约、不认引擎，所以 `bin/vh frames`、`render`、`patch`、`determinism`、`readcheck`、`textcheck`、`fonts check`、`storyboard` 和 Studio 都照样能用；`texts`、`shots` 写了，读时、被挡的字和分镜页才查得到、画得出。
+- 开工前读 `page/README.md`（合约、工具和工具查的底线），`standard` 和 `studio` 照 CLAUDE.md 第 2 步再读 `playbook/01` 的总表和规格；类型文档和其余文档按需查（CLAUDE.md 路由表的第一行"不用引擎"）。
+- 没有 canvas-film 那套挂在旁白上的镜头表、字幕排版和章节条；长片要它们时用 `--engine canvas-film`。
 
 ## HyperFrames（HTML + GSAP）
 
@@ -152,7 +166,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 ## Linux：渲染前要先备好的三样
 
-2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测，x86_64 没测。
+2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测。2026-11-27 又在一台云端容器（Ubuntu 24.04.5，x86_64，没有 GPU）里做了七支有声片（HyperFrames 和 page 两种，研究笔记 10）：x86_64 上 HyperFrames 钉的 chrome-headless-shell 能直接下载，没有下面第一条的问题；那台容器的中文字体只有文泉驿，几支片子从 npm 装了 OFL 字体（`@fontsource/…`）。精简的系统没有 rsync，`bin/vh new` 现在也不需要它。
 
 - **arm64 上的浏览器**：HyperFrames 固定的那一版没有 linux-arm64 的 chrome-headless-shell，它就自己用 apt 装系统的 Chromium。Ubuntu 的 `chromium-browser` 只是一个要 snapd 的空壳，Docker 和没有 snapd 的服务器上跑不起来：渲染报 `Target closed`，`browser ensure` 却说已经就绪。办法：先 `apt purge chromium-browser`，再 `npx @puppeteer/browsers install chrome-headless-shell --path ~/.cache/puppeteer` 下一份 linux-arm64 的（那次是 159 版，比固定的 152 新，字的排布可能有细微差别），然后把 `HYPERFRAMES_BROWSER_PATH` 指向里面的 `chrome-headless-shell`。`bin/vh` 的页面工具也会在 `~/.cache/puppeteer` 里找到它。
 - **Chrome 要的系统库**：报 `Target closed` 时，直接运行那个浏览器文件（`--version`），它会说缺哪个 `.so`。那台机器装过 ffmpeg 以后，只缺 `libnss3` 和 `libnspr4`。上面那条命令的 `--install-deps`（要 root）说能顺带装好这些库，没试过。

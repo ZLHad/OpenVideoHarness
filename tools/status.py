@@ -90,12 +90,13 @@ R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS, R_PITFALLS = (f"playbook/02-verification.
 R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playbook/02-verification.md#七层检查", "playbook/quick.md"
 R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
 R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md", "engines/EDIT.md", "engines/editing.md"
+R_OWN_PAGE = "engines/page/README.md"   # no engine (bin/vh new --engine page): the page contract, the tools and the floors they check
 R_4K = "engines/README.md#出 4K"   # read only for a film delivered in 4K (the BRIEF's Resolution)
 R_TYPE = "playbook/03-motion-design.md#4."   # the text-size floors by Watch on (a floor at every effort), read where the BRIEF is filled
 TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas", "12": "canvas"}
 OWN_STOP = G.OWN_STOP   # what a Director line can keep for the person (x=own), and its stop (tools/gatecheck.py)
 READS = (R_PAGE, R_DESK, R_STOPS, R_READS, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
-         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K, R_TYPE)
+         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_OWN_PAGE, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K, R_TYPE)
 
 
 def rel(project, p):
@@ -440,19 +441,22 @@ def shown(project):
 
 
 def engine_named(proj):
-    """The engine the BRIEF's Engine line names first (a concept can change the type's own): hf, manim, p5, canvas, or other (Remotion:
-    no commands here); with the line not filled in, the type's own, or None."""
+    """The engine the BRIEF's Engine line names first (a concept can change the type's own): hf, manim, p5, canvas, page (no
+    engine: a page of the agent's own, bin/vh new --engine page), or other (Remotion: no commands here); with the line not
+    filled in, the type's own, or None."""
     line = (proj["spec"].get("Engine") or "").lower()
     if not line or "{" in line:
         return TYPE_ENGINE.get((proj["type"] or "")[:2])
+    if re.match(r"page\b", line.strip()):
+        return "page"
     m = re.search(r"hyperframes|manim|claudeanimationbase|p5|canvas", line)
     return {"hyperframes": "hf", "manim": "manim", "canvas": "canvas"}.get(m.group(0), "p5") if m else "other"
 
 
 def engine_here(project, proj):
     """The engine this project runs on: what its files show (page: a page of its own, which bin/vh render draws), else the named one."""
-    if (project / "edit.json").is_file() or (project / "film.html").is_file():
-        return "canvas"
+    if (project / "edit.json").is_file() or (project / "film.html").is_file():   # canvas-film's, or the page path's own film (Engine: page)
+        return "page" if engine_named(proj) == "page" else "canvas"
     if (project / "hyperframes.json").is_file():
         return "hf"
     if (project / "render.mjs").is_file():
@@ -516,7 +520,8 @@ def render_cmd(project, proj, final):
         return f"(cd {p} && node render.mjs --clip --out={name})"
     if engine == "manim":
         return f"(cd {p} && uv run manim {manim_quality(proj, final)} scene.py <Scene>)"
-    return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}"
+    k4 = engine == "page" and final and re.search(r"4k|2160p|uhd", (proj["spec"].get("Resolution") or "").lower())
+    return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}" + (" --dpr 2" if k4 else "")
 
 
 def old_mac():
@@ -579,7 +584,7 @@ def hf_chrome_note(project, proj):
 def engine_docs(project, proj):
     """What to read for this project's engine at the first picture: its section or guide, and the edit list's where it goes through one."""
     kind, engine = (proj["type"] or "")[:2], engine_here(project, proj)
-    doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM}.get(engine)
+    doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM, "page": R_OWN_PAGE}.get(engine)
     k4 = engine == "hf" and re.search(r"4k|2160p|uhd", (proj["spec"].get("Resolution") or "").lower())   # HyperFrames' 4K steps; the others' are in their own docs
     return [doc, R_EDITING if kind == "09" else None, R_EDIT if kind == "11" or (project / "edit.json").is_file() else None, R_4K if k4 else None]
 
@@ -695,8 +700,10 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
         return scaffold_first()
     check = [f"bin/vh check {p}"]
     # what the scenes need to be right: 02's seven layers and budget, and its sections after the frame commands (quick reads less: playbook/quick.md)
-    writing = [] if quick else [R_LAYERS, R_BUDGET, R_PURE, R_SILENT, R_COLOUR, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS, R_PITFALLS,
-                                R_ROLES if long_film or proj["effort"] == "studio" else None]
+    own_page = engine_here(project, proj) == "page"   # no engine: the card (engines/page/README.md) instead of the type doc and the methods
+    writing = [] if quick else [R_BUDGET, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS] if own_page else [
+        R_LAYERS, R_BUDGET, R_PURE, R_SILENT, R_COLOUR, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS, R_PITFALLS,
+        R_ROLES if long_film or proj["effort"] == "studio" else None]
     also = P.film_of(project)[1]
     named = film and film + (f" (also here: {P.also_here(project, also)})" if also else "")   # the film in a sentence
 
@@ -739,7 +746,9 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
                                                          else "NOTES.md's material first, then concept cards that really differ, a frame each, and the outline (the user's own words already settle the concept: no cards, "
                                                          "their words and 定了 under 关卡 ① in REVIEW.md, one message that says what you will make and where it stops, and carry on); "
                                                          "bin/vh gate's message tells the person where this film stops", say) if x),
-                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_TYPE, R_IDEAS, R_CARDS, None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
+                   cmds, ([R_OWN_PAGE, R_TYPE, None if quick else R_CARDS] if own_page else
+                          [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_TYPE, R_IDEAS, R_CARDS])
+                   + [None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, R_DESK if proj["effort"] == "studio" else None, None if own_page else R_FRAMES])
     if key == "2":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),
@@ -749,7 +758,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
             plan_first = "the shots and their reads in STORYBOARD.md or shots.json before the scenes (no stop for it: the person sees it on gate ③'s page)" if two_stop else ""
             return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]) if quick else fill(["STYLE.md", "STORYBOARD.md"]) if two_stop else "", plan_first, first_scenes()) if x),
                        [engine_setup(project, proj), frame_cmd(project, proj), render_cmd(project, proj, False)],
-                       [*engine_docs(project, proj), R_READS if two_stop else None, R_FRAMES, *writing, R_LONG if long_film else None])
+                       [*engine_docs(project, proj), R_READS if two_stop else None, None if own_page else R_FRAMES, *writing, R_LONG if long_film else None])
         if fstate in ("unchecked", "stale"):
             return out("agent", busy + f"check {named} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_BUDGET, R_FRAMES, R_PHONE, R_SILENT])
         if fstate == "failed":
@@ -768,7 +777,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
         unset = f"the engine is not installed yet: {later} (it needs the network) before the scenes" if later else None
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final", unset) if x),
                    [effort if quick else None, engine_setup(project, proj) or later, render_cmd(project, proj, not quick)],
-                   [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, R_TYPE, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
+                   ([*engine_docs(project, proj), R_TYPE, R_PHONE] if own_page else [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, R_TYPE, *engine_docs(project, proj), R_PHONE]) if quick
+                   else [*engine_docs(project, proj), None if own_page else R_FRAMES, *writing])
     if fstate in ("unchecked", "stale"):
         return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),
                    check + ([f"bin/vh sheet {p}/{film}"] if not is_final(film) else []), [R_PHONE] if quick else [])

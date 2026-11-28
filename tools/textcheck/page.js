@@ -358,7 +358,8 @@
       let texts = null;
       if (v && v.texts) try { texts = JSON.parse(JSON.stringify(typeof v.texts === "function" ? v.texts() : v.texts)); } catch (e) { texts = { error: String(e) }; }
       return { draw: !!(v && typeof v.draw === "function"), texts, duration: +((v && v.duration) || (root && root.dataset.duration) || 0),
-        canvases: document.querySelectorAll("canvas").length, subtitles: document.querySelectorAll('[data-read="subtitle"]').length, ui: !!(v && v.ui) };
+        canvases: document.querySelectorAll("canvas").length, subtitles: document.querySelectorAll('[data-read="subtitle"]').length, ui: !!(v && v.ui),
+        width: +(window.film && window.film.width) || 0, height: +(window.film && window.film.height) || 0 };   // the page's own size (engines/CONTRACT.md)
     },
     // the scene under the interface's boxes at these times (window.film.ui and frame(t, { layer: "scene" })); fw x fh is
     // the frame. ignored: the scene layer drew the interface too (a page that does not take the option)

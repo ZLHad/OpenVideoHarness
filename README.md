@@ -64,7 +64,7 @@ The agent keeps the source and exports together in the film's project folder. Wi
 </tr>
 <tr>
 <td valign="top"><a href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en#studio"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/studio-loop-7cfdbd0b.gif" width="100%" alt="Studio in 17 seconds: the window opens, the cursor drags the playhead through the film, pins second 0:05, a note is written, the picture changes to match, and the cut is approved"></a><br><sub>Studio in 17 seconds: look, point, say, decide. Click for the version with sound.</sub></td>
-<td valign="top"><b>The whole process, in one window.</b><br>On top of the skills and the command line, we built Studio, a visual window that makes the whole production easier to keep in hand: where each film has got to and who it waits for, at a glance; in review, point at a second and write a line, then hand a few of them to the agent together; what you decide is a few cards, a click each. It comes down to four moves: <b>look</b> at where the film has got to, <b>point</b> at a second or a shot, <b>say</b> what to change, and <b>decide</b> on a card. Its look, its language, the default agent and the API keys of online services are all set on Studio's settings page, with no config file to touch.</td>
+<td valign="top"><b>The whole process, in one window.</b><br>On top of the skills and the command line, we built Studio, a visual window that makes the whole production easier to keep in hand: where each film has got to and who it waits for, at a glance; in review, point at a second and write a line, then send a few of them together; what you decide is a few cards, a click each. It comes down to four moves: <b>look</b> at where the film has got to, <b>point</b> at a second or a shot, <b>say</b> what to change, and <b>decide</b> on a card. Its look, its language, the default agent and the API keys of online services are all set on Studio's settings page, with no config file to touch.</td>
 </tr>
 <tr>
 <td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="A sea of films collapsing under the words What's missing?"><br><sub>Said at the concept stop: "glass, cosmos, a starry sky… dizzying".</sub></td>
@@ -252,7 +252,7 @@ A film then goes like this:
 
 A few rules never relax: every frame depends only on t; when there is sound, it sets the timing; the storyboard comes before code; numbers, quotes and paper details are copied from the source, and anything uncertain stays out; API keys stay in environment variables or Studio's Keychain settings, never in files.
 
-**We publish what we measure, including when it goes against us.** In one small blind test ([docs/research/06](docs/research/en/06-concept-first-ab.md)), the workflow's films had the fresher ideas, but the reviewer found the films made with only a few floor rules better made, and would have posted those. What it flagged became checks. The [research notes](docs/research/en/README.md) have the rest.
+**We publish what we measure, including when it goes against us.** We ran two small blind comparisons: in [docs/research/06](docs/research/en/06-concept-first-ab.md), the workflow's films had the fresher ideas while the floors-only films were judged better made and picked to publish twice; in [docs/research/10](docs/research/en/10-page-vs-workflow.md), the no-engine path (`--engine page`) against the default workflow tied on average (6.92 vs 7.09). What reviewers flagged became checks; the [research notes](docs/research/en/README.md) have the rest.
 
 ### Example prompts
 
@@ -286,10 +286,10 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `cast` | A project's characters, costumes, props and sets as settled reference pictures, which `image gen --ref cast:<id>` sends along |
 | | `model3d` · `hdri` | A 3D model read before it goes in; a CC0 environment map from Poly Haven to light it |
 | | `assets` | One ledger for every file a film uses: where it came from, its licence, what it cost; `check` and `credits` before delivery |
-| **Make** | `new` | A project from the templates; for most types the engine comes set up too |
+| **Make** | `new` | A project from the templates; for most types the engine comes set up too (`--engine page` skips the engines for a single page of your own) |
 | | `style` · `recipes` · `components` | The style presets, the shot recipes and shot-grammar cards, the motion components |
 | | `edit` | The film as an edit list: pages, images, footage, other films and sounds in a row |
-| | `words` | The script read for the sentence shapes model drafts reach for (不是 A 而是 B, 排比 in threes, a colon that hands over the verdict): where they are and how often, for you to decide; it never edits |
+| | `words` | The script read for the sentence shapes model drafts reach for ("not A, but B", rule-of-three lists, a colon that hands over the verdict): where they are and how often, for you to decide; it never edits |
 | | `tts` · `music` · `captions` · `mix` | Voiceover, a score written as code, subtitles, the mix ([Sound](#sound)) |
 | **Check and deliver** | `studio` · `gate` · `desk` | Brings up [Studio](#studio)'s window; a stop for your sign-off in one command; `desk` is the console behind Studio, and can also open one film's review desk on its own |
 | | `frames` · `sheet` · `determinism` | Lossless frames, contact sheets, and a check that each frame really is a function of t |
@@ -316,7 +316,7 @@ It isn't a rendering engine. It sits on top of these and tells the agent how to 
 | Manim CE, with [ManimGX](engines/manimgx.md) as an optional faster backend | Math and mechanisms | Math and science explainers, paper talks |
 | [Blender](engines/blender.md) 5.2, optional | Path-traced light, physics, real depth of field; or a 3D asset tidied for the Three.js layer | The shots a web engine can't do |
 
-Remotion appears in a few type docs as an alternative; no showcase film uses it, and it is set up by hand ([engines/README.md](engines/README.md)).
+For creative or experimental shorts, you can also **skip the engines**: `bin/vh new <type> <slug> --engine page` creates a bare `film.html` that follows the page contract ([`engines/CONTRACT.md`](engines/CONTRACT.md)) with nothing to install — draw it however you like, and frame capture, rendering, checks and Studio review all still work ([`engines/page/README.md`](engines/page/README.md)). Remotion appears in a few type docs as an alternative; no showcase film uses it, and it is set up by hand ([engines/README.md](engines/README.md)).
 
 ### Video types
 
@@ -349,7 +349,7 @@ A style is a reference, not a template: borrow one, mix several, or ignore them 
 
 - **[Recipes](recipes/README.md)**: 80 shot recipes (how one shot or one seam moves: its phases, frame counts, the parameters that mustn't drop, where it goes wrong) and 11 whole-film skeletons (an energy arc and a hold budget for a whole film). `bin/vh recipes list --intent … --energy …` filters them; each recipe with a code sketch comes with its rendered sample sheet.
 - **Shot-grammar cards**: 24 shot-grammar cards in `recipes/shot/` for shot sizes, angles, the axis and camera moves, each saying what it does to the viewer and when to take it or not. A shot's choice goes into its `camera` field, and `bin/vh storyboard` prints it under the shot.
-- **[Components](components/README.md)**: 7 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
+- **[Components](components/README.md)**: 8 motion components (a spring scene, a page turn, paper transitions, a chapter bar, a build-up of pieces, a film finish for pictures that come out too clean, a stage for a tutorial's operations: typing, a keyboard, a cursor and real captures, and a plate that says where a fact comes from), each a state computed from t with thin painters for canvas, the DOM or Three.js. `bin/vh components add` copies one into a project.
 
 All of these are defaults to start from, not rules: a concept that needs something else simply does it.
 
@@ -412,7 +412,7 @@ For finer control, name what you want to decide yourself: the hook, the look, th
 
 - **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made. API keys come from the environment or from Studio's settings ([API Key](#api-key)).
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
-- **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
+- **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker) and seven films with sound in a cloud container (Ubuntu 24.04, x86_64; [research note 10](docs/research/en/10-page-vs-workflow.md)), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 
 ### API Key
 

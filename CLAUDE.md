@@ -10,8 +10,8 @@
 
 ## 接到"做视频"的请求时
 
-0. **定档位、停在哪和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），在哪几处停下来给人看，人要亲自拍板哪些事，规则见下面三节。`quick` 照 `playbook/quick.md` 做。
-1. **判断类型**：用路由表找到类型文档，整篇读（文末的"来源"是出处列表，核对事实时再查）；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题（`quick` 没有关卡，需求有歧义时最多问 1 个）。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
+0. **定档位、停在哪和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），在哪几处停下来给人看，人要亲自拍板哪些事，规则见下面三节。`quick` 照 `playbook/quick.md` 做（走路由表第一行"不用引擎"时照 `engines/page/README.md`）。
+1. **判断类型**：用路由表找到类型文档，整篇读（文末的"来源"是出处列表，核对事实时再查）；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节；走路由表第一行"不用引擎"时，类型文档按需查）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题（`quick` 没有关卡，需求有歧义时最多问 1 个）。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
 2. **读流程和自查**：开工前只读 `playbook/01-pipeline.md` 的"总表"和"规格"（`bin/vh know --show "playbook/01-pipeline.md#..规格"` 打印这两节）；有配音或音乐时再读 `playbook/04-audio.md`。建好项目，先跑 `bin/vh effort <档位>`：它只打印这一档在每一项上做多少（"努力程度"表里的一列）和底线。别的现在不用读：每到一站先跑 `bin/vh status <项目>`，读 `next:` 下面 `read:` 列的那几节（`bin/vh know --show "<文件>#<节>"` 只打印一节），以它为准。比如：第一道关卡读 01 的"每处交什么"和"审阅页"（用审阅台再读"审阅台"），写场景前读 `playbook/02-verification.md` 的"七层检查""预算"和"各引擎的取帧命令"，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。
 3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令：`bin/vh commands --stage <阶段> --brief`（阶段即 01 总表的 0–9）。用户不用中文时加 `--lang en`（审阅页的语言），旁白稿和字幕也用用户的语言；字幕一行多长、读多快见 `video-types/02-knowledge-short.md` 第 5 步（英文一行 ≤ 42 字符、≤ 20 字符/秒）和 `playbook/03-motion-design.md` 第 2 节，命令见 `playbook/04-audio.md` 的"配音"。
 4. **先想立意，再看参考**：先读材料，把只属于它的数字、原话、物件记进 NOTES.md 的素材清单，再自己想几个方向（方法见 `playbook/12-ideation.md` 第 3 节，按需用）。直接、准确、有情绪地组织材料本身就是立意；装置让内容变难懂时，退回直接讲。先自己想，再看 Prompt 增量块、`styles/`、`recipes/` 和案例，点子不容易往看过的东西上靠。要人选方向时，收敛成几张有实际差异的立意卡（够人选就行，通常两三张）；人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考在类型文档的"可参考的案例"和"社区 skill 参考"两节；`showcase/` 是本仓库自己做的片子，各带 BRIEF、STORYBOARD、NOTES 和源码；`references/repos/` 是只读的源码，文档指向的目录没拉下来时，`bash references/fetch.sh <目录>` 只拉那一个。分镜时拿不准的镜头和全片节奏可以查 `recipes/`（`bin/vh recipes list`）；用了配方就把 id 写进 STORYBOARD，写代码前读全文。
@@ -79,6 +79,7 @@
 
 | 用户想要 | 读 | 首选引擎 |
 |---|---|---|
+| 不照模板、不用现成引擎：创意短片、实验短片，用户说"自由发挥""不用照模板""你自己定怎么做"，或者下面没有贴切的类型（任何类型都行） | 开工前读 `engines/page/README.md`（合约、工具和工具查的底线），`standard` 和 `studio` 照第 2 步再读 01 的总表和规格；类型文档、playbook、配方、风格按需用 `bin/vh know` 查；档位、关卡和底线照旧 | 不用引擎：`bin/vh new <type> <slug> --engine page`，自己写一个页面 |
 | 数学、物理、算法的原理讲解，3b1b 风格 | `video-types/01-math-science-explainer.md` | Manim CE |
 | 知识科普短视频，竖屏或横屏（抖音、B站、小红书、视频号、Shorts） | `video-types/02-knowledge-short.md` | HyperFrames |
 | 产品宣传、发布片、App 或 SaaS 介绍、功能演示 | `video-types/03-product-promo.md` | HyperFrames |
@@ -104,7 +105,7 @@
 - 新点子：`playbook/12-ideation.md`；某种风格：`styles/README.md`；镜头怎么动、全片的节奏：`recipes/README.md`；
 - 社区 skill 和画风库：`references/community-skills.md`；同类型的社区作品和提示词：`cases/opus55-gallery.md`（想完立意再看；3D 长片深读在它的第 6 节）。
 
-以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `DECISIONS.md` 里写明理由。
+以上都不贴切、又想用现成引擎时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `DECISIONS.md` 里写明理由。
 
 ## 硬规则
 
@@ -148,7 +149,7 @@ OpenVideoHarness/
 ├── cases/                    真实案例拆解；opus55-gallery 是社区作品精选
 ├── showcase/                 本仓库自己做的片子（成片在 GitHub Release `media`，tools/fetch_media.sh 下载）
 ├── docs/research/            研究笔记：量过的几件事和因此改了什么；是实验记录，不是规则
-├── engines/                  ClaudeAnimationBase（内置）+ 其他引擎的说明
+├── engines/                  ClaudeAnimationBase、canvas-film（内置）、page（不用引擎，只守页面合约）+ 其他引擎的说明
 ├── references/               fetch.sh 拉取的参考仓库（repos/，只读，不入库）、community-skills.md、open-source.md
 └── projects/                 实际的视频项目（不入库）
 ```

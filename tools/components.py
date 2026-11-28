@@ -171,7 +171,12 @@ def add(project, wanted):
         if first:
             print(f'    <script type="module">import * as {re.sub(r"[^a-z]", "", first)} from "./components/{first}/component.js"; …</script>')
         print("    (engines/README.md 最小写法: a paused timeline, a driver tween that calls your draw(t))")
-    if (project / "film.html").is_file():
+    page = (project / "film.html").is_file() and re.search(r"^- Engine: page\b", (project / "BRIEF.md").read_text(encoding="utf-8") if (project / "BRIEF.md").is_file() else "", re.M)
+    if page:   # no engine (bin/vh new --engine page): film.html's own module script imports what it uses
+        print('  page: in film.html\'s <script type="module">: import * as OVH from "./components/lib/index.js"'
+              + (f'; import * as {re.sub(r"[^a-z]", "", first)} from "./components/{first}/component.js"' if first else ""))
+        print("    then OVH.setFrame({ w: W, h: H, fps: FPS, dpr: DPR }) once, and the component's state and painter inside frame(t)")
+    elif (project / "film.html").is_file():
         print('  canvas-film: in film.html, before your scripts: <script type="module" src="components/lib/global.js"></script>')
         print("    then OVH.grain(X, t, {…}), OVH.paper(X, {…}) … from the classic scripts; in ready: OVH.setFrame({ w: W, h: H, fps: FILM.fps, dpr: PRX })")
         threes = [n for n in got if n != "lib" and "three" in (slots_of(n).get("painters") or [])]
