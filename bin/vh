@@ -224,31 +224,6 @@ cmd_install_skill() { # writes a stub for each skill in skills/: its frontmatter
   echo "   a git pull here updates the skill; run this again only when bin/vh doctor's skills line says so (a renamed skill, a new one, a changed description)."
   return $rc
 }
-cmd_studio() { # stdlib only; the desk it starts runs under this same bash. Before it opens (not for -h or the icon's own
-  # status, install and removal), this clone's stubs that are behind are written again (skills_refresh), quietly for
-  # --print-address and --json, whose output is read by a program
-  export OVH_BASH=$BASH
-  case " $* " in *" -h "*|*" --help "*|*" --icon-status "*|*" --install-icon "*|*" --remove-icon "*) ;;
-    *" --print-address "*|*" --json "*) skills_refresh quiet ;; *) skills_refresh ;; esac
-  exec python3 "$ROOT/tools/desk/studio.py" "$@"
-}
-skills_refresh() { # skills_refresh [quiet]: before Studio opens, the stubs install-skill wrote for this clone and nobody changed
-  # since, that are behind skills/ (a changed description, a stub of the shape before the mark), written again; only those files
-  # (tools/doctor.py --stale-skills): never a skill folder of someone else's, a whole copy (npx skills add), a stub edited by hand
-  # or one pointing at another clone, and no skill added that was not installed for that host. One line on stderr when it wrote
-  # something or could not; none otherwise, and none with quiet
-  local f n w=0 no=0
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    n=$(basename "$(dirname "$f")")
-    [ -f "$ROOT/skills/$n/SKILL.md" ] || continue
-    if stub_write "$(dirname "$(dirname "$f")")" "$n"; then w=$((w + 1)); else no=$((no + 1)); fi
-  done < <(python3 "$ROOT/tools/doctor.py" --stale-skills 2>/dev/null)
-  [ "${1:-}" = quiet ] && return 0
-  [ $w = 0 ] || echo "skills: $w stub$([ $w = 1 ] || echo s) this clone wrote brought up to date (restart Claude Code or Codex to see them)" >&2
-  [ $no = 0 ] || echo "skills: $no stub$([ $no = 1 ] || echo s) could not be written; bin/vh doctor says which" >&2
-  return 0
-}
 cmd_settings() { # this machine's settings (tools/settings.py, -h); the mirror turned on also fetches HyperFrames' Chrome from it now,
   # since HyperFrames cannot be pointed at a mirror itself
   if [ "${1:-}" = chrome ]; then   # settings chrome [project]: HyperFrames' Chrome from the mirror now, when the mirror is on and it is not here
@@ -483,7 +458,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
   case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
-    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|desk:agents|desk:link|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|cast:frames|hf:add|components:add|style:apply|style:check|style:compare|style:gallery|style:register|style:readme|style:list) shift ;;
   esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
@@ -501,7 +476,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|peaks|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check|cancel|history) ;; *) return 0 ;; esac
+  case $cmd in review|gate|storyboard|rhythm|clean|style|versions|proxy|thumbs|peaks|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check|cancel|history) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -918,7 +893,7 @@ PY
     quick) echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide." ;;
     studio) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review: at the concept and the first draft, and at the storyboard too"
             echo "              when the film is long, a heavy 3D render or paid (the BRIEF's Stops line; bin/vh status says the plan),"
-            echo "              in the review desk (bin/vh desk): tick, comment and submit in the page, and it carries on." ;;
+            echo "              on the review page (bin/vh gate): read it and reply in the chat." ;;
     *) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review: at the concept and the first draft, and at the storyboard too"
        echo "              when the film is long, a heavy 3D render or paid (the BRIEF's Stops line; bin/vh status says the plan)." ;;
   esac
@@ -1080,10 +1055,8 @@ cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser o
   local b=""; b=$(film_browser thumbs "$(arg_dir "$@")" 2>/dev/null) || true
   python3 "$ROOT/tools/proxy.py" thumbs ${b:+--browser "$b"} "$@"; }
 cmd_peaks() { [ $# -gt 0 ] || { cmd_usage peaks >&2; exit 2; }; python3 "$ROOT/tools/peaks.py" "$@"; }       # ffmpeg only; a repeat none
-cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate >&2; exit 2; }   # exec: stopping a backgrounded gate --wait stops its watcher;
-  export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
-cmd_desk() { # stdlib only: no uv, works offline; exec, so stopping a backgrounded bin/vh desk stops the server itself.
-  exec python3 "$ROOT/tools/desk/desk.py" "$@"; }   # no project: the console (every project bin/vh projects finds)
+cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate >&2; exit 2; }
+  exec python3 "$ROOT/tools/gate.py" "$@"; }
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves);
   # $1 = the slug or scene folder: a Blender scene (swatch.py and no swatch.js) does not need it
@@ -1577,7 +1550,7 @@ case " $* " in *" --json "*) VH_JSON=1 ;; esac
 # with --json, no python3 is said as any failure is (bin/vh doctor --json has its own record for it)
 if [ -n "$VH_JSON" ] && [ "${1:-}" != doctor ] && ! command -v python3 >/dev/null 2>&1; then vh_fail missing_tool 127 "bin/vh ${1:-}: python3 not found: most commands need it" "bin/vh doctor says how to get it"; fi
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel|peaks|history|studio) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel|peaks|history) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     words) cmd_usage words; echo; exec python3 "$ROOT/tools/words.py" -h ;;   # + what it reads, the checks and the --json fields
@@ -1587,9 +1560,8 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|settings|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words|studio) ;;   # (new: once the project is made; words only reads; studio opens a page, and the desk it starts logs its own run)
+  ""|help|-h|--help|setup|install-skill|settings|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new|words) ;;   # new logs once the project is made
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
-  desk) case "${2:-}" in data|agents) ;; *) act_start "$@" || true ;; esac ;;   # agents: no project (it installs into a cache)
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   sfx) [ "${2:-}" = search ] || act_start "$@" || true ;;   # search only reads
   bgm|sound) case "${2:-}" in pick|add) act_start "$@" || true ;; esac ;;   # search and list only read
@@ -1629,8 +1601,6 @@ case "${1:-help}" in
   components) shift; cmd_components "$@" ;;
   review) shift; cmd_review "$@" ;;
   concept) shift; cmd_concept "$@" ;;
-  desk) shift; cmd_desk "$@" ;;
-  studio) shift; cmd_studio "$@" ;;   # stdlib only; the desk it starts runs under this same bash
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only

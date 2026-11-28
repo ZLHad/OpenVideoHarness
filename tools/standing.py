@@ -11,9 +11,7 @@ between two commands: a quiet film says when the last thing happened, never that
 that ended with no end record and whose process is gone, or a Studio turn that was stopped or broke, with nothing after it;
 and the offer to carry on is an offer.
 
-Reads what bin/vh status has read (its record) and a few small things beside it: the review's listening flag
-(tools/desk/feedback.py), the time the last submission was handed over (feedback/.consumed), the console's agent lock
-(<project>/.ovh/agent.lock), the tail of the newest conversation log (<project>/.ovh/agents/*.jsonl), the newest change
+Reads what bin/vh status has read (its record) and a few small things beside it: saved review feedback (tools/review_feedback.py), the time the last submission was handed over (feedback/.consumed), and the tail of the newest saved conversation log (<project>/.ovh/agents/*.jsonl), the newest change
 among the film's own files (a walk of at most a few thousand entries, not out/, media/, renders/), and ps for the agent a
 run recorded. It starts, asks and writes nothing else.
 
@@ -297,53 +295,12 @@ def conversation(project):
     return {"ended": ended, "turn_t": last.get("t"), "t": t}
 
 
-def _desk():
-    d = str(HERE / "desk")
-    if d not in sys.path:
-        sys.path.insert(0, d)
-
-
-def console_turn(project):
-    """A Studio conversation holds the film's lock now (its turn runs)."""
-    try:
-        _desk()
-        import agentlock
-        return agentlock.read(project) is not None
-    except Exception:
-        return False
-
-
-def listener(project):
-    """An agent waits for this film's submission now (bin/vh desk wait, gate --wait): its flag, its process alive, and the
-    agent it waits for alive."""
-    try:
-        _desk()
-        import feedback as F
-        return bool(F.listening(project).get("listening"))
-    except Exception:
-        return False
-
-
-def taker(project):
-    """A live wait that takes a new submission within the second: one alive (listener) that waits for the round that is out
-    now. A wait for a page that is no longer out ends by itself and takes nothing; an older wait that names no round is not
-    counted on."""
-    try:
-        _desk()
-        import feedback as F
-        info = F.listening(project)
-        return bool(info.get("listening")) and info.get("round") is not None and info.get("round") == F.current_round(project)
-    except Exception:
-        return False
-
-
 def unread(project):
-    """The person's notes no agent has taken yet: [(path, record, late)] (tools/desk/feedback.py)."""
+    """Saved feedback that still needs a decision."""
     try:
-        _desk()
-        import feedback as F
-        return F.unread(project)
-    except Exception:
+        import review_feedback
+        return review_feedback.unread(project)
+    except (OSError, ValueError):
         return []
 
 
@@ -647,10 +604,7 @@ def of(project, o, now=None):
     act = o.get("activity") or {}
     working = act.get("running") or []
     who = o.get("waiting_on") if o.get("waiting_on") in ("person", "agent", "nobody", "unknown") else "unknown"
-    listening = listener(project)   # the flag, its process, and the agent it waits for, alive: "it carries on by itself" is a promise
-    turn = console_turn(project)
     talk = conversation(project)
-    busy = bool(working) or turn    # something works on this film now: a command, or a Studio conversation's turn
     nxt = next((s for s in st if s["state"] in ("waiting_agent", "in_progress")), None)
 
     def seen(s):
@@ -668,7 +622,6 @@ def of(project, o, now=None):
         return say("revision_ready", who, "decide", both("revision_ready"), [both("revision_ready.more")],
                    act=act_open("cut", both("act.revision"), "revisions"), revisions=len(revs))
     wait = next((s for s in st if s["state"] == "waiting_person"), None)
-    live = taker(project)   # a wait alive on the round that is out now: it takes a new submission within the second
     un = unread(project)
     cur_pid = page_of(nxt) if nxt else None
     covered = not un or (wait is None and nxt is not None and fb.get("pending") and all(j.get("round") == cur_pid and not late for _, j, late in un))
@@ -698,13 +651,12 @@ def of(project, o, now=None):
                        w("notes_left", 1, N=k, n_subs="submission" if k == 1 else "submissions", are="is" if k == 1 else "are", s=w("plan.list", 1).join(x[1] for x in sws)))
             code = "notes_left"
         a = prog_words(prog)
-        who_line = (two(w("notes_left.live", 0, a=a[0]), w("notes_left.live", 1, a=a[1])) if live else
-                    two(w("notes_left.outside", 0, a=a[0]), w("notes_left.outside", 1, A=cap(a[1]))) if outside else both("notes_left.next"))
+        who_line = two(w("notes_left.outside", 0, a=a[0]), w("notes_left.outside", 1, A=cap(a[1]))) if outside else both("notes_left.next")
         also = two(w("notes_left.also", 0, s=n["zh"], v=v[0]), w("notes_left.also", 1, S=cap(n["en"]), be="are" if many else "is")) if wait else None
         act = act_open(mod, two(w("act.look", 0, v=v[0], s=n["zh"]), w("act.look", 1, V=cap(v[1]), s=n["en"])), tab) if wait else \
-            (None if (live or outside) else act_tell(both("act.fetch"), both("say.fetch")))
-        return say(code, "agent", "none" if live else "nudge", head, [who_line, also], both(code + ".short"), act,
-                   tone="busy" if live else "you", unread=len(un), late=len(late), live=live, outside=outside, program=prog)
+            (None if outside else act_tell(both("act.fetch"), both("say.fetch")))
+        return say(code, "agent", "nudge", head, [who_line, also], both(code + ".short"), act,
+                   tone="you", unread=len(un), late=len(late), live=False, outside=outside, program=prog)
     if wait:
         h0 = open_agent(o, project, None, now)
         p0 = program_of(h0[1]) if h0 and h0[0] == "here" else None
@@ -712,11 +664,10 @@ def of(project, o, now=None):
         wb = [" " + wa[0] + " ", wa[1]] if p0 and f"prog.{p0}" in WORDS else [w("who.film", 0), w("who.film", 1)]
         return say("waiting_you", who, "decide",
                    two(w("waiting_you", 0, s=n["zh"], v=v[0]), w("waiting_you", 1, S=cap(n["en"]), be="are" if many else "is", wait="wait" if many else "waits")),
-                   [two(w("waiting_you.listening", 0, a=wa[0]), w("waiting_you.listening", 1, A=cap(wa[1]))) if listening else
-                    two(w("waiting_you.alone", 0, a=wb[0]), w("waiting_you.alone", 1, a=wb[1]))],
+                   [two(w("waiting_you.alone", 0, a=wb[0]), w("waiting_you.alone", 1, a=wb[1]))],
                    two(w("waiting_you.short", 0, s=n["zh"], v=v[0]), w("waiting_you.short", 1, s=n["en"])),
                    act_open(mod, two(w("act.look", 0, v=v[0], s=n["zh"]), w("act.look", 1, V=cap(v[1]), s=n["en"])), tab),
-                   stop=wait["id"], listening=listening)
+                   stop=wait["id"], listening=False)
     took = None   # when an agent was handed the person's submissions for this stop
     if fb.get("handed"):
         try:
@@ -724,10 +675,6 @@ def of(project, o, now=None):
         except OSError:
             took = None
     if fb.get("pending"):   # the newest submission: nobody has it yet, whatever else runs
-        if live:   # a live listener on this very round (and its agent) takes it within the second
-            h0 = open_agent(o, project, None, now)
-            a = prog_words(program_of(h0[1]) if h0 and h0[0] == "here" else None)
-            return say("notes_sent", who, "none", two(w("notes_sent", 0, a=a[0]), w("notes_sent", 1, A=cap(a[1]))), stop=nxt["id"])
         try:
             tl = clock((project / fb["last"]).stat().st_mtime, now)
         except (OSError, KeyError, TypeError):
@@ -743,16 +690,14 @@ def of(project, o, now=None):
                 two(w("notes_unheard.busy0", 0, x=c[0], t=tl), w("notes_unheard.busy0", 1, X=cap(c[2]), t=tl))] if c else [both("notes_unheard.more")]
         return say("notes_unheard", who, "nudge", both("notes_unheard"), more, act=act_tell(both("act.fetch"), both("say.fetch")),
                    stop=nxt["id"], pending=fb["pending"])
-    if fb.get("handed") and busy:   # an agent has the submission, and something works on this film now
-        x = doing(working[0]) if working else None
-        return say("notes_taken", who, "none", both("notes_taken"), [two(w("now_doing", 0, x=x[0]), w("now_doing", 1, X=cap(x[1]))) if x else both("in_studio")],
-                   tone="busy", cmd=working[0].get("cmd") if working else None)
+    if fb.get("handed") and working:   # an agent has the submission, and something works on this film now
+        x = doing(working[0])
+        return say("notes_taken", who, "none", both("notes_taken"), [two(w("now_doing", 0, x=x[0]), w("now_doing", 1, X=cap(x[1])))],
+                   tone="busy", cmd=working[0].get("cmd"))
     if working:
         x = doing(working[0])
         return say("running", who, "none", two(w("running", 0, x=x[0]), w("running", 1, X=cap(x[1]))),
                    short=two(w("running.short", 0, x=x[0]), w("running.short", 1, x=x[1])), tone="busy", cmd=working[0].get("cmd"))
-    if turn:
-        return say("working", who, "none", both("working"), [both("in_studio")], tone="busy")
     deliver = next((s for s in st if s["id"] == "deliver"), None)
     if deliver and deliver["state"] == "done":
         d = deliver.get("delivered") or {}

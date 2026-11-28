@@ -56,7 +56,7 @@ BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of brace
 a next step, the film delivered). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
 done or skipped, or its row in DECISIONS.md decided. The line starts "next:"; --json has it as next_step (the older "next" is
 one sentence, and stays).
---json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1); stops is the film's plan: {gates, checkpoints,
+--json: every field (tools/schemas/output/status.schema.json; "version": 1); stops is the film's plan: {gates, checkpoints,
 line: the BRIEF's Stops line or null, costly: why gate ② is in it, kept: gates the line leaves out and the film keeps, note}. Exit 0, 2 when there is no project
 (with --json, the error's shape: tools/jsonerr.py).
 """
@@ -65,9 +65,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE / "desk"))
 import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
-import feedback as F, reader, revisions as RV, standing   # noqa: E402,E401
+import project_reader as reader, review_feedback as F, standing   # noqa: E402,E401
 from speccheck import output_blanks, spec_line   # noqa: E402
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -80,7 +79,7 @@ LISTENING = ("desk", "gate")   # a running desk or gate --wait is someone waitin
 PLACEHOLDER = re.compile(r"(?<!\$)\{[^{}\n]*\}")
 NOT_BLANK = re.compile(r"""\s*(?:(?:none)?\s*$|["']|[\w-]+\s*:)""", re.I)   # the template's {none}, and braces that hold a value: {}, {"a": 1}, {fill: #e33}
 # what the next step sends an agent to read, each for bin/vh know --show (tools/ci.sh checks each is there)
-R_PAGE, R_DESK, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES = (f"playbook/01-pipeline.md#{x}" for x in ("审阅页", "审阅台", "导演模式", "animatic", "长片", "look-dev", "子代理分工"))
+R_PAGE, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES = (f"playbook/01-pipeline.md#{x}" for x in ("审阅页", "导演模式", "animatic", "长片", "look-dev", "子代理分工"))
 R_STOPS, R_READS = "playbook/01-pipeline.md#每处交什么", "playbook/01-pipeline.md#reads"   # what each stop hands over and how it goes on record; reads, before a storyboard
 R_RECORD = "templates/REVIEW.md"   # how a stop goes on record
 R_SAID = "playbook/01-pipeline.md#交付前"   # before the delivery: what the person said, line by line against the film
@@ -95,7 +94,7 @@ R_4K = "engines/README.md#出 4K"   # read only for a film delivered in 4K (the 
 R_TYPE = "playbook/03-motion-design.md#4."   # the text-size floors by Watch on (a floor at every effort), read where the BRIEF is filled
 TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas", "12": "canvas"}
 OWN_STOP = G.OWN_STOP   # what a Director line can keep for the person (x=own), and its stop (tools/gatecheck.py)
-READS = (R_PAGE, R_DESK, R_STOPS, R_READS, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
+READS = (R_PAGE, R_STOPS, R_READS, R_RECORD, R_SAID, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
          R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_OWN_PAGE, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K, R_TYPE)
 
 
@@ -133,7 +132,7 @@ def own_unsettled(project, proj):
 
 
 def feedback_records(project):
-    """[(path, record)] of the desk's submissions, oldest first."""
+    """Saved review submissions as (path, record), oldest first."""
     return sorted(F._records(project), key=lambda x: F._order(*x))
 
 
@@ -249,7 +248,7 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
             st["note"] = "bin/vh gate refused this page, so that run sent the person nothing: fix it and send it again"
         elif latest is not None and pid == cur:
             if pend:
-                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk wait hands them over)"
+                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (see the saved feedback in REVIEW.md)"
             elif handed:
                 st["state"], st["note"] = "waiting_agent", "the submission was handed over; REVIEW.md has no decision for it yet"
             else:
@@ -261,7 +260,7 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
         if key == "1" and st["state"] == "done" and latest is not None and pid == cur and len(plist) > 1 and pid != plist[0].stem[5:] \
                 and latest.with_suffix(".html").exists() and R.refusal(project, pid) is None and not (page_secs and G.record(page_secs[-1][1])[0]):
             if pend:
-                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) for page {pid} not handed to the agent yet (bin/vh desk wait hands them over)"
+                st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) for page {pid} not handed to the agent yet (see the saved feedback in REVIEW.md)"
             elif handed:
                 st["state"], st["note"] = "waiting_agent", f"the submission for page {pid} was handed over; REVIEW.md has no decision for it yet"
             else:
@@ -281,7 +280,7 @@ def renders(project):
     found = []
     for top in ("out", "renders", "media"):
         for p in P.videos_under(project / top, OUT_SKIP if top == "out" else ()):
-            if p.is_relative_to(project / RV.DIRECTORY):
+            if p.is_relative_to(project / F.DIRECTORY):
                 continue
             try:
                 found.append((p, p.stat()))
@@ -630,7 +629,7 @@ def unread_covered(st, unread):
     return all(x["round"] == pid and not x["late"] for x in unread)
 
 
-def next_step(project, proj, st, paused, no_record, working, desk, by_video, unread=()):
+def next_step(project, proj, st, paused, no_record, working, by_video, unread=()):
     """{who, do, commands, read, unfilled}: who has the next move at the stop the project is at, and how to take it.
     unread: the person's notes no agent has taken yet (feedback.unread): unless they are just the stop's own new submission,
     reading them comes before anything else, a stop that waits for the person included."""
@@ -655,14 +654,12 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
     if paused:
         return out("person", "paused (REVIEW.md): the person resumes it")
     if not unread_covered(st, unread):   # notes the person sent that nobody took: before anything else, and never left behind
-        return out("agent", busy + f"read the notes the person sent in Studio that no agent has taken yet: round {unread_line(unread)}. "
-                   "bin/vh desk wait hands every one over at once (exit 0 straight away); write what you decide under each one's section "
-                   "in REVIEW.md, then go on", [f"bin/vh desk wait {p}"], [R_DESK])
+        return out("agent", busy + f"read the saved feedback for round {unread_line(unread)} and record the decisions in REVIEW.md",
+                   read=[R_RECORD])
     wait = next((s for s in st if s["state"] == "waiting_person"), None)
     if wait:
-        where = f"the desk {desk['url']}" if desk else wait["page"] or "the chat"
-        return out("person", f"the person reviews {wait['name']} on {where}: stop here, and write their words into REVIEW.md when they answer",
-                   read=[R_DESK] if desk else [])
+        where = wait["page"] or "the chat"
+        return out("person", f"the person reviews {wait['name']} on {where}: stop here, and write their words into REVIEW.md when they answer")
     if st and st[-1]["state"] == "done":   # it went out: what is left of the stops before it no longer waits for anyone
         lessons = (project / "LESSONS.md").is_file() and legacy_lessons(project)
         return out("agent" if working else "nobody", busy + ("delivered" if lessons else "delivered: what this film taught goes into LESSONS.md"))
@@ -686,10 +683,9 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
-            return out("agent", busy + f"read the person's submission for {s['name']} (bin/vh desk wait hands every note nobody took over at once, exit 0 "
-                       "straight away), then write what was decided into REVIEW.md", [f"bin/vh desk wait {p}"], [R_DESK])
+            return out("agent", busy + f"read the saved submission for {s['name']} and record the decision in REVIEW.md", read=[R_RECORD])
         if fb.get("handed"):
-            return out("agent", busy + f"write what was decided and changed under the desk's section for {s['name']} in REVIEW.md (定了 / 改了)", [], [R_DESK])
+            return out("agent", busy + f"record what was decided and changed for {s['name']} in REVIEW.md", read=[R_RECORD])
         return out("agent", busy + (s["note"] or f"record the decision for {s['name']} in REVIEW.md"), [], [R_RECORD])
     mine = ", ".join(k for k, v in own.items() if v == key)   # what the person keeps at this stop
     refused = R.refusal(project, pid)
@@ -748,7 +744,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video, unr
                                                          "bin/vh gate's message tells the person where this film stops", say) if x),
                    cmds, ([R_OWN_PAGE, R_TYPE, None if quick else R_CARDS] if own_page else
                           [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_TYPE, R_IDEAS, R_CARDS])
-                   + [None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, R_DESK if proj["effort"] == "studio" else None, None if own_page else R_FRAMES])
+                   + [None if quick else R_STOPS, None if quick else R_DIRECTOR, R_PAGE, None if own_page else R_FRAMES])
     if key == "2":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),
@@ -905,7 +901,7 @@ def collect(project, now=None, light=False):
             when, films = ended["date"], ended["films"]
             what = "LESSONS.md is written: the film ended (made before the delivery record" + (f"; finalised {when}" if when else "") + ")" \
                 + (f"; its final film ({', '.join(films)}) is not on this machine now" if films and not any((project / f).exists() for f in films) else "")
-        deliver["delivered"] = {"date": (when or "")[:10] or None, "films": films}   # the day it went out and the film, for a page to say (bin/vh desk)
+        deliver["delivered"] = {"date": (when or "")[:10] or None, "films": films}   # the day it went out and the film
         deliver["note"] = what if deliver["state"] == "done" else f"{what} (no REVIEW.md says whether gate ③ was passed)" if no_record \
             else f"{what}, but gate ③ is not decided yet: the delivery counts once it is"
     st.append(deliver)
@@ -915,15 +911,7 @@ def collect(project, now=None, light=False):
     working = [r for r in running if r["cmd"] not in LISTENING]
     listening = [r for r in running if r["cmd"] in LISTENING]
     recent = [r for r in runs if r["state"] in ("ok", "failed", "gone")][-5:]
-    # the review: this round's page and the desk
-    desk = None
-    try:
-        import server
-        url = server.running(project)
-        if url:
-            desk = {"url": url, "listening": F.listening(project).get("listening", False)}
-    except Exception:   # a desk that cannot be asked is a desk not running
-        desk = None
+    # the current review page and any previously saved feedback
     cur_stop = next((s for s in st if s["current"]), None)
     # open review items: a submission's change / ask items whose REVIEW.md section has no decision yet
     open_items = []
@@ -942,7 +930,7 @@ def collect(project, now=None, light=False):
     warnings = []
     _, todo = reader._facts(reader.strip_comments(reader._read(project / "NOTES.md", warnings)), warnings)
     facts = [x["text"] for x in todo if not x["done"] and not x["text"].startswith("{")]   # not the template's {claim} line
-    # the person's notes no agent has taken yet, of any round (tools/desk/feedback.py's unread): never left behind
+    # the person's notes no agent has taken yet, of any round (tools/review_feedback.py's unread): never left behind
     try:
         took = F.taken(project)
         unread = [{"round": text(j.get("round")), "file": rel(project, f), "late": late, "submitted_at": text(j.get("submitted_at")),
@@ -959,7 +947,7 @@ def collect(project, now=None, light=False):
         waiting_on, nxt = "agent", f"the agent: read the person's notes no agent has taken yet (round {unread_line(unread)})"
     elif waiting:
         s = waiting[0]
-        waiting_on, nxt = "person", f"the person: review {s['name']} on " + (f"the desk {desk['url']}" if desk else s["page"] or "the chat")
+        waiting_on, nxt = "person", f"the person: review {s['name']} on " + (s["page"] or "the chat")
     elif deliver["state"] == "done" and not working:   # it went out: an older stop's gap waits for no one
         waiting_on, nxt = "nobody", "delivered"
     elif no_record:
@@ -1021,9 +1009,9 @@ def collect(project, now=None, light=False):
     out = {"version": 1, "project": proj, "paused": paused, "waiting_on": waiting_on, "next": nxt, "stations": st,
            "stops": {"gates": plan["gates"], "checkpoints": plan["checkpoints"], "line": plan["line"], "costly": [c["say"] for c in plan["costly"]],
                      "kept": plan["kept"], "note": G.plan_note(plan)},
-           "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk, "unread": unread,
+           "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": None, "unread": unread,
                       "taken": {k: {"t": v.get("t"), "program": v.get("program"), "by": v.get("by")} for k, v in took.items()},
-                      "revisions": RV.listing(project)},   # a few small records: the space's card says when a change waits for review
+                      "revisions": F.listing(project)},   # a few small records: the space's card says when a change waits for review
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
@@ -1034,7 +1022,7 @@ def collect(project, now=None, light=False):
     except Exception as e:
         out["media"] = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": [], "error": f"{type(e).__name__}: {e}"}
     try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
-        out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video, unread)
+        out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], by_video, unread)
     except Exception as e:
         out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
     try:   # where it stands for the person, in a sentence (tools/standing.py): what Studio says too
@@ -1067,8 +1055,6 @@ def show(o, now):
         bits = [STATE_WORDS[s["state"]]]
         if s["state"] in ("waiting_person", "waiting_agent") and s["page"]:
             bits.append(s["page"])
-        if s["current"] and o["review"]["desk"] and s["state"] == "waiting_person":
-            bits.append(f"desk {o['review']['desk']['url']}" + (" (the agent is waiting)" if o["review"]["desk"]["listening"] else ""))
         if s["note"]:
             bits.append(s["note"])
         print(f"  {STATE_MARK[s['state']]} {s['name']:<{w}}  {' · '.join(bits)}")
@@ -1085,13 +1071,10 @@ def show(o, now):
         print(f"now: {nw['say']['en']}")
         if nw.get("more"):
             print(f"  {nw['more']['en']}")
-        a = nw.get("act") or {}
-        if a.get("kind") == "open":   # (no command here: an agent reads this too, and a window nobody asked for is no help)
-            print(f"  the person does this in Studio: {a['label']['en']}")
     un = (o.get("review") or {}).get("unread") or []
     if un:   # the person's notes nobody took: said on a line of their own, whatever the next step is
-        print(f"unread: {len(un)} submission(s) from Studio no agent has taken yet: round {unread_line(un)} "
-              f"(bin/vh desk wait {shown(Path(p['path']))} hands them over)")
+        print(f"unread: {len(un)} saved submission(s) no agent has taken yet: round {unread_line(un)} "
+              "(see REVIEW.md and the saved feedback files)")
     ri, fv = o["open"]["review_items"], o["open"]["facts_to_verify"]
     if ri or fv:
         print("open: " + " · ".join(x for x in (f"{len(ri)} review item(s) (round {', '.join(dict.fromkeys(str(i['round']) for i in ri))})" if ri else "",
@@ -1148,7 +1131,7 @@ def show(o, now):
     rv = o["review"].get("revisions") or []
     if rv:
         pending = sum(r["state"] == "pending" and r["available"] for r in rv)
-        print(f"revisions: {pending} awaiting review · {len(rv)} recorded (Studio → cut → revisions)")
+        print(f"revisions: {pending} awaiting review · {len(rv)} recorded")
     for r in o["activity"]["running"]:
         pr = r.get("progress") or {}
         print(f"running: {r['cmd']} {' '.join(str(x) for x in r['args'][1:4])}".rstrip()

@@ -45,7 +45,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 TABLE = HERE / "artifacts.json"
 SCHEMAS = HERE / "schemas"
-for sub in (HERE, HERE / "desk", HERE / "audio", HERE / "assets"):
+for sub in (HERE, HERE / "audio", HERE / "assets"):
     sys.path.insert(0, str(sub))
 import jsonerr   # noqa: E402
 
@@ -55,7 +55,7 @@ HOLES = {"<lang>": r"[a-z]{2,3}(?:-[A-Za-z0-9]{2,4})?", "<n>": r"[A-Za-z0-9_-]{1
 HOLE = re.compile(r"<[a-z]+>|\*")
 MILESTONES = ("new", "gate-1", "gate-2", "gate-3", "narration", "delivery")
 CLEAN = ("rebuilt", "versions", "renders", "sound", "film", "stays")
-MADE_BY = ("person", "agent", "tool")
+MADE_BY = ("person", "agent", "tool", "legacy")
 VERSION_KEYS = ("version", "v", None)
 MAX_READ = 1 << 30       # bytes one list may hash: past it, "not checked"
 MAX_JSON = 64 << 20      # a JSON file larger than this is not parsed

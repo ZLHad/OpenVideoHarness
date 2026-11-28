@@ -163,11 +163,8 @@ def studio(d=None):
     return {k: d.get(k) if d.get(k) in ok else None for k, ok in STUDIO.items()}
 
 
-def set_studio(name, value):
-    """One of Studio's settings (None: back to Studio's default) → the settings as kept. ValueError for any other name or value."""
-    if name not in STUDIO or value is not None and value not in STUDIO[name]:
-        raise ValueError(f"{name}={value!r}: not one of Studio's settings")
-    return update({name: value})
+
+
 
 
 def mirrors():

@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE))
 import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
-ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history",
+ALL = ("status", "activity", "versions", "check", "commands", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history",
        "history-save", "history-diff", "history-restore", "gate", "new", "proxy", "thumbs", "words", "settings")
 
 
@@ -53,7 +53,7 @@ def fixture(t, sh):
         raise SystemExit(f"bin/vh new: exit {r.returncode}: {r.stderr[-400:]}")
     p = glob.glob(f"{t}/projects/*-ci-contract")[0]
     z = f"{t}/projects/zh"
-    shutil.copytree(ROOT / "tools" / "desk" / "fixtures" / "zh", z)
+    shutil.copytree(ROOT / "tools" / "fixtures" / "review" / "zh", z)
     os.makedirs(f"{p}/cast")
     os.makedirs(f"{p}/research")
     has_film = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
@@ -109,7 +109,7 @@ def fixture(t, sh):
 def outputs(vh, p, z, e, has_film):
     """{name: [(the command as a line, what it printed)]}: each --json output of the fixture. Exit status 0, but a failed check's."""
     runs = [("status", ["status", p]), ("status", ["status", z]), ("activity", ["activity", p]), ("activity", ["activity", z]), ("versions", ["versions", p]),
-            ("commands", ["commands"]), ("commands", ["commands", "--stage", "8"]), ("desk-data", ["desk", "data", z]), ("desk-data", ["desk", "data", p]),
+            ("commands", ["commands"]), ("commands", ["commands", "--stage", "8"]),
             ("edit-list", ["edit", "list", e]), ("edit-build", ["edit", "build", e]), ("assets-list", ["assets", "list", p]), ("artifacts-list", ["artifacts", "list", p]),
             ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"]), ("history", ["history", "list", p]),
             ("history-save", ["history", "save", p]), ("history-diff", ["history", "diff", p]), ("history-restore", ["history", "restore", p, "NOTES.md", "--at", "s1"]), ("gate", ["gate", z, "1", "--page"]), ("new", ["new", "math", "ci-contract-too"]),
@@ -153,7 +153,6 @@ def failures(t, p):
         ("projects --bogus", 2, "usage", True), (f"projects --root {t}/nope", 2, "usage", True),
         ("commands --stage nope", 2, "usage", True), ("commands --bogus", 2, "usage", True),
         ("doctor --bogus", 2, "usage", True), (f"doctor {p}", 2, "usage", False),
-        ("desk data", 2, "usage", True), ("desk data nope", 2, "no_project", True),
         ("gate", 2, "usage", False), ("gate nope", 2, "no_project", True), (f"gate {p} 1", 2, "invalid", True), (f"gate {broken} 1", 2, "invalid", True), (f"gate {p} 1 --wait", 2, "usage", False), (f"gate {p} 1 --init --wait", 2, "usage", True),
         ("new", 2, "usage", False), ("new short", 2, "usage", False), ("new nope x", 2, "usage", True), ("new short x --bogus", 2, "usage", True), ("new short x --effort nope", 2, "usage", True),
         ("new short x --from nope", 2, "no_project", True), ("new math ci-contract", 1, "exists", True),

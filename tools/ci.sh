@@ -188,55 +188,7 @@ PY
 )
   if [ -z "$out" ]; then ok "the plugin the marketplaces install: skills/'s skill folders, copied whole; one name in the two marketplaces and two manifests; a version that moves with the skills"
   else bad "the plugin: $out"; fi
-  # bin/vh studio writes again, before it opens, only the stubs install-skill wrote for this clone that nobody changed since
-  # and that are behind (a description changed in skills/, a stub of the shape before the mark), file by file: never someone
-  # else's skill folder beside them, another clone's stub, a whole copy (npx skills add, through a link too) or a stub edited by
-  # hand, and it adds no skill that host did not have. One line when it wrote something or could not; none on a normal start,
-  # none for --print-address or --json; not at all for -h and --icon-status
-  sk=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX"); mkdir -p "$sk/other/bin"; : > "$sk/other/bin/vh"
-  st() { HOME="$sk/$1" OVH_STUDIO_SHELL=none OVH_STUDIO_BROWSER=none bash bin/vh studio "${@:2}" 2>&1 >/dev/null | grep '^skills:'; }
-  old() { python3 - "$1" "$ROOT" <<'PY'   # the stub install-skill wrote for an older description: marked, untouched, behind skills/
-import os, sys
-sys.path.insert(0, "tools"); import doctor
-f, root = sys.argv[1], sys.argv[2]; n = os.path.basename(os.path.dirname(f))
-text = open(f"skills/{n}/SKILL.md", encoding="utf-8").read().replace("\ndescription: ", "\ndescription: OLD ", 1)
-open(f, "w", encoding="utf-8").write(doctor.skill_stub(text, n, root))
-PY
-  }
-  copyold() { sed 's/^description: /description: OLD /' "$1" > "$1.x" && mv "$1.x" "$1"; }
-  # a: a stale stub of this clone's beside someone else's open-video-harness-web
-  HOME="$sk/a" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/a/.claude/skills/open-video-harness/SKILL.md"
-  printf -- '---\nname: open-video-harness-web\ndescription: theirs\n---\nTheirs.\n' > "$sk/a/.claude/skills/open-video-harness-web/SKILL.md"
-  a=$(st a --no-such-flag); a2=$(st a --no-such-flag)
-  # b: another clone's stub beside a stale one of this clone's, in the same host
-  HOME="$sk/b" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/b/.claude/skills/open-video-harness-web/SKILL.md"
-  printf -- '---\nname: open-video-harness\ndescription: other clone\n---\nHarness path (set by install.sh): %s\n' "$sk/other" > "$sk/b/.claude/skills/open-video-harness/SKILL.md"
-  b=$(st b --no-such-flag)
-  # c: npx skills add's layout: a whole copy in ~/.agents/skills, a link to it from ~/.claude/skills
-  mkdir -p "$sk/c/.agents/skills" "$sk/c/.claude/skills"; cp -R skills/open-video-harness "$sk/c/.agents/skills/"; copyold "$sk/c/.agents/skills/open-video-harness/SKILL.md"
-  ln -s "$sk/c/.agents/skills/open-video-harness" "$sk/c/.claude/skills/open-video-harness"; cs=$(cksum < "$sk/c/.agents/skills/open-video-harness/SKILL.md")
-  c=$(st c --no-such-flag)
-  # d: a stub edited by hand (its mark no longer matches), and one of the shape before the mark (no mark, the stub's text as now)
-  HOME="$sk/d" bash bin/vh install-skill claude >/dev/null 2>&1
-  printf 'my own note\n' >> "$sk/d/.claude/skills/open-video-harness/SKILL.md"; ds=$(cksum < "$sk/d/.claude/skills/open-video-harness/SKILL.md")
-  grep -v '^<!-- bin/vh install-skill wrote this stub' "$sk/d/.claude/skills/open-video-harness-web/SKILL.md" > "$sk/x" && mv "$sk/x" "$sk/d/.claude/skills/open-video-harness-web/SKILL.md"
-  d=$(st d --no-such-flag); dn=$(HOME="$sk/d" python3 tools/doctor.py --json | python3 -c 'import json, sys; print(next(c for c in json.load(sys.stdin)["checks"] if c["name"] == "skills")["note"])')
-  # e: a stale stub in a folder that cannot be written; f: the quiet and the excluded flags
-  HOME="$sk/e" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/e/.claude/skills/open-video-harness/SKILL.md"; chmod 555 "$sk/e/.claude/skills/open-video-harness"
-  e=$(st e --no-such-flag); chmod 755 "$sk/e/.claude/skills/open-video-harness"
-  HOME="$sk/f" bash bin/vh install-skill claude >/dev/null 2>&1; old "$sk/f/.claude/skills/open-video-harness/SKILL.md"
-  f=$(st f -h; st f --icon-status --json; grep -c OLD "$sk/f/.claude/skills/open-video-harness/SKILL.md"; st f --no-such-flag --print-address; st f --no-such-flag --json; grep -c OLD "$sk/f/.claude/skills/open-video-harness/SKILL.md")
-  if [ "$a" = "skills: 1 stub this clone wrote brought up to date (restart Claude Code or Codex to see them)" ] && [ -z "$a2" ] \
-    && ! grep -q OLD "$sk/a/.claude/skills/open-video-harness/SKILL.md" && grep -q Theirs "$sk/a/.claude/skills/open-video-harness-web/SKILL.md" \
-    && [ "$b" = "skills: 1 stub this clone wrote brought up to date (restart Claude Code or Codex to see them)" ] && grep -q "other clone" "$sk/b/.claude/skills/open-video-harness/SKILL.md" \
-    && [ -z "$c" ] && [ "$(cksum < "$sk/c/.agents/skills/open-video-harness/SKILL.md")" = "$cs" ] && [ ! -e "$sk/c/.claude/skills/open-video-harness-web" ] && [ ! -e "$sk/c/.agents/skills/open-video-harness-web" ] \
-    && [ "$d" = "skills: 1 stub this clone wrote brought up to date (restart Claude Code or Codex to see them)" ] && [ "$(cksum < "$sk/d/.claude/skills/open-video-harness/SKILL.md")" = "$ds" ] \
-    && grep -q '^<!-- bin/vh install-skill wrote this stub' "$sk/d/.claude/skills/open-video-harness-web/SKILL.md" && case "$dn" in *"it was changed after install-skill wrote it, so Studio leaves it as it is"*) true ;; *) false ;; esac \
-    && [ "$e" = "skills: 1 stub could not be written; bin/vh doctor says which" ] \
-    && [ "$f" = "1
-0" ] && [ ! -e "$sk/e/.agents" ]
-  then ok "studio: only this clone's untouched stubs that are behind written again, file by file (someone else's skill, another clone's stub, an npx copy through a link and a hand edit left; no skill added); one line when it wrote or could not, none on a normal start or for --print-address and --json, no refresh for -h and --icon-status"
-  else bad "studio's skill refresh: a=$a | a2=$a2 | b=$b | c=$c | d=$d / $dn | e=$e | f=$f"; fi
+  sk=$(mktemp -d "${TMPDIR:-/tmp}/vh-skills.XXXXXX");
   # install-skill says when it could not write a stub (exit 1), and the plugin's version follows its skills (tools/plugin_version.py)
   mkdir -p "$sk/g/.claude"; : > "$sk/g/.claude/skills"; HOME="$sk/g" bash bin/vh install-skill claude >/dev/null 2>&1; rg=$?
   pv=$(python3 tools/plugin_version.py --check 2>&1); rpv=$?
@@ -320,13 +272,17 @@ docs = subprocess.run(["git", "ls-files", "*.md"], capture_output=True, text=Tru
 for d in docs:   # commands written as code: inside `backticks` or a fenced block (prose like "bin/vh · QA tools" is a label)
     if d.startswith(("references/", "changes/")) or d == "CHANGELOG.md":   # what changed, in the words of its day
         continue
+    # The proposals describe the v0.10.0 desk interface. The two READMEs link to that version for Studio.
+    preview_context = {"README.md": "from the preview folder", "README.zh-CN.md": "从体验版目录"}
+    historical = {"desk"} if d in {"docs/proposals/01-client-and-workflow.md", "docs/proposals/02-studio-client.md", "docs/proposals/README.md"} else set()
     fence = False
     for n, line in enumerate(open(d, encoding="utf-8"), 1):
         if line.lstrip().startswith("```"):
             fence = not fence; continue
         for code in [line] if fence else re.findall(r"`([^`]*)`", line):
             for c in re.findall(r"bin/vh ([a-z][a-z0-9-]*)", code):
-                if c not in cmds and c != "help":
+                pinned_example = c == "studio" and d in preview_context and preview_context[d] in line
+                if c not in cmds and c not in (historical | {"help"}) and not pinned_example:
                     bad.append(f"{d}:{n}: bin/vh {c} is not a command")
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
@@ -488,7 +444,7 @@ import readpath
 rows = json.loads(subprocess.run([sys.executable, "tools/readpath.py", "--json"], capture_output=True, text=True).stdout)
 bad = [r["type"] for r in rows if not 0 < r["start"] < r["standard"]]
 step = next(line for line in open("CLAUDE.md", encoding="utf-8") if line.startswith("2. **读流程和自查**"))
-bad += [w for w in ('总表', '规格', 'bin/vh effort', '每处交什么', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'next:', 'bin/vh know --show') if w not in step]
+bad += [w for w in ('总表', '规格', 'bin/vh effort', '每处交什么', '七层检查', '预算', '审阅页', '各引擎的取帧命令', '长片', '导演模式', 'next:', 'bin/vh know --show') if w not in step]
 # what bin/vh new prints as the next step says the same as step 2: the effort print, 01's 总表 and 规格, no part of 02
 for line in (x for x in open("bin/vh", encoding="utf-8") if '"   next     : the agent' in x):
     bad += [f"bin/vh new's next line lacks {w}" for w in ("bin/vh effort",) if w not in line]
@@ -1128,7 +1084,7 @@ PY
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
-           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate "desk no-such" "desk --root $t/no-such" \
+           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" "sheet $t/no-such.mp4 --out $t/x.png" "sheet $t/no-such.mp4 $t/x.png" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
            "check $t/no-such.mp4" \
@@ -3333,383 +3289,9 @@ PY
   rm -rf "$t"
 }
 
-# the review desk (bin/vh desk, tools/desk/README.md): its reader on the committed fixtures (zh, and en with a NOTES.md
-# whose table is missing, which must come back as text), a server on a free port (the page, the data, a 206 range, and
-# what it refuses), a submission that wakes bin/vh desk wait and lands verbatim in REVIEW.md, the watcher's timeout,
-# bin/vh new --lang, and bin/vh review's language default
-desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid, desk_url and DESK_KEY (its one-time code)
-  local i a; desk_url=""
-  # --print-address writes the address to the terminal alone: with_tty gives it one, and copies it into the log
-  python3 "$ROOT/tools/desk/fixtures/with_tty.py" "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 --print-address > "$2" 2>&1 & desk_pid=$!   # with_tty and bin/vh exec: $! is the server
-  desk_rec "$desk_pid"
-  for i in $(seq 150); do   # up to 30 s; stop early if the server exits
-    desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2")
-    desk_key=$(sed -n 's#.*: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$2"); export DESK_KEY=$desk_key   # the launch key: the one page that gets the token
-    [ -n "$desk_url" ] && [ -n "$desk_key" ] && return 0
-    kill -0 "$desk_pid" 2>/dev/null || break; sleep 0.2; done
-  if kill -0 "$desk_pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$desk_pid" 2>/dev/null; wait "$desk_pid" 2>/dev/null
-  else wait "$desk_pid"; a="exited with $?"; fi
-  bad "desk server for $(basename "$1") did not start ($a); its output: $(tr '\n' ' ' < "$2" | head -c 800)$([ -s "$2" ] || echo '(none)')"
-  return 1
-}
-desk_checks() {
-  local t pid wpid url i rc a
-  if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
-    if a=$(python3 tools/desk/test_revisions.py 2>&1); then ok "desk revision: $a"
-    else bad "desk revision: $a"; fi
-  else skip "desk revision" "no ffmpeg or ffprobe"; fi
-  # the words a person reads (Studio's tables, where a film stands, the review page, gate's lines): both languages, no retired names
-  if a=$(python3 tools/desk/test_wording.py 2>&1); then ok "the words a person reads: $a"
-  else bad "the words a person reads: $a"; fi
-  # Studio's page in a headless Chrome (tools/desk/test_page.py, page_driver.mjs): what the person sees of their notes' hand-over
-  local pt k m; pt=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
-  python3 tools/desk/test_page.py "$pt" > "$pt/out" 2>&1
-  while IFS=$'\t' read -r k m; do
-    case $k in ok) ok "Studio's page: $m" ;; bad) bad "Studio's page: $m" ;; skip) case $m in *"no node"*) skip "Studio's page" "no node" ;; *) no_chrome "Studio's page (${m%%:*})" ;; esac ;; esac
-  done < "$pt/out"
-  grep -qx end "$pt/out" || bad "Studio's page: the test stopped: $(tail -n 3 "$pt/out" | tr '\n' ' ')"
-  rm -rf "$pt"
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
-  vh desk data tools/desk/fixtures/zh > "$t/zh.json" && vh desk data tools/desk/fixtures/en > "$t/en.json"
-  if python3 - "$t/zh.json" "$t/en.json" <<'PY'
-import json, sys
-zh, en = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
-bad = []
-def want(cond, what):
-    if not cond: bad.append(what)
-o = zh["outline"]
-want(zh["lang"] == "zh" and zh["project"]["title"] == "一杯水的旅程" and zh["project"]["effort"] == "studio", "zh: lang, title, effort")
-want([x["title"] for x in o] == ["拧开水龙头", "水厂和管道", "落进杯子"] and [x["tag"] for x in o] == ["起", "承", "合"], "zh: outline titles and tags")
-want([(x["t0"], x["t1"]) for x in o] == [(0, 8), (8, 16), (16, 24)], "zh: outline times")
-c = {r["id"]: r for r in zh["captions"]["rows"]}
-want(zh["captions"]["kind"] == "caption" and len(c) == 5 and c["c03"]["term"] == "沉淀" and c["c03"]["seg"] == "2", "zh: captions, terms, segments")
-want((c["c05"]["t0"], c["c05"]["t1"]) == (16, 24) and c["c04"]["facts"] == ["#1"], "zh: bars → seconds past the beat map, fact refs")
-f = {x["id"]: x for x in zh["facts"]}
-want(f["#3"]["dropped"] and not f["#1"]["dropped"] and f["#1"]["onscreen"] and [x["done"] for x in zh["fact_todo"]] == [False, True], "zh: facts, struck rows, to-verify")
-a = zh["agent_decided"]
-want([x["superseded"] for x in a] == [False, True, False] and a[1]["note"] == "（关卡 ① 后作废）" and a[2]["group"] == "关卡 ① 之后", "zh: DECISIONS strikethrough and groups")
-h = zh["history"]
-want(len(h) == 1 and h[0]["quotes"][0]["text"].startswith("大纲按内容分段") and [n["k"] for n in h[0]["notes"]] == ["定了", "改了"], "zh: REVIEW history")
-r = zh["rounds"]
-want([x["id"] for x in r] == ["1"] and r[0]["data"]["listen"][0]["t"] == 7.5 and r[0]["data"]["least_sure"][1] == {"id": "", "note": "配乐会不会太甜"}, "zh: the gate page and its listen prompts")
-want([s["label"] for s in zh["music"]["sections"]] == ["拧开", "管道", "杯子"], "zh: music section labels from the gate JSON")
-want([s["seg"] for s in zh["shots"]["items"]] == ["1", "2", "3"], "zh: shots matched to the outline")
-sb = next((d for d in zh["docs"] if d["file"] == "STORYBOARD.md"), None)
-want(sb and sb["sections"][0]["title"] == "Shots" and "<li>S1" in sb["sections"][0]["html"] and not zh["warnings"], "zh: STORYBOARD.md (no table) as formatted text")
-want(en["lang"] == "en" and [x["title"] for x in en["outline"]][0] == "Open the tap" and en["outline"][0]["tag"] == "setup", "en: lang, outline from English headers")
-c = {r["id"]: r for r in en["captions"]["rows"]}
-want(en["captions"]["kind"] == "narration" and c["n3"]["seg"] == "3" and c["n2"]["term"] == "settling" and c["n1"]["t0"] == 0.5, "en: narration table")
-notes = next((d for d in en["docs"] if d["file"] == "NOTES.md"), {"sections": []})
-want(en["facts"] == [] and any("NOTES.md" in w for w in en["warnings"]) and any("water in city pipes" in s["html"] for s in notes["sections"]), "en: NOTES.md without its table comes back as text, with a warning")
-want(en["agent_decided"][1]["superseded"] and en["history"][0]["quotes"][0]["text"] == "Name the parts by what happens in them." and en["rounds"] == [], "en: DECISIONS, REVIEW, no gate page")
-if bad:
-    print("\n".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  then ok "desk reads the zh and en fixtures (outline, captions and terms, bars, facts, ledger, history, gate extras), and a doc without its table as text"
-  else bad "desk reader on tools/desk/fixtures"; fi
-  # this round is the page bin/vh review made last (.current), else the last in review order, never the newest file;
-  # one language rule; markdown in bounded time;
-  # the newest submission within one second is the highest -n. (A file, not a heredoc inside $(…): bash 3.2 counts the
-  # parentheses in the heredoc's body.)
-  cat > "$t/order.py" <<'PY'
-import json, os, shutil, subprocess, sys, time
-sys.path.insert(0, "tools/desk")
-import feedback, reader
-bad = []
-def want(cond, what):
-    if not cond: bad.append(what)
-t0 = time.time()
-for s in ("*a " * 20000, "[" * 60000, "**a " * 15000, "~~a " * 15000, "`" * 30000, "a](b " * 12000):
-    reader.render_md(s)
-want(time.time() - t0 < 3, f"long lines took {time.time() - t0:.1f} s")
-try:
-    h = reader.render_md(">" * 3000 + " x")
-    want(h.count("<blockquote>") <= reader.MAX_QUOTE_DEPTH + 1 and h.endswith("x</p>" + "</blockquote>" * h.count("<blockquote>")), "3000 nested quotes")
-except RecursionError:
-    bad.append("3000 nested quotes: RecursionError")
-want(reader.render_md("a *b* c") == "<p>a <em>b</em> c</p>" and reader.render_md("**b** ~~c~~") == "<p><strong>b</strong> <del>c</del></p>", "inline markup")
-d = os.path.join(sys.argv[1], "order")
-shutil.copytree("tools/desk/fixtures/zh", d)
-g = os.path.join(d, "out", "review")
-shutil.copy(os.path.join(g, "gate-1.json"), os.path.join(g, "gate-1b.json"))
-os.utime(os.path.join(g, "gate-1.json"), (time.time() + 60, time.time() + 60))   # the earlier page touched later
-r = reader.read_project(d)
-want([x["id"] for x in r["rounds"]] == ["1", "1b"] and r["lang"] == "zh", f"order after a touch: {[x['id'] for x in r['rounds']]}, lang {r['lang']}")
-j = json.load(open(os.path.join(g, "gate-1b.json"), encoding="utf-8"))
-json.dump(dict(j, lang="en"), open(os.path.join(g, "gate-1b.json"), "w", encoding="utf-8"))
-want(reader.read_project(d)["lang"] == "en", "this round's gate JSON lang should override the BRIEF")
-fd = os.path.join(g, "feedback")
-os.makedirs(fd)
-for n in ("1b-20261004-030440", "1b-20261004-030440-2", "1b-20261004-030440-10"):
-    json.dump({"round": "1b", "submitted_at": "2026-10-04T03:04:40", "n": n}, open(os.path.join(fd, n + ".json"), "w"))
-want(feedback.latest(d)[1]["n"] == "1b-20261004-030440-10", f"latest within one second: {feedback.latest(d)[1]}")
-# the page bin/vh review made last is this round (out/review/.current), whatever the stop order or its name
-c = os.path.join(sys.argv[1], "current")
-shutil.copytree("tools/desk/fixtures/zh", c)
-cg = os.path.join(c, "out", "review")
-def publish(n):
-    shutil.copy(os.path.join(cg, "gate-1.json"), os.path.join(cg, f"gate-{n}.json"))
-    return subprocess.run([sys.executable, "tools/review.py", c, n], capture_output=True, text=True).returncode
-cur = lambda: reader.read_project(c)["rounds"][-1]["id"]   # noqa: E731
-for seq, page in ((["2", "1b"], "1b"), (["3", "E3b"], "E3b"), (["final"], "final"), (["2B"], "2B")):
-    rcs = [publish(n) for n in seq]
-    want(rcs == [0] * len(seq) and cur() == page, f"published {seq} (exit {rcs}): this round is {cur()}, not {page}")
-fd2 = os.path.join(cg, "feedback")
-os.makedirs(fd2)
-for rid in ("2B", "E3b"):
-    json.dump({"round": rid, "submitted_at": "2026-10-04T12:00:00"}, open(os.path.join(fd2, f"{rid}-20261004-120000.json"), "w"))
-want([f.name for f, _ in feedback.pending(c)] == ["2B-20261004-120000.json"], f"pending follows .current: {[f.name for f, _ in feedback.pending(c)]}")
-os.remove(os.path.join(cg, "gate-2B.json"))   # .current names a page that is gone: the review order decides
-want(cur() == "3", f"with .current pointing at a removed page: {cur()}")
-# bin/vh review: the page as spelled on disk (APFS finds gate-1d.json for 1D); no gate: this round, not the newest
-# file; ids of 1-24 characters; a gate file that links out of the project is not read
-shutil.copy(os.path.join(cg, "gate-1.json"), os.path.join(cg, "gate-1d.json"))
-rv = lambda *a: subprocess.run([sys.executable, "tools/review.py", c, *a], capture_output=True, text=True)   # noqa: E731
-r = rv("1D")
-names = os.listdir(cg)
-want(r.returncode == 0 and open(os.path.join(cg, ".current")).read().strip() == "1d" and "gate-1d.html" in names and "gate-1D.html" not in names,
-     f"review 1D for gate-1d.json: exit {r.returncode}, .current {open(os.path.join(cg, '.current')).read().strip()!r}, {sorted(n for n in names if n.endswith('.html'))}")
-publish("E3b")
-os.utime(os.path.join(cg, "gate-3.json"), (time.time() + 60, time.time() + 60))
-r = rv()
-want(r.returncode == 0 and "gate-E3b.html" in r.stderr and "gate-3.json is newer" in r.stderr, f"review with no gate: {r.returncode} {r.stderr[-300:]}")
-r = rv("a" * 25)
-want(r.returncode == 2 and "1 to 24" in r.stderr, f"a 25-character id: {r.returncode} {r.stderr}")
-shutil.copy(os.path.join(cg, "gate-1.json"), os.path.join(sys.argv[1], "outside.json"))
-os.symlink(os.path.join(sys.argv[1], "outside.json"), os.path.join(cg, "gate-9.json"))
-want("9" not in [x["id"] for x in reader.read_project(c)["rounds"]] and rv("9").returncode == 2, "a gate file linking out of the project was read")
-# writers in several processes at once: each _write has its own temp file, .consumed's read-modify-write is locked
-code = ("import sys; sys.path.insert(0, 'tools/desk'); import feedback; from pathlib import Path\n"
-        "d, k = sys.argv[1], sys.argv[2]\n"
-        "for i in range(40):\n"
-        "    feedback._write(Path(d) / 'out' / 'review' / 'feedback' / '.listening', k)\n"
-        "    feedback.mark_consumed(d, [f'{k}-{i}.json'])\n")
-procs = [subprocess.Popen([sys.executable, "-c", code, c, f"w{k}"], stderr=subprocess.PIPE, text=True) for k in range(8)]
-errs = [(p.wait(), p.stderr.read()) for p in procs]
-parts = [n for n in os.listdir(fd2) if n.endswith(".part")]
-want(all(rc == 0 for rc, _ in errs) and len([n for n in feedback.consumed(c) if n.startswith("w")]) == 320 and not parts,
-     f"8 concurrent writers: exits {[rc for rc, _ in errs]}, {len(feedback.consumed(c))} names, leftovers {parts}, {[e[-200:] for _, e in errs if e][:1]}")
-# the targets a client points at: a span, a chapter, an asset, a concept card; a span's t / t1 come from its target
-sub = lambda *its, lang="zh": {"round": "1", "lang": lang, "items": [dict({"status": "change", "text": "x"}, **i) for i in its]}   # noqa: E731
-v = feedback.validate(d, sub({"target": "range:1.5-3", "t": 9}, {"target": "chapter:c2"}, {"target": "asset:assets/a b.png"}, {"target": "card:B"}))
-want([(i["target"], i.get("t"), i.get("t1")) for i in v["items"]] == [("range:1.5-3", 1.5, 3.0), ("chapter:c2", None, None), ("asset:assets/a b.png", None, None), ("card:B", None, None)],
-     f"new targets: {v['items']}")
-for bad_t in ("range:3-1", "range:2-2", "range:-1-2", "range:a-b", "range:1", "asset:/etc/passwd", "asset:../x", "asset:a/../../x", "asset:https://x.test/a.png", "card:", "chapter:",
-              "range:1.001-1.004", "range:1-2\n", "cap:c1\n", "asset:..\n", "asset: /etc/passwd", "asset:a/ ../x", "asset:a/.. /x", "asset:x ",
-              "range:\u0661-\u0662", "range:1-\uff12", "asset:C:\\x", "seg:a\x7f"):   # rounding to equal, a final newline, spaces, other digits
-    try:
-        feedback.validate(d, sub({"target": bad_t}))
-        bad.append(f"{bad_t!r} was taken")
-    except ValueError:
-        pass
-want(feedback.clock(59.96) == "1:00.0" and feedback.clock(12.44) == "0:12.4", f"clock: {feedback.clock(59.96)}, {feedback.clock(12.44)}")
-md = feedback.to_markdown(dict(feedback.validate(d, sub({"target": "range:1.5-3"}, {"target": "card:B"}, {"target": "asset:assets/a.png"}, {"target": "chapter:c2"})), submitted_at="t"))
-want("- 片段 0:01.5–0:03.0 [range:1.5-3] · 要改：x" in md and "- 立意卡 B [card:B]" in md and "- 素材 assets/a.png [asset:assets/a.png]" in md and "- 章节 c2 [chapter:c2]" in md, f"zh labels: {md}")
-md = feedback.to_markdown(dict(feedback.validate(d, sub({"target": "range:75-80", "label": "the bridge"}, lang="en")), submitted_at="t"))
-want("- the bridge (1:15.0–1:20.0) [range:75-80] · change: x" in md, f"en label with its span: {md}")
-if bad:
-    print("; ".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  if a=$(python3 "$t/order.py" "$t"); then ok "desk: this round is the page bin/vh review made last (1b after 2, E3b after 3, final, 2B; pending follows it), else review order (a touched file doesn't win); the gate JSON's lang overrides the BRIEF; long and deeply nested markdown in bounded time; -10 after -2"
-    ok "review: 1D renders gate-1d.json as 1d; no gate renders this round (and names a newer file); ids over 24 characters and gate links out of the project are refused; 8 concurrent writers all exit 0 with every name kept"
-  else bad "desk order / lang / markdown / latest / review ids / concurrent writers: $a"; fi
-  # a server on a free port, on a copy (a submission writes into the project); a hidden file, a link to it, an upper-case
-  # .ENV and an SVG with a script in it: none may be served same-origin
-  cp -R tools/desk/fixtures/zh "$t/p" && printf '<img src=x onerror=alert(1)>\n' >> "$t/p/STORYBOARD.md"
-  printf 'KEY=secret\n' > "$t/p/.env" && ln -s .env "$t/p/visible.txt" && printf 'KEY=secret\n' > "$t/p/keys.ENV"
-  printf '<svg xmlns="http://www.w3.org/2000/svg"><script>fetch("/")</script></svg>\n' > "$t/p/ref.svg"
-  if ! desk_start "$t/p" "$t/srv.log"; then rm -rf "$t"; return; fi
-  pid=$desk_pid; url=$desk_url
-  cat > "$t/client.py" <<'PY'
-import http.client, json, os, socket, sys, urllib.parse
-u = urllib.parse.urlsplit(sys.argv[1]); proj = sys.argv[2]; what = sys.argv[3]
-def req(method, path, body=None, headers=None):
-    c = http.client.HTTPConnection(u.hostname, u.port, timeout=10)
-    h = {"Host": f"127.0.0.1:{u.port}"}
-    h.update(headers or {})
-    c.request(method, path, body=body, headers=h)
-    r = c.getresponse(); data = r.read(); c.close()
-    return r.status, r.headers, data
-bad = []
-def want(cond, msg):
-    if not cond: bad.append(msg)
-s, _, page = req("GET", "/?c=" + os.environ.get("DESK_KEY", ""))   # the printed address: a GET gives nothing
-want('name="desk-token" content=""' in page.decode(), "a GET of the page gave the token")
-tokf = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), f"token-{u.port}")   # kept, as the page keeps it in its storage
-token = os.environ.get("DESK_TOKEN") or (open(tokf).read() if os.path.exists(tokf) else "")
-if not token:   # the page's script trades the code for the token, once
-    s, _, d = req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})
-    token = json.loads(d).get("token", "") if s == 200 else ""
-    again = req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})[0]
-    want(token and again == 403, f"the code: claimed {bool(token)}, a second claim {again}")
-    if token:
-        open(tokf, "w").write(token)
-fb = lambda **k: json.dumps(dict({"round": "1", "lang": "zh", "decisions": {"look": "L2"}, "defaulted": [], "general": "",
-    "items": [{"target": "seg:1", "status": "change", "label": "大纲 第 1 段", "text": "开头再快一点 ``` 第 0 帧就要有水声"}]}, **k)).encode()
-H = {"Content-Type": "application/json", "X-Desk-Token": token}
-if what == "serve":
-    s, _, d = req("GET", "/api/data")
-    d = json.loads(d) if s == 200 else {}
-    sb = next((x for x in d.get("docs", []) if x["file"] == "STORYBOARD.md"), {"sections": [], "intro": ""})
-    html = sb["intro"] + "".join(x["html"] for x in sb["sections"])
-    want(s == 200 and d["project"]["slug"] == "p" and "&lt;img src=x" in html and "<img src=x" not in html, f"GET /api/data: {s}, markup in a doc escaped")
-    raw = open(proj + "/NOTES.md", "rb").read()
-    s, h, body = req("GET", "/p/NOTES.md", headers={"Range": "bytes=2-9"})
-    want(s == 206 and h["Content-Range"] == f"bytes 2-9/{len(raw)}" and body == raw[2:10], f"Range: {s} {h.get('Content-Range')}")
-    s, h, body = req("GET", "/p/NOTES.md")
-    want(s == 200 and body == raw and h["Accept-Ranges"] == "bytes", f"whole file: {s}")
-    for p in ("/p/NOTES.md", "/p/ref.svg"):   # opened in the browser, a project page runs in an opaque origin
-        csp = req("GET", p)[1].get("Content-Security-Policy", "")
-        want(csp.startswith("sandbox") and "allow-same-origin" not in csp, f"{p} not sandboxed: {csp!r}")
-    for p in ("/p/%2e%2e/BRIEF.md", "/p/..%2f..%2fetc/passwd", "/p/out/review/.desk.json", "/p/nope.md", "/BRIEF.md",
-              "/p/.env", "/p/visible.txt", "/p/keys.ENV", "/p/keys.env"):
-        want(req("GET", p)[0] == 404, f"{p} served")
-    want(req("POST", "/api/feedback", fb(defaulted=5), H)[0] == 400, "defaulted: 5")
-    want(req("POST", "/api/feedback", fb(lang=[1]), H)[0] == 400, "lang: [1]")
-    want(req("POST", "/api/feedback", b"[" * 200000, H)[0] == 400, "200,000 nested arrays")
-    want(req("POST", "/api/feedback", fb(), dict(H, **{"X-Desk-Token": "tök€n".encode("utf-8")}))[0] == 403, "a non-ASCII token")
-    sk = socket.create_connection((u.hostname, u.port), timeout=10)   # a body shorter than its Content-Length
-    sk.sendall(f"POST /api/feedback HTTP/1.1\r\nHost: 127.0.0.1:{u.port}\r\nContent-Type: application/json\r\n"
-               f"X-Desk-Token: {token}\r\nContent-Length: 100\r\n\r\n".encode() + b'{"round": "1"}')
-    sk.shutdown(socket.SHUT_WR)
-    resp = sk.recv(200)
-    sk.close()
-    want(resp.split(b" ")[1:2] == [b"400"], f"a short body: {resp[:40]!r}")
-    want(req("GET", "/api/data", headers={"Host": "evil.test"})[0] == 403, "another Host answered")
-    want(req("POST", "/api/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
-    want(req("POST", "/api/feedback", fb(), dict(H, Origin="http://evil.test"))[0] == 403, "a post from another origin")
-    want(req("POST", "/api/feedback", fb(), dict(H, **{"Content-Type": "text/plain"}))[0] == 415, "a post that isn't JSON")
-    want(req("POST", "/api/feedback", fb(round="9"), H)[0] == 400, "a round with no gate page")
-    want(req("POST", "/api/feedback", fb(decisions={"look": "L9"}), H)[0] == 400, "an option the gate page doesn't have")
-    want(req("POST", "/api/feedback", fb(items=[{"target": "x", "status": "ok"}]), H)[0] == 400, "a bad target")
-    want(req("POST", "/api/feedback", fb(items=[{"target": "range:5-2", "status": "change"}]), H)[0] == 400, "a backward range")
-    want(req("POST", "/api/feedback", fb(items=[{"target": "asset:../../etc/passwd", "status": "change"}]), H)[0] == 400, "an asset outside the project")
-    want(json.loads(req("GET", "/api/status")[2])["listening"] is False, "listening before the watcher")
-elif what == "status":
-    print(json.loads(req("GET", "/api/status")[2])["listening"])
-elif what == "post":   # no watcher: argv[4] is the comment
-    s, _, d = req("POST", "/api/feedback", fb(items=[{"target": "seg:2", "status": "change", "label": "大纲 第 2 段", "text": sys.argv[4]}]), H)
-    want(s == 200, f"post: {s} {d[:200]}")
-elif what == "targets":   # a span, a chapter, an asset and a concept card, as a client sends them
-    s, _, d = req("POST", "/api/feedback", fb(items=[{"target": "range:12.4-15", "status": "change", "text": "这一段太慢"},
-        {"target": "chapter:c2", "status": "ask", "text": "这一章要不要"}, {"target": "asset:assets/photo.jpg", "status": "change", "text": "换一张"},
-        {"target": "card:B", "status": "ok"}]), H)
-    want(s == 200, f"targets: {s} {d[:200]}")
-else:
-    want(json.loads(req("GET", "/api/status")[2])["listening"] is True, "the page doesn't see the watcher")
-    s, _, d = req("POST", "/api/feedback", fb(), H)
-    want(s == 200 and json.loads(d)["listening"] is True and json.loads(d)["saved"].startswith("out/review/feedback/1-"), f"submit: {s} {d[:200]}")
-if bad:
-    print("\n".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  if a=$(python3 "$t/client.py" "$url" "$t/p" serve); then ok "desk server: page, data with markup escaped, a 206 range, project files sandboxed; refuses other hosts, paths out of the project, hidden files (also through a link, any case), posts without the token, from another origin or not JSON, an unknown round, option or target; malformed bodies and tokens get 400/403"
-  else bad "desk server: $a"; fi
-  "$VH_BASH" "$ROOT/bin/vh" desk wait "$t/p" --timeout 30 > "$t/wait.out" 2>&1 & wpid=$!
-  for i in $(seq 50); do [ -f "$t/p/out/review/feedback/.listening" ] && break; sleep 0.2; done
-  a=$(python3 "$t/client.py" "$url" "$t/p" submit); rc=$?
-  wait "$wpid"; i=$?
-  if [ $rc = 0 ] && [ $i = 0 ] && grep -q '第 0 帧就要有水声' "$t/wait.out" && [ ! -e "$t/p/out/review/feedback/.listening" ] \
-    && python3 - "$t/p/REVIEW.md" <<'PY'
-import re, sys
-s = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r"^## 审阅台反馈 · 关卡 1 · .*?(?=^## )", s, re.M | re.S)
-sys.exit(0 if m and "开头再快一点 ``` 第 0 帧就要有水声" in m.group(0) and "\n````text\n" in m.group(0)
-         and s.index("## 审阅台反馈") < s.index("## 授权跳过怎么记") and "决定 look：L2" in m.group(0) else 1)
-PY
-  then ok "desk: a submission wakes bin/vh desk wait (exit 0) and goes into REVIEW.md verbatim, fenced, before the template's reference sections"
-  else bad "desk submit + wait: client '$a' rc $rc, wait rc $i: $(head -c 300 "$t/wait.out")"; fi
-  a=$(vh desk feedback "$t/p" --round 1) && case "$a" in *"第 0 帧就要有水声"*"json: "*) true ;; *) false ;; esac \
-    && vh desk feedback "$t/p" --json | python3 -c "import json, sys; d = json.load(sys.stdin); sys.exit(0 if d['decisions'] == {'look': 'L2'} and d['project'] == 'p' else 1)" \
-    && ok "desk feedback prints the latest submission (text and --json)" || bad "desk feedback: $a"
-  # a submission made while no watcher runs (after a timeout, say) is handed over by the next wait at once, and only once;
-  # what desk feedback printed counts as handed over too
-  a=$(python3 "$t/client.py" "$url" "$t/p" post "提前到的一条" && vh desk wait "$t/p" --timeout 20 2>&1); rc=$?
-  vh desk wait "$t/p" --timeout 1 >/dev/null 2>&1; i=$?
-  case "$rc:$i:$a" in 0:3:*"提前到的一条"*) ok "desk wait hands over a submission made before it was armed, at once and only once" ;;
-    *) bad "desk wait with a submission already there: rc $rc, then $i: $(printf '%s' "$a" | head -c 300)" ;; esac
-  a=$(python3 "$t/client.py" "$url" "$t/p" post "第三条" && vh desk feedback "$t/p")
-  vh desk wait "$t/p" --timeout 1 >/dev/null 2>&1; rc=$?
-  case "$rc:$a" in 3:*"第三条"*) ok "desk feedback counts what it printed as handed over" ;; *) bad "desk feedback then wait: rc $rc: $(printf '%s' "$a" | head -c 300)" ;; esac
-  # the new targets through the server: kept with the span's seconds, printed and written into REVIEW.md readably
-  a=$(python3 "$t/client.py" "$url" "$t/p" targets && vh desk feedback "$t/p" --json) && b=$(vh desk feedback "$t/p")
-  if python3 - "$a" "$t/p/REVIEW.md" "$b" <<'PY'
-import json, sys
-d, rv, txt = json.loads(sys.argv[1]), open(sys.argv[2], encoding="utf-8").read(), sys.argv[3]
-it = {i["target"]: i for i in d["items"]}
-want = ["- 片段 0:12.4–0:15.0 [range:12.4-15] · 要改：这一段太慢", "- 章节 c2 [chapter:c2] · 疑问：这一章要不要", "- 素材 assets/photo.jpg [asset:assets/photo.jpg] · 要改：换一张", "- 立意卡 B [card:B] · 可以"]
-sys.exit(0 if (it["range:12.4-15"]["t"], it["range:12.4-15"]["t1"]) == (12.4, 15.0) and all(w in rv and w in txt for w in want) else 1)
-PY
-  then ok "desk: range, chapter, asset and card targets are taken, keep the span's seconds, and read plainly in desk feedback and REVIEW.md; a backward span or a path out of the project is refused"
-  else bad "desk new targets: $(printf '%s' "$a$b" | tail -c 600)"; fi
-  # a copy of the project carries the running server's .desk.json and a .listening that names another folder: neither counts
-  cp -R "$t/p" "$t/p2" && printf '{"pid": %s, "since": 0, "until": 99999999999, "project": "%s"}\n' "$$" "$t/p" > "$t/p2/out/review/feedback/.listening"
-  if desk_start "$t/p2" "$t/srv2.log"; then
-    a=$(python3 "$t/client.py" "$desk_url" "$t/p2" status)
-    [ "$a" = False ] && ok "desk: a copied project starts its own server, and a .listening from another folder doesn't count" || bad "desk on a copy: listening said '$a'"
-    kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
-  fi
-  # a .listening of this folder and a live pid whose until is not a number of seconds is not listening, and raises nothing
-  a=$(python3 - "$t/p2" <<'PY' 2>&1
-import json, os, sys, time
-sys.path.insert(0, "tools/desk"); import feedback
-p = sys.argv[1]; flag = os.path.join(p, "out/review/feedback/.listening")
-def said(until):
-    with open(flag, "w") as f: json.dump({"pid": os.getpid(), "since": 0, "until": until, "project": os.path.realpath(p)}, f)
-    return feedback.listening(p)["listening"]
-print(" ".join(str(said(u)) for u in ("soon", [1], "nan", time.time() + 60)))
-PY
-  )
-  [ "$a" = "False False False True" ] && ok "desk: a .listening whose until is not seconds (a word, a list, NaN) is not listening, and is no error" || bad "desk listening on a bad until: $a"
-  # desk wait has its signal handlers before it writes .listening: a TERM right after the write (sent from inside the
-  # write, so no timing is involved) ends it with 143 and takes the flag away, as one later does
-  rm -f "$t/p2/out/review/feedback/.listening"
-  a=$(python3 - "$t/p2" <<'PY' 2>&1
-import os, subprocess, sys
-child = """import os, signal, sys
-sys.path.insert(0, "tools/desk"); import feedback
-w = feedback._write
-def write(p, text):
-    w(p, text)
-    if p.name == ".listening": os.kill(os.getpid(), signal.SIGTERM)
-feedback._write = write
-sys.exit(feedback.wait(sys.argv[1], 30, poll=0.05))"""
-rc = subprocess.run([sys.executable, "-c", child, sys.argv[1]], capture_output=True).returncode   # -15: killed by it
-print(rc, "flag left" if os.path.exists(os.path.join(sys.argv[1], "out/review/feedback/.listening")) else "no flag")
-PY
-  )
-  [ "$a" = "143 no flag" ] && ok "desk wait: a TERM the moment .listening is written ends it with 143 and no flag left" || bad "desk wait TERMed right after its flag: $a"
-  a=$(vh desk "$t/p" --port 0 2>&1); case "$a" in *"already serving p"*) ok "desk: a second start points to the running server" ;; *) bad "desk second start: $a" ;; esac
-  kill "$pid"; wait "$pid" 2>/dev/null
-  [ ! -e "$t/p/out/review/.desk.json" ] && ok "desk: stopping the server removes out/review/.desk.json" || bad "desk left .desk.json behind"
-  vh desk wait "$t/p" --timeout 1 > /dev/null 2>&1; rc=$?; [ $rc = 3 ] && ok "desk wait exits 3 on timeout" || bad "desk wait --timeout 1 exited $rc"
-  # the language: bin/vh new --lang writes the BRIEF line; bin/vh review takes it when the gate JSON has no lang
-  if OVH_PROJECTS="$t/new" vh new math ci-lang --lang en >/dev/null 2>&1 && grep -q '^- Review language: en ' "$t"/new/*-ci-lang/BRIEF.md \
-    && OVH_PROJECTS="$t/new" vh new math ci-zh >/dev/null 2>&1 && grep -q '^- Review language: zh ' "$t"/new/*-ci-zh/BRIEF.md; then
-    vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
-  else bad "new --lang: Review language not written"; fi
-  cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
-  for x in rz re; do printf '# REVIEW\n' > "$t/$x/REVIEW.md"; done   # gate ① still open (the fixture's is decided): a page that asks, with its reply
-  sed 's/^{/{"lang": "en",/' tools/desk/fixtures/zh/out/review/gate-1.json > "$t/rz/out/review/gate-1b.json"
-  if vh review "$t/rz" 1 >/dev/null 2>&1 && vh review "$t/re" 1 >/dev/null 2>&1 && vh review "$t/rz" 1b >/dev/null 2>&1 \
-    && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html" \
-    && grep -q '<html lang="en">' "$t/rz/out/review/gate-1b.html"
-  then ok "review: the gate JSON's lang, else the BRIEF's Review language (the desk's rule), and the desk's extra keys pass"; else bad "review language rule"; fi
-  a=$(vh review "$t/rz" 1 2>&1)
-  if grep -q '不选就按推荐' "$t/rz/out/review/gate-1.html" && grep -q "If you don't pick, the recommended one goes" "$t/re/out/review/gate-1.html" \
-    && case "$a" in *"不选的就按推荐"*) true ;; *) false ;; esac
-  then ok "review: the page and the chat message say a decision left unanswered goes by its recommendation"; else bad "review: unanswered decisions not explained: $a"; fi
-  gate_stop_checks "$t"
-  rm -rf "$t"
-}
-# bin/vh gate: one stop in one command. The page channel (a flag, LOCAL.md's 审阅方式, the effort's default) prints the
-# chat message and starts nothing; --wait there is refused; a page that breaks a rule sends nothing and starts no desk; the
-# desk channel starts the desk in the background (once), adds its address, and with --wait hands over the submission;
-# desk --idle stops a desk nobody asks anything
+# A gate builds a local page and prints the message to send to the reviewer.
 gate_stop_checks() {
-  local t=$1 g k a b c rc rc2 rc3 i pid url
+  local t=$1 g k a b c d i q rc rc2 rc3
   # --init: a skeleton for the stop in the review language, "version": 1; refused until filled in, with nothing written and
   # no page as far as status and the desk go; never overwritten; a quick project is told it has no gates, and can have a stop
   OVH_PROJECTS="$t" vh new math gi >/dev/null 2>&1; g=$(ls -d "$t"/*-gi)
@@ -3776,7 +3358,7 @@ PY
   else bad "gate on a filled skeleton ($rc, status $c): $a"; fi
   a=""
   for i in 2 3 E0 E3 2b final; do b=$(vh gate "$g" "$i" --init 2>&1) || a="$a | $i: $b"; python3 -c 'import json, sys; sys.path.insert(0, "tools"); import review; d = json.load(open(sys.argv[1], encoding="utf-8")); sys.exit(0 if d["version"] == 1 and review.placeholders(d) else 1)' "$g/out/review/gate-$i.json" || a="$a | gate-$i.json"; done
-  c=$(vh gate "$g" 1 --init --desk 2>&1); rc=$?; b=$(vh gate "$g" --init 2>&1); rc2=$?
+  c=$(vh gate "$g" 1 --init --chat 2>&1); rc=$?; b=$(vh gate "$g" --init 2>&1); rc2=$?
   if [ -z "$a" ] && [ "$rc:$rc2" = 2:2 ] && case "$b" in *"--init needs the stop"*) true ;; *) false ;; esac && grep -q '"include": "out/check/storyboard/review.json"' "$g/out/review/gate-2.json" && grep -q 'least_sure' "$g/out/review/gate-3.json"
   then ok "gate --init: a skeleton for each stop (gate ② includes the storyboard's data, gate ③ asks for what the agent likes least); --init with a channel or no stop is a usage error"
   else bad "gate --init on the other stops:$a ($rc/$rc2): $b | $c"; fi
@@ -3812,7 +3394,7 @@ PY
   OVH_PROJECTS="$t" vh new math ge >/dev/null 2>&1; g=$(ls -d "$t"/*-ge); vh gate "$g" 1 --init >/dev/null 2>&1
   python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d["summary"] = "写好了"; json.dump(d, open(f, "w", encoding="utf-8"))' "$g/out/review/gate-1.json"
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?; c=$(stnow "$g"); grep -q '\\u586b' "$g/out/review/gate-1.json" && b=escaped || b=plain
-  if [ "$rc:$b" = 2:escaped ] && [ "$c" = "in_progress None []" ] && case "$a" in *"placeholder(s) still to fill in"*) true ;; *) false ;; esac; then ok "gate: a skeleton saved with \\uXXXX escapes is still a skeleton: refused, and no page for status or the desk"
+  if [ "$rc:$b" = 2:escaped ] && [ "$c" = "in_progress None []" ] && case "$a" in *"placeholder(s) still to fill in"*) true ;; *) false ;; esac; then ok "gate: a skeleton saved with \\uXXXX escapes is still a skeleton: refused, and no page for status"
   else bad "gate on an escaped skeleton ($rc/$b, status $c): $a"; fi
   rm -f "$g/out/review/gate-1.json"; vh gate "$g" 2 --init >/dev/null 2>&1; mkdir -p "$g/out/check/storyboard"; fillall "$g/out/review/gate-2.json" ""
   python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d["include"] = "out/check/storyboard/review.json"; json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-2.json"
@@ -3825,92 +3407,50 @@ PY
   vh gate "$g" 2 --init >/dev/null 2>&1; b=$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1], encoding="utf-8")); print(" | ".join(x["path"] for x in d["assets"]))' "$g/out/review/gate-2.json")
   case "$a|$b" in *"回 A / B"*"|out/check/rhythm.png | {填：前 5 s 连帧"*"--strip 0:5"*"{填：每一帧都在的东西"*) ok "gate --init: two cards reply A / B, as review builds it; gate ②'s skeleton has the first 5 s as a strip and what is on screen in every frame" ;;
     *) bad "gate --init, the reply and gate ②'s skeleton: $a | $b" ;; esac
-  # a page that breaks a rule (exit 1) sent nothing: status does not wait for the person, and says what to fix; the desk stays on
-  # the page that is out; a run that goes through clears it; a page out and sent again broken goes back to the agent
+  # a page that breaks a rule (exit 1) sent nothing: status does not wait for the person and says what to fix; a run that goes through clears it; a page out and sent again broken goes back to the agent
   OVH_PROJECTS="$t" vh new math gb >/dev/null 2>&1; g=$(ls -d "$t"/*-gb); mkdir -p "$g/out/review"
   printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}], "assets": [{"path": "no/such.png", "caption": "x"}]}' > "$g/out/review/gate-1.json"
   a=$(vh gate "$g" 1 --page 2>&1); rc=$?; c=$(stnow "$g")
   b=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); n = d["next_step"]; print(n["who"], d["waiting_on"], "refused" in n["do"] and "no/such.png" in n["do"], n["commands"][0].endswith(" 1"), "refused" in d["stations"][0]["note"])')
-  e=$(vh gate "$g" 1 --desk --wait --timeout 0.01 2>/dev/null >/dev/null; echo $?)
   python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d.pop("assets"); json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-1.json"
   q=$(vh gate "$g" 1 --page 2>&1); rc2=$?; d=$(stnow "$g"); k=0; [ ! -e "$g/out/review/.gate-1.refused.json" ] || k=1
   printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}], "assets": [{"path": "no/such.png", "caption": "x"}]}' > "$g/out/review/gate-1.json"
   vh gate "$g" 1 --page >/dev/null 2>&1; rc3=$?; i=$(stnow "$g")
-  if [ "$rc:$rc2:$rc3" = 1:0:1 ] && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "in_progress None ['1']" ] && [ "$b" = "agent agent True True True" ] && [ "$e" = 1 ] && [ "$d" = "waiting_person 1 ['1']" ] && [ "$k" = 0 ] && [ "$i" = "in_progress 1 ['1']" ]
+  if [ "$rc:$rc2:$rc3" = 1:0:1 ] && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "in_progress None ['1']" ] && [ "$b" = "agent agent True True True" ] && [ "$d" = "waiting_person 1 ['1']" ] && [ "$k" = 0 ] && [ "$i" = "in_progress 1 ['1']" ]
   then ok "gate: a page that breaks a rule is not sent: status has the agent fix it, and says what; a run that goes through clears that; a page out and sent again broken goes back to the agent"
-  else bad "gate that refused a page ($rc/$rc2/$rc3; $c | $b | desk $e | $d | $k | $i): $a | $q"; fi
-  g="$t/g"; cp -R tools/desk/fixtures/zh "$g"; rm -rf "$g/out/review/feedback" "$g/out/review/.current"
-  printf '%s\n' '# LOCAL' '- 审阅方式：{对话 | 审阅页 | 审阅台}（不填按档位）' > "$t/LOCAL-tpl.md"; printf '%s\n' '# LOCAL' '- 审阅方式：对话' > "$t/LOCAL-chat.md"
+  else bad "gate that refused a page ($rc/$rc2/$rc3; $c | $b | $d | $k | $i): $a | $q"; fi
+  g="$t/g"; cp -R tools/fixtures/review/zh "$g"; rm -rf "$g/out/review/feedback" "$g/out/review/.current"
+  printf '%s\n' '# LOCAL' '- 审阅方式：{对话 | 审阅页}（默认审阅页）' > "$t/LOCAL-tpl.md"; printf '%s\n' '# LOCAL' '- 审阅方式：对话' > "$t/LOCAL-chat.md"
   a=$(vh gate "$g" 1 --page 2>"$t/g1.err"); rc=$?
-  vh gate "$g" 1 --page --wait >/dev/null 2>"$t/g2.err"; rc2=$?
   b=$(OVH_LOCAL_MD="$t/LOCAL-chat.md" vh gate "$g" 1 2>&1)
-  if [ $rc = 0 ] && [ $rc2 = 2 ] && case "$a" in *"等你定 1 件"*"页面："*"/out/review/gate-1.html"$'\n'"这支片子我打算停三次：这一次（立意）、分镜、初版。想多看一步或少看一步，回我一句就行。") true ;; *) false ;; esac \
-    && [ "$(cat "$g/out/review/.current")" = 1 ] && [ ! -e "$g/out/review/.desk.json" ] && grep -q 'waits for the review desk' "$t/g2.err" \
-    && case "$b" in *"reviewed on the chat (LOCAL.md)"*) true ;; *) false ;; esac && [ ! -e "$g/out/review/.desk.json" ]
-  then ok "gate: --page and LOCAL.md's 审阅方式 print the chat message (gate ①'s ends with where the film stops: a BRIEF with no Stops line, the three gates), make the page this round and start no desk; --wait without the desk is refused"
-  else bad "gate on the page (rc $rc/$rc2): $a | $(cat "$t/g1.err" "$t/g2.err") | $b"; fi
-  # a page that breaks a rule: written, but no message and no desk; a standard project with LOCAL.md's placeholder: the page
+  if [ $rc = 0 ] && case "$a" in *"等你定 1 件"*"页面："*"/out/review/gate-1.html"$'\n'"这支片子我打算停三次：这一次（立意）、分镜、初版。想多看一步或少看一步，回我一句就行。") true ;; *) false ;; esac \
+    && [ "$(cat "$g/out/review/.current")" = 1 ] \
+    && case "$b" in *"reviewed on the chat (LOCAL.md)"*) true ;; *) false ;; esac
+  then ok "gate: --page and LOCAL.md's 审阅方式 print the chat message (gate ①'s ends with where the film stops: a BRIEF with no Stops line, the three gates), and make the page this round"
+  else bad "gate on the page (rc $rc): $a | $(cat "$t/g1.err") | $b"; fi
+  # a page that breaks a rule: written, with no message sent; a standard project with LOCAL.md's placeholder: the page
   sed 's/"recommend": "L1", //' "$g/out/review/gate-1.json" > "$g/out/review/gate-1b.json"
-  a=$(vh gate "$g" 1b --desk --port 0 2>/dev/null); rc=$?
+  a=$(vh gate "$g" 1b --page 2>/dev/null); rc=$?
   vh review "$g" 1b >/dev/null 2>&1; rc3=$?
   cp -R "$g" "$t/gs" && sed 's/^- Effort: studio/- Effort: standard/' "$g/BRIEF.md" > "$t/gs/BRIEF.md"
   b=$(OVH_LOCAL_MD="$t/LOCAL-tpl.md" vh gate "$t/gs" 1 2>&1); rc2=$?
-  if [ $rc = 1 ] && [ $rc3 = 1 ] && [ -z "$a" ] && [ -f "$g/out/review/gate-1b.html" ] && [ "$(cat "$g/out/review/.current")" = 1 ] && [ ! -e "$g/out/review/.desk.json" ] \
-    && [ $rc2 = 0 ] && case "$b" in *"reviewed on the page (effort standard (BRIEF))"*) true ;; *) false ;; esac && [ ! -e "$t/gs/out/review/.desk.json" ]
-  then ok "gate and review: a page that breaks a rule is written but sends nothing, starts no desk and does not become this round; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
+  if [ $rc = 1 ] && [ $rc3 = 1 ] && [ -z "$a" ] && [ -f "$g/out/review/gate-1b.html" ] && [ "$(cat "$g/out/review/.current")" = 1 ] \
+    && [ $rc2 = 0 ] && case "$b" in *"reviewed on the page (effort standard (BRIEF))"*) true ;; *) false ;; esac
+  then ok "gate and review: a page that breaks a rule is written but sends nothing and does not become this round; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
   else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
-  # the desk channel (studio): started once in the background, and the desk shows its window at this stop itself (the
-  # stand-in window, $OVH_STUDIO_BROWSER: made once, raised and sent to the stop after); the message says it is open there,
-  # with no address; --wait hands over a submission (with the token the window got, as the person's page holds it)
-  a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?; desk_rec_of "$g"
-  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?; desk_rec_of "$g"   # a second stop: the same desk, its window raised there
-  "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!   # and the stop that waits
-  for rc3 in $(seq 100); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
-  pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null); desk_rec "$pid"
-  url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
-  wp=$(python3 -c 'import hashlib, os, sys; print(os.path.join(os.environ["OVH_STUDIO_PROFILES"], "desk-" + hashlib.sha1(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:10]))' "$g")
-  wins=$(python3 -c 'import json, sys; e = [json.loads(l)["event"] for l in open(sys.argv[1])]; print(e.count("launch"), e.count("second"), e.count("told"))' "$wp/stand-in.log" 2>/dev/null)
-  DESK_TOKEN=$(cat "$wp/stand-in.token" 2>/dev/null); export DESK_TOKEN
-  DESK_TOKEN=$DESK_TOKEN python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?; unset DESK_TOKEN
-  only=$(python3 - "$url" <<'PY' 2>/dev/null
-import http.client, json, sys, urllib.parse
-u = urllib.parse.urlsplit(sys.argv[1])
-def get(p):
-    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return json.loads(d)
-rows = get("/api/projects")["projects"]
-print(len(rows), get(f"/api/p/{rows[0]['key']}/data")["only"])
-PY
-)
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"在 Studio 里打开了"*"然后回到这里跟我说一声"*"我发了"*) true ;; *) false ;; esac \
-    && [ "$wins" = "1 0 2" ] && [ -s "$wp/stand-in.token" ] \
-    && ! printf '%s' "$a" | grep -q 'http\|?c=' && ! printf '%s' "$b" | grep -q '?c=' && ! grep -q '?c=' "$t/gw.out" \
-    && ! grep -rqF -e "$(cat "$wp/stand-in.token")" "$g/out/review/.desk.log" "$g/out/review/.desk.json" "$g/.ovh" \
-    && [ "$only" = "1 True" ] \
-    && case "$b" in *"already serving this project: its window front"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在等，你一发我就接着做' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
-    && python3 - "$g/.ovh/activity.jsonl" <<'PY'
-import json, sys
-recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
-gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
-desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
-sys.exit(0 if len(desk) == 1 and all(d.get("parent") in gates for d in desk) and any(r["event"] == "feedback" for r in recs) else 1)
-PY
-  then ok "gate: the desk channel starts the desk in the background once (its run's parent is the gate), serving that project and nothing else; it makes one window at this round's gate view (its page connected and got the token), raised and sent to the stop after; the message says it is open there with no address, and the log, .desk.json and .ovh hold nothing of the token; --wait hands over the submission"
-  else bad "gate on the desk (rc $rc/$rc2/$rc3, only: $only): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
-  [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
-  # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
-  "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!; desk_rec "$pid"
-  for i in $(seq 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
-  if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
-  else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
+  # Older LOCAL.md files may still select the previous review channel.
+  printf '%s\n' '# LOCAL' '- 审阅方式：审阅台' > "$t/LOCAL-legacy.md"
+  a=$(OVH_LOCAL_MD="$t/LOCAL-legacy.md" vh gate "$g" 1 --json 2>/dev/null); rc=$?
+  if [ "$rc" = 0 ] && python3 -c 'import json, sys; d = json.loads(sys.argv[1]); sys.exit(0 if d["channel"] == "page" and d["url"] is None else 1)' "$a"
+  then ok "gate: an older local review preference falls back to the local page"
+  else bad "gate did not publish a page for an older local review preference: $rc $a"; fi
 }
-# the gate view (tools/review.py, tools/desk/static/ui.css and ui.js) and the console (bin/vh desk with no project): one
-# stylesheet and one script for the static page and the desk, inlined whole into the page; the picture first, the options as
-# cards with the recommendation picked; times in least-sure ids; the word budget a warning; the demo fixture's three gates;
-# the console's projects, project data, gate views and files over several projects, its refusals, and a submission
-console_checks() {
-  local t a b rc pid url
+
+review_checks() {
+  local t a b rc g
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
-  mkdir "$t/root" && cp -R tools/desk/fixtures/zh tools/desk/fixtures/en tools/desk/fixtures/demo "$t/root/"
+  gate_stop_checks "$t"
+  mkdir "$t/root" && cp -R tools/fixtures/review/zh tools/fixtures/review/demo "$t/root/"
   rc=0; for g in 1 2 3; do vh review "$t/root/demo" "$g" > "$t/demo$g.out" 2> "$t/demo$g.err" || rc="$rc $g"; done
   vh review "$t/root/zh" 1 >/dev/null 2>&1 || rc="$rc zh"
   if python3 - "$t/root" "$rc" "$(cat "$t"/demo*.err)" <<'PY'
@@ -3921,7 +3461,7 @@ root, rc, err = sys.argv[1], sys.argv[2], sys.argv[3]
 bad = []
 def want(cond, what):
     if not cond: bad.append(what)
-css, js = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("ui.css", "ui.js"))
+css, js = (open(f"tools/review_ui/{n}", encoding="utf-8").read() for n in ("ui.css", "ui.js"))
 pages = {g: open(f"{root}/demo/out/review/gate-{g}.html", encoding="utf-8").read() for g in "123"}
 zh = open(f"{root}/zh/out/review/gate-1.html", encoding="utf-8").read()
 want(rc == "0", f"review exits: {rc}")
@@ -3936,26 +3476,6 @@ want('data-settled="done"' in art(zh) and 'value="L1" disabled data-rec="1"' in 
      "zh gate 1 and demo gate 1 (decided since): not a record (said as decided, nothing picked or to pick, no reply)")
 want('class="g-opts wide"' in pages["1"] and 'src="card-A.svg"' in pages["1"] and 'g-dec wide' in pages["1"], "demo gate 1: the concept cards are not wide cards with their frames")
 want(pages["2"].index('class="g-board"') < pages["2"].index('class="g-side"') and 'id="shot-S04"' in pages["2"] and 'g-shot flag' in pages["2"], "demo gate 2: the storyboard is not the picture beside the decision")
-import json
-mod = {g: re.search(r'<script type="application/json" id="ovh-data">(.*?)</script>', h, re.S) for g, h in pages.items()}
-mod = {g: json.loads(m.group(1)) if m else None for g, m in mod.items()}
-inl = [open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("modules.css", "core.js", "modules.js", "static.js")]
-want(mod["1"] and mod["1"]["modules"] == ["idea", "outline"] and mod["1"]["rel"] == "../../" and mod["1"]["data"]["current"] == "1"
-     and mod["2"] and mod["2"]["modules"] == ["board"] and len(mod["2"]["data"]["shots"]["items"]) == 6 and mod["3"] is None
-     and all(x in pages["1"] for x in inl) and not any(x in pages["3"] for x in inl[1:]) and "</script" not in "".join(inl[1:]),
-     f"the static pages' modules (立意 and 大纲 on ①, 分镜 on ②, none on ③): {[(g, m and m['modules']) for g, m in mod.items()]}")
-# a gate ① page with no concept cards (e.g. outline-only 1b beside an older gate-1.json): opens with outline alone, no stale cards
-import shutil, tempfile
-from pathlib import Path
-with tempfile.TemporaryDirectory() as td:
-    p1b = Path(td) / "demo"; shutil.copytree("tools/desk/fixtures/demo", p1b)
-    (p1b / "out/review/gate-1b.json").write_text(json.dumps({"version": 1, "summary": "确认大纲节奏",
-        "decisions": [{"id": "pace", "question": "节奏选哪档？", "options": [{"id": "A", "label": "明快"}, {"id": "B", "label": "从容"}], "recommend": "A"}]}, ensure_ascii=False), encoding="utf-8")
-    rc1b, _, path1b = review.publish(p1b, "1b")
-    m1b = re.search(r'<script type="application/json" id="ovh-data">(.*?)</script>', path1b.read_text(encoding="utf-8"), re.S) if rc1b == 0 else None
-    d1b = json.loads(m1b.group(1)) if m1b else None
-    want(rc1b == 0 and d1b and d1b["modules"] == ["outline"] and d1b["data"]["current"] == "1b",
-         f"static gate 1 without concept cards should mount outline alone: rc={rc1b}, mods={d1b and d1b['modules']}")
 want('class="g-marks"' in pages["3"] and "0:27.0–0:32.0" in pages["3"] and 'data-t="15.5"' in pages["3"], "demo gate 3: the least-sure times (t, and a time as the id)")
 want(review.time_of("0–5 s") == (0.0, 5.0) and review.time_of("1:05–1:12") == (65.0, 72.0) and review.time_of("12.4 s") == (12.4, None) and review.time_of("S04") is None, "time_of")
 want(review.budget_len("初版 32 s") == (3.5, True) and review.budget_len("A short line") == (12, False), f"budget_len: {review.budget_len('初版 32 s')}")
@@ -3963,16 +3483,20 @@ if bad:
     print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget; gate ① and ② carry their stop's modules (the data and the console's renderers inlined), gate ③ none"
+  then ok "gate view: the static page inlines ui.css and ui.js whole and loads nothing from outside; the recommended card is picked and the reply built; concept cards with frames, the storyboard as the picture, least-sure times from t or the id; the demo's pages keep to the word budget"
   else bad "gate view on the fixtures"; fi
-  # the themes (docs/proposals/02-studio-client.md, 5): three blocks of one set of variables, the default on :root (one value
-  # in ui.js names it); every colour of ui.css and studio.css a variable; the type, the lamps and the readouts at WCAG AA
+  printf '%s\n' '{"summary":"核对分镜","decisions":[]}' > "$t/root/demo/out/review/gate-2b.json"
+  if vh review "$t/root/demo" 2b >/dev/null 2>&1 && grep -q 'class="g-board"' "$t/root/demo/out/review/gate-2b.html" \
+    && grep -q 'id="shot-S6"' "$t/root/demo/out/review/gate-2b.html"
+  then ok "review: a storyboard pack without segments uses the project shot table"
+  else bad "review: a storyboard pack lost its project shots"; fi
+  # the review page's themes: three blocks of one set of variables, the default on :root (one value
+  # in ui.js names it); every colour of ui.css a variable; the type, the lamps and the readouts at WCAG AA
   # (4.5:1) on the ground in each, and the type on a picture's grey at 4.5:1 on it
   if a=$(python3 - <<'PY'
 import re
-css = open("tools/desk/static/ui.css", encoding="utf-8").read()
-studio = "".join(open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("studio.css", "modules.css", "agent.css"))
-js = open("tools/desk/static/ui.js", encoding="utf-8").read()
+css = open("tools/review_ui/ui.css", encoding="utf-8").read()
+js = open("tools/review_ui/ui.js", encoding="utf-8").read()
 def block(sel):
     m = re.search(re.escape(sel) + r"\{(.*?)\}", css, re.S)
     return dict((k, v.strip()) for k, v in re.findall(r"--([\w-]+):([^;}]+)", m.group(1))) if m else {}
@@ -4003,66 +3527,13 @@ for name, t in themes.items():
 if 'DEFAULT_THEME = "darkfield"' not in js or 'THEMES = ["darkfield", "prism", "bridge"]' not in js:
     low.append("ui.js: THEMES and DEFAULT_THEME")
 stray = []
-for f, text in (("ui.css", css), ("studio.css, modules.css and agent.css", studio)):
+for f, text in (("ui.css", css),):
     rules = re.sub(r"/\*.*?\*/", "", re.sub(r":root(,:root)?(\[data-theme=\w+\])?\{.*?\}", "", text, flags=re.S), flags=re.S)
     stray += [f"{f} {x}" for x in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", rules)]
 print("; ".join(low + ([f"{len(stray)} colour(s) outside the variables: {', '.join(stray[:4])}"] if stray else [])))
 PY
-) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css, studio.css, modules.css and agent.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
+) && [ -z "$a" ]; then ok "themes: 暗场, 棱镜 and 舰桥 are blocks of one set of variables, 暗场 the default; every colour of ui.css is a variable, and the type, the lamps and the readouts are at 4.5:1 or more on the ground in each"
   else bad "theme contrast or stray colours: $a"; fi
-  # the console's own safety: project words reach the page only through escaping or the DOM; an unknown key walks the roots at
-  # most once in FRESH_GAP; the console's info file is trusted only in a folder of this user's own; a card's picture and a gate
-  # page ask for no file that is not there; a film's name when the BRIEF has none
-  if a=$(python3 - "$t" <<'PY'
-import json, os, re, sys, tempfile
-from pathlib import Path
-sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
-import projects, review, server
-t = sys.argv[1]
-bad = []
-def want(cond, what):
-    if not cond: bad.append(what)
-ui, studio, rv, mods = (open(f, encoding="utf-8").read() for f in ("tools/desk/static/ui.js", "tools/desk/static/studio.js", "tools/review.py", "tools/desk/static/modules.js"))
-want("innerHTML" not in ui + mods, "ui.js or modules.js puts markup in the page (innerHTML): a frame's address or a label is the project's words")
-want("url('" not in studio + mods and "data-cap=" not in rv and not re.search(r"\son[a-z]+=", mods), "a project path in a CSS url('…'), a caption in an attribute, or an inline handler in modules.js")
-calls, real = [], projects.listing
-projects.listing = lambda *a, **k: (calls.append(1), real(*a, **k))[1]
-srv = server.Desk(0, None, [t + "/root"])
-try:
-    for _ in range(5):
-        srv.project_of("nope~000000")
-finally:
-    srv.server_close(); projects.listing = real
-want(len(calls) == 1, f"five unknown keys walked the roots {len(calls)} times")
-tmp = tempfile.mkdtemp(dir=t); tempfile.tempdir = tmp
-own = Path(tmp) / f"ovh-desk-{os.getuid()}"
-os.symlink(tmp, own)
-want(server._info_path(None, [t]) is None, "a console's folder that is a link is trusted")
-own.unlink(); own.mkdir(mode=0o755); os.chmod(own, 0o755)
-want(server._info_path(None, [t]) is None, "a console's folder others can write in is trusted")
-os.chmod(own, 0o700)
-info = server._info_path(None, [t])
-want(info is not None and info.parent == own, "a console's folder of this user's own is not used")
-if info:
-    info.write_text(json.dumps({"pid": 1, "port": 9, "url": "http://127.0.0.1:9/", "roots": [os.path.realpath(t)]}))
-    want(server.running(None, [t]) is None, "an info file naming a process this user cannot signal counts as a running console")
-p = Path(t) / "pics"
-(p / "frames").mkdir(parents=True); (p / "out" / "review").mkdir(parents=True)
-(p / "frames" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
-(p / "out" / "review" / "gate-1.json").write_text(json.dumps({"title": "编的片 · 关卡 ①", "summary": "选一张",
-    "decisions": [{"id": "c", "question": "哪张？", "options": [{"id": "A", "label": "甲", "frame": "frames/a.png"}, {"id": "B", "label": "乙"}], "recommend": "A"}],
-    "assets": [{"path": "frames/gone.png"}]}, ensure_ascii=False), encoding="utf-8")
-pic = server.picture_of(p, {"state": "in_progress", "film": {"path": "out/draft.mp4"}}, None)
-want(pic == {"path": "frames/a.png", "kind": "image", "from": "gate"}, f"a card whose film is not there: the gate page's picture, not the film: {pic}")
-want(server.film_title(p, "pics") == "编的片", f"a film's name from its gate page: {server.film_title(p, 'pics')!r}")
-pg = review.page_for(p, "1")
-html = pg.body()
-want("gone.png" not in " ".join(re.findall(r'(?:src|href|data-src)="([^"]*)"', html)) and any("frames/gone.png" in e for e in pg.errors),
-     "a gate page links a file that is not there")
-print("; ".join(bad))
-PY
-) && [ -z "$a" ]; then ok "console safety: no markup from project words in ui.js or modules.js, no project path in a CSS url, no inline handler in modules.js; an unknown key walks the roots once in FRESH_GAP; a console's info file only in this user's own closed folder, and a process it cannot signal is not its console; a card and a gate page ask for no missing file; the film's name from its gate page"
-  else bad "console safety: $a"; fi
   # the word budget warns and never refuses; a long first line is split: its first sentence the heading, the rest under it
   mkdir -p "$t/long/out/review" && printf '# BRIEF：长\n\n## Spec\n- Review language: zh\n' > "$t/long/BRIEF.md"
   printf '%s\n' '{"summary": "立意你给了：三类英雄镜头用代码复刻，主角换成两台新手机。这页给你看第一轮的四张静帧和四十八秒的大纲，要你定两件事，约四分钟", "decisions": [{"id": "c", "question": "用哪个？", "options": ["A", "B"], "recommend": "A"}]}' > "$t/long/out/review/gate-1.json"
@@ -4072,938 +3543,6 @@ PY
     && grep -q 'keep it short: summary at most 40' "$t/init.out"
   then ok "word budget: an over-long summary is a warning (exit 0), and the page heads with its first sentence; gate --init says the budget"
   else bad "word budget (exit $rc): $a | $(cat "$t/init.out")"; fi
-  # the console: no project, the roots given; three projects, keys from their names, the waiting one with its question; a
-  # second root with a made-up film whose film and key frame are gone and whose BRIEF has no title
-  mkdir -p "$t/root2/gone/out/review" && printf '# BRIEF\n\n## Spec\n- Review language: zh\n' > "$t/root2/gone/BRIEF.md"
-  printf '%s\n' '{"shots": [{"id": "S1", "start": 0, "end": 2, "label": "开场", "frame": "out/frames/S1.png"}]}' > "$t/root2/gone/shots.json"
-  printf '%s\n' '{"title": "编出来的片 · 关卡 ③ 初版", "summary": "看一眼", "film": "out/draft.mp4", "decisions": [{"id": "a", "question": "放行吗？", "options": ["OK", "FIX"], "recommend": "OK"}]}' > "$t/root2/gone/out/review/gate-3.json"
-  python3 "$ROOT/tools/desk/fixtures/with_tty.py" "$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 --print-address > "$t/console.log" 2>&1 & pid=$!; desk_rec "$pid"
-  for i in $(seq 150); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*console.*#\1#p' "$t/console.log")
-    DESK_KEY=$(sed -n 's#.*: http://127\.0\.0\.1:[0-9]*/?c=\([A-Za-z0-9_-]*\).*#\1#p' "$t/console.log"); [ -n "$url" ] && [ -n "$DESK_KEY" ] && break; kill -0 $pid 2>/dev/null || break; sleep 0.2; done
-  export DESK_KEY
-  if [ -z "$url" ]; then bad "the console did not start: $(head -c 400 "$t/console.log")"; kill $pid 2>/dev/null; rm -rf "$t"; return; fi
-  if python3 - "$url" "$t/root" "$t/root2" <<'PY'
-import hashlib, http.client, json, os, re, shutil, sys, time, urllib.parse
-u = urllib.parse.urlsplit(sys.argv[1]); root, root2 = sys.argv[2], sys.argv[3]
-pid = lambda p: hashlib.sha1(os.path.realpath(p).encode()).hexdigest()   # noqa: E731
-def req(method, path, body=None, headers=None, host=None):
-    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20)
-    h = {"Host": host or f"127.0.0.1:{u.port}"}
-    h.update(headers or {})
-    c.request(method, path, body=body, headers=h)
-    r = c.getresponse(); data = r.read(); c.close()
-    return r.status, r.headers, data
-bad = []
-def want(cond, msg):
-    if not cond: bad.append(msg)
-s, _, page = req("GET", "/?c=" + os.environ.get("DESK_KEY", ""))   # a GET gives nothing: the page's script trades the code
-page = page.decode()
-token = json.loads(req("POST", "/api/claim", json.dumps({"c": os.environ.get("DESK_KEY", "")}).encode(), {"Content-Type": "application/json"})[2]).get("token", "")
-want(s == 200 and 'name="desk-home" content=""' in page and "http" not in page.split("<body>")[1], "the console's page: no home project, nothing from outside")
-want(all(f'id="{x}"' in page for x in ("rail", "flow", "stage", "col", "composer")) and page.count("data-theme-set=") == 3, "the console's shell: the rail, the flow bar, the module, the right column with its note box, three themes")
-for f in ("ui.css", "ui.js", "studio.css", "studio.js", "modules.css", "modules.js", "core.js", "agent.css", "agent.js", "reader.css", "reader.js"):
-    want(req("GET", f"/static/{f}")[0] == 200, f"/static/{f}")
-want(req("GET", "/static/console.js")[0] == 404 and req("GET", "/static/static.js")[0] == 404, "/static/ serves only its eleven files (static.js is the static page's)")
-s, _, d = req("GET", "/api/projects"); d = json.loads(d)
-real = os.path.realpath(root) + os.sep   # (<repo>/projects is a root too: a checkout's own projects may be listed beside these)
-rows = {os.path.basename(r["path"]): r for r in d["projects"] if os.path.realpath(r["path"]).startswith(real)}
-want(s == 200 and set(rows) == {"zh", "en", "demo"} and [n for n, r in rows.items() if r["state"] == "waiting_person"] == ["demo"], f"projects: {sorted(rows)}")
-want(all(re.fullmatch(re.escape(n) + r"~[0-9a-f]{6}", r["key"]) for n, r in rows.items()), f"keys: the name and six digits of the folder: {[r['key'] for r in rows.values()]}")
-waits = [r["state"] == "waiting_person" for r in d["projects"]]
-want(waits == sorted(waits, reverse=True), "the space: the films waiting for the person first")
-gn = next((r for r in d["projects"] if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/gone")), {})
-want(gn.get("title") == "编出来的片", f"a BRIEF without a title: the film's name from its gate page: {gn.get('title')!r}")
-dm = rows.get("demo", {"key": "demo"})
-K, Z = dm["key"], rows.get("zh", {"key": "zh"})["key"]
-want(dm.get("state") == "waiting_person" and (dm.get("ask") or {}).get("question") == "这版放行吗？" and (dm.get("ask") or {}).get("decisions") == 2, f"demo's ask: {dm.get('ask')}")
-want((dm.get("picture") or {}).get("from") == "gate" and dm["picture"]["href"].startswith(f"/f/{K}/"), f"demo's picture: {dm.get('picture')}")
-s, _, d = req("GET", f"/api/p/{K}/data"); d = json.loads(d)
-want(s == 200 and d["key"] == K and d["current"] == "3" and [x["state"] for x in d["status"]["stations"]][:3] == ["done", "done", "waiting_person"], "demo's data and stops")
-want(d.get("pid") == pid(root + "/demo") and d.get("round_open") is True and d.get("only") is False, f"demo's identity and open round: {d.get('round_open')}")
-want(json.loads(req("GET", f"/api/p/{Z}/data")[2]).get("round_open") is False, "zh: its round's stop is passed, so the round is settled")
-gd = json.loads(req("GET", f"/api/p/{gn.get('key', 'x')}/data")[2])
-gs = gd.get("studio") or {}
-want(gs.get("film") is None and gs.get("film_missing") == "out/draft.mp4" and [x.get("frame") for x in (gs.get("timeline") or {}).get("shots") or []] == [None]
-     and gd.get("project", {}).get("title") == "编出来的片" and gd.get("round_open") is True,
-     f"a film and a key frame that are not there: none asked for, the film named as missing: {gs.get('film')} {gs.get('film_missing')}")
-sd = d.get("studio") or {}
-tl = sd.get("timeline") or {}
-want(len(tl.get("shots") or []) == 6 and len(tl.get("narration") or []) == 6 and len(tl.get("beats") or []) > 40 and tl.get("bpm") == 90
-     and [(f["severity"], f["t"]) for f in sd.get("findings") or []] == [("warn", 28.5), ("warn", 31.0)] and (sd.get("check") or {}).get("verdict") == "warn"
-     and sd.get("thumbs") is None and sd.get("peaks") is None, f"demo's cut data: {sorted(tl)} {sd.get('findings')}")
-md = d.get("mods") or {}
-pc, au = md.get("pace") or {}, md.get("audition") or {}
-want((md.get("loudness") or {}).get("integrated") == -14.2 and md.get("silences") == 0 and pc.get("unit") == "chars/s" and len(pc.get("lines") or []) == 6
-     and md.get("voice") == "Charon" and [v["voice"] for v in au.get("voices") or []] == ["Charon", "Kore", "Puck"] and [x["t"] for x in md.get("lifts") or []] == [9.0, 21.3],
-     f"demo's sound data: {json.dumps({k: md.get(k) for k in ('loudness', 'silences', 'voice', 'lifts')}, ensure_ascii=False)[:300]}")
-want([(c["id"], c["ratio"] < 1) for c in md.get("covers") or [] if c.get("ratio")] == [("A", True), ("B", False)] and md.get("subs") == []
-     and [(a["id"], a["license"], a["there"]) for a in md.get("assets") or []] == [("tide-gauge", "cc0", True), ("card-a", "own", True), ("tide-clip", "unknown", False), ("vo", "generated", False)]
-     and [r["id"] for r in md.get("refs") or []] == ["tide-lecture"] and [x["path"] for x in md.get("digests") or []] == ["research/digest/tide-lecture/transcript.md"],
-     f"demo's delivery and material data: {json.dumps({k: md.get(k) for k in ('covers', 'assets', 'refs', 'digests')}, ensure_ascii=False)[:400]}")
-json.dump(d, open(os.path.join(os.path.dirname(root), "demo-data.json"), "w", encoding="utf-8"), ensure_ascii=False)   # for the modules' render check below
-pk = d.get("packaging") or {}
-want("白板" in ((d.get("ideas") or {}).get("same_topic") or "") and [x["id"] for x in pk.get("titles") or []] == ["T1", "T2", "T3"]
-     and [(x["name"], len(x["tags"])) for x in pk.get("platforms") or []] == [("B站", 4), ("抖音", 2)] and [h.get("date") for h in d.get("history") or []] == ["2026-11-14", "2026-11-14"],
-     f"NOTES' ideas, PACKAGING's titles and platforms, REVIEW's dates: {json.dumps(pk.get('platforms'), ensure_ascii=False)[:200]}")
-s, _, g = req("GET", f"/api/p/{K}/gate/3"); g = json.loads(g)
-want(s == 200 and g["current"] and 'data-live' in g["html"] and "g-submit" in g["html"] and [x["id"] for x in g["decisions"]] == ["draft", "voice"]
-     and f'src="/f/{K}/out/check/sheet.svg"' in g["html"] and not g["errors"], f"gate 3's view: {g.get('errors')}")
-want(g.get("cards", "").count('class="g-dec') == 2 and "g-act" not in g.get("cards", "") and [(m["kind"], m["t"]) for m in g.get("marks") or []] == [("least", 15.5), ("least", 27.0), ("listen", 9.2), ("listen", 30.5)]
-     and g.get("summary", "").startswith("初版"), f"gate 3's right column: {g.get('marks')}")
-s, _, g1 = req("GET", f"/api/p/{K}/gate/1?lang=en"); g1 = json.loads(g1)
-want(s == 200 and not g1["current"] and '<span class="rec">recommended</span>' in g1["html"] and "推荐" not in g1["html"], "gate 1, an earlier page, in English (its recommended option marked in English)")
-s, _, st = req("GET", f"/api/p/{K}/status")
-want(s == 200 and json.loads(st)["round"] == "3", "status names this round")
-s, h, _ = req("GET", f"/f/{K}/out/frames/S1.svg")
-want(s == 200 and h.get("Content-Security-Policy", "").startswith("sandbox"), "a project file, sandboxed")
-for p in (f"/f/{K}/..%2fzh/BRIEF.md", f"/f/{K}/../zh/BRIEF.md", "/f/nope-x/BRIEF.md", "/api/p/nope-x/data", f"/api/p/{K}/gate/9", "/api/data", "/p/BRIEF.md"):
-    want(req("GET", p)[0] == 404, f"{p} answered")
-want(req("GET", "/api/projects", host="evil.test")[0] == 403, "another Host answered")
-# the space's sample wall: the four showcase posters always, each film only when it is in the clone, and nothing else of the clone
-smp = json.loads(req("GET", "/api/projects")[2]).get("samples")
-s, h, img = req("GET", "/samples/short.jpg")
-want(isinstance(smp, list) and set(smp) <= {"short", "math", "handdrawn", "launch"} and s == 200 and h.get("Content-Type") == "image/jpeg" and img[:2] == b"\xff\xd8"
-     and all(req("GET", f"/samples/{x}.jpg")[0] == 200 for x in ("math", "handdrawn", "launch"))
-     and all(req("GET", f"/samples/{x}.mp4")[0] == (200 if x in smp else 404) for x in ("short", "math", "handdrawn", "launch")),
-     f"the sample wall's posters and films: {smp} {s} {h.get('Content-Type')}")
-for p in ("/samples/nope.jpg", "/samples/short.png", "/samples/..%2fserver.py", "/samples/", "/samples/short.jpg/x"):
-    want(req("GET", p)[0] == 404, f"{p} answered")
-film = "showcase/02-short-leo-doppler/media/final.mp4"   # a film linked in from outside the clone: neither listed nor served
-if not os.path.lexists(film) and os.path.isdir(os.path.dirname(film)):
-    outside = os.path.join(os.path.dirname(root), "outside.mp4")
-    open(outside, "wb").write(b"\x00" * 64)
-    os.symlink(outside, film)
-    try:
-        want("short" not in json.loads(req("GET", "/api/projects")[2]).get("samples", []) and req("GET", "/samples/short.mp4")[0] == 404,
-             "a film linked in from outside the clone is listed or served")
-    finally:
-        os.remove(film)
-fb = lambda **k: json.dumps(dict({"round": "3", "lang": "zh", "decisions": {"draft": "OK"}, "defaulted": ["voice"], "general": "",
-    "items": [{"target": "least:S04", "status": "change", "label": "没把握：S04", "text": "再大一点"}], "pid": pid(root + "/demo")}, **k)).encode()
-H = {"Content-Type": "application/json", "X-Desk-Token": token}
-want(req("POST", f"/api/p/{K}/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
-want(req("POST", f"/api/p/{Z}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 400, "a round another project does not have")
-want(req("POST", f"/api/p/{K}/feedback", fb(pid=pid(root + "/zh")), H)[0] == 409 and req("POST", f"/api/p/{K}/feedback", fb(pid=None), H)[0] == 409,
-     "a submission that names another folder, or none, than the address's: refused")
-s, _, r = req("POST", f"/api/p/{K}/feedback", fb(), H)
-want(s == 200 and json.loads(r)["saved"].startswith("out/review/feedback/3-"), f"a submission: {s} {r[:200]}")
-rv = open(root + "/demo/REVIEW.md", encoding="utf-8").read()
-want("决定 draft：OK" in rv and "没把握：S04 [least:S04] · 要改：再大一点" in rv, "the submission in REVIEW.md")
-# a folder of the same name turns up under the other root: every key stays with its folder
-shutil.copytree(root + "/demo", root2 + "/demo")
-time.sleep(4.3)   # the listing is reused for 4 s
-demos = [r for r in json.loads(req("GET", "/api/projects")[2])["projects"] if r["name"] == "demo"]
-twin = next((r["key"] for r in demos if os.path.realpath(r["path"]) == os.path.realpath(root2 + "/demo")), None)
-kd = json.loads(req("GET", f"/api/p/{K}/data")[2])
-want(len(demos) == 2 and K in [r["key"] for r in demos] and twin and twin != K and os.path.realpath(kd["status"]["project"]["path"]) == os.path.realpath(root + "/demo")
-     and req("POST", f"/api/p/{twin}/feedback", fb(), H)[0] == 409, f"keys after a second demo: {[r['key'] for r in demos]}")
-if bad:
-    print("\n".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  then ok "console: bin/vh desk with no project serves the Studio shell (rail, flow bar, right column, three themes) and every project under the roots (keys of a name and six digits of the folder, which stay with their folders when a second folder of the same name turns up; the waiting ones first, with their question and picture; a film's name from its gate page when the BRIEF has none), a submission refused when it names another folder than its address (409), a round open until its stop is passed, a film and a key frame that are not there never asked for, a project's data and stops with what the cut module lays out (the resolved timeline, the check's findings) and what the other modules read (the check's loudness, bin/vh pace's rates and the voice, the audition, the lifts, covers, the asset ledger, references and transcripts; NOTES' same-topic line, PACKAGING's titles and copy for each platform, REVIEW's dates), its gate views (this round live with the right column's cards and marks, an earlier one, in English), its files sandboxed; refuses paths out, unknown projects and gates, the first addresses without a project, other hosts, a post without the token or for a round the project lacks; a submission lands in REVIEW.md"
-  else bad "console"; fi
-  a=$("$VH_BASH" "$ROOT/bin/vh" desk --root "$t/root" --root "$t/root2" --port 0 2>&1); case "$a" in *"already serving the console"*) ok "console: a second start with the same roots points to the running one" ;; *) bad "console second start: $a" ;; esac
-  # the modules (tools/desk/static/modules.js) drawn from the demo's data as the console reads it, and read only from what the
-  # static pages carry: each module draws, nothing says undefined or NaN, and each shows what the fixture has for it
-  cat > "$t/modules-render.js" <<'JS'
-const vm = require("vm"), fs = require("fs");
-const [dataFile, page1, page2] = process.argv.slice(2), bad = [];
-const want = (c, m) => { if (!c) bad.push(m); };
-function host(D, readOnly) {   // core.js and modules.js in one context, with the little a host gives them
-  const g = vm.createContext({ console, __D: D });
-  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
-  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
-    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
-  return (code) => vm.runInContext(code, g);
-}
-const draw = (run, m) => { try { const h = run("MODVIEW." + m + ".main()"); want(!/undefined|NaN|\[object Object\]/.test(h), m + ": undefined, NaN or an object in the page"); return h; } catch (e) { bad.push(m + ": " + e.message); return ""; } };
-const run = host(JSON.parse(fs.readFileSync(dataFile, "utf8")), false), h = {};
-for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) h[m] = draw(run, m);
-want((h.idea.match(/class="ccard/g) || []).length === 2 && h.idea.includes("card-A.svg") && h.idea.includes(run("esc(D.ideas.same_topic)")) && /chip you-pick">/.test(h.idea), "idea: two cards with frames, the same-topic line, A picked (REVIEW.md)");
-want(h.outline.includes("segbar") && (h.outline.match(/class="segc"/g) || []).length === 3 && h.outline.includes("HyperFrames"), "outline: the bar, three parts, the engine");
-want(h.board.includes("开场 · 第 1–2 镜") && h.board.includes(">第 3–4 镜 两个鼓包<") && !/第 \d+ 页/.test(h.board) && (h.board.match(/class="shotc/g) || []).length === 2, "board: the first part, two shots, its tabs named by their shots, no pages");
-run("SUB = '2'"); const b2 = draw(run, "board"); run("SUB = ''");
-want(b2.includes("两个鼓包 · 第 3–4 镜") && b2.includes("shotc unsure") && b2.includes("背面的鼓包会不会看不懂") && b2.includes("鼓包加大一点") && b2.includes("原理段，宁慢勿快") && b2.includes('id="shot-S04"'),
-  "board: page 2 is the gate ② page's part (S04 unsure, its plan line, the part's note), not shots.json's");
-want(h.sound.includes("-14.2") && /<article class="vcard on"[^>]*>\s*<h3><b>Charon<\/b>/.test(h.sound) && (h.sound.match(/<tr\b[\s\S]*?<\/tr>/g) || []).filter((r) => r.includes("chip wait")).length === 1
-  && ["0:09.0", "0:21.3"].every((x) => h.sound.includes(x)), "sound: loudness, the voice in use, one fast line flagged, the lifts at their seconds");
-want(h.ship.includes("cover-a.svg") && h.ship.includes("抖音") && h.ship.includes("月亮只来一次，海水为什么涨两次？") && h.ship.includes("1 处注意"), "ship: covers, platforms, a title, the check");
-want(h.assets.includes("tide-gauge") && h.assets.includes("来源没写许可") && h.assets.includes("读文稿"), "assets: an item, an uncleared licence, a transcript");
-want(h.ledger.includes("用 A，从海边开场。") && h.ledger.includes("data-overturn") && h.ledger.includes(run('shortDate("2026-11-14")')), "ledger: your words, an overturn, the dates");
-for (const [f, mods] of [[page1, ["idea", "outline"]], [page2, ["board"]]]) {   // a static page: its own data, read only
-  const m = fs.readFileSync(f, "utf8").match(/<script type="application\/json" id="ovh-data">([\s\S]*?)<\/script>/);
-  if (!m) { bad.push(f + ": no module data"); continue; }
-  const x = JSON.parse(m[1]), r = host(x.data, true);
-  want(JSON.stringify(x.modules) === JSON.stringify(mods), f + ": modules " + x.modules);
-  for (const k of x.modules) { const s = draw(r, k); want(!s.includes('class="subtabs"') && !s.includes("data-like") && !s.includes("href=\"#/p/"), "static " + k + ": a console-only part"); }
-  if (mods[0] === "idea") want(draw(r, "idea").includes("data-pick-card"), "static idea: the cards pick");
-  if (mods[0] === "board") {   // every link the gate view's lists have to a shot lands on a card of the module (the gate's own board is hidden)
-    const html = fs.readFileSync(f, "utf8"), ids = new Set(), out = [];
-    for (let p = 1; p <= 3; p++) { r("SUB = '" + p + "'"); for (const m2 of draw(r, "board").matchAll(/id="(shot-[^"]+)"/g)) ids.add(m2[1]); }
-    for (const m2 of html.matchAll(/href="#(shot-[^"]+)"/g)) if (!ids.has(m2[1])) out.push(m2[1]);
-    want(ids.size === 6 && !out.length, "static board: links with no card to land on: " + out.join(" "));
-  }
-}
-const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x));
-{ const x = JSON.parse(fs.readFileSync(page1, "utf8").match(/id="ovh-data">([\s\S]*?)<\/script>/)[1]); x.data.current = "E0";   // a settled stop's page: nothing to pick
-  want(!draw(host(x.data, true), "idea").includes("data-pick-card"), "static E0: the settled concept cards pick nothing"); }
-{ const d = clone(D0); d.outline = [{ id: "1", title: "a", t0: 5, t1: 10 }, { id: "2", title: "b", t0: 20, t1: 30 }];   // a late start and a gap, on one scale
-  const o = draw(host(d, false), "outline"); want(o.includes("left:16.667%;width:16.667%") && o.includes("left:66.667%;width:33.333%"), "outline: the bar is not on the scale of its ticks"); }
-{ const d = clone(D0); d.history = [{ title: "Gate ① Concept", date: "2026-03-04", quotes: [{ label: "", text: "Use A." }], notes: [], desk: false }];
-  d.ledger = [{ what: "concept", who: "own", status: "A", where: "REVIEW.md gate 1" }];
-  const r2 = host(d, false), h2 = draw(r2, "ledger"), li = (h2.match(/<li\b(?:(?!<\/li>)[\s\S])*?Use A\.[\s\S]*?<\/li>/) || [""])[0], cell = (h2.match(/<div class="wg"[^>]*>[\s\S]*?<\/div>/) || [""])[0];
-  want(li.includes(r2('shortDate("2026-03-04")')) && li.includes(r2('esc(gateName("1"))')) && cell.includes(r2('esc(whatName("concept"))')) && cell.includes(r2('esc(t("you_decide"))')),
-    "ledger from an English REVIEW.md: gate 1's words with its stop's name and day, the decision's cell with who decides it"); }
-{ const r0 = host(clone(D0), false), s0 = draw(r0, "sound"), d = clone(D0);   // no curve: said; with one, on the film's own time
-  d.studio.peaks = { duration: 32, peaks: Array.from({ length: 64 }, (_, i) => [-(i % 7) / 10, (i % 5) / 10]) }; const s1 = draw(host(d, false), "sound");
-  want(!s0.includes('class="energy"') && s0.includes(r0('esc(t("env_none"))')) && s0.includes('class="secband"') && s1.includes('class="energy"'), "sound: an empty curve drawn, a missing one not said, or a curve not drawn"); }
-// extreme and tainted data: every target and label a module makes is one tools/desk/feedback.py takes, and nothing reaches the page unescaped
-const P = '<img src=x onerror=1>"\'><svg onload=1>&amp;';
-const taint = (v) => (typeof v === "string" ? v + P : Array.isArray(v) ? v.map(taint) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, taint(x)])) : v);
-const X = taint(clone(D0));
-X.mods.assets[0].path = "/Users/someone/outside.png"; X.mods.assets[1].path = "../escape.png"; X.mods.assets[2].used_by = "S2";
-X.ledger[0].what = "决".repeat(400); X.packaging.titles[0].id = ""; X.packaging.titles[0].title = "标".repeat(500);
-X.outline[0].title = "段\n名".repeat(120); X.outline[0].id = "1\t2"; X.facts[0].id = "#" + "9".repeat(300); X.shots.items[0].id = "S1 \u0007bell";
-X.agent_decided[0].topic = "t".repeat(400); X.mods.digests[0].path = "research/digest/" + "x".repeat(300) + "/transcript.md";
-X.studio.timeline.narration[0].end = X.studio.timeline.narration[0].start;
-const unq = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-const marks = [];
-for (const ro of [false, true]) {
-  const r = host(X, ro);
-  for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
-    const s = draw(r, m);
-    want(!/<img\s+src=x|<svg\s+onload/i.test(s), m + (ro ? " (static)" : "") + ": a project's words reached the page unescaped");
-    for (const tag of s.matchAll(/<[a-z0-9]+\b[^>]*\sdata-mark="([^"]*)"[^>]*>/g)) {
-      const lab = tag[0].match(/\sdata-label="([^"]*)"/), tt = tag[0].match(/\sdata-t="([^"]*)"/);
-      marks.push({ target: unq(tag[1]), label: lab ? unq(lab[1]) : "", t: tt ? +unq(tt[1]) : null });
-    }
-  }
-}
-fs.writeFileSync(process.argv[5], JSON.stringify(marks));
-want(marks.length > 40, "extreme data: only " + marks.length + " marks drawn");
-console.log(bad.join("\n"));
-JS
-  if a=$(node "$t/modules-render.js" "$t/demo-data.json" "$t/root/demo/out/review/gate-1.html" "$t/root/demo/out/review/gate-2.html" "$t/marks.json" 2>&1) && [ -z "$a" ]; then ok "modules: 立意, 大纲, 分镜, 声音, 交付, 素材 and 账本 draw the demo's data with what it has for each (cards with frames, parts, the gate ② page's own shots with their plan lines and notes, readouts, platforms, licences, your words), and the static pages' modules read only (no sub-tabs, no note shortcuts, no console links, every link to a shot lands, a settled stop's cards pick nothing); the outline's bar on its ticks' scale, an English ledger's dates and words, a sound panel with no curve saying so; tainted data never reaches the page unescaped"
-  else bad "modules drawn from the demo's data: $a"; fi
-  if a=$(python3 - "$t/marks.json" "$t" <<'PY'
-import json, sys
-sys.path.insert(0, "tools/desk")
-import feedback
-marks, tmp = json.load(open(sys.argv[1], encoding="utf-8")), sys.argv[2]
-items = [dict({"target": m["target"], "status": "change", "label": m["label"], "text": "x"}, **({"t": m["t"]} if isinstance(m["t"], (int, float)) and 0 <= m["t"] < 1e6 else {})) for m in marks]
-bad = []
-for i in range(0, len(items), 400):   # every target and label the modules made of extreme data, as one submission would carry them
-    try:
-        feedback.validate(tmp, {"round": "notes", "lang": "zh", "decisions": {}, "defaulted": [], "items": items[i:i + 400], "general": ""})
-    except ValueError as e:
-        bad.append(str(e))
-kinds = sorted({m["target"].split(":")[0] for m in marks})
-print("; ".join(bad) if bad else ("" if {"card", "seg", "shot", "fact", "asset", "doc", "led", "range", "atime"} <= set(kinds) else f"kinds drawn: {kinds}"))
-PY
-) && [ -z "$a" ]; then ok "modules: every target and label the seven modules make of extreme data (an asset outside the project or above it, 400-character decisions and titles, control characters in ids, a line with no length) is one tools/desk/feedback.py takes, so one note can never turn a whole submission down"
-  else bad "a module made a target feedback.py refuses: $a"; fi
-  # the modules' data a part at a time, and only from inside the project: a file that does not read empties its own part and
-  # is named; a link that leads out is not followed (as /f/ does not serve it)
-  mkdir -p "$t/out-side" && cp -R tools/desk/fixtures/demo "$t/broken"
-  if a=$(python3 - "$t/broken" "$t/out-side" <<'PY'
-import json, os, sys
-from pathlib import Path
-sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
-import server
-P, O = Path(sys.argv[1]), Path(sys.argv[2])
-bad = []
-def want(c, m):
-    if not c: bad.append(m)
-au = P / "audio/audition-script/audition.json"
-a = json.loads(au.read_text()); a["voices"][0]["file"] = "/etc/hosts"; au.write_text(json.dumps(a))
-m = server.project_data(P)["mods"]
-want(m["audition"] and [v["file"] for v in m["audition"]["voices"]][0] is None and not m["errors"], f"a take outside the project: {m['errors']}")
-a["voices"] = 7; au.write_text(json.dumps(a))
-b = json.loads((P / "audio/music.beats.json").read_text()); b["lifts"] = 5; (P / "audio/music.beats.json").write_text(json.dumps(b))
-os.symlink(P / "nowhere.json", P / "out/audition.json")
-(O / "ledger.json").write_text(json.dumps({"assets": [{"id": "LEAK", "path": "x.png", "license": {"class": "cc0"}}]}))
-(O / "refs.json").write_text(json.dumps({"refs": [{"id": "LEAKREF"}]}))
-(O / "check.json").write_text(json.dumps({"findings": [{"kind": "check.loudness", "severity": "info", "message": "LEAKCHECK", "evidence": {"integrated": -99}}]}))
-for name, src in (("assets/ledger.json", "ledger.json"), ("research/refs.json", "refs.json"), ("out/check/draft.check.json", "check.json")):
-    os.remove(P / name); os.symlink(O / src, P / name)
-d = server.project_data(P)
-m, text = d["mods"], json.dumps([d["mods"], d["studio"]], ensure_ascii=False)   # (bin/vh status reads its own records)
-want(set(m["errors"]) == {"audition", "lifts", "assets", "refs"} and "audition-script/audition.json" in m["errors"]["audition"] and "music.beats.json" in m["errors"]["lifts"],
-     f"each broken part named, with its file: {m['errors']}")
-want("LEAK" not in text and "LEAKCHECK" not in text and m["loudness"] is None and m["assets"] is None and m["refs"] == [], "a file of the project that links out was read")
-want(m["pace"] and len(m["covers"]) == 2 and len(m["digests"]) == 1 and m["voice"] == "Charon", f"a broken part emptied others: {sorted(k for k, v in m.items() if not v)}")
-print("; ".join(bad))
-PY
-) && [ -z "$a" ]; then ok "module data: a part whose file does not read (voices or lifts not a list, a take outside the project, a broken link) is empty and named with its file while the others show; a ledger, refs or check record that links out of the project is not read"
-  else bad "module data a part at a time: $a"; fi
-  # after a trial run (a person using it, two rounds): a submission goes once, ← → selects the shot, Esc and ⌘↩ hand the keys
-  # back, a reload keeps the page on screen, commands and paths are never set in capitals, the old asset table is read, every
-  # row the agent decides can be overturned, status's lines in Chinese with the project's folder as <项目>, English counts
-  cat > "$t/trial.js" <<'JS'
-const vm = require("vm"), fs = require("fs");
-const [dataFile] = process.argv.slice(2), bad = [];
-const want = (c, m) => { if (!c) bad.push(m); };
-function host(D, readOnly) {
-  const g = vm.createContext({ console, __D: D });
-  for (const f of ["core.js", "modules.js"]) vm.runInContext(fs.readFileSync("tools/desk/static/" + f, "utf8"), g, { filename: f });
-  vm.runInContext((readOnly ? "var STATIC_PAGE = true;" : "") + "let D = __D, FB = { decisions: {}, items: {}, general: '' }, ROUND = { id: D.current || '', data: {} }, SUB = '', PKEY = 'demo~000000', MOD = '';"
-    + "const src = (p) => '/f/demo/' + p, setScope = () => {}, gotoTarget = () => {}, pick = () => {}, renderModule = () => {}, roundOpen = () => true, gateMarks = () => D.marks || [];", g);
-  return (code) => vm.runInContext(code, g);
-}
-const draw = (run, m) => { try { return run("MODVIEW." + m + ".main()"); } catch (e) { bad.push(m + ": " + e.message); return ""; } };
-const D0 = JSON.parse(fs.readFileSync(dataFile, "utf8")), clone = (x) => JSON.parse(JSON.stringify(x)), J = JSON.stringify;
-const run = host(clone(D0), false);
-try {
-  // 1: what the server took leaves the draft; a decision sent goes again only when picked differently
-  run(`var DECS = [{ id: "draft", recommend: "FIX", options: [{ id: "OK" }, { id: "FIX" }] }, { id: "voice", recommend: "V1", options: [{ id: "V1" }, { id: "V2" }] }];
-       var FB1 = { decisions: { draft: "OK" }, items: { "time:10.7": { status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }, "asset:/x": { status: "change", label: "x", text: "y" } }, general: "整体偏慢" };
-       var P1 = { decisions: toSend(DECS, FB1.decisions, FB1.sentDec, true).decisions, items: [{ target: "time:10.7", status: "change", label: "成片 0:10.7", text: "转太空太快", t: 10.7 }], general: "整体偏慢" };
-       var FB2 = afterSent(FB1, P1, "19:51");`);
-  want(J(run("P1.decisions")) === J({ draft: "OK", voice: "V1" }), "the first submission: the picked decision and the recommended one");
-  want(J(run("Object.keys(FB2.items)")) === J(["asset:/x"]) && run("FB2.general") === "" && J(run("FB2.sent")) === J({ at: "19:51", n: 2, d: 2 }), "after a submission the sent note and the overall words stay in the draft: " + J(run("FB2")));
-  want(J(run("toSend(DECS, FB2.decisions, FB2.sentDec, true).decisions")) === "{}", "a second submission sends the decisions again");
-  want(J(run("toSend(DECS, Object.assign({}, FB2.decisions, { voice: 'V2' }), FB2.sentDec, true).decisions")) === J({ voice: "V2" }), "a decision changed after sending does not go");
-  // 2: ← → from 0:10.7 lands on S4 and S3, as shots
-  run(`var SH = [{ id: "S1", t0: 0, t1: 4 }, { id: "S2", t0: 4, t1: 9 }, { id: "S3", t0: 9, t1: 15 }, { id: "S4", t0: 15, t1: 21 }, { id: "S5", t0: 21, t1: 32 }];`);
-  want(J(run("stepPoint(SH, 10.7, 1, 32)")) === J({ shot: "S4", t: 15 }) && J(run("stepPoint(SH, 10.7, -1, 32)")) === J({ shot: "S3", t: 9 }) && J(run("stepPoint(SH, 25, 1, 32)")) === J({ t: 32 }), "← → by shot: " + J(run("stepPoint(SH, 10.7, 1, 32)")));
-  // 11: status's lines in Chinese, the project's folder as <项目>, English counts
-  run(`D.status = Object.assign({}, D.status, { project: { path: "/tmp/x/demo" } });`);
-  { const w = run(`statusWords("the submission was handed over; REVIEW.md has no decision for it yet")`);
-    want(w.known && /[\u4e00-\u9fff]/.test(w.text) && !/REVIEW\.md|bin\/vh/.test(w.text), "a station's note stays English in a Chinese page, or names a file: " + w.text); }
-  want(run(`statusWords("the engine's scaffold is not there: this makes it").known`) && run(`shortPath("bin/vh hf-init /tmp/x/demo landscape")`) === "bin/vh hf-init <项目> landscape", "the next step's words or the project's folder");
-  want(!run(`statusWords("a line the page has not met").known`), "an unknown line of status is passed off as known");
-  { const w = run(`statusWords("fill BRIEF.md (7 {…} left); render the final")`);
-    want(w.known && w.text.includes("7") && w.text.includes("；") && !/\.md|\{…\}/.test(w.text), "a next step of two of status's lines, as older projects get it, said without the file or the placeholder: " + w.text); }
-  run(`LANG = "en"; L = STR.en;`);
-  want(run(`t("sent_n", { n: 5, d: 1, at: "x" })`).startsWith("Sent 5 notes and 1 choice (x)") && run(`t("sent_n", { n: 1, d: 2, at: "x" })`).startsWith("Sent 1 note and 2 choices (x)"), "English counts: " + run(`t("sent_n", { n: 5, d: 1, at: "x" })`));
-  { const w = run(`statusWords("fill BRIEF.md (7 {…} left); record the decision for gate 2 in REVIEW.md")`).text;
-    want(w.includes("7 blanks") && !/\.md|\{…\}|gate 2/.test(w), "status's lines in an English page still name files and stops by code: " + w); }
-  run(`LANG = "zh"; L = STR.zh;`);
-} catch (e) { bad.push("core.js: " + e.message); }
-{ const r = run("[Object.keys(STR.zh).concat(Object.keys(STR.en)), Object.keys(MSTR.zh).concat(Object.keys(MSTR.en))]"), S = new Set(r[0]), clash = [...new Set(r[1].filter((k) => S.has(k)))];
-  want(!clash.length, "a module's word under a key the shell has too (the shell's word wins): " + clash.join(" ")); }
-// 9: every row the agent decides has Overturn, the DECISIONS.md table's (who: delegate) as well as the list's
-{ const d = clone(D0); d.ledger = d.ledger.concat([{ what: "style 风格", who: "delegate", status: "已定：暗场蓝", where: "STYLE.md" }]);
-  const h = draw(host(d, false), "ledger"), cells = h.match(/<div class="wg"[^>]*>[\s\S]*?<\/div>/g) || [], agent = cells.filter((r) => r.includes("chip agent"));
-  const log = ((h.match(/<ul class="declog">[\s\S]*?<\/ul>/) || [""])[0].match(/<li\b[\s\S]*?<\/li>/g)) || [];
-  want(agent.length >= 1 && agent.every((r) => r.includes("data-overturn")) && log.length >= 1 && log.every((r) => r.includes("data-overturn")),
-    "a decision the agent made without Overturn: " + agent.filter((r) => !r.includes("data-overturn")).length + " of " + agent.length + " in the grid, " + log.filter((r) => !r.includes("data-overturn")).length + " of " + log.length + " in the log"); }
-// 5: no ledger: the older table in NOTES.md read only, and no filters over nothing
-{ const d = clone(D0); d.mods.assets = null; d.mods.refs = []; d.mods.digests = [];
-  d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "自己拍的", license: "自有", there: false }, { file: "https://example.org/y.png", source: "某馆", license: "", there: null }] };
-  const h = draw(host(d, false), "assets"), e = clone(d); e.mods.assets_notes = null; const e0 = host(e, false), h0 = draw(e0, "assets");
-  want(!h.includes('class="pgtabs"') && h.includes("assets/a.jpg") && h.includes("https://example.org/y.png") && !h.includes(e0('esc(t("assets_none"))')), "the NOTES.md table, or filters over nothing");
-  want((h.match(/<th>/g) || []).length === 3 && (h.match(/class="chip wait" title=/g) || []).length === 1, "the NOTES.md table: three columns, a tag beside the file not here and none beside the link");
-  want(!h0.includes('class="pgtabs"') && h0.includes(e0('esc(t("assets_none"))')), "no ledger and no table: filters, or nothing said"); }
-// 6: a command, a path or a file name is never inside a label the themes set in capitals (text-transform is inherited)
-const CAPS = ["kick", "pn-h", "mat-h", "g-eyebrow", "g-h", "blk-h", "lgroup", "grp"], KEEP = ["pn-sub", "quiet"], VOID = /^(img|br|hr|input|meta|link|source|wbr|path|line|circle|rect)$/i;
-const capsText = (html) => {
-  const out = [], stack = [];
-  for (const m of html.matchAll(/<(\/?)([a-zA-Z0-9]+)([^>]*?)(\/?)>|([^<]+)/g)) {
-    if (m[5] != null) { const top = stack[stack.length - 1]; if (top && top.caps && /bin\/vh|&lt;项目&gt;|&lt;project&gt;|[\w.-]+\.(md|json|mp4|wav|png|jpe?g)\b|\w\/\w/.test(m[5])) out.push(m[5].trim().slice(0, 60)); continue; }
-    if (m[1]) { stack.pop(); continue; }
-    if (m[4] || VOID.test(m[2])) continue;
-    const cls = ((m[3].match(/\sclass="([^"]*)"/) || [])[1] || "").split(/\s+/), up = stack[stack.length - 1] || { caps: false };
-    stack.push({ caps: m[2] === "code" || cls.some((c) => KEEP.includes(c)) ? false : up.caps || cls.some((c) => CAPS.includes(c)) });
-  }
-  return out;
-};
-for (const ro of [false, true]) for (const m of ["idea", "outline", "board", "sound", "ship", "assets", "ledger"]) {
-  const d = clone(D0); if (m === "assets") { d.mods.assets = null; d.mods.assets_notes = { file: "NOTES.md", rows: [{ file: "assets/a.jpg", source: "s", license: "l", there: true }] }; }
-  const c = capsText(draw(host(d, ro), m)); want(!c.length, `${m}${ro ? " (static)" : ""}: a command or a path in capitals: ${c.join(" | ")}`);
-}
-console.log(bad.join("\n"));
-JS
-  if a=$(node "$t/trial.js" "$t/demo-data.json" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the modules and core.js: a submission goes once (what the server took leaves the draft; a decision goes again only when picked differently); ← → lands on the next shot as a shot; status's lines in Chinese with the project's folder as <项目>, and English counts; every row the agent decides has Overturn; with no ledger the older table in NOTES.md, read only, and no filters over nothing; no command, path or file name inside a label set in capitals; no module word under a key the shell has too"
-  else bad "after a trial run, in the modules and core.js: $a"; fi
-  cat > "$t/trial.py" <<'PY'
-import json, re, shutil, sys
-from pathlib import Path
-sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
-import server
-t = Path(sys.argv[1])
-bad = []
-def want(c, m):
-    if not c: bad.append(m)
-st, ui, css, mcss = (open(f"tools/desk/static/{n}", encoding="utf-8").read() for n in ("studio.js", "ui.css", "studio.css", "modules.css"))
-html = open("tools/desk/static/index.html", encoding="utf-8").read()
-def body(name):   # a function's text in studio.js, up to the next top-level one
-    m = re.search(r"\n(?:async )?function " + name + r"\([\s\S]*?\n}", st)
-    return m.group(0) if m else ""
-rl, sub, poll = body("reloadProject"), body("submit"), body("pollLive")
-want(rl and rl.index("fetchProject(") < rl.index("leaveProject(") and "renderShellLoading" not in rl and ".innerHTML" not in rl,
-     "a reload clears the page before the new data is in")
-want("afterSent(" in sub and "reloadProject(" in sub and "leaveProject(" not in sub and "reloadProject(" in poll and "leaveProject(" not in poll, "a submission or a new page blanks the page, or keeps what it sent")
-want(re.search(r'e\.key === "Escape"[\s\S]{0,240}typing\(\)\) \{ e\.preventDefault\(\); document\.activeElement\.blur\(\);', st) and re.search(r"function addNote\(\)[\s\S]*?ta\.blur\(\);\s*//[^\n]*\n}", st),
-     "Esc does not leave a text box, or ⌘↩ keeps the keys in it")
-want(re.search(r"function jumpShot\(dir\)[\s\S]{0,200}stepPoint\([\s\S]{0,80}pickThing\(\"shot:\"", st), "← → moves the playhead without selecting the shot")
-ids = re.findall(r'\sid="([A-Za-z][\w-]*)"', html + st + open("tools/desk/static/modules.js", encoding="utf-8").read() + open("tools/desk/static/agent.js", encoding="utf-8").read())
-dup = sorted({i for i in ids if ids.count(i) > 1} - {"gatePart"})   # gatePart: one of two exclusive layouts
-want(not dup, f"an id written twice in the console (a reload keeps the old module on screen while the column is drawn): {dup}")
-caps = []
-for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss)):
-    for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)):
-        if re.search(r"text-transform:\s*(uppercase|var\(--label-case\))", rule):
-            caps += [f"{f}: {s.strip()}" for s in sel.split(",")]
-allowed = {"modules.css: .mh2 .kick", "modules.css: .pn-h", "modules.css: .mat-h", "ui.css: .g-eyebrow", "ui.css: .g-h", "studio.css: .mh .kick", "studio.css: .sect>h2", "studio.css: .smp-wall>summary>h2",
-           "studio.css: :root[data-theme=bridge] .col-head b", "studio.css: .col-body .blk-h", "studio.css: .lgroup", "studio.css: .tl .grp"}
-want(set(caps) <= allowed and "code,kbd,samp,pre,.kbd,.cmd,.hint{text-transform:none" in ui.replace(" ", ""), f"capitals beyond the short labels, or no reset for code: {sorted(set(caps) - allowed)}")
-want("flex-wrap:nowrap" in re.search(r"\.tl-bar\{[^}]*\}", css).group(0) and '<span class="zoom">' in st and ".tl-bar .zoom{" in css, "the timeline's bar wraps, or − and + can part")
-# a module's element never matches a rule of the shell's written for something else that takes the pointer away (the ledger's
-# overturn button once had the timeline overlay's class: a tall capsule nobody could press)
-mjs = open("tools/desk/static/modules.js", encoding="utf-8").read()
-used = {c for v in re.findall(r'class="([^"]*)"', mjs) for c in re.sub(r"\$\{[^}]*\}", " ", v).split() if re.fullmatch(r"[\w-]+", c)}
-blocked = {m.group(1) for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css + ui, flags=re.S)) if "pointer-events:none" in rule.replace(" ", "")
-           for part in sel.split(",") for m in [re.fullmatch(r"\s*\.([\w-]+)\s*", part)] if m}
-want(not (used & blocked), f"a class the modules use is a shell rule that takes the pointer away: {sorted(used & blocked)}")
-# the column's styles reach nothing outside it: every rule of agent.css starts at something of the column's own (a bare
-# .agent{display:none} once hid every station, lamp and chip the agent was working on); and no stylesheet hides a bare
-# state word the shell marks things with
-acss = re.sub(r"/\*.*?\*/", "", open("tools/desk/static/agent.css", encoding="utf-8").read(), flags=re.S)
-loose = [s.strip() for sel, _r in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "", acss)) for s in sel.split(",")
-         if not re.match(r"\s*(:root(\[[^\]]*\])?\s+)?(\.ag-|#ag|\.col(\b|-)|#col|\.nokey|@)", s)]
-states = {"agent", "wait", "live", "done", "ok", "you", "mine"}
-hidden = [f"{f}: {s.strip()}" for f, text in (("ui.css", ui), ("studio.css", css), ("modules.css", mcss), ("agent.css", acss))
-          for sel, rule in re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", text, flags=re.S)) if "display:none" in rule.replace(" ", "")
-          for s in sel.split(",") if re.fullmatch(r"\s*\.([\w-]+)\s*", s) and re.fullmatch(r"\s*\.([\w-]+)\s*", s).group(1) in states]
-want(not loose and not hidden and '<section class="ag-pane" id="agentPane"' in html, f"the column's styles reach outside it: {loose}; a state word hidden: {hidden}")
-h = re.search(r"\.cut\.layout-sound \.lane\.wave \.trk\{height:(\d+)px\}", css)
-want(h and int(h.group(1)) >= 96 and "P.reduce((m, p) => Math.max(m," in st, "the listen layout's waveform is thin, or not drawn to its loudest peak")
-want(".cut.layout-sound{grid-template-rows:auto minmax(0,1fr)}" in css and re.search(r"\.cut\.layout-sound \.screen\{flex:none;height:clamp\(", css) and ".cut.layout-sound .timeline{max-height:none}" in css
-     and "min-height:min(200px,22vh)" in re.search(r"\.screen\{[^}]*\}", css).group(0),
-     "listening, the picture does not stay small with the lanes scrolling under it, or a short window pushes the picture's controls under the timeline")
-want(all(x in css for x in (".app.is-cut .cut>.viewer{order:2}", ".app.is-cut .cut>.timeline{order:3", ".app.is-cut>.col{order:4}", ".app.is-cut .cut>.lists{order:5")) and '$("#app").classList.toggle("is-cut", bench)' in st
-     and ".flow{display:none}" in css and re.search(r"\.col-round\{position:fixed;[^}]*bottom:0", css),
-     "on a phone the cut does not put the picture, the timeline, the decisions, then the lists; or the stops' bar takes a second row; or submitting scrolls away")
-# 5: no ledger: the table NOTES.md kept before bin/vh assets, read only; a ledger: that, not the table
-p = t / "oldnotes"; shutil.copytree("tools/desk/fixtures/zh", p)
-(p / "NOTES.md").write_text((p / "NOTES.md").read_text(encoding="utf-8") + "\n## 素材台账\n| 文件 | 来源 | 许可 |\n|---|---|---|\n| assets/harbor.jpg | 自己拍的 | 自有 |\n| https://example.org/t.png | 某馆 | 没写 |\n| {文件} | {来源} | {许可} |\n| | | |\n", encoding="utf-8")
-m = server.project_data(p)["mods"]
-rows = (m.get("assets_notes") or {}).get("rows") or []
-want([r["file"] for r in rows] == ["assets/harbor.jpg", "https://example.org/t.png"] and rows[1]["there"] is None and rows[0]["there"] is False and not m["errors"], f"the NOTES.md asset table: {m.get('assets_notes')} {m['errors']}")
-(p / "assets").mkdir(); (p / "assets" / "ledger.json").write_text(json.dumps({"v": 1, "assets": []}))
-want(server.project_data(p)["mods"].get("assets_notes") is None, "the NOTES.md table read beside a ledger")
-print("; ".join(bad))
-PY
-  if a=$(python3 "$t/trial.py" "$t" 2>&1) && [ -z "$a" ]; then ok "after a trial run, in the console's code: a reload reads before it changes the screen, a submission and a new page keep the page on screen and never resend; Esc leaves a text box and ⌘↩ hands the keys back; ← → selects the shot; no id twice; capitals only on short labels, never on code; one-line timeline bar; a tall waveform drawn to its loudest peak in the listen layout; the cut on a phone puts the picture, the decisions, then the lists; the asset table of NOTES.md when there is no ledger; the agent column's styles reach nothing outside it (no bare state word hidden)"
-  else bad "after a trial run, in the console's code: $a"; fi
-  kill $pid 2>/dev/null; wait $pid 2>/dev/null
-  # a project's desk opens on that project and still has the others: the project is in the listing, wherever it is
-  if desk_start "$t/root/zh" "$t/zh.log"; then
-    a=$(python3 - "$desk_url" <<'PY'
-import http.client, json, sys, urllib.parse
-u = urllib.parse.urlsplit(sys.argv[1])
-def get(p):
-    c = http.client.HTTPConnection(u.hostname, u.port, timeout=20); c.request("GET", p, headers={"Host": f"127.0.0.1:{u.port}"}); r = c.getresponse(); d = r.read(); c.close(); return r.status, d
-page = get("/")[1].decode()
-home = page.split('name="desk-home" content="')[1].split('"')[0]
-keys = [r["key"] for r in json.loads(get("/api/projects")[1])["projects"]]
-print(home.startswith("zh~"), home in keys, get("/api/data")[0], get(f"/api/p/{home}/data")[0])
-PY
-)
-    [ "$a" = "True True 200 200" ] && ok "desk for a project: its page opens on it, the project is in the listing, and the first addresses still answer" || bad "desk for a project: $a"
-    kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
-  fi
-  rm -rf "$t"
-  # the cut page and the note box on a 12-minute made-up film with 67 marked places, in a real headless Chrome that may play
-  # unasked as Studio's window may (tools/desk/test_cut_page.py builds the films and their desk; real mouse presses and keys)
-  local rc
-  a=$(python3 tools/desk/test_cut_page.py 2>&1); rc=$?
-    case $rc in
-      0) ok "the cut page in a browser, on a 12-minute film: opening a stop or a click from code plays nothing; a second picked and played on, the note goes where the picture stopped, one line; zoomed in, about 100 px a second, the playhead in sight while it plays and the lanes' names kept; 67 marked places, no pin on another; ↩ a new line, one press of 记下 keeps the note (the button stays put), Ctrl+↩ too, the keys in words; a note not about the film goes marked; the storyboard a tab a part (its sheets joined) named by its shots, ← → shot by shot; an edit list's part shows the shots inside it to point at" ;;
-      3) skip "the cut page in a browser" "no ffmpeg" ;;
-      4) no_chrome "the cut page in a browser" ;;
-      *) bad "the cut page in a browser: $(printf '%s' "$a" | tr '\n' ';' | head -c 1500)" ;;
-    esac
-}
-studio_checks() {   # bin/vh studio (tools/desk/studio.py, window.py) and its launcher icon, as a person meets them: in a temp
-  # HOME and TMPDIR (no console or window of this machine's is found or touched), the stand-in window, no screen needed.
-  # One window, always: made once, raised after (from an agent and from a terminal; two at once), made again when it was
-  # closed or its console was killed; a page that never connects is tried once more, then a browser tab; no Chromium-family
-  # browser: a tab; neither: a plain failure. Nothing secret in any output or file; a film outside Studio's folders joins
-  # Studio (no desk or window of its own); --print-address; the icon's open/alive/quit; then the icon made, refused over another's, removed, a clone
-  # that moved, doctor's line, the picture, install.sh's icon step and the release's check
-  local t a b c d e g m r s0 up last rc rcg rc2 rc3 rc4 rc5 rc6 rc7 rc8 rc9 rc10 pid pid2 url k app i n n2 p p1 p2 p3 cpid w0 w1 w2 w3 wq tab3 tab4 left claims listed
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=${t//\/\//\/}   # one / (a TMPDIR ending in / gives two; the processes' paths have one)
-  mkdir -p "$t/tmp" "$t/home" "$t/root" "$t/apps" "$t/prof" "$t/tab"
-  cp -R tools/desk/fixtures/demo "$t/root/demo" && cp -R tools/desk/fixtures/zh "$t/outside"
-  printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$t/raised" > "$t/raise"; chmod +x "$t/raise"
-  studio_run() { TMPDIR="$t/tmp" HOME="$t/home" XDG_DATA_HOME="$t/home/.share" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" \
-    OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" "$VH_BASH" "$ROOT/bin/vh" studio "$@"; }
-  studio_tty() { TMPDIR="$t/tmp" HOME="$t/home" XDG_DATA_HOME="$t/home/.share" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" \
-    OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" python3 "$ROOT/tools/desk/fixtures/with_tty.py" --to "$t/pa.tty" "$VH_BASH" "$ROOT/bin/vh" studio "$@"; }   # a terminal of its own
-  st_console_pid() { python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["pid"])' "$t/tmp" 2>/dev/null; }
-  st_win() { python3 -c 'import glob, json, sys; e = [json.loads(l)["event"] for f in glob.glob(sys.argv[1] + "/console-*/stand-in.log") for l in open(f)]; print(" ".join(e))' "$t/prof"; }
-  st_stop() { local p; p=$(st_console_pid); [ -z "$p" ] || { kill "${1:--TERM}" "$p" 2>/dev/null; for i in $(seq 50); do kill -0 "$p" 2>/dev/null || break; sleep 0.1; done; }; }
-  a=$(BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc=$?   # an agent runs it: no terminal
-  pid=$(st_console_pid); desk_rec "$pid"
-  b=$(studio_run demo < /dev/null 2>&1); rc2=$?   # running: the same window, raised, on the film
-  c=$(python3 - "$t" <<'PY'
-import os, pty, select, subprocess, sys, time
-t = sys.argv[1]
-env = dict(os.environ, TMPDIR=t + "/tmp", HOME=t + "/home", OVH_PROJECTS=t + "/root", OVH_STUDIO_PROFILES=t + "/prof", OVH_STUDIO_ACTIVATE=t + "/raise")
-m, sl = pty.openpty()   # a person's terminal
-p = subprocess.Popen([os.environ.get("VH_BASH") or "bash", "bin/vh", "studio"], stdin=sl, stdout=sl, stderr=sl, env=env)
-os.close(sl)
-buf = b""
-while p.poll() is None:
-    r, _, _ = select.select([m], [], [], 0.2)
-    if r:
-        try:
-            buf += os.read(m, 4096)
-        except OSError:
-            break
-p.wait(10)
-os.close(m)
-print(p.returncode, buf.decode("utf-8", "replace").replace("\r", "").strip())
-PY
-)
-  studio_run < /dev/null > "$t/two1" 2>&1 & i=$!; studio_run demo < /dev/null > "$t/two2" 2>&1; wait $i   # two at once
-  w1=$(st_win)
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$t" "$pid" "$a" "$b" "$c" "$w1" "$(cat "$t/two1" "$t/two2")" <<'PY'
-import glob, json, os, re, sys
-t, pid, a, b, c, w1, two = sys.argv[1:8]
-bad = []
-def want(cond, what):
-    if not cond: bad.append(what)
-ev = [json.loads(l) for f in glob.glob(t + "/prof/console-*/stand-in.log") for l in open(f)]
-want(w1.split()[:4] == ["launch", "page", "claimed", "present"] and w1.split().count("launch") == 1 and "second" not in w1, f"the window: {w1}")
-want(any(e["event"] == "told" and e["data"].get("go", "").startswith("/p/demo~") for e in ev), "the second run did not send the window to the film")
-raised = open(t + "/raised").read().split() if os.path.exists(t + "/raised") else []
-want(len(raised) >= 3 and set(raised) == {str(ev[0]["pid"])}, f"raised: {raised} (want the window's pid, for each run after the first)")
-want("Studio is open in its own window" in a and "started in the background" in a and "its window is in front" in b, f"said: {a!r} | {b!r}")
-want(c.startswith("0 ") and "its window is in front" in c, f"from a terminal: {c!r}")
-want(two.count("Studio is open") == 2, f"two at once: {two!r}")
-infos = glob.glob(t + "/tmp/ovh-desk-*/console-*.json")
-want(len(infos) == 1 and json.load(open(infos[0]))["pid"] == int(pid), f"one console: {infos}")
-tok = open(glob.glob(t + "/prof/console-*/stand-in.token")[0]).read()
-for f in glob.glob(t + "/**/*", recursive=True) + glob.glob(t + "/**/.*", recursive=True):
-    if os.path.isfile(f) and "/prof/" not in f and tok.encode() in open(f, "rb").read():   # (the window's profile is the browser's storage)
-        bad.append(f"the token is in {os.path.relpath(f, t)}")
-want(tok not in a + b + c + two and not re.search(r"\?c=|\?k=|http://", a + b + c + two), "the output has the token, a code or an address")
-if bad:
-    print("\n".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  then ok "studio: from an agent (no terminal) and from a terminal, one window: made once (its page connected and got the token), then raised and sent to the film, two runs at once included; one console; no output says an address, a code or the token, and no file but the window's own profile holds it"
-  else bad "studio: opening it (exits $rc/$rc2): $a | $b | $c | $w1 | $(cat "$t/two1" "$t/two2")"; fi
-  # three cold starts at once (no console running): one console, one window, and only one of them says it started it
-  mkdir -p "$t/tmp3" "$t/prof3"
-  cold() { TMPDIR="$t/tmp3" HOME="$t/home" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof3" OVH_STUDIO_ACTIVATE="$t/raise" FAKE_TAB_DIR="$t/tab" \
-    "$VH_BASH" "$ROOT/bin/vh" studio < /dev/null > "$t/cold$1" 2>&1; }
-  cold 1 & p1=$!; cold 2 & p2=$!; cold 3 & p3=$!; wait $p1 $p2 $p3
-  cpid=$(python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["pid"])' "$t/tmp3" 2>/dev/null); desk_rec "$cpid"
-  n=$(cat "$t/tmp3"/ovh-desk-*/console-*.log 2>/dev/null | grep -c '^desk: ')
-  n2=$(cat "$t/cold1" "$t/cold2" "$t/cold3" | grep -c 'started in the background')
-  w0=$(cat "$t/prof3"/console-*/stand-in.log 2>/dev/null | grep -c '"launch"')
-  if [ "$n" = 1 ] && [ "$n2" = 1 ] && [ "$w0" = 1 ] && [ "$(cat "$t/cold1" "$t/cold2" "$t/cold3" | grep -c 'Studio is open')" = 3 ]
-  then ok "studio: three cold starts at once give one console (a lock around looking and starting) and one window; one of them says it started Studio"
-  else bad "studio: three cold starts at once (consoles started $n, said started $n2, windows $w0): $(cat "$t/cold1" "$t/cold2" "$t/cold3" | tr '\n' ' ')"; fi
-  [ -z "$cpid" ] || { kill "$cpid" 2>/dev/null; for i in $(seq 50); do kill -0 "$cpid" 2>/dev/null || break; sleep 0.1; done; }
-  # the window closed, then studio: a new one; the console killed outright under its window, then studio: one window again
-  for p in $(pgrep -f "$t/prof/console-"); do kill "$p" 2>/dev/null; done; for i in $(seq 30); do pgrep -f "$t/prof/console-" >/dev/null || break; sleep 0.1; done
-  a=$(studio_run < /dev/null 2>&1); rc=$?
-  st_stop -KILL; sleep 0.3
-  b=$(BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc2=$?; pid=$(st_console_pid); desk_rec "$pid"
-  w2=$(st_win); n=$(pgrep -f "$t/prof/console-" | wc -l | tr -d ' ')
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && case "$a" in *"open in its own window"*) true ;; *) false ;; esac && case "$b" in *"open in its own window"*) true ;; *) false ;; esac \
-    && [ "$(printf '%s\n' $w2 | grep -c '^launch$')" = 3 ] && ! printf '%s' "$w2" | grep -q second && [ "$n" = 1 ]
-  then ok "studio: the window closed, the next run makes it again; the console killed outright under its window, the next console replaces that window with one of its own (one window, never two)"
-  else bad "studio: the window closed or its console killed (exits $rc/$rc2, windows running $n): $a | $b | $w2"; fi
-  # a window whose page never connects: once more, then a tab of the default browser; no Chromium-family browser: a tab;
-  # neither: a plain failure (exit 1) that says what to run
-  st_stop; rm -rf "$t/prof" "$t/tab"; mkdir -p "$t/prof" "$t/tab"
-  a=$(FAKE_WINDOW=dead BROWSER="python3 $ROOT/tools/desk/fixtures/studio_window.py --tab %s" studio_run < /dev/null 2>&1); rc=$?; desk_rec "$(st_console_pid)"
-  w3=$(st_win); tab3=$(cat "$t/tab/stand-in.log" 2>/dev/null | grep -c '"claimed"')
-  st_stop; rm -rf "$t/tab"; mkdir -p "$t/tab"   # (a tab stand-in goes when its folder does)
-  b=$(OVH_STUDIO_BROWSER=none BROWSER="python3 $ROOT/tools/desk/fixtures/studio_window.py --tab %s" studio_run < /dev/null 2>&1); rc2=$?; desk_rec "$(st_console_pid)"
-  tab4=$(cat "$t/tab/stand-in.log" 2>/dev/null | grep -c '"claimed"')
-  st_stop
-  c=$(OVH_STUDIO_BROWSER=none BROWSER=/usr/bin/false studio_run < /dev/null 2>&1); rc3=$?; desk_rec "$(st_console_pid)"
-  d=$(OVH_STUDIO_BROWSER=none BROWSER=/usr/bin/false studio_run --icon open < /dev/null 2>&1); rc4=$?   # the icon's dialog: no command to run
-  st_stop
-  if [ $rc = 0 ] && [ "$(printf '%s\n' $w3 | grep -c '^launch$')" = 2 ] && [ "$(printf '%s\n' $w3 | grep -c '^closed$')" = 2 ] && [ "$tab3" = 1 ] \
-    && case "$a" in *"open in a tab of your browser (its window started, but the page in it did not connect)"*) true ;; *) false ;; esac \
-    && [ $rc2 = 0 ] && [ "$tab4" = 1 ] && case "$b" in *"open in a tab of your browser (no Chrome, Chromium, Edge or Brave here"*) true ;; *) false ;; esac \
-    && [ $rc3 = 1 ] && case "$c" in *"Studio's window did not open (no Chrome"*"Run bin/vh studio again"*) true ;; *) false ;; esac \
-    && [ $rc4 = 1 ] && case "$d" in *"did not open (no Chrome"*"Click the OVH Studio icon again, or ask your agent to open Studio"*) true ;; *) false ;; esac && case "$d" in *bin/vh*) false ;; *) true ;; esac
-  then ok "studio: a window whose page never connects is closed and tried once more, then a tab of the default browser, and that is said; with no Chromium-family browser a tab, said so; with neither, exit 1 and a sentence that says what happened and what to run (from the icon: click it again, or ask your agent; no command)"
-  else bad "studio: the fallbacks (exits $rc/$rc2/$rc3/$rc4): $a | $w3 | tabs $tab3/$tab4 | $b | $c | $d"; fi
-  rm -rf "$t/tab"
-  # a film outside Studio's folders joins Studio's space and opens in its one window (bin/vh studio <film>; bin/vh gate while
-  # Studio runs), no desk or window of its own; the icon's open (its console) / alive / quit (the console and its
-  # window go; one bin/vh studio started is left); --print-address: refused with no terminal (nothing starts), the address in
-  # the terminal alone (not on stdout), opening one page once; refused while Studio runs (the same console, not restarted)
-  rm -rf "$t/prof"; mkdir -p "$t/prof"
-  a=$(BROWSER=/usr/bin/false studio_run "$t/outside" --json < /dev/null 2>/dev/null); rc=$?
-  b=$(st_console_pid); desk_rec "$b"
-  rm -rf "$t/outside2"; cp -R tools/desk/fixtures/demo "$t/outside2"
-  g=$(TMPDIR="$t/tmp" HOME="$t/home" OVH_PROJECTS="$t/root" OVH_STUDIO_PROFILES="$t/prof" OVH_STUDIO_ACTIVATE="$t/raise" "$VH_BASH" "$ROOT/bin/vh" gate "$t/outside2" 1 --desk --json < /dev/null 2>/dev/null); rcg=$?
-  listed=$(python3 - "$t" <<'PY'
-import glob, json, os, sys, urllib.request
-t = sys.argv[1]
-info = json.load(open(glob.glob(t + "/tmp/ovh-desk-*/console-*.json")[0]))
-rows = json.loads(urllib.request.urlopen(info["url"] + "api/projects").read())["projects"]
-paths = {os.path.realpath(r["path"]) for r in rows}
-print(sum(os.path.realpath(t + "/" + x) in paths for x in ("outside", "outside2")), sum(os.path.exists(f"{t}/{x}/out/review/.desk.json") for x in ("outside", "outside2")))
-PY
-)
-  w0=$(st_win)
-  studio_run < /dev/null >/dev/null 2>&1; desk_rec "$(st_console_pid)"
-  studio_run --icon quit --json > "$t/q0" 2>&1; rc2=$?   # Studio was started by bin/vh studio, not the icon: left as it is
-  st_stop
-  studio_run --icon alive; rc3=$?
-  c=$(studio_run --icon open < /dev/null 2>&1); rc4=$?; pid=$(st_console_pid); desk_rec "$pid"
-  studio_run --icon alive; rc5=$?
-  studio_run --icon quit --json > "$t/q1" 2>&1; rc6=$?
-  studio_run --icon alive; rc7=$?
-  wq=$(st_win); left=$(pgrep -f "$t/prof/console-" | wc -l | tr -d ' ')
-  n=$(studio_run --print-address < /dev/null 2>&1); rc9=$?; n2=$(st_console_pid)
-  studio_tty --print-address < /dev/null > "$t/pa" 2>&1; rc8=$?; d=$(cat "$t/pa" "$t/pa.tty" 2>/dev/null)
-  k=$(printf '%s' "$d" | sed -n 's#.*?c=\([A-Za-z0-9_-]*\).*#\1#p' | head -n 1)
-  pid2=$(st_console_pid); desk_rec "$pid2"
-  e=$(studio_tty --print-address --json < /dev/null 2>&1); rc10=$?
-  url=$(python3 -c 'import glob, json, sys; print(json.load(open(glob.glob(sys.argv[1] + "/ovh-desk-*/console-*.json")[0]))["url"])' "$t/tmp" 2>/dev/null)
-  claims=$(python3 - "$url" "$k" <<'PY'
-import json, sys, urllib.error, urllib.request
-out = []
-for _ in range(2):
-    r = urllib.request.Request(sys.argv[1] + "api/claim", data=json.dumps({"c": sys.argv[2]}).encode(), headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        out.append(str(urllib.request.urlopen(r).status))
-    except urllib.error.HTTPError as e:
-        out.append(str(e.code))
-print(" ".join(out))
-PY
-)
-  if [ $rc = 0 ] && case "$a" in *'"where": "studio"'*'#/p/outside~'*'"opened": true'*'"joined": true'*) true ;; *) false ;; esac && [ -n "$b" ] \
-    && [ $rcg = 0 ] && case "$g" in *"在 Studio 里打开了"*) true ;; *) false ;; esac && [ "$listed" = "2 0" ] \
-    && [ "$(printf '%s\n' $w0 | grep -c '^launch$')" = 1 ] && ! printf '%s' "$w0" | grep -q second \
-    && [ $rc2 = 0 ] && grep -q '"stopped": false' "$t/q0" && [ $rc3 = 1 ] && [ $rc4 = 0 ] && [ $rc5 = 0 ] && [ $rc6 = 0 ] && grep -q '"stopped": true' "$t/q1" && [ $rc7 = 1 ] \
-    && [ "$left" = 0 ] && case "$wq" in *closed) true ;; *) false ;; esac \
-    && [ $rc8 = 0 ] && [ -n "$k" ] && [ "$claims" = "200 403" ] && case "$d" in *"opens one page, once, within ten minutes"*) true ;; *) false ;; esac \
-    && ! grep -q '?c=' "$t/pa" && grep -q 'is in your terminal' "$t/pa" && [ "$(grep -c '?c=' "$t/pa.tty")" = 1 ] \
-    && [ $rc9 = 1 ] && [ -z "$n2" ] && case "$n" in *"writes the address to your terminal and nowhere else"*) true ;; *) false ;; esac \
-    && [ $rc10 = 1 ] && [ "$(st_console_pid)" = "$pid2" ] && case "$e" in *'"refused": true'*"bin/vh desk link --print-address"*) true ;; *) false ;; esac && case "$e" in *'?c='*) false ;; *) true ;; esac
-  then ok "studio: a film outside Studio's folders joins Studio's space and opens in its one window (bin/vh studio <film>, and bin/vh gate while Studio runs: no desk or window of its own); the icon's open starts a console of its own, alive says whether one runs, and quit stops only that one, its window with it (one bin/vh studio started is left); --print-address: refused with no terminal and nothing started, the address in the terminal alone, its code working once; refused while Studio runs, which goes on"
-  else bad "studio: a film from outside, the icon's open/alive/quit, --print-address (exits $rc $rcg $rc2 $rc3 $rc4 $rc5 $rc6 $rc7 $rc8 $rc9 $rc10, listed/own desks $listed, windows $w0, left $left, claims $claims): $a | $g | $(cat "$t/q0" "$t/q1") | $c | $wq | $d | $n | $e"; fi
-  [ -z "$pid2" ] || kill "$pid2" 2>/dev/null; [ -z "$b" ] || kill "$b" 2>/dev/null
-  # Studio's own app (tools/desk/shell): the stand-in app ($OVH_STUDIO_SHELL=fixtures/studio_shell.py) in place of Electron.
-  # One app, one window a desk: made once, raised after, two at once, the line handed over on stdin (no code on its command
-  # line), closed when the console stops; an app that cannot start: the browser's window, said plainly
-  rm -rf "$t/prof" "$t/shellprof"; mkdir -p "$t/prof"
-  shell_run() { OVH_STUDIO_SHELL="$ROOT/tools/desk/fixtures/studio_shell.py" OVH_STUDIO_SHELL_PROFILE="$t/shellprof" studio_run "$@"; }
-  a=$(BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); rc=$?; pid=$(st_console_pid); desk_rec "$pid"
-  b=$(shell_run demo < /dev/null 2>&1); rc2=$?
-  shell_run < /dev/null > "$t/s1" 2>&1 & i=$!; shell_run demo < /dev/null > "$t/s2" 2>&1; wait $i
-  st_stop; for i in $(seq 50); do [ -e "$t/shellprof/shell.pid" ] || break; sleep 0.1; done
-  c=$(FAKE_SHELL=broken BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); rc3=$?; desk_rec "$(st_console_pid)"
-  st_stop
-  s0=$(date +%s); m=$(FAKE_SHELL=moved BROWSER=/usr/bin/false shell_run < /dev/null 2>&1); s0=$(( $(date +%s) - s0 )); desk_rec "$(st_console_pid)"   # the clone gone
-  st_stop
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ "$s0" -le 6 ] && python3 - "$t" "$a" "$b" "$(cat "$t/s1" "$t/s2")" "$c" "$m" <<'PY'
-import json, sys
-t, a, b, two, c, m = sys.argv[1:7]
-bad = []
-def want(cond, what):
-    if not cond: bad.append(what)
-ev = [json.loads(l) for l in open(t + "/shellprof/shell.log")]
-kinds = [e["event"] for e in ev]
-starts = [e for e in ev if e["event"] == "start"]
-want(len(starts) == 1 and not starts[0]["code_in_argv"], f"the app started {len(starts)} times, or with a code on its command line: {starts}")
-want(kinds.count("window") == 1 and kinds.count("raised") >= 3 and "claimed" in kinds and "present" in kinds, f"one window, raised after: {kinds}")
-want(any(e["event"] == "told" and e["data"].get("go", "").startswith("/p/demo~") for e in ev), "the window was not sent to the film")
-end = [k for k in kinds if k != "lost"]   # a window's stream ending (lost) can be noted after quit: its own thread, a race
-want(end[-2:] == ["closed", "quit"] or end[-1] == "quit", f"the console stopped, the app did not close its window and quit: {kinds[-3:]}")
-want("Studio is open in its own window" in a and "its window is in front" in b and two.count("its window is in front") == 2, f"said: {a!r} | {b!r} | {two!r}")
-want("Studio is open in a browser window (Studio's own app did not open)" in c, f"an app that cannot start: {c!r}")
-want("Studio is open in a browser window (Studio's own app no longer finds OpenVideoHarness where it was installed: ask your agent to put the Studio icon back)" in m
-     and "bin/vh" not in m, f"an app whose clone is gone: {m!r}")
-if bad:
-    print("\n".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  then ok "studio, its own app: started once with its line on stdin (no code on its command line), one window made and raised after (two runs at once included) and sent to the film; the console's end closes it and the app quits; an app that cannot start gives the browser's window, said plainly; an app whose clone is gone exits at once with no alert, and the browser's window comes within seconds with a sentence for a person (no command)"
-  else bad "studio, its own app (exits $rc/$rc2/$rc3): $a | $b | $(cat "$t/s1" "$t/s2") | $c | $(tail -c 600 "$t/shellprof/shell.log" 2>/dev/null)"; fi
-  # the app made (an Electron stand-in folder: no download): its own name, bundle id, icon and boot, signed, the record the
-  # console finds it by; Linux the same; --no-shell and no way to get Electron: the launcher, and the note says why
-  mkdir -p "$t/edist/Electron.app/Contents/MacOS" "$t/edist/Electron.app/Contents/Resources" "$t/edist/resources"
-  printf '#!/bin/sh\nexit 0\n' > "$t/edist/Electron.app/Contents/MacOS/Electron"; cp "$t/edist/Electron.app/Contents/MacOS/Electron" "$t/edist/electron"
-  chmod +x "$t/edist/Electron.app/Contents/MacOS/Electron" "$t/edist/electron"; printf 'asar' > "$t/edist/Electron.app/Contents/Resources/default_app.asar"
-  python3 -c 'import plistlib, sys; plistlib.dump({"CFBundleExecutable": "Electron", "CFBundleName": "Electron", "CFBundleIdentifier": "com.github.Electron", "CFBundlePackageType": "APPL", "CFBundleIconFile": "electron.icns", "ElectronAsarIntegrity": {}}, open(sys.argv[1], "wb"))' "$t/edist/Electron.app/Contents/Info.plist"
-  rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
-  a=$(OVH_STUDIO_ELECTRON_DIST="$t/edist" studio_run --install-icon --dir "$t/apps" --as linux --json 2>&1); rc=$?
-  b=$(cat "$t/apps/ovh-studio/shell.json" 2>/dev/null)
-  c=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
-  d=$(PATH=/usr/bin:/bin OVH_STUDIO_SHELL_CACHE="$t/nocache" studio_run --install-icon --dir "$t/apps2" --as linux --json 2>&1); rc2=$?
-  e=$(studio_run --install-icon --dir "$t/apps3" --as linux --no-shell --json 2>&1); rc3=$?
-  if [ $rc = 0 ] && case "$a" in *'"kind": "shell"'*) true ;; *) false ;; esac && case "$b" in *'/shell/electron"'*'"electron": "'*) true ;; *) false ;; esac \
-    && grep -q '"main": "boot.js"' "$t/apps/ovh-studio/shell/resources/app/package.json" && grep -qF "$(cd "$ROOT" && pwd -P)" "$t/apps/ovh-studio/shell/resources/app/boot.js" \
-    && [ ! -e "$t/home/.share/ovh-studio" ] && [ ! -e "$t/home/.cache/ovh/studio-shell" ] \
-    && grep -q '^StartupWMClass=OVH Studio' "$t/apps/ovh-studio.desktop" && grep -q '/shell/electron"$' "$t/apps/ovh-studio.desktop" \
-    && case "$c" in *"icon: ok"*"Studio's own window (Electron "*) true ;; *) false ;; esac \
-    && [ $rc2 = 0 ] && case "$d" in *'"kind": "launcher"'*"no npm here"*) true ;; *) false ;; esac \
-    && [ $rc3 = 0 ] && case "$e" in *'"kind": "launcher"'*) true ;; *) false ;; esac
-  then ok "studio --install-icon, Linux: Studio's own window (Electron copied beside its boot, which runs the shell from this clone; the desktop entry runs it; its record; status says which), all of it inside --dir; with no npm and nothing cached, or --no-shell, the launcher, and the note says why"
-  else bad "studio --install-icon with the shell, Linux (exits $rc/$rc2/$rc3): $a | $b | $c | $d | $e"; fi
-  # removing it while it runs: the app quits first (the stand-in app as the one this install recorded), then goes
-  rm -rf "$t/shellprof"
-  python3 -c 'import json, sys; p = sys.argv[1]; d = json.load(open(p)); d["exe"] = sys.argv[2]; json.dump(d, open(p, "w"))' "$t/apps/ovh-studio/shell.json" "$ROOT/tools/desk/fixtures/studio_shell.py"
-  shell_run < /dev/null > /dev/null 2>&1; desk_rec "$(st_console_pid)"
-  up=$([ -e "$t/shellprof/shell.pid" ] && echo up || echo down)
-  r=$(OVH_STUDIO_SHELL_PROFILE="$t/shellprof" studio_run --remove-icon --dir "$t/apps" --as linux 2>&1); rc=$?
-  last=$(tail -n 1 "$t/shellprof/shell.log" 2>/dev/null)
-  st_stop
-  if [ "$up" = up ] && [ $rc = 0 ] && [ ! -e "$t/shellprof/shell.pid" ] && case "$last" in *'"event": "quit"'*) true ;; *) false ;; esac \
-    && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/apps/ovh-studio" ]
-  then ok "studio --remove-icon while the app runs: the app is told to quit and goes before its files do (no window left on a dead page)"
-  else bad "studio --remove-icon while the app runs ($up, exit $rc): $r | $last"; fi
-  if [ "$(uname -s)" = Darwin ]; then
-    rm -rf "$t/apps" "$t/home/.share/ovh-studio"; mkdir -p "$t/apps"
-    a=$(OVH_STUDIO_ELECTRON_DIST="$t/edist" studio_run --install-icon --dir "$t/apps" --json 2>&1); rc=$?
-    app="$t/apps/OVH Studio.app"
-    if [ $rc = 0 ] && case "$a" in *'"kind": "shell"'*) true ;; *) false ;; esac && codesign --verify --strict "$app" 2>/dev/null \
-      && [ "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.zlhad.ovh-studio ] \
-      && [ "$(plutil -extract CFBundleName raw "$app/Contents/Info.plist")" = "OVH Studio" ] && [ "$(plutil -extract CFBundleIconFile raw "$app/Contents/Info.plist")" = ovh-studio.icns ] \
-      && ! plutil -extract ElectronAsarIntegrity raw "$app/Contents/Info.plist" >/dev/null 2>&1 && [ ! -e "$app/Contents/Resources/default_app.asar" ] \
-      && iconutil -c iconset -o "$t/y.iconset" "$app/Contents/Resources/ovh-studio.icns" && [ "$(ls "$t/y.iconset" | wc -l | tr -d ' ')" = 10 ] \
-      && grep -q '"main": "boot.js"' "$app/Contents/Resources/app/package.json" && grep -q 'tools", "desk", "shell", "main.js"' "$app/Contents/Resources/app/boot.js" \
-      && grep -q 'Contents/MacOS/Electron"' "$t/apps/ovh-studio/shell.json" && [ ! -e "$t/home/.share/ovh-studio" ] \
-      && studio_run --remove-icon --dir "$t/apps" >/dev/null 2>&1 && [ ! -e "$app" ] && [ ! -e "$t/apps/ovh-studio" ]
-    then ok "studio --install-icon, macOS: OVH Studio.app is Electron with its own name, bundle id and icon (ten sizes), no default app and no asar check, its code the boot that runs the shell from this clone, signed ad hoc and valid; its record inside --dir, nothing outside it; removed with it"
-    else bad "studio --install-icon with the shell, macOS (exit $rc): $a"; fi
-  fi
-  # the shell's source: Electron pinned from a committed lockfile (registry.npmjs.org, integrity, no install script), the
-  # window hardened (isolated, no Node, sandboxed, no webview, its own pages only, nothing asked for), a preload with two
-  # things in it; the page marks itself only when the preload is there, and the frame's rules apply only then
-  if python3 - <<'PY'
-import json, re, subprocess
-bad = []
-d = "tools/desk/shell/"
-pkg, lock = json.load(open(d + "package.json")), json.load(open(d + "package-lock.json"))
-ver = pkg["dependencies"].get("electron", "")
-if not re.fullmatch(r"\d+\.\d+\.\d+", ver) or lock["packages"][""]["dependencies"] != {"electron": ver} or lock["packages"]["node_modules/electron"]["version"] != ver:
-    bad.append(f"electron not pinned exactly in both: {ver}")
-if [m["version"].get("pin") for m in json.load(open("tools/modules.json"))["modules"] if m["name"] == "electron"] != [ver]:
-    bad.append("tools/modules.json's electron pin is not the lockfile's")
-hosts = {v["resolved"].split("/")[2] for k, v in lock["packages"].items() if k and v.get("resolved")}
-if hosts != {"registry.npmjs.org"} or any(k and v.get("resolved") and not v.get("integrity") for k, v in lock["packages"].items()):
-    bad.append(f"lockfile: hosts {hosts}, or a package without its integrity hash")
-if any(v.get("hasInstallScript") for v in lock["packages"].values()):
-    bad.append("a package with an install script (the install runs npm ci --ignore-scripts)")
-main, pre = open(d + "main.js").read(), open(d + "preload.js").read()
-for need in ("contextIsolation: true", "nodeIntegration: false", "sandbox: true", "webviewTag: false", "setWindowOpenHandler", '"will-navigate"',
-             "setPermissionRequestHandler", "requestSingleInstanceLock", "will-attach-webview", 'titleBarStyle: "hidden"', "show: false", "backgroundColor",
-             "onBeforeSendHeaders", 'net.fetch(u.origin + "/api/claim"'):
-    if need not in main:
-        bad.append(f"main.js lacks {need}")
-if re.findall(r"exposeInMainWorld\(\"(\w+)\"", pre) != ["ovhShell"] or set(re.findall(r"^\s+(\w+):", pre, re.M)) != {"platform", "access", "theme"}:
-    bad.append("preload exposes more than ovhShell {platform, access, theme}")
-for f in ("main.js", "preload.js"):
-    if subprocess.run(["node", "--check", d + f]).returncode:
-        bad.append(f"{f} does not parse")
-css = re.sub(r"/\*.*?\*/", "", open("tools/desk/static/studio.css").read() + open("tools/desk/static/reader.css").read(), flags=re.S)
-frame = [r for r in re.findall(r"([^{}]+)\{([^{}]*)\}", css) if "app-region" in r[1]]
-if not frame or any(not s.strip().startswith("html.shell") for sel, _ in frame for s in re.sub(r":is\([^)]*\)", ":is()", sel).split(",")):
-    bad.append("an -webkit-app-region rule outside html.shell")
-if "if (window.ovhShell)" not in open("tools/desk/static/ui.js").read():
-    bad.append("ui.js does not mark the page only in the shell")
-print("; ".join(bad))
-raise SystemExit(1 if bad else 0)
-PY
-  then ok "studio's shell source: Electron pinned exactly from a committed lockfile (registry.npmjs.org, integrity hashes, no install scripts); its window isolated, without Node, sandboxed, no webview, its own pages only (others to the default browser), no permissions, one instance; a preload with ovhShell {platform, access, theme} alone; the token added by the app to the page's requests (the page never holds it); the page takes the frame only in the shell"
-  else bad "studio's shell source"; fi
-  # the app's decisions (tools/desk/shell/rules.js) under plain node: which requests get the token (never a page from
-  # elsewhere, never a request to elsewhere, never a frame inside the page), which lines are taken, which navigations stay,
-  # where a new page opens, which permission a page gets, what a line to show does to the window there; and the boot,
-  # its clone gone, started by the console: exit 3 at once, nothing said
-  python3 -c 'import sys; sys.path.insert(0, "tools/desk"); import studio; open(sys.argv[1], "w").write(studio._boot("/no/such/clone"))' "$t/boot.js"
-  if a=$(node "$t/boot.js" --ovh-from-console < /dev/null 2>&1; echo "rc=$?"); [ "$a" = "rc=3" ] && a=$(node - "$ROOT/tools/desk/shell/rules.js" <<'JS'
-const R = require(process.argv[2]);
-const bad = [];
-const want = (ok, what) => { if (!ok) bad.push(what); };
-const C = "http://127.0.0.1:8780", A = { origin: C, token: "T" };
-want(R.tokenFor(A, C + "/api/hello", C + "/#/p/x", true) === "T", "the console's own page asking its console");
-want(R.tokenFor(A, C + "/api/hello", "http://127.0.0.1:9999/", true) === null, "a page from elsewhere asking the console");
-want(R.tokenFor(A, "http://127.0.0.1:9999/x", C + "/", true) === null, "the console's page asking elsewhere");
-want(R.tokenFor(A, C + "/api/hello", C + "/", false) === null, "a frame inside the page");
-want(R.tokenFor(null, C + "/api/hello", C + "/", true) === null, "no code traded");
-want(R.line({ url: C + "/?c=x&w=1", role: "console-a", fresh: true }).fresh === true && R.line({ url: C + "/" }).role === "console", "a line to show");
-want([{ url: "https://example.com/" }, { url: "http://localhost:8780/" }, "x", [1], null, { quit: "yes" }].every((x) => R.line(x) === null), "lines that are not the console's");
-want(R.line({ close: "console-a" }).close === "console-a" && R.line({ quit: true }).quit === true, "close and quit");
-want(R.navigation(C + "/#/p/x", C + "/f/x/a.html") === "stay" && R.navigation(C + "/", "https://example.com/") === "browser", "the same console stays, a site elsewhere goes to the browser");
-want(["http://127.0.0.1:9/", "http://localhost:8780/", "javascript:alert(1)", "file:///etc/hosts"].every((u) => R.navigation(C + "/", u) === "deny"), "another local address, javascript: and file: go nowhere");
-want(R.newPage(C + "/#/p/x", C + "/f/x/t.html") === "inside" && R.newPage(C + "/", "https://example.com/") === "browser", "a new page: the same console inside, a site elsewhere outside");
-want(["research/digest/x/transcript.md", "notes.txt", "a.png", "a.mp4", "out/review/gate-1.html", "a.pdf"].every((p) => R.readerUrl(C + "/#/p/x", C + "/f/demo~ab/" + p + "?k=1") === C + "/v/demo~ab/" + p)
-  && R.readerUrl(C + "/", "https://example.com/a.md") === null && R.readerUrl(C + "/", "http://127.0.0.1:9/f/x/a.md") === null, "every project file a link opens (a transcript among them) goes through the reader; nothing else does");
-want(R.permission("fullscreen", C + "/", C + "/#/p/x") && !R.permission("fullscreen", "http://127.0.0.1:9/", C + "/") && !R.permission("media", C + "/", C + "/"), "full screen for the console's page, nothing else");
-want(R.show(null, { url: C + "/" }) === "make" && R.show(C + "/#/p", { url: C + "/?c=x" }) === "raise" && R.show(C + "/", { url: C + "/?c=x", fresh: true }) === "load"
-  && R.show(C + "/", { url: "http://127.0.0.1:8781/?c=x" }) === "check", "a line to show: make, raise, load, or check another console");
-console.log(bad.join("; "));
-process.exit(bad.length ? 1 : 0);
-JS
-); then ok "studio's shell rules under node: the token only on the console page's own requests to its own console (not a page from elsewhere, not elsewhere, not a frame); only the console's lines; the same console stays, sites elsewhere in the browser, other local addresses nowhere; same-console pages in the app, every project file through the reader (a text document among them); full screen only; another console's address only after a check; a boot whose clone is gone exits 3 at once when the console starts it"
-  else bad "studio's shell rules under node: $a"; fi
-  # the reader the app opens those links in (GET /v/<key>/<path>): each kind shows its content (markdown and text as
-  # escaped text, a picture, a player, a page in a frame), a kind it cannot show says so and where the file is, the
-  # file's name is the page's title; a hidden file or a way out of the project is refused
-  if a=$(python3 - <<'PY'
-import os, re, shutil, sys, tempfile, threading, urllib.error, urllib.request
-sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
-import server
-d = tempfile.mkdtemp(); p = d + "/demo"
-shutil.copytree("tools/desk/fixtures/demo", p)
-os.makedirs(p + "/research/kinds")
-for n, b in (("n.txt", b"a <b>line</b>\n"), ("a.png", b"\x89PNG"), ("c.mp4", b"\0"), ("t.mp3", b"\0"), ("g.html", b"<h1>g</h1>"), ("x.pdf", b"%PDF")):
-    open(f"{p}/research/kinds/{n}", "wb").write(b)
-open(p + "/.env", "w").write("K=1")
-srv = server.Desk(0, p, (), True)
-threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True).start()
-def get(rel):
-    try:
-        r = urllib.request.urlopen(f"http://127.0.0.1:{srv.port}/v/{srv.own_key}/{rel}")
-        return r.status, r.read().decode()
-    except urllib.error.HTTPError as e:
-        return e.code, ""
-want = {"research/digest/tide-lecture/transcript.md": r'<main class="text"><article class="md"><h1>', "research/kinds/n.txt": r"<pre>a &lt;b&gt;line&lt;/b&gt;",
-        "research/kinds/a.png": r'<main class="pic"><img src="/f/', "research/kinds/c.mp4": r'<main class="av"><video controls', "research/kinds/t.mp3": r'<main class="av"><audio controls',
-        "research/kinds/g.html": r'<main class="page"><iframe src="/f/', "research/kinds/x.pdf": r'<main class="none"><p>[^<]*research/kinds/x\.pdf'}
-bad = []
-for rel, pat in want.items():
-    st, body = get(rel)
-    if st != 200 or not re.search(pat, body) or f"<title>{os.path.basename(rel)}</title>" not in body or 'class="bar"' not in body:
-        bad.append(f"{rel}: {st} {body[-200:]!r}")
-for rel in (".env", "../x", "research/kinds/none.md"):
-    if get(rel)[0] != 404:
-        bad.append(f"{rel} not refused")
-srv.shutdown(); srv.agents.shutdown(); srv.server_close(); shutil.rmtree(d)
-print("; ".join(bad))
-sys.exit(1 if bad else 0)
-PY
-); then ok "the reader (GET /v/…), where the app opens the console's new-page links: a transcript and other text as text, a picture, a video and an audio player, a page in a frame, a PDF said plainly with where it is; each titled with the file's name, with its bar; a hidden file, a way out and a missing file refused"
-  else bad "the reader (GET /v/…): $a"; fi
-  # the icon: made for Linux everywhere and for macOS on a Mac, into --dir; not over a file it did not write; removed; a clone
-  # that moved says what to run; doctor's line; the picture's sizes, the same bytes each time, the .icns's ten entries
-  a=$(studio_run --install-icon --no-shell --dir "$t/apps" --as linux 2>&1); rc=$?
-  b=$(studio_run --icon-status --dir "$t/apps" --as linux --json 2>&1)
-  cp "$t/apps/ovh-studio.desktop" "$t/apps/ovh-studio.desktop.bak"   # (as it was made)
-  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^REPO=.*$", "REPO=/no/such/clone", s))' "$t/apps/ovh-studio/studio-launch.sh"
-  c=$(PATH=/usr/bin:/bin "$t/apps/ovh-studio/studio-launch.sh" 2>&1); rc2=$?
-  python3 - "$t/apps/ovh-studio/ovh-studio.json" <<'PY'
-import json, sys
-p = sys.argv[1]; d = json.load(open(p)); d["repo"] = "/no/such/clone"; json.dump(d, open(p, "w"))
-PY
-  python3 -c 'import re, sys; p = sys.argv[1]; s = open(p).read(); open(p, "w").write(re.sub(r"(?m)^X-OVH-Repo=.*$", "X-OVH-Repo=/no/such/clone", s))' "$t/apps/ovh-studio.desktop"
-  d=$(studio_run --icon-status --dir "$t/apps" --as linux 2>&1)
-  mkdir -p "$t/apps2" && printf 'not ours\n' > "$t/apps2/ovh-studio.desktop"
-  e=$(studio_run --install-icon --no-shell --dir "$t/apps2" --as linux 2>&1); rc3=$?
-  studio_run --remove-icon --dir "$t/apps" --as linux >/dev/null 2>&1; rc4=$?
-  if [ $rc = 0 ] && case "$b" in *'"state": "ok"'*) true ;; *) false ;; esac && grep -q '^Exec="' "$t/apps/ovh-studio.desktop.bak" \
-    && [ "$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak")")" = "$(cd "$ROOT" && pwd -P)" ] \
-    && [ $rc2 = 1 ] && case "$c" in *"/no/such/clone"*"bin/vh studio --install-icon"*) true ;; *) false ;; esac \
-    && case "$d" in *"icon: elsewhere"*"no longer there"*"--install-icon here"*) true ;; *) false ;; esac \
-    && [ $rc3 = 1 ] && grep -qx 'not ours' "$t/apps2/ovh-studio.desktop" && case "$e" in *"not one bin/vh studio wrote"*) true ;; *) false ;; esac \
-    && [ $rc4 = 0 ] && [ ! -e "$t/apps/ovh-studio.desktop" ] && [ ! -e "$t/apps/ovh-studio" ] && [ ! -e "$t/home/.share/ovh-studio" ]
-  then ok "studio icon (Linux): a desktop entry and its script run bin/vh studio in this clone; status ok; a clone that moved says which command to run again (the click and the status); a file it did not write is left alone; removed with its script and picture; with --dir, nothing outside that folder"
-  else bad "studio icon (Linux, exits $rc $rc2 $rc3 $rc4; Exec $(grep -c '^Exec="' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null), repo line $(sed -n 's/^X-OVH-Repo=//p' "$t/apps/ovh-studio.desktop.bak" 2>/dev/null) for $(cd "$ROOT" && pwd -P), foreign kept $(grep -cx 'not ours' "$t/apps2/ovh-studio.desktop" 2>/dev/null), entry left $([ -e "$t/apps/ovh-studio.desktop" ] && echo yes || echo no), data left $([ -e "$t/apps/ovh-studio" ] || [ -e "$t/home/.share/ovh-studio" ] && echo yes || echo no)): $a | $b | $c | $d | $e"; fi
-  if [ "$(uname -s)" = Darwin ]; then
-    a=$(studio_run --install-icon --no-shell --dir "$t/apps" 2>&1); rc=$?
-    app="$t/apps/OVH Studio.app"
-    b=$(osadecompile "$app" 2>/dev/null)
-    if [ $rc = 0 ] && codesign --verify --strict "$app" 2>/dev/null && [ ! -e "$app/Contents/Resources/Assets.car" ] \
-      && [ "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.zlhad.ovh-studio ] \
-      && [ "$(plutil -extract OSAAppletStayOpen raw "$app/Contents/Info.plist")" = true ] \
-      && ! plutil -p "$app/Contents/Info.plist" | grep -q UsageDescription \
-      && case "$b" in *"$ROOT"*"--icon \" & args"*"bin/vh studio --install-icon"*"on reopen"*"on quit"*) true ;; *) false ;; esac \
-      && iconutil -c iconset -o "$t/x.iconset" "$app/Contents/Resources/applet.icns" && [ "$(ls "$t/x.iconset" | wc -l | tr -d ' ')" = 10 ] \
-      && mkdir -p "$t/home/Applications" && cp -R "$app" "$t/home/Applications/" \
-      && HOME="$t/home" python3 -c 'import sys; sys.path.insert(0, "tools"); import doctor; c = doctor.studio_icon_check(); sys.exit(0 if c["state"] == "ok" and "~/Applications/OVH Studio.app" in c["note"] else 1)' \
-      && studio_run --remove-icon --dir "$t/apps" >/dev/null 2>&1 && [ ! -e "$app" ]
-    then ok "studio icon (macOS): OVH Studio.app, a stay-open applet (a second click and the Dock's Quit reach it) that runs bin/vh studio --icon in this clone and says what to run when the clone moved; ad-hoc signed and valid, its own bundle id, no privacy prompts asked for, no asset catalog over the icon; macOS reads all ten sizes of its .icns; doctor says it is in ~/Applications and runs this clone; removed"
-    else bad "studio icon (macOS, exit $rc): $a | $(printf '%s' "$b" | head -c 300)"; fi
-  fi
-  # the picture: drawn by stdlib Python, the sizes asked for, the same bytes each time; install.sh puts the icon in unasked;
-  # a release makes the icon first
-  if python3 - <<'PY'
-import struct, sys, zlib
-sys.path.insert(0, "tools/desk")
-import icon
-bad = []
-for n in (16, 32, 128, 512):
-    a = icon.png(n, n, icon.render(n))
-    w, h = struct.unpack(">II", a[16:24])
-    if a[:8] != b"\x89PNG\r\n\x1a\n" or (w, h) != (n, n) or a != icon.png(n, n, icon.render(n)):
-        bad.append(f"{n}: {w}x{h}")
-raw = zlib.decompress(icon.png(16, 16, icon.render(16))[41:-16])   # rows of a filter byte and 16 pixels
-mid = raw[8 * 65 + 1 + 8 * 4: 8 * 65 + 1 + 8 * 4 + 4]   # the diamond's middle: the gradient's violet, opaque
-if mid[3] != 255 or any(abs(mid[c] - icon.IRI[1][c]) > 16 for c in range(3)):
-    bad.append(f"16 px: the middle is not the diamond's violet: {tuple(mid)}")
-i = icon.icns()
-kinds, at = [], 8
-while at < len(i):
-    kinds.append(i[at:at + 4].decode()); at += struct.unpack(">I", i[at + 4:at + 8])[0]
-if i[:4] != b"icns" or struct.unpack(">I", i[4:8])[0] != len(i) or kinds != [k for k, _ in icon.ICNS]:
-    bad.append(f"icns: {kinds}")
-print("; ".join(bad))
-sys.exit(1 if bad else 0)
-PY
-  then ok "studio icon's picture: stdlib Python draws it at 16, 32, 128 and 512 px, the same bytes each time, the homepage's diamond in the middle at 16; the .icns has its ten entries"
-  else bad "studio icon's picture"; fi
-  { grep '^NOAPP=' install.sh; sed -n '/^put_icon() {/,/^}/p' install.sh; } > "$t/put.sh"
-  mkdir -p "$t/inst/bin" && cat > "$t/inst/bin/vh" <<'SH'
-#!/bin/sh
-echo "$*" >> "$T/inst/ran"
-case "$*" in *--icon-status*) cat "$T/inst/state" 2>/dev/null ;; *--install-icon*) printf '{"version": 1, "installed": "x", "kind": "%s", "note": "no npm here"}\n' "${KIND:-shell}" ;; esac
-SH
-  chmod +x "$t/inst/bin/vh"
-  put() { : > "$t/inst/ran"; (cd "$t/inst" && env T="$t" XDG_DATA_HOME="$t/data" "$@" bash -c 'say() { echo "said: $*"; }; . "$1"; ICON_LATER=""; ICON_DONE=""; ICON_HEADLESS=""; put_icon; echo "done=$ICON_DONE later=$ICON_LATER headless=$ICON_HEADLESS"' _ "$t/put.sh" < /dev/null 2>&1); }
-  ran() { tr '\n' '|' < "$t/inst/ran"; }
-  rm -f "$t/inst/state"; a=$(put DISPLAY=:0 ICON=default); ra=$(ran)                       # not there: made, said once with its size
-  printf '{"state": "ok", "running": false}' > "$t/inst/state"; b=$(put DISPLAY=:0 ICON=default); rb=$(ran)   # there and current: left alone
-  printf '{"state": "outdated", "running": true}' > "$t/inst/state"; c=$(put DISPLAY=:0 ICON=default); rc_=$(ran)   # open: never replaced
-  rm -f "$t/inst/state"; d=$(put DISPLAY=:0 ICON=no); rd=$(ran); kd=$([ -f "$t/data/ovh-studio/no-app" ] && echo kept); e=$(put DISPLAY=:0 ICON=default); re=$(ran)   # --no-icon sticks
-  f=$(put DISPLAY=:0 ICON=yes); rf=$(ran)                                                     # --icon puts it in again
-  g=$(put DISPLAY=:0 ICON=default KIND=launcher)                                              # the small launcher, said
-  h=$(put DISPLAY= WAYLAND_DISPLAY= ICON=default); rh=$(ran)                                  # no desktop: Linux makes none, macOS does
-  case "$(uname -s)" in Darwin) want_h="done=1 later= headless=" ;; *) want_h="done= later= headless=1" ;; esac
-  if [ -s "$t/put.sh" ] && case "$a" in "said: putting OVH Studio in your applications"*"130 MB"*"--no-icon leaves it out"*"done=1 later= headless=") true ;; *) false ;; esac \
-    && [ "$ra" = "studio --icon-status --json|studio --install-icon --json|" ] \
-    && case "$b" in *"already, and up to date"*"done=1"*) true ;; *) false ;; esac && [ "$rb" = "studio --icon-status --json|" ] \
-    && case "$c" in *"is open, so it was left as it is"*"done=1"*) true ;; *) false ;; esac && [ "$rc_" = "studio --icon-status --json|" ] \
-    && [ "$d" = "done= later=1 headless=" ] && [ -z "$rd" ] && [ "$kd" = kept ] \
-    && case "$e" in *"stays out of your applications"*"later=1"*) true ;; *) false ;; esac && [ -z "$re" ] \
-    && case "$f" in *"said: putting OVH Studio"*"done=1"*) true ;; *) false ;; esac && [ ! -e "$t/data/ovh-studio/no-app" ] && [ "$rf" = "$ra" ] \
-    && case "$g" in *"a small launcher was made instead"*"no npm here"*) true ;; *) false ;; esac && case "$h" in *"$want_h") true ;; *) false ;; esac \
-    && ! grep -q '/dev/tty\|read -r a\|\[y/N\]' install.sh && grep -q 'Two ways to start' install.sh && grep -q 'Click OVH Studio' install.sh \
-    && grep -q 'bin/vh studio --print-address (this machine has no desktop)' install.sh && grep -q 'xcode-select --install' install.sh \
-    && grep -q 'studio --install-icon' tools/changes.py
-  then ok "install.sh: OVH Studio goes into the applications without a question (macOS, a Linux desktop), said once with its size, its own lines shown; run again it is left alone when current and never replaced while open; --no-icon keeps it out on every later run, --icon puts it back; the launcher it falls back to is said; nothing asks; no desktop: no app and no applications menu in the last lines; a Mac without Apple's command line tools is told; a release makes the icon first (tools/changes.py)"
-  else bad "install.sh's icon: $a | $b | $c | $d | $e | $f | $g | $h (runs: $ra / $rb / $rc_ / $rd / $re / $rf / $rh)"; fi
-  rm -rf "$t"
-}
-
-agent_checks() {   # the console's agent column (tools/desk/agents.py, acp.py, agentlock.py, static/agent.js) against the stand-in
-  # agents (tools/desk/fixtures/agents: the real adapters' messages of 2026-11-16, replayed; nothing real started or billed):
-  # the adapter's clean environment, the addresses' refusals, a turn, the typed text alone reaching the agent, approvals only
-  # by an offered option and never by default, stop, the lock, a restart, every adapter gone with the desk
-  local t k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-agents.XXXXXX")
-  python3 tools/desk/test_agents.py "$t" > "$t/out" 2>&1
-  while IFS=$'\t' read -r k m; do
-    case $k in ok) ok "agent column: $m" ;; bad) bad "agent column: $m" ;; esac
-  done < "$t/out"
-  grep -qx end "$t/out" || bad "agent column: the test stopped: $(tail -n 3 "$t/out" | tr '\n' ' ')"
-  rm -rf "$t"
-}
-
-settings_page_checks() {   # Studio's settings page (tools/desk/settings_api.py, static/settings.js, tools/settings.py's Studio
-  # keys) on a console of its own: its own HOME, temp folder, settings file and LOCAL.md, no window, no agent, no network
-  local t k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-settings.XXXXXX")
-  python3 tools/desk/test_settings.py "$t" > "$t/out" 2>&1
-  while IFS=$'\t' read -r k m; do
-    case $k in ok) ok "settings page: $m" ;; bad) bad "settings page: $m" ;; esac
-  done < "$t/out"
-  grep -qx end "$t/out" || bad "settings page: the test stopped: $(tail -n 3 "$t/out" | tr '\n' ' ')"
   rm -rf "$t"
 }
 
@@ -8530,20 +7069,25 @@ PY
     && ok "status: a new standard project works towards gate ①, the rest not started; its plan is gates ① and ③ (stops:, and --json stops), the storyboard on gate ③'s page (--json version 1; a short human view)" || bad "status of a new project (rc $rc): $a | $b"
   stops_line "$p" "1, 2, 3"   # the checks below follow a film that stops at its storyboard too
   # a page out (the page channel): waiting for the person; a desk submission: waiting for the agent, until handed over and recorded
-  mkdir -p "$p/out/review" && cp tools/desk/fixtures/zh/out/review/gate-1.json "$p/out/review/" && : > "$p/SCRIPT.md" && vh gate "$p" 1 --page >/dev/null 2>&1
+  mkdir -p "$p/out/review" && cp tools/fixtures/review/zh/out/review/gate-1.json "$p/out/review/" && : > "$p/SCRIPT.md" && vh gate "$p" 1 --page >/dev/null 2>&1
   a=$(st "$p" "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" 'd["stations"][0]["page"] == "out/review/gate-1.html" and d["review"]["current"] == "1"')
   python3 - "$p" <<'PY'
-import sys
-sys.path.insert(0, "tools/desk")
-import feedback
-p = sys.argv[1]
-feedback.save(p, feedback.validate(p, {"round": "1", "lang": "zh", "decisions": {"look": "L2"},
-                                       "items": [{"target": "range:3-4.5", "status": "change", "text": "这里太快"}, {"target": "card:B", "status": "ok"}]}))
+import json, sys
+from pathlib import Path
+
+project = Path(sys.argv[1])
+record = project / "out/review/feedback/1-20261128-120000.json"
+record.parent.mkdir()
+record.write_text(json.dumps({"round": "1", "lang": "zh", "submitted_at": "2026-11-28T12:00:00+08:00",
+                              "decisions": {"look": "L2"}, "items": [{"target": "range:3-4.5",
+                              "status": "change", "text": "这里太快", "t": 3, "t1": 4.5}]}))
+with (project / "REVIEW.md").open("a", encoding="utf-8") as f:
+    f.write(f'\n## 审阅台反馈 · 关卡 1 · 2026-11-28\n- 反馈原件：`{record.relative_to(project)}`\n- 原话：“这里太快”\n- 定了：　改了：\n')
 PY
   b=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["pending"] == 1' \
-    'd["next_step"]["commands"][0].startswith("bin/vh desk wait ")' \
+    '"saved submission" in d["next_step"]["do"] and d["next_step"]["commands"] == []' \
     '[(i["target"], i["label"]) for i in d["open"]["review_items"]] == [("range:3-4.5", "片段 0:03.0–0:04.5")]')
-  vh desk feedback "$p" >/dev/null
+  printf '%s\n' '{"files":["1-20261128-120000.json"]}' > "$p/out/review/feedback/.consumed"
   c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')
   python3 tools/gatecheck.py "$p" >/dev/null 2>&1; rc=$?   # gate ① as render and check read it: no decision yet
   python3 -c 'import sys; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); i = s.index("## 审阅台反馈"); open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 定了：　改了：", "- 定了：L2，开头放慢　改了：0:03–0:04.5", 1))' "$p"   # under the desk's section
@@ -9489,7 +8033,7 @@ PY
   then ok "history: no such snapshot or file is exit 1, a way out of the project and no project exit 2, each in the error's shape; a bad index line is skipped; list and diff write nothing and log nothing"
   else bad "bin/vh history's failures (exit $rc, $rc2, $c, $d, $e): $(cat "$t"/o? | tail -c 500)"; fi
   # bin/vh gate saves on a page that went out; a save that fails does not stop it; a page refused is no save
-  g="$t/g"; cp -R tools/desk/fixtures/zh "$g"
+  g="$t/g"; cp -R tools/fixtures/review/zh "$g"
   vh gate "$g" 1 --page >"$t/gate1" 2>&1; rc=$?
   n1=$(wc -l < "$g/.ovh/history/index.jsonl" | tr -d ' ')
   a=$(tail -n 1 "$g/.ovh/history/index.jsonl" | python3 -c 'import json, sys; d = json.loads(sys.stdin.read()); print(d["note"], "out/review/gate-1.json" in d["files"])' 2>&1)
@@ -9650,7 +8194,7 @@ else:
     if r.returncode != 0 or not any("not UTF-8" in x["why"] for x in J(r).get("skipped", [])):
         bad.append(f"a raw name on disk: exit {r.returncode}, {r.stdout[:200]} {r.stderr[-200:]}")
 # bin/vh gate with the lock held elsewhere: at most 2 s, said, the page out all the same
-z = f"{t}/hz"; shutil.copytree(f"{root}/tools/desk/fixtures/zh", z)
+z = f"{t}/hz"; shutil.copytree(f"{root}/tools/fixtures/review/zh", z)
 os.makedirs(f"{z}/.ovh/history", exist_ok=True); write(f"{z}/NOTES.md", "more\n")
 holder = subprocess.Popen([sys.executable, "-c", f"import fcntl, os, time\nf = os.open({z + '/.ovh/history/.lock'!r}, os.O_WRONLY | os.O_CREAT)\nfcntl.flock(f, fcntl.LOCK_EX)\nprint('held', flush=True)\ntime.sleep(60)\n"], stdout=subprocess.PIPE, text=True)
 holder.stdout.readline()
@@ -9681,7 +8225,7 @@ cancel_checks() {   # bin/vh cancel on commands a stand-in keeps busy (no networ
   # of proxy, thumbs, deliver and tts; a real render and patch when there is a Chrome
   local t p a rc b c d pid
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
-  cp -R tools/desk/fixtures/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
+  cp -R tools/fixtures/review/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
   printf '#!/bin/sh\np=""\ntrap '\''kill "$p" 2>/dev/null; exit 130'\'' INT\ntrap '\''kill "$p" 2>/dev/null; exit 143'\'' TERM\nsleep 60 &\np=$!\n: > "$UVMARK"\nwait "$p"\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
 import json, os, re, shutil, signal, subprocess, sys, time
@@ -9736,18 +8280,6 @@ one = [x for x in runs() if x["cmd"] == "qa"][-1]
 if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGTERM" and r.get("exit") == 143 and ex == -15 and not stub_alive() and time.time() - t0 < 20
         and one.get("state") == "failed" and one.get("cancelled") is True and one.get("exit") == 143):
     bad.append(f"SIGINT ignored: exit {rc}, {r}, ended {ex}, stand-in alive {stub_alive()}, run {one}")
-# a tool bin/vh exec'd into, that waits for a person: left running without a name; by name it writes its own end, cancelled
-pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
-rc, rec, err = cancel()
-one = [x for x in runs() if x["cmd"] == "desk"][-1]
-if not (rc == 0 and rec.get("runs") == [] and [x["cmd"] for x in rec.get("skipped", [])] == ["desk"] and pr.poll() is None and one["state"] == "running"):
-    bad.append(f"a desk wait, no name: exit {rc}, {rec}")
-rc, rec, err = cancel(one["run"])
-r = (rec.get("runs") or [{}])[0]
-ex = ended(pr)
-one = [x for x in runs() if x["cmd"] == "desk"][-1]
-if not (rc == 0 and r.get("state") == "cancelled" and r.get("exit") in (130, 143) and ex in (130, 143, -2) and one.get("cancelled") is True):
-    bad.append(f"a desk wait, by name: exit {rc}, {r}, ended {ex}, run {one}")
 # a run that is over, named: said, nothing done; part of an id does; an unknown one is an error
 rc, rec, err = cancel(one["run"][-6:])
 if not (rc == 0 and rec["runs"][0]["state"] == "not_running"):
@@ -10285,7 +8817,7 @@ PY
   a="$a$(python3 - "$p" <<'PY'
 import sys
 from pathlib import Path
-sys.path.insert(0, "tools"); sys.path.insert(0, "tools/desk")
+sys.path.insert(0, "tools")
 import status
 p = Path(sys.argv[1]); f = p / "STYLE.md"; was = f.read_text(encoding="utf-8"); n = status.unfilled(p)["STYLE.md"]
 f.write_text(was + "\n```css\n.bar { fill: #e33 }\n.x { color: red }\n```\nInline `{a}` and .y {fill: #111}, {\"a\": 1}, {}, ${HOME}, {none}.\n", encoding="utf-8")
@@ -10405,7 +8937,7 @@ PY
   OVH_PROJECTS="$t" vh new math nq2 --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nq2); dirline "$d" "voice=own"
   a=$(st "$d" "1:skipped E1:in_progress 2:skipped 3:skipped deliver:not_started | agent")
   b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice")' '"E1 --init" in c' 'r.startswith("playbook/01-pipeline.md#导演模式")')
-  mkdir -p "$d/out/review"; cp tools/desk/fixtures/zh/out/review/gate-1.json "$d/out/review/gate-E1.json"; : > "$d/SCRIPT.md"; vh gate "$d" E1 --page >/dev/null 2>&1
+  mkdir -p "$d/out/review"; cp tools/fixtures/review/zh/out/review/gate-1.json "$d/out/review/gate-E1.json"; : > "$d/SCRIPT.md"; vh gate "$d" E1 --page >/dev/null 2>&1
   c=$(ns "$d" 'n["who"] == "person"' '"Director line" not in n["do"]')
   printf '\n## 检查点 E1 脚本\n- 页面：`out/review/gate-E1.html`\n- 原话："用第二个"\n- 定了：第二个声音\n' >> "$d/REVIEW.md"
   e=$(st "$d" "1:skipped E1:done 2:skipped 3:skipped deliver:in_progress | agent")
@@ -10508,10 +9040,10 @@ PY
 activity_checks() {
   local t p a b c rc rc2 i pid want la lp n
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
-  cp -R tools/desk/fixtures/zh "$p"
+  cp -R tools/fixtures/review/zh "$p"
   vh review "$p" 1 >/dev/null 2>&1; rc=$?
   vh review "$p" 9 >/dev/null 2>&1; rc2=$?
-  (cd "$p" && vh effort quick >/dev/null && vh desk data . >/dev/null && vh activity . >/dev/null)
+  (cd "$p" && vh effort quick >/dev/null && vh status . >/dev/null && vh activity . >/dev/null)
   OVH_CI_SECRET=topsecret-env vh timeline "$p" --token abc123 API_KEY=sk-123456 --api-key=xyz AIzaFAKEFAKE "$(printf 'a%.0s' $(seq 40))" >/dev/null 2>&1
   vh timeline "$p" "https://user:hunter2pw@example.com/x?sig=s3cr3tsig&v=1#frag=fragval1" -k shortflagval "Authorization: Bearer bearertok1" \
     --auth=authval1 MY_VAR=envval1 cred=credval1 Ab3dEf6.hIj9kLm2n-opQ 0123456789abcdef0123 --out=keynote.wav keepme.wav >/dev/null 2>&1
@@ -10538,7 +9070,7 @@ if shown != ["https://…@example.com/x?sig=…&v=…#…", "-k", "…", "Author
 print("; ".join(bad)); sys.exit(1 if bad else 0)
 PY
   )
-  if [ $rc = 0 ] && [ $rc2 = 2 ] && [ -z "$a" ]; then ok "activity: a command on a project logs its start, its tool's note and its end with the exit status; effort, desk data and activity log nothing; keys, passwords, URL secrets, tokens and the environment never reach the log, option names and file names stay"
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && [ -z "$a" ]; then ok "activity: a command on a project logs its start, its tool's note and its end with the exit status; effort, status and activity log nothing; keys, passwords, URL secrets, tokens and the environment never reach the log, option names and file names stay"
   else bad "activity: review exit $rc/$rc2: $a"; fi
   # 16 at once: every line whole (one write each), also when the arguments would fill 2 KiB (3 bytes a character)
   rm -f "$p/.ovh/activity.jsonl"
@@ -10571,8 +9103,7 @@ PY
   case "$a|$rb:$b" in "|0:"*'caf\xe9.wav 片子 \xed\xa0\x80 a\xe7\x89'*'out/x\xff.wav'*'raw \xe9 byte'*)
       ok "activity: arguments and paths that are not UTF-8 are written as \\xNN (every line UTF-8 JSON); an older raw line still reads" ;;
     *) bad "activity with bytes that are not UTF-8: $a | exit $rb: $(printf '%s' "$b" | tail -c 400)" ;; esac
-  # signals: a tool bin/vh exec'd into writes its own end, 128 + the signal (desk wait, the desk itself); a command bash
-  # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
+  # signals: a command bash waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
   # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2). The
   # stand-in traps INT: a loop of sleeps without it can miss a Ctrl-C that lands as a sleep ends (sh takes the sleep's
   # normal exit for a child that handled it), and then it never ends, and bin/vh waits on it. The whole check takes about
@@ -10607,10 +9138,6 @@ def ended(pr):   # the exit status within 10 s of the signal; later, with how lo
     os.killpg(pr.pid, signal.SIGKILL); pr.wait()
     return "still running 60 s on: " + " | ".join(left)
 out = []
-pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
-pr.send_signal(signal.SIGTERM); out.append(f"wait {ended(pr)}")   # at once: its handlers are in place before the flag
-pr = start("desk", p, "--port", "0", until=f"{p}/out/review/.desk.json")
-time.sleep(0.5); pr.send_signal(signal.SIGTERM); out.append(f"desk {ended(pr)}")
 pr = start("qa", f"{p}/audio/mix.wav", until=mark)
 t0 = time.time(); pr.send_signal(signal.SIGTERM)   # to bin/vh alone, as kill <pid> does: it must not wait for the stand-in
 try: rc = pr.wait(5)
@@ -10627,8 +9154,8 @@ out.append(" ".join(f"{r['cmd']}:{r['state']}" for r in j["runs"]))
 print(" · ".join(out))
 PY
 )
-  want="wait 143 · desk 143 · qa -15 at once · qa -2 · desk:143 desk:143 qa:130 · desk:failed desk:failed qa:gone qa:failed"
-  [ "$a" = "$want" ] && ok "activity: TERM ends a command at once (no end line: gone), a tool that handles it logs 128 + n; Ctrl-C logs 130 and ends bin/vh by SIGINT" \
+  want="qa -15 at once · qa -2 · qa:130 · qa:gone qa:failed"
+  [ "$a" = "$want" ] && ok "activity: TERM ends a command at once (no end line: gone); Ctrl-C logs 130 and ends bin/vh by SIGINT" \
     || bad "activity on signals: '$a' (want '$want')"
   # a closed pipe (bin/vh check … | head): check's scratch folder still goes, nothing stale lands in the log, and the EXIT
   # trap says nothing of its own (bash 5 runs it on SIGPIPE; bash 3.2 wrote the failed output into the next redirect, and
@@ -10671,7 +9198,7 @@ PY
   else bad "bin/vh activity: $(printf '%s' "$a" | tail -c 400) | $(tail -c 300 "$t/follow.out")"; fi
   # a project whose path is over 120 characters (a long TMPDIR, a deep folder): the path stays whole in the log, so the
   # reader still shows it as . (cut at 120, it showed the cut path, and the arguments after it fell off the line)
-  lp="$t/$(printf 'd%.0s' $(seq 130))/p"; mkdir -p "${lp%/p}"; cp -R tools/desk/fixtures/zh "$lp"
+  lp="$t/$(printf 'd%.0s' $(seq 130))/p"; mkdir -p "${lp%/p}"; cp -R tools/fixtures/review/zh "$lp"
   vh review "$lp" 1 >/dev/null 2>&1; a=$(vh activity "$lp" 2>&1)
   case "$a" in *"review . 1"*) ok "activity: a project path over 120 characters stays whole in the log, the reader shows it as ." ;;
     *) bad "activity on a project path of ${#lp} characters: $(printf '%s' "$a" | tail -c 300)" ;; esac
@@ -10819,8 +9346,8 @@ PY
   a=$(vh know --show "playbook/01-pipeline.md#没有这节" 2>&1 >/dev/null); rc=$?
   b=$(vh know --show "playbook/no-such.md#x" 2>&1 >/dev/null); rc2=$?
   c=$(vh know --show "../CLAUDE.md#x" 2>&1 >/dev/null); rc3=$?
-  q=$(vh know --show "playbook/01-pipeline.md#审阅" 2>&1 >/dev/null); k=$?
-  if [ "$rc:$rc2:$rc3:$k" = 1:1:1:1 ] && case "$a|$b|$c|$q" in *"no section"*"审阅页"*"|"*"no such markdown file"*"|"*"no such markdown file"*"|"*"2 sections"*"审阅页"*"审阅台"*) true ;; *) false ;; esac
+  q=$(vh know --show "playbook/01-pipeline.md#模式" 2>&1 >/dev/null); k=$?
+  if [ "$rc:$rc2:$rc3:$k" = 1:1:1:1 ] && case "$a|$b|$c|$q" in *"no section"*"审阅页"*"|"*"no such markdown file"*"|"*"no such markdown file"*"|"*"2 sections"*"导演模式"*"授权的无人值守模式"*) true ;; *) false ;; esac
   then ok "know --show: no such section lists the file's; no such file, or one outside the repo, is said; a part that fits two is listed, not guessed"
   else bad "know --show on what is not there ($rc/$rc2/$rc3/$k): $a | $b | $c | $q"; fi
   # the film-craft sections are found by the words an agent would use: a shot card for an image prompt (playbook/05),
@@ -10980,7 +9507,7 @@ bad = []
 bad += seen("is no command", rules(lambda x: by(x, "brief")["writers"].append("no-such")), "a writer that is no command")
 bad += seen("only a reader can be page", rules(lambda x: by(x, "brief")["writers"].append("page")), "page as a writer")
 bad += seen("no doc", rules(lambda x: by(x, "brief").update(doc="")), "no doc")
-bad += seen("no such section", rules(lambda x: by(x, "shots").update(doc="tools/desk/README.md#没有这一节")), "a section that is not there")
+bad += seen("no such section", rules(lambda x: by(x, "shots").update(doc="playbook/01-pipeline.md#没有这一节")), "a section that is not there")
 bad += seen("ids of this table", rules(lambda x: by(x, "cues")["stale"].update({"from": ["no-such"]})), "stale from an unknown id")
 bad += seen("no rule for it", rules(lambda x: by(x, "brief").update(stale={"from": ["edit"], "by": "sha256", "recorded_in": "edit.json"})), "a stale with no rule")
 bad += seen("its stale is null", rules(lambda x: by(x, "cues").update(stale=None)), "a rule with no stale")
@@ -12423,9 +10950,9 @@ d.pop("chapters", None); json.dump(d, open(f, "w"), ensure_ascii=False)' "$t/d3/
   d=$(vh thumbs "$p/out/film.mp4" --every 1 --width 80 --json 2>&1); rc4=$?
   e=$(python3 - "$p" <<'PY'
 import sys
-sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+sys.path.insert(0, "tools")
 from pathlib import Path
-import reader
+import project_reader as reader
 w = []
 s = reader._shots(Path(sys.argv[1]), [], [], w)
 print(len(s.get("items", [])), [x["id"] for x in s.get("items", [])][:2], w)
@@ -12434,7 +10961,7 @@ PY
   if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && printf '%s' "$a" | grep -q 'an edit list, 2 runs' && printf '%s' "$a" | grep -q 'determinism: holds' \
      && [ -s "$t/fe/edit-S03-t0000.200.png" ] && printf '%s' "$c" | grep -q 'shots from: edit.json' && [ "$e" = "6 ['S01', 'S02'] []" ] \
      && printf '%s' "$d" | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if [s["id"] for s in d["shots"]] == ["S01", "S02", "S03", "S04", "S05", "S06"] and "edit list" in d["shots_from"] else 1)'
-  then ok "determinism holds run by run; frames --entry; storyboard, thumbs and the review desk find the entries with no shots.json"
+  then ok "determinism holds run by run; frames --entry; storyboard, thumbs and the project reader find the entries with no shots.json"
   else bad "edit list's frames and shots (exit $rc:$rc2:$rc3:$rc4, desk: $e): determinism: $(printf '%s' "$a" | tail -c 300) | frames: $(printf '%s' "$b" | tail -c 200) | storyboard: $(printf '%s' "$c" | tail -c 200) | thumbs: $(printf '%s' "$d" | tail -c 200)"; fi
   # check fails a film with a slate left, and says which entry each finding is in; deliver refuses it; versions compare
   # says what changed entry by entry
@@ -13420,9 +11947,7 @@ run_groups() { # run_groups <group…>: each group's checks, timed; then how lon
   clock; ci_t0=$CI_NOW
   for ci_g in "$@"; do
     declare -F "$ci_g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $ci_g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
-    case "$CI_OWN_TMP" in *" $ci_g "*) TMPDIR="$CI_TMP/own-$ci_g"; mkdir -p "$TMPDIR" ;; esac   # (see CI_OWN_TMP)
     clock; ci_g0=$CI_NOW; CI_LAST=$CI_NOW; "$ci_g"; clock; CI_GROUPS+=("$ci_g $(( (CI_NOW - ci_g0 + 500) / 1000 ))")
-    TMPDIR=$CI_TMP
   done
   s=$(( (CI_NOW - ci_t0 + 500) / 1000 ))
   printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
@@ -13458,62 +11983,20 @@ case "${1:-all}" in
     CI_RUN="The run" list=$(groups | awk '{ print $1 }') ;;
   *) echo "$usage" >&2; exit 2 ;;
 esac
-# The person's own Studio is never seen or touched: a running Studio says where it is in ovh-desk-<uid> in the temp folder
-# (tools/desk/server.py, _info_path), so the run has a temp folder of its own ($TMPDIR, removed when the run ends) and a
-# check there finds no Studio but its own. The groups that start desks, Studio, gates or the agent column (CI_OWN_TMP) get
-# a temp folder each inside it; in the run's own, where any other group would look, a decoy "running Studio" stands
-# (tools/desk/fixtures/decoy_studio.py): after the groups its record must be byte for byte as it was, nothing new beside it
-# (no film joined to it) and it must have been asked nothing. The person's projects ($OVH_PROJECTS) and installed agent
-# adapters ($OVH_AGENTS_DIR) stay out too: a console a check starts lists neither
-CI_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-run.XXXXXX") || exit 2
-CI_TMP=${CI_TMP//\/\//\/}   # one / (a TMPDIR ending in / gives two)
+# Scratch files belong to this CI run.
+CI_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX") || exit 2
+CI_TMP=${CI_TMP//\/\//\/}   # TMPDIR may end in a slash
 export TMPDIR="$CI_TMP"
-CI_OWN_TMP=" gate_checks decision_checks desk_checks console_checks agent_checks settings_page_checks studio_checks activity_checks status_checks cancel_checks history_checks artifacts_checks "
-export OVH_KEYSTORE=none   # no key the person saved in Studio is found by a check (tools/keys.py): a "no key" check stays one, and nothing paid is called
-export OVH_GATE_STUDIO=0   # a standard film's stop does not look for a running Studio: the checks test the page and their own desks (the check of that rule clears it)
+export OVH_KEYSTORE=none
 unset OVH_PROJECTS
-# the desks a check starts in the background (bin/vh gate's is in a session of its own) are recorded and stopped when the
-# run ends, also when a signal ends it: a run stopped half-way used to leave a desk running for its 12 h --idle. Only the
-# recorded pids, and only while each is still a desk (a pid reused since is someone else's process)
-CI_DESKS=$(mktemp "${TMPDIR:-/tmp}/vh-ci-desks.XXXXXX") || exit 2
-# a desk shows Studio's window itself (bin/vh gate, bin/vh studio, a terminal start): in a run Studio's own app is off and the window is the stand-in
-# (tools/desk/fixtures/studio_window.py: it fetches the page, trades its code, holds the presence stream), raising it is a
-# script that notes the pid, its profiles are in a folder of this run's, and $BROWSER (the fallback tab) only notes the
-# address: a run opens no window and no tab on the machine it runs on, and never touches the person's own Studio window
-CI_WIN=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci-windows.XXXXXX") || exit 2
-export OVH_STUDIO_PROFILES="$CI_WIN/profiles" OVH_STUDIO_BROWSER="$ROOT/tools/desk/fixtures/studio_window.py" OVH_STUDIO_ACTIVATE="$CI_WIN/raise"
-export OVH_STUDIO_SHELL=none OVH_STUDIO_SHELL_PROFILE="$CI_WIN/shell" OVH_STUDIO_NO_DOWNLOAD=1   # Studio's own app: never the one installed on this machine (studio_checks stands one in)
-export OVH_AGENTS_DIR="$CI_WIN/agents"   # no adapter of this machine's: the agent checks stage their own
-CI_BROWSER_LOG="$CI_WIN/browser.log"; : > "$CI_BROWSER_LOG"; export CI_BROWSER_LOG
-printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "%s"\n' "$CI_WIN/raised" > "$CI_WIN/raise"
-printf '#!/bin/sh\nprintf "%%s\\n" "$1" >> "$CI_BROWSER_LOG"\n' > "$CI_WIN/open"; chmod +x "$CI_WIN/raise" "$CI_WIN/open"; export BROWSER="$CI_WIN/open"
-desk_rec() { [ -z "${1:-}" ] || echo "$1" >> "$CI_DESKS"; }   # desk_rec <pid>
-desk_rec_of() { desk_rec "$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$1/out/review/.desk.json" 2>/dev/null)"; }   # the desk bin/vh gate started for <project>
-reap_desks() {
-  local p
-  [ -f "$CI_DESKS" ] || return 0
-  while read -r p; do
-    case "$(ps -p "$p" -o command= 2>/dev/null)" in *tools/desk/desk.py*) kill "$p" 2>/dev/null ;; esac
-  done < "$CI_DESKS"
-  rm -f "$CI_DESKS"
-  for p in $(pgrep -f "$CI_WIN/profiles" 2>/dev/null); do   # a stand-in window a desk killed outright left behind: only this run's
-    case "$(ps -p "$p" -o command= 2>/dev/null)" in *studio_window.py*"$CI_WIN/profiles"*) kill "$p" 2>/dev/null ;; esac
-  done
-  case "$(ps -p "${CI_DECOY:-0}" -o command= 2>/dev/null)" in *decoy_studio.py*"$CI_WIN"*) kill "$CI_DECOY" 2>/dev/null ;; esac
-  rm -rf "$CI_WIN" "$CI_TMP"
-}
-trap reap_desks EXIT; trap 'exit 143' TERM; trap 'exit 129' HUP; trap 'exit 130' INT
+trap 'rm -rf "$CI_TMP"' EXIT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+trap 'exit 130' INT
 # no group to run is never a pass: a table gone, emptied or unreadable would make every run "all checks passed"
 [ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
-# (started from a subshell, so it is no child of this shell: a check's bare `wait` would wait for it for ever)
-CI_DECOY=$( (python3 "$ROOT/tools/desk/fixtures/decoy_studio.py" "$CI_WIN/decoy.log" > "$CI_WIN/decoy.out" 2>&1 < /dev/null & echo $!) )
-for i in $(seq 100); do [ -f "$CI_WIN/decoy.log.ready" ] || ! kill -0 "$CI_DECOY" 2>/dev/null && break; sleep 0.1; done
 # shellcheck disable=SC2086   # one group a word
 run_groups $list
-# (the decoy: see CI_TMP above)
-if out=$(python3 "$ROOT/tools/desk/fixtures/decoy_studio.py" --check "$CI_WIN/decoy.log" 2>&1); then
-  ok "the person's own Studio: no check found, joined or asked a Studio it did not start (a decoy stood where one is found, untouched; the run's temp folder is its own)"
-else bad "a check reached a Studio it did not start (the decoy in the run's temp folder): $out $(cat "$CI_WIN/decoy.out" 2>/dev/null)"; fi
 # a run of some groups says so: a shard, --smoke, --changed or another table passes only what it ran
 ci_all=$(groups_in "$ROOT/tools/ci-shards.txt" | wc -l | tr -d ' ') ci_ran=$(printf '%s\n' $list | wc -l | tr -d ' ')
 [ "$ci_ran" -lt "$ci_all" ] && printf '\033[33m! Ran %s of the %s groups in tools/ci-shards.txt; tools/ci.sh runs them all, as before a push\033[0m\n' "$ci_ran" "$ci_all"

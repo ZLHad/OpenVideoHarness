@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # OpenVideoHarness one-line installer.
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
-#   bash install.sh [--dir ~/OpenVideoHarness] [--refs] [--no-skill] [--skill claude|codex|all] [--mirror cn|off] [--obscura] [--icon | --no-icon]
+#   bash install.sh [--dir ~/OpenVideoHarness] [--refs] [--no-skill] [--skill claude|codex|all] [--mirror cn|off] [--obscura] [--studio]
 # What it does, and where it puts things:
 #   1. clone the repo into --dir, newest commit only (about 200 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
 #   1b. the download mirrors (tools/mirrors.txt): with neither --mirror nor a choice made before (bin/vh settings), try the official
@@ -18,14 +18,11 @@
 #      ~/.agents/skills (--skill claude|codex: only one): short stubs that read skills/ in --dir, so a re-run or git pull updates them
 #   4b. with --obscura, bin/vh web install: the pinned Obscura release (a headless browser, about 70 MB from its GitHub releases)
 #      into ~/.local/share/ovh/obscura, linked from ~/.local/bin; bin/vh web checks facts against web pages with it
+#   4c. with --studio, install the v0.10.0 Studio preview from its release into a separate checkout
+#      (~/OpenVideoHarness-Studio-Preview), and put its launcher in your applications
 #   5. run bin/vh doctor --fill-local --first as the last lines: ready for a first film or not, what it still needs and how to get it,
 #      how a voice comes on this machine (the full report: bin/vh doctor); it also writes LOCAL.md's machine lines (硬件, 已装工具,
 #      已装引擎) where they still hold the template, never a line you wrote
-#   6. put OVH Studio, Studio's own window, in your applications (macOS: ~/Applications/OVH Studio.app; a Linux desktop: a
-#      desktop entry in ~/.local/share/applications): Electron, about 130 MB downloaded once and 260 MB on disk (without npm or
-#      a network, a small launcher that opens a browser's window instead). No question. A run again leaves it alone when it is
-#      there and up to date, and never replaces it while it is open. --no-icon leaves it out, this time and every later run
-#      (kept as ~/.local/share/ovh-studio/no-app); --icon puts it in again. A Linux machine with no desktop gets none
 # Nothing asks a question: a missing tool or a failed step says what to do next in one sentence.
 # It never runs sudo and leaves your PATH and shell profile alone. Not done here: the first use of the tools downloads more, into caches under
 # your home directory, without asking:
@@ -38,36 +35,48 @@
 # The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
-DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=0; SKILL=all; OBSCURA=0; ICON=default; MIRROR=""
+DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=0; SKILL=all; OBSCURA=0; STUDIO=0; MIRROR=""
 while [ $# -gt 0 ]; do case "$1" in
   --dir) DIR="$2"; shift 2 ;; --refs) REFS=1; shift ;; --no-refs) REFS=0; shift ;; --no-skill) SKILL=none; shift ;; --skill) SKILL="${2:?--skill needs claude|codex|all|none}"; shift 2 ;; --obscura) OBSCURA=1; shift ;; --mirror) MIRROR="${2:?--mirror needs cn or off}"; shift 2 ;;
-  --icon) ICON=yes; shift ;; --no-icon) ICON=no; shift ;;
+  --studio|--icon) STUDIO=1; shift ;;
+  --no-icon) STUDIO=0; shift ;;
   -h|--help) awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"; exit 0 ;; *) echo "unknown option: $1"; exit 1 ;; esac; done
 case "$SKILL" in claude|codex|all|none) ;; *) echo "unknown --skill '$SKILL' (claude|codex|all|none)"; exit 1 ;; esac
 [ -z "$MIRROR" ] || case "$MIRROR" in cn|off) ;; *) echo "unknown --mirror '$MIRROR' (cn|off)"; exit 1 ;; esac
 say() { printf '\033[1m→ %s\033[0m\n' "$*"; }
-NOAPP="${XDG_DATA_HOME:-$HOME/.local/share}/ovh-studio/no-app"   # --no-icon once: kept here, so an update leaves OVH Studio out too (--icon clears it)
-put_icon() {   # OVH Studio in the applications, unasked (macOS, a Linux desktop): left alone when it is there and current, never
-  # replaced while it is open, left out once --no-icon said so; its own lines (the download) show as it goes
-  local st out
-  case "$(uname -s)" in Darwin) ;; Linux) [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { ICON_HEADLESS=1; return 0; } ;; *) return 0 ;; esac
-  case "$ICON" in
-    no) mkdir -p "$(dirname "$NOAPP")" && : > "$NOAPP"; ICON_LATER=1; return 0 ;;
-    yes) rm -f "$NOAPP" ;;
-    *) if [ -f "$NOAPP" ]; then echo "  OVH Studio stays out of your applications, as --no-icon asked before (--icon puts it in)"; ICON_LATER=1; return 0; fi ;;
-  esac
-  st=$(bin/vh studio --icon-status --json 2>/dev/null) || st=""
-  case "$st" in *'"state": "ok"'*) echo "  OVH Studio is in your applications already, and up to date"; ICON_DONE=1; return 0 ;; esac
-  case "$st" in *'"running": true'*)
-    echo "  OVH Studio is open, so it was left as it is: quit it, then bin/vh studio --install-icon brings it up to date"; ICON_DONE=1; return 0 ;; esac
-  say "putting OVH Studio in your applications (Studio's own window: about 130 MB to download once, 260 MB on disk; --no-icon leaves it out)"
-  if ! out=$(bin/vh studio --install-icon --json); then   # (its progress and, on a failure, its reason go to the terminal)
-    ICON_LATER=1; echo "! OVH Studio was not put in your applications (the line above says why); bin/vh studio --install-icon tries again"; return 0
+install_studio_preview() {
+  local version=v0.10.0 commit=68ee234e71757c0b77829ec11b25ad3a445aae3b
+  local preview="${OVH_STUDIO_PREVIEW_DIR:-$HOME/OpenVideoHarness-Studio-Preview}" status changed
+  if [ ! -e "$preview" ]; then
+    say "downloading Studio $version to $preview"
+    git clone --quiet --single-branch --depth 1 --branch "$version" "$REPO" "$preview" || return 1
   fi
-  ICON_DONE=1
-  case "$out" in *'"kind": "launcher"'*)
-    echo "  a small launcher was made instead, which opens Studio in a browser's window: $(printf '%s' "$out" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("note") or "")' 2>/dev/null)" ;; esac
+  if [ ! -d "$preview/.git" ] || [ "$(git -C "$preview" rev-parse --verify HEAD 2>/dev/null)" != "$commit" ]; then
+    echo "! $preview is not a Studio $version checkout. Set OVH_STUDIO_PREVIEW_DIR to an unused path and retry." >&2
+    return 1
+  fi
+  changed=$(git -C "$preview" status --porcelain) || return 1
+  if [ -n "$changed" ]; then
+    echo "! $preview has local edits. Set OVH_STUDIO_PREVIEW_DIR to an unused path and retry." >&2
+    return 1
+  fi
+
+  # The preview owns its engine dependencies and its launcher. The skills are registered above for the main checkout.
+  if [ ! -d "$preview/engines/ClaudeAnimationBase/node_modules" ]; then
+    (cd "$preview/engines/ClaudeAnimationBase" && npm ci --silent) || return 1
+  fi
+  if [ ! -d "$preview/styles/_swatch/node_modules" ]; then
+    (cd "$preview/styles/_swatch" && npm ci --silent) || return 1
+  fi
+  status=$("$preview/bin/vh" studio --icon-status --json 2>/dev/null) || status=""
+  case "$status" in
+    *'"state": "ok"'*) ;;
+    *'"running": true'*) echo "! Close the running OVH Studio before installing the $version launcher, then retry." >&2; return 1 ;;
+    *) "$preview/bin/vh" studio --install-icon || return 1 ;;
+  esac
+  echo "  Open OVH Studio from your applications, or run: \\"$preview/bin/vh\\" studio"
 }
+
 if [ "$(uname -s)" = Darwin ] && [ "$(command -v git)" = /usr/bin/git ] && ! xcode-select -p >/dev/null 2>&1; then   # git is Apple's stub until they are there
   echo "✗ First this Mac needs Apple's command line tools (git comes with them): run xcode-select --install, then run this installer again."; exit 1
 fi
@@ -174,19 +183,21 @@ if [ "$SKILL" != none ]; then   # one line for the stubs it wrote (each says whe
   else printf '%s\n' "$out"; echo "! the skills were not registered; bin/vh install-skill $SKILL registers them"; fi
 fi
 [ "$OBSCURA" = 0 ] || { say "installing Obscura (an optional page reader that bin/vh web can use to keep web pages for fact checks)"; bin/vh web install || echo "! Obscura not installed; bin/vh web install retries it"; }
-ICON_LATER=""; ICON_DONE=""; ICON_HEADLESS=""; put_icon
+studio_rc=0
+if [ "$STUDIO" = 1 ]; then
+  install_studio_preview || studio_rc=$?
+  [ "$studio_rc" = 0 ] || echo "! Studio preview setup did not finish. You can retry with --studio." >&2
+fi
 echo
 # the last lines: ready for a first film or not, what it still needs, how a voice comes here (the full report: bin/vh doctor)
 st=0; bin/vh doctor --fill-local --first || st=$?   # 0 ready, 3 one thing not checked, else not ready
 echo
-case $st in 0) echo "✓ OpenVideoHarness is ready at $DIR. Two ways to start:" ;;
-  3) echo "OpenVideoHarness is installed at $DIR; one thing above could not be checked here. Two ways to start:" ;;
-  *) echo "✗ OpenVideoHarness is installed at $DIR; a first film still needs what is listed above. Then, two ways to start:" ;; esac
-if [ -n "$ICON_DONE" ]; then echo "  1. Click OVH Studio in your applications: your films, each step, and the AI, in one window."
-elif [ -n "$ICON_HEADLESS" ]; then echo "  1. Studio, in a browser on another computer: cd \"$DIR\" && bin/vh studio --print-address (this machine has no desktop)"
-else echo "  1. Studio, your films in one window: cd \"$DIR\" && bin/vh studio$([ -z "$ICON_LATER" ] || printf ' (bin/vh studio --install-icon puts it in your applications)')"; fi
-echo "  2. Open Claude Code or Codex in that folder (cd \"$DIR\" && claude) and say what film you want, e.g."
+case $st in 0) echo "✓ OpenVideoHarness is ready at $DIR. Ready to start." ;;
+  3) echo "OpenVideoHarness is installed at $DIR; one thing above could not be checked here. Ready to start." ;;
+  *) echo "✗ OpenVideoHarness is installed at $DIR; a first film still needs what is listed above. " ;; esac
+echo "  Open Claude Code or Codex in that folder (cd \"$DIR\" && claude) and say what film you want, e.g."
 case "${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}" in   # the example in the person's language (the README's silent first film)
   zh*|ZH*) echo "     \"快速出一版 15 秒的竖屏无声科普，用方格和画面文字讲清楚为什么正方形边长翻倍，面积变成四倍。\"" ;;
   *) echo "     \"Quick draft: make a silent 15-second vertical explainer showing why doubling a square's side length quadruples its area. Use a grid and on-screen text.\"" ;; esac
 echo "  The full report of this machine: bin/vh doctor"
+exit "$studio_rc"

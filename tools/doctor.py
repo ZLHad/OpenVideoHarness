@@ -1,9 +1,8 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
 usage: bin/vh doctor [--json] [--first] [--fill-local] [--probe [--only a,b] [--offline DIR]]
-  (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl; bin/vh studio asks --stale-skills: the stubs
-  install-skill wrote for this clone that are untouched and behind, one file a line, and writes them again; install-skill asks
-  --stub NAME HARNESS for a stub's text)
+  (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl;
+  bin/vh install-skill asks --stub NAME HARNESS for a stub's text)
   --json        the same as JSON (below), the lines a person reads not printed
   --first       only the few lines a first film needs (the installer ends with them): ready or not, what is missing
                 for a first silent film and how to get it, how a voice comes here. Exit 1 when it is not ready, 3 when
@@ -28,10 +27,9 @@ never the value. A module whose needed modules (needs.programs) are not usable h
 that no redirect carries on (a 30x is not followed), over https only (a base address set in the environment may be
 http for this machine alone), and no answer's text is passed on: a failure is its HTTP status and the provider's error
 code, with any run of six or more of the key's characters taken out. A key is never printed, recorded or written.
-The machine and repo lines end with three about the host: skills, the stubs bin/vh install-skill
+The machine and repo lines include two checks about the host: skills, the stubs bin/vh install-skill
 wrote against the stub it would write now (a stub reads skills/ in the clone, so only the stub itself can fall behind;
-a whole copy stays as it was when the repo moves on); studio-icon, the launcher bin/vh studio --install-icon makes
-(installed or not, which clone it runs, made by an earlier launcher or picture); caches, whether the folders a first run downloads into (uv's,
+a whole copy stays as it was when the repo moves on); caches, whether the folders a first run downloads into (uv's,
 npm's, Hugging Face's, HyperFrames', bin/vh's own) can be written, tried with a file made and removed.
 Exit 0: it is a report (2 on a usage error or an unreadable table; with --first, 1 when a first film still lacks something, 3
 when nothing is missing but something could not be checked).
@@ -294,23 +292,6 @@ def check_module(m, found_by, today):
                 notes.append("the version HyperFrames pins")
             if os.path.isdir(p):
                 notes += [size_of(p), shown(os.path.dirname(p.rstrip("/")))]
-    elif ck.get("desk_agent"):   # an agent's ACP adapter for the console, installed outside the repo (tools/desk/agents.py)
-        sys.path.insert(0, str(ROOT / "tools" / "desk"))
-        import agents as A
-        got = A.installed(ck["desk_agent"])
-        if not got:
-            r.update(state="missing", note=f"not installed (bin/vh desk agents install {ck['desk_agent']}; the console's column says so too)")
-            return r
-        r["found"], r["version"] = got["path"], got["version"]
-    elif ck.get("studio_shell"):   # Studio's own window, made by bin/vh studio --install-icon outside the repo (tools/desk/studio.py)
-        sys.path.insert(0, str(ROOT / "tools" / "desk"))
-        import window as W
-        rec = W.shell_record()
-        prog, why = W.shell()
-        if not rec or not prog:
-            r.update(state="missing", note=why or "not installed (optional): bin/vh studio --install-icon makes Studio's own window; without it Studio opens in a browser's window")
-            return r
-        r["found"], r["version"] = shown(rec.get("app") or prog), rec.get("electron")
     elif ck.get("npm"):
         pj = ROOT / ck["npm"]["in"] / "node_modules" / ck["npm"]["package"] / "package.json"
         try:
@@ -342,7 +323,7 @@ def check_module(m, found_by, today):
     v = r["version"]
     if v and ver.get("min") and vtuple(v) < vtuple(ver["min"]):
         r["state"] = "outdated"; notes.append(f"{ver['min']} or newer needed")
-    if v and ver.get("pin") and (ck.get("npm") or ck.get("program") or ck.get("desk_agent") or ck.get("studio_shell")) and v != ver["pin"].split()[0]:
+    if v and ver.get("pin") and (ck.get("npm") or ck.get("program")) and v != ver["pin"].split()[0]:
         r["state"] = "outdated"; notes.append(f"not {ver['pin'].split()[0]}, the pinned version")
     if v and ver.get("max_age_days"):
         mm = re.fullmatch(r"(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?", v)
@@ -560,11 +541,6 @@ def skill_stub(text, name, harness):
     return out + stub_mark(out)
 
 
-def after_front(text):   # a SKILL.md without its frontmatter and without the mark: the stub's own text
-    text = "".join(line for line in text.splitlines(keepends=True) if not line.startswith(STUB_MARK))
-    return text.split("\n---\n", 1)[1] if text.startswith("---\n") and "\n---\n" in text else text
-
-
 def is_clone(at):
     """Whether a Harness path line names a folder with a clone in it (bin/vh there)."""
     try:
@@ -585,7 +561,7 @@ def skills_check():
     clone that is there is that clone's, and is left alone."""
     repo = {q.parent.name: q.read_text(encoding="utf-8") for q in sorted((ROOT / "skills").glob("*/SKILL.md"))}
     body = lambda text: [line for line in text.splitlines() if not line.startswith(HARNESS_LINE) and not line.startswith(STUB_MARK)]
-    same, old, others, refresh = 0, {}, [], []   # refresh: the files bin/vh studio may write again (install-skill's own, untouched)
+    same, old, others = 0, {}, []
     for folder, target in SKILL_HOMES:
         ours, absent = False, []
         try:
@@ -626,10 +602,7 @@ def skills_check():
                 old.setdefault(target, []).append(f"{shown(f)} is a whole copy of skills/{name}/SKILL.md (it stays as it is when skills/ changes)")
             elif mark == "edited":
                 old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now: it was changed after install-skill"
-                                                  " wrote it, so Studio leaves it as it is")
-            elif mark == "ours" or after_front(got) == after_front(now):   # untouched: its frontmatter, or the mark, behind
-                refresh.append(str(f))
-                old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now (Studio writes it again when it opens)")
+                                                  " wrote it")
             else:
                 old.setdefault(target, []).append(f"{shown(f)} is not the stub install-skill writes now")
         if ours and absent:   # a skill added since this folder was installed
@@ -637,7 +610,7 @@ def skills_check():
     left = (f"; left alone: {len(others)} cop{'y' if len(others) == 1 else 'ies'} pointing at {', '.join(sorted(set(others)))}") if others else ""
     if old:
         how = "bin/vh install-skill" + (f" {next(iter(old))}" if len(old) == 1 else "")
-        return {"name": "skills", "state": "outdated", "targets": sorted(old), "refresh": refresh, "note": "; ".join(x for v in old.values() for x in v)
+        return {"name": "skills", "state": "outdated", "targets": sorted(old), "note": "; ".join(x for v in old.values() for x in v)
                 + f" → {how} (it writes stubs that read skills/ in this clone, so a git pull keeps them current, and removes"
                   f" the ones it wrote for skills this clone no longer has; an agent reads its skill when a session starts){left}"}
     if same:
@@ -759,24 +732,8 @@ def repo_checks(webgl, found_by):
         same = False
     out.append({"name": "agents_md", "state": "ok" if same else "incomplete", "note": "in sync with CLAUDE.md" if same else "out of sync with CLAUDE.md → bin/vh sync-agents"})
     out.append(skills_check())
-    out.append(studio_icon_check())
     out.append(caches_check(bool(found_by.get("hf-chrome"))))
     return out
-
-
-def studio_icon_check():
-    """The launcher icon bin/vh studio --install-icon makes (an OVH Studio.app, a desktop entry on Linux): installed or not
-    (optional), and whether it runs this clone. It runs bin/vh studio in its clone, so a git pull changes what it does; it
-    falls behind only when its launcher or picture changed (made again by --install-icon), or its clone moved."""
-    try:
-        sys.path.insert(0, str(ROOT / "tools" / "desk"))
-        import studio
-        st = studio.status()
-    except Exception as e:
-        return {"name": "studio-icon", "state": "unchecked", "note": f"could not look ({type(e).__name__}: {e})"}
-    state = {"ok": "ok", "outdated": "outdated", "elsewhere": "outdated", "unsupported": "unsupported"}.get(st["state"], "unchecked")
-    where = f"{shown(st['path'])}: " if st.get("path") else ""
-    return {"name": "studio-icon", "state": state, "note": where + st["note"]}
 
 
 MACHINE = ("硬件", "已装工具", "已装引擎")   # LOCAL.md's lines doctor can write; a {…} left on any other line is its default
@@ -924,10 +881,8 @@ def problems(t, commands=None):
         if m.get("status") == "planned" and cmds:
             bad.append(f"{at}: planned, yet commands use it")
         ck = m.get("check")
-        if not isinstance(ck, dict) or set(ck) - {"program", "env", "paths", "version", "pattern", "also", "features", "finder", "npm", "uv", "hf_model", "files", "per_project", "desk_agent", "studio_shell"}:
+        if not isinstance(ck, dict) or set(ck) - {"program", "env", "paths", "version", "pattern", "also", "features", "finder", "npm", "uv", "hf_model", "files", "per_project"}:
             bad.append(f"{at}: check has a key doctor does not know")
-        elif ck.get("desk_agent") is not None and ck["desk_agent"] not in ("claude", "codex", "dsh"):
-            bad.append(f"{at}: desk_agent {ck['desk_agent']!r} is not one of the console's agents (claude, codex, dsh)")
         elif ck.get("finder") not in (None, "chrome", "hf-chrome"):
             bad.append(f"{at}: finder {ck['finder']!r} is not one bin/vh passes (chrome, hf-chrome)")
         p = m.get("probe")
@@ -954,7 +909,7 @@ def print_module(m, r):
     ck = m.get("check") or {}
     where = shown(r["found"]) if r["found"] and not r["version"] and (ck.get("program") or ck.get("finder") == "chrome") else ""
     src = r.get("key_source") or {}
-    have = [f"{k} set {'in Studio' if src.get(k) == 'studio' else 'in the environment'}" for k, on in r["keys"].items() if on]
+    have = [f"{k} set {'in the system key store' if src.get(k) == 'studio' else 'in the environment'}" for k, on in r["keys"].items() if on]
     detail = " · ".join(x for x in (", ".join(have), r["version"], where, r["note"]) if x)
     if r["state"] == "no_key" and m["commands"]:
         detail += f" (for bin/vh {', '.join(m['commands'])})"
@@ -971,11 +926,6 @@ def main(argv):
         x = argv[i]
         if x in ("-h", "--help"):
             print(__doc__.strip()); return 0
-        if x == "--stale-skills":   # bin/vh studio: the stubs install-skill wrote for this clone, untouched and behind, one file a line
-            stale = skills_check().get("refresh", [])
-            if stale:
-                print("\n".join(stale))
-            return 0
         if x == "--stub":   # bin/vh install-skill: the stub for skills/<name> naming this harness (one renderer: skill_stub)
             rest = argv[i + 1:]
             if len(rest) != 2 or not (ROOT / "skills" / rest[0] / "SKILL.md").is_file():

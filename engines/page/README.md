@@ -33,7 +33,7 @@
 | 分镜页（读 `shots`） | `bin/vh storyboard <项目>` |
 | 缺字、字体落到别的字体上 | `bin/vh fonts check <项目>` |
 | 配乐、音效、混音、声音质检、合上音轨 | `bin/vh music`、`bin/vh sfx`、`bin/vh mix`、`bin/vh qa`、`bin/vh mux`（`playbook/04-audio.md`） |
-| 在 Studio 里审 | `bin/vh studio <项目>` |
+| 生成审阅页 | `bin/vh gate <项目> <n>` |
 
 CLAUDE.md"任何档位都不降的底线"里，有命令在查的这几样，以命令的结果为准：
 
@@ -78,6 +78,6 @@ CLAUDE.md"任何档位都不降的底线"里，有命令在查的这几样，以
 
 ## 局限
 
-- Studio 里放的是渲出来的片子，不是页面本身：改完看效果，用 `bin/vh frames` 取几帧，或者 `bin/vh render <项目> --range 4:7` 只渲那几秒。
+- 改完看效果，用 `bin/vh frames` 取几帧，或者用 `bin/vh render <项目> --range 4:7` 只渲那几秒。
 - 页面里用 `<video>` 取画面时，宿主还不会精确地跳到那一帧（合约原文"还没做的"）；实拍素材走剪辑表。
 - canvas-film 那套挂在旁白上的镜头表、字幕排版和章节条，这里没有；长片需要它们时，用 `--engine canvas-film` 更省事。

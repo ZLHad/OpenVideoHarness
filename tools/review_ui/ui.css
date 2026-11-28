@@ -1,5 +1,5 @@
 /* OpenVideoHarness review UI: the tokens, the three themes and the components a stop shares between the static review page
-   (bin/vh review inlines this file) and the console (bin/vh desk serves it; studio.css adds the shell and the modules).
+   (bin/vh review inlines this file).
    docs/proposals/02-studio-client.md, 5: three themes of one set of semantic tokens, dark only, and four rules that do not
    change with the theme: neutral grey around the picture; readouts in a monospaced face; colour says only who and what is
    happening (cyan: what you chose and marked; violet: the agent; red: live, the playhead, an error; amber: waiting for you;

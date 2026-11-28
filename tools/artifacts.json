@@ -12,7 +12,7 @@
    "purpose": "这支片子的规格、立意、大纲和风格；工具读 Spec 里一行一行的值",
    "made_by": "agent",
    "writers": ["new", "style"],
-   "readers": ["status", "new", "review", "gate", "desk", "check", "render", "readcheck", "rhythm", "storyboard", "edit", "assets", "footage", "image", "hdri", "bgm", "music", "concept", "deliver", "clean", "looks"],
+   "readers": ["status", "new", "review", "gate", "check", "render", "readcheck", "rhythm", "storyboard", "edit", "assets", "footage", "image", "hdri", "bgm", "music", "concept", "deliver", "clean", "looks"],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -30,7 +30,7 @@
    "purpose": "这支片子的风格说明：颜色、字、运动各是什么意思",
    "made_by": "agent",
    "writers": ["new", "style"],
-   "readers": ["status", "new", "desk", "words"],
+   "readers": ["status", "new", "words"],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -47,7 +47,7 @@
    "purpose": "分镜：每段每镜要观众看懂什么，用了哪个配方",
    "made_by": "agent",
    "writers": ["new"],
-   "readers": ["status", "new", "looks", "desk"],
+   "readers": ["status", "new", "looks"],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -63,8 +63,8 @@
    "stages": ["1", "3", "8"],
    "purpose": "每一站人的原话和定了什么；关卡 ① 的记录 render 和 check 都要查",
    "made_by": "agent",
-   "writers": ["new", "desk"],
-   "readers": ["status", "render", "check", "desk"],
+   "writers": ["new"],
+   "readers": ["status", "render", "check"],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -81,7 +81,7 @@
    "purpose": "谁拍板、定了什么、为什么；立意写在这里 render 和 check 才放行",
    "made_by": "agent",
    "writers": ["new", "style"],
-   "readers": ["status", "render", "check", "desk"],
+   "readers": ["status", "render", "check"],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -98,7 +98,7 @@
    "purpose": "素材清单和待核实的事实",
    "made_by": "agent",
    "writers": ["new"],
-   "readers": ["status", "desk"],
+   "readers": ["status"],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -115,7 +115,7 @@
    "purpose": "这支片子踩过的坑和好用的做法",
    "made_by": "agent",
    "writers": ["new"],
-   "readers": ["desk"],
+   "readers": [],
    "required": "new",
    "version_key": null,
    "schema": null,
@@ -149,7 +149,7 @@
    "purpose": "字幕稿或旁白稿，用到时从模板复制",
    "made_by": "agent",
    "writers": [],
-   "readers": ["desk", "words"],
+   "readers": ["words"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -166,7 +166,7 @@
    "purpose": "标题、封面和发布文案，用到时从模板复制",
    "made_by": "agent",
    "writers": [],
-   "readers": ["check", "clean", "desk"],
+   "readers": ["check", "clean"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -183,7 +183,7 @@
    "purpose": "主角设定，用到时从模板复制",
    "made_by": "agent",
    "writers": [],
-   "readers": ["desk"],
+   "readers": [],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -410,13 +410,13 @@
    "purpose": "镜头表：每镜的起止、段落和 reads",
    "made_by": "agent",
    "writers": [],
-   "readers": ["storyboard", "rhythm", "desk", "thumbs", "patch", "looks", "edit", "timeline"],
+   "readers": ["storyboard", "rhythm", "thumbs", "patch", "looks", "edit", "timeline"],
    "required": null,
    "version_key": null,
    "schema": "tools/schemas/shots.schema.json",
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#镜头表",
+   "doc": "engines/EDIT.md",
    "note": "A project keeps one shot table: with edit.json there too, the tools that read it refuse (tools/shot_source.py). With neither, the page's window.film.shots is read."
   },
   {
@@ -446,7 +446,7 @@
    "purpose": "剪辑表：片子排成一行段，每段从哪个来源取画面",
    "made_by": "agent",
    "writers": ["edit"],
-   "readers": ["edit", "render", "patch", "storyboard", "rhythm", "desk", "thumbs", "frames", "determinism", "cues", "captions", "mix", "mux", "check", "deliver", "timeline"],
+   "readers": ["edit", "render", "patch", "storyboard", "rhythm", "thumbs", "frames", "determinism", "cues", "captions", "mix", "mux", "check", "deliver", "timeline"],
    "required": null,
    "version_key": "v",
    "schema": "tools/schemas/edit.schema.json",
@@ -500,7 +500,7 @@
    "purpose": "关卡 ① 给人看的这一页的数据；静态页和审阅台都渲染它",
    "made_by": "agent",
    "writers": ["gate"],
-   "readers": ["review", "gate", "desk", "status"],
+   "readers": ["review", "gate", "status"],
    "required": "gate-1",
    "version_key": "version",
    "schema": "tools/schemas/gate.schema.json",
@@ -519,7 +519,7 @@
    "purpose": "关卡 ② 给人看的这一页的数据；静态页和审阅台都渲染它",
    "made_by": "agent",
    "writers": ["gate"],
-   "readers": ["review", "gate", "desk", "status"],
+   "readers": ["review", "gate", "status"],
    "required": "gate-2",
    "version_key": "version",
    "schema": "tools/schemas/gate.schema.json",
@@ -537,7 +537,7 @@
    "purpose": "关卡 ③ 给人看的这一页的数据；静态页和审阅台都渲染它",
    "made_by": "agent",
    "writers": ["gate"],
-   "readers": ["review", "gate", "desk", "status"],
+   "readers": ["review", "gate", "status"],
    "required": "gate-3",
    "version_key": "version",
    "schema": "tools/schemas/gate.schema.json",
@@ -554,7 +554,7 @@
    "purpose": "检查点（E0–E5）和自己起名的审阅页的数据",
    "made_by": "agent",
    "writers": ["gate"],
-   "readers": ["review", "gate", "desk", "status"],
+   "readers": ["review", "gate", "status"],
    "required": null,
    "version_key": "version",
    "schema": "tools/schemas/gate.schema.json",
@@ -577,7 +577,7 @@
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md"
+   "doc": "playbook/01-pipeline.md#审阅页"
   },
   {
    "id": "gate-page",
@@ -589,7 +589,7 @@
    "purpose": "人打开看的审阅页，最新一页也叫 index.html",
    "made_by": "tool",
    "writers": ["review", "gate"],
-   "readers": ["status", "desk"],
+   "readers": ["status"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -607,13 +607,13 @@
    "purpose": "这一轮是哪一页",
    "made_by": "tool",
    "writers": ["review", "gate"],
-   "readers": ["review", "gate", "desk", "status"],
+   "readers": ["review", "gate", "status"],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#out/review/gate-<n>.json"
+   "doc": "playbook/01-pipeline.md#审阅页"
   },
   {
    "id": "review-files",
@@ -624,7 +624,7 @@
    "purpose": "放给人看的立意卡、样帧和小样",
    "made_by": "agent",
    "writers": [],
-   "readers": ["review", "gate", "desk", "status"],
+   "readers": ["review", "gate", "status"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -639,15 +639,15 @@
    "format": "json",
    "stages": ["1", "3", "8"],
    "purpose": "审阅台收到的一份提交，机读版",
-   "made_by": "tool",
-   "writers": ["desk"],
-   "readers": ["desk", "gate", "status"],
+   "made_by": "legacy",
+   "writers": [],
+   "readers": ["gate", "status"],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#写什么"
+   "doc": "templates/REVIEW.md"
   },
   {
    "id": "feedback-text",
@@ -656,15 +656,15 @@
    "format": "markdown",
    "stages": ["1", "3", "8"],
    "purpose": "同一份提交的文字版，人的话原样不动",
-   "made_by": "tool",
-   "writers": ["desk"],
+   "made_by": "legacy",
+   "writers": [],
    "readers": [],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#写什么"
+   "doc": "templates/REVIEW.md"
   },
   {
    "id": "review-revision",
@@ -673,15 +673,15 @@
    "format": "json",
    "stages": ["8"],
    "purpose": "把一条反馈、要复审的时间范围和两版成片绑在一起",
-   "made_by": "tool",
-   "writers": ["desk"],
-   "readers": ["desk", "status"],
+   "made_by": "legacy",
+   "writers": [],
+   "readers": ["status"],
    "required": null,
    "version_key": "version",
    "schema": "tools/schemas/review-revision.schema.json",
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#复审修改"
+   "doc": "tools/review_feedback.py"
   },
   {
    "id": "review-revision-media",
@@ -690,15 +690,15 @@
    "format": "video",
    "stages": ["8"],
    "purpose": "复审固定下来的完整视频文件，同一副本可供多条意见使用",
-   "made_by": "tool",
-   "writers": ["desk"],
-   "readers": ["desk", "status"],
+   "made_by": "legacy",
+   "writers": [],
+   "readers": ["status"],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#复审修改"
+   "doc": "tools/review_feedback.py"
   },
   {
    "id": "desk-state",
@@ -708,15 +708,15 @@
    "format": "json",
    "stages": ["1", "3", "8"],
    "purpose": "审阅台的状态：哪些提交交过了、有没有 agent 在等、服务在哪",
-   "made_by": "tool",
-   "writers": ["desk", "gate"],
-   "readers": ["desk", "gate", "status", "studio"],
+   "made_by": "legacy",
+   "writers": [],
+   "readers": ["gate", "status"],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#写什么"
+   "doc": "templates/REVIEW.md"
   },
   {
    "id": "research-files",
@@ -733,7 +733,7 @@
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#一个项目到哪了"
+   "doc": "tools/status.py"
   },
   {
    "id": "scout-log",
@@ -937,7 +937,7 @@
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#素材台账"
+   "doc": "tools/assets/assets.py"
   },
   {
    "id": "ledger",
@@ -954,7 +954,7 @@
    "schema": "tools/assets/asset.schema.json",
    "stale": {"from": ["assets-files"], "by": "sha256", "recorded_in": "assets/ledger.json"},
    "clean": "stays",
-   "doc": "tools/desk/README.md#素材台账"
+   "doc": "tools/assets/assets.py"
   },
   {
    "id": "spend",
@@ -1186,15 +1186,15 @@
    "format": "lock",
    "stages": ["any"],
    "purpose": "几处同时记已交给 agent 的提交时的文件锁；内容没有意义",
-   "made_by": "tool",
-   "writers": ["desk", "gate"],
+   "made_by": "legacy",
+   "writers": [],
    "readers": ["clean"],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/feedback.py"
+   "doc": "tools/review_feedback.py"
   },
   {
    "id": "mix-lock",
@@ -1454,7 +1454,7 @@
    "purpose": "节拍表：拍、小节和重音的时间；画面和旁白可以卡它",
    "made_by": "tool",
    "writers": ["music", "beats", "bgm"],
-   "readers": ["rhythm", "desk", "qa", "tts", "edit", "cues", "sfx", "page", "timeline"],
+   "readers": ["rhythm", "qa", "tts", "edit", "cues", "sfx", "page", "timeline"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -1472,7 +1472,7 @@
    "purpose": "配乐的钢琴卷帘和能量曲线",
    "made_by": "tool",
    "writers": ["music"],
-   "readers": ["desk"],
+   "readers": [],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -1491,7 +1491,7 @@
    "purpose": "audio/ 里直接放的配乐、音效轨和别的声音",
    "made_by": "tool",
    "writers": ["music", "bgm", "sfx"],
-   "readers": ["mix", "qa", "page", "desk"],
+   "readers": ["mix", "qa", "page"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -1511,7 +1511,7 @@
    "purpose": "混好的整片音轨",
    "made_by": "tool",
    "writers": ["mix"],
-   "readers": ["mux", "qa", "desk"],
+   "readers": ["mux", "qa"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -1633,7 +1633,7 @@
    "purpose": "渲出来的一支视频：draft、animatic、分段、补丁",
    "made_by": "tool",
    "writers": ["render", "patch", "mux", "versions"],
-   "readers": ["check", "mux", "deliver", "patch", "sheet", "proxy", "thumbs", "storyboard", "desk", "looks", "versions", "gif"],
+   "readers": ["check", "mux", "deliver", "patch", "sheet", "proxy", "thumbs", "storyboard", "looks", "versions", "gif"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -1868,7 +1868,7 @@
    "schema": null,
    "stale": {"from": ["render", "film-final"], "by": "size_mtime", "recorded_in": "out/check/*.check.json"},
    "clean": "stays",
-   "doc": "tools/desk/README.md#检查记录"
+   "doc": "playbook/02-verification.md"
   },
   {
    "id": "storyboard-sheets",
@@ -1879,7 +1879,7 @@
    "purpose": "分镜表、关键帧和给关卡 ② 用的 review.json",
    "made_by": "tool",
    "writers": ["storyboard"],
-   "readers": ["gate", "review", "desk"],
+   "readers": ["gate", "review"],
    "required": null,
    "version_key": null,
    "schema": null,
@@ -1953,7 +1953,7 @@
    "schema": null,
    "stale": {"from": ["render", "film-final"], "by": "size_mtime", "recorded_in": "out/proxy/*.mp4.json"},
    "clean": "rebuilt",
-   "doc": "tools/desk/README.md#拖动用的代理和缩略图"
+   "doc": "tools/proxy.py"
   },
   {
    "id": "peaks",
@@ -1989,7 +1989,7 @@
    "schema": null,
    "stale": null,
    "clean": "rebuilt",
-   "doc": "tools/desk/README.md#拖动用的代理和缩略图"
+   "doc": "tools/proxy.py"
   },
   {
    "id": "thumbs",
@@ -2006,7 +2006,7 @@
    "schema": null,
    "stale": {"from": ["render", "film-final"], "by": "size_mtime", "recorded_in": "out/proxy/*.thumbs/thumbs.json"},
    "clean": "rebuilt",
-   "doc": "tools/desk/README.md#拖动用的代理和缩略图"
+   "doc": "tools/proxy.py"
   },
   {
    "id": "versions-record",
@@ -2023,7 +2023,7 @@
    "schema": "tools/schemas/versions.schema.json",
    "stale": {"from": ["render", "film-final"], "by": "size_mtime", "recorded_in": "out/versions/versions.json"},
    "clean": "stays",
-   "doc": "tools/desk/README.md#版本"
+   "doc": "tools/versions.py"
   },
   {
    "id": "versions-kept",
@@ -2040,7 +2040,7 @@
    "schema": null,
    "stale": null,
    "clean": "versions",
-   "doc": "tools/desk/README.md#版本"
+   "doc": "tools/versions.py"
   },
   {
    "id": "cues",
@@ -2268,7 +2268,7 @@
    "schema": "tools/schemas/activity.schema.json",
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/README.md#活动记录",
+   "doc": "tools/activity.py",
    "note": "A client reads this file, not writers: \"*\" there means every bin/vh command that works on a project (new, once the project is made), all but the read-only ones (bin/vh's list before act_start: setup, install-skill, sync-agents, types, effort, recipes, doctor, commands, status, activity, know, artifacts, projects). Each appends a start line and an end line; a command may add notes between them."
   },
   {
@@ -2278,15 +2278,15 @@
    "format": "jsonl, json",
    "stages": ["any"],
    "purpose": "控制台右栏和 agent 的对话：一个对话一份只追加的事件记录（<id>.jsonl）和它的头（<id>.json：哪家 agent、它自己的会话号、带没带个人设置）",
-   "made_by": "tool",
-   "writers": ["desk"],
-   "readers": ["desk"],
+   "made_by": "legacy",
+   "writers": [],
+   "readers": ["status"],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/agents.py",
+   "doc": "tools/standing.py",
    "note": "What the person typed, every update the agent sent (paths made relative to the project, long output clipped, the person's skills only counted), each request to approve and its answer, each turn. A page reads it back over Server-Sent Events; a desk restarted reads it back from here."
   },
   {
@@ -2296,15 +2296,15 @@
    "format": "lock",
    "stages": ["any"],
    "purpose": "控制台里的 agent 正在这个项目上做一轮时拿着的锁：谁、哪个对话、从什么时候",
-   "made_by": "tool",
-   "writers": ["desk"],
-   "readers": ["desk"],
+   "made_by": "legacy",
+   "writers": [],
+   "readers": [],
    "required": null,
    "version_key": null,
    "schema": null,
    "stale": null,
    "clean": "stays",
-   "doc": "tools/desk/agentlock.py",
+   "doc": "tools/standing.py",
    "note": "Made with O_EXCL, gone when the turn ends; one whose process is gone is stale and taken over. It shares no file with the other locks of bin/vh."
   }
  ]

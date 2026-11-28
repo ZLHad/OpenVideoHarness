@@ -4,13 +4,7 @@ usage: python3 tools/changes.py show [--titles]     what changed since the last 
                                                     changes/ and the entries still under CHANGELOG.md's ## Unreleased
        python3 tools/changes.py show vX.Y.Z         that release's section of CHANGELOG.md (for gh release --notes-file)
        python3 tools/changes.py check               each note's name and shape (tools/ci.sh runs it)
-       python3 tools/changes.py release vX.Y.Z [--date YYYY-MM-DD] [--dry-run]   (first it makes Studio's launcher icon
-                                                    in a temp folder, as bin/vh studio --install-icon does on a user's
-                                                    machine, and refuses while it cannot)
-                                                    CHANGELOG.md gets "## vX.Y.Z — <date>" with every note and every
-                                                    Unreleased entry, newest first; the notes are deleted;
-                                                    CITATION.cff takes the version and the date. Only notes as they
-                                                    are in a commit: one not committed, or changed since, stops it
+       python3 tools/changes.py release vX.Y.Z [--date YYYY-MM-DD] [--dry-run]
 
 A note is changes/<name>.md, <name> in lower-case letters, digits and hyphens. It holds one entry, written as a
 CHANGELOG entry is: the first line the bold title (**…**), then its lines (- Why: …). changes/README.md tells someone
@@ -25,7 +19,7 @@ Newest first: by the commit that added a note (on main: the PR's squash), or the
 Exit: 0 done · 1 a note is malformed; release found nothing to release, or the version is there already; show found
 no such release · 2 usage.
 """
-import argparse, datetime, json, os, re, signal, subprocess, sys
+import argparse, datetime, os, re, signal, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -175,35 +169,6 @@ def cmd_check():
     return 0
 
 
-def launcher_check():
-    """Studio's launcher goes out with every release: it is not a file of its own but what bin/vh studio --install-icon
-    makes on the user's machine (install.sh puts it in). So a release makes it here first, into a temp folder, as that
-    machine would: the Linux launcher everywhere, and on a Mac the launcher and OVH Studio, Studio's own window (Electron
-    from the committed lockfile, downloaded into the real cache once). → [] or what is wrong. A tree without
-    tools/desk/studio.py (a test's copy) has nothing to make."""
-    studio = ROOT / "tools" / "desk" / "studio.py"
-    if not studio.is_file():
-        return []
-    problems = []
-    inst = ROOT / "install.sh"
-    if inst.is_file() and "studio --install-icon" not in inst.read_text(encoding="utf-8"):
-        problems.append("install.sh does not offer the icon (bin/vh studio --install-icon)")
-    import tempfile
-    cache = os.environ.get("OVH_STUDIO_SHELL_CACHE") or os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "ovh", "studio-shell")
-    with tempfile.TemporaryDirectory(prefix="ovh-release-icon-") as t:
-        # Electron's download goes to the real cache (once, then offline); everything made goes into the temp folder
-        env = dict(os.environ, HOME=t, XDG_DATA_HOME=os.path.join(t, "share"), OVH_STUDIO_SHELL_CACHE=cache)
-        env.pop("OVH_STUDIO_NO_DOWNLOAD", None)
-        runs = [("linux", ["--no-shell"])] + ([("macos", ["--no-shell"]), ("macos", [])] if sys.platform == "darwin" else [])
-        for plat, extra in runs:
-            r = subprocess.run([sys.executable, str(studio), "--install-icon", "--dir", os.path.join(t, plat + "".join(extra)), "--as", plat, "--json"] + extra,
-                               env=env, capture_output=True, text=True, timeout=1800)
-            kind = (json.loads(r.stdout or "{}") if r.returncode == 0 else {}).get("kind")
-            if r.returncode or (not extra and kind != "shell"):
-                problems.append(f"bin/vh studio --install-icon {' '.join(extra)} ({plat}): {(r.stderr or r.stdout).strip()[-200:]}")
-    return problems
-
-
 def cmd_release(version, date, dry):
     if not re.match(r"^v\d+\.\d+\.\d+$", version):
         print(f"changes: {version} is not a version (vX.Y.Z)", file=sys.stderr)
@@ -230,10 +195,6 @@ def cmd_release(version, date, dry):
     items = pending()
     if not items:
         print("changes: nothing to release: no note in changes/ and nothing under ## Unreleased", file=sys.stderr)
-        return 1
-    icon = launcher_check()
-    if icon:
-        print("changes: not released, Studio's launcher icon cannot be made as a user's machine makes it:\n  " + "\n  ".join(icon), file=sys.stderr)
         return 1
     notes, old = [i for i in items if i[0] != "CHANGELOG.md"], [i for i in items if i[0] == "CHANGELOG.md"]
     section = f"## {version} — {date}\n\n" + "\n\n".join(text for _, text in items) + "\n"

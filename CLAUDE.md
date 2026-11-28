@@ -6,13 +6,11 @@
 
 接手已有影片或换会话时，先运行 `bin/vh status <项目>`，按 `next:` 的归属和 `read:` 恢复现场。读项目的 `BRIEF.md`、`REVIEW.md`、`DECISIONS.md`，沿用已经定下的要求。`next: person` 表示等审阅，提交后按 `status` 给出的轮次取反馈。影片在仓库外时，用工作台里的 `bin/vh` 加影片的绝对路径。
 
-用户说"打开 Studio"时运行 `bin/vh studio`，需要时带上项目。
-
 ## 接到"做视频"的请求时
 
 0. **定档位、停在哪和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），在哪几处停下来给人看，人要亲自拍板哪些事，规则见下面三节。`quick` 照 `playbook/quick.md` 做（走路由表第一行"不用引擎"时照 `engines/page/README.md`）。
 1. **判断类型**：用路由表找到类型文档，整篇读（文末的"来源"是出处列表，核对事实时再查）；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节；走路由表第一行"不用引擎"时，类型文档按需查）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题（`quick` 没有关卡，需求有歧义时最多问 1 个）。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
-2. **读流程和自查**：开工前只读 `playbook/01-pipeline.md` 的"总表"和"规格"（`bin/vh know --show "playbook/01-pipeline.md#..规格"` 打印这两节）；有配音或音乐时再读 `playbook/04-audio.md`。建好项目，先跑 `bin/vh effort <档位>`：它只打印这一档在每一项上做多少（"努力程度"表里的一列）和底线。别的现在不用读：每到一站先跑 `bin/vh status <项目>`，读 `next:` 下面 `read:` 列的那几节（`bin/vh know --show "<文件>#<节>"` 只打印一节），以它为准。比如：第一道关卡读 01 的"每处交什么"和"审阅页"（用审阅台再读"审阅台"），写场景前读 `playbook/02-verification.md` 的"七层检查""预算"和"各引擎的取帧命令"，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。
+2. **读流程和自查**：开工前只读 `playbook/01-pipeline.md` 的"总表"和"规格"（`bin/vh know --show "playbook/01-pipeline.md#..规格"` 打印这两节）；有配音或音乐时再读 `playbook/04-audio.md`。建好项目，先跑 `bin/vh effort <档位>`：它只打印这一档在每一项上做多少（"努力程度"表里的一列）和底线。别的现在不用读：每到一站先跑 `bin/vh status <项目>`，读 `next:` 下面 `read:` 列的那几节（`bin/vh know --show "<文件>#<节>"` 只打印一节），以它为准。比如：第一道关卡读 01 的"每处交什么"和"审阅页"，写场景前读 `playbook/02-verification.md` 的"七层检查""预算"和"各引擎的取帧命令"，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。
 3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令：`bin/vh commands --stage <阶段> --brief`（阶段即 01 总表的 0–9）。用户不用中文时加 `--lang en`（审阅页的语言），旁白稿和字幕也用用户的语言；字幕一行多长、读多快见 `video-types/02-knowledge-short.md` 第 5 步（英文一行 ≤ 42 字符、≤ 20 字符/秒）和 `playbook/03-motion-design.md` 第 2 节，命令见 `playbook/04-audio.md` 的"配音"。
 4. **先想立意，再看参考**：先读材料，把只属于它的数字、原话、物件记进 NOTES.md 的素材清单，再自己想几个方向（方法见 `playbook/12-ideation.md` 第 3 节，按需用）。直接、准确、有情绪地组织材料本身就是立意；装置让内容变难懂时，退回直接讲。先自己想，再看 Prompt 增量块、`styles/`、`recipes/` 和案例，点子不容易往看过的东西上靠。要人选方向时，收敛成几张有实际差异的立意卡（够人选就行，通常两三张）；人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考在类型文档的"可参考的案例"和"社区 skill 参考"两节；`showcase/` 是本仓库自己做的片子，各带 BRIEF、STORYBOARD、NOTES 和源码；`references/repos/` 是只读的源码，文档指向的目录没拉下来时，`bash references/fetch.sh <目录>` 只拉那一个。分镜时拿不准的镜头和全片节奏可以查 `recipes/`（`bin/vh recipes list`）；用了配方就把 id 写进 STORYBOARD，写代码前读全文。
 5. **停下来给人审**：在哪几处停，见下面的"停在哪"；每处交什么、怎么出页、怎么记，见 `playbook/01-pipeline.md` 的"每处交什么"。三处大致是：
@@ -20,7 +18,7 @@
    - ② **分镜**（计划里有它时）：按大纲的段落拆页，每镜一张关键帧，没把握的镜头标出来，逐镜默认通过；长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表、reviewer 的分数，再写你自己最不满意的地方（有几处写几处，最要紧的在前）；没有单独停分镜的片子，分镜也放在这一页，逐镜默认通过。
 
-   每次停最多要人定 3 件事。`bin/vh gate <项目> <n> --init` 写 gate JSON 骨架，填好后运行 `bin/vh gate <项目> <n>` 出页。`studio` 默认在审阅台停；Studio 开着时，`standard` 的停也开在 Studio 里（`bin/vh gate` 自己看，不会替你起 Studio）。后台唤醒和换会话的用法见 `playbook/01-pipeline.md` 的"审阅台"。然后**停下来等人回复**（关卡 ① 的例外见"停在哪"）。收到回复，把原话逐字记进 `REVIEW.md`，接着做下一步。用户亲口说"不用审、直接出"时，原话和日期抄进 `REVIEW.md`；这样要求时没提档位按 `quick` 做，指定 `standard` 或 `studio` 时由独立 reviewer 代审（未要求跳过审阅时默认 `standard`，见下节）。
+   每次停最多要人定 3 件事。`bin/vh gate <项目> <n> --init` 写 gate JSON 骨架，填好后运行 `bin/vh gate <项目> <n>` 出页。把本地审阅页路径和命令打印的消息发给人。然后**停下来等人回复**（关卡 ① 的例外见"停在哪"）。收到回复，把原话逐字记进 `REVIEW.md`，接着做下一步。用户亲口说"不用审、直接出"时，原话和日期抄进 `REVIEW.md`；这样要求时没提档位按 `quick` 做，指定 `standard` 或 `studio` 时由独立 reviewer 代审（未要求跳过审阅时默认 `standard`，见下节）。
 
 ## 努力程度（effort）
 
@@ -115,7 +113,7 @@
 4. **检查实际结果。** 新做和改过的部分连同受影响的交界重点查，没动的抽查；按要查的问题取联系表（整体）、逐帧 strip（切点和动作）或 crop（脸和细节），对照 `TASTE_CHECKLIST.md`。整片 draft 还要过清单里的打分层：换一个全新上下文的严苛 reviewer，按 8 个维度（含立意）打分；做几轮、怎样算过线按档位（`playbook/01-pipeline.md` 的"努力程度"：`standard` 1 轮，修最重要的至多 3 处，不设分数线；`studio` 做工五项都 ≥ 7 才出片），轮数有上限。检查成本很低，不要省。
 5. **事实有纪律。** 论文元数据、数字、引文一律照抄原文；拿不准的写进 `NOTES.md`，不编进视频。发布文案（标题、简介、章节）也算，交付前同样逐条对过。
 6. **做片子时只改这支片子自己的文件夹。** 它在 `projects/` 下，或者在用户点名的目录里（`bin/vh new … --dir`）。`engines/` 是模板，`references/repos/` 是只读参考；需要时复制到自己的项目里再改。用户要你改的是仓库本身（`bin/vh`、`tools/`、文档）时，不归这一条管，按文末的"改本仓库本身"来。
-7. **不在文件里写 API key。** key 从环境变量读，或者用 Studio 设置页存进系统钥匙串的那一份（都经 `tools/keys.py`）；缺 key 时告诉用户需要哪个。
+7. **不在文件里写 API key。** key 从环境变量读，或者读取已存入系统钥匙串的密钥（都经 `tools/keys.py`）；缺 key 时告诉用户需要哪个。
 
 ## 规则冲突时
 
@@ -137,11 +135,11 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件；AGENTS.md 由 bin/vh sync-agents 生成，内容相同）
 ├── README.md / README.zh-CN.md  给人看的说明；CONTRIBUTING.md 是改本仓库时的规则；install.sh 一键安装
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                    命令行：doctor · setup · settings · install-skill · sync-agents · sound · commands · status · projects · cancel · history · activity · know · artifacts · studio · types · effort · new · footage · assets · scout · ref · web · review · gate · desk · concept · breakdown · cast · style · recipes · storyboard · rhythm · words · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · peaks · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
-├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
+├── bin/vh                    命令行：doctor · setup · settings · install-skill · sync-agents · sound · commands · status · projects · cancel · history · activity · know · artifacts · types · effort · new · footage · assets · scout · ref · web · review · gate · concept · breakdown · cast · style · recipes · storyboard · rhythm · words · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · peaks · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
+├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册；ci.sh 是仓库自检
 ├── skills/                   轻量 skill（`bin/vh install-skill` 装上的是指回这里的短桩，`git pull` 后不用重装）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用已装浏览器查网页事实、存参考页
 ├── video-types/              12 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
-├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页和审阅台 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
+├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS；用到时再复制：SCRIPT、CHARACTER、PACKAGING；TASTE_CHECKLIST 不复制，自查和评审都读这里的一份
 ├── styles/                   风格预设（参考，不是模板）：STYLE.md + tokens.json + 真渲的 5 s 样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方和全片骨架
